@@ -1,0 +1,584 @@
+@page
+@using Surveillance_MVP.Models.Lookups
+@model Surveillance_MVP.Pages.Settings.Diseases.CreateWizardModel
+
+@{
+    ViewData["Title"] = "Create Disease - Wizard";
+}
+
+<style>
+    .wizard-container {
+        max-width: 1200px;
+        margin: 0 auto;
+    }
+    .wizard-steps {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 2rem;
+        position: relative;
+    }
+    .wizard-steps::before {
+        content: '';
+        position: absolute;
+        top: 20px;
+        left: 0;
+        right: 0;
+        height: 2px;
+        background: #dee2e6;
+        z-index: 0;
+    }
+    .wizard-step {
+        flex: 1;
+        text-align: center;
+        position: relative;
+        z-index: 1;
+    }
+    .wizard-step-circle {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        background: #fff;
+        border: 2px solid #dee2e6;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        margin-bottom: 0.5rem;
+        font-weight: bold;
+        transition: all 0.3s;
+    }
+    .wizard-step.active .wizard-step-circle {
+        background: #667eea;
+        border-color: #667eea;
+        color: white;
+    }
+    .wizard-step.completed .wizard-step-circle {
+        background: #28a745;
+        border-color: #28a745;
+        color: white;
+    }
+    .wizard-step-label {
+        font-size: 0.875rem;
+        color: #6c757d;
+    }
+    .wizard-step.active .wizard-step-label {
+        color: #667eea;
+        font-weight: 600;
+    }
+    .wizard-content {
+        background: white;
+        border-radius: 12px;
+        padding: 2rem;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        min-height: 400px;
+    }
+    .step-content {
+        display: none;
+    }
+    .step-content.active {
+        display: block;
+    }
+    .wizard-navigation {
+        display: flex;
+        justify-content: space-between;
+        margin-top: 2rem;
+        padding-top: 1.5rem;
+        border-top: 1px solid #dee2e6;
+    }
+    .child-diseases-help {
+        background: #f8f9fa;
+        border-left: 4px solid #667eea;
+        padding: 1rem;
+        margin-bottom: 1rem;
+    }
+</style>
+
+<nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a asp-page="/Index">Home</a></li>
+        <li class="breadcrumb-item"><a asp-page="/Settings/Index">Settings</a></li>
+        <li class="breadcrumb-item"><a asp-page="./Index">Diseases</a></li>
+        <li class="breadcrumb-item active" aria-current="page">Create Disease (Wizard)</li>
+    </ol>
+</nav>
+
+<div class="wizard-container">
+    <h2 class="mb-4"><i class="bi bi-magic me-2"></i>Create New Disease - Wizard</h2>
+
+    @if (TempData["ErrorMessage"] != null)
+    {
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            <i class="bi bi-exclamation-triangle-fill me-2"></i>@TempData["ErrorMessage"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
+
+    <!-- Wizard Steps Header -->
+    <div class="wizard-steps">
+        <div class="wizard-step active" data-step="1">
+            <div class="wizard-step-circle">1</div>
+            <div class="wizard-step-label">Basic Info</div>
+        </div>
+        <div class="wizard-step" data-step="2">
+            <div class="wizard-step-circle">2</div>
+            <div class="wizard-step-label">Child Diseases</div>
+        </div>
+        <div class="wizard-step" data-step="3">
+            <div class="wizard-step-circle">3</div>
+            <div class="wizard-step-label">Symptoms</div>
+        </div>
+        <div class="wizard-step" data-step="4">
+            <div class="wizard-step-circle">4</div>
+            <div class="wizard-step-label">Custom Fields</div>
+        </div>
+        <div class="wizard-step" data-step="5">
+            <div class="wizard-step-circle">5</div>
+            <div class="wizard-step-label">Exposure</div>
+        </div>
+        <div class="wizard-step" data-step="6">
+            <div class="wizard-step-circle">6</div>
+            <div class="wizard-step-label">Review</div>
+        </div>
+    </div>
+
+    <form method="post" id="wizardForm">
+        @if (!ViewData.ModelState.IsValid)
+        {
+            <div class="alert alert-danger mb-4">
+                <h5 class="alert-heading"><i class="bi bi-exclamation-triangle me-2"></i>Please correct the following errors:</h5>
+                <div asp-validation-summary="All"></div>
+            </div>
+        }
+        
+        <div class="wizard-content">
+            <!-- Step 1: Basic Information -->
+            <div class="step-content active" id="step1">
+                <h4 class="mb-4"><i class="bi bi-info-circle me-2"></i>Basic Disease Information</h4>
+                
+                <div asp-validation-summary="ModelOnly" class="alert alert-danger"></div>
+
+                <div class="row">
+                    <div class="col-md-8">
+                        <div class="mb-3">
+                            <label asp-for="Disease.Name" class="form-label fw-bold">
+                                Disease Name <span class="text-danger">*</span>
+                            </label>
+                            <input asp-for="Disease.Name" class="form-control" required />
+                            <span asp-validation-for="Disease.Name" class="text-danger"></span>
+                            <small class="form-text text-muted">Full display name (e.g., "Salmonella Typhimurium")</small>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label asp-for="Disease.Code" class="form-label fw-bold">
+                                    Disease Code <span class="text-danger">*</span>
+                                </label>
+                                <input asp-for="Disease.Code" class="form-control" required />
+                                <span asp-validation-for="Disease.Code" class="text-danger"></span>
+                                <small class="form-text text-muted">Unique identifier (e.g., "SALM-TYPH")</small>
+                            </div>
+
+                            <div class="col-md-6 mb-3">
+                                <label asp-for="Disease.ExportCode" class="form-label fw-bold">Export Code</label>
+                                <input asp-for="Disease.ExportCode" class="form-control" />
+                                <small class="form-text text-muted">For external systems</small>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label asp-for="Disease.DiseaseCategoryId" class="form-label fw-bold">Category</label>
+                            <select asp-for="Disease.DiseaseCategoryId" class="form-select" asp-items="Model.Categories">
+                                <option value="">-- Select Category --</option>
+                            </select>
+                        </div>
+
+                        <div class="mb-3">
+                            <label asp-for="Disease.ParentDiseaseId" class="form-label fw-bold">Parent Disease</label>
+                            <select asp-for="Disease.ParentDiseaseId" class="form-select" asp-items="Model.ParentDiseases">
+                                <option value="">-- No Parent (Top Level) --</option>
+                            </select>
+                            <small class="form-text text-muted">For creating disease hierarchies</small>
+                        </div>
+
+                        <div class="mb-3">
+                            <label asp-for="Disease.Description" class="form-label fw-bold">Description</label>
+                            <textarea asp-for="Disease.Description" class="form-control" rows="3"></textarea>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label asp-for="Disease.DisplayOrder" class="form-label">Display Order</label>
+                                <input asp-for="Disease.DisplayOrder" class="form-control" type="number" />
+                                <small class="form-text text-muted">Lower numbers appear first</small>
+                            </div>
+
+                            <div class="col-md-6 mb-3">
+                                <div class="form-check form-switch mt-4">
+                                    <input asp-for="Disease.IsActive" class="form-check-input" type="checkbox" checked />
+                                    <label asp-for="Disease.IsActive" class="form-check-label">Active</label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-md-4">
+                        <div class="alert alert-info">
+                            <h6><i class="bi bi-lightbulb me-2"></i>Quick Tips</h6>
+                            <ul class="small mb-0">
+                                <li>Use clear, descriptive names</li>
+                                <li>Disease codes must be unique</li>
+                                <li>Set a parent to create hierarchies</li>
+                                <li>Mark notifiable diseases for compliance</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Step 2: Child Diseases -->
+            <div class="step-content" id="step2">
+                <h4 class="mb-4"><i class="bi bi-diagram-3 me-2"></i>Add Child Diseases (Optional)</h4>
+
+                <div class="child-diseases-help">
+                    <h6><i class="bi bi-info-circle me-2"></i>Bulk Add Child Diseases</h6>
+                    <p class="mb-2">You can add multiple child diseases at once. Enter one disease per line in the format:</p>
+                    <code>Disease Name|Code|ExportCode</code>
+                    <p class="mt-2 mb-0"><strong>Example:</strong></p>
+                    <code class="d-block mt-1">
+                        Salmonella Typhimurium DT104|SALM-TYPH-DT104|ST104<br/>
+                        Salmonella Typhimurium DT204|SALM-TYPH-DT204|ST204<br/>
+                        Salmonella Typhimurium Monophasic|SALM-TYPH-MONO|STMONO
+                    </code>
+                    <p class="mt-2 mb-0"><small>If you only provide the name, a code will be auto-generated.</small></p>
+                </div>
+
+                <div class="form-check form-switch mb-3">
+                    <input asp-for="CreateChildren" class="form-check-input" type="checkbox" id="createChildrenToggle" />
+                    <label class="form-check-label fw-bold" for="createChildrenToggle">
+                        Create child diseases
+                    </label>
+                </div>
+
+                <div id="childDiseasesSection" style="display: none;">
+                    <div class="mb-3">
+                        <label asp-for="ChildDiseaseList" class="form-label fw-bold">
+                            Child Diseases List
+                        </label>
+                        <textarea asp-for="ChildDiseaseList" 
+                                  class="form-control font-monospace" 
+                                  rows="12" 
+                                  placeholder="Enter one disease per line...&#10;Example:&#10;Salmonella Typhimurium DT104|SALM-TYPH-DT104|ST104&#10;Salmonella Typhimurium DT204&#10;Salmonella Typhimurium Monophasic"></textarea>
+                        <small class="form-text text-muted">
+                            <i class="bi bi-info-circle"></i> 
+                            Format: <code>Name|Code|ExportCode</code> or just <code>Name</code>
+                        </small>
+                    </div>
+
+                    <div class="alert alert-warning">
+                        <i class="bi bi-exclamation-triangle me-2"></i>
+                        <strong>Note:</strong> Child diseases will inherit:
+                        <ul class="mb-0">
+                            <li>Category</li>
+                            <li>Symptoms (from Step 3)</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div id="noChildrenMessage" class="alert alert-secondary">
+                    <i class="bi bi-info-circle me-2"></i>
+                    No child diseases will be created. You can add them later if needed.
+                </div>
+            </div>
+
+            <!-- Step 3: Symptoms -->
+            <div class="step-content" id="step3">
+                <h4 class="mb-4"><i class="bi bi-heart-pulse me-2"></i>Associate Symptoms</h4>
+
+                @if (!Model.AllSymptoms.Any())
+                {
+                    <div class="alert alert-warning">
+                        <i class="bi bi-exclamation-triangle me-2"></i>
+                        No symptoms configured. <a asp-page="/Settings/Lookups/Symptoms">Add symptoms</a> first.
+                    </div>
+                }
+                else
+                {
+                    <p class="text-muted">Select symptoms commonly associated with this disease. These will be suggested when recording case symptoms.</p>
+
+                    <div class="mb-3">
+                        <button type="button" class="btn btn-sm btn-outline-primary" id="selectCommonSymptoms">
+                            <i class="bi bi-check-square me-1"></i>Select Common Symptoms
+                        </button>
+                        <button type="button" class="btn btn-sm btn-outline-secondary" id="deselectAll">
+                            <i class="bi bi-square me-1"></i>Deselect All
+                        </button>
+                    </div>
+
+                    <div class="table-responsive">
+                        <table class="table table-hover table-sm">
+                            <thead class="table-light">
+                                <tr>
+                                    <th style="width: 50px;"><input type="checkbox" class="form-check-input" id="selectAllSymptomsWizard" /></th>
+                                    <th>Symptom</th>
+                                    <th style="width: 120px;">Common</th>
+                                    <th style="width: 100px;">Order</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var symptom in Model.AllSymptoms)
+                                {
+                                    <tr>
+                                        <td>
+                                            <input type="checkbox" 
+                                                   class="form-check-input symptom-checkbox-wizard" 
+                                                   name="symptom_@symptom.Id" 
+                                                   value="true"
+                                                   data-symptom-id="@symptom.Id" />
+                                        </td>
+                                        <td>
+                                            <strong>@symptom.Name</strong>
+                                            @if (!string.IsNullOrEmpty(symptom.Description))
+                                            {
+                                                <br/><small class="text-muted">@symptom.Description</small>
+                                            }
+                                        </td>
+                                        <td>
+                                            <select class="form-select form-select-sm symptom-detail-wizard" 
+                                                    name="symptom_common_@symptom.Id"
+                                                    disabled>
+                                                <option value="true" selected>Yes</option>
+                                                <option value="false">No</option>
+                                            </select>
+                                        </td>
+                                        <td>
+                                            <input type="number" 
+                                                   class="form-control form-control-sm symptom-detail-wizard" 
+                                                   name="symptom_order_@symptom.Id"
+                                                   value="@symptom.SortOrder"
+                                                   min="0"
+                                                   disabled />
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+            </div>
+
+            <!-- Step 4: Custom Fields -->
+            <div class="step-content" id="step4">
+                <h4 class="mb-4"><i class="bi bi-ui-checks me-2"></i>Configure Custom Fields</h4>
+
+                @if (!Model.AvailableCustomFields.Any())
+                {
+                    <div class="alert alert-info">
+                        <i class="bi bi-info-circle me-2"></i>
+                        No custom fields configured. You can skip this step.
+                    </div>
+                }
+                else
+                {
+                    <p class="text-muted">Select which custom fields should appear for cases of this disease.</p>
+
+                    @foreach (var category in Model.AvailableCustomFields.GroupBy(f => f.Category))
+                    {
+                        <h6 class="border-bottom pb-2 mb-3">@category.Key</h6>
+                        
+                        @foreach (var field in category.OrderBy(f => f.DisplayOrder))
+                        {
+                            var fieldKey = $"field_{field.Id}";
+                            var inheritKey = $"inherit_{field.Id}";
+
+                            <div class="card mb-2">
+                                <div class="card-body py-2">
+                                    <div class="row align-items-center">
+                                        <div class="col-md-6">
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="checkbox" 
+                                                       name="@fieldKey" value="true" id="@fieldKey" />
+                                                <label class="form-check-label" for="@fieldKey">
+                                                    <strong>@field.Label</strong>
+                                                    @if (field.IsRequired)
+                                                    {
+                                                        <span class="badge bg-danger ms-1">Required</span>
+                                                    }
+                                                </label>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <span class="badge bg-secondary">@field.FieldType</span>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <div class="form-check form-switch">
+                                                <input class="form-check-input" type="checkbox" 
+                                                       name="@inheritKey" value="true" id="@inheritKey" />
+                                                <label class="form-check-label small" for="@inheritKey">
+                                                    Inherit to children
+                                                </label>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        }
+                    }
+                }
+            </div>
+
+            <!-- Step 5: Exposure Tracking -->
+            <div class="step-content" id="step5">
+                <h4 class="mb-4"><i class="bi bi-geo-alt me-2"></i>Exposure Tracking Configuration</h4>
+
+                <p class="text-muted">Configure how exposure data should be collected for this disease.</p>
+
+                <div class="mb-4">
+                    <label asp-for="Disease.ExposureTrackingMode" class="form-label fw-bold">Exposure Tracking Mode</label>
+                    <select asp-for="Disease.ExposureTrackingMode" class="form-select" asp-items="Html.GetEnumSelectList<Surveillance_MVP.Models.ExposureTrackingMode>()">
+                    </select>
+                    <div class="alert alert-secondary mt-2 small">
+                        <strong>Mode Descriptions:</strong>
+                        <ul class="mb-0">
+                            <li><strong>Optional:</strong> No prompts; exposure data collection is optional</li>
+                            <li><strong>Locally Acquired:</strong> Soft reminder for local exposure data</li>
+                            <li><strong>Local - Specific Region:</strong> Hard validation; requires location</li>
+                            <li><strong>Overseas Acquired:</strong> Emphasizes travel history; requires country</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="mb-3 form-check form-switch">
+                            <input asp-for="Disease.DefaultToResidentialAddress" class="form-check-input" type="checkbox" />
+                            <label asp-for="Disease.DefaultToResidentialAddress" class="form-check-label"></label>
+                            <br /><small class="text-muted">Pre-populate with patient's home address</small>
+                        </div>
+
+                        <div class="mb-3 form-check form-switch">
+                            <input asp-for="Disease.AlwaysPromptForLocation" class="form-check-input" type="checkbox" />
+                            <label asp-for="Disease.AlwaysPromptForLocation" class="form-check-label"></label>
+                            <br /><small class="text-muted">Show exposure section even when optional</small>
+                        </div>
+
+                        <div class="mb-3 form-check form-switch">
+                            <input asp-for="Disease.SyncWithPatientAddressUpdates" class="form-check-input" type="checkbox" />
+                            <label asp-for="Disease.SyncWithPatientAddressUpdates" class="form-check-label"></label>
+                            <br /><small class="text-muted">Update exposure when address changes</small>
+                        </div>
+                    </div>
+
+                    <div class="col-md-6">
+                        <div class="mb-3 form-check form-switch">
+                            <input asp-for="Disease.RequireGeographicCoordinates" class="form-check-input" type="checkbox" />
+                            <label asp-for="Disease.RequireGeographicCoordinates" class="form-check-label"></label>
+                            <br /><small class="text-muted">Enforce geocoding for exposure locations</small>
+                        </div>
+
+                        <div class="mb-3 form-check form-switch">
+                            <input asp-for="Disease.AllowDomesticAcquisition" class="form-check-input" type="checkbox" checked />
+                            <label asp-for="Disease.AllowDomesticAcquisition" class="form-check-label"></label>
+                            <br /><small class="text-muted">Allow domestic acquisition (uncheck for travel-only)</small>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label asp-for="Disease.ExposureDataGracePeriodDays" class="form-label">Grace Period (Days)</label>
+                            <input asp-for="Disease.ExposureDataGracePeriodDays" class="form-control" type="number" min="0" max="365" />
+                            <small class="form-text text-muted">Days to complete exposure data</small>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <label asp-for="Disease.ExposureGuidanceText" class="form-label">Guidance Text</label>
+                    <textarea asp-for="Disease.ExposureGuidanceText" class="form-control" rows="3" maxlength="1000"></textarea>
+                    <small class="form-text text-muted">Instructions shown when entering exposure data</small>
+                </div>
+            </div>
+
+            <!-- Step 6: Review -->
+            <div class="step-content" id="step6">
+                <h4 class="mb-4"><i class="bi bi-check-circle me-2"></i>Review and Create</h4>
+
+                <div class="alert alert-success">
+                    <i class="bi bi-info-circle me-2"></i>
+                    Review the information below and click <strong>Create Disease</strong> to finish.
+                </div>
+
+                <div class="card mb-3">
+                    <div class="card-header bg-light">
+                        <strong>Basic Information</strong>
+                    </div>
+                    <div class="card-body">
+                        <dl class="row mb-0">
+                            <dt class="col-sm-3">Name:</dt>
+                            <dd class="col-sm-9" id="review-name">-</dd>
+                            
+                            <dt class="col-sm-3">Code:</dt>
+                            <dd class="col-sm-9" id="review-code">-</dd>
+                            
+                            <dt class="col-sm-3">Category:</dt>
+                            <dd class="col-sm-9" id="review-category">-</dd>
+                            
+                            <dt class="col-sm-3">Notifiable:</dt>
+                            <dd class="col-sm-9" id="review-notifiable">-</dd>
+                        </dl>
+                    </div>
+                </div>
+
+                <div class="card mb-3" id="review-children-card">
+                    <div class="card-header bg-light">
+                        <strong>Child Diseases</strong>
+                    </div>
+                    <div class="card-body">
+                        <div id="review-children-list">-</div>
+                    </div>
+                </div>
+
+                <div class="card mb-3" id="review-symptoms-card">
+                    <div class="card-header bg-light">
+                        <strong>Symptoms</strong>
+                    </div>
+                    <div class="card-body">
+                        <div id="review-symptoms-list">-</div>
+                    </div>
+                </div>
+
+                <div class="card" id="review-fields-card">
+                    <div class="card-header bg-light">
+                        <strong>Custom Fields</strong>
+                    </div>
+                    <div class="card-body">
+                        <div id="review-fields-list">-</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Navigation Buttons -->
+        <div class="wizard-navigation">
+            <button type="button" class="btn btn-secondary" id="prevBtn" style="display: none;">
+                <i class="bi bi-arrow-left me-1"></i>Previous
+            </button>
+            <div>
+                <a asp-page="./Index" class="btn btn-outline-secondary me-2">
+                    <i class="bi bi-x-circle me-1"></i>Cancel
+                </a>
+                <button type="button" class="btn btn-primary" id="nextBtn">
+                    Next<i class="bi bi-arrow-right ms-1"></i>
+                </button>
+                <button type="submit" class="btn btn-success" id="submitBtn" style="display: none;">
+                    <i class="bi bi-check-circle me-1"></i>Create Disease
+                </button>
+            </div>
+        </div>
+    </form>
+</div>
+
+@section Scripts {
+    @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+    <script src="~/js/disease-wizard.js"></script>
+}

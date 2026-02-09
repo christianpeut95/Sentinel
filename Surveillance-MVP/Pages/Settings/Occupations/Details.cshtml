@@ -1,0 +1,94 @@
+@page
+@model Surveillance_MVP.Pages.Settings.Occupations.DetailsModel
+
+@{
+    ViewData["Title"] = "Occupation Details";
+    Layout = "~/Pages/Shared/_Layout.cshtml";
+}
+
+<nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a asp-page="/Settings/Index">Settings</a></li>
+        <li class="breadcrumb-item"><a asp-page="/Settings/Occupations/Index">Occupations</a></li>
+        <li class="breadcrumb-item active" aria-current="page">Details</li>
+    </ol>
+</nav>
+
+<h1>Occupation Details</h1>
+
+<div>
+    <h4>ANZSCO Occupation</h4>
+    <hr />
+    <dl class="row">
+        <dt class="col-sm-3">
+            @Html.DisplayNameFor(model => model.Occupation.Code)
+        </dt>
+        <dd class="col-sm-9">
+            @Html.DisplayFor(model => model.Occupation.Code)
+        </dd>
+        <dt class="col-sm-3">
+            @Html.DisplayNameFor(model => model.Occupation.Name)
+        </dt>
+        <dd class="col-sm-9">
+            @Html.DisplayFor(model => model.Occupation.Name)
+        </dd>
+        <dt class="col-sm-3">
+            @Html.DisplayNameFor(model => model.Occupation.MajorGroupCode)
+        </dt>
+        <dd class="col-sm-9">
+            @Html.DisplayFor(model => model.Occupation.MajorGroupCode)
+        </dd>
+        <dt class="col-sm-3">
+            @Html.DisplayNameFor(model => model.Occupation.MajorGroupName)
+        </dt>
+        <dd class="col-sm-9">
+            @Html.DisplayFor(model => model.Occupation.MajorGroupName)
+        </dd>
+        <dt class="col-sm-3">
+            @Html.DisplayNameFor(model => model.Occupation.SubMajorGroupCode)
+        </dt>
+        <dd class="col-sm-9">
+            @Html.DisplayFor(model => model.Occupation.SubMajorGroupCode)
+        </dd>
+        <dt class="col-sm-3">
+            @Html.DisplayNameFor(model => model.Occupation.SubMajorGroupName)
+        </dt>
+        <dd class="col-sm-9">
+            @Html.DisplayFor(model => model.Occupation.SubMajorGroupName)
+        </dd>
+        <dt class="col-sm-3">
+            @Html.DisplayNameFor(model => model.Occupation.MinorGroupCode)
+        </dt>
+        <dd class="col-sm-9">
+            @Html.DisplayFor(model => model.Occupation.MinorGroupCode)
+        </dd>
+        <dt class="col-sm-3">
+            @Html.DisplayNameFor(model => model.Occupation.MinorGroupName)
+        </dt>
+        <dd class="col-sm-9">
+            @Html.DisplayFor(model => model.Occupation.MinorGroupName)
+        </dd>
+        <dt class="col-sm-3">
+            @Html.DisplayNameFor(model => model.Occupation.UnitGroupCode)
+        </dt>
+        <dd class="col-sm-9">
+            @Html.DisplayFor(model => model.Occupation.UnitGroupCode)
+        </dd>
+        <dt class="col-sm-3">
+            @Html.DisplayNameFor(model => model.Occupation.UnitGroupName)
+        </dt>
+        <dd class="col-sm-9">
+            @Html.DisplayFor(model => model.Occupation.UnitGroupName)
+        </dd>
+        <dt class="col-sm-3">
+            @Html.DisplayNameFor(model => model.Occupation.IsActive)
+        </dt>
+        <dd class="col-sm-9">
+            @Html.DisplayFor(model => model.Occupation.IsActive)
+        </dd>
+    </dl>
+</div>
+<div>
+    <a asp-page="./Edit" asp-route-id="@Model.Occupation.Id" class="btn btn-primary">Edit</a>
+    <a asp-page="./Index" class="btn btn-secondary">Back to List</a>
+</div>

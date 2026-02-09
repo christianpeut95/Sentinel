@@ -1,0 +1,335 @@
+@page
+@using Surveillance_MVP.Models
+@using Microsoft.EntityFrameworkCore
+@using Surveillance_MVP.Data
+@inject ApplicationDbContext Context
+@model Surveillance_MVP.Pages.Outbreaks.LinkCasesModel
+@{
+    ViewData["Title"] = "Link Cases/Contacts - " + Model.Outbreak.Name;
+}
+
+<nav aria-label="breadcrumb" class="mb-4">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a asp-page="/Index">Home</a></li>
+        <li class="breadcrumb-item"><a asp-page="Index">Outbreaks</a></li>
+        <li class="breadcrumb-item"><a asp-page="Details" asp-route-id="@Model.Outbreak.Id">@Model.Outbreak.Name</a></li>
+        <li class="breadcrumb-item active" aria-current="page">Link Cases/Contacts</li>
+    </ol>
+</nav>
+
+@if (!string.IsNullOrEmpty(Model.SuccessMessage))
+{
+    <div class="alert alert-success alert-dismissible fade show" role="alert">
+        <i class="bi bi-check-circle me-2"></i>@Model.SuccessMessage
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+
+@if (!string.IsNullOrEmpty(Model.ErrorMessage))
+{
+    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+        <i class="bi bi-exclamation-triangle me-2"></i>@Model.ErrorMessage
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+
+<div class="mb-4">
+    <h2><i class="bi bi-link-45deg me-2"></i>Link Cases/Contacts to Outbreak</h2>
+    <p class="text-muted">Search for cases and contacts to add to <strong>@Model.Outbreak.Name</strong></p>
+</div>
+
+<div class="row">
+    <!-- Search Criteria Panel -->
+    <div class="col-lg-4 mb-4">
+        <div class="card sticky-top" style="top: 20px;">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0"><i class="bi bi-search me-2"></i>Search Criteria</h5>
+            </div>
+            <div class="card-body">
+                <form method="post" asp-page-handler="Search" asp-route-id="@Model.Outbreak.Id">
+                    <div class="mb-3">
+                        <label asp-for="Criteria.CaseType" class="form-label">Record Type</label>
+                        <select asp-for="Criteria.CaseType" class="form-select">
+                            <option value="">All (Cases & Contacts)</option>
+                            <option value="@CaseType.Case">Cases Only</option>
+                            <option value="@CaseType.Contact">Contacts Only</option>
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="Criteria.DiseaseId" class="form-label">Disease</label>
+                        <select asp-for="Criteria.DiseaseId" class="form-select" id="diseaseSelect">
+                            <option value="">Any Disease</option>
+                            @foreach (var disease in await Context.Diseases.OrderBy(d => d.Name).ToListAsync())
+                            {
+                                <option value="@disease.Id">@disease.Name</option>
+                            }
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Date Range</label>
+                        <div class="row g-2">
+                            <div class="col-6">
+                                <input asp-for="Criteria.StartDate" type="date" class="form-control" placeholder="From">
+                            </div>
+                            <div class="col-6">
+                                <input asp-for="Criteria.EndDate" type="date" class="form-control" placeholder="To">
+                            </div>
+                        </div>
+                        <small class="text-muted">Searches onset or notification date</small>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="Criteria.PatientName" class="form-label">Patient Name</label>
+                        <input asp-for="Criteria.PatientName" class="form-control" placeholder="Search by name...">
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="Criteria.CaseId" class="form-label">Case ID</label>
+                        <input asp-for="Criteria.CaseId" class="form-control" placeholder="e.g., C-001">
+                    </div>
+
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-search me-1"></i>Search
+                        </button>
+                        <button type="button" class="btn btn-outline-secondary" onclick="clearSearch()">
+                            <i class="bi bi-x-circle me-1"></i>Clear
+                        </button>
+                    </div>
+                </form>
+
+                <hr class="my-3">
+
+                <h6 class="mb-2">Save This Search</h6>
+                <form method="post" asp-page-handler="SaveQuery" asp-route-id="@Model.Outbreak.Id">
+                    @Html.HiddenFor(m => m.Criteria.CaseType)
+                    @Html.HiddenFor(m => m.Criteria.DiseaseId)
+                    @Html.HiddenFor(m => m.Criteria.StartDate)
+                    @Html.HiddenFor(m => m.Criteria.EndDate)
+                    @Html.HiddenFor(m => m.Criteria.PatientName)
+                    @Html.HiddenFor(m => m.Criteria.CaseId)
+                    
+                    <div class="mb-2">
+                        <input asp-for="SavedQueryName" class="form-control form-control-sm" placeholder="Query name..." required>
+                    </div>
+                    <div class="form-check mb-2">
+                        <input asp-for="AutoLink" class="form-check-input" type="checkbox">
+                        <label asp-for="AutoLink" class="form-check-label small">
+                            Auto-link new matches
+                        </label>
+                    </div>
+                    <button type="submit" class="btn btn-sm btn-success w-100">
+                        <i class="bi bi-save me-1"></i>Save Query
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        @if (Model.SavedQueries.Any())
+        {
+            <div class="card mt-3">
+                <div class="card-header">
+                    <h6 class="mb-0"><i class="bi bi-bookmark me-2"></i>Saved Searches</h6>
+                </div>
+                <div class="list-group list-group-flush">
+                    @foreach (var query in Model.SavedQueries)
+                    {
+                        <a asp-page="LinkCases" asp-route-id="@Model.Outbreak.Id" asp-route-queryId="@query.Id" 
+                           class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
+                            <div>
+                                <div class="fw-semibold">@query.QueryName</div>
+                                @if (query.IsAutoLink)
+                                {
+                                    <small class="text-success"><i class="bi bi-lightning-charge"></i> Auto-link</small>
+                                }
+                            </div>
+                            <span class="badge bg-secondary">
+                                @(query.LastRunMatchCount?.ToString() ?? "—")
+                            </span>
+                        </a>
+                    }
+                </div>
+            </div>
+        }
+    </div>
+
+    <!-- Search Results Panel -->
+    <div class="col-lg-8">
+        @if (Model.SearchResults.Any())
+        {
+            <form method="post" asp-page-handler="LinkCases" asp-route-id="@Model.Outbreak.Id" id="linkForm">
+                <div class="card">
+                    <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                        <div>
+                            <h5 class="mb-0">Search Results (@Model.SearchResults.Count)</h5>
+                            <small class="text-muted">Select cases/contacts to link to outbreak</small>
+                        </div>
+                        <div>
+                            <button type="button" class="btn btn-sm btn-outline-primary" onclick="selectAll()">
+                                <i class="bi bi-check-all"></i> Select All
+                            </button>
+                            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="selectNone()">
+                                <i class="bi bi-x"></i> Clear
+                            </button>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <label class="form-label">Classification (for Cases only)</label>
+                            <select name="classification" class="form-select">
+                                <option value="">— Not Specified —</option>
+                                <option value="@CaseClassification.Confirmed">Confirmed</option>
+                                <option value="@CaseClassification.Probable">Probable</option>
+                                <option value="@CaseClassification.Suspect">Suspect</option>
+                            </select>
+                            <small class="text-muted">This will only apply to actual cases, not contacts</small>
+                        </div>
+
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th width="40">
+                                            <input type="checkbox" id="selectAllCheckbox" onchange="toggleAll(this)">
+                                        </th>
+                                        <th>Type</th>
+                                        <th>Case ID</th>
+                                        <th>Patient</th>
+                                        <th>Disease</th>
+                                        <th>Date</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var caseItem in Model.SearchResults)
+                                    {
+                                        <tr>
+                                            <td>
+                                                <input type="checkbox" name="selectedCaseIds" value="@caseItem.Id" class="case-checkbox">
+                                            </td>
+                                            <td>
+                                                @if (caseItem.Type == CaseType.Case)
+                                                {
+                                                    <span class="badge bg-danger">Case</span>
+                                                }
+                                                else
+                                                {
+                                                    <span class="badge bg-info">Contact</span>
+                                                }
+                                            </td>
+                                            <td>
+                                                <a asp-page="/Cases/Details" asp-route-id="@caseItem.Id" target="_blank">
+                                                    @caseItem.FriendlyId
+                                                    <i class="bi bi-box-arrow-up-right small"></i>
+                                                </a>
+                                            </td>
+                                            <td>
+                                                @if (caseItem.Patient != null)
+                                                {
+                                                    <div>@caseItem.Patient.GivenName @caseItem.Patient.FamilyName</div>
+                                                }
+                                            </td>
+                                            <td>
+                                                @caseItem.Disease?.Name
+                                            </td>
+                                            <td>
+                                                @if (caseItem.DateOfOnset.HasValue)
+                                                {
+                                                    <small>Onset: @caseItem.DateOfOnset.Value.ToString("MMM d, yyyy")</small>
+                                                }
+                                                else if (caseItem.DateOfNotification.HasValue)
+                                                {
+                                                    <small>Notified: @caseItem.DateOfNotification.Value.ToString("MMM d, yyyy")</small>
+                                                }
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div class="card-footer">
+                        <button type="submit" class="btn btn-primary" id="linkButton" disabled>
+                            <i class="bi bi-link-45deg me-1"></i>Link Selected to Outbreak
+                        </button>
+                        <a asp-page="Details" asp-route-id="@Model.Outbreak.Id" class="btn btn-secondary">
+                            Cancel
+                        </a>
+                        <span class="text-muted ms-3" id="selectedCount">0 selected</span>
+                    </div>
+                </div>
+            </form>
+        }
+        else if (Model.SearchResults != null)
+        {
+            <div class="card">
+                <div class="card-body text-center py-5">
+                    <i class="bi bi-inbox display-1 text-muted"></i>
+                    <h5 class="mt-3">No Results Found</h5>
+                    <p class="text-muted">Try adjusting your search criteria or saved searches.</p>
+                </div>
+            </div>
+        }
+        else
+        {
+            <div class="card">
+                <div class="card-body text-center py-5">
+                    <i class="bi bi-search display-1 text-muted"></i>
+                    <h5 class="mt-3">Ready to Search</h5>
+                    <p class="text-muted">Use the search panel on the left to find cases and contacts, or load a saved search.</p>
+                </div>
+            </div>
+        }
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        function clearSearch() {
+            document.querySelectorAll('input[type="text"], input[type="date"], select').forEach(el => {
+                if (el.id !== 'diseaseSelect') {
+                    el.value = '';
+                }
+            });
+            document.getElementById('diseaseSelect').selectedIndex = 0;
+        }
+
+        function toggleAll(checkbox) {
+            document.querySelectorAll('.case-checkbox').forEach(cb => {
+                cb.checked = checkbox.checked;
+            });
+            updateLinkButton();
+        }
+
+        function selectAll() {
+            document.querySelectorAll('.case-checkbox').forEach(cb => {
+                cb.checked = true;
+            });
+            document.getElementById('selectAllCheckbox').checked = true;
+            updateLinkButton();
+        }
+
+        function selectNone() {
+            document.querySelectorAll('.case-checkbox').forEach(cb => {
+                cb.checked = false;
+            });
+            document.getElementById('selectAllCheckbox').checked = false;
+            updateLinkButton();
+        }
+
+        function updateLinkButton() {
+            const selectedCount = document.querySelectorAll('.case-checkbox:checked').length;
+            document.getElementById('linkButton').disabled = selectedCount === 0;
+            document.getElementById('selectedCount').textContent = selectedCount + ' selected';
+        }
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            document.querySelectorAll('.case-checkbox').forEach(cb => {
+                cb.addEventListener('change', updateLinkButton);
+            });
+            updateLinkButton();
+        });
+    </script>
+}

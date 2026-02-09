@@ -1,0 +1,137 @@
+@page
+@model Surveillance_MVP.Pages.Settings.OrganizationModel
+
+@{
+    ViewData["Title"] = "Organization Settings";
+}
+
+<nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a asp-page="/Index">Home</a></li>
+        <li class="breadcrumb-item"><a asp-page="/Settings/Index">Settings</a></li>
+        <li class="breadcrumb-item active" aria-current="page">Organization</li>
+    </ol>
+</nav>
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2 class="mb-0"><i class="bi bi-building me-2"></i>Organization Settings</h2>
+</div>
+
+@if (!string.IsNullOrWhiteSpace(Model.StatusMessage))
+{
+    <div class="alert @(Model.StatusMessage.StartsWith("Failed") ? "alert-danger" : "alert-success") alert-dismissible fade show" role="alert">
+        <i class="bi @(Model.StatusMessage.StartsWith("Failed") ? "bi-exclamation-triangle" : "bi-check-circle") me-2"></i>@Model.StatusMessage
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+}
+
+<div class="card shadow-sm">
+    <div class="card-header bg-primary text-white">
+        <i class="bi bi-info-circle me-2"></i>Organization Information
+    </div>
+    <div class="card-body">
+        <p class="text-muted">
+            Configure your organization's details and default location settings. 
+            The locale information is used to provide more relevant address lookup results when geocoding patient addresses.
+        </p>
+
+        <form method="post">
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label asp-for="OrganizationName" class="form-label">
+                        <i class="bi bi-building me-1"></i>Organization Name
+                    </label>
+                    <input asp-for="OrganizationName" class="form-control" placeholder="e.g., Sydney Health District" />
+                    <span asp-validation-for="OrganizationName" class="text-danger"></span>
+                    <small class="form-text text-muted">The name of your organization or health district</small>
+                </div>
+
+                <div class="col-md-6 mb-3">
+                    <label asp-for="Country" class="form-label">
+                        <i class="bi bi-globe me-1"></i>Country
+                    </label>
+                    <input asp-for="Country" class="form-control" placeholder="e.g., Australia" />
+                    <span asp-validation-for="Country" class="text-danger"></span>
+                    <small class="form-text text-muted">Primary country of operation</small>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-md-4 mb-3">
+                    <label asp-for="State" class="form-label">
+                        <i class="bi bi-map me-1"></i>State/Province
+                    </label>
+                    <input asp-for="State" class="form-control" placeholder="e.g., New South Wales" />
+                    <span asp-validation-for="State" class="text-danger"></span>
+                    <small class="form-text text-muted">State or province (optional)</small>
+                </div>
+
+                <div class="col-md-4 mb-3">
+                    <label asp-for="City" class="form-label">
+                        <i class="bi bi-geo-alt me-1"></i>City/Region
+                    </label>
+                    <input asp-for="City" class="form-control" placeholder="e.g., Sydney" />
+                    <span asp-validation-for="City" class="text-danger"></span>
+                    <small class="form-text text-muted">Primary city or region (optional)</small>
+                </div>
+
+                <div class="col-md-4 mb-3">
+                    <label asp-for="PostalCode" class="form-label">
+                        <i class="bi bi-mailbox me-1"></i>Postal/ZIP Code
+                    </label>
+                    <input asp-for="PostalCode" class="form-control" placeholder="e.g., 2000" />
+                    <span asp-validation-for="PostalCode" class="text-danger"></span>
+                    <small class="form-text text-muted">Postal or ZIP code (optional)</small>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label asp-for="CountryCode" class="form-label">
+                        <i class="bi bi-flag me-1"></i>Country Code (ISO 3166-1 alpha-2)
+                    </label>
+                    <input asp-for="CountryCode" class="form-control" placeholder="e.g., AU" maxlength="2" style="text-transform: uppercase;" />
+                    <span asp-validation-for="CountryCode" class="text-danger"></span>
+                    <small class="form-text text-muted">
+                        Two-letter country code for geocoding bias (e.g., AU, US, GB, NZ).
+                        <a href="https://en.wikipedia.org/wiki/ISO_3166-1_alpha-2" target="_blank">View country codes</a>
+                    </small>
+                </div>
+
+                <div class="col-md-6 mb-3">
+                    <label asp-for="Timezone" class="form-label">
+                        <i class="bi bi-clock me-1"></i>Timezone
+                    </label>
+                    <input asp-for="Timezone" class="form-control" placeholder="e.g., Australia/Sydney" />
+                    <span asp-validation-for="Timezone" class="text-danger"></span>
+                    <small class="form-text text-muted">IANA timezone identifier (optional)</small>
+                </div>
+            </div>
+
+            <div class="alert alert-info mt-3">
+                <i class="bi bi-info-circle me-2"></i>
+                <strong>How this helps:</strong> When searching for addresses, the system will prioritize results from your configured location. 
+                For example, if you set Country Code to "AU", searching for "Sydney" will prioritize Sydney, Australia over Sydney, Canada.
+            </div>
+
+            <div class="d-flex justify-content-between align-items-center mt-4">
+                <a asp-page="/Settings/Index" class="btn btn-secondary">
+                    <i class="bi bi-arrow-left me-1"></i>Back to Settings
+                </a>
+                <button type="submit" class="btn btn-primary">
+                    <i class="bi bi-save me-1"></i>Save Organization Settings
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script>
+        // Auto-uppercase country code input
+        document.querySelector('input[name="CountryCode"]')?.addEventListener('input', function(e) {
+            e.target.value = e.target.value.toUpperCase();
+        });
+    </script>
+}

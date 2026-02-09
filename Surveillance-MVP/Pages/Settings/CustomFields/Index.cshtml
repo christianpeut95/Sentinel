@@ -1,0 +1,137 @@
+@page
+@model Surveillance_MVP.Pages.Settings.CustomFields.IndexModel
+
+@{
+    ViewData["Title"] = "Custom Fields";
+}
+
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2><i class="bi bi-sliders me-2"></i>Custom Fields</h2>
+            <p class="text-muted">Manage custom patient data fields</p>
+        </div>
+        <div>
+            <a asp-page="./Visibility" class="btn btn-info me-2">
+                <i class="bi bi-eye me-2"></i>Field Visibility
+            </a>
+            <a asp-page="./Create" class="btn btn-primary">
+                <i class="bi bi-plus-lg me-2"></i>Add Custom Field
+            </a>
+        </div>
+    </div>
+
+    @if (!Model.FieldsByCategory.Any())
+    {
+        <div class="card shadow-sm">
+            <div class="card-body text-center py-5">
+                <i class="bi bi-inbox" style="font-size: 4rem; color: #dee2e6;"></i>
+                <h5 class="mt-3">No Custom Fields Yet</h5>
+                <p class="text-muted">Create your first custom field to start collecting additional patient data.</p>
+                <a asp-page="./Create" class="btn btn-primary mt-2">
+                    <i class="bi bi-plus-lg me-2"></i>Create First Field
+                </a>
+            </div>
+        </div>
+    }
+    else
+    {
+        @foreach (var category in Model.FieldsByCategory)
+        {
+            <div class="card shadow-sm mb-3">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0">
+                        <i class="bi bi-folder me-2"></i>@category.Key
+                        <span class="badge bg-secondary ms-2">@category.Value.Count field(s)</span>
+                    </h5>
+                </div>
+                <div class="card-body p-0">
+                    <table class="table table-hover mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th style="width: 40px;"></th>
+                                <th>Field Name</th>
+                                <th>Type</th>
+                                <th style="width: 100px;">Required</th>
+                                <th style="width: 100px;">Searchable</th>
+                                <th>Lookup Table</th>
+                                <th style="width: 120px;">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var field in category.Value.OrderBy(f => f.DisplayOrder))
+                            {
+                                <tr>
+                                    <td>
+                                        <i class="bi bi-grip-vertical text-muted" style="cursor: move;" title="Drag to reorder"></i>
+                                    </td>
+                                    <td>
+                                        <strong>@field.Label</strong><br>
+                                        <small class="text-muted">@field.Name</small>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-info">@field.FieldType</span>
+                                    </td>
+                                    <td class="text-center">
+                                        @if (field.IsRequired)
+                                        {
+                                            <i class="bi bi-check-circle text-success" title="Required"></i>
+                                        }
+                                        else
+                                        {
+                                            <i class="bi bi-dash-circle text-muted" title="Optional"></i>
+                                        }
+                                    </td>
+                                    <td class="text-center">
+                                        @if (field.IsSearchable)
+                                        {
+                                            <i class="bi bi-search text-primary" title="Searchable"></i>
+                                        }
+                                        else
+                                        {
+                                            <i class="bi bi-dash text-muted" title="Not searchable"></i>
+                                        }
+                                    </td>
+                                    <td>
+                                        @if (field.LookupTable != null)
+                                        {
+                                            <a asp-page="/Settings/LookupTables/Edit" asp-route-id="@field.LookupTableId" class="text-decoration-none">
+                                                <i class="bi bi-list-ul me-1"></i>@field.LookupTable.DisplayName
+                                            </a>
+                                        }
+                                        else
+                                        {
+                                            <span class="text-muted">-</span>
+                                        }
+                                    </td>
+                                    <td>
+                                        <div class="btn-group btn-group-sm">
+                                            <a asp-page="./Edit" asp-route-id="@field.Id" 
+                                               class="btn btn-outline-primary" title="Edit">
+                                                <i class="bi bi-pencil"></i>
+                                            </a>
+                                            <a asp-page="./Delete" asp-route-id="@field.Id" 
+                                               class="btn btn-outline-danger" title="Delete">
+                                                <i class="bi bi-trash"></i>
+                                            </a>
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        }
+    }
+</div>
+
+<style>
+    .table tbody tr {
+        transition: background-color 0.2s;
+    }
+
+    .table tbody tr:hover {
+        background-color: #f8f9fa;
+    }
+</style>

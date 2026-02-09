@@ -1,0 +1,436 @@
+﻿
+
+@page
+@model Surveillance_MVP.Pages.Settings.IndexModel
+
+@{
+    ViewData["Title"] = "Settings";
+}
+
+<nav aria-label="breadcrumb" class="mb-4">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a asp-page="/Index">Home</a></li>
+        <li class="breadcrumb-item active" aria-current="page">Settings</li>
+    </ol>
+</nav>
+
+<div class="mb-4">
+    <h2><i class="bi bi-gear me-2"></i>Settings</h2>
+    <p class="text-muted">Configure and manage system settings</p>
+</div>
+
+<!-- System Configuration -->
+<div class="mb-5">
+    <h5 class="mb-3 fw-semibold text-secondary">System Configuration</h5>
+    <div class="row g-3">
+        <div class="col-lg-3 col-md-4 col-sm-6">
+            <div class="card h-100">
+                <div class="card-body">
+                    <div class="d-flex align-items-center mb-2">
+                        <i class="bi bi-building fs-4 text-primary me-2"></i>
+                        <h6 class="card-title mb-0">Organization</h6>
+                    </div>
+                    <a asp-page="/Settings/Organization" class="stretched-link"></a>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-3 col-md-4 col-sm-6">
+            <div class="card h-100">
+                <div class="card-body">
+                    <div class="d-flex align-items-center mb-2">
+                        <i class="bi bi-map fs-4 text-primary me-2"></i>
+                        <h6 class="card-title mb-0">Google Maps API</h6>
+                    </div>
+                    <a asp-page="/Settings/GoogleMaps" class="stretched-link"></a>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-3 col-md-4 col-sm-6">
+            <div class="card h-100">
+                <div class="card-body">
+                    <div class="d-flex align-items-center mb-2">
+                        <i class="bi bi-sliders fs-4 text-primary me-2"></i>
+                        <h6 class="card-title mb-0">Custom Fields</h6>
+                    </div>
+                    <a asp-page="/Settings/CustomFields/Index" class="stretched-link"></a>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-3 col-md-4 col-sm-6">
+            <div class="card h-100">
+                <div class="card-body">
+                    <div class="d-flex align-items-center mb-2">
+                        <i class="bi bi-eye fs-4 text-primary me-2"></i>
+                        <h6 class="card-title mb-0">Field Visibility</h6>
+                    </div>
+                    <a asp-page="/Settings/CustomFields/Visibility" class="stretched-link"></a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Disease Management -->
+<div class="mb-5">
+    <h5 class="mb-3 fw-semibold text-secondary">Disease Management</h5>
+    <div class="row g-3">
+        <div class="col-lg-3 col-md-4 col-sm-6">
+            <div class="card h-100">
+                <div class="card-body">
+                    <div class="d-flex align-items-center mb-2">
+                        <i class="bi bi-virus fs-4 text-primary me-2"></i>
+                        <h6 class="card-title mb-0">Diseases</h6>
+                    </div>
+                    <a asp-page="/Settings/Diseases/Index" class="stretched-link"></a>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-3 col-md-4 col-sm-6">
+            <div class="card h-100">
+                <div class="card-body">
+                    <div class="d-flex align-items-center mb-2">
+                        <i class="bi bi-heart-pulse fs-4 text-primary me-2"></i>
+                        <h6 class="card-title mb-0">Symptoms</h6>
+                    </div>
+                    <a asp-page="/Settings/Lookups/Symptoms" class="stretched-link"></a>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-3 col-md-4 col-sm-6">
+            <div class="card h-100">
+                <div class="card-body">
+                    <div class="d-flex align-items-center mb-2">
+                        <i class="bi bi-journal-check fs-4 text-primary me-2"></i>
+                        <h6 class="card-title mb-0">Case Statuses</h6>
+                    </div>
+                    <a asp-page="/Settings/CaseStatuses/Index" class="stretched-link"></a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Laboratory -->
+<div class="mb-5">
+    <h5 class="mb-3 fw-semibold text-secondary">Laboratory</h5>
+    <div class="row g-3">
+        <div class="col-lg-3 col-md-4 col-sm-6">
+            <div class="card h-100">
+                <div class="card-body">
+                    <div class="d-flex align-items-center mb-2">
+                        <i class="bi bi-tags fs-4 text-primary me-2"></i>
+                        <h6 class="card-title mb-0">Organization Types</h6>
+                    </div>
+                    <a asp-page="/Settings/Lookups/OrganizationTypes" class="stretched-link"></a>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-3 col-md-4 col-sm-6">
+            <div class="card h-100">
+                <div class="card-body">
+                    <div class="d-flex align-items-center mb-2">
+                        <i class="bi bi-droplet fs-4 text-primary me-2"></i>
+                        <h6 class="card-title mb-0">Specimen Types</h6>
+                    </div>
+                    <a asp-page="/Settings/Lookups/SpecimenTypes" class="stretched-link"></a>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-3 col-md-4 col-sm-6">
+            <div class="card h-100">
+                <div class="card-body">
+                    <div class="d-flex align-items-center mb-2">
+                        <i class="bi bi-clipboard2-pulse fs-4 text-primary me-2"></i>
+                        <h6 class="card-title mb-0">Test Types</h6>
+                    </div>
+                    <a asp-page="/Settings/Lookups/TestTypes" class="stretched-link"></a>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-3 col-md-4 col-sm-6">
+            <div class="card h-100">
+                <div class="card-body">
+                    <div class="d-flex align-items-center mb-2">
+                        <i class="bi bi-check2-square fs-4 text-primary me-2"></i>
+                        <h6 class="card-title mb-0">Test Results</h6>
+                    </div>
+                    <a asp-page="/Settings/Lookups/TestResults" class="stretched-link"></a>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-3 col-md-4 col-sm-6">
+            <div class="card h-100">
+                <div class="card-body">
+                    <div class="d-flex align-items-center mb-2">
+                        <i class="bi bi-rulers fs-4 text-primary me-2"></i>
+                        <h6 class="card-title mb-0">Result Units</h6>
+                    </div>
+                    <a asp-page="/Settings/Lookups/ResultUnits" class="stretched-link"></a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Exposure Tracking -->
+<div class="mb-5">
+    <h5 class="mb-3 fw-semibold text-secondary">Exposure Tracking</h5>
+    <div class="row g-3">
+        <div class="col-lg-3 col-md-4 col-sm-6">
+            <div class="card h-100">
+                <div class="card-body">
+                    <div class="d-flex align-items-center mb-2">
+                        <i class="bi bi-geo-alt fs-4 text-primary me-2"></i>
+                        <h6 class="card-title mb-0">Locations</h6>
+                    </div>
+                    <a asp-page="/Locations/Index" class="stretched-link"></a>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-3 col-md-4 col-sm-6">
+            <div class="card h-100">
+                <div class="card-body">
+                    <div class="d-flex align-items-center mb-2">
+                        <i class="bi bi-tags fs-4 text-primary me-2"></i>
+                        <h6 class="card-title mb-0">Location Types</h6>
+                    </div>
+                    <a asp-page="/Settings/Lookups/LocationTypes" class="stretched-link"></a>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-3 col-md-4 col-sm-6">
+            <div class="card h-100">
+                <div class="card-body">
+                    <div class="d-flex align-items-center mb-2">
+                        <i class="bi bi-calendar-event fs-4 text-primary me-2"></i>
+                        <h6 class="card-title mb-0">Events</h6>
+                    </div>
+                    <a asp-page="/Events/Index" class="stretched-link"></a>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-3 col-md-4 col-sm-6">
+            <div class="card h-100">
+                <div class="card-body">
+                    <div class="d-flex align-items-center mb-2">
+                        <i class="bi bi-tags fs-4 text-primary me-2"></i>
+                        <h6 class="card-title mb-0">Event Types</h6>
+                    </div>
+                    <a asp-page="/Settings/Lookups/EventTypes" class="stretched-link"></a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Task Management & Surveys -->
+<div class="mb-5">
+    <h5 class="mb-3 fw-semibold text-secondary">Task Management & Surveys</h5>
+    <div class="row g-3">
+        <div class="col-lg-3 col-md-4 col-sm-6">
+            <div class="card h-100">
+                <div class="card-body">
+                    <div class="d-flex align-items-center mb-2">
+                        <i class="bi bi-tags fs-4 text-primary me-2"></i>
+                        <h6 class="card-title mb-0">Task Types</h6>
+                    </div>
+                    <a asp-page="/Settings/Lookups/TaskTypes" class="stretched-link"></a>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-3 col-md-4 col-sm-6">
+            <div class="card h-100">
+                <div class="card-body">
+                    <div class="d-flex align-items-center mb-2">
+                        <i class="bi bi-clipboard-check fs-4 text-primary me-2"></i>
+                        <h6 class="card-title mb-0">Task Templates</h6>
+                    </div>
+                    <a asp-page="/Settings/Lookups/TaskTemplates" class="stretched-link"></a>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-3 col-md-4 col-sm-6">
+            <div class="card h-100">
+                <div class="card-body">
+                    <div class="d-flex align-items-center mb-2">
+                        <i class="bi bi-collection fs-4 text-primary me-2"></i>
+                        <h6 class="card-title mb-0">Survey Templates</h6>
+                    </div>
+                    <a asp-page="/Settings/Surveys/SurveyTemplates" class="stretched-link"></a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Demographics & Reference Data -->
+<div class="mb-5">
+    <h5 class="mb-3 fw-semibold text-secondary">Demographics & Reference Data</h5>
+    <div class="row g-3">
+        <div class="col-lg-3 col-md-4 col-sm-6">
+            <div class="card h-100">
+                <div class="card-body">
+                    <div class="d-flex align-items-center mb-2">
+                        <i class="bi bi-globe fs-4 text-primary me-2"></i>
+                        <h6 class="card-title mb-0">Countries</h6>
+                    </div>
+                    <a asp-page="/Settings/Countries/Index" class="stretched-link"></a>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-3 col-md-4 col-sm-6">
+            <div class="card h-100">
+                <div class="card-body">
+                    <div class="d-flex align-items-center mb-2">
+                        <i class="bi bi-translate fs-4 text-primary me-2"></i>
+                        <h6 class="card-title mb-0">Languages</h6>
+                    </div>
+                    <a asp-page="/Settings/Languages/Index" class="stretched-link"></a>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-3 col-md-4 col-sm-6">
+            <div class="card h-100">
+                <div class="card-body">
+                    <div class="d-flex align-items-center mb-2">
+                        <i class="bi bi-people fs-4 text-primary me-2"></i>
+                        <h6 class="card-title mb-0">Ethnicities</h6>
+                    </div>
+                    <a asp-page="/Settings/Ethnicities/Index" class="stretched-link"></a>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-3 col-md-4 col-sm-6">
+            <div class="card h-100">
+                <div class="card-body">
+                    <div class="d-flex align-items-center mb-2">
+                        <i class="bi bi-list-check fs-4 text-primary me-2"></i>
+                        <h6 class="card-title mb-0">ATSI Status</h6>
+                    </div>
+                    <a asp-page="/Settings/AtsiStatuses/Index" class="stretched-link"></a>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-3 col-md-4 col-sm-6">
+            <div class="card h-100">
+                <div class="card-body">
+                    <div class="d-flex align-items-center mb-2">
+                        <i class="bi bi-gender-ambiguous fs-4 text-primary me-2"></i>
+                        <h6 class="card-title mb-0">Sex at Birth</h6>
+                    </div>
+                    <a asp-page="/Settings/SexAtBirths/Index" class="stretched-link"></a>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-3 col-md-4 col-sm-6">
+            <div class="card h-100">
+                <div class="card-body">
+                    <div class="d-flex align-items-center mb-2">
+                        <i class="bi bi-gender-trans fs-4 text-primary me-2"></i>
+                        <h6 class="card-title mb-0">Gender</h6>
+                    </div>
+                    <a asp-page="/Settings/Genders/Index" class="stretched-link"></a>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-3 col-md-4 col-sm-6">
+            <div class="card h-100">
+                <div class="card-body">
+                    <div class="d-flex align-items-center mb-2">
+                        <i class="bi bi-briefcase fs-4 text-primary me-2"></i>
+                        <h6 class="card-title mb-0">Occupations</h6>
+                    </div>
+                    <a asp-page="/Settings/Occupations/Index" class="stretched-link"></a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Security & Access -->
+<div class="mb-5">
+    <h5 class="mb-3 fw-semibold text-secondary">Security & Access</h5>
+    <div class="row g-3">
+        <div class="col-lg-3 col-md-4 col-sm-6">
+            <div class="card h-100">
+                <div class="card-body">
+                    <div class="d-flex align-items-center mb-2">
+                        <i class="bi bi-person-gear fs-4 text-primary me-2"></i>
+                        <h6 class="card-title mb-0">Users</h6>
+                    </div>
+                    <a asp-page="/Settings/Users/Index" class="stretched-link"></a>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-3 col-md-4 col-sm-6">
+            <div class="card h-100">
+                <div class="card-body">
+                    <div class="d-flex align-items-center mb-2">
+                        <i class="bi bi-shield-check fs-4 text-primary me-2"></i>
+                        <h6 class="card-title mb-0">Roles</h6>
+                    </div>
+                    <a asp-page="/Settings/Roles/Index" class="stretched-link"></a>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-3 col-md-4 col-sm-6">
+            <div class="card h-100">
+                <div class="card-body">
+                    <div class="d-flex align-items-center mb-2">
+                        <i class="bi bi-shield-lock fs-4 text-primary me-2"></i>
+                        <h6 class="card-title mb-0">Disease Access</h6>
+                    </div>
+                    <a asp-page="/Settings/DiseaseAccess/Index" class="stretched-link"></a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Administration -->
+<div class="mb-5">
+    <h5 class="mb-3 fw-semibold text-secondary">Administration</h5>
+    <div class="row g-3">
+        <div class="col-lg-3 col-md-4 col-sm-6">
+            <div class="card h-100">
+                <div class="card-body">
+                    <div class="d-flex align-items-center mb-2">
+                        <i class="bi bi-trash fs-4 text-primary me-2"></i>
+                        <h6 class="card-title mb-0">Deleted Records</h6>
+                    </div>
+                    <a asp-page="/Settings/DeletedRecords" class="stretched-link"></a>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-3 col-md-4 col-sm-6">
+            <div class="card h-100">
+                <div class="card-body">
+                    <div class="d-flex align-items-center mb-2">
+                        <i class="bi bi-table fs-4 text-primary me-2"></i>
+                        <h6 class="card-title mb-0">Lookup Tables</h6>
+                    </div>
+                    <a asp-page="/Settings/LookupTables/Index" class="stretched-link"></a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Outbreak Management -->
+<div class="mb-5">
+    <h5 class="mb-3 fw-semibold text-secondary">Outbreak Management</h5>
+    <div class="row g-3">
+        <div class="col-lg-3 col-md-4 col-sm-6">
+            <div class="card h-100 border-danger">
+                <div class="card-body">
+                    <div class="d-flex align-items-center mb-2">
+                        <i class="bi bi-exclamation-triangle fs-4 text-danger me-2"></i>
+                        <h6 class="card-title mb-0">Outbreaks</h6>
+                    </div>
+                    <p class="card-text small text-muted">Manage outbreak investigations</p>
+                    <a asp-page="/Outbreaks/Index" class="stretched-link"></a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

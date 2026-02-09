@@ -1,0 +1,184 @@
+@page
+@model Surveillance_MVP.Pages.Settings.Diseases.IndexModel
+
+@{
+    ViewData["Title"] = "Diseases";
+}
+
+<nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a asp-page="/Index">Home</a></li>
+        <li class="breadcrumb-item"><a asp-page="/Settings/Index">Settings</a></li>
+        <li class="breadcrumb-item active" aria-current="page">Diseases</li>
+    </ol>
+</nav>
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2><i class="bi bi-virus me-2"></i>Diseases</h2>
+    <div>
+        <a asp-page="/Settings/DiseaseCategories/Index" class="btn btn-outline-primary">
+            <i class="bi bi-folder me-1"></i>Manage Categories
+        </a>
+        <a asp-page="CreateWizard" class="btn btn-success ms-2">
+            <i class="bi bi-magic me-1"></i>Create with Wizard
+        </a>
+        <a asp-page="Create" class="btn btn-primary ms-2">
+            <i class="bi bi-plus-circle me-1"></i>Quick Create
+        </a>
+    </div>
+</div>
+
+@if (TempData["SuccessMessage"] != null)
+{
+    <div class="alert alert-success alert-dismissible fade show" role="alert">
+        <i class="bi bi-check-circle me-2"></i>@TempData["SuccessMessage"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+}
+
+@if (TempData["ErrorMessage"] != null)
+{
+    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+        <i class="bi bi-exclamation-triangle me-2"></i>@TempData["ErrorMessage"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+}
+
+<div class="card shadow-sm">
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Name</th>
+                        <th>Code</th>
+                        <th>Export Code</th>
+                        <th class="text-center">Active</th>
+                        <th class="text-end">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @if (!Model.Categories.Any() && !Model.Diseases.Any())
+                    {
+                        <tr>
+                            <td colspan="5" class="text-center text-muted py-4">
+                                No diseases configured. <a asp-page="Create">Create one</a>.
+                            </td>
+                        </tr>
+                    }
+                    
+                    @* Display diseases by category *@
+                    @foreach (var category in Model.Categories)
+                    {
+                        <tr class="table-primary">
+                            <td colspan="5">
+                                <strong><i class="bi bi-folder2-open me-2"></i>@category.Name</strong>
+                                <span class="badge bg-info text-dark ms-2">@category.ReportingId</span>
+                                @if (!string.IsNullOrEmpty(category.Description))
+                                {
+                                    <small class="text-muted ms-2">— @category.Description</small>
+                                }
+                            </td>
+                        </tr>
+                        
+                        @if (!category.Diseases.Any())
+                        {
+                            <tr>
+                                <td colspan="5" class="text-muted fst-italic ps-4">No diseases in this category</td>
+                            </tr>
+                        }
+                        else
+                        {
+                            @foreach (var item in category.Diseases.OrderBy(d => d.PathIds))
+                            {
+                                <tr>
+                                    <td class="ps-4">
+                                        @if (item.Level > 0)
+                                        {
+                                            <span class="text-muted me-1">@(new string('—', item.Level))</span>
+                                        }
+                                        <strong>@item.Name</strong>
+                                    </td>
+                                    <td><code>@item.Code</code></td>
+                                    <td><code>@item.ExportCode</code></td>
+                                    <td class="text-center">
+                                        @if (item.IsActive)
+                                        {
+                                            <span class="badge bg-success"><i class="bi bi-check-circle"></i> Active</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge bg-secondary"><i class="bi bi-x-circle"></i> Inactive</span>
+                                        }
+                                    </td>
+                                    <td class="text-end">
+                                        <div class="btn-group btn-group-sm" role="group">
+                                            <a asp-page="./Details" asp-route-id="@item.Id" class="btn btn-outline-primary" title="Details">
+                                                <i class="bi bi-info-circle"></i>
+                                            </a>
+                                            <a asp-page="./Edit" asp-route-id="@item.Id" class="btn btn-outline-secondary" title="Edit">
+                                                <i class="bi bi-pencil"></i>
+                                            </a>
+                                            <a asp-page="./Delete" asp-route-id="@item.Id" class="btn btn-outline-danger" title="Delete">
+                                                <i class="bi bi-trash"></i>
+                                            </a>
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
+                        }
+                    }
+                    
+                    @* Display uncategorized diseases *@
+                    @if (Model.Diseases.Any())
+                    {
+                        <tr class="table-secondary">
+                            <td colspan="5">
+                                <strong><i class="bi bi-question-circle me-2"></i>Uncategorized</strong>
+                            </td>
+                        </tr>
+                        
+                        @foreach (var item in Model.Diseases)
+                        {
+                            <tr>
+                                <td class="ps-4">
+                                    @if (item.Level > 0)
+                                    {
+                                        <span class="text-muted me-1">@(new string('—', item.Level))</span>
+                                    }
+                                    <strong>@item.Name</strong>
+                                </td>
+                                <td><code>@item.Code</code></td>
+                                <td><code>@item.ExportCode</code></td>
+                                <td class="text-center">
+                                    @if (item.IsActive)
+                                    {
+                                        <span class="badge bg-success"><i class="bi bi-check-circle"></i> Active</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge bg-secondary"><i class="bi bi-x-circle"></i> Inactive</span>
+                                    }
+                                </td>
+                                <td class="text-end">
+                                    <div class="btn-group btn-group-sm" role="group">
+                                        <a asp-page="./Details" asp-route-id="@item.Id" class="btn btn-outline-primary" title="Details">
+                                            <i class="bi bi-info-circle"></i>
+                                        </a>
+                                        <a asp-page="./Edit" asp-route-id="@item.Id" class="btn btn-outline-secondary" title="Edit">
+                                            <i class="bi bi-pencil"></i>
+                                        </a>
+                                        <a asp-page="./Delete" asp-route-id="@item.Id" class="btn btn-outline-danger" title="Delete">
+                                            <i class="bi bi-trash"></i>
+                                        </a>
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+

@@ -1,0 +1,409 @@
+@page
+@model Surveillance_MVP.Pages.Dashboard.MyTasksModel
+@using Surveillance_MVP.Models
+
+@{
+    ViewData["Title"] = "My Tasks";
+}
+
+<div class="container-fluid">
+    <!-- Page Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2><i class="bi bi-list-check me-2"></i>My Tasks</h2>
+        <div>
+            <span class="text-muted">Showing @Model.FilteredTasks.Count of @Model.TotalTasks tasks</span>
+        </div>
+    </div>
+
+    @if (TempData["SuccessMessage"] != null)
+    {
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            <i class="bi bi-check-circle me-2"></i>@TempData["SuccessMessage"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
+
+    @if (TempData["ErrorMessage"] != null)
+    {
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            <i class="bi bi-exclamation-triangle me-2"></i>@TempData["ErrorMessage"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
+
+    <div class="row">
+        <!-- Statistics Cards -->
+        <div class="col-12 mb-4">
+            <div class="row g-3">
+                <div class="col-md-3">
+                    <div class="card bg-primary text-white">
+                        <div class="card-body">
+                            <h5 class="card-title"><i class="bi bi-list-task me-2"></i>Total Tasks</h5>
+                            <h2 class="mb-0">@Model.TotalTasks</h2>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card bg-warning text-dark">
+                        <div class="card-body">
+                            <h5 class="card-title"><i class="bi bi-clock me-2"></i>Pending</h5>
+                            <h2 class="mb-0">@Model.PendingTasks</h2>
+                            <small>Active tasks</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card bg-danger text-white">
+                        <div class="card-body">
+                            <h5 class="card-title"><i class="bi bi-exclamation-triangle me-2"></i>Overdue</h5>
+                            <h2 class="mb-0">@Model.OverdueTasks</h2>
+                            <small>@Model.UrgentTasks urgent</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card bg-success text-white">
+                        <div class="card-body">
+                            <h5 class="card-title"><i class="bi bi-check-circle me-2"></i>Completed</h5>
+                            <h2 class="mb-0">@Model.CompletedTasks</h2>
+                            <small>@(Model.TotalTasks > 0 ? Math.Round((double)Model.CompletedTasks / Model.TotalTasks * 100) : 0)% done</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quick Filters -->
+        <div class="col-12 mb-4">
+            <div class="card">
+                <div class="card-body">
+                    <form method="get" id="filterForm">
+                        <div class="row g-3 align-items-end">
+                            <div class="col-md-3">
+                                <label class="form-label">Status</label>
+                                <select name="StatusFilter" class="form-select" asp-for="StatusFilter" onchange="this.form.submit()">
+                                    <option value="">All</option>
+                                    <option value="Active">Active (Pending + In Progress)</option>
+                                    <option value="@CaseTaskStatus.Pending">Pending</option>
+                                    <option value="@CaseTaskStatus.InProgress">In Progress</option>
+                                    <option value="@CaseTaskStatus.Completed">Completed</option>
+                                    <option value="@CaseTaskStatus.Overdue">Overdue</option>
+                                    <option value="@CaseTaskStatus.Cancelled">Cancelled</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">Priority</label>
+                                <select name="PriorityFilter" class="form-select" asp-for="PriorityFilter" onchange="this.form.submit()">
+                                    <option value="">All</option>
+                                    <option value="@TaskPriority.Urgent">Urgent</option>
+                                    <option value="@TaskPriority.High">High</option>
+                                    <option value="@TaskPriority.Medium">Medium</option>
+                                    <option value="@TaskPriority.Low">Low</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">Due Date</label>
+                                <select name="DueDateFilter" class="form-select" asp-for="DueDateFilter" onchange="this.form.submit()">
+                                    <option value="">All</option>
+                                    <option value="Overdue">Overdue</option>
+                                    <option value="DueToday">Due Today</option>
+                                    <option value="DueSoon">Due Soon (3 days)</option>
+                                    <option value="ThisWeek">This Week</option>
+                                    <option value="NoDate">No Due Date</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <a asp-page="/Dashboard/MyTasks" class="btn btn-secondary w-100">
+                                    <i class="bi bi-x-circle me-1"></i>Clear Filters
+                                </a>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tasks Table -->
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        <i class="bi bi-list-ul me-2"></i>Tasks
+                        @if (!string.IsNullOrEmpty(Model.StatusFilter) || !string.IsNullOrEmpty(Model.PriorityFilter) || !string.IsNullOrEmpty(Model.DueDateFilter))
+                        {
+                            <span class="badge bg-secondary">Filtered</span>
+                        }
+                    </h5>
+                    <div class="btn-group" role="group">
+                        <a asp-page="/Dashboard/MyTasks" asp-route-sortBy="DueDate" asp-route-sortOrder="@(Model.SortBy == "DueDate" && Model.SortOrder == "asc" ? "desc" : "asc")" 
+                           class="btn btn-sm @(Model.SortBy == "DueDate" ? "btn-primary" : "btn-outline-primary")">
+                            <i class="bi bi-calendar"></i> Due Date
+                            @if (Model.SortBy == "DueDate")
+                            {
+                                <i class="bi bi-chevron-@(Model.SortOrder == "asc" ? "up" : "down")"></i>
+                            }
+                        </a>
+                        <a asp-page="/Dashboard/MyTasks" asp-route-sortBy="Priority" asp-route-sortOrder="@(Model.SortBy == "Priority" && Model.SortOrder == "asc" ? "desc" : "asc")" 
+                           class="btn btn-sm @(Model.SortBy == "Priority" ? "btn-primary" : "btn-outline-primary")">
+                            <i class="bi bi-flag"></i> Priority
+                            @if (Model.SortBy == "Priority")
+                            {
+                                <i class="bi bi-chevron-@(Model.SortOrder == "asc" ? "up" : "down")"></i>
+                            }
+                        </a>
+                    </div>
+                </div>
+                <div class="card-body p-0">
+                    @if (Model.FilteredTasks.Any())
+                    {
+                        <div class="table-responsive">
+                            <table class="table table-hover mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Task</th>
+                                        <th>Case</th>
+                                        <th>Priority</th>
+                                        <th>Due Date</th>
+                                        <th>Status</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var task in Model.FilteredTasks)
+                                    {
+                                        var isOverdue = task.DueDate.HasValue && task.DueDate.Value.Date < DateTime.Today && task.Status != CaseTaskStatus.Completed;
+                                        var isDueToday = task.DueDate.HasValue && task.DueDate.Value.Date == DateTime.Today;
+                                        
+                                        <tr class="@(isOverdue ? "table-danger" : (isDueToday ? "table-warning" : ""))">
+                                            <td>
+                                                <strong>@task.Title</strong>
+                                                @if (!string.IsNullOrEmpty(task.Description))
+                                                {
+                                                    <br/><small class="text-muted">@task.Description</small>
+                                                }
+                                                @if (task.TaskTemplate?.TaskType != null)
+                                                {
+                                                    <br/><span class="badge bg-secondary mt-1">@task.TaskTemplate.TaskType.Name</span>
+                                                }
+                                            </td>
+                                            <td>
+                                                <a asp-page="/Cases/Details" asp-route-id="@task.CaseId" class="text-decoration-none">
+                                                    <i class="bi bi-folder me-1"></i>@task.Case?.FriendlyId
+                                                </a>
+                                                @if (task.Case?.Patient != null)
+                                                {
+                                                    <br/><small class="text-muted">@task.Case.Patient.GivenName @task.Case.Patient.FamilyName</small>
+                                                }
+                                            </td>
+                                            <td>
+                                                @{
+                                                    var priorityClass = task.Priority switch
+                                                    {
+                                                        TaskPriority.Urgent => "bg-danger",
+                                                        TaskPriority.High => "bg-warning text-dark",
+                                                        TaskPriority.Medium => "bg-secondary",
+                                                        TaskPriority.Low => "bg-info",
+                                                        _ => "bg-secondary"
+                                                    };
+                                                }
+                                                <span class="badge @priorityClass">@task.Priority</span>
+                                            </td>
+                                            <td>
+                                                @if (task.DueDate.HasValue)
+                                                {
+                                                    <span>@task.DueDate.Value.ToString("dd MMM yyyy")</span>
+                                                    @if (isOverdue)
+                                                    {
+                                                        <br/><span class="badge bg-danger"><i class="bi bi-exclamation-triangle"></i> Overdue</span>
+                                                    }
+                                                    else if (isDueToday)
+                                                    {
+                                                        <br/><span class="badge bg-warning text-dark"><i class="bi bi-clock"></i> Due Today</span>
+                                                    }
+                                                    else if (task.DueDate.Value.Date < DateTime.Today.AddDays(3))
+                                                    {
+                                                        <br/><span class="badge bg-info"><i class="bi bi-clock"></i> Due Soon</span>
+                                                    }
+                                                }
+                                                else
+                                                {
+                                                    <span class="text-muted">No due date</span>
+                                                }
+                                            </td>
+                                            <td>
+                                                @{
+                                                    var statusClass = task.Status switch
+                                                    {
+                                                        CaseTaskStatus.Pending => "bg-secondary",
+                                                        CaseTaskStatus.InProgress => "bg-primary",
+                                                        CaseTaskStatus.Completed => "bg-success",
+                                                        CaseTaskStatus.Cancelled => "bg-dark",
+                                                        CaseTaskStatus.Overdue => "bg-danger",
+                                                        CaseTaskStatus.WaitingForPatient => "bg-warning text-dark",
+                                                        _ => "bg-secondary"
+                                                    };
+                                                }
+                                                <span class="badge @statusClass">@task.Status</span>
+                                                @if (task.CompletedAt.HasValue)
+                                                {
+                                                    <br/><small class="text-muted">@task.CompletedAt.Value.ToString("dd MMM yyyy")</small>
+                                                }
+                                            </td>
+                                            <td>
+                                                <div class="btn-group" role="group">
+                                                    @if (task.Status == CaseTaskStatus.Pending)
+                                                    {
+                                                        <button type="button" class="btn btn-sm btn-primary" onclick="startTask('@task.Id')" title="Start Task">
+                                                            <i class="bi bi-play-fill"></i>
+                                                        </button>
+                                                    }
+                                                    @if (task.Status != CaseTaskStatus.Completed && task.Status != CaseTaskStatus.Cancelled)
+                                                    {
+                                                        @* Check if task has a survey (either from library or embedded) *@
+                                                        var hasSurvey = (task.TaskTemplate?.SurveyTemplateId.HasValue == true) || 
+                                                                        !string.IsNullOrEmpty(task.TaskTemplate?.SurveyDefinitionJson);
+                                                        
+                                                        if (hasSurvey)
+                                                        {
+                                                            <a asp-page="/Tasks/CompleteSurvey" asp-route-id="@task.Id" class="btn btn-sm btn-success" title="Complete Survey">
+                                                                <i class="bi bi-clipboard-check"></i> Survey
+                                                            </a>
+                                                        }
+                                                        else
+                                                        {
+                                                            <button type="button" class="btn btn-sm btn-success" onclick="completeTask('@task.Id', '@task.Title')" title="Complete">
+                                                                <i class="bi bi-check-circle"></i>
+                                                            </button>
+                                                        }
+                                                        <button type="button" class="btn btn-sm btn-warning" onclick="cancelTask('@task.Id', '@task.Title')" title="Cancel">
+                                                            <i class="bi bi-x-circle"></i>
+                                                        </button>
+                                                    }
+                                                    <a asp-page="/Cases/Details" asp-route-id="@task.CaseId" class="btn btn-sm btn-outline-primary" title="View Case">
+                                                        <i class="bi bi-arrow-right"></i>
+                                                    </a>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="text-center py-5 text-muted">
+                            <i class="bi bi-inbox fs-1"></i>
+                            <p class="mt-3">
+                                @if (string.IsNullOrEmpty(Model.StatusFilter) && string.IsNullOrEmpty(Model.PriorityFilter) && string.IsNullOrEmpty(Model.DueDateFilter))
+                                {
+                                    <strong>No tasks assigned to you yet.</strong>
+                                    <br/>
+                                    <span>Tasks will appear here when they are assigned to you.</span>
+                                }
+                                else
+                                {
+                                    <strong>No tasks match the selected filters.</strong>
+                                    <br/>
+                                    <a asp-page="/Dashboard/MyTasks" class="btn btn-primary mt-2">Clear Filters</a>
+                                }
+                            </p>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Complete Task Modal -->
+<div class="modal fade" id="completeTaskModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="post" asp-page-handler="CompleteTask">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="bi bi-check-circle me-2"></i>Complete Task</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" name="taskId" id="completeTaskId" />
+                    <div class="alert alert-success">
+                        <i class="bi bi-info-circle me-2"></i>
+                        Mark task as complete: <strong id="completeTaskName"></strong>
+                    </div>
+                    <div class="mb-3">
+                        <label for="completionNotes" class="form-label">Completion Notes (Optional)</label>
+                        <textarea name="completionNotes" id="completionNotes" class="form-control" rows="3" 
+                                  placeholder="Add any notes about completing this task..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-success">
+                        <i class="bi bi-check-circle me-1"></i>Mark Complete
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Cancel Task Modal -->
+<div class="modal fade" id="cancelTaskModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="post" asp-page-handler="CancelTask">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="bi bi-x-circle me-2"></i>Cancel Task</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" name="taskId" id="cancelTaskId" />
+                    <div class="alert alert-warning">
+                        <i class="bi bi-exclamation-triangle me-2"></i>
+                        Cancel task: <strong id="cancelTaskName"></strong>
+                    </div>
+                    <div class="mb-3">
+                        <label for="cancellationReason" class="form-label">Reason (Optional)</label>
+                        <textarea name="cancellationReason" id="cancellationReason" class="form-control" rows="3" 
+                                  placeholder="Why is this task being cancelled?"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Back</button>
+                    <button type="submit" class="btn btn-warning">
+                        <i class="bi bi-x-circle me-1"></i>Cancel Task
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Start Task Form (Hidden) -->
+<form id="startTaskForm" method="post" asp-page-handler="StartTask" style="display:none;">
+    <input type="hidden" name="taskId" id="startTaskId" />
+</form>
+
+@section Scripts {
+<script>
+    function completeTask(taskId, taskName) {
+        $('#completeTaskId').val(taskId);
+        $('#completeTaskName').text(taskName);
+        $('#completionNotes').val('');
+        $('#completeTaskModal').modal('show');
+    }
+
+    function cancelTask(taskId, taskName) {
+        $('#cancelTaskId').val(taskId);
+        $('#cancelTaskName').text(taskName);
+        $('#cancellationReason').val('');
+        $('#cancelTaskModal').modal('show');
+    }
+
+    function startTask(taskId) {
+        $('#startTaskId').val(taskId);
+        $('#startTaskForm').submit();
+    }
+</script>
+}

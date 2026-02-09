@@ -1,0 +1,158 @@
+@page
+@using Surveillance_MVP.Models
+@model Surveillance_MVP.Pages.Outbreaks.EditModel
+@{
+    ViewData["Title"] = "Edit Outbreak";
+}
+
+<nav aria-label="breadcrumb" class="mb-4">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a asp-page="/Index">Home</a></li>
+        <li class="breadcrumb-item"><a asp-page="Index">Outbreaks</a></li>
+        <li class="breadcrumb-item"><a asp-page="Details" asp-route-id="@Model.Outbreak.Id">@Model.Outbreak.Name</a></li>
+        <li class="breadcrumb-item active" aria-current="page">Edit</li>
+    </ol>
+</nav>
+
+<div class="mb-4">
+    <h2><i class="bi bi-pencil me-2"></i>Edit Outbreak</h2>
+    <p class="text-muted">Update outbreak investigation details</p>
+</div>
+
+<div class="row">
+    <div class="col-lg-8">
+        <form method="post">
+            <input type="hidden" asp-for="Outbreak.Id" />
+            <input type="hidden" asp-for="Outbreak.CreatedDate" />
+            <input type="hidden" asp-for="Outbreak.CreatedBy" />
+            
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Outbreak Information</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row mb-3">
+                        <div class="col-md-8">
+                            <label asp-for="Outbreak.Name" class="form-label">Outbreak Name <span class="text-danger">*</span></label>
+                            <input asp-for="Outbreak.Name" class="form-control" />
+                            <span asp-validation-for="Outbreak.Name" class="text-danger"></span>
+                        </div>
+                        <div class="col-md-4">
+                            <label asp-for="Outbreak.Status" class="form-label">Status</label>
+                            <select asp-for="Outbreak.Status" asp-items="Model.Statuses" class="form-select"></select>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="Outbreak.Description" class="form-label">Description</label>
+                        <textarea asp-for="Outbreak.Description" class="form-control" rows="3"></textarea>
+                        <span asp-validation-for="Outbreak.Description" class="text-danger"></span>
+                    </div>
+
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label asp-for="Outbreak.StartDate" class="form-label">Start Date <span class="text-danger">*</span></label>
+                            <input asp-for="Outbreak.StartDate" class="form-control" type="date" />
+                            <span asp-validation-for="Outbreak.StartDate" class="text-danger"></span>
+                        </div>
+                        <div class="col-md-6">
+                            <label asp-for="Outbreak.EndDate" class="form-label">End Date</label>
+                            <input asp-for="Outbreak.EndDate" class="form-control" type="date" />
+                            <span asp-validation-for="Outbreak.EndDate" class="text-danger"></span>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="Outbreak.PrimaryDiseaseId" class="form-label">Primary Disease</label>
+                        <select asp-for="Outbreak.PrimaryDiseaseId" asp-items="Model.Diseases" class="form-select">
+                            <option value="">-- Select Disease --</option>
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <h6 class="border-bottom pb-2">Location/Event Association</h6>
+                        <p class="text-muted small">Link this outbreak to either a location OR an event</p>
+                        
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label asp-for="Outbreak.PrimaryLocationId" class="form-label">
+                                    <i class="bi bi-geo-alt me-1"></i>Primary Location
+                                </label>
+                                <select asp-for="Outbreak.PrimaryLocationId" asp-items="Model.Locations" 
+                                        class="form-select" id="locationSelect">
+                                    <option value="">-- Select Location --</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label asp-for="Outbreak.PrimaryEventId" class="form-label">
+                                    <i class="bi bi-calendar-event me-1"></i>Primary Event
+                                </label>
+                                <select asp-for="Outbreak.PrimaryEventId" asp-items="Model.Events" 
+                                        class="form-select" id="eventSelect">
+                                    <option value="">-- Select Event --</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="Outbreak.LeadInvestigatorId" class="form-label">Lead Investigator</label>
+                        <select asp-for="Outbreak.LeadInvestigatorId" asp-items="Model.Users" class="form-select">
+                            <option value="">-- Select Lead Investigator --</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="card-footer">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-save me-1"></i>Save Changes
+                    </button>
+                    <a asp-page="Details" asp-route-id="@Model.Outbreak.Id" class="btn btn-secondary">Cancel</a>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <div class="col-lg-4">
+        <div class="card bg-light">
+            <div class="card-body">
+                <h6 class="card-title"><i class="bi bi-info-circle me-2"></i>Editing Guidelines</h6>
+                <ul class="small mb-0">
+                    <li>Update outbreak status as investigation progresses</li>
+                    <li>Set end date when outbreak is resolved</li>
+                    <li>Only link to ONE location or event, not both</li>
+                    <li>Changes are logged in the timeline</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="card mt-3">
+            <div class="card-header bg-light">
+                <h6 class="mb-0">Status Guide</h6>
+            </div>
+            <div class="card-body small">
+                <p><span class="badge bg-danger">Active</span> - Active investigation underway</p>
+                <p><span class="badge bg-warning">Monitoring</span> - Watching for new cases</p>
+                <p><span class="badge bg-success">Resolved</span> - No new cases, follow-up complete</p>
+                <p class="mb-0"><span class="badge bg-secondary">Closed</span> - Investigation archived</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+    <script>
+        // Ensure only one of location or event is selected
+        document.getElementById('locationSelect').addEventListener('change', function() {
+            if (this.value) {
+                document.getElementById('eventSelect').value = '';
+            }
+        });
+
+        document.getElementById('eventSelect').addEventListener('change', function() {
+            if (this.value) {
+                document.getElementById('locationSelect').value = '';
+            }
+        });
+    </script>
+}

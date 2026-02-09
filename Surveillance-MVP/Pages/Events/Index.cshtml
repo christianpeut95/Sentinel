@@ -1,0 +1,260 @@
+@page
+@model Surveillance_MVP.Pages.Events.IndexModel
+
+@{
+    ViewData["Title"] = "Events";
+}
+
+<nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a asp-page="/Index">Home</a></li>
+        <li class="breadcrumb-item active" aria-current="page">Events</li>
+    </ol>
+</nav>
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2 class="mb-0"><i class="bi bi-calendar-event me-2"></i>Events</h2>
+    <div>
+        <a asp-page="./Create" class="btn btn-primary"><i class="bi bi-plus-circle me-1"></i>Add Event</a>
+    </div>
+</div>
+
+@if (TempData["SuccessMessage"] != null)
+{
+    <div class="alert alert-success alert-dismissible fade show" role="alert">
+        <i class="bi bi-check-circle me-2"></i>@TempData["SuccessMessage"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+}
+
+@if (TempData["ErrorMessage"] != null)
+{
+    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+        <i class="bi bi-exclamation-triangle me-2"></i>@TempData["ErrorMessage"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+}
+
+<div class="card shadow-sm mb-3">
+    <div class="card-header bg-light">
+        <i class="bi bi-funnel me-2"></i>Search & Filter
+    </div>
+    <div class="card-body">
+        <form method="get">
+            <div class="row g-3">
+                <div class="col-md-4">
+                    <label for="searchTerm" class="form-label">Search</label>
+                    <input type="text" class="form-control" id="searchTerm" name="searchTerm" value="@Model.SearchTerm" placeholder="Search by name or description..." />
+                </div>
+                <div class="col-md-3">
+                    <label for="eventTypeId" class="form-label">Event Type</label>
+                    <select class="form-select" id="eventTypeId" name="eventTypeId">
+                        <option value="">All Types</option>
+                        @foreach (var type in Model.EventTypes)
+                        {
+                            <option value="@type.Id" selected="@(Model.EventTypeId == type.Id)">@type.Name</option>
+                        }
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label for="locationId" class="form-label">Location</label>
+                    <select class="form-select" id="locationId" name="locationId">
+                        <option value="">All Locations</option>
+                        @foreach (var location in Model.Locations)
+                        {
+                            <option value="@location.Id" selected="@(Model.LocationId == location.Id)">@location.Name</option>
+                        }
+                    </select>
+                </div>
+                <div class="col-md-2 d-flex align-items-end">
+                    <button type="submit" class="btn btn-primary w-100">
+                        <i class="bi bi-search me-1"></i>Search
+                    </button>
+                </div>
+            </div>
+
+            <div class="row g-3 mt-2">
+                <div class="col-md-3">
+                    <label for="startDate" class="form-label">Start Date From</label>
+                    <input type="date" class="form-control" id="startDate" name="startDate" value="@Model.StartDate?.ToString("yyyy-MM-dd")" />
+                </div>
+                <div class="col-md-3">
+                    <label for="endDate" class="form-label">Start Date To</label>
+                    <input type="date" class="form-control" id="endDate" name="endDate" value="@Model.EndDate?.ToString("yyyy-MM-dd")" />
+                </div>
+                <div class="col-md-3">
+                    <div class="form-check mt-4">
+                        <input class="form-check-input" type="checkbox" id="indoorOnly" name="indoorOnly" value="true" checked="@Model.IndoorOnly" />
+                        <label class="form-check-label" for="indoorOnly">
+                            Indoor Events Only
+                        </label>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="form-check mt-4">
+                        <input class="form-check-input" type="checkbox" id="activeOnly" name="activeOnly" value="true" checked="@Model.ActiveOnly" />
+                        <label class="form-check-label" for="activeOnly">
+                            Active Only
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row mt-3">
+                <div class="col-md-12">
+                    <a asp-page="./Index" class="btn btn-outline-secondary">
+                        <i class="bi bi-x-circle me-1"></i>Clear Filters
+                    </a>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="card shadow-sm">
+    <div class="card-body">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <div>
+                <strong>@Model.Events.Count</strong> event(s) found
+            </div>
+        </div>
+
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Event Name</th>
+                        <th>Type</th>
+                        <th>Location</th>
+                        <th>Date & Time</th>
+                        <th>Attendees</th>
+                        <th>Indoor</th>
+                        <th>Exposures</th>
+                        <th>Attack Rate</th>
+                        <th>Status</th>
+                        <th class="text-end">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+@foreach (var evt in Model.Events)
+{
+                    <tr>
+                        <td><strong>@evt.Name</strong></td>
+                        <td>
+                            @if (evt.EventType != null)
+                            {
+                                <span class="badge bg-secondary">@evt.EventType.Name</span>
+                            }
+                            else
+                            {
+                                <span class="text-muted">-</span>
+                            }
+                        </td>
+                        <td>
+                            @if (evt.Location != null)
+                            {
+                                <a asp-page="/Locations/Details" asp-route-id="@evt.Location.Id">@evt.Location.Name</a>
+                            }
+                            else
+                            {
+                                <span class="text-muted">-</span>
+                            }
+                        </td>
+                        <td>
+                            <small>
+                                @evt.StartDateTime.ToLocalTime().ToString("g")
+                                @if (evt.EndDateTime.HasValue)
+                                {
+                                    <text><br/>to @evt.EndDateTime.Value.ToLocalTime().ToString("g")</text>
+                                }
+                            </small>
+                        </td>
+                        <td>@(evt.EstimatedAttendees?.ToString() ?? "-")</td>
+                        <td>
+                            @if (evt.IsIndoor == true)
+                            {
+                                <span class="badge bg-info">Indoor</span>
+                            }
+                            else
+                            {
+                                <span class="badge bg-success">Outdoor</span>
+                            }
+                        </td>
+                        <td>
+                            @if (Model.ExposureCounts.ContainsKey(evt.Id) && Model.ExposureCounts[evt.Id] > 0)
+                            {
+                                <span class="badge bg-warning text-dark">@Model.ExposureCounts[evt.Id]</span>
+                            }
+                            else
+                            {
+                                <span class="text-muted">0</span>
+                            }
+                        </td>
+                        <td>
+                            @if (evt.EstimatedAttendees.HasValue && evt.EstimatedAttendees > 0 && Model.ExposureCounts.ContainsKey(evt.Id))
+                            {
+                                var attackRate = (Model.ExposureCounts[evt.Id] / (double)evt.EstimatedAttendees.Value) * 100;
+                                <span class="badge bg-@(attackRate > 10 ? "danger" : attackRate > 5 ? "warning" : "secondary")">
+                                    @attackRate.ToString("F1")%
+                                </span>
+                            }
+                            else
+                            {
+                                <span class="text-muted">-</span>
+                            }
+                        </td>
+                        <td>
+                            @if (evt.IsActive)
+                            {
+                                <span class="badge bg-success">Active</span>
+                            }
+                            else
+                            {
+                                <span class="badge bg-secondary">Inactive</span>
+                            }
+                        </td>
+                        <td class="text-end">
+                            <div class="btn-group btn-group-sm" role="group">
+                                <a asp-page="./Details" asp-route-id="@evt.Id" class="btn btn-outline-info" title="View Details">
+                                    <i class="bi bi-eye"></i>
+                                </a>
+                                <a asp-page="./Edit" asp-route-id="@evt.Id" class="btn btn-outline-secondary" title="Edit">
+                                    <i class="bi bi-pencil"></i>
+                                </a>
+                                @if (!Model.ExposureCounts.ContainsKey(evt.Id) || Model.ExposureCounts[evt.Id] == 0)
+                                {
+                                    <button type="button" class="btn btn-outline-danger" onclick="confirmDelete('@evt.Id', '@evt.Name')" title="Delete">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                }
+                            </div>
+                        </td>
+                    </tr>
+}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+@if (!Model.Events.Any())
+{
+    <div class="alert alert-info mt-3">
+        <i class="bi bi-info-circle me-2"></i>No events found. <a asp-page="./Create" class="alert-link">Create your first event</a>.
+    </div>
+}
+
+<form method="post" asp-page-handler="Delete" id="deleteForm">
+    <input type="hidden" name="id" id="deleteId" />
+</form>
+
+@section Scripts {
+<script>
+    function confirmDelete(id, name) {
+        if (confirm(`Are you sure you want to delete "${name}"?\n\nThis action cannot be undone.`)) {
+            document.getElementById('deleteId').value = id;
+            document.getElementById('deleteForm').submit();
+        }
+    }
+</script>
+}

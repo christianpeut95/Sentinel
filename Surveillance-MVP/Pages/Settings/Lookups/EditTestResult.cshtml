@@ -1,0 +1,121 @@
+@page
+@model Surveillance_MVP.Pages.Settings.Lookups.EditTestResultModel
+
+@{
+    ViewData["Title"] = "Edit Test Result";
+    Layout = "~/Pages/Shared/_Layout.cshtml";
+}
+
+<nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a asp-page="/Index">Home</a></li>
+        <li class="breadcrumb-item"><a asp-page="/Settings/Index">Settings</a></li>
+        <li class="breadcrumb-item"><a asp-page="./TestResults">Test Results</a></li>
+        <li class="breadcrumb-item active" aria-current="page">Edit</li>
+    </ol>
+</nav>
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2><i class="bi bi-pencil me-2"></i>Edit Test Result</h2>
+</div>
+
+@if (TempData["ErrorMessage"] != null)
+{
+    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+        <i class="bi bi-exclamation-triangle me-2"></i>@TempData["ErrorMessage"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+}
+
+<form method="post">
+    <div asp-validation-summary="ModelOnly" class="alert alert-danger" role="alert"></div>
+    <input type="hidden" asp-for="TestResult.Id" />
+
+    <div class="card shadow-sm mb-4">
+        <div class="card-header bg-light fw-semibold">
+            <i class="bi bi-info-circle me-2"></i>Test Result Information
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-12 mb-3">
+                    <label asp-for="TestResult.TestTypeId" class="form-label">
+                        @Html.DisplayNameFor(m => m.TestResult.TestTypeId)
+                    </label>
+                    <select asp-for="TestResult.TestTypeId" class="form-select" asp-items="Model.TestTypesList">
+                        <option value="">-- All Test Types (Generic) --</option>
+                    </select>
+                    <span asp-validation-for="TestResult.TestTypeId" class="text-danger small"></span>
+                    <small class="form-text text-muted">Link this result to a specific test type, or leave blank for generic results</small>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-md-4 mb-3">
+                    <label asp-for="TestResult.Name" class="form-label">
+                        <span class="text-danger">*</span> @Html.DisplayNameFor(m => m.TestResult.Name)
+                    </label>
+                    <input asp-for="TestResult.Name" class="form-control" aria-required="true" />
+                    <span asp-validation-for="TestResult.Name" class="text-danger small"></span>
+                </div>
+
+                <div class="col-md-4 mb-3">
+                    <label asp-for="TestResult.ExportCode" class="form-label">
+                        @Html.DisplayNameFor(m => m.TestResult.ExportCode)
+                    </label>
+                    <input asp-for="TestResult.ExportCode" class="form-control" />
+                    <span asp-validation-for="TestResult.ExportCode" class="text-danger small"></span>
+                    <small class="form-text text-muted">Code for external systems</small>
+                </div>
+
+                <div class="col-md-4 mb-3">
+                    <label asp-for="TestResult.DisplayOrder" class="form-label">
+                        @Html.DisplayNameFor(m => m.TestResult.DisplayOrder)
+                    </label>
+                    <input asp-for="TestResult.DisplayOrder" class="form-control" type="number" />
+                    <span asp-validation-for="TestResult.DisplayOrder" class="text-danger small"></span>
+                    <small class="form-text text-muted">Lower numbers appear first</small>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-md-12 mb-3">
+                    <label asp-for="TestResult.Description" class="form-label">
+                        @Html.DisplayNameFor(m => m.TestResult.Description)
+                    </label>
+                    <textarea asp-for="TestResult.Description" class="form-control" rows="3"></textarea>
+                    <span asp-validation-for="TestResult.Description" class="text-danger small"></span>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-md-12 mb-3">
+                    <div class="form-check">
+                        <input asp-for="TestResult.IsActive" class="form-check-input" type="checkbox" />
+                        <label asp-for="TestResult.IsActive" class="form-check-label">
+                            Active (available for selection)
+                        </label>
+                    </div>
+                    @if (Model.UsageCount > 0)
+                    {
+                        <small class="form-text text-muted">
+                            <i class="bi bi-info-circle me-1"></i>This test result is currently used in @Model.UsageCount laboratory result(s)
+                        </small>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="d-flex justify-content-between">
+        <a asp-page="./TestResults" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left me-1"></i>Cancel
+        </a>
+        <button type="submit" class="btn btn-primary">
+            <i class="bi bi-check-circle me-1"></i>Save Changes
+        </button>
+    </div>
+</form>
+
+@section Scripts {
+    @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+}

@@ -1,0 +1,827 @@
+@page
+@model Surveillance_MVP.Pages.Dashboard.SuperviseInterviewsModel
+@using Surveillance_MVP.Models
+@{
+    ViewData["Title"] = "Supervise Interviews";
+}
+
+<style>
+    .modern-stat-card {
+        border-radius: 12px;
+        border: none;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        transition: transform 0.2s, box-shadow 0.2s;
+    }
+    .modern-stat-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+    }
+    .stat-card-amber {
+        background: linear-gradient(135deg, #fbc2eb 0%, #a6c1ee 100%);
+    }
+    .stat-card-rose {
+        background: linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%);
+    }
+    .stat-card-emerald {
+        background: linear-gradient(135deg, #84fab0 0%, #8fd3f4 100%);
+    }
+    .stat-card-sky {
+        background: linear-gradient(135deg, #a1c4fd 0%, #c2e9fb 100%);
+    }
+    .modern-card {
+        border-radius: 12px;
+        border: 1px solid #e2e8f0;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    }
+    .soft-badge {
+        padding: 6px 12px;
+        border-radius: 8px;
+        font-weight: 500;
+    }
+    .soft-success {
+        background-color: #d4edda;
+        color: #155724;
+    }
+    .soft-warning {
+        background-color: #fff3cd;
+        color: #856404;
+    }
+    .soft-info {
+        background-color: #d1ecf1;
+        color: #0c5460;
+    }
+    .soft-danger {
+        background-color: #f8d7da;
+        color: #721c24;
+    }
+    .soft-secondary {
+        background-color: #e2e3e5;
+        color: #383d41;
+    }
+    .worker-row:hover {
+        background-color: #f8f9fa;
+    }
+</style>
+
+<div class="container-fluid">
+    <!-- Page Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="mb-1"><i class="bi bi-people me-2"></i>Interview Supervisor Dashboard</h2>
+            <p class="text-muted mb-0">Monitor team performance and manage assignments</p>
+        </div>
+        <div>
+            <a asp-page="/Dashboard/SuperviseInterviews" class="btn btn-outline-primary" style="border-radius: 10px;">
+                <i class="bi bi-arrow-clockwise me-2"></i>Refresh
+            </a>
+        </div>
+    </div>
+
+    @if (TempData["SuccessMessage"] != null)
+    {
+        <div class="alert alert-success alert-dismissible fade show border-0 shadow-sm" style="border-radius: 10px;">
+            <i class="bi bi-check-circle-fill me-2"></i>@TempData["SuccessMessage"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
+
+    @if (TempData["ErrorMessage"] != null)
+    {
+        <div class="alert alert-danger alert-dismissible fade show border-0 shadow-sm" style="border-radius: 10px;">
+            <i class="bi bi-exclamation-triangle-fill me-2"></i>@TempData["ErrorMessage"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
+
+    <!-- Filter and Search Bar -->
+    <div class="card modern-card mb-4">
+        <div class="card-body">
+            <form method="get" class="row g-3" id="filterForm">
+                <div class="col-md-3">
+                    <label class="form-label"><i class="bi bi-person me-1"></i>Worker</label>
+                    <select name="FilterWorker" class="form-select" asp-for="FilterWorker">
+                        <option value="">All Workers</option>
+                        @foreach (var worker in Model.AvailableWorkers)
+                        {
+                            <option value="@worker.Id">@worker.FirstName @worker.LastName</option>
+                        }
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label"><i class="bi bi-flag me-1"></i>Priority</label>
+                    <select name="FilterPriority" class="form-select" asp-for="FilterPriority">
+                        <option value="">All Priorities</option>
+                        <option value="Urgent">?? Urgent</option>
+                        <option value="High">?? High</option>
+                        <option value="Medium">?? Medium</option>
+                        <option value="Low">?? Low</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label"><i class="bi bi-search me-1"></i>Search</label>
+                    <input type="text" name="SearchTerm" class="form-control" 
+                           placeholder="Patient name or task title..." 
+                           asp-for="SearchTerm" />
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label"><i class="bi bi-list-ol me-1"></i>Per Page</label>
+                    <select name="PageSize" class="form-select" asp-for="PageSize">
+                        <option value="10">10</option>
+                        <option value="25">25</option>
+                        <option value="50">50</option>
+                        <option value="100">100</option>
+                    </select>
+                </div>
+                <div class="col-md-2 d-flex align-items-end gap-2">
+                    <button type="submit" class="btn btn-primary flex-grow-1">
+                        <i class="bi bi-funnel me-1"></i>Filter
+                    </button>
+                    <a href="/Dashboard/SuperviseInterviews" class="btn btn-outline-secondary">
+                        <i class="bi bi-x-circle"></i>
+                    </a>
+                </div>
+            </form>
+            
+            @if (!string.IsNullOrEmpty(Model.FilterWorker) || !string.IsNullOrEmpty(Model.FilterPriority) || !string.IsNullOrEmpty(Model.SearchTerm))
+            {
+                <div class="mt-3">
+                    <span class="badge bg-info me-2">Filters Active:</span>
+                    @if (!string.IsNullOrEmpty(Model.FilterWorker))
+                    {
+                        var worker = Model.AvailableWorkers.FirstOrDefault(w => w.Id == Model.FilterWorker);
+                        <span class="badge bg-secondary me-1">
+                            Worker: @worker?.FirstName @worker?.LastName
+                            <a href="?FilterPriority=@Model.FilterPriority&SearchTerm=@Model.SearchTerm&PageSize=@Model.PageSize" class="text-white ms-1">×</a>
+                        </span>
+                    }
+                    @if (!string.IsNullOrEmpty(Model.FilterPriority))
+                    {
+                        <span class="badge bg-secondary me-1">
+                            Priority: @Model.FilterPriority
+                            <a href="?FilterWorker=@Model.FilterWorker&SearchTerm=@Model.SearchTerm&PageSize=@Model.PageSize" class="text-white ms-1">×</a>
+                        </span>
+                    }
+                    @if (!string.IsNullOrEmpty(Model.SearchTerm))
+                    {
+                        <span class="badge bg-secondary me-1">
+                            Search: "@Model.SearchTerm"
+                            <a href="?FilterWorker=@Model.FilterWorker&FilterPriority=@Model.FilterPriority&PageSize=@Model.PageSize" class="text-white ms-1">×</a>
+                        </span>
+                    }
+                </div>
+            }
+        </div>
+    </div>
+
+    @if (Model.DashboardData != null)
+    {
+        <!-- Statistics Cards -->
+        <div class="row mb-4 g-3">
+            <div class="col-md-3">
+                <div class="card modern-stat-card stat-card-amber text-white">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <h6 class="card-title mb-1 opacity-75">Unassigned</h6>
+                                <h2 class="mb-0">@Model.DashboardData.UnassignedTaskCount</h2>
+                            </div>
+                            <div class="fs-1 opacity-50">
+                                <i class="bi bi-inbox"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card modern-stat-card stat-card-rose text-white">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <h6 class="card-title mb-1 opacity-75">Escalated</h6>
+                                <h2 class="mb-0">@Model.DashboardData.EscalatedTaskCount</h2>
+                            </div>
+                            <div class="fs-1 opacity-50">
+                                <i class="bi bi-exclamation-triangle"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card modern-stat-card stat-card-emerald text-white">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <h6 class="card-title mb-1 opacity-75">Active Workers</h6>
+                                <h2 class="mb-0">@Model.DashboardData.ActiveWorkerCount</h2>
+                            </div>
+                            <div class="fs-1 opacity-50">
+                                <i class="bi bi-person-check"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card modern-stat-card stat-card-sky text-white">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <h6 class="card-title mb-1 opacity-75">Today's Progress</h6>
+                                <h2 class="mb-0">@Model.DashboardData.CompletedTasksToday / @Model.DashboardData.TotalTasksToday</h2>
+                            </div>
+                            <div class="fs-1 opacity-50">
+                                <i class="bi bi-graph-up"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Worker Performance -->
+        <div class="card modern-card mb-4">
+            <div class="card-header bg-light border-bottom">
+                <h5 class="mb-0"><i class="bi bi-people-fill me-2"></i>Worker Performance</h5>
+            </div>
+            <div class="card-body p-0">
+                @if (Model.DashboardData.WorkerStats?.Any() == true)
+                {
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Worker</th>
+                                    <th>Status</th>
+                                    <th>Assigned</th>
+                                    <th>In Progress</th>
+                                    <th>Completed</th>
+                                    <th>Calls Today</th>
+                                    <th>Success Rate</th>
+                                    <th>Languages</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var worker in Model.DashboardData.WorkerStats)
+                                {
+                                    <tr class="worker-row">
+                                        <td>
+                                            <i class="bi bi-person-circle me-2"></i>
+                                            <strong>@worker.WorkerName</strong>
+                                        </td>
+                                        <td>
+                                            @if (worker.IsAvailable)
+                                            {
+                                                <span class="badge soft-success">
+                                                    <i class="bi bi-check-circle me-1"></i>Available
+                                                </span>
+                                            }
+                                            else
+                                            {
+                                                <span class="badge soft-secondary">
+                                                    <i class="bi bi-dash-circle me-1"></i>Unavailable
+                                                </span>
+                                            }
+                                        </td>
+                                        <td><span class="badge soft-info">@worker.TasksAssigned</span></td>
+                                        <td><span class="badge soft-warning">@worker.TasksInProgress</span></td>
+                                        <td><span class="badge soft-success">@worker.TasksCompleted</span></td>
+                                        <td>
+                                            @worker.CallsToday total
+                                            <small class="text-muted">(@worker.SuccessfulCallsToday successful)</small>
+                                        </td>
+                                        <td>
+                                            <div class="progress" style="height: 24px;">
+                                                <div class="progress-bar bg-success" role="progressbar" style="width: @((int)worker.CompletionRate)%">
+                                                    @((int)worker.CompletionRate)%
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            @foreach (var lang in worker.LanguagesSpoken)
+                                            {
+                                                <span class="badge soft-info me-1">@lang</span>
+                                            }
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+                else
+                {
+                    <div class="text-center py-4">
+                        <i class="bi bi-people text-muted" style="font-size: 2rem;"></i>
+                        <p class="text-muted mt-2 mb-0">No interview workers configured</p>
+                    </div>
+                }
+            </div>
+        </div>
+
+        <!-- Currently Assigned Tasks -->
+        <div class="card modern-card mb-4">
+            <div class="card-header bg-light border-bottom">
+                <div class="d-flex justify-content-between align-items-center flex-wrap">
+                    <div class="mb-2 mb-md-0">
+                        <h5 class="mb-0">
+                            <i class="bi bi-telephone-forward me-2"></i>Currently Assigned Tasks 
+                            <span class="badge bg-primary">@Model.TotalTasks</span>
+                        </h5>
+                        @if (Model.TotalTasks > 0)
+                        {
+                            <small class="text-muted ms-2">
+                                Showing @Model.CurrentlyAssignedTasks.Count of @Model.TotalTasks tasks
+                                @if (Model.TotalPages > 1)
+                                {
+                                    <span> (Page @Model.PageNumber of @Model.TotalPages)</span>
+                                }
+                            </small>
+                        }
+                    </div>
+                    <div class="btn-group btn-group-sm">
+                        <a href="?SortBy=Priority&SortOrder=@(Model.SortBy == "Priority" && Model.SortOrder == "asc" ? "desc" : "asc")&PageNumber=@Model.PageNumber&PageSize=@Model.PageSize&FilterWorker=@Model.FilterWorker&FilterPriority=@Model.FilterPriority&SearchTerm=@Model.SearchTerm" 
+                           class="btn @(Model.SortBy == "Priority" ? "btn-primary" : "btn-outline-secondary")"
+                           title="Sort by Priority">
+                            <i class="bi bi-sort-numeric-down me-1"></i>Priority
+                            @if (Model.SortBy == "Priority")
+                            {
+                                <i class="bi bi-caret-@(Model.SortOrder == "asc" ? "up" : "down")-fill"></i>
+                            }
+                        </a>
+                        <a href="?SortBy=Worker&SortOrder=@(Model.SortBy == "Worker" && Model.SortOrder == "asc" ? "desc" : "asc")&PageNumber=@Model.PageNumber&PageSize=@Model.PageSize&FilterWorker=@Model.FilterWorker&FilterPriority=@Model.FilterPriority&SearchTerm=@Model.SearchTerm" 
+                           class="btn @(Model.SortBy == "Worker" ? "btn-primary" : "btn-outline-secondary")"
+                           title="Sort by Worker">
+                            <i class="bi bi-person me-1"></i>Worker
+                            @if (Model.SortBy == "Worker")
+                            {
+                                <i class="bi bi-caret-@(Model.SortOrder == "asc" ? "up" : "down")-fill"></i>
+                            }
+                        </a>
+                        <a href="?SortBy=LastCall&SortOrder=@(Model.SortBy == "LastCall" && Model.SortOrder == "asc" ? "desc" : "asc")&PageNumber=@Model.PageNumber&PageSize=@Model.PageSize&FilterWorker=@Model.FilterWorker&FilterPriority=@Model.FilterPriority&SearchTerm=@Model.SearchTerm" 
+                           class="btn @(Model.SortBy == "LastCall" ? "btn-primary" : "btn-outline-secondary")"
+                           title="Sort by Last Call">
+                            <i class="bi bi-clock me-1"></i>Last Call
+                            @if (Model.SortBy == "LastCall")
+                            {
+                                <i class="bi bi-caret-@(Model.SortOrder == "asc" ? "up" : "down")-fill"></i>
+                            }
+                        </a>
+                    </div>
+                </div>
+            </div>
+            <div class="card-body p-0">
+                @if (Model.CurrentlyAssignedTasks?.Any() == true)
+                {
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Worker</th>
+                                    <th>Priority</th>
+                                    <th>Patient</th>
+                                    <th>Task</th>
+                                    <th>Phone</th>
+                                    <th>Attempts</th>
+                                    <th>Last Call</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var task in Model.CurrentlyAssignedTasks)
+                                {
+                                    <tr>
+                                        <td>
+                                            <i class="bi bi-person me-1"></i>
+                                            <strong>@task.AssignedToUser?.FirstName @task.AssignedToUser?.LastName</strong>
+                                        </td>
+                                        <td>
+                                            <span class="badge @(task.Priority switch {
+                                                TaskPriority.Urgent => "soft-danger",
+                                                TaskPriority.High => "soft-warning",
+                                                TaskPriority.Medium => "soft-info",
+                                                _ => "soft-secondary"
+                                            })">@task.Priority</span>
+                                        </td>
+                                        <td>@task.Case?.Patient?.GivenName @task.Case?.Patient?.FamilyName</td>
+                                        <td>@task.Title</td>
+                                        <td>
+                                            <i class="bi bi-telephone me-1"></i>
+                                            @(task.Case?.Patient?.MobilePhone ?? task.Case?.Patient?.HomePhone ?? "N/A")
+                                        </td>
+                                        <td>
+                                            <span class="badge @(task.CurrentAttemptCount >= task.MaxCallAttempts - 1 ? "soft-danger" : "soft-info")">
+                                                @task.CurrentAttemptCount / @task.MaxCallAttempts
+                                            </span>
+                                        </td>
+                                        <td>
+                                            @if (task.LastCallAttempt.HasValue)
+                                            {
+                                                <small>@task.LastCallAttempt.Value.ToLocalTime().ToString("g")</small>
+                                            }
+                                            else
+                                            {
+                                                <small class="text-muted">Never</small>
+                                            }
+                                        </td>
+                                        <td>
+                                            <button type="button" class="btn btn-sm btn-warning" data-bs-toggle="modal" data-bs-target="#reassignModal" 
+                                                    data-task-id="@task.Id" 
+                                                    data-task-title="@task.Title"
+                                                    data-current-worker="@task.AssignedToUser?.FirstName @task.AssignedToUser?.LastName">
+                                                <i class="bi bi-arrow-left-right me-1"></i>Reassign
+                                            </button>
+                                            <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#unassignModal" 
+                                                    data-task-id="@task.Id" 
+                                                    data-task-title="@task.Title">
+                                                <i class="bi bi-x-circle me-1"></i>Unassign
+                                            </button>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <!-- Pagination Controls -->
+                    @if (Model.TotalPages > 1)
+                    {
+                        <nav aria-label="Task pagination" class="p-3 border-top bg-light">
+                            <ul class="pagination pagination-sm mb-0 justify-content-center">
+                                <!-- Previous Button -->
+                                <li class="page-item @(Model.PageNumber == 1 ? "disabled" : "")">
+                                    <a class="page-link" href="?PageNumber=@(Model.PageNumber - 1)&PageSize=@Model.PageSize&FilterWorker=@Model.FilterWorker&FilterPriority=@Model.FilterPriority&SearchTerm=@Model.SearchTerm&SortBy=@Model.SortBy&SortOrder=@Model.SortOrder"
+                                       aria-label="Previous">
+                                        <span aria-hidden="true">&laquo;</span>
+                                    </a>
+                                </li>
+                                
+                                <!-- First Page -->
+                                @if (Model.PageNumber > 3)
+                                {
+                                    <li class="page-item">
+                                        <a class="page-link" href="?PageNumber=1&PageSize=@Model.PageSize&FilterWorker=@Model.FilterWorker&FilterPriority=@Model.FilterPriority&SearchTerm=@Model.SearchTerm&SortBy=@Model.SortBy&SortOrder=@Model.SortOrder">
+                                            1
+                                        </a>
+                                    </li>
+                                    <li class="page-item disabled"><span class="page-link">...</span></li>
+                                }
+                                
+                                <!-- Page Numbers (current +/- 2) -->
+                                @for (int i = Math.Max(1, Model.PageNumber - 2); i <= Math.Min(Model.TotalPages, Model.PageNumber + 2); i++)
+                                {
+                                    <li class="page-item @(i == Model.PageNumber ? "active" : "")">
+                                        <a class="page-link" href="?PageNumber=@i&PageSize=@Model.PageSize&FilterWorker=@Model.FilterWorker&FilterPriority=@Model.FilterPriority&SearchTerm=@Model.SearchTerm&SortBy=@Model.SortBy&SortOrder=@Model.SortOrder">
+                                            @i
+                                        </a>
+                                    </li>
+                                }
+                                
+                                <!-- Last Page -->
+                                @if (Model.PageNumber < Model.TotalPages - 2)
+                                {
+                                    <li class="page-item disabled"><span class="page-link">...</span></li>
+                                    <li class="page-item">
+                                        <a class="page-link" href="?PageNumber=@Model.TotalPages&PageSize=@Model.PageSize&FilterWorker=@Model.FilterWorker&FilterPriority=@Model.FilterPriority&SearchTerm=@Model.SearchTerm&SortBy=@Model.SortBy&SortOrder=@Model.SortOrder">
+                                            @Model.TotalPages
+                                        </a>
+                                    </li>
+                                }
+                                
+                                <!-- Next Button -->
+                                <li class="page-item @(Model.PageNumber == Model.TotalPages ? "disabled" : "")">
+                                    <a class="page-link" href="?PageNumber=@(Model.PageNumber + 1)&PageSize=@Model.PageSize&FilterWorker=@Model.FilterWorker&FilterPriority=@Model.FilterPriority&SearchTerm=@Model.SearchTerm&SortBy=@Model.SortBy&SortOrder=@Model.SortOrder"
+                                       aria-label="Next">
+                                        <span aria-hidden="true">&raquo;</span>
+                                    </a>
+                                </li>
+                            </ul>
+                            
+                            <!-- Page Info -->
+                            <div class="text-center mt-2">
+                                <small class="text-muted">
+                                    Page @Model.PageNumber of @Model.TotalPages | Total: @Model.TotalTasks tasks
+                                </small>
+                            </div>
+                        </nav>
+                    }
+                }
+                else
+                {
+                    <div class="text-center py-5">
+                        <i class="bi bi-inbox text-muted" style="font-size: 3rem;"></i>
+                        <p class="text-muted mt-3 mb-1 fw-bold">No tasks match the current filters</p>
+                        <p class="text-muted small mb-3">Try adjusting your search criteria or clear all filters</p>
+                        <a href="/Dashboard/SuperviseInterviews" class="btn btn-outline-primary">
+                            <i class="bi bi-x-circle me-1"></i>Clear All Filters
+                        </a>
+                    </div>
+                }
+            </div>
+        </div>
+
+        <!-- Escalated Tasks -->
+        @if (Model.DashboardData.EscalatedTasks?.Any() == true)
+        {
+            <div class="card modern-card mb-4" style="border-color: #f8d7da;">
+                <div class="card-header" style="background: linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%); color: white; border-radius: 12px 12px 0 0;">
+                    <h5 class="mb-0"><i class="bi bi-exclamation-triangle-fill me-2"></i>Escalated Tasks Requiring Attention</h5>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Level</th>
+                                    <th>Patient</th>
+                                    <th>Task</th>
+                                    <th>Attempts</th>
+                                    <th>Last Attempt</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var task in Model.DashboardData.EscalatedTasks)
+                                {
+                                    <tr>
+                                        <td><span class="badge soft-danger">Level @task.EscalationLevel</span></td>
+                                        <td>@task.Case?.Patient?.GivenName @task.Case?.Patient?.FamilyName</td>
+                                        <td>@task.Title</td>
+                                        <td>@task.CurrentAttemptCount / @task.MaxCallAttempts</td>
+                                        <td>@(task.LastCallAttempt?.ToLocalTime().ToString("g") ?? "Never")</td>
+                                        <td>
+                                            <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#assignModal" data-task-id="@task.Id" style="border-radius: 8px;">
+                                                <i class="bi bi-person-plus me-1"></i>Assign
+                                            </button>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        }
+
+        <!-- Unassigned Tasks -->
+        <div class="card modern-card mb-4">
+            <div class="card-header bg-light border-bottom">
+                <h5 class="mb-0"><i class="bi bi-inbox me-2"></i>Unassigned Task Pool</h5>
+            </div>
+            <div class="card-body p-0">
+                @if (Model.DashboardData.UnassignedTasks?.Any() == true)
+                {
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Priority</th>
+                                    <th>Patient</th>
+                                    <th>Task</th>
+                                    <th>Phone</th>
+                                    <th>Language</th>
+                                    <th>Created</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var task in Model.DashboardData.UnassignedTasks)
+                                {
+                                    <tr>
+                                        <td>
+                                            <span class="badge @(task.Priority switch {
+                                                TaskPriority.Urgent => "soft-danger",
+                                                TaskPriority.High => "soft-warning",
+                                                TaskPriority.Medium => "soft-info",
+                                                _ => "soft-secondary"
+                                            })">@task.Priority</span>
+                                        </td>
+                                        <td>@task.Case?.Patient?.GivenName @task.Case?.Patient?.FamilyName</td>
+                                        <td>@task.Title</td>
+                                        <td>
+                                            <i class="bi bi-telephone me-1"></i>
+                                            @(task.Case?.Patient?.MobilePhone ?? task.Case?.Patient?.HomePhone ?? "N/A")
+                                        </td>
+                                        <td>
+                                            @if (!string.IsNullOrEmpty(task.LanguageRequired))
+                                            {
+                                                <span class="badge soft-info">@task.LanguageRequired</span>
+                                            }
+                                            else
+                                            {
+                                                <span class="text-muted">Any</span>
+                                            }
+                                        </td>
+                                        <td>
+                                            <small>@task.CreatedAt.ToLocalTime().ToString("g")</small>
+                                        </td>
+                                        <td>
+                                            <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#assignModal" data-task-id="@task.Id" style="border-radius: 8px;">
+                                                <i class="bi bi-person-plus me-1"></i>Assign
+                                            </button>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+                else
+                {
+                    <div class="text-center py-4">
+                        <i class="bi bi-check-circle text-success" style="font-size: 2rem;"></i>
+                        <p class="text-muted mt-2 mb-0">All tasks assigned</p>
+                    </div>
+                }
+            </div>
+        </div>
+
+        <!-- Language Coverage -->
+        @if (Model.DashboardData.LanguageCoverage?.Any() == true)
+        {
+            <div class="card modern-card">
+                <div class="card-header bg-light border-bottom">
+                    <h5 class="mb-0"><i class="bi bi-translate me-2"></i>Language Coverage</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        @foreach (var lang in Model.DashboardData.LanguageCoverage)
+                        {
+                            <div class="col-md-3">
+                                <div class="p-3 border rounded" style="border-radius: 10px !important; background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <div>
+                                            <i class="bi bi-translate me-2 text-primary"></i>
+                                            <strong>@lang.Key</strong>
+                                        </div>
+                                        <span class="badge bg-primary">@lang.Value</span>
+                                    </div>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+        }
+    }
+</div>
+
+<!-- Assignment Modal -->
+<div class="modal fade" id="assignModal" tabindex="-1">
+    <div class="modal-dialog">
+        <form method="post" asp-page-handler="AssignTask">
+            <div class="modal-content" style="border-radius: 12px; border: none;">
+                <div class="modal-header border-0 pb-0">
+                    <h5 class="modal-title"><i class="bi bi-person-plus me-2"></i>Assign Task to Worker</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" asp-for="SelectedTaskId" id="taskIdInput" />
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Select Worker</label>
+                        <select asp-for="SelectedWorkerId" class="form-select" style="border-radius: 8px;">
+                            <option value="">-- Select Worker --</option>
+                            @if (Model.DashboardData?.WorkerStats != null)
+                            {
+                                @foreach (var worker in Model.DashboardData.WorkerStats.Where(w => w.IsAvailable))
+                                {
+                                    <option value="@worker.UserId">
+                                        @worker.WorkerName (@(string.Join(", ", worker.LanguagesSpoken)))
+                                    </option>
+                                }
+                            }
+                        </select>
+                        <small class="form-text text-muted">Only available workers are shown</small>
+                    </div>
+                </div>
+                <div class="modal-footer border-0 pt-0">
+                    <button type="button" class="btn btn-light" data-bs-dismiss="modal" style="border-radius: 8px;">Cancel</button>
+                    <button type="submit" class="btn btn-primary" style="border-radius: 8px;">
+                        <i class="bi bi-check-lg me-2"></i>Assign Task
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Reassignment Modal -->
+<div class="modal fade" id="reassignModal" tabindex="-1">
+    <div class="modal-dialog">
+        <form method="post" asp-page-handler="ReassignTask">
+            <div class="modal-content" style="border-radius: 12px; border: none;">
+                <div class="modal-header border-0 pb-0">
+                    <h5 class="modal-title"><i class="bi bi-arrow-left-right me-2"></i>Reassign Task</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" asp-for="SelectedTaskId" id="reassignTaskIdInput" />
+                    
+                    <div class="alert alert-info mb-3">
+                        <strong>Task:</strong> <span id="reassignTaskTitle"></span><br />
+                        <strong>Current Worker:</strong> <span id="currentWorkerName"></span>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">New Worker</label>
+                        <select asp-for="SelectedWorkerId" class="form-select" style="border-radius: 8px;" required>
+                            <option value="">-- Select Worker --</option>
+                            @if (Model.DashboardData?.WorkerStats != null)
+                            {
+                                @foreach (var worker in Model.DashboardData.WorkerStats)
+                                {
+                                    <option value="@worker.UserId">
+                                        @worker.WorkerName - @(worker.IsAvailable ? "Available" : "Unavailable") (@(string.Join(", ", worker.LanguagesSpoken)))
+                                    </option>
+                                }
+                            }
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Reason for Reassignment</label>
+                        <textarea asp-for="ReassignReason" class="form-control" rows="3" style="border-radius: 8px;" 
+                                  placeholder="e.g., Worker overloaded, language barrier, etc." required></textarea>
+                        <small class="form-text text-muted">This will be logged for audit purposes</small>
+                    </div>
+                </div>
+                <div class="modal-footer border-0 pt-0">
+                    <button type="button" class="btn btn-light" data-bs-dismiss="modal" style="border-radius: 8px;">Cancel</button>
+                    <button type="submit" class="btn btn-warning" style="border-radius: 8px;">
+                        <i class="bi bi-arrow-left-right me-2"></i>Reassign Task
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Unassignment Modal -->
+<div class="modal fade" id="unassignModal" tabindex="-1">
+    <div class="modal-dialog">
+        <form method="post" asp-page-handler="UnassignTask">
+            <div class="modal-content" style="border-radius: 12px; border: none;">
+                <div class="modal-header border-0 pb-0">
+                    <h5 class="modal-title"><i class="bi bi-x-circle me-2"></i>Unassign Task</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" asp-for="SelectedTaskId" id="unassignTaskIdInput" />
+                    
+                    <div class="alert alert-warning mb-3">
+                        <strong>Task:</strong> <span id="unassignTaskTitle"></span><br />
+                        <small>This task will be returned to the unassigned pool</small>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Reason for Unassignment</label>
+                        <textarea asp-for="ReassignReason" class="form-control" rows="3" style="border-radius: 8px;" 
+                                  placeholder="e.g., Worker called in sick, technical issues, etc." required></textarea>
+                        <small class="form-text text-muted">This will be logged for audit purposes</small>
+                    </div>
+                </div>
+                <div class="modal-footer border-0 pt-0">
+                    <button type="button" class="btn btn-light" data-bs-dismiss="modal" style="border-radius: 8px;">Cancel</button>
+                    <button type="submit" class="btn btn-danger" style="border-radius: 8px;">
+                        <i class="bi bi-x-circle me-2"></i>Unassign Task
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        var assignModal = document.getElementById('assignModal');
+        assignModal.addEventListener('show.bs.modal', function (event) {
+            var button = event.relatedTarget;
+            var taskId = button.getAttribute('data-task-id');
+            document.getElementById('taskIdInput').value = taskId;
+        });
+
+        var reassignModal = document.getElementById('reassignModal');
+        reassignModal.addEventListener('show.bs.modal', function (event) {
+            var button = event.relatedTarget;
+            var taskId = button.getAttribute('data-task-id');
+            var taskTitle = button.getAttribute('data-task-title');
+            var currentWorker = button.getAttribute('data-current-worker');
+            
+            document.getElementById('reassignTaskIdInput').value = taskId;
+            document.getElementById('reassignTaskTitle').textContent = taskTitle;
+            document.getElementById('currentWorkerName').textContent = currentWorker;
+        });
+
+        var unassignModal = document.getElementById('unassignModal');
+        unassignModal.addEventListener('show.bs.modal', function (event) {
+            var button = event.relatedTarget;
+            var taskId = button.getAttribute('data-task-id');
+            var taskTitle = button.getAttribute('data-task-title');
+            
+            document.getElementById('unassignTaskIdInput').value = taskId;
+            document.getElementById('unassignTaskTitle').textContent = taskTitle;
+        });
+    </script>
+}
+

@@ -1,0 +1,79 @@
+@page
+@model Surveillance_MVP.Pages.Settings.Lookups.CreateSymptomModel
+@{
+    ViewData["Title"] = "Create Symptom";
+    Layout = "~/Pages/Shared/_Layout.cshtml";
+}
+
+<div class="container-fluid mt-4">
+    <h2>@ViewData["Title"]</h2>
+
+    <div class="row">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-body">
+                    <form method="post">
+                        <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+
+                        <div class="mb-3">
+                            <label asp-for="Symptom.Name" class="form-label"></label>
+                            <input asp-for="Symptom.Name" class="form-control" />
+                            <span asp-validation-for="Symptom.Name" class="text-danger"></span>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label asp-for="Symptom.Code" class="form-label"></label>
+                                <input asp-for="Symptom.Code" class="form-control" />
+                                <span asp-validation-for="Symptom.Code" class="text-danger"></span>
+                                <small class="form-text text-muted">Internal code for the symptom</small>
+                            </div>
+
+                            <div class="col-md-6 mb-3">
+                                <label asp-for="Symptom.ExportCode" class="form-label"></label>
+                                <input asp-for="Symptom.ExportCode" class="form-control" />
+                                <span asp-validation-for="Symptom.ExportCode" class="text-danger"></span>
+                                <small class="form-text text-muted">Code used for external reporting systems</small>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label asp-for="Symptom.Description" class="form-label"></label>
+                            <textarea asp-for="Symptom.Description" class="form-control" rows="3"></textarea>
+                            <span asp-validation-for="Symptom.Description" class="text-danger"></span>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label asp-for="Symptom.SortOrder" class="form-label"></label>
+                                <input asp-for="Symptom.SortOrder" class="form-control" type="number" />
+                                <span asp-validation-for="Symptom.SortOrder" class="text-danger"></span>
+                                <small class="form-text text-muted">Controls display order (lower numbers appear first)</small>
+                            </div>
+
+                            <div class="col-md-6 mb-3">
+                                <div class="form-check mt-4">
+                                    <input asp-for="Symptom.IsActive" class="form-check-input" />
+                                    <label asp-for="Symptom.IsActive" class="form-check-label"></label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="d-flex gap-2">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-check-circle"></i> Create
+                            </button>
+                            <a asp-page="./Symptoms" class="btn btn-secondary">
+                                <i class="bi bi-x-circle"></i> Cancel
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+}

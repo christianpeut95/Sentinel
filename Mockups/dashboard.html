@@ -1,0 +1,643 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - Surveillance System</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --spacing-1: 4px;
+            --spacing-2: 8px;
+            --spacing-3: 12px;
+            --spacing-4: 16px;
+            --spacing-6: 24px;
+            --spacing-8: 32px;
+            
+            --color-primary: #007AFF;
+            --color-success: #34C759;
+            --color-warning: #FF9500;
+            --color-danger: #FF3B30;
+            --color-yellow: #FFCC00;
+            
+            --gray-1: #000000;
+            --gray-2: rgba(60, 60, 67, 0.6);
+            --gray-3: rgba(60, 60, 67, 0.3);
+            --gray-4: #F2F2F7;
+            --gray-5: #E5E5EA;
+            --gray-6: #8E8E93;
+            --white: #FFFFFF;
+            
+            --radius-small: 8px;
+            --radius-medium: 12px;
+            --radius-large: 16px;
+            
+            --shadow-small: 0 2px 8px rgba(0,0,0,0.04);
+            --shadow-medium: 0 4px 12px rgba(0,0,0,0.08);
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            font-size: 16px;
+            line-height: 1.5;
+            color: var(--gray-1);
+            background: var(--gray-4);
+        }
+
+        /* Header */
+        .header {
+            background: var(--white);
+            border-bottom: 1px solid var(--gray-5);
+            padding: var(--spacing-4) var(--spacing-8);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: var(--shadow-small);
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-4);
+        }
+
+        .menu-icon {
+            font-size: 24px;
+            cursor: pointer;
+            padding: var(--spacing-2);
+        }
+
+        .header-title {
+            font-size: 20px;
+            font-weight: 600;
+        }
+
+        .search-bar {
+            flex: 1;
+            max-width: 400px;
+            margin: 0 var(--spacing-8);
+        }
+
+        .search-bar input {
+            width: 100%;
+            padding: var(--spacing-2) var(--spacing-4);
+            border: 1px solid var(--gray-5);
+            border-radius: var(--radius-medium);
+            font-size: 15px;
+            background: var(--gray-4);
+        }
+
+        .search-bar input:focus {
+            outline: 2px solid var(--color-primary);
+            background: var(--white);
+        }
+
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-4);
+        }
+
+        .icon-button {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .icon-button:hover {
+            background: var(--gray-4);
+        }
+
+        /* Main Content */
+        .container {
+            max-width: 1440px;
+            margin: 0 auto;
+            padding: var(--spacing-8);
+        }
+
+        .page-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: var(--spacing-6);
+        }
+
+        .page-title {
+            font-size: 28px;
+            font-weight: 700;
+        }
+
+        .page-subtitle {
+            font-size: 15px;
+            color: var(--gray-2);
+        }
+
+        /* Stats Grid */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: var(--spacing-4);
+            margin-bottom: var(--spacing-6);
+        }
+
+        .stat-card {
+            background: var(--white);
+            border-radius: var(--radius-medium);
+            padding: var(--spacing-6);
+            box-shadow: var(--shadow-small);
+            text-align: center;
+        }
+
+        .stat-icon {
+            font-size: 32px;
+            margin-bottom: var(--spacing-2);
+        }
+
+        .stat-value {
+            font-size: 36px;
+            font-weight: 700;
+            margin-bottom: var(--spacing-1);
+        }
+
+        .stat-label {
+            font-size: 15px;
+            color: var(--gray-2);
+        }
+
+        /* Card */
+        .card {
+            background: var(--white);
+            border-radius: var(--radius-medium);
+            box-shadow: var(--shadow-small);
+            overflow: hidden;
+            margin-bottom: var(--spacing-6);
+        }
+
+        .card-header {
+            padding: var(--spacing-4);
+            border-bottom: 1px solid var(--gray-5);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .card-title {
+            font-size: 20px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-2);
+        }
+
+        .card-badge {
+            background: var(--gray-4);
+            color: var(--gray-2);
+            padding: var(--spacing-1) var(--spacing-2);
+            border-radius: var(--radius-small);
+            font-size: 13px;
+            font-weight: 500;
+        }
+
+        .card-body {
+            padding: var(--spacing-4);
+        }
+
+        /* Status Dot */
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: var(--spacing-2);
+        }
+
+        .status-critical { background: var(--color-danger); }
+        .status-warning { background: var(--color-warning); }
+        .status-attention { background: var(--color-yellow); }
+        .status-normal { background: var(--color-success); }
+
+        /* Two Column Layout */
+        .two-col-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: var(--spacing-6);
+            margin-bottom: var(--spacing-6);
+        }
+
+        /* Task Item */
+        .task-item {
+            padding: var(--spacing-4);
+            border-bottom: 1px solid var(--gray-5);
+        }
+
+        .task-item:last-child {
+            border-bottom: none;
+        }
+
+        .task-header {
+            display: flex;
+            align-items: flex-start;
+            gap: var(--spacing-2);
+            margin-bottom: var(--spacing-2);
+        }
+
+        .task-title {
+            font-weight: 600;
+            flex: 1;
+        }
+
+        .task-meta {
+            font-size: 14px;
+            color: var(--gray-2);
+            margin-bottom: var(--spacing-2);
+        }
+
+        .task-actions {
+            display: flex;
+            gap: var(--spacing-2);
+        }
+
+        /* Buttons */
+        .btn {
+            padding: var(--spacing-2) var(--spacing-4);
+            border-radius: var(--radius-small);
+            border: none;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-primary {
+            background: var(--color-primary);
+            color: var(--white);
+        }
+
+        .btn-primary:hover {
+            background: #0051D5;
+        }
+
+        .btn-secondary {
+            background: var(--gray-4);
+            color: var(--gray-1);
+        }
+
+        .btn-secondary:hover {
+            background: var(--gray-5);
+        }
+
+        .btn-link {
+            background: none;
+            color: var(--color-primary);
+            padding: var(--spacing-2);
+        }
+
+        .btn-link:hover {
+            text-decoration: underline;
+        }
+
+        /* Outbreak Item */
+        .outbreak-item {
+            padding: var(--spacing-4);
+            border-bottom: 1px solid var(--gray-5);
+        }
+
+        .outbreak-item:last-child {
+            border-bottom: none;
+        }
+
+        .outbreak-title {
+            font-weight: 600;
+            margin-bottom: var(--spacing-2);
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-2);
+        }
+
+        .outbreak-meta {
+            font-size: 14px;
+            color: var(--gray-2);
+            margin-bottom: var(--spacing-3);
+        }
+
+        .outbreak-actions {
+            display: flex;
+            gap: var(--spacing-2);
+        }
+
+        /* Chart Area */
+        .chart-container {
+            height: 200px;
+            display: flex;
+            align-items: flex-end;
+            justify-content: space-around;
+            padding: var(--spacing-4);
+            border-bottom: 2px solid var(--gray-5);
+            position: relative;
+        }
+
+        .chart-bar {
+            width: 40px;
+            background: var(--color-primary);
+            border-radius: var(--radius-small) var(--radius-small) 0 0;
+            transition: all 0.3s;
+        }
+
+        .chart-bar:hover {
+            background: #0051D5;
+        }
+
+        .chart-labels {
+            display: flex;
+            justify-content: space-around;
+            padding: var(--spacing-2);
+            font-size: 12px;
+            color: var(--gray-2);
+        }
+
+        /* Activity Feed */
+        .activity-item {
+            padding: var(--spacing-3);
+            border-bottom: 1px solid var(--gray-5);
+            font-size: 14px;
+        }
+
+        .activity-item:last-child {
+            border-bottom: none;
+        }
+
+        .activity-time {
+            color: var(--gray-2);
+            font-weight: 600;
+        }
+
+        .activity-detail {
+            color: var(--gray-1);
+        }
+
+        @media (max-width: 1024px) {
+            .two-col-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .container {
+                padding: var(--spacing-4);
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <div class="header">
+        <div class="header-left">
+            <div class="menu-icon">?</div>
+            <div class="header-title">Surveillance</div>
+        </div>
+        <div class="search-bar">
+            <input type="text" placeholder="?? Search anything...">
+        </div>
+        <div class="header-right">
+            <div class="icon-button">??</div>
+            <div class="icon-button">??</div>
+            <span style="font-size: 15px; font-weight: 500;">John Doe</span>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="container">
+        <div class="page-header">
+            <div>
+                <h1 class="page-title">? Overview</h1>
+            </div>
+            <div class="page-subtitle">Feb 9, 2026 • 2:34 PM</div>
+        </div>
+
+        <!-- Stats Grid -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-icon">??</div>
+                <div class="stat-value">142</div>
+                <div class="stat-label">Active Cases</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">??</div>
+                <div class="stat-value">38</div>
+                <div class="stat-label">Pending Tasks</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">?</div>
+                <div class="stat-value">891</div>
+                <div class="stat-label">Resolved Cases</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">??</div>
+                <div class="stat-value">+23</div>
+                <div class="stat-label">New Cases This Week</div>
+            </div>
+        </div>
+
+        <!-- Two Column Layout -->
+        <div class="two-col-grid">
+            <!-- My Tasks -->
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">? My Tasks</div>
+                    <div class="card-badge">38 items</div>
+                </div>
+                <div class="card-body" style="padding: 0;">
+                    <div class="task-item">
+                        <div class="task-header">
+                            <span class="status-dot status-critical"></span>
+                            <div class="task-title">Interview: Sarah Johnson</div>
+                        </div>
+                        <div class="task-meta">Measles • Due in 2h</div>
+                        <div class="task-actions">
+                            <button class="btn btn-primary">Call</button>
+                            <button class="btn btn-secondary">Postpone</button>
+                        </div>
+                    </div>
+                    <div class="task-item">
+                        <div class="task-header">
+                            <span class="status-dot status-attention"></span>
+                            <div class="task-title">Follow-up: Michael Chen</div>
+                        </div>
+                        <div class="task-meta">COVID-19 • Due today</div>
+                        <div class="task-actions">
+                            <button class="btn btn-primary">Call</button>
+                            <button class="btn btn-secondary">Postpone</button>
+                        </div>
+                    </div>
+                    <div class="task-item">
+                        <div class="task-header">
+                            <span class="status-dot status-normal"></span>
+                            <div class="task-title">Survey: Emma Davis</div>
+                        </div>
+                        <div class="task-meta">Influenza • Due tomorrow</div>
+                        <div class="task-actions">
+                            <button class="btn btn-primary">Complete</button>
+                            <button class="btn btn-secondary">Assign</button>
+                        </div>
+                    </div>
+                    <div style="padding: var(--spacing-4); text-align: center;">
+                        <button class="btn btn-link">View All Tasks ?</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Priority Cases -->
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">? Priority Cases</div>
+                    <div class="card-badge">12 items</div>
+                </div>
+                <div class="card-body" style="padding: 0;">
+                    <div class="task-item">
+                        <div class="task-header">
+                            <span class="status-dot status-critical"></span>
+                            <div class="task-title">Measles • MRN-2045</div>
+                        </div>
+                        <div class="task-meta">Sarah Johnson • Age 8<br>Exposed: Lincoln Elementary<br>Last contact: 3h ago</div>
+                    </div>
+                    <div class="task-item">
+                        <div class="task-header">
+                            <span class="status-dot status-warning"></span>
+                            <div class="task-title">COVID-19 • COV-8934</div>
+                        </div>
+                        <div class="task-meta">Michael Chen • Age 34<br>Community spread suspected<br>Last test: 2 days ago</div>
+                    </div>
+                    <div class="task-item">
+                        <div class="task-header">
+                            <span class="status-dot status-attention"></span>
+                            <div class="task-title">Tuberculosis • TB-3421</div>
+                        </div>
+                        <div class="task-meta">James Wilson • Age 67<br>Contact tracing in progress</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Active Outbreaks -->
+        <div class="card">
+            <div class="card-header">
+                <div class="card-title">? Active Outbreaks</div>
+                <div class="card-badge">3 active</div>
+            </div>
+            <div class="card-body" style="padding: 0;">
+                <div class="outbreak-item">
+                    <div class="outbreak-title">
+                        <span class="status-dot status-critical"></span>
+                        Measles - Lincoln Elementary School
+                    </div>
+                    <div class="outbreak-meta">42 linked cases • 18 confirmed • Started Feb 1, 2026</div>
+                    <div class="outbreak-actions">
+                        <button class="btn btn-primary">View Dashboard</button>
+                        <button class="btn btn-secondary">Add Case</button>
+                        <button class="btn btn-secondary">Team</button>
+                    </div>
+                </div>
+                <div class="outbreak-item">
+                    <div class="outbreak-title">
+                        <span class="status-dot status-warning"></span>
+                        Norovirus - Harbor View Restaurant
+                    </div>
+                    <div class="outbreak-meta">28 linked cases • 14 confirmed • Started Feb 5, 2026</div>
+                    <div class="outbreak-actions">
+                        <button class="btn btn-primary">View Dashboard</button>
+                        <button class="btn btn-secondary">Add Case</button>
+                        <button class="btn btn-secondary">Team</button>
+                    </div>
+                </div>
+                <div class="outbreak-item">
+                    <div class="outbreak-title">
+                        <span class="status-dot status-attention"></span>
+                        COVID-19 Cluster - Tech Campus
+                    </div>
+                    <div class="outbreak-meta">15 linked cases • 8 confirmed • Started Feb 7, 2026</div>
+                    <div class="outbreak-actions">
+                        <button class="btn btn-primary">View Dashboard</button>
+                        <button class="btn btn-secondary">Add Case</button>
+                        <button class="btn btn-secondary">Team</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Two Column: Charts and Activity -->
+        <div class="two-col-grid">
+            <!-- Disease Trends -->
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">? Disease Trends</div>
+                </div>
+                <div class="card-body" style="padding: 0;">
+                    <div class="chart-container">
+                        <div class="chart-bar" style="height: 40%;"></div>
+                        <div class="chart-bar" style="height: 60%;"></div>
+                        <div class="chart-bar" style="height: 80%;"></div>
+                        <div class="chart-bar" style="height: 100%;"></div>
+                        <div class="chart-bar" style="height: 95%;"></div>
+                        <div class="chart-bar" style="height: 70%;"></div>
+                        <div class="chart-bar" style="height: 50%;"></div>
+                        <div class="chart-bar" style="height: 30%;"></div>
+                    </div>
+                    <div class="chart-labels">
+                        <span>Feb 1</span>
+                        <span>?</span>
+                        <span>Feb 9</span>
+                    </div>
+                    <div style="padding: var(--spacing-4); text-align: center;">
+                        <button class="btn btn-link">View Full Report ?</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recent Activity -->
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">? Recent Activity</div>
+                </div>
+                <div class="card-body" style="padding: 0;">
+                    <div class="activity-item">
+                        <span class="activity-time">2m ago</span> • <span class="activity-detail">New case</span><br>
+                        <span class="activity-detail">Emma Thompson<br>Measles • Age 6</span>
+                    </div>
+                    <div class="activity-item">
+                        <span class="activity-time">15m ago</span> • <span class="activity-detail">Task completed</span><br>
+                        <span class="activity-detail">Survey submitted<br>Patient: Chen, M.</span>
+                    </div>
+                    <div class="activity-item">
+                        <span class="activity-time">45m ago</span> • <span class="activity-detail">Case updated</span><br>
+                        <span class="activity-detail">Lab result received<br>Patient: Johnson, S.</span>
+                    </div>
+                    <div class="activity-item">
+                        <span class="activity-time">1h ago</span> • <span class="activity-detail">Task assigned</span><br>
+                        <span class="activity-detail">Follow-up interview<br>Assigned to: Anna C.</span>
+                    </div>
+                    <div style="padding: var(--spacing-4); text-align: center;">
+                        <button class="btn btn-link">View All Activity ?</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

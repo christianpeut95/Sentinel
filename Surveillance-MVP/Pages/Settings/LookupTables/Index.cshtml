@@ -1,0 +1,147 @@
+@page
+@model Surveillance_MVP.Pages.Settings.LookupTables.IndexModel
+
+@{
+    ViewData["Title"] = "Lookup Tables";
+}
+
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2><i class="bi bi-list-ul me-2"></i>Lookup Tables</h2>
+            <p class="text-muted">Manage dropdown lists for custom fields</p>
+        </div>
+        <div>
+            <a asp-page="./Create" class="btn btn-primary">
+                <i class="bi bi-plus-lg me-2"></i>Create Lookup Table
+            </a>
+        </div>
+    </div>
+
+    @if (TempData["SuccessMessage"] != null)
+    {
+        <div class="alert alert-success alert-dismissible fade show">
+            @TempData["SuccessMessage"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
+
+    @if (!Model.LookupTables.Any())
+    {
+        <div class="card shadow-sm">
+            <div class="card-body text-center py-5">
+                <i class="bi bi-inbox" style="font-size: 4rem; color: #dee2e6;"></i>
+                <h5 class="mt-3">No Lookup Tables Yet</h5>
+                <p class="text-muted">Create your first lookup table to use with dropdown custom fields.</p>
+                <a asp-page="./Create" class="btn btn-primary mt-2">
+                    <i class="bi bi-plus-lg me-2"></i>Create First Lookup Table
+                </a>
+            </div>
+        </div>
+    }
+    else
+    {
+        <div class="row g-4">
+            @foreach (var table in Model.LookupTables)
+            {
+                <div class="col-md-6 col-lg-4">
+                    <div class="card shadow-sm h-100">
+                        <div class="card-header @(table.IsActive ? "bg-primary" : "bg-secondary") text-white">
+                            <h5 class="mb-0">
+                                <i class="bi bi-list-ul me-2"></i>@table.DisplayName
+                                @if (!table.IsActive)
+                                {
+                                    <span class="badge bg-warning text-dark ms-2">Inactive</span>
+                                }
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            @if (!string.IsNullOrEmpty(table.Description))
+                            {
+                                <p class="text-muted mb-3">@table.Description</p>
+                            }
+                            
+                            <dl class="row mb-0">
+                                <dt class="col-sm-5"><i class="bi bi-tag me-1"></i>Internal Name:</dt>
+                                <dd class="col-sm-7"><code>@table.Name</code></dd>
+
+                                <dt class="col-sm-5"><i class="bi bi-list-check me-1"></i>Values:</dt>
+                                <dd class="col-sm-7">
+                                    <span class="badge bg-info">@table.ValueCount</span>
+                                </dd>
+
+                                <dt class="col-sm-5"><i class="bi bi-link-45deg me-1"></i>Used by:</dt>
+                                <dd class="col-sm-7">
+                                    @if (table.UsedByFieldsCount > 0)
+                                    {
+                                        <span class="badge bg-success">@table.UsedByFieldsCount field(s)</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted">Not used</span>
+                                    }
+                                </dd>
+
+                                <dt class="col-sm-5"><i class="bi bi-calendar me-1"></i>Created:</dt>
+                                <dd class="col-sm-7">
+                                    <small class="text-muted">@table.CreatedAt.ToString("dd MMM yyyy")</small>
+                                </dd>
+                            </dl>
+                        </div>
+                        <div class="card-footer bg-light">
+                            <div class="btn-group btn-group-sm w-100">
+                                <a asp-page="./Details" asp-route-id="@table.Id" class="btn btn-outline-info">
+                                    <i class="bi bi-eye me-1"></i>Details
+                                </a>
+                                <a asp-page="./ManageValues" asp-route-id="@table.Id" class="btn btn-outline-success">
+                                    <i class="bi bi-list-check me-1"></i>Values
+                                </a>
+                                <a asp-page="./Edit" asp-route-id="@table.Id" class="btn btn-outline-primary">
+                                    <i class="bi bi-pencil me-1"></i>Edit
+                                </a>
+                                <a asp-page="./Delete" asp-route-id="@table.Id" class="btn btn-outline-danger">
+                                    <i class="bi bi-trash me-1"></i>Delete
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+
+        <div class="mt-4">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <div class="row text-center">
+                        <div class="col-md-3">
+                            <h3 class="text-primary">@Model.LookupTables.Count</h3>
+                            <p class="text-muted mb-0">Total Tables</p>
+                        </div>
+                        <div class="col-md-3">
+                            <h3 class="text-success">@Model.LookupTables.Count(t => t.IsActive)</h3>
+                            <p class="text-muted mb-0">Active</p>
+                        </div>
+                        <div class="col-md-3">
+                            <h3 class="text-info">@Model.LookupTables.Sum(t => t.ValueCount)</h3>
+                            <p class="text-muted mb-0">Total Values</p>
+                        </div>
+                        <div class="col-md-3">
+                            <h3 class="text-warning">@Model.LookupTables.Count(t => t.UsedByFieldsCount > 0)</h3>
+                            <p class="text-muted mb-0">In Use</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+<style>
+    .card {
+        transition: transform 0.2s;
+    }
+
+    .card:hover {
+        transform: translateY(-4px);
+    }
+</style>

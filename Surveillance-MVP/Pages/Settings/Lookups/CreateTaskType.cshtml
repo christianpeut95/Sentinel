@@ -1,0 +1,84 @@
+@page
+@model Surveillance_MVP.Pages.Settings.Lookups.CreateTaskTypeModel
+@{
+    ViewData["Title"] = "Create Task Type";
+}
+
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>Create Task Type</h2>
+        <a asp-page="./TaskTypes" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left"></i> Back to List
+        </a>
+    </div>
+
+    <div class="card">
+        <div class="card-body">
+            <form method="post">
+                <div asp-validation-summary="ModelOnly" class="alert alert-danger" role="alert"></div>
+
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label asp-for="Input.Name" class="form-label"></label>
+                        <input asp-for="Input.Name" class="form-control" placeholder="e.g., Isolation" />
+                        <span asp-validation-for="Input.Name" class="text-danger"></span>
+                    </div>
+                    <div class="col-md-6">
+                        <label asp-for="Input.Code" class="form-label"></label>
+                        <input asp-for="Input.Code" class="form-control" placeholder="e.g., ISO" />
+                        <span asp-validation-for="Input.Code" class="text-danger"></span>
+                    </div>
+                    <div class="col-md-12">
+                        <label asp-for="Input.Description" class="form-label"></label>
+                        <textarea asp-for="Input.Description" class="form-control" rows="2"></textarea>
+                        <span asp-validation-for="Input.Description" class="text-danger"></span>
+                    </div>
+                    <div class="col-md-6">
+                        <label asp-for="Input.IconClass" class="form-label"></label>
+                        <input asp-for="Input.IconClass" class="form-control" placeholder="e.g., bi-house-lock" />
+                        <span asp-validation-for="Input.IconClass" class="text-danger"></span>
+                        <small class="form-text text-muted">
+                            <a href="https://icons.getbootstrap.com/" target="_blank">Bootstrap Icons</a> 
+                            or <a href="https://fontawesome.com/icons" target="_blank">Font Awesome</a>
+                        </small>
+                    </div>
+                    <div class="col-md-6">
+                        <label asp-for="Input.ColorClass" class="form-label"></label>
+                        <select asp-for="Input.ColorClass" class="form-select">
+                            <option value="bg-primary">Primary (Blue)</option>
+                            <option value="bg-secondary">Secondary (Gray)</option>
+                            <option value="bg-success">Success (Green)</option>
+                            <option value="bg-danger">Danger (Red)</option>
+                            <option value="bg-warning">Warning (Yellow)</option>
+                            <option value="bg-info" selected>Info (Light Blue)</option>
+                            <option value="bg-dark">Dark</option>
+                        </select>
+                        <span asp-validation-for="Input.ColorClass" class="text-danger"></span>
+                    </div>
+                    <div class="col-md-6">
+                        <label asp-for="Input.DisplayOrder" class="form-label"></label>
+                        <input asp-for="Input.DisplayOrder" type="number" class="form-control" />
+                        <span asp-validation-for="Input.DisplayOrder" class="text-danger"></span>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-check mt-4">
+                            <input asp-for="Input.IsActive" class="form-check-input" checked />
+                            <label asp-for="Input.IsActive" class="form-check-label"></label>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mt-4">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save"></i> Create Task Type
+                    </button>
+                    <a asp-page="./TaskTypes" class="btn btn-outline-secondary">Cancel</a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

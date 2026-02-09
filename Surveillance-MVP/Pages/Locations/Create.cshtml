@@ -1,0 +1,474 @@
+@page
+@model Surveillance_MVP.Pages.Locations.CreateModel
+
+@{
+    ViewData["Title"] = "Create Location";
+}
+
+<nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a asp-page="/Index">Home</a></li>
+        <li class="breadcrumb-item"><a asp-page="./Index">Locations</a></li>
+        <li class="breadcrumb-item active" aria-current="page">Create</li>
+    </ol>
+</nav>
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2><i class="bi bi-plus-circle me-2"></i>Create Location</h2>
+</div>
+
+@if (Model.ShowDuplicateWarning && Model.PotentialDuplicates.Any())
+{
+    <div class="alert alert-warning alert-dismissible fade show" role="alert">
+        <h5 class="alert-heading">
+            <i class="bi bi-exclamation-triangle me-2"></i>Potential Duplicate Locations Found
+        </h5>
+        <p class="mb-3">
+            The following existing locations are similar to the one you're trying to create. Please review them before proceeding.
+        </p>
+        <div class="mb-3">
+            @foreach (var duplicate in Model.PotentialDuplicates)
+            {
+                <div class="card mb-2">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div>
+                                <h6 class="card-title mb-1">
+                                    @duplicate.Location.Name
+                                    @if (duplicate.Location.LocationType != null)
+                                    {
+                                        <span class="badge bg-info text-dark">@duplicate.Location.LocationType.Name</span>
+                                    }
+                                </h6>
+                                @if (!string.IsNullOrWhiteSpace(duplicate.Location.Address))
+                                {
+                                    <p class="card-text mb-1">
+                                        <small class="text-muted">
+                                            <i class="bi bi-geo-alt"></i>
+                                            @duplicate.Location.Address
+                                        </small>
+                                    </p>
+                                }
+                                @if (duplicate.Location.Organization != null)
+                                {
+                                    <p class="card-text mb-1">
+                                        <small class="text-muted">
+                                            <i class="bi bi-building"></i>
+                                            @duplicate.Location.Organization.Name
+                                        </small>
+                                    </p>
+                                }
+                                <div class="mt-2">
+                                    <span class="badge bg-secondary me-1">Match Score: @duplicate.MatchScore</span>
+                                    @foreach (var reason in duplicate.MatchReasons)
+                                    {
+                                        <span class="badge bg-warning text-dark me-1">@reason</span>
+                                    }
+                                </div>
+                            </div>
+                            <div>
+                                <a asp-page="./Details" asp-route-id="@duplicate.Location.Id" 
+                                   target="_blank" 
+                                   class="btn btn-sm btn-outline-primary">
+                                    <i class="bi bi-eye"></i> Review
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+        <div class="d-flex gap-2">
+            <form method="post" class="d-inline">
+                <input type="hidden" asp-for="ConfirmDuplicate" value="true" />
+                @Html.AntiForgeryToken()
+                @* Re-bind all Location fields as hidden to preserve data *@
+                <input type="hidden" asp-for="Location.Name" />
+                <input type="hidden" asp-for="Location.LocationTypeId" />
+                <input type="hidden" asp-for="Location.Address" />
+                <input type="hidden" asp-for="Location.Latitude" />
+                <input type="hidden" asp-for="Location.Longitude" />
+                <input type="hidden" asp-for="Location.OrganizationId" />
+                <input type="hidden" asp-for="Location.IsActive" />
+                <input type="hidden" asp-for="Location.IsHighRisk" />
+                <input type="hidden" asp-for="Location.Notes" />
+                <button type="submit" class="btn btn-warning">
+                    <i class="bi bi-check-circle me-1"></i>Continue Anyway (Create Duplicate)
+                </button>
+            </form>
+            <button type="button" class="btn btn-secondary" onclick="window.location.reload();">
+                <i class="bi bi-arrow-counterclockwise me-1"></i>Go Back and Edit
+            </button>
+            <a asp-page="./Index" class="btn btn-outline-secondary">
+                <i class="bi bi-x-circle me-1"></i>Cancel
+            </a>
+        </div>
+    </div>
+}
+
+@if (TempData["ErrorMessage"] != null)
+{
+    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+        <i class="bi bi-exclamation-triangle me-2"></i>@TempData["ErrorMessage"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+}
+
+<form method="post">
+    <div asp-validation-summary="ModelOnly" class="alert alert-danger" role="alert"></div>
+
+    <div class="card shadow-sm mb-4">
+        <div class="card-header bg-primary text-white fw-semibold">
+            <i class="bi bi-search me-2"></i>Quick Search
+        </div>
+        <div class="card-body">
+            <div class="alert alert-info mb-3">
+                <i class="bi bi-lightbulb me-2"></i>
+                <strong>Quick Start:</strong> Search for any business or address (e.g., "Coles Welland", "123 Main St"). 
+                Selecting a result will auto-fill Name, Address, and Coordinates.
+            </div>
+            
+            <div class="position-relative">
+                <label class="form-label fw-bold">
+                    <i class="bi bi-building me-1"></i>Search for Business or Address
+                </label>
+                <input type="text" class="form-control form-control-lg" id="placeSearchInput" autocomplete="off"
+                       placeholder="Try 'Coles', 'Springfield Hospital', or '123 Main Street'..." 
+                       aria-haspopup="listbox" aria-expanded="false" aria-controls="placeDropdown" />
+                <div class="dropdown-menu w-100" id="placeDropdown" role="listbox" style="max-height:300px;overflow:auto;" aria-label="Place suggestions"></div>
+                <small class="form-text text-muted">
+                    <i class="bi bi-info-circle me-1"></i>Search works for shops, restaurants, hospitals, addresses, and more
+                </small>
+            </div>
+        </div>
+    </div>
+
+    <div class="card shadow-sm mb-4">
+        <div class="card-header bg-light fw-semibold">
+            <i class="bi bi-info-circle me-2"></i>Location Details
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-8 mb-3">
+                    <label asp-for="Location.Name" class="form-label">
+                        <span class="text-danger">*</span> @Html.DisplayNameFor(m => m.Location.Name)
+                    </label>
+                    <input asp-for="Location.Name" class="form-control" id="locationNameInput" aria-required="true" placeholder="e.g., Springfield Hospital, Central Mall" />
+                    <span asp-validation-for="Location.Name" class="text-danger small"></span>
+                    <small class="form-text text-muted">Auto-fills when you search above, but you can edit it</small>
+                </div>
+
+                <div class="col-md-4 mb-3">
+                    <label asp-for="Location.LocationTypeId" class="form-label">
+                        @Html.DisplayNameFor(m => m.Location.LocationTypeId)
+                    </label>
+                    <select asp-for="Location.LocationTypeId" asp-items="Model.LocationTypesList" class="form-select">
+                        <option value="">-- Select Type --</option>
+                    </select>
+                    <span asp-validation-for="Location.LocationTypeId" class="text-danger small"></span>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-md-12 mb-3">
+                    <label asp-for="Location.Address" class="form-label">
+                        @Html.DisplayNameFor(m => m.Location.Address)
+                        <i class="bi bi-geo-alt text-success ms-1" title="Auto-filled from search"></i>
+                    </label>
+                    <textarea asp-for="Location.Address" class="form-control" rows="2" id="locationAddressInput"
+                              placeholder="Full address will be auto-filled from search above"></textarea>
+                    <span asp-validation-for="Location.Address" class="text-danger small"></span>
+                    <small class="form-text text-muted">
+                        <i class="bi bi-check-circle me-1 text-success"></i>Automatically geocoded to get coordinates
+                    </small>
+                </div>
+            </div>
+
+            <input type="hidden" asp-for="Location.Latitude" id="Location_Latitude" />
+            <input type="hidden" asp-for="Location.Longitude" id="Location_Longitude" />
+
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label class="form-label">
+                        @Html.DisplayNameFor(m => m.Location.OrganizationId)
+                    </label>
+                    <input type="text" class="form-control" id="organizationAutocomplete" placeholder="Start typing organization name..." />
+                    <input type="hidden" asp-for="Location.OrganizationId" id="organizationIdHidden" />
+                    <span asp-validation-for="Location.OrganizationId" class="text-danger small"></span>
+                    <small class="form-text text-muted">Link to an organization if applicable</small>
+                    <div id="selectedOrganizationInfo" class="alert alert-success mt-2" style="display: none;">
+                        <strong>Selected:</strong> <span id="selectedOrgDisplay"></span>
+                    </div>
+                </div>
+
+                <div class="col-md-6 mb-3">
+                    <label class="form-label">Status & Risk</label>
+                    <div class="form-check">
+                        <input asp-for="Location.IsHighRisk" class="form-check-input" type="checkbox" />
+                        <label asp-for="Location.IsHighRisk" class="form-check-label">
+                            <i class="bi bi-exclamation-triangle text-warning me-1"></i>High Risk Location
+                        </label>
+                    </div>
+                    <div class="form-check mt-2">
+                        <input asp-for="Location.IsActive" class="form-check-input" type="checkbox" checked />
+                        <label asp-for="Location.IsActive" class="form-check-label">
+                            Active
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-md-12 mb-3">
+                    <label asp-for="Location.Notes" class="form-label">
+                        @Html.DisplayNameFor(m => m.Location.Notes)
+                    </label>
+                    <textarea asp-for="Location.Notes" class="form-control" rows="3" placeholder="Additional notes or details..."></textarea>
+                    <span asp-validation-for="Location.Notes" class="text-danger small"></span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="d-flex justify-content-between">
+        <a asp-page="./Index" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left me-1"></i>Cancel
+        </a>
+        <button type="submit" class="btn btn-primary">
+            <i class="bi bi-check-circle me-1"></i>Create Location
+        </button>
+    </div>
+</form>
+
+@section Scripts {
+    @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+    @inject Microsoft.Extensions.Configuration.IConfiguration Configuration
+    
+    <script>
+        (function () {
+            // Google Places JS autocomplete for businesses and addresses
+            var apiKey = '@Configuration["Geocoding:ApiKey"]';
+            var defaultCountry = '@(Configuration["Geocoding:DefaultCountry"] ?? "AU")'; // Default to Australia
+            var defaultRegion = '@(Configuration["Geocoding:DefaultRegion"] ?? "")';
+            
+            if (!apiKey) {
+                console.warn('Google Maps API key not configured (Geocoding:ApiKey). Place search disabled.');
+                return;
+            }
+
+            console.log('Initializing Google Places with country:', defaultCountry, 'region:', defaultRegion);
+
+            window.initPlaces = function () {
+                var input = document.getElementById('placeSearchInput');
+                var dropdown = document.getElementById('placeDropdown');
+                var service = new google.maps.places.AutocompleteService();
+                var detailsService = new google.maps.places.PlacesService(document.createElement('div'));
+                var sessionToken = new google.maps.places.AutocompleteSessionToken();
+                var items = [];
+                var focused = -1;
+
+                function debounce(fn, ms) { var t; return function () { var args = arguments; clearTimeout(t); t = setTimeout(function () { fn.apply(null, args); }, ms); }; }
+
+                function clearDropdown() {
+                    dropdown.innerHTML = '';
+                    dropdown.classList.remove('show');
+                    input.setAttribute('aria-expanded', 'false');
+                    items = [];
+                    focused = -1;
+                }
+
+                function buildItem(pred, idx) {
+                    var btn = document.createElement('button');
+                    btn.type = 'button';
+                    btn.className = 'dropdown-item';
+                    btn.setAttribute('role', 'option');
+                    btn.dataset.index = String(idx);
+                    
+                    // Create rich display with icon
+                    var icon = document.createElement('i');
+                    icon.className = 'bi bi-geo-alt-fill me-2 text-primary';
+                    
+                    var text = document.createElement('span');
+                    text.innerText = pred.description || '';
+                    
+                    btn.appendChild(icon);
+                    btn.appendChild(text);
+                    btn.addEventListener('click', function () { selectItem(idx); });
+                    return btn;
+                }
+
+                function renderResults(preds) {
+                    dropdown.innerHTML = '';
+                    if (!preds || preds.length === 0) { clearDropdown(); return; }
+                    preds.forEach(function (p, i) { dropdown.appendChild(buildItem(p, i)); });
+                    dropdown.classList.add('show');
+                    input.setAttribute('aria-expanded', 'true');
+                    items = Array.from(dropdown.querySelectorAll('[role="option"]'));
+                    focused = -1;
+                    window.__lastPlaceResults = preds;
+                }
+
+                function focusItem(i) {
+                    if (focused >= 0 && items[focused]) items[focused].classList.remove('active');
+                    focused = i;
+                    if (focused >= 0 && items[focused]) { items[focused].classList.add('active'); items[focused].scrollIntoView({ block: 'nearest' }); }
+                }
+
+                function selectItem(i) {
+                    var sel = items[i];
+                    if (!sel) return;
+                    var idx = Number(sel.dataset.index);
+                    var pred = window.__lastPlaceResults && window.__lastPlaceResults[idx];
+                    if (!pred) return;
+
+                    // Request more detailed fields for businesses
+                    detailsService.getDetails({ 
+                        placeId: pred.place_id, 
+                        fields: ['name', 'formatted_address', 'address_components', 'geometry', 'types', 'business_status'], 
+                        sessionToken: sessionToken 
+                    }, function (result, status) {
+                        if (status !== google.maps.places.PlacesServiceStatus.OK || !result) {
+                            console.error('Place details failed:', status);
+                            return;
+                        }
+
+                        console.log('Selected place details:', result);
+
+                        // Fill NAME field with place name (e.g., "Coles Welland")
+                        var nameInput = document.getElementById('locationNameInput');
+                        if (nameInput && result.name) {
+                            nameInput.value = result.name;
+                            console.log('Name filled:', result.name);
+                        }
+
+                        // Fill ADDRESS field with formatted address
+                        var addressInput = document.getElementById('locationAddressInput');
+                        if (addressInput && result.formatted_address) {
+                            addressInput.value = result.formatted_address;
+                            console.log('Address filled:', result.formatted_address);
+                        }
+
+                        // Fill coordinates
+                        var latEl = document.getElementById('Location_Latitude');
+                        var lonEl = document.getElementById('Location_Longitude');
+                        if (latEl && lonEl && result.geometry && result.geometry.location) {
+                            latEl.value = result.geometry.location.lat();
+                            lonEl.value = result.geometry.location.lng();
+                            console.log('Coordinates filled:', { lat: latEl.value, lng: lonEl.value });
+                        }
+
+                        clearDropdown();
+                        input.value = ''; // Clear search after selection
+                        
+                        // Show success message
+                        showSuccessMessage(result.name || 'Place');
+                        
+                        // Rotate session token for billing per session
+                        sessionToken = new google.maps.places.AutocompleteSessionToken();
+                    });
+                }
+
+                function showSuccessMessage(placeName) {
+                    if (document.getElementById('placeSuccess')) {
+                        document.getElementById('placeSuccess').remove();
+                    }
+                    var successDiv = document.createElement('div');
+                    successDiv.id = 'placeSuccess';
+                    successDiv.className = 'alert alert-success mt-3';
+                    successDiv.innerHTML = '<i class="bi bi-check-circle me-2"></i><strong>Selected:</strong> ' + placeName + ' - Name, address, and coordinates filled!';
+                    input.parentElement.appendChild(successDiv);
+                    setTimeout(function() {
+                        successDiv.style.opacity = '0';
+                        successDiv.style.transition = 'opacity 0.5s';
+                        setTimeout(function() { if (successDiv.parentElement) successDiv.remove(); }, 500);
+                    }, 3000);
+                }
+
+                function fetchSuggestions(q) {
+                    if (!q) { clearDropdown(); return; }
+                    
+                    // Configure request for businesses AND addresses, localized to country
+                    var request = { 
+                        input: q, 
+                        sessionToken: sessionToken 
+                    };
+                    
+                    // Add country bias for localization
+                    if (defaultCountry) {
+                        request.componentRestrictions = { country: defaultCountry };
+                        console.log('Searching with country restriction:', defaultCountry);
+                    }
+                    
+                    // Don't restrict types - allow both establishments and addresses
+                    // This allows "Coles Welland" (business) and "123 Main St" (address) to work
+                    
+                    service.getPlacePredictions(request, function (predictions, status) {
+                        if (status !== google.maps.places.PlacesServiceStatus.OK || !predictions) { 
+                            console.warn('Place search status:', status);
+                            clearDropdown(); 
+                            return; 
+                        }
+                        console.log('Found', predictions.length, 'place suggestions');
+                        renderResults(predictions.slice(0, 8)); // Show up to 8 results
+                    });
+                }
+
+                input.addEventListener('input', debounce(function (e) { fetchSuggestions(e.target.value); }, 300));
+
+                input.addEventListener('keydown', function (e) {
+                    if (!dropdown.classList.contains('show')) return;
+                    if (e.key === 'ArrowDown') { e.preventDefault(); focusItem(Math.min(items.length - 1, focused + 1)); }
+                    else if (e.key === 'ArrowUp') { e.preventDefault(); focusItem(Math.max(0, focused - 1)); }
+                    else if (e.key === 'Enter') { e.preventDefault(); if (focused >= 0) selectItem(focused); }
+                    else if (e.key === 'Escape') { clearDropdown(); }
+                });
+
+                document.addEventListener('click', function (ev) { if (!ev.target) return; if (ev.target === input || dropdown.contains(ev.target)) return; clearDropdown(); });
+                input.addEventListener('blur', function () { setTimeout(function () { if (document.activeElement && !dropdown.contains(document.activeElement)) clearDropdown(); }, 150); });
+                
+                console.log('Google Places business search initialized');
+            };
+
+            // Load the Google Maps JS with callback
+            var s = document.createElement('script');
+            s.src = 'https://maps.googleapis.com/maps/api/js?key=' + encodeURIComponent(apiKey) + '&libraries=places&callback=initPlaces';
+            s.async = true; s.defer = true; document.head.appendChild(s);
+        })();
+
+        // Organization Autocomplete
+        $(function() {
+            console.log('Initializing organization autocomplete...');
+            
+            const orgInput = $("#organizationAutocomplete");
+            if (orgInput.length) {
+                orgInput.autocomplete({
+                    source: function(request, response) {
+                        $.ajax({
+                            url: "/api/organizations/search",
+                            data: { term: request.term },
+                            success: function(data) {
+                                response($.map(data, function(item) {
+                                    var label = item.name;
+                                    if (item.contactPerson) label += ' (Contact: ' + item.contactPerson + ')';
+                                    return { label: label, value: item.name, orgId: item.id, name: item.name };
+                                }));
+                            },
+                            error: function(err) {
+                                console.error('Organization error:', err);
+                                response([]);
+                            }
+                        });
+                    },
+                    minLength: 2,
+                    select: function(event, ui) {
+                        if (!ui.item.orgId) return false;
+                        $('#organizationIdHidden').val(ui.item.orgId);
+                        $('#selectedOrgDisplay').text(ui.item.name);
+                        $('#selectedOrganizationInfo').show();
+                        return true;
+                    }
+                });
+            }
+        });
+    </script>
+}

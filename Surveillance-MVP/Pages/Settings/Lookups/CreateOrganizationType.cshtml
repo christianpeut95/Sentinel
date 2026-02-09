@@ -1,0 +1,92 @@
+@page
+@model Surveillance_MVP.Pages.Settings.Lookups.CreateOrganizationTypeModel
+
+@{
+    ViewData["Title"] = "Create Organization Type";
+    Layout = "~/Pages/Shared/_Layout.cshtml";
+}
+
+<nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a asp-page="/Index">Home</a></li>
+        <li class="breadcrumb-item"><a asp-page="/Settings/Index">Settings</a></li>
+        <li class="breadcrumb-item"><a asp-page="./OrganizationTypes">Organization Types</a></li>
+        <li class="breadcrumb-item active" aria-current="page">Create</li>
+    </ol>
+</nav>
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2><i class="bi bi-plus-circle me-2"></i>Create Organization Type</h2>
+</div>
+
+@if (TempData["ErrorMessage"] != null)
+{
+    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+        <i class="bi bi-exclamation-triangle me-2"></i>@TempData["ErrorMessage"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+}
+
+<form method="post">
+    <div asp-validation-summary="ModelOnly" class="alert alert-danger" role="alert"></div>
+
+    <div class="card shadow-sm mb-4">
+        <div class="card-header bg-light fw-semibold">
+            <i class="bi bi-info-circle me-2"></i>Organization Type Information
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-8 mb-3">
+                    <label asp-for="OrganizationType.Name" class="form-label">
+                        <span class="text-danger">*</span> @Html.DisplayNameFor(m => m.OrganizationType.Name)
+                    </label>
+                    <input asp-for="OrganizationType.Name" class="form-control" aria-required="true" placeholder="e.g., Laboratory, Hospital, Clinic" />
+                    <span asp-validation-for="OrganizationType.Name" class="text-danger small"></span>
+                </div>
+
+                <div class="col-md-4 mb-3">
+                    <label asp-for="OrganizationType.DisplayOrder" class="form-label">
+                        @Html.DisplayNameFor(m => m.OrganizationType.DisplayOrder)
+                    </label>
+                    <input asp-for="OrganizationType.DisplayOrder" class="form-control" type="number" placeholder="Sort order" />
+                    <span asp-validation-for="OrganizationType.DisplayOrder" class="text-danger small"></span>
+                    <small class="form-text text-muted">Lower numbers appear first in dropdowns</small>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-md-12 mb-3">
+                    <label asp-for="OrganizationType.Description" class="form-label">
+                        @Html.DisplayNameFor(m => m.OrganizationType.Description)
+                    </label>
+                    <textarea asp-for="OrganizationType.Description" class="form-control" rows="3" placeholder="Brief description of this organization type..."></textarea>
+                    <span asp-validation-for="OrganizationType.Description" class="text-danger small"></span>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-md-12 mb-3">
+                    <div class="form-check">
+                        <input asp-for="OrganizationType.IsActive" class="form-check-input" type="checkbox" checked />
+                        <label asp-for="OrganizationType.IsActive" class="form-check-label">
+                            Active (available for selection)
+                        </label>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="d-flex justify-content-between">
+        <a asp-page="./OrganizationTypes" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left me-1"></i>Cancel
+        </a>
+        <button type="submit" class="btn btn-primary">
+            <i class="bi bi-check-circle me-1"></i>Create Organization Type
+        </button>
+    </div>
+</form>
+
+@section Scripts {
+    @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+}

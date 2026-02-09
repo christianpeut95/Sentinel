@@ -1,0 +1,567 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Case Details - Surveillance System</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --spacing-1: 4px;
+            --spacing-2: 8px;
+            --spacing-3: 12px;
+            --spacing-4: 16px;
+            --spacing-6: 24px;
+            --spacing-8: 32px;
+            
+            --color-primary: #007AFF;
+            --color-success: #34C759;
+            --color-warning: #FF9500;
+            --color-danger: #FF3B30;
+            --color-yellow: #FFCC00;
+            
+            --gray-1: #000000;
+            --gray-2: rgba(60, 60, 67, 0.6);
+            --gray-3: rgba(60, 60, 67, 0.3);
+            --gray-4: #F2F2F7;
+            --gray-5: #E5E5EA;
+            --white: #FFFFFF;
+            
+            --radius-small: 8px;
+            --radius-medium: 12px;
+            --shadow-small: 0 2px 8px rgba(0,0,0,0.04);
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            font-size: 16px;
+            line-height: 1.5;
+            color: var(--gray-1);
+            background: var(--gray-4);
+        }
+
+        .header {
+            background: var(--white);
+            border-bottom: 1px solid var(--gray-5);
+            padding: var(--spacing-4) var(--spacing-8);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: var(--shadow-small);
+        }
+
+        .back-button {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-2);
+            font-size: 16px;
+            color: var(--color-primary);
+            cursor: pointer;
+            text-decoration: none;
+        }
+
+        .back-button:hover {
+            text-decoration: underline;
+        }
+
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-4);
+        }
+
+        .icon-button {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+        }
+
+        .container {
+            max-width: 1440px;
+            margin: 0 auto;
+            padding: var(--spacing-8);
+        }
+
+        .case-header-card {
+            background: var(--white);
+            border-radius: var(--radius-medium);
+            box-shadow: var(--shadow-small);
+            padding: var(--spacing-6);
+            margin-bottom: var(--spacing-6);
+        }
+
+        .case-title {
+            font-size: 20px;
+            font-weight: 600;
+            margin-bottom: var(--spacing-2);
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-2);
+        }
+
+        .case-subtitle {
+            font-size: 15px;
+            color: var(--gray-2);
+            margin-bottom: var(--spacing-4);
+        }
+
+        .action-bar {
+            display: flex;
+            gap: var(--spacing-2);
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: var(--spacing-2) var(--spacing-4);
+            border-radius: var(--radius-small);
+            border: none;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            background: var(--gray-4);
+            display: inline-flex;
+            align-items: center;
+            gap: var(--spacing-2);
+        }
+
+        .btn:hover {
+            background: var(--gray-5);
+        }
+
+        .btn-primary {
+            background: var(--color-primary);
+            color: var(--white);
+        }
+
+        .btn-primary:hover {
+            background: #0051D5;
+        }
+
+        .three-col-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: var(--spacing-6);
+            margin-bottom: var(--spacing-6);
+        }
+
+        .card {
+            background: var(--white);
+            border-radius: var(--radius-medium);
+            box-shadow: var(--shadow-small);
+            overflow: hidden;
+        }
+
+        .card-header {
+            padding: var(--spacing-4);
+            border-bottom: 1px solid var(--gray-5);
+            font-weight: 600;
+            font-size: 16px;
+        }
+
+        .card-body {
+            padding: var(--spacing-4);
+        }
+
+        .info-row {
+            margin-bottom: var(--spacing-3);
+        }
+
+        .info-label {
+            font-size: 14px;
+            color: var(--gray-2);
+            margin-bottom: var(--spacing-1);
+        }
+
+        .info-value {
+            font-size: 15px;
+            font-weight: 500;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: var(--spacing-1);
+        }
+
+        .status-critical { background: var(--color-danger); }
+        .status-warning { background: var(--color-warning); }
+        .status-attention { background: var(--color-yellow); }
+        .status-normal { background: var(--color-success); }
+
+        .symptom-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: var(--spacing-1);
+            padding: var(--spacing-1) var(--spacing-2);
+            border-radius: var(--radius-small);
+            background: var(--gray-4);
+            font-size: 13px;
+            margin-right: var(--spacing-1);
+            margin-bottom: var(--spacing-1);
+        }
+
+        .two-col-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: var(--spacing-6);
+            margin-bottom: var(--spacing-6);
+        }
+
+        .lab-result {
+            padding: var(--spacing-3);
+            border: 1px solid var(--gray-5);
+            border-radius: var(--radius-small);
+            margin-bottom: var(--spacing-3);
+        }
+
+        .lab-result:last-child {
+            margin-bottom: 0;
+        }
+
+        .exposure-item, .contact-group, .task-item {
+            padding: var(--spacing-3);
+            border: 1px solid var(--gray-5);
+            border-radius: var(--radius-small);
+            margin-bottom: var(--spacing-3);
+        }
+
+        .timeline-item {
+            display: flex;
+            gap: var(--spacing-3);
+            padding: var(--spacing-2) 0;
+        }
+
+        .timeline-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            border: 2px solid var(--color-primary);
+            margin-top: 4px;
+            flex-shrink: 0;
+        }
+
+        .timeline-dot.filled {
+            background: var(--color-primary);
+        }
+
+        .timeline-content {
+            flex: 1;
+            font-size: 14px;
+        }
+
+        .timeline-time {
+            color: var(--gray-2);
+            font-weight: 600;
+        }
+
+        @media (max-width: 1200px) {
+            .three-col-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .two-col-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .container {
+                padding: var(--spacing-4);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <a href="case-list.html" class="back-button">? Cases</a>
+        <div class="header-right">
+            <div class="icon-button">??</div>
+            <div class="icon-button">??</div>
+            <span style="font-size: 15px; font-weight: 500;">John Doe</span>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="case-header-card">
+            <div class="case-title">
+                <span class="status-dot status-critical"></span>
+                MRN-2045 • Johnson, Sarah • Age 8 • Female
+            </div>
+            <div class="case-subtitle">
+                Measles • Confirmed • Linked to Lincoln Elementary Outbreak
+            </div>
+            <div class="action-bar">
+                <button class="btn btn-primary">?? Call</button>
+                <button class="btn btn-primary">?? Email</button>
+                <button class="btn">?? Add Note</button>
+                <button class="btn">?? Create Task</button>
+                <button class="btn">? More</button>
+            </div>
+        </div>
+
+        <div class="three-col-grid">
+            <div class="card">
+                <div class="card-header">? Patient</div>
+                <div class="card-body">
+                    <div class="info-row">
+                        <div class="info-value">Sarah Johnson</div>
+                        <div class="info-label">Feb 8, 2018</div>
+                        <div class="info-label">Age 8</div>
+                    </div>
+                    <div class="info-row">
+                        <div class="info-label">Phone</div>
+                        <div class="info-value">555-0142</div>
+                    </div>
+                    <div class="info-row">
+                        <div class="info-label">Email</div>
+                        <div class="info-value">parent@email.com</div>
+                    </div>
+                    <div class="info-row">
+                        <div class="info-label">Address</div>
+                        <div class="info-value">?? 123 Oak St<br>Springfield<br>IL 62701</div>
+                    </div>
+                    <div class="info-row">
+                        <div class="info-label">Guardian</div>
+                        <div class="info-value">Mary Johnson<br>555-0143</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">? Case Info</div>
+                <div class="card-body">
+                    <div class="info-row">
+                        <div class="info-label">Reported</div>
+                        <div class="info-value">Feb 8, 2026</div>
+                    </div>
+                    <div class="info-row">
+                        <div class="info-label">Onset</div>
+                        <div class="info-value">Feb 5, 2026</div>
+                    </div>
+                    <div class="info-row">
+                        <div class="info-label">Status</div>
+                        <div class="info-value">
+                            <span class="status-dot status-critical"></span> Active<br>
+                            <span style="font-size: 13px; color: var(--gray-2);">Investigation</span>
+                        </div>
+                    </div>
+                    <div class="info-row">
+                        <div class="info-label">Investigator</div>
+                        <div class="info-value">John Doe</div>
+                        <div class="info-label">Assigned: 2h ago</div>
+                    </div>
+                    <button class="btn btn-primary" style="width: 100%;">Reassign</button>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">? Clinical</div>
+                <div class="card-body">
+                    <div class="info-row">
+                        <div class="info-label">Symptoms</div>
+                        <div style="display: flex; flex-wrap: wrap; gap: var(--spacing-1); margin-top: var(--spacing-2);">
+                            <span class="symptom-badge"><span class="status-dot status-critical"></span> Fever (103°F)</span>
+                            <span class="symptom-badge"><span class="status-dot status-critical"></span> Rash</span>
+                            <span class="symptom-badge"><span class="status-dot status-critical"></span> Cough</span>
+                            <span class="symptom-badge"><span class="status-dot status-attention"></span> Fatigue</span>
+                        </div>
+                        <div class="info-label" style="margin-top: var(--spacing-2);">Onset: Feb 5</div>
+                    </div>
+                    <div class="info-row">
+                        <div class="info-label">Last updated</div>
+                        <div class="info-value">2 hours ago</div>
+                    </div>
+                    <button class="btn" style="width: 100%;">Update Sx</button>
+                    <div class="info-row" style="margin-top: var(--spacing-4);">
+                        <div class="info-label">Risk Factors</div>
+                        <div class="info-value">
+                            ? Unvaccinated<br>
+                            ? School exposure
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card" style="margin-bottom: var(--spacing-6);">
+            <div class="card-header" style="display: flex; justify-content: space-between;">
+                <span>? Lab Results</span>
+                <span style="background: var(--gray-4); padding: 2px 8px; border-radius: 4px; font-weight: normal; font-size: 13px;">2 results</span>
+            </div>
+            <div class="card-body">
+                <div class="lab-result">
+                    <div style="font-weight: 600; margin-bottom: var(--spacing-1);">Feb 8, 2026 • PCR Test • Measles IgM</div>
+                    <div style="font-size: 14px; color: var(--gray-2);">? Positive • Lab: State Public Health Lab • ID: LAB-8843</div>
+                </div>
+                <div class="lab-result">
+                    <div style="font-weight: 600; margin-bottom: var(--spacing-1);">Feb 8, 2026 • Serology • Measles IgG</div>
+                    <div style="font-size: 14px; color: var(--gray-2);">? Negative • Lab: State Public Health Lab • ID: LAB-8844</div>
+                </div>
+                <button class="btn btn-primary" style="width: 100%; margin-top: var(--spacing-3);">+ Add Lab Result</button>
+            </div>
+        </div>
+
+        <div class="two-col-grid">
+            <div class="card">
+                <div class="card-header" style="display: flex; justify-content: space-between;">
+                    <span>? Exposures</span>
+                    <span style="background: var(--gray-4); padding: 2px 8px; border-radius: 4px; font-weight: normal; font-size: 13px;">5 linked</span>
+                </div>
+                <div class="card-body">
+                    <div class="exposure-item">
+                        <div style="font-weight: 600; margin-bottom: var(--spacing-1);">Lincoln Elementary</div>
+                        <div style="font-size: 14px; color: var(--gray-2); margin-bottom: var(--spacing-2);">School • Feb 3-5</div>
+                        <div style="display: flex; align-items: center; gap: var(--spacing-1); margin-bottom: var(--spacing-1);">
+                            <span class="status-dot status-critical"></span>
+                            <span style="font-weight: 600; font-size: 14px;">High risk</span>
+                        </div>
+                        <div style="font-size: 14px; color: var(--gray-2); margin-bottom: var(--spacing-2);">200+ students exposed</div>
+                        <button class="btn">View Details</button>
+                    </div>
+                    <div class="exposure-item">
+                        <div style="font-weight: 600; margin-bottom: var(--spacing-1);">Birthday Party</div>
+                        <div style="font-size: 14px; color: var(--gray-2); margin-bottom: var(--spacing-2);">Residence • Feb 4</div>
+                        <div style="display: flex; align-items: center; gap: var(--spacing-1); margin-bottom: var(--spacing-1);">
+                            <span class="status-dot status-attention"></span>
+                            <span style="font-weight: 600; font-size: 14px;">Medium risk</span>
+                        </div>
+                        <div style="font-size: 14px; color: var(--gray-2); margin-bottom: var(--spacing-2);">15 children exposed</div>
+                        <button class="btn">View Details</button>
+                    </div>
+                    <button class="btn btn-primary" style="width: 100%;">+ Add Exposure</button>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header" style="display: flex; justify-content: space-between;">
+                    <span>? Contacts</span>
+                    <span style="background: var(--gray-4); padding: 2px 8px; border-radius: 4px; font-weight: normal; font-size: 13px;">12 identified</span>
+                </div>
+                <div class="card-body">
+                    <div class="contact-group">
+                        <div style="display: flex; align-items: center; gap: var(--spacing-1); margin-bottom: var(--spacing-1);">
+                            <span class="status-dot status-critical"></span>
+                            <span style="font-weight: 600;">High Risk • Household • 3 contacts</span>
+                        </div>
+                        <div style="font-size: 14px; color: var(--gray-2); margin-bottom: var(--spacing-1);">
+                            • Mary Johnson (mother)<br>
+                            • Tom Johnson (father)<br>
+                            • Jake Johnson (brother, age 5)
+                        </div>
+                        <div style="font-size: 13px; color: var(--gray-2);">Status: Monitoring, vaccines ordered</div>
+                    </div>
+                    <div class="contact-group">
+                        <div style="display: flex; align-items: center; gap: var(--spacing-1); margin-bottom: var(--spacing-1);">
+                            <span class="status-dot status-attention"></span>
+                            <span style="font-weight: 600;">Medium Risk • School • 6 contacts</span>
+                        </div>
+                        <div style="font-size: 14px; color: var(--gray-2); margin-bottom: var(--spacing-1);">
+                            • Classmates at Lincoln Elementary
+                        </div>
+                        <div style="font-size: 13px; color: var(--gray-2);">Status: Contact tracing in progress</div>
+                    </div>
+                    <div class="contact-group">
+                        <div style="display: flex; align-items: center; gap: var(--spacing-1); margin-bottom: var(--spacing-1);">
+                            <span class="status-dot status-normal"></span>
+                            <span style="font-weight: 600;">Low Risk • Community • 3 contacts</span>
+                        </div>
+                        <div style="font-size: 14px; color: var(--gray-2); margin-bottom: var(--spacing-1);">
+                            • Soccer teammates
+                        </div>
+                        <div style="font-size: 13px; color: var(--gray-2);">Status: Notified, monitoring</div>
+                    </div>
+                    <button class="btn btn-primary" style="width: 100%;">View All Contacts</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="card" style="margin-bottom: var(--spacing-6);">
+            <div class="card-header" style="display: flex; justify-content: space-between;">
+                <span>? Tasks & Activities</span>
+                <span style="background: var(--gray-4); padding: 2px 8px; border-radius: 4px; font-weight: normal; font-size: 13px;">8 items</span>
+            </div>
+            <div class="card-body">
+                <div class="task-item">
+                    <div style="display: flex; align-items: center; gap: var(--spacing-1); margin-bottom: var(--spacing-1);">
+                        <span class="status-dot status-critical"></span>
+                        <span style="font-weight: 600;">Due in 2h • Interview patient/guardian</span>
+                    </div>
+                    <div style="font-size: 14px; color: var(--gray-2); margin-bottom: var(--spacing-2);">Assigned to: John Doe • Created: 2h ago</div>
+                    <div style="display: flex; gap: var(--spacing-2);">
+                        <button class="btn btn-primary">Start Interview</button>
+                        <button class="btn">Postpone</button>
+                        <button class="btn">Reassign</button>
+                    </div>
+                </div>
+                <div class="task-item">
+                    <div style="display: flex; align-items: center; gap: var(--spacing-1); margin-bottom: var(--spacing-1);">
+                        <span class="status-dot status-attention"></span>
+                        <span style="font-weight: 600;">Due today • Contact tracing - household</span>
+                    </div>
+                    <div style="font-size: 14px; color: var(--gray-2); margin-bottom: var(--spacing-2);">Assigned to: Anna Chen • Created: 3h ago<br>Progress: 2 of 3 completed</div>
+                </div>
+                <div class="task-item">
+                    <div style="display: flex; align-items: center; gap: var(--spacing-1); margin-bottom: var(--spacing-1);">
+                        <span>?</span>
+                        <span style="font-weight: 600;">Completed • Lab specimen collected</span>
+                    </div>
+                    <div style="font-size: 14px; color: var(--gray-2);">Completed by: John Doe • 8 hours ago</div>
+                </div>
+                <button class="btn btn-link" style="width: 100%; margin-top: var(--spacing-3);">View All Tasks</button>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header">? Timeline</div>
+            <div class="card-body">
+                <div class="timeline-item">
+                    <div class="timeline-dot filled"></div>
+                    <div class="timeline-content">
+                        <span class="timeline-time">2h ago</span> • Case assigned to John Doe
+                    </div>
+                </div>
+                <div class="timeline-item">
+                    <div class="timeline-dot filled"></div>
+                    <div class="timeline-content">
+                        <span class="timeline-time">2h ago</span> • Lab result: Measles IgM Positive
+                    </div>
+                </div>
+                <div class="timeline-item">
+                    <div class="timeline-dot"></div>
+                    <div class="timeline-content">
+                        <span class="timeline-time">3h ago</span> • Lab specimen collected
+                    </div>
+                </div>
+                <div class="timeline-item">
+                    <div class="timeline-dot"></div>
+                    <div class="timeline-content">
+                        <span class="timeline-time">5h ago</span> • Case reported by Dr. Smith, Pediatrics
+                    </div>
+                </div>
+                <div class="timeline-item">
+                    <div class="timeline-dot"></div>
+                    <div class="timeline-content">
+                        <span class="timeline-time">3d ago</span> • Symptom onset: Fever, rash
+                    </div>
+                </div>
+                <button class="btn btn-link" style="width: 100%; margin-top: var(--spacing-3);">Show Full Timeline</button>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

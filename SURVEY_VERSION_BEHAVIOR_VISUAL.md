@@ -1,0 +1,446 @@
+# ?? Survey Version Behavior - Before & After
+
+## ?? Visual Comparison
+
+This guide shows exactly how survey version behavior changed.
+
+---
+
+## ?? Fix #1: Active Version Lookup
+
+### ? BEFORE (Incorrect Behavior)
+
+```
+???????????????????????????????????????????????????
+? Survey Lifecycle                                ?
+???????????????????????????????????????????????????
+?                                                 ?
+? Day 1: Survey v1.0 Created                     ?
+?        Status: Active                           ?
+?        TaskTemplate1 ? Links to v1.0           ?
+?                                                 ?
+? Day 2: Task1 Created from TaskTemplate1        ?
+?        Task1.SurveyTemplateId = v1.0.Id        ?
+?                                                 ?
+? Day 5: Survey v2.0 Published                   ?
+?        v2.0 Status: Active                     ?
+?        v1.0 Status: Archived                   ?
+?                                                 ?
+? Day 10: User completes Task1                   ?
+?         ? Loads v1.0 (Archived)               ?
+?         ? Shows old questions                 ?
+?         ? Missing new improvements            ?
+?                                                 ?
+???????????????????????????????????????????????????
+```
+
+**Query Logic (Old):**
+```csharp
+var surveyTemplate = await _context.SurveyTemplates
+    .FirstOrDefaultAsync(st => 
+        st.Id == task.TaskTemplate.SurveyTemplateId && 
+        st.IsActive);  // ? IsActive is for soft-delete, not version status!
+```
+
+**Problem:** Returned v1.0 even though it's archived because `IsActive` was still true.
+
+---
+
+### ? AFTER (Correct Behavior)
+
+```
+???????????????????????????????????????????????????
+? Survey Lifecycle                                ?
+???????????????????????????????????????????????????
+?                                                 ?
+? Day 1: Survey v1.0 Created                     ?
+?        Status: Active                           ?
+?        TaskTemplate1 ? Links to v1.0           ?
+?                                                 ?
+? Day 2: Task1 Created from TaskTemplate1        ?
+?        Task1.SurveyTemplateId = v1.0.Id        ?
+?                                                 ?
+? Day 5: Survey v2.0 Published                   ?
+?        v2.0 Status: Active                     ?
+?        v1.0 Status: Archived                   ?
+?                                                 ?
+? Day 10: User completes Task1                   ?
+?         ? Finds v1.0's family                 ?
+?         ? Looks for Active version            ?
+?         ? Loads v2.0 (Active)                 ?
+?         ? Shows latest questions              ?
+?         ? Benefits from improvements          ?
+?                                                 ?
+???????????????????????????????????????????????????
+```
+
+**Query Logic (New):**
+```csharp
+// Step 1: Get original template
+var originalTemplate = await _context.SurveyTemplates
+    .FirstOrDefaultAsync(st => st.Id == task.TaskTemplate.SurveyTemplateId);
+
+// Step 2: Find root parent
+var rootParentId = originalTemplate.ParentSurveyTemplateId ?? originalTemplate.Id;
+
+// Step 3: Find ACTIVE version in family
+var surveyTemplate = await _context.SurveyTemplates
+    .Where(st => (st.Id == rootParentId || st.ParentSurveyTemplateId == rootParentId))
+    .Where(st => st.VersionStatus == SurveyVersionStatus.Active)  // ? Correct!
+    .FirstOrDefaultAsync();
+```
+
+---
+
+## ?? Fix #2: Auto-Increment Removal
+
+### ? BEFORE (Unwanted Auto-Increment)
+
+```
+???????????????????????????????????????????????????
+? Survey Editing Workflow                         ?
+???????????????????????????????????????????????????
+?                                                 ?
+? Admin opens "Food History Survey"              ?
+? Current Version: 1                              ?
+?                                                 ?
+?         ?                                       ?
+?                                                 ?
+? Admin changes survey description                ?
+? (No questions changed, just description)        ?
+?                                                 ?
+?         ?                                       ?
+?                                                 ?
+? Admin clicks "Update Survey Template"          ?
+?                                                 ?
+?         ?                                       ?
+?                                                 ?
+? System detects change                           ?
+? ? Version auto-incremented to 2               ?
+? ? Message: "Version incremented to 2"         ?
+? ? All users see "Version 2" immediately       ?
+?                                                 ?
+? Admin changes it again (typo fix)              ?
+?                                                 ?
+?         ?                                       ?
+?                                                 ?
+? ? Version auto-incremented to 3               ?
+? ? Now showing "Version 3" for minor fix       ?
+?                                                 ?
+???????????????????????????????????????????????????
+```
+
+**Problems:**
+- ? Version changed without user consent
+- ? No way to prevent increment
+- ? Version numbers inflated from minor edits
+- ? No version notes explaining changes
+- ? Confusing for users seeing version jump
+
+---
+
+### ? AFTER (Explicit Version Control)
+
+```
+???????????????????????????????????????????????????
+? Survey Editing Workflow                         ?
+???????????????????????????????????????????????????
+?                                                 ?
+? Admin opens "Food History Survey"              ?
+? Current Version: 1.0 (Active)                   ?
+?                                                 ?
+?         ?                                       ?
+?                                                 ?
+? ?? Option A: Minor Edit ???????????????????   ?
+? ?                                          ?   ?
+? ? Admin changes description                ?   ?
+? ? Clicks "Update Survey Template"         ?   ?
+? ?                                          ?   ?
+? ? ? Changes saved                         ?   ?
+? ? ? Version stays "1.0"                   ?   ?
+? ? ? ModifiedAt updated                    ?   ?
+? ? ? Simple success message                ?   ?
+? ?                                          ?   ?
+? ????????????????????????????????????????????   ?
+?                                                 ?
+? ?? Option B: Major Changes ????????????????   ?
+? ?                                          ?   ?
+? ? Admin opens designer                     ?   ?
+? ? Makes significant changes                ?   ?
+? ? Clicks "Save As Version"                ?   ?
+? ?                                          ?   ?
+? ? Enters:                                  ?   ?
+? ? - Version Number: "2.0"                  ?   ?
+? ? - Notes: "Added allergen questions"      ?   ?
+? ? - Status: Draft                          ?   ?
+? ?                                          ?   ?
+? ? ? New version v2.0 created as Draft     ?   ?
+? ? ? Original v1.0 stays Active            ?   ?
+? ? ? Can test v2.0 before publishing       ?   ?
+? ?                                          ?   ?
+? ? When ready:                              ?   ?
+? ? Click "Publish" on v2.0                  ?   ?
+? ?                                          ?   ?
+? ? ? v2.0 becomes Active                   ?   ?
+? ? ? v1.0 becomes Archived                 ?   ?
+? ? ? All tasks now use v2.0                ?   ?
+? ?                                          ?   ?
+? ????????????????????????????????????????????   ?
+?                                                 ?
+???????????????????????????????????????????????????
+```
+
+**Benefits:**
+- ? User controls when versions are created
+- ? Can make minor edits without version change
+- ? Can create drafts and test before publishing
+- ? Version notes explain what changed
+- ? Clear version management
+
+---
+
+## ?? Combined Effect
+
+### Scenario: Survey Evolution Over Time
+
+```
+TIMELINE:
+
+Week 1: Initial Survey Created
+?? Survey "Food History v1.0"
+?? Status: Active
+?? Task Template created ? Links to v1.0
+?? 10 tasks created from template
+
+Week 2: Admin makes minor fix
+?? ? OLD: Version auto-incremented to 2
+?? ? OLD: Tasks still load v1 (now showing "Version 2")
+?? ? NEW: Simple edit, version stays 1.0, tasks unaffected
+
+Week 3: Admin creates improved version
+?? ? OLD: Had to edit directly, version auto-incremented to 3
+?? ? OLD: All tasks immediately affected
+?? ? OLD: No testing possible
+?? ? NEW: "Save As Version" ? v2.0 Draft ? Test ? Publish
+
+Week 4: User completes old task
+?? ? OLD: Task loads v1 (archived, old questions)
+?? ? OLD: Missing improvements from v3
+?? ? NEW: Task loads v2.0 (active, latest questions)
+
+Week 5: Admin finds bug in v2.0
+?? ? OLD: Had to edit live version, auto-increment to 4
+?? ? OLD: Users see broken survey immediately
+?? ? NEW: Create v2.1 as Draft ? Fix ? Test ? Publish
+            v2.0 stays active until v2.1 ready
+
+Week 6: Need to rollback
+?? ? OLD: No way to go back to v2
+?? ? OLD: Version 4 is broken, stuck
+?? ? NEW: Publish v2.0 again
+            v2.1 archived, v2.0 back to Active
+```
+
+---
+
+## ?? Database State Comparison
+
+### ? BEFORE Fix
+
+```sql
+-- Tasks table
+Id: task-123
+TaskTemplateId: template-abc
+SurveyTemplateId: NULL (embedded in TaskTemplate)
+
+-- TaskTemplates table
+Id: template-abc
+SurveyTemplateId: survey-v1-id
+SurveyDefinitionJson: "{...}" (copy of v1)
+
+-- SurveyTemplates table
+Id: survey-v1-id
+Name: "Food History"
+Version: 5 (auto-incremented multiple times)
+VersionNumber: "1.0"
+VersionStatus: Archived
+IsActive: true (soft-delete flag, not version status!)
+
+-- When task loads survey:
+1. Gets TaskTemplate.SurveyTemplateId = survey-v1-id
+2. Queries: WHERE Id = survey-v1-id AND IsActive = true
+3. ? Returns v1.0 even though Archived (IsActive is true!)
+```
+
+---
+
+### ? AFTER Fix
+
+```sql
+-- Tasks table (same)
+Id: task-123
+TaskTemplateId: template-abc
+
+-- TaskTemplates table (same)
+Id: template-abc
+SurveyTemplateId: survey-v1-id (still points to v1.0!)
+
+-- SurveyTemplates table
+Id: survey-v1-id
+Name: "Food History"
+Version: 5 (legacy, no longer auto-increments)
+VersionNumber: "1.0"
+VersionStatus: Archived
+ParentSurveyTemplateId: NULL (this is the root)
+
+Id: survey-v2-id
+Name: "Food History"
+Version: 1 (started fresh)
+VersionNumber: "2.0"
+VersionStatus: Active
+ParentSurveyTemplateId: survey-v1-id (child of v1.0)
+
+-- When task loads survey:
+1. Gets TaskTemplate.SurveyTemplateId = survey-v1-id
+2. Queries: Find original template (v1.0)
+3. Gets root parent: NULL, so root = survey-v1-id
+4. Queries: WHERE (Id = root OR ParentId = root) AND VersionStatus = Active
+5. ? Returns v2.0 (Active version in family!)
+```
+
+---
+
+## ?? User Experience Before & After
+
+### Task Completion Experience
+
+**Before:**
+```
+User: "Complete Food History Survey"
+        ?
+[Survey loads]
+        ?
+? Shows old questions from v1.0
+? Missing new allergen section
+? User confused - why are questions different 
+   from what admin showed them?
+        ?
+User fills out incomplete survey
+        ?
+Data quality suffers
+```
+
+**After:**
+```
+User: "Complete Food History Survey"
+        ?
+[Survey loads - system finds active version]
+        ?
+? Shows latest questions from v2.0
+? Includes new allergen section
+? Consistent with admin's instructions
+        ?
+User fills out complete survey
+        ?
+Better data quality
+```
+
+---
+
+### Admin Edit Experience
+
+**Before:**
+```
+Admin: "Let me fix this typo"
+        ?
+[Opens edit page]
+        ?
+[Fixes typo]
+        ?
+[Clicks Save]
+        ?
+? "Survey updated! Version incremented to 6"
+? Version number changed for minor fix
+? Confusion about what changed
+```
+
+**After:**
+```
+Admin: "Let me fix this typo"
+        ?
+[Opens edit page]
+        ?
+[Fixes typo]
+        ?
+[Clicks Save]
+        ?
+? "Survey template updated successfully!"
+? Version stays same (minor edit)
+? Clear what happened
+
+Admin: "Let me add new questions"
+        ?
+[Opens designer]
+        ?
+[Adds questions]
+        ?
+[Clicks "Save As Version"]
+        ?
+[Enters: v2.0, notes, keep as Draft]
+        ?
+? New version created
+? Can test before publishing
+? Original version still active
+        ?
+[Tests and reviews]
+        ?
+[Clicks "Publish"]
+        ?
+? v2.0 now active
+? All tasks use v2.0
+? v1.0 archived
+```
+
+---
+
+## ? Verification Checklist
+
+### Active Version Fix:
+```
+???????????????????????????????????????????
+? ? Create survey v1.0                   ?
+? ? Create task linked to survey         ?
+? ? Create and publish v2.0              ?
+? ? v1.0 is now archived                 ?
+? ? Complete task                        ?
+? ? Loads v2.0 (not v1.0)                ?
+? ? Console shows "Version 2.0"          ?
+???????????????????????????????????????????
+```
+
+### Auto-Increment Removal:
+```
+???????????????????????????????????????????
+? ? Edit any survey                      ?
+? ? Change name/description              ?
+? ? Save changes                         ?
+? ? Version number stays same            ?
+? ? Success message (no version mention) ?
+? ? ModifiedAt updated                   ?
+???????????????????????????????????????????
+```
+
+---
+
+## ?? See Also
+
+- **`SURVEY_ACTIVE_VERSION_FIX.md`** - Technical details
+- **`SURVEY_AUTO_INCREMENT_REMOVAL.md`** - Removal details
+- **`SURVEY_UPDATES_QUICK_SUMMARY.md`** - Quick reference
+- **`SURVEY_VERSIONING_COMPLETE_GUIDE.md`** - Complete system guide
+
+---
+
+**Created:** February 7, 2026  
+**Status:** ? Complete  
+**Action Required:** Restart debugging to apply changes

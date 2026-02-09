@@ -1,0 +1,305 @@
+@page
+@model Surveillance_MVP.Pages.Settings.Users.EditModel
+
+@{
+    ViewData["Title"] = "Edit User";
+}
+
+<div class="container-fluid">
+    <nav aria-label="breadcrumb" class="mb-3">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a asp-page="/Index">Home</a></li>
+            <li class="breadcrumb-item"><a asp-page="/Settings/Index">Settings</a></li>
+            <li class="breadcrumb-item"><a asp-page="./Index">Users</a></li>
+            <li class="breadcrumb-item active">Edit User</li>
+        </ol>
+    </nav>
+
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0"><i class="bi bi-pencil me-2"></i>Edit User: @Model.Input.Email</h4>
+                </div>
+                <div class="card-body">
+                    <form method="post">
+                        <div asp-validation-summary="ModelOnly" class="alert alert-danger" role="alert"></div>
+
+                        <input type="hidden" asp-for="Input.Id" />
+
+                        <div class="row g-3">
+                            <!-- Email -->
+                            <div class="col-md-6">
+                                <label asp-for="Input.Email" class="form-label">
+                                    <i class="bi bi-envelope me-1"></i>Email Address
+                                </label>
+                                <input asp-for="Input.Email" class="form-control" readonly />
+                                <small class="form-text text-muted">Email cannot be changed</small>
+                            </div>
+
+                            <!-- Username -->
+                            <div class="col-md-6">
+                                <label asp-for="Input.UserName" class="form-label">
+                                    <i class="bi bi-person me-1"></i>Username
+                                </label>
+                                <input asp-for="Input.UserName" class="form-control" />
+                                <span asp-validation-for="Input.UserName" class="text-danger"></span>
+                            </div>
+
+                            <!-- First Name -->
+                            <div class="col-md-6">
+                                <label asp-for="Input.FirstName" class="form-label">
+                                    <i class="bi bi-person-badge me-1"></i>First Name
+                                </label>
+                                <input asp-for="Input.FirstName" class="form-control" />
+                                <span asp-validation-for="Input.FirstName" class="text-danger"></span>
+                            </div>
+
+                            <!-- Last Name -->
+                            <div class="col-md-6">
+                                <label asp-for="Input.LastName" class="form-label">
+                                    <i class="bi bi-person-badge me-1"></i>Last Name
+                                </label>
+                                <input asp-for="Input.LastName" class="form-control" />
+                                <span asp-validation-for="Input.LastName" class="text-danger"></span>
+                            </div>
+
+                            <!-- Email Confirmed -->
+                            <div class="col-12">
+                                <div class="form-check">
+                                    <input asp-for="Input.EmailConfirmed" class="form-check-input" />
+                                    <label asp-for="Input.EmailConfirmed" class="form-check-label">
+                                        Email is confirmed
+                                    </label>
+                                </div>
+                            </div>
+
+                            <!-- Interview Worker Section -->
+                            <div class="col-12">
+                                <div class="card bg-info bg-opacity-10 border-info">
+                                    <div class="card-body">
+                                        <h6><i class="bi bi-telephone me-2"></i>Interview Worker Configuration</h6>
+                                        <p class="text-muted small mb-3">Configure this user as an interview worker for call center operations</p>
+                                        
+                                        <div class="row g-3">
+                                            <div class="col-12">
+                                                <div class="form-check form-switch">
+                                                    <input asp-for="Input.IsInterviewWorker" class="form-check-input" type="checkbox" id="isInterviewWorker" />
+                                                    <label asp-for="Input.IsInterviewWorker" class="form-check-label" for="isInterviewWorker">
+                                                        <strong>Enable Interview Worker</strong>
+                                                    </label>
+                                                </div>
+                                                <small class="form-text text-muted d-block ms-4">
+                                                    When enabled, user can access the Interview Queue dashboard and be assigned phone interview tasks
+                                                </small>
+                                            </div>
+
+                                            <div class="col-md-4">
+                                                <label asp-for="Input.PrimaryLanguage" class="form-label">Primary Language</label>
+                                                <input asp-for="Input.PrimaryLanguage" class="form-control" placeholder="e.g., English" />
+                                                <span asp-validation-for="Input.PrimaryLanguage" class="text-danger"></span>
+                                            </div>
+
+                                            <div class="col-md-8">
+                                                <label asp-for="Input.AdditionalLanguages" class="form-label">Additional Languages</label>
+                                                <input asp-for="Input.AdditionalLanguages" class="form-control" placeholder="e.g., Spanish, French, Mandarin" />
+                                                <small class="form-text text-muted">Comma-separated list of languages</small>
+                                            </div>
+
+                                            <div class="col-md-6">
+                                                <label asp-for="Input.CurrentTaskCapacity" class="form-label">Task Capacity</label>
+                                                <input asp-for="Input.CurrentTaskCapacity" class="form-control" type="number" min="1" max="100" />
+                                                <small class="form-text text-muted">Maximum concurrent tasks (default: 10)</small>
+                                                <span asp-validation-for="Input.CurrentTaskCapacity" class="text-danger"></span>
+                                            </div>
+
+                                            <div class="col-md-6">
+                                                <label class="form-label d-block">Auto-Assignment</label>
+                                                <div class="form-check form-switch">
+                                                    <input asp-for="Input.AvailableForAutoAssignment" class="form-check-input" type="checkbox" id="autoAssign" />
+                                                    <label asp-for="Input.AvailableForAutoAssignment" class="form-check-label" for="autoAssign">
+                                                        Available for auto-assignment
+                                                    </label>
+                                                </div>
+                                                <small class="form-text text-muted">
+                                                    When enabled, tasks can be automatically assigned to this worker
+                                                </small>
+                                            </div>
+
+                                            <div class="col-12">
+                                                <div class="alert alert-info mb-0">
+                                                    <i class="bi bi-info-circle me-2"></i>
+                                                    <strong>Quick Links:</strong>
+                                                    <ul class="mb-0 mt-1">
+                                                        <li>Worker Dashboard: <code>/dashboard/interview-queue</code></li>
+                                                        <li>Supervisor Dashboard: <code>/dashboard/supervise-interviews</code></li>
+                                                    </ul>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Lockout -->
+                            <div class="col-12">
+                                <div class="card bg-light">
+                                    <div class="card-body">
+                                        <h6><i class="bi bi-lock me-2"></i>Account Lockout</h6>
+                                        @if (Model.IsLockedOut)
+                                        {
+                                            <div class="alert alert-danger mb-2">
+                                                <i class="bi bi-exclamation-triangle me-2"></i>
+                                                This account is currently locked until @Model.LockoutEnd?.ToString("dd MMM yyyy HH:mm")
+                                            </div>
+                                            <button type="submit" name="action" value="unlock" class="btn btn-warning btn-sm">
+                                                <i class="bi bi-unlock me-1"></i>Unlock Account
+                                            </button>
+                                        }
+                                        else
+                                        {
+                                            <p class="text-muted mb-2">Account is not locked</p>
+                                            <button type="submit" name="action" value="lock" class="btn btn-outline-danger btn-sm">
+                                                <i class="bi bi-lock me-1"></i>Lock Account
+                                            </button>
+                                        }
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Roles -->
+                            <div class="col-12">
+                                <label class="form-label">
+                                    <i class="bi bi-shield-check me-1"></i>Assigned Roles
+                                </label>
+                                <div class="card">
+                                    <div class="card-body">
+                                        @if (Model.AllRoles.Any())
+                                        {
+                                            <div class="row g-2">
+                                                @foreach (var role in Model.AllRoles)
+                                                {
+                                                    var isChecked = Model.Input.SelectedRoles.Contains(role);
+                                                    <div class="col-md-4">
+                                                        <div class="form-check">
+                                                            <input class="form-check-input" type="checkbox" name="Input.SelectedRoles" 
+                                                                   value="@role" id="role_@role" checked="@isChecked" />
+                                                            <label class="form-check-label" for="role_@role">
+                                                                @role
+                                                            </label>
+                                                        </div>
+                                                    </div>
+                                                }
+                                            </div>
+                                        }
+                                        else
+                                        {
+                                            <p class="text-muted mb-0">No roles available.</p>
+                                        }
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Password Reset Section -->
+                            <div class="col-12">
+                                <div class="card bg-warning bg-opacity-10 border-warning">
+                                    <div class="card-body">
+                                        <h6><i class="bi bi-key me-2"></i>Reset Password</h6>
+                                        <p class="text-muted mb-2">Leave blank to keep current password</p>
+                                        <div class="row g-3">
+                                            <div class="col-md-6">
+                                                <label asp-for="Input.NewPassword" class="form-label">New Password</label>
+                                                <input asp-for="Input.NewPassword" class="form-control" />
+                                                <span asp-validation-for="Input.NewPassword" class="text-danger"></span>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <label asp-for="Input.ConfirmPassword" class="form-label">Confirm Password</label>
+                                                <input asp-for="Input.ConfirmPassword" class="form-control" />
+                                                <span asp-validation-for="Input.ConfirmPassword" class="text-danger"></span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <hr class="my-4">
+
+                        <div class="d-flex gap-2">
+                            <button type="submit" name="action" value="save" class="btn btn-primary">
+                                <i class="bi bi-check-lg me-2"></i>Save Changes
+                            </button>
+                            <a asp-page="./Details" asp-route-id="@Model.Input.Id" class="btn btn-outline-info">
+                                <i class="bi bi-eye me-2"></i>View Details
+                            </a>
+                            <a asp-page="./Index" class="btn btn-outline-secondary">
+                                <i class="bi bi-x-lg me-2"></i>Cancel
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4">
+            <div class="card shadow-sm mb-3">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0"><i class="bi bi-clock-history me-2"></i>User Information</h5>
+                </div>
+                <div class="card-body">
+                    <ul class="list-unstyled mb-0">
+                        <li class="mb-2">
+                            <strong>Created:</strong><br>
+                            <small class="text-muted">N/A</small>
+                        </li>
+                        <li class="mb-2">
+                            <strong>Status:</strong><br>
+                            @if (Model.IsLockedOut)
+                            {
+                                <span class="badge bg-danger">Locked</span>
+                            }
+                            else if (Model.Input.EmailConfirmed)
+                            {
+                                <span class="badge bg-success">Active</span>
+                            }
+                            else
+                            {
+                                <span class="badge bg-warning">Pending</span>
+                            }
+                        </li>
+                        <li class="mb-0">
+                            <strong>Roles:</strong><br>
+                            @if (Model.Input.SelectedRoles.Any())
+                            {
+                                foreach (var role in Model.Input.SelectedRoles)
+                                {
+                                    <span class="badge bg-primary me-1">@role</span>
+                                }
+                            }
+                            else
+                            {
+                                <small class="text-muted">No roles assigned</small>
+                            }
+                        </li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="card shadow-sm">
+                <div class="card-header bg-warning text-dark">
+                    <h5 class="mb-0"><i class="bi bi-exclamation-triangle me-2"></i>Danger Zone</h5>
+                </div>
+                <div class="card-body">
+                    <p class="mb-2">Permanent actions that cannot be undone:</p>
+                    <a asp-page="./Delete" asp-route-id="@Model.Input.Id" class="btn btn-danger btn-sm w-100">
+                        <i class="bi bi-trash me-2"></i>Delete User
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

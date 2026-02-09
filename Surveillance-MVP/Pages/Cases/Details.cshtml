@@ -1,0 +1,2308 @@
+@page
+@model Surveillance_MVP.Pages.Cases.DetailsModel
+@using Surveillance_MVP.Models
+
+@{
+    ViewData["Title"] = "Case Details";
+    Layout = "~/Pages/Shared/_Layout.cshtml";
+}
+
+<style>
+    /* Keyboard navigation enhancements */
+    .field-focused {
+        background-color: #f8f9ff;
+        border-radius: 6px;
+        padding: 8px;
+        margin: -8px;
+        transition: background-color 0.2s;
+    }
+    
+    kbd {
+        background-color: #f4f4f4;
+        border: 1px solid #ccc;
+        border-radius: 3px;
+        box-shadow: 0 1px 0 rgba(0,0,0,0.2);
+        color: #333;
+        display: inline-block;
+        font-family: 'Courier New', monospace;
+        font-size: 0.85em;
+        line-height: 1;
+        padding: 2px 5px;
+        white-space: nowrap;
+    }
+    
+    /* Better focus indicators for accessibility */
+    #addLabResultModal input:focus,
+    #addLabResultModal select:focus,
+    #addLabResultModal textarea:focus {
+        border-color: #667eea;
+        box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+    }
+    
+    .select2-container--default .select2-selection--single:focus {
+        border-color: #667eea;
+        outline: 0;
+        box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+    }
+    
+    .note-item {
+        border-left: 4px solid #667eea;
+        padding: 1rem;
+        margin-bottom: 1rem;
+        background: #f8f9fa;
+        border-radius: 8px;
+    }
+</style>
+
+<nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a asp-page="/Index">Home</a></li>
+        <li class="breadcrumb-item"><a asp-page="./Index">Cases</a></li>
+        <li class="breadcrumb-item active" aria-current="page">@Model.Case.FriendlyId</li>
+    </ol>
+</nav>
+
+@if (TempData["SuccessMessage"] != null)
+{
+    <div class="alert alert-success alert-dismissible fade show" role="alert">
+        <i class="bi bi-check-circle-fill me-2"></i>@TempData["SuccessMessage"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+}
+
+@if (TempData["ExposureInfo"] != null)
+{
+    <div class="alert alert-info alert-dismissible fade show" role="alert">
+        <i class="bi bi-info-circle-fill me-2"></i>@TempData["ExposureInfo"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+}
+
+@if (TempData["ExposureWarning"] != null)
+{
+    <div class="alert alert-warning alert-dismissible fade show" role="alert">
+        <i class="bi bi-exclamation-triangle-fill me-2"></i>@TempData["ExposureWarning"]
+        <a asp-page="/Cases/Exposures/Create" asp-route-caseId="@Model.Case.Id" class="alert-link ms-2">Add exposure now</a>
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+}
+
+@if (TempData["ErrorMessage"] != null)
+{
+    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+        <i class="bi bi-exclamation-triangle-fill me-2"></i>@TempData["ErrorMessage"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+}
+
+<div class="container-fluid">
+    <div class="row mb-3">
+        <div class="col">
+            <h2 class="fw-semibold">
+                <i class="bi bi-virus2 me-2"></i>
+                Case @Model.Case.FriendlyId
+            </h2>
+            @if (Model.Case.Patient != null)
+            {
+                <h4 class="text-muted">@Model.Case.Patient.GivenName @Model.Case.Patient.FamilyName</h4>
+            }
+            @if (Model.Case.Disease != null)
+            {
+                <p class="text-muted mb-0">Disease: @Model.Case.Disease.Name</p>
+            }
+        </div>
+        <div class="col text-end">
+            <a asp-page="./Edit" asp-route-id="@Model.Case.Id" class="btn btn-primary">
+                <i class="bi bi-pencil"></i> Edit Case
+            </a>
+            @if (Model.Case.Patient != null)
+            {
+                <a asp-page="/Patients/Details" asp-route-id="@Model.Case.PatientId" class="btn btn-outline-info">
+                    <i class="bi bi-person"></i> View Patient
+                </a>
+            }
+            <a asp-page="./AuditHistory" asp-route-id="@Model.Case.Id" class="btn btn-outline-secondary">
+                <i class="bi bi-clock-history"></i> Audit Log
+            </a>
+            <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#addNoteModal">
+                <i class="bi bi-plus-circle"></i> Add Note
+            </button>
+            <a asp-page="./Index" class="btn btn-outline-secondary ms-2">
+                Back to List
+            </a>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Left Column - Case & Patient Info -->
+        <div class="col-md-6 mb-3">
+            <!-- Case Information -->
+            <div class="card shadow-sm mb-3">
+                <div class="card-header bg-light fw-semibold">
+                    <i class="bi bi-clipboard-data me-2"></i>Case Information
+                </div>
+                <div class="card-body">
+                    <div class="row mb-3">
+                        <div class="col-sm-5 text-muted">Date of Onset</div>
+                        <div class="col-sm-7 fw-medium">
+                            @if (Model.Case.DateOfOnset.HasValue)
+                            {
+                                <i class="bi bi-calendar-event me-1 text-primary"></i>
+                                @Model.Case.DateOfOnset.Value.ToString("dddd, dd MMMM yyyy")
+                            }
+                            else
+                            {
+                                <span class="text-muted">Not specified</span>
+                            }
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-sm-5 text-muted">Date of Notification</div>
+                        <div class="col-sm-7 fw-medium">
+                            @if (Model.Case.DateOfNotification.HasValue)
+                            {
+                                <i class="bi bi-calendar-check me-1 text-success"></i>
+                                @Model.Case.DateOfNotification.Value.ToString("dddd, dd MMMM yyyy")
+                            }
+                            else
+                            {
+                                <span class="text-muted">Not specified</span>
+                            }
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-sm-5 text-muted">Confirmation Status</div>
+                        <div class="col-sm-7 fw-medium">
+                            @if (Model.Case.ConfirmationStatus != null)
+                            {
+                                <span class="badge bg-info fs-6">@Model.Case.ConfirmationStatus.Name</span>
+                            }
+                            else
+                            {
+                                <span class="text-muted">Not set</span>
+                            }
+                        </div>
+                    </div>
+                    @if (Model.Case.Disease != null)
+                    {
+                        <div class="row mb-2">
+                            <div class="col-sm-5 text-muted">Disease Code</div>
+                            <div class="col-sm-7 fw-medium"><code>@Model.Case.Disease.Code</code></div>
+                        </div>
+                        <div class="row">
+                            <div class="col-sm-5 text-muted">Export Code</div>
+                            <div class="col-sm-7 fw-medium"><code>@Model.Case.Disease.ExportCode</code></div>
+                        </div>
+                    }
+                </div>
+            </div>
+
+            <!-- Patient Information -->
+            @if (Model.Case.Patient != null)
+            {
+                <div class="card shadow-sm mb-3">
+                    <div class="card-header bg-light fw-semibold">
+                        <i class="bi bi-person-badge me-2"></i>Patient Information
+                    </div>
+                    <div class="card-body">
+                        <div class="row mb-3">
+                            <div class="col-sm-5 text-muted">Patient ID</div>
+                            <div class="col-sm-7 fw-medium">
+                                <a asp-page="/Patients/Details" asp-route-id="@Model.Case.PatientId">
+                                    @Model.Case.Patient.FriendlyId
+                                </a>
+                            </div>
+                        </div>
+                        <div class="row mb-3">
+                            <div class="col-sm-5 text-muted">Name</div>
+                            <div class="col-sm-7 fw-medium">@Model.Case.Patient.GivenName @Model.Case.Patient.FamilyName</div>
+                        </div>
+                        <div class="row mb-3">
+                            <div class="col-sm-5 text-muted">Date of Birth</div>
+                            <div class="col-sm-7 fw-medium">
+                                @if (Model.Case.Patient.DateOfBirth.HasValue)
+                                {
+                                    var age = DateTime.Now.Year - Model.Case.Patient.DateOfBirth.Value.Year;
+                                    <span>@Model.Case.Patient.DateOfBirth.Value.ToString("dd MMMM yyyy") <small class="text-muted">(@age years old)</small></span>
+                                }
+                                else
+                                {
+                                    <span class="text-muted">Not specified</span>
+                                }
+                            </div>
+                        </div>
+                        <div class="row mb-3">
+                            <div class="col-sm-5 text-muted">Gender</div>
+                            <div class="col-sm-7 fw-medium">@(Model.Case.Patient.Gender?.Name ?? "-")</div>
+                        </div>
+                        <div class="row mb-3">
+                            <div class="col-sm-5 text-muted">Email</div>
+                            <div class="col-sm-7 fw-medium">
+                                @if (!string.IsNullOrWhiteSpace(Model.Case.Patient.EmailAddress))
+                                {
+                                    <a href="mailto:@Model.Case.Patient.EmailAddress">
+                                        <i class="bi bi-envelope me-1"></i>@Model.Case.Patient.EmailAddress
+                                    </a>
+                                }
+                                else
+                                {
+                                    <span class="text-muted">Not provided</span>
+                                }
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-sm-5 text-muted">Mobile Phone</div>
+                            <div class="col-sm-7 fw-medium">
+                                @if (!string.IsNullOrWhiteSpace(Model.Case.Patient.MobilePhone))
+                                {
+                                    <a href="tel:@Model.Case.Patient.MobilePhone">
+                                        <i class="bi bi-phone me-1"></i>@Model.Case.Patient.MobilePhone
+                                    </a>
+                                }
+                                else
+                                {
+                                    <span class="text-muted">Not provided</span>
+                                }
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            }
+
+            <!-- Custom Fields -->
+            @if (Model.CustomFields.Any())
+            {
+                <div class="card shadow-sm">
+                    <div class="card-header bg-light fw-semibold">
+                        <i class="bi bi-ui-checks me-2"></i>Custom Fields
+                    </div>
+                    <div class="card-body">
+                        @foreach (var category in Model.CustomFields.GroupBy(f => f.Category))
+                        {
+                            <h6 class="text-muted mb-3">@category.Key</h6>
+                            @foreach (var field in category.OrderBy(f => f.DisplayOrder))
+                            {
+                                var fieldValue = Model.CustomFieldValues.ContainsKey(field.Id) ? Model.CustomFieldValues[field.Id] : null;
+
+                                <div class="row mb-3">
+                                    <div class="col-sm-5 text-muted">@field.Label</div>
+                                    <div class="col-sm-7 fw-medium">
+                                        @if (fieldValue != null)
+                                        {
+                                            switch (field.FieldType)
+                                            {
+                                                case CustomFieldType.Checkbox:
+                                                    if ((bool)fieldValue)
+                                                    {
+                                                        <span class="badge bg-success"><i class="bi bi-check-circle"></i> Yes</span>
+                                                    }
+                                                    else
+                                                    {
+                                                        <span class="badge bg-secondary"><i class="bi bi-x-circle"></i> No</span>
+                                                    }
+                                                    break;
+
+                                                case CustomFieldType.Date:
+                                                    if (fieldValue is DateTime dateValue)
+                                                    {
+                                                        <span>@dateValue.ToString("dd MMMM yyyy")</span>
+                                                    }
+                                                    break;
+
+                                                case CustomFieldType.Dropdown:
+                                                    var lookupValueId = fieldValue.ToString();
+                                                    var lookupValue = field.LookupTable?.Values.FirstOrDefault(v => v.Id.ToString() == lookupValueId);
+                                                    <span>@(lookupValue?.DisplayText ?? "-")</span>
+                                                    break;
+
+                                                case CustomFieldType.Email:
+                                                    <a href="mailto:@fieldValue"><i class="bi bi-envelope me-1"></i>@fieldValue</a>
+                                                    break;
+
+                                                case CustomFieldType.Phone:
+                                                    <a href="tel:@fieldValue"><i class="bi bi-phone me-1"></i>@fieldValue</a>
+                                                    break;
+
+                                                default:
+                                                    <span>@fieldValue</span>
+                                                    break;
+                                            }
+                                        }
+                                        else
+                                        {
+                                            <span class="text-muted">Not specified</span>
+                                        }
+                                    </div>
+                                </div>
+                            }
+                        }
+                    </div>
+                </div>
+            }
+        </div>
+
+        <!-- Right Column - Symptoms, Labs, Notes -->
+        <div class="col-md-6">
+            <!-- Symptoms -->
+            <div class="card shadow-sm mb-3">
+                <div class="card-header bg-light fw-semibold d-flex justify-content-between align-items-center">
+                    <span><i class="bi bi-heart-pulse me-2"></i>Symptoms (@Model.CaseSymptoms.Count)</span>
+                    <a asp-page="./Edit" asp-route-id="@Model.Case.Id" class="btn btn-sm btn-primary">
+                        <i class="bi bi-pencil"></i> Edit Symptoms
+                    </a>
+                </div>
+                <div class="card-body">
+                    @if (Model.CaseSymptoms.Any())
+                    {
+                        <div class="table-responsive">
+                            <table class="table table-sm table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>Symptom</th>
+                                        <th>Onset Date</th>
+                                        <th>Severity</th>
+                                        <th>Notes</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var symptom in Model.CaseSymptoms)
+                                    {
+                                        <tr>
+                                            <td>
+                                                <strong>@symptom.Symptom?.Name</strong>
+                                                @if (symptom.Symptom?.Code == "OTHER" && !string.IsNullOrEmpty(symptom.OtherSymptomText))
+                                                {
+                                                    <br/><small class="text-muted">(@symptom.OtherSymptomText)</small>
+                                                }
+                                            </td>
+                                            <td>
+                                                @if (symptom.OnsetDate.HasValue)
+                                                {
+                                                    <span>@symptom.OnsetDate.Value.ToString("dd MMM yyyy")</span>
+                                                }
+                                                else
+                                                {
+                                                    <span class="text-muted">-</span>
+                                                }
+                                            </td>
+                                            <td>
+                                                @if (!string.IsNullOrEmpty(symptom.Severity))
+                                                {
+                                                    var severityClass = symptom.Severity.ToLower() switch
+                                                    {
+                                                        "mild" => "bg-success",
+                                                        "moderate" => "bg-warning",
+                                                        "severe" => "bg-danger",
+                                                        _ => "bg-secondary"
+                                                    };
+                                                    <span class="badge @severityClass">@symptom.Severity</span>
+                                                }
+                                                else
+                                                {
+                                                    <span class="text-muted">-</span>
+                                                }
+                                            </td>
+                                            <td><small>@(symptom.Notes ?? "-")</small></td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                        
+                        @if (Model.CaseSymptoms.Any(cs => cs.OnsetDate.HasValue))
+                        {
+                            var earliestOnset = Model.CaseSymptoms.Where(cs => cs.OnsetDate.HasValue).Min(cs => cs.OnsetDate!.Value);
+                            <div class="alert alert-info mb-0">
+                                <i class="bi bi-info-circle me-2"></i>
+                                <strong>Earliest symptom onset:</strong> @earliestOnset.ToString("dd MMMM yyyy")
+                                @if (Model.Case.DateOfNotification.HasValue)
+                                {
+                                    var totalDays = (Model.Case.DateOfNotification.Value - earliestOnset).Days;
+                                    <span class="ms-2">(@totalDays days before notification)</span>
+                                }
+                            </div>
+                        }
+                    }
+                    else
+                    {
+                        <div class="text-center py-4 text-muted">
+                            <i class="bi bi-heart-pulse fs-1"></i>
+                            <p class="mt-2">No symptoms recorded for this case.</p>
+                            <a asp-page="./Edit" asp-route-id="@Model.Case.Id" class="btn btn-primary">
+                                <i class="bi bi-plus-circle me-1"></i>Add Symptoms
+                            </a>
+                        </div>
+                    }
+                </div>
+            </div>
+
+            <!-- Laboratory Results -->
+            <div class="card shadow-sm mb-3">
+                <div class="card-header bg-light fw-semibold d-flex justify-content-between align-items-center">
+                    <span><i class="bi bi-clipboard-pulse me-2"></i>Laboratory Results (@Model.LabResults.Count)</span>
+                    <button type="button" class="btn btn-sm btn-success" data-bs-toggle="modal" data-bs-target="#addLabResultModal">
+                        <i class="bi bi-plus-circle"></i> Add Lab Result
+                    </button>
+                </div>
+                <div class="card-body">
+                    @if (Model.LabResults.Any())
+                    {
+                        <div class="table-responsive">
+                            <table class="table table-sm table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>Lab Result ID</th>
+                                        <th>Laboratory</th>
+                                        <th>Specimen</th>
+                                        <th>Test Type</th>
+                                        <th>Result</th>
+                                        <th>Date</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var labResult in Model.LabResults)
+                                    {
+                                        <tr>
+                                            <td><span class="badge bg-secondary">@labResult.FriendlyId</span></td>
+                                            <td>@(labResult.Laboratory?.Name ?? "-")</td>
+                                            <td>
+                                                @if (labResult.SpecimenType != null)
+                                                {
+                                                    <span>@labResult.SpecimenType.Name</span>
+                                                    @if (labResult.SpecimenType.IsInvasive)
+                                                    {
+                                                        <span class="badge bg-warning ms-1" title="Invasive specimen">
+                                                            <i class="bi bi-exclamation-triangle"></i>
+                                                        </span>
+                                                    }
+                                                    <br/><small class="text-muted">@(labResult.SpecimenCollectionDate?.ToString("dd MMM yyyy") ?? "-")</small>
+                                                }
+                                                else
+                                                {
+                                                    <span class="text-muted">-</span>
+                                                }
+                                            </td>
+                                            <td>@(labResult.TestType?.Name ?? "-")</td>
+                                            <td>
+                                                @if (labResult.TestResult != null)
+                                                {
+                                                    var resultClass = labResult.TestResult.Name?.ToLower() switch
+                                                    {
+                                                        "positive" => "bg-danger",
+                                                        "negative" => "bg-success",
+                                                        "indeterminate" or "equivocal" => "bg-warning",
+                                                        _ => "bg-secondary"
+                                                    };
+                                                    <span class="badge @resultClass">@labResult.TestResult.Name</span>
+                                                }
+                                                else
+                                                {
+                                                    <span class="text-muted">-</span>
+                                                }
+                                                @if (labResult.QuantitativeResult.HasValue)
+                                                {
+                                                    <br/><small class="text-muted">@labResult.QuantitativeResult.Value @(labResult.ResultUnits?.Abbreviation ?? "")</small>
+                                                }
+                                            </td>
+                                            <td>@(labResult.ResultDate?.ToString("dd MMM yyyy") ?? "-")</td>
+                                            <td>
+                                                <button type="button" class="btn btn-sm btn-outline-primary" onclick="viewLabResult('@labResult.Id')" title="View details">
+                                                    <i class="bi bi-eye"></i>
+                                                </button>
+                                                <button type="button" class="btn btn-sm btn-outline-secondary" onclick="editLabResult('@labResult.Id')" title="Edit">
+                                                    <i class="bi bi-pencil"></i>
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="text-center py-4 text-muted">
+                            <i class="bi bi-clipboard-pulse fs-1"></i>
+                            <p class="mt-2">No laboratory results recorded yet.</p>
+                            <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#addLabResultModal">
+                                <i class="bi bi-plus-circle me-1"></i>Add First Lab Result
+                            </button>
+                        </div>
+                    }
+                </div>
+            </div>
+
+            <!-- Notes & Communications -->
+            <div class="card shadow-sm mb-3">
+                <div class="card-header bg-light fw-semibold d-flex justify-content-between align-items-center">
+                    <span><i class="bi bi-chat-left-text me-2"></i>Notes & Communications (@Model.Notes.Count)</span>
+                    <button type="button" class="btn btn-sm btn-success" data-bs-toggle="modal" data-bs-target="#addNoteModal">
+                        <i class="bi bi-plus-circle"></i> Add Note
+                    </button>
+                </div>
+                <div class="card-body">
+                    @if (Model.Notes.Any())
+                    {
+                        @foreach (var note in Model.Notes)
+                        {
+                            <div class="note-item">
+                                <div class="d-flex justify-content-between align-items-start mb-2">
+                                    <div>
+                                        @if (note.Type == "SMS")
+                                        {
+                                            <span class="badge bg-info me-2"><i class="bi bi-chat-dots"></i> SMS</span>
+                                        }
+                                        else if (note.Type == "Phone Call")
+                                        {
+                                            <span class="badge bg-success me-2"><i class="bi bi-telephone"></i> Phone Call</span>
+                                        }
+                                        else if (note.Type == "Email")
+                                        {
+                                            <span class="badge bg-primary me-2"><i class="bi bi-envelope"></i> Email</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge bg-secondary me-2"><i class="bi bi-chat-left-text"></i> Note</span>
+                                        }
+                                        @if (!string.IsNullOrEmpty(note.Subject))
+                                        {
+                                            <strong>@note.Subject</strong>
+                                        }
+                                    </div>
+                                    <div class="d-flex align-items-center">
+                                        <small class="text-muted me-2">@note.CreatedAt.ToLocalTime().ToString("dd MMM yyyy HH:mm")</small>
+                                        <form method="post" asp-page-handler="DeleteNote" asp-route-id="@Model.Case.Id" asp-route-noteId="@note.Id" class="d-inline">
+                                            <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('Are you sure you want to delete this note?');" title="Delete note">
+                                                <i class="bi bi-trash"></i>
+                                            </button>
+                                        </form>
+                                    </div>
+                                </div>
+                                <p class="mb-2">@note.Content</p>
+                                <small class="text-muted">
+                                    <i class="bi bi-person me-1"></i>@(note.CreatedBy ?? "Unknown")
+                                    @if (!string.IsNullOrEmpty(note.Recipient))
+                                    {
+                                        <span class="ms-2"><i class="bi bi-arrow-right"></i> @note.Recipient</span>
+                                    }
+                                </small>
+                                @if (!string.IsNullOrEmpty(note.AttachmentFileName))
+                                {
+                                    <div class="mt-2">
+                                        <a href="@note.AttachmentPath" target="_blank" class="btn btn-sm btn-outline-primary">
+                                            <i class="bi bi-paperclip"></i> @note.AttachmentFileName
+                                        </a>
+                                    </div>
+                                }
+                            </div>
+                        }
+                    }
+                    else
+                    {
+                        <div class="text-center py-4 text-muted">
+                            <i class="bi bi-chat-left-text fs-1"></i>
+                            <p class="mt-2">No notes yet. Click "Add Note" to create the first one.</p>
+                        </div>
+                    }
+                </div>
+            </div>
+
+            <!-- Exposures & Contact Tracing -->
+            <div class="card shadow-sm mb-3">
+                <div class="card-header bg-light fw-semibold d-flex justify-content-between align-items-center">
+                    <span><i class="bi bi-diagram-3 me-2"></i>Exposures & Contact Tracing (@Model.Exposures.Count)</span>
+                    <a asp-page="/Cases/Exposures/Create" asp-route-caseId="@Model.Case.Id" class="btn btn-sm btn-success">
+                        <i class="bi bi-plus-circle"></i> Add Exposure
+                    </a>
+                </div>
+                <div class="card-body">
+                    @if (Model.Exposures.Any())
+                    {
+                        <div class="table-responsive">
+                            <table class="table table-sm table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>Type</th>
+                                        <th>Details</th>
+                                        <th>Exposure Date</th>
+                                        <th>Status</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var exposure in Model.Exposures.OrderByDescending(e => e.ExposureStartDate))
+                                    {
+                                        <tr>
+                                            <td>
+                                                @switch (exposure.ExposureType)
+                                                {
+                                                    case Surveillance_MVP.Models.ExposureType.Event:
+                                                        <span class="badge bg-primary"><i class="bi bi-calendar-event"></i> Event</span>
+                                                        break;
+                                                    case Surveillance_MVP.Models.ExposureType.Location:
+                                                        <span class="badge bg-info"><i class="bi bi-geo-alt"></i> Location</span>
+                                                        break;
+                                                    case Surveillance_MVP.Models.ExposureType.Contact:
+                                                        <span class="badge bg-warning text-dark"><i class="bi bi-people"></i> Contact</span>
+                                                        break;
+                                                    case Surveillance_MVP.Models.ExposureType.Travel:
+                                                        <span class="badge bg-success"><i class="bi bi-airplane"></i> Travel</span>
+                                                        break;
+                                                    default:
+                                                        <span class="badge bg-secondary">Unknown</span>
+                                                        break;
+                                                }
+                                            </td>
+                                            <td>
+                                                @if (exposure.Event != null)
+                                                {
+                                                    <a asp-page="/Events/Details" asp-route-id="@exposure.Event.Id">@exposure.Event.Name</a>
+                                                    @if (exposure.Event.Location != null)
+                                                    {
+                                                        <br/><small class="text-muted">at @exposure.Event.Location.Name</small>
+                                                    }
+                                                }
+                                                else if (exposure.Location != null)
+                                                {
+                                                    <a asp-page="/Locations/Details" asp-route-id="@exposure.Location.Id">@exposure.Location.Name</a>
+                                                }
+                                                else if (exposure.RelatedCase != null)
+                                                {
+                                                    <a asp-page="/Cases/Details" asp-route-id="@exposure.RelatedCase.Id">
+                                                        Case @exposure.RelatedCase.FriendlyId
+                                                    </a>
+                                                    @if (exposure.RelatedCase.Patient != null)
+                                                    {
+                                                        <br/><small class="text-muted">@exposure.RelatedCase.Patient.GivenName @exposure.RelatedCase.Patient.FamilyName</small>
+                                                    }
+                                                }
+                                                else if (!string.IsNullOrEmpty(exposure.FreeTextLocation))
+                                                {
+                                                    <text>@exposure.FreeTextLocation</text>
+                                                }
+                                                else if (!string.IsNullOrEmpty(exposure.CountryCode))
+                                                {
+                                                    <text>@exposure.CountryCode</text>
+                                                }
+                                                else
+                                                {
+                                                    <span class="text-muted">-</span>
+                                                }
+                                            </td>
+                                            <td>
+                                                @exposure.ExposureStartDate.ToLocalTime().ToString("dd MMM yyyy")
+                                                @if (exposure.ExposureEndDate.HasValue)
+                                                {
+                                                    <br/><small class="text-muted">to @exposure.ExposureEndDate.Value.ToLocalTime().ToString("dd MMM yyyy")</small>
+                                                }
+                                            </td>
+                                            <td>
+                                                @switch (exposure.ExposureStatus)
+                                                {
+                                                    case Surveillance_MVP.Models.ExposureStatus.ConfirmedExposure:
+                                                        <span class="badge bg-danger">Confirmed</span>
+                                                        break;
+                                                    case Surveillance_MVP.Models.ExposureStatus.UnderInvestigation:
+                                                        <span class="badge bg-warning text-dark">Investigating</span>
+                                                        break;
+                                                    case Surveillance_MVP.Models.ExposureStatus.PotentialExposure:
+                                                        <span class="badge bg-info">Potential</span>
+                                                        break;
+                                                    case Surveillance_MVP.Models.ExposureStatus.RuledOut:
+                                                        <span class="badge bg-success">Ruled Out</span>
+                                                        break;
+                                                    default:
+                                                        <span class="badge bg-secondary">Unknown</span>
+                                                        break;
+                                                }
+                                            </td>
+                                            <td>
+                                                <a asp-page="/Cases/Exposures/Edit" asp-route-id="@exposure.Id" class="btn btn-sm btn-outline-secondary" title="Edit">
+                                                    <i class="bi bi-pencil"></i>
+                                                </a>
+                                                <form method="post" asp-page-handler="DeleteExposure" asp-route-id="@Model.Case.Id" asp-route-exposureId="@exposure.Id" class="d-inline">
+                                                    <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('Are you sure you want to delete this exposure?');" title="Delete">
+                                                        <i class="bi bi-trash"></i>
+                                                    </button>
+                                                </form>
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- Timeline View (Optional) -->
+                        <div class="mt-3">
+                            <small class="text-muted">
+                                <i class="bi bi-info-circle me-1"></i>
+                                Total exposures: @Model.Exposures.Count
+                                @if (Model.Exposures.Any())
+                                {
+                                    var earliestExposure = Model.Exposures.Min(e => e.ExposureStartDate);
+                                    <span class="ms-2">| Earliest: @earliestExposure.ToLocalTime().ToString("dd MMM yyyy")</span>
+                                }
+                            </small>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="text-center py-4 text-muted">
+                            <i class="bi bi-diagram-3 fs-1"></i>
+                            <p class="mt-2">No exposures recorded yet.</p>
+                            <a asp-page="/Cases/Exposures/Create" asp-route-caseId="@Model.Case.Id" class="btn btn-primary">
+                                <i class="bi bi-plus-circle me-1"></i>Add First Exposure
+                            </a>
+                        </div>
+                    }
+                </div>
+            </div>
+
+            <!-- Tasks -->
+            <div class="card shadow-sm">
+                <div class="card-header bg-light fw-semibold d-flex justify-content-between align-items-center">
+                    <span><i class="bi bi-list-check me-2"></i>Tasks (@Model.Tasks.Count)</span>
+                    <button type="button" class="btn btn-sm btn-primary" onclick="openAddTaskModal()">
+                        <i class="bi bi-plus-circle me-1"></i>Add Task
+                    </button>
+                </div>
+                <div class="card-body">
+                    @if (Model.Tasks.Any())
+                    {
+                        <div class="table-responsive">
+                            <table class="table table-sm table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>Task</th>
+                                        <th>Type</th>
+                                        <th>Priority</th>
+                                        <th>Assigned To</th>
+                                        <th>Due Date</th>
+                                        <th>Status</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var task in Model.Tasks.OrderBy(t => t.DueDate ?? DateTime.MaxValue).ThenBy(t => (int)(t.TaskTemplate?.DefaultPriority ?? TaskPriority.Medium)))
+                                    {
+                                        <tr class="@(task.Status == CaseTaskStatus.Overdue ? "table-danger" : "")">
+                                            <td>
+                                                <strong>@(task.TaskTemplate?.Name ?? task.Title)</strong>
+                                                @if (!string.IsNullOrEmpty(task.TaskTemplate?.Description ?? task.Description))
+                                                {
+                                                    <br/><small class="text-muted">@(task.TaskTemplate?.Description ?? task.Description)</small>
+                                                }
+                                            </td>
+                                            <td>
+                                                @if (task.TaskType != null)
+                                                {
+                                                    <span class="badge bg-secondary">@task.TaskType.Name</span>
+                                                }
+                                                else if (task.TaskTemplate?.TaskType != null)
+                                                {
+                                                    <span class="badge bg-secondary">@task.TaskTemplate.TaskType.Name</span>
+                                                }
+                                            </td>
+                                            <td>
+                                                @{
+                                                    var priorityClass = task.Priority switch
+                                                    {
+                                                        TaskPriority.Low => "bg-info",
+                                                        TaskPriority.Medium => "bg-secondary",
+                                                        TaskPriority.High => "bg-warning",
+                                                        TaskPriority.Urgent => "bg-danger",
+                                                        _ => "bg-secondary"
+                                                    };
+                                                }
+                                                <span class="badge @priorityClass">@task.Priority</span>
+                                            </td>
+                                            <td>
+                                                @if (!string.IsNullOrEmpty(task.AssignedToUserId))
+                                                {
+                                                    <small>User: @task.AssignedToUserId.Substring(0, Math.Min(8, task.AssignedToUserId.Length))...</small>
+                                                }
+                                                else
+                                                {
+                                                    var assignmentType = task.TaskTemplate?.AssignmentType;
+                                                    if (assignmentType == TaskAssignmentType.Patient)
+                                                    {
+                                                        <span><i class="bi bi-person"></i> Patient</span>
+                                                    }
+                                                    else if (assignmentType == TaskAssignmentType.Investigator)
+                                                    {
+                                                        <span><i class="bi bi-person-badge"></i> Investigator</span>
+                                                    }
+                                                    else if (assignmentType == TaskAssignmentType.Anyone)
+                                                    {
+                                                        <span><i class="bi bi-people"></i> Anyone</span>
+                                                    }
+                                                    else
+                                                    {
+                                                        <span class="text-muted">Unassigned</span>
+                                                    }
+                                                }
+                                            </td>
+                                            <td>
+                                                @if (task.DueDate.HasValue)
+                                                {
+                                                    <span>@task.DueDate.Value.ToString("dd MMM yyyy")</span>
+                                                    @if (task.Status == CaseTaskStatus.Overdue)
+                                                    {
+                                                        <br/><span class="badge bg-danger"><i class="bi bi-exclamation-triangle"></i> Overdue</span>
+                                                    }
+                                                    else if (task.DueDate.Value.Date == DateTime.Today)
+                                                    {
+                                                        <br/><span class="badge bg-warning"><i class="bi bi-clock"></i> Due Today</span>
+                                                    }
+                                                    else if (task.DueDate.Value.Date < DateTime.Today.AddDays(3))
+                                                    {
+                                                        <br/><span class="badge bg-info"><i class="bi bi-clock"></i> Due Soon</span>
+                                                    }
+                                                }
+                                                else
+                                                {
+                                                    <span class="text-muted">Not set</span>
+                                                }
+                                            </td>
+                                            <td>
+                                                @{
+                                                    var statusClass = task.Status switch
+                                                    {
+                                                        CaseTaskStatus.Pending => "bg-secondary",
+                                                        CaseTaskStatus.InProgress => "bg-primary",
+                                                        CaseTaskStatus.Completed => "bg-success",
+                                                        CaseTaskStatus.Cancelled => "bg-dark",
+                                                        CaseTaskStatus.Overdue => "bg-danger",
+                                                        CaseTaskStatus.WaitingForPatient => "bg-warning",
+                                                        _ => "bg-secondary"
+                                                    };
+                                                }
+                                                <span class="badge @statusClass">@task.Status.ToString()</span>
+                                            </td>
+                                            <td>
+                                                @if (task.Status != CaseTaskStatus.Completed && task.Status != CaseTaskStatus.Cancelled)
+                                                {
+                                                    @* Check if task has a survey (either from library or embedded) *@
+                                                    var hasSurvey = (task.TaskTemplate?.SurveyTemplateId.HasValue == true) || 
+                                                                    !string.IsNullOrEmpty(task.TaskTemplate?.SurveyDefinitionJson);
+                                                    
+                                                    if (hasSurvey)
+                                                    {
+                                                        <a asp-page="/Tasks/CompleteSurvey" asp-route-id="@task.Id" class="btn btn-sm btn-primary" title="Complete Survey">
+                                                            <i class="bi bi-clipboard-check"></i> Complete Survey
+                                                        </a>
+                                                    }
+                                                    else
+                                                    {
+                                                        <button type="button" class="btn btn-sm btn-success" onclick="openCompleteTaskModal('@task.Id', '@task.TaskTemplate?.Name')" title="Mark Complete">
+                                                            <i class="bi bi-check-circle"></i> Complete
+                                                        </button>
+                                                    }
+                                                }
+                                                <button type="button" class="btn btn-sm btn-outline-secondary" onclick="openEditTaskModal('@task.Id', '@task.Status', '@task.Priority', '@(task.DueDate?.ToString("yyyy-MM-dd") ?? "")', '@(task.AssignedToUserId ?? "")', '@task.TaskTemplate?.Name')" title="Edit">
+                                                    <i class="bi bi-pencil"></i>
+                                                </button>
+                                                @if (task.Status != CaseTaskStatus.Cancelled)
+                                                {
+                                                    <button type="button" class="btn btn-sm btn-outline-warning" onclick="openCancelTaskModal('@task.Id', '@task.TaskTemplate?.Name')" title="Cancel">
+                                                        <i class="bi bi-x-circle"></i>
+                                                    </button>
+                                                }
+                                                <button type="button" class="btn btn-sm btn-outline-danger" onclick="if(confirm('Are you sure you want to delete this task?')) { document.getElementById('deleteTaskForm_@task.Id').submit(); }" title="Delete">
+                                                    <i class="bi bi-trash"></i>
+                                                </button>
+                                                <form id="deleteTaskForm_@task.Id" method="post" asp-page-handler="DeleteTask" asp-route-id="@Model.Case.Id" asp-route-taskId="@task.Id" style="display:none;"></form>
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- Task Summary -->
+                        <div class="mt-3">
+                            <small class="text-muted">
+                                <i class="bi bi-info-circle me-1"></i>
+                                Total tasks: @Model.Tasks.Count
+                                @{
+                                    var completedCount = Model.Tasks.Count(t => t.Status == CaseTaskStatus.Completed);
+                                    var overdueCount = Model.Tasks.Count(t => t.Status == CaseTaskStatus.Overdue);
+                                    var inProgressCount = Model.Tasks.Count(t => t.Status == CaseTaskStatus.InProgress);
+                                    var pendingCount = Model.Tasks.Count(t => t.Status == CaseTaskStatus.Pending);
+                                }
+                                | Pending: @pendingCount
+                                | In Progress: @inProgressCount
+                                | Completed: @completedCount
+                                @if (overdueCount > 0)
+                                {
+                                    <span class="text-danger">| Overdue: @overdueCount</span>
+                                }
+                            </small>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="text-center py-4 text-muted">
+                            <i class="bi bi-list-check fs-1"></i>
+                            <p class="mt-2">No tasks have been assigned yet.</p>
+                            @if (Model.Case.DiseaseId.HasValue)
+                            {
+                                <small class="text-muted">Tasks are automatically created based on the disease configuration.</small>
+                            }
+                            else
+                            {
+                                <small class="text-muted">Assign a disease to this case to enable task management.</small>
+                            }
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add Note Modal -->
+<div class="modal fade" id="addNoteModal" tabindex="-1" aria-labelledby="addNoteModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <form method="post" asp-page-handler="AddNote" asp-route-id="@Model.Case.Id" enctype="multipart/form-data">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="addNoteModalLabel"><i class="bi bi-plus-circle me-2"></i>Add Note/Communication</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label asp-for="NewNote.Type" class="form-label">Type <span class="text-danger">*</span></label>
+                                <select asp-for="NewNote.Type" class="form-select" required id="noteTypeSelect">
+                                    <option value="Note">Note</option>
+                                    <option value="SMS">SMS</option>
+                                    <option value="Phone Call">Phone Call</option>
+                                    <option value="Email">Email</option>
+                                </select>
+                                <span asp-validation-for="NewNote.Type" class="text-danger"></span>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3" id="recipientField" style="display: none;">
+                                <label asp-for="NewNote.Recipient" class="form-label">Recipient</label>
+                                <input asp-for="NewNote.Recipient" class="form-control" placeholder="Email or phone number" />
+                                <span asp-validation-for="NewNote.Recipient" class="text-danger"></span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="NewNote.Subject" class="form-label">Subject</label>
+                        <input asp-for="NewNote.Subject" class="form-control" placeholder="Brief description (optional)" />
+                        <span asp-validation-for="NewNote.Subject" class="text-danger"></span>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="NewNote.Content" class="form-label">Content <span class="text-danger">*</span></label>
+                        <textarea asp-for="NewNote.Content" class="form-control" rows="6" required placeholder="Enter your note or comment..."></textarea>
+                        <span asp-validation-for="NewNote.Content" class="text-danger"></span>
+                        <small class="form-text text-muted">Maximum 5000 characters</small>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="Attachment" class="form-label">Attachment</label>
+                        <input asp-for="Attachment" type="file" class="form-control" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.gif" />
+                        <small class="form-text text-muted">Optional: PDF, Word, or image files (max 10MB)</small>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary"><i class="bi bi-save me-1"></i>Save Note</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Add Lab Result Modal -->
+<div class="modal fade" id="addLabResultModal" tabindex="-1" aria-labelledby="addLabResultModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <form method="post" asp-page-handler="AddLabResult" asp-route-id="@Model.Case.Id" enctype="multipart/form-data">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="addLabResultModalLabel">
+                        <i class="bi bi-clipboard-plus me-2"></i>Add Laboratory Result
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label asp-for="NewLabResult.LaboratoryId" class="form-label">Laboratory <small class="text-muted">(Alt+L)</small></label>
+                            <select asp-for="NewLabResult.LaboratoryId" class="form-select select2-organization" id="laboratorySelect" accesskey="l">
+                                <option value="">Select Laboratory</option>
+                            </select>
+                            <small class="form-text text-muted">Tab or type to search</small>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label asp-for="NewLabResult.OrderingProviderId" class="form-label">Ordering Provider</label>
+                            <select asp-for="NewLabResult.OrderingProviderId" class="form-select select2-organization" id="orderingProviderSelect">
+                                <option value="">Select Provider</option>
+                            </select>
+                            <small class="form-text text-muted">Tab or type to search</small>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label asp-for="NewLabResult.AccessionNumber" class="form-label">Accession Number <small class="text-muted">(Alt+A)</small></label>
+                            <input asp-for="NewLabResult.AccessionNumber" class="form-control" accesskey="a" placeholder="Enter accession number" />
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label asp-for="NewLabResult.TestedDiseaseId" class="form-label">Test For (Disease/Pathogen) <small class="text-muted">(Alt+D)</small></label>
+                            <select asp-for="NewLabResult.TestedDiseaseId" class="form-select select2-disease" id="diseaseSelect" accesskey="d">
+                                <option value="">Select Disease</option>
+                            </select>
+                            <small class="form-text text-muted">Tab or type to search</small>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label asp-for="NewLabResult.SpecimenCollectionDate" class="form-label">Specimen Collection Date <small class="text-muted">(Alt+C)</small></label>
+                            <input asp-for="NewLabResult.SpecimenCollectionDate" class="form-control" type="date" accesskey="c" />
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label asp-for="NewLabResult.SpecimenTypeId" class="form-label">Specimen Type <small class="text-muted">(Alt+S)</small></label>
+                            <select asp-for="NewLabResult.SpecimenTypeId" class="form-select" asp-items="Model.SpecimenTypesList" accesskey="s">
+                                <option value="">Select Specimen Type</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label asp-for="NewLabResult.TestTypeId" class="form-label">Test Type <small class="text-muted">(Alt+T)</small></label>
+                            <select asp-for="NewLabResult.TestTypeId" class="form-select" asp-items="Model.TestTypesList" id="testTypeSelect" accesskey="t">
+                                <option value="">Select Test Type</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label asp-for="NewLabResult.TestResultId" class="form-label">Test Result <small class="text-muted">(Alt+R)</small></label>
+                            <select asp-for="NewLabResult.TestResultId" class="form-select select2-testresult" id="testResultSelect" accesskey="r">
+                                <option value="">Select Test Type First</option>
+                            </select>
+                            <small class="form-text text-muted">Results filtered by test type</small>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <label asp-for="NewLabResult.ResultDate" class="form-label">Result Date</label>
+                            <input asp-for="NewLabResult.ResultDate" class="form-control" type="date" />
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label asp-for="NewLabResult.QuantitativeResult" class="form-label">Quantitative Result</label>
+                            <input asp-for="NewLabResult.QuantitativeResult" class="form-control" type="number" step="0.01" />
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label asp-for="NewLabResult.ResultUnitsId" class="form-label">Units</label>
+                            <select asp-for="NewLabResult.ResultUnitsId" class="form-select" asp-items="Model.ResultUnitsList">
+                                <option value="">Select Units</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-12 mb-3">
+                            <div class="form-check">
+                                <input asp-for="NewLabResult.IsAmended" class="form-check-input" type="checkbox" />
+                                <label asp-for="NewLabResult.IsAmended" class="form-check-label">Amended Result</label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label asp-for="NewLabResult.Notes" class="form-label">Notes</label>
+                            <textarea asp-for="NewLabResult.Notes" class="form-control" rows="3"></textarea>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label asp-for="NewLabResult.LabInterpretation" class="form-label">Lab Interpretation</label>
+                            <textarea asp-for="NewLabResult.LabInterpretation" class="form-control" rows="3"></textarea>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="LabResultAttachment" class="form-label">Attachment</label>
+                        <input asp-for="LabResultAttachment" type="file" class="form-control" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.gif" />
+                        <small class="form-text text-muted">Optional: PDF, Word, or image files for scanned/faxed results</small>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary"><i class="bi bi-save me-1"></i>Save Lab Result</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- View Lab Result Modal -->
+<div class="modal fade" id="viewLabResultModal" tabindex="-1" aria-labelledby="viewLabResultModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="viewLabResultModalLabel">
+                    <i class="bi bi-clipboard-pulse me-2"></i>Laboratory Result Details
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" id="viewLabResultContent">
+                <div class="text-center py-4">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-primary" id="editFromViewBtn">
+                    <i class="bi bi-pencil me-1"></i>Edit
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Lab Result Modal -->
+<div class="modal fade" id="editLabResultModal" tabindex="-1" aria-labelledby="editLabResultModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <form method="post" id="editLabResultForm" enctype="multipart/form-data">
+                <input type="hidden" id="editLabResultId" name="labResultId" />
+                <div class="modal-header">
+                    <h5 class="modal-title" id="editLabResultModalLabel">
+                        <i class="bi bi-pencil me-2"></i>Edit Laboratory Result
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="edit_LaboratoryId" class="form-label">Laboratory</label>
+                            <select id="edit_LaboratoryId" name="NewLabResult.LaboratoryId" class="form-select select2-organization-edit">
+                                <option value="">Select Laboratory</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="edit_OrderingProviderId" class="form-label">Ordering Provider</label>
+                            <select id="edit_OrderingProviderId" name="NewLabResult.OrderingProviderId" class="form-select select2-organization-edit">
+                                <option value="">Select Provider</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="edit_AccessionNumber" class="form-label">Accession Number</label>
+                            <input id="edit_AccessionNumber" name="NewLabResult.AccessionNumber" class="form-control" />
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="edit_TestedDiseaseId" class="form-label">Test For (Disease/Pathogen)</label>
+                            <select id="edit_TestedDiseaseId" name="NewLabResult.TestedDiseaseId" class="form-select select2-disease-edit">
+                                <option value="">Select Disease</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="edit_SpecimenCollectionDate" class="form-label">Specimen Collection Date</label>
+                            <input id="edit_SpecimenCollectionDate" name="NewLabResult.SpecimenCollectionDate" class="form-control" type="date" />
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="edit_SpecimenTypeId" class="form-label">Specimen Type</label>
+                            <select id="edit_SpecimenTypeId" name="NewLabResult.SpecimenTypeId" class="form-select">
+                                <option value="">Select Specimen Type</option>
+                                @foreach (var item in Model.SpecimenTypesList)
+                                {
+                                    <option value="@item.Value">@item.Text</option>
+                                }
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="edit_TestTypeId" class="form-label">Test Type</label>
+                            <select id="edit_TestTypeId" name="NewLabResult.TestTypeId" class="form-select">
+                                <option value="">Select Test Type</option>
+                                @foreach (var item in Model.TestTypesList)
+                                {
+                                    <option value="@item.Value">@item.Text</option>
+                                }
+                            </select>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="edit_TestResultId" class="form-label">Test Result</label>
+                            <select id="edit_TestResultId" name="NewLabResult.TestResultId" class="form-select select2-testresult-edit">
+                                <option value="">Select Test Type First</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <label for="edit_ResultDate" class="form-label">Result Date</label>
+                            <input id="edit_ResultDate" name="NewLabResult.ResultDate" class="form-control" type="date" />
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label for="edit_QuantitativeResult" class="form-label">Quantitative Result</label>
+                            <input id="edit_QuantitativeResult" name="NewLabResult.QuantitativeResult" class="form-control" type="number" step="0.01" />
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label for="edit_ResultUnitsId" class="form-label">Units</label>
+                            <select id="edit_ResultUnitsId" name="NewLabResult.ResultUnitsId" class="form-select">
+                                <option value="">Select Units</option>
+                                @foreach (var item in Model.ResultUnitsList)
+                                {
+                                    <option value="@item.Value">@item.Text</option>
+                                }
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-12 mb-3">
+                            <div class="form-check">
+                                <input id="edit_IsAmended" name="NewLabResult.IsAmended" class="form-check-input" type="checkbox" />
+                                <label for="edit_IsAmended" class="form-check-label">Amended Result</label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="edit_Notes" class="form-label">Notes</label>
+                            <textarea id="edit_Notes" name="NewLabResult.Notes" class="form-control" rows="3"></textarea>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="edit_LabInterpretation" class="form-label">Lab Interpretation</label>
+                            <textarea id="edit_LabInterpretation" name="NewLabResult.LabInterpretation" class="form-control" rows="3"></textarea>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="edit_Attachment" class="form-label">Attachment</label>
+                        <input id="edit_Attachment" name="LabResultAttachment" type="file" class="form-control" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.gif" />
+                        <small class="form-text text-muted">Optional: Upload new file to replace existing attachment</small>
+                        <div id="currentAttachment" class="mt-2"></div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary"><i class="bi bi-save me-1"></i>Save Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+@{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+<!-- jQuery UI for autocomplete -->
+<link rel="stylesheet" href="https://code.jquery.com/ui/1.13.2/themes/base/jquery-ui.css">
+<script src="https://code.jquery.com/ui/1.13.2/jquery-ui.min.js"></script>
+<script>
+    $(document).ready(function() {
+        // Patient contact information
+        var patientEmail = '@(Model.Case.Patient?.EmailAddress ?? "")';
+        var patientMobile = '@(Model.Case.Patient?.MobilePhone ?? "")';
+        var patientHome = '@(Model.Case.Patient?.HomePhone ?? "")';
+
+        // Show/hide recipient field based on type selection
+        $('#noteTypeSelect').on('change', function() {
+                var selectedType = $(this).val();
+                
+                if (selectedType === 'SMS' || selectedType === 'Phone Call' || selectedType === 'Email') {
+                    $('#recipientField').show();
+                    
+                    // Auto-populate recipient based on type
+                    if (selectedType === 'Email') {
+                        $('#NewNote_Recipient').attr('placeholder', 'Email address');
+                        if (patientEmail) {
+                            $('#NewNote_Recipient').val(patientEmail);
+                        }
+                    } else if (selectedType === 'SMS') {
+                        $('#NewNote_Recipient').attr('placeholder', 'Phone number');
+                        if (patientMobile) {
+                            $('#NewNote_Recipient').val(patientMobile);
+                        } else if (patientHome) {
+                            $('#NewNote_Recipient').val(patientHome);
+                        }
+                    } else if (selectedType === 'Phone Call') {
+                        $('#NewNote_Recipient').attr('placeholder', 'Phone number');
+                        // Prefer mobile for phone calls, fallback to home
+                        if (patientMobile) {
+                            $('#NewNote_Recipient').val(patientMobile);
+                        } else if (patientHome) {
+                            $('#NewNote_Recipient').val(patientHome);
+                        }
+                    }
+                } else {
+                    $('#recipientField').hide();
+                    $('#NewNote_Recipient').val('');
+                }
+            });
+
+            // Trigger on modal open to handle pre-filled values
+            $('#addNoteModal').on('shown.bs.modal', function() {
+                $('#noteTypeSelect').trigger('change');
+            });
+        });
+
+    // Lab Result Functions
+    var currentLabResultId = null;
+
+    function viewLabResult(labResultId) {
+        currentLabResultId = labResultId;
+        $('#viewLabResultModal').modal('show');
+        $('#viewLabResultContent').html('<div class="text-center py-4"><div class="spinner-border text-primary" role="status"><span class="visually-hidden">Loading...</span></div></div>');
+
+        $.get('@Url.Page("/Cases/Details", "LabResultDetails")', { labResultId: labResultId }, function(response) {
+            if (response.success) {
+                var data = response.data;
+                var html = `
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="text-muted small">Lab Result ID</label>
+                            <div><span class="badge bg-secondary fs-6">${data.friendlyId}</span></div>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="text-muted small">Status</label>
+                            <div>${data.isAmended ? '<span class="badge bg-info fs-6">Amended</span>' : '<span class="badge bg-success fs-6">Original</span>'}</div>
+                        </div>
+                    </div>
+                    <hr />
+                    <h6 class="mb-3"><i class="bi bi-building me-2"></i>Organizations</h6>
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="text-muted small">Laboratory</label>
+                            <div>${data.laboratoryName || '-'}</div>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="text-muted small">Ordering Provider</label>
+                            <div>${data.orderingProviderName || '-'}</div>
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="text-muted small">Accession Number</label>
+                            <div>${data.accessionNumber || '-'}</div>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="text-muted small">Test For (Disease/Pathogen)</label>
+                            <div>${data.testedDiseaseName || '-'}</div>
+                        </div>
+                    </div>
+                    <hr />
+                    <h6 class="mb-3"><i class="bi bi-clipboard2-pulse me-2"></i>Specimen & Test Information</h6>
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="text-muted small">Specimen Collection Date</label>
+                            <div>${data.specimenCollectionDate ? new Date(data.specimenCollectionDate).toLocaleDateString('en-AU', { day: '2-digit', month: 'short', year: 'numeric' }) : '-'}</div>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="text-muted small">Specimen Type</label>
+                            <div>${data.specimenTypeName || '-'}</div>
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="text-muted small">Test Type</label>
+                            <div>${data.testTypeName || '-'}</div>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="text-muted small">Test Result</label>
+                            <div>${data.testResultName || '-'}</div>
+                        </div>
+                    </div>
+                    <hr />
+                    <h6 class="mb-3"><i class="bi bi-graph-up me-2"></i>Results</h6>
+                    <div class="row mb-3">
+                        <div class="col-md-4">
+                            <label class="text-muted small">Result Date</label>
+                            <div>${data.resultDate ? new Date(data.resultDate).toLocaleDateString('en-AU', { day: '2-digit', month: 'short', year: 'numeric' }) : '-'}</div>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="text-muted small">Quantitative Result</label>
+                            <div>${data.quantitativeResult !== null ? data.quantitativeResult : '-'}</div>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="text-muted small">Units</label>
+                            <div>${data.resultUnitsName || '-'}</div>
+                        </div>
+                    </div>
+                    ${data.notes ? `<div class="mb-3"><label class="text-muted small">Notes</label><div class="alert alert-light mb-0">${data.notes}</div></div>` : ''}
+                    ${data.labInterpretation ? `<div class="mb-3"><label class="text-muted small">Lab Interpretation</label><div class="alert alert-light mb-0">${data.labInterpretation}</div></div>` : ''}
+                    ${data.attachmentPath ? `<div class="mb-3"><label class="text-muted small">Attachment</label><div><a href="${data.attachmentPath}" target="_blank" class="btn btn-sm btn-outline-primary"><i class="bi bi-paperclip me-1"></i>${data.attachmentFileName}</a></div></div>` : ''}
+                    <hr />
+                    <div class="row">
+                        <div class="col-md-6">
+                            <label class="text-muted small">Created</label>
+                            <div>${data.createdAt}</div>
+                        </div>
+                        ${data.modifiedAt ? `<div class="col-md-6"><label class="text-muted small">Last Modified</label><div>${data.modifiedAt}</div></div>` : ''}
+                    </div>
+                `;
+                $('#viewLabResultContent').html(html);
+            } else {
+                $('#viewLabResultContent').html('<div class="alert alert-danger">Failed to load lab result details.</div>');
+            }
+        }).fail(function() {
+            $('#viewLabResultContent').html('<div class="alert alert-danger">An error occurred while loading lab result details.</div>');
+        });
+    }
+
+    $('#editFromViewBtn').on('click', function() {
+        $('#viewLabResultModal').modal('hide');
+        if (currentLabResultId) {
+            editLabResult(currentLabResultId);
+        }
+    });
+
+    function editLabResult(labResultId) {
+        currentLabResultId = labResultId;
+        $('#editLabResultModal').modal('show');
+        $('#editLabResultId').val(labResultId);
+
+        var caseId = '@Model.Case.Id';
+        $('#editLabResultForm').attr('action', '/Cases/Details?id=' + caseId + '&handler=UpdateLabResult&labResultId=' + labResultId);
+
+        // Load the lab result data
+        $.get('@Url.Page("/Cases/Details", "LabResultDetails")', { labResultId: labResultId }, function(response) {
+            if (response.success) {
+                var data = response.data;
+                
+                // Populate form fields
+                $('#edit_AccessionNumber').val(data.accessionNumber);
+                $('#edit_SpecimenCollectionDate').val(data.specimenCollectionDate);
+                $('#edit_SpecimenTypeId').val(data.specimenTypeId);
+                $('#edit_TestTypeId').val(data.testTypeId);
+                $('#edit_ResultDate').val(data.resultDate);
+                $('#edit_QuantitativeResult').val(data.quantitativeResult);
+                $('#edit_ResultUnitsId').val(data.resultUnitsId);
+                $('#edit_IsAmended').prop('checked', data.isAmended);
+                $('#edit_Notes').val(data.notes);
+                $('#edit_LabInterpretation').val(data.labInterpretation);
+
+                // Initialize Select2 for edit organization fields with current value
+                if (data.laboratoryId) {
+                    var newOption = new Option(data.laboratoryName, data.laboratoryId, true, true);
+                    $('#edit_LaboratoryId').append(newOption).trigger('change');
+                }
+                
+                if (data.orderingProviderId) {
+                    var newOption = new Option(data.orderingProviderName, data.orderingProviderId, true, true);
+                    $('#edit_OrderingProviderId').append(newOption).trigger('change');
+                }
+
+                // Initialize Select2 for edit disease field with current value
+                if (data.testedDiseaseId) {
+                    var newOption = new Option(data.testedDiseaseName, data.testedDiseaseId, true, true);
+                    $('#edit_TestedDiseaseId').append(newOption).trigger('change');
+                }
+
+                // Initialize Select2 for edit test result field with current value
+                if (data.testResultId && data.testTypeId) {
+                    var newOption = new Option(data.testResultName, data.testResultId, true, true);
+                    $('#edit_TestResultId').append(newOption).trigger('change');
+                }
+
+                // Show current attachment if exists
+                if (data.attachmentPath) {
+                    $('#currentAttachment').html(
+                        '<div class="alert alert-info">' +
+                        '<i class="bi bi-paperclip me-2"></i>Current: ' +
+                        '<a href="' + data.attachmentPath + '" target="_blank">' + data.attachmentFileName + '</a>' +
+                        '</div>'
+                    );
+                } else {
+                    $('#currentAttachment').html('');
+                }
+
+                // Trigger test type change to enable test result dropdown
+                if (data.testTypeId) {
+                    $('#edit_TestTypeId').trigger('change');
+                }
+            } else {
+                alert('Failed to load lab result details');
+                $('#editLabResultModal').modal('hide');
+            }
+        }).fail(function() {
+            alert('Error loading lab result details');
+            $('#editLabResultModal').modal('hide');
+        });
+    }
+
+
+    window.viewLabResult = viewLabResult;
+    window.editLabResult = editLabResult;
+
+    // Initialize Select2 for organization autocomplete fields
+    $(document).ready(function() {
+        // Configure Select2 with keyboard-friendly settings
+        var select2Config = {
+            dropdownParent: $('#addLabResultModal'),
+            width: '100%',
+            allowClear: true,
+            selectOnClose: false,
+            closeOnSelect: true,
+            dropdownAutoWidth: false
+        };
+
+        $('.select2-organization').select2($.extend({}, select2Config, {
+            placeholder: 'Type to search or press Enter...',
+            minimumInputLength: 2,
+            ajax: {
+                url: '@Url.Page("/Cases/Details", "SearchOrganizations")',
+                dataType: 'json',
+                delay: 250,
+                data: function(params) {
+                    return {
+                        term: params.term
+                    };
+                },
+                processResults: function(data) {
+                    return {
+                        results: data
+                    };
+                },
+                cache: true
+            }
+        }));
+
+        $('.select2-disease').select2($.extend({}, select2Config, {
+            placeholder: 'Type to search or press Enter...',
+            minimumInputLength: 2,
+            ajax: {
+                url: '@Url.Page("/Cases/Details", "SearchDiseases")',
+                dataType: 'json',
+                delay: 250,
+                data: function(params) {
+                    return {
+                        term: params.term
+                    };
+                },
+                processResults: function(data) {
+                    return {
+                        results: data
+                    };
+                },
+                cache: true
+            }
+        }));
+
+        $('.select2-testresult').select2($.extend({}, select2Config, {
+            placeholder: 'Select a test type first...',
+            ajax: {
+                url: '@Url.Page("/Cases/Details", "SearchTestResults")',
+                dataType: 'json',
+                delay: 250,
+                data: function(params) {
+                    var testTypeId = $('#testTypeSelect').val();
+                    return {
+                        testTypeId: testTypeId,
+                        term: params.term
+                    };
+                },
+                processResults: function(data) {
+                    return {
+                        results: data
+                    };
+                },
+                cache: false
+            }
+        }));
+
+        // Improve keyboard navigation for Select2 fields
+        $('.select2-organization, .select2-disease, .select2-testresult').on('select2:open', function(e) {
+            setTimeout(function() {
+                $('.select2-search__field').focus();
+            }, 0);
+        });
+
+        // Allow Enter key to open Select2 dropdowns
+        $('.select2-organization, .select2-disease, .select2-testresult').on('keydown', function(e) {
+            if (e.which === 13 && !$(this).data('select2').isOpen()) {
+                e.preventDefault();
+                $(this).select2('open');
+            }
+        });
+
+        // Add visual indicator for keyboard users
+        $('#addLabResultModal input, #addLabResultModal select, #addLabResultModal textarea').on('focus', function() {
+            $(this).closest('.mb-3').addClass('field-focused');
+        }).on('blur', function() {
+            $(this).closest('.mb-3').removeClass('field-focused');
+        });
+
+        // Auto-advance from date fields on valid entry
+        $('input[type="date"]').on('change', function() {
+            var $this = $(this);
+            if ($this.val()) {
+                var focusable = $('#addLabResultModal').find('input, select, textarea, button').filter(':visible:not([disabled])');
+                var nextIndex = focusable.index($this) + 1;
+                if (nextIndex < focusable.length) {
+                    focusable.eq(nextIndex).focus();
+                }
+            }
+        });
+
+        // When test type changes, reset test result dropdown
+        $('#testTypeSelect').on('change', function() {
+            var testTypeId = $(this).val();
+            var $testResultSelect = $('#testResultSelect');
+            
+            $testResultSelect.val(null).trigger('change');
+            
+            if (testTypeId) {
+                $testResultSelect.prop('disabled', false);
+                $testResultSelect.select2('destroy');
+                $('.select2-testresult').select2({
+                    dropdownParent: $('#addLabResultModal'),
+                    width: '100%',
+                    placeholder: 'Search test results...',
+                    allowClear: true,
+                    ajax: {
+                        url: '@Url.Page("/Cases/Details", "SearchTestResults")',
+                        dataType: 'json',
+                        delay: 250,
+                        data: function(params) {
+                            return {
+                                testTypeId: testTypeId,
+                                term: params.term
+                            };
+                        },
+                        processResults: function(data) {
+                            return {
+                                results: data
+                            };
+                        },
+                        cache: false
+                    }
+                });
+            } else {
+                $testResultSelect.prop('disabled', true);
+            }
+        });
+
+        // Disable test result initially if no test type selected
+        if (!$('#testTypeSelect').val()) {
+            $('#testResultSelect').prop('disabled', true);
+        }
+
+        // Reset select2 when modal is closed
+        $('#addLabResultModal').on('hidden.bs.modal', function() {
+            $('.select2-organization').val(null).trigger('change');
+            $('.select2-disease').val(null).trigger('change');
+            $('#testTypeSelect').val('').trigger('change');
+            $('.select2-testresult').val(null).trigger('change');
+        });
+
+        // Initialize Select2 for EDIT modal fields
+        var select2ConfigEdit = {
+            dropdownParent: $('#editLabResultModal'),
+            width: '100%',
+            allowClear: true,
+            closeOnSelect: true
+        };
+
+        $('.select2-organization-edit').select2($.extend({}, select2ConfigEdit, {
+            placeholder: 'Type to search...',
+            minimumInputLength: 2,
+            ajax: {
+                url: '@Url.Page("/Cases/Details", "SearchOrganizations")',
+                dataType: 'json',
+                delay: 250,
+                data: function(params) {
+                    return {
+                        term: params.term
+                    };
+                },
+                processResults: function(data) {
+                    return {
+                        results: data
+                    };
+                },
+                cache: true
+            }
+        }));
+
+        $('.select2-disease-edit').select2($.extend({}, select2ConfigEdit, {
+            placeholder: 'Type to search...',
+            minimumInputLength: 2,
+            ajax: {
+                url: '@Url.Page("/Cases/Details", "SearchDiseases")',
+                dataType: 'json',
+                delay: 250,
+                data: function(params) {
+                    return {
+                        term: params.term
+                    };
+                },
+                processResults: function(data) {
+                    return {
+                        results: data
+                    };
+                },
+                cache: true
+            }
+        }));
+
+        $('.select2-testresult-edit').select2($.extend({}, select2ConfigEdit, {
+            placeholder: 'Select a test type first...',
+            ajax: {
+                url: '@Url.Page("/Cases/Details", "SearchTestResults")',
+                dataType: 'json',
+                delay: 250,
+                data: function(params) {
+                    var testTypeId = $('#edit_TestTypeId').val();
+                    return {
+                        testTypeId: testTypeId,
+                        term: params.term
+                    };
+                },
+                processResults: function(data) {
+                    return {
+                        results: data
+                    };
+                },
+                cache: false
+            }
+        }));
+
+        // Handle test type change in edit modal
+        $('#edit_TestTypeId').on('change', function() {
+            var testTypeId = $(this).val();
+            var $testResultSelect = $('#edit_TestResultId');
+            
+            $testResultSelect.val(null).trigger('change');
+            
+            if (testTypeId) {
+                $testResultSelect.prop('disabled', false);
+                $testResultSelect.select2('destroy');
+                $('.select2-testresult-edit').select2($.extend({}, select2ConfigEdit, {
+                    placeholder: 'Search test results...',
+                    ajax: {
+                        url: '@Url.Page("/Cases/Details", "SearchTestResults")',
+                        dataType: 'json',
+                        delay: 250,
+                        data: function(params) {
+                            return {
+                                testTypeId: testTypeId,
+                                term: params.term
+                            };
+                        },
+                        processResults: function(data) {
+                            return {
+                                results: data
+                            };
+                        },
+                        cache: false
+                    }
+                }));
+            } else {
+                $testResultSelect.prop('disabled', true);
+            }
+        });
+
+        // Reset edit modal when closed
+        $('#editLabResultModal').on('hidden.bs.modal', function() {
+            $('.select2-organization-edit').val(null).trigger('change');
+            $('.select2-disease-edit').val(null).trigger('change');
+            $('.select2-testresult-edit').val(null).trigger('change');
+            $('#edit_TestTypeId').val('').trigger('change');
+            $('#currentAttachment').html('');
+        });
+
+        // ========================================================================
+        // TASK MANAGEMENT
+        // ========================================================================
+
+        // Initialize user autocomplete when edit modal opens
+        $('#editTaskModal').on('shown.bs.modal', function() {
+            console.log('Edit task modal opened, initializing autocomplete...');
+            
+            // Destroy existing autocomplete if any
+            if ($("#assignedToUserAutocomplete").hasClass('ui-autocomplete-input')) {
+                $("#assignedToUserAutocomplete").autocomplete('destroy');
+            }
+            
+            // Initialize fresh autocomplete
+            $("#assignedToUserAutocomplete").autocomplete({
+                source: function(request, response) {
+                    console.log('Searching users for:', request.term);
+                    $.ajax({
+                        url: "/api/users/search",
+                        data: { term: request.term },
+                        success: function(data) {
+                            console.log('User search results:', data);
+                            if (data && data.length > 0) {
+                                response(data.map(function(item) {
+                                    return {
+                                        label: item.displayName,
+                                        value: item.displayName,
+                                        id: item.id
+                                    };
+                                }));
+                            } else {
+                                response([{ label: 'No users found', value: '', disabled: true }]);
+                            }
+                        },
+                        error: function(xhr, status, error) {
+                            console.error('User search error:', error);
+                            response([]);
+                        }
+                    });
+                },
+                minLength: 2,
+                select: function(event, ui) {
+                    if (ui.item.disabled) {
+                        return false;
+                    }
+                    console.log('User selected:', ui.item);
+                    $("#assignedToUserId").val(ui.item.id);
+                    return true;
+                },
+                change: function(event, ui) {
+                    // If field is cleared, clear the hidden ID field
+                    if (!ui.item) {
+                        $("#assignedToUserId").val('');
+                    }
+                }
+            });
+        });
+    });
+
+    // Task Management Functions
+    function openAddTaskModal() {
+        $('#addTaskModal').modal('show');
+    }
+
+    function openCompleteTaskModal(taskId, taskName) {
+        $('#completeTaskId').val(taskId);
+        $('#completeTaskName').text(taskName);
+        $('#completionNotes').val('');
+        $('#completeTaskModal').modal('show');
+    }
+
+    function openEditTaskModal(taskId, status, priority, dueDate, assignedToUserId, taskName) {
+        console.log('Opening edit modal for task:', taskId);
+        console.log('Parameters:', { status, priority, dueDate, assignedToUserId });
+        
+        $('#editTaskId').val(taskId);
+        $('#editTaskName').text(taskName);
+        $('#editTaskStatus').val(status);
+        $('#editTaskPriority').val(priority);
+        $('#editTaskDueDate').val(dueDate);
+        $('#assignedToUserId').val(assignedToUserId || '');
+        $('#assignedToUserAutocomplete').val(''); // Will be populated by autocomplete if user loads
+        
+        $('#editTaskModal').modal('show');
+    }
+
+    function openCancelTaskModal(taskId, taskName) {
+        $('#cancelTaskId').val(taskId);
+        $('#cancelTaskName').text(taskName);
+        $('#cancellationReason').val('');
+        $('#cancelTaskModal').modal('show');
+    }
+
+    // Survey configuration toggle
+    $(document).ready(function() {
+        // Toggle survey options when checkbox is changed
+        $('#addSurveyToTask').on('change', function() {
+            if ($(this).is(':checked')) {
+                $('#surveyOptionsSection').slideDown();
+            } else {
+                $('#surveyOptionsSection').slideUp();
+                // Clear selections
+                $('#surveyTemplateId').val('');
+                $('#customSurveyJson').val('');
+            }
+        });
+
+        // Toggle between library and custom survey
+        $('input[name="surveySource"]').on('change', function() {
+            if ($('#surveySourceLibrary').is(':checked')) {
+                $('#librarySurveySection').show();
+                $('#customSurveySection').hide();
+                $('#customSurveyJson').val('');
+            } else {
+                $('#librarySurveySection').hide();
+                $('#customSurveySection').show();
+                $('#surveyTemplateId').val('');
+            }
+        });
+
+        // Clear form when modal is closed
+        $('#addTaskModal').on('hidden.bs.modal', function() {
+            $('#manualTaskForm')[0].reset();
+            $('#surveyOptionsSection').hide();
+            $('#addSurveyToTask').prop('checked', false);
+            $('#librarySurveySection').show();
+            $('#customSurveySection').hide();
+        });
+    });
+    </script>
+}
+
+<!-- ========================================================================
+     TASK MANAGEMENT MODALS
+     ======================================================================== -->
+
+<!-- Add Task Modal -->
+<div class="modal fade" id="addTaskModal" tabindex="-1" aria-labelledby="addTaskModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="addTaskModalLabel">
+                    <i class="bi bi-plus-circle me-2"></i>Add Task
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <!-- Tab Navigation -->
+                <ul class="nav nav-tabs" id="addTaskTabs" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active" id="template-tab" data-bs-toggle="tab" data-bs-target="#template-pane" type="button" role="tab">
+                            <i class="bi bi-layout-text-sidebar me-1"></i>From Template
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="manual-tab" data-bs-toggle="tab" data-bs-target="#manual-pane" type="button" role="tab">
+                            <i class="bi bi-pencil me-1"></i>Manual Entry
+                        </button>
+                    </li>
+                </ul>
+
+                <!-- Tab Content -->
+                <div class="tab-content mt-3" id="addTaskTabContent">
+                    <!-- Template Tab -->
+                    <div class="tab-pane fade show active" id="template-pane" role="tabpanel">
+                        @if (Model.AvailableTaskTemplates.Any())
+                        {
+                            <p class="text-muted">
+                                <i class="bi bi-info-circle me-1"></i>
+                                Select a task template for this disease. The task will be assigned to you by default.
+                            </p>
+                            <form method="post" asp-page-handler="AddTaskFromTemplate" asp-route-id="@Model.Case.Id" id="templateTaskForm">
+                                <div class="list-group">
+                                    @foreach (var template in Model.AvailableTaskTemplates)
+                                    {
+                                        <label class="list-group-item list-group-item-action cursor-pointer">
+                                            <div class="d-flex w-100 justify-content-between align-items-start">
+                                                <div class="form-check">
+                                                    <input class="form-check-input" type="radio" name="taskTemplateId" value="@template.Id" id="template_@template.Id" required />
+                                                    <label class="form-check-label fw-bold" for="template_@template.Id">
+                                                        @template.Name
+                                                    </label>
+                                                </div>
+                                                <div>
+                                                    @{
+                                                        var templatePriorityClass = template.DefaultPriority switch
+                                                        {
+                                                            TaskPriority.Urgent => "bg-danger",
+                                                            TaskPriority.High => "bg-warning text-dark",
+                                                            TaskPriority.Medium => "bg-secondary",
+                                                            TaskPriority.Low => "bg-info",
+                                                            _ => "bg-secondary"
+                                                        };
+                                                    }
+                                                    <span class="badge @templatePriorityClass">@template.DefaultPriority</span>
+                                                    @if (template.TaskType != null)
+                                                    {
+                                                        <span class="badge bg-secondary">@template.TaskType.Name</span>
+                                                    }
+                                                </div>
+                                            </div>
+                                            @if (!string.IsNullOrEmpty(template.Description))
+                                            {
+                                                <small class="text-muted d-block mt-2">@template.Description</small>
+                                            }
+                                            @if (!string.IsNullOrEmpty(template.Instructions))
+                                            {
+                                                <small class="text-muted d-block mt-1">
+                                                    <i class="bi bi-info-circle"></i> @template.Instructions
+                                                </small>
+                                            }
+                                        </label>
+                                    }
+                                </div>
+                                <div class="mt-3 d-flex justify-content-end gap-2">
+                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                                    <button type="submit" class="btn btn-primary">
+                                        <i class="bi bi-plus-circle me-1"></i>Add Selected Task
+                                    </button>
+                                </div>
+                            </form>
+                        }
+                        else
+                        {
+                            <div class="alert alert-info">
+                                <i class="bi bi-info-circle me-2"></i>
+                                No task templates are available for this disease. Use the Manual Entry tab to create a custom task.
+                            </div>
+                        }
+                    </div>
+
+                    <!-- Manual Tab -->
+                    <div class="tab-pane fade" id="manual-pane" role="tabpanel">
+                        <p class="text-muted">
+                            <i class="bi bi-info-circle me-1"></i>
+                            Create a custom task. The task will be assigned to you by default.
+                        </p>
+                        <form method="post" asp-page-handler="AddTaskManual" asp-route-id="@Model.Case.Id" id="manualTaskForm">
+                            <div class="mb-3">
+                                <label for="taskTitle" class="form-label">Task Title <span class="text-danger">*</span></label>
+                                <input type="text" name="title" id="taskTitle" class="form-control" required 
+                                       placeholder="e.g., Follow-up phone call" maxlength="200" />
+                            </div>
+                            <div class="mb-3">
+                                <label for="taskDescription" class="form-label">Description</label>
+                                <textarea name="description" id="taskDescription" class="form-control" rows="3" 
+                                          placeholder="Add details about what needs to be done..."></textarea>
+                            </div>
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label for="taskTypeId" class="form-label">Task Type <span class="text-danger">*</span></label>
+                                    <select name="taskTypeId" id="taskTypeId" class="form-select" required asp-items="Model.TaskTypesList">
+                                        <option value="">-- Select Type --</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="taskPriority" class="form-label">Priority <span class="text-danger">*</span></label>
+                                    <select name="priority" id="taskPriority" class="form-select" required>
+                                        <option value="1">Medium</option>
+                                        <option value="0">Low</option>
+                                        <option value="2">High</option>
+                                        <option value="3">Urgent</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="taskDueDate" class="form-label">Due Date</label>
+                                    <input type="date" name="dueDate" id="taskDueDate" class="form-control" />
+                                </div>
+                            </div>
+
+                            <!-- Survey Configuration Section -->
+                            <div class="border rounded p-3 mt-3 bg-light">
+                                <h6 class="mb-3">
+                                    <i class="bi bi-clipboard-check me-2"></i>Survey Configuration <small class="text-muted">(Optional)</small>
+                                </h6>
+                                <div class="form-check form-switch mb-3">
+                                    <input class="form-check-input" type="checkbox" id="addSurveyToTask" />
+                                    <label class="form-check-label" for="addSurveyToTask">
+                                        <strong>Include a survey with this task</strong>
+                                    </label>
+                                </div>
+
+                                <div id="surveyOptionsSection" style="display: none;">
+                                    <div class="alert alert-info small">
+                                        <i class="bi bi-info-circle me-1"></i>
+                                        Choose a survey from the library or enter custom SurveyJS JSON.
+                                    </div>
+
+                                    <div class="mb-3">
+                                        <label class="form-label">Survey Source</label>
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="radio" name="surveySource" id="surveySourceLibrary" value="library" checked />
+                                            <label class="form-check-label" for="surveySourceLibrary">
+                                                <strong>Use Survey Library</strong>
+                                                <small class="d-block text-muted">Select from pre-built survey templates</small>
+                                            </label>
+                                        </div>
+                                        <div class="form-check mt-2">
+                                            <input class="form-check-input" type="radio" name="surveySource" id="surveySourceCustom" value="custom" />
+                                            <label class="form-check-label" for="surveySourceCustom">
+                                                <strong>Custom Survey JSON</strong>
+                                                <small class="d-block text-muted">Enter your own SurveyJS JSON definition</small>
+                                            </label>
+                                        </div>
+                                    </div>
+
+                                    <!-- Library Survey Selection -->
+                                    <div id="librarySurveySection">
+                                        <div class="mb-3">
+                                            <label for="surveyTemplateId" class="form-label">Select Survey Template</label>
+                                            <select name="surveyTemplateId" id="surveyTemplateId" class="form-select" asp-items="Model.SurveyTemplatesList">
+                                                <option value="">-- Select Survey Template --</option>
+                                            </select>
+                                            <small class="text-muted">
+                                                <a asp-page="/Settings/Surveys/SurveyTemplates" target="_blank">
+                                                    View Survey Library <i class="bi bi-box-arrow-up-right"></i>
+                                                </a>
+                                            </small>
+                                        </div>
+                                    </div>
+
+                                    <!-- Custom Survey JSON -->
+                                    <div id="customSurveySection" style="display: none;">
+                                        <div class="mb-3">
+                                            <label for="customSurveyJson" class="form-label">Survey JSON</label>
+                                            <textarea name="customSurveyJson" id="customSurveyJson" class="form-control font-monospace" rows="6" 
+                                                      placeholder='{"title": "My Survey", "elements": [...]}'></textarea>
+                                            <small class="text-muted">
+                                                <a href="https://surveyjs.io/form-library/examples/overview/reactjs" target="_blank">
+                                                    SurveyJS Examples <i class="bi bi-box-arrow-up-right"></i>
+                                                </a>
+                                            </small>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="mt-3 d-flex justify-content-end gap-2">
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="bi bi-plus-circle me-1"></i>Create Task
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Complete Task Modal -->
+<div class="modal fade" id="completeTaskModal" tabindex="-1" aria-labelledby="completeTaskModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="post" asp-page-handler="CompleteTask" asp-route-id="@Model.Case.Id">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="completeTaskModalLabel">
+                        <i class="bi bi-check-circle me-2"></i>Mark Task Complete
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" name="taskId" id="completeTaskId" />
+                    <div class="alert alert-success">
+                        <i class="bi bi-info-circle me-2"></i>
+                        You are marking the following task as complete: <strong id="completeTaskName"></strong>
+                    </div>
+                    <div class="mb-3">
+                        <label for="completionNotes" class="form-label">Completion Notes (Optional)</label>
+                        <textarea name="completionNotes" id="completionNotes" class="form-control" rows="3" 
+                                  placeholder="Add any notes about the completion of this task..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-success">
+                        <i class="bi bi-check-circle me-1"></i>Mark Complete
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Task Modal -->
+<div class="modal fade" id="editTaskModal" tabindex="-1" aria-labelledby="editTaskModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <form method="post" asp-page-handler="UpdateTask" asp-route-id="@Model.Case.Id">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="editTaskModalLabel">
+                        <i class="bi bi-pencil me-2"></i>Edit Task
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" name="taskId" id="editTaskId" />
+                    <h6 class="mb-3">Task: <strong id="editTaskName"></strong></h6>
+                    
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label for="editTaskStatus" class="form-label">Status</label>
+                            <select name="status" id="editTaskStatus" class="form-select">
+                                <option value="0">Pending</option>
+                                <option value="1">In Progress</option>
+                                <option value="2">Completed</option>
+                                <option value="3">Cancelled</option>
+                                <option value="4">Overdue</option>
+                                <option value="5">Waiting for Patient</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="editTaskPriority" class="form-label">Priority</label>
+                            <select name="priority" id="editTaskPriority" class="form-select">
+                                <option value="0">Low</option>
+                                <option value="1">Medium</option>
+                                <option value="2">High</option>
+                                <option value="3">Urgent</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="editTaskDueDate" class="form-label">Due Date</label>
+                            <input type="date" name="dueDate" id="editTaskDueDate" class="form-control" />
+                        </div>
+                        <div class="col-md-6">
+                            <label for="assignedToUserAutocomplete" class="form-label">Assign To User</label>
+                            <input type="text" id="assignedToUserAutocomplete" class="form-control" 
+                                   placeholder="Type to search users..." autocomplete="off" />
+                            <input type="hidden" name="assignedToUserId" id="assignedToUserId" />
+                            <small class="form-text text-muted">Leave blank for default assignment</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-save me-1"></i>Save Changes
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Cancel Task Modal -->
+<div class="modal fade" id="cancelTaskModal" tabindex="-1" aria-labelledby="cancelTaskModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="post" asp-page-handler="CancelTask" asp-route-id="@Model.Case.Id">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="cancelTaskModalLabel">
+                        <i class="bi bi-x-circle me-2"></i>Cancel Task
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" name="taskId" id="cancelTaskId" />
+                    <div class="alert alert-warning">
+                        <i class="bi bi-exclamation-triangle me-2"></i>
+                        You are cancelling the following task: <strong id="cancelTaskName"></strong>
+                    </div>
+                    <div class="mb-3">
+                        <label for="cancellationReason" class="form-label">Cancellation Reason (Optional)</label>
+                        <textarea name="cancellationReason" id="cancellationReason" class="form-control" rows="3" 
+                                  placeholder="Why is this task being cancelled?"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Back</button>
+                    <button type="submit" class="btn btn-warning">
+                        <i class="bi bi-x-circle me-1"></i>Cancel Task
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+
+

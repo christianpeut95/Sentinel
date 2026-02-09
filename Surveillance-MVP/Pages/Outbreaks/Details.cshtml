@@ -1,0 +1,963 @@
+@page
+@using Surveillance_MVP.Models
+@model Surveillance_MVP.Pages.Outbreaks.DetailsModel
+@{
+    ViewData["Title"] = Model.Outbreak.Name;
+}
+
+<nav aria-label="breadcrumb" class="mb-4">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a asp-page="/Index">Home</a></li>
+        <li class="breadcrumb-item"><a asp-page="Index">Outbreaks</a></li>
+        <li class="breadcrumb-item active" aria-current="page">@Model.Outbreak.Name</li>
+    </ol>
+</nav>
+
+@if (!string.IsNullOrEmpty(Model.SuccessMessage))
+{
+    <div class="alert alert-success alert-dismissible fade show" role="alert">
+        <i class="bi bi-check-circle me-2"></i>@Model.SuccessMessage
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+}
+
+@if (!string.IsNullOrEmpty(Model.ErrorMessage))
+{
+    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+        <i class="bi bi-exclamation-triangle me-2"></i>@Model.ErrorMessage
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+}
+
+<!-- Header -->
+<div class="d-flex justify-content-between align-items-start mb-4">
+    <div>
+        <h2 class="mb-1">
+            <i class="bi bi-exclamation-triangle text-danger me-2"></i>@Model.Outbreak.Name
+        </h2>
+        <div class="d-flex align-items-center gap-3">
+            @switch (Model.Outbreak.Status)
+            {
+                case OutbreakStatus.Active:
+                    <span class="badge bg-danger fs-6">Active Investigation</span>
+                    break;
+                case OutbreakStatus.Monitoring:
+                    <span class="badge bg-warning fs-6">Under Monitoring</span>
+                    break;
+                case OutbreakStatus.Resolved:
+                    <span class="badge bg-success fs-6">Resolved</span>
+                    break;
+                case OutbreakStatus.Closed:
+                    <span class="badge bg-secondary fs-6">Closed</span>
+                    break;
+            }
+            <span class="text-muted">Started @Model.Outbreak.StartDate.ToString("MMMM d, yyyy")</span>
+            @if (Model.Outbreak.EndDate.HasValue)
+            {
+                <span class="text-muted">• Ended @Model.Outbreak.EndDate.Value.ToString("MMMM d, yyyy")</span>
+            }
+        </div>
+        @if (!string.IsNullOrEmpty(Model.Outbreak.Description))
+        {
+            <p class="text-muted mt-2 mb-0">@Model.Outbreak.Description</p>
+        }
+    </div>
+    <div class="btn-group">
+        <a asp-page="Edit" asp-route-id="@Model.Outbreak.Id" class="btn btn-primary">
+            <i class="bi bi-pencil me-1"></i>Edit
+        </a>
+        <button type="button" class="btn btn-primary dropdown-toggle dropdown-toggle-split" data-bs-toggle="dropdown" aria-expanded="false">
+            <span class="visually-hidden">Toggle Dropdown</span>
+        </button>
+        <ul class="dropdown-menu dropdown-menu-end">
+            <li><a class="dropdown-item" asp-page="LineList" asp-route-id="@Model.Outbreak.Id">
+                <i class="bi bi-table me-2"></i>Line List
+            </a></li>
+            <li><hr class="dropdown-divider"></li>
+            <li><a class="dropdown-item" asp-page="LinkCases" asp-route-id="@Model.Outbreak.Id">
+                <i class="bi bi-link me-2"></i>Link Case/Contact
+            </a></li>
+            <li><a class="dropdown-item" asp-page="ClassifyCases" asp-route-id="@Model.Outbreak.Id">
+                <i class="bi bi-clipboard-check me-2"></i>Classify Cases
+            </a></li>
+            <li><a class="dropdown-item" asp-page="CaseDefinitions" asp-route-id="@Model.Outbreak.Id">
+                <i class="bi bi-clipboard2-check me-2"></i>Case Definitions
+            </a></li>
+            <li><a class="dropdown-item" asp-page="ManageTeam" asp-route-id="@Model.Outbreak.Id">
+                <i class="bi bi-person-plus me-2"></i>Manage Team
+            </a></li>
+            <li><hr class="dropdown-divider"></li>
+            <li><a class="dropdown-item" asp-page="Reports/Summary" asp-route-id="@Model.Outbreak.Id">
+                <i class="bi bi-file-earmark-text me-2"></i>Generate Report
+            </a></li>
+        </ul>
+    </div>
+</div>
+
+<!-- Statistics Cards -->
+<div class="row g-3 mb-4">
+    <!-- Classification Statistics -->
+    <div class="col-md-3">
+        <div class="card border-danger h-100">
+            <div class="card-body">
+                <div class="d-flex align-items-center mb-2">
+                    <div class="flex-grow-1">
+                        <h6 class="text-muted small mb-0">Confirmed</h6>
+                        <h3 class="mb-0 text-danger">@Model.Statistics.ConfirmedCases</h3>
+                    </div>
+                    <div class="bg-danger bg-opacity-10 rounded-circle p-3">
+                        <i class="bi bi-check-circle-fill text-danger fs-4"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-warning h-100">
+            <div class="card-body">
+                <div class="d-flex align-items-center mb-2">
+                    <div class="flex-grow-1">
+                        <h6 class="text-muted small mb-0">Probable</h6>
+                        <h3 class="mb-0 text-warning">@Model.Statistics.ProbableCases</h3>
+                    </div>
+                    <div class="bg-warning bg-opacity-10 rounded-circle p-3">
+                        <i class="bi bi-exclamation-circle-fill text-warning fs-4"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-secondary h-100">
+            <div class="card-body">
+                <div class="d-flex align-items-center mb-2">
+                    <div class="flex-grow-1">
+                        <h6 class="text-muted small mb-0">Suspect</h6>
+                        <h3 class="mb-0 text-secondary">@Model.Statistics.SuspectCases</h3>
+                    </div>
+                    <div class="bg-secondary bg-opacity-10 rounded-circle p-3">
+                        <i class="bi bi-question-circle-fill text-secondary fs-4"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-info h-100">
+            <div class="card-body">
+                <div class="d-flex align-items-center mb-2">
+                    <div class="flex-grow-1">
+                        <h6 class="text-muted small mb-0">Contacts</h6>
+                        <h3 class="mb-0 text-info">@Model.Statistics.TotalContacts</h3>
+                    </div>
+                    <div class="bg-info bg-opacity-10 rounded-circle p-3">
+                        <i class="bi bi-people-fill text-info fs-4"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Demographics and Epidemic Curve -->
+<div class="row g-3 mb-4">
+    <!-- Demographics Card -->
+    <div class="col-lg-4">
+        <div class="card h-100">
+            <div class="card-header bg-light">
+                <h5 class="mb-0"><i class="bi bi-person-lines-fill me-2"></i>Demographics</h5>
+            </div>
+            <div class="card-body">
+                <h6 class="mb-3">Age Distribution</h6>
+                @if (Model.Statistics.MedianAge.HasValue)
+                {
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between mb-1">
+                            <span class="small text-muted">Median Age</span>
+                            <strong>@Model.Statistics.MedianAge.Value.ToString("F1") years</strong>
+                        </div>
+                        <div class="d-flex justify-content-between">
+                            <span class="small text-muted">Age Range</span>
+                            <strong>@Model.Statistics.MinAge - @Model.Statistics.MaxAge years</strong>
+                        </div>
+                    </div>
+                }
+                else
+                {
+                    <p class="text-muted small">No age data available</p>
+                }
+                
+                <hr>
+                
+                <h6 class="mb-3">Sex Distribution</h6>
+                <div class="mb-2">
+                    <div class="d-flex justify-content-between align-items-center mb-1">
+                        <span class="small">Male</span>
+                        <span class="badge bg-primary">@Model.Statistics.MaleCount</span>
+                    </div>
+                    <div class="progress" style="height: 8px;">
+                        <div class="progress-bar bg-primary" role="progressbar" 
+                             style="width: @(Model.Statistics.TotalCases > 0 ? (Model.Statistics.MaleCount * 100.0 / Model.Statistics.TotalCases).ToString("F0") : "0")%">
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="mb-2">
+                    <div class="d-flex justify-content-between align-items-center mb-1">
+                        <span class="small">Female</span>
+                        <span class="badge" style="background-color: #e91e63;">@Model.Statistics.FemaleCount</span>
+                    </div>
+                    <div class="progress" style="height: 8px;">
+                        <div class="progress-bar" role="progressbar" 
+                             style="width: @(Model.Statistics.TotalCases > 0 ? (Model.Statistics.FemaleCount * 100.0 / Model.Statistics.TotalCases).ToString("F0") : "0")%; background-color: #e91e63;">
+                        </div>
+                    </div>
+                </div>
+                
+                @if (Model.Statistics.OtherSexCount > 0)
+                {
+                    <div class="mb-2">
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                            <span class="small">Other</span>
+                            <span class="badge bg-secondary">@Model.Statistics.OtherSexCount</span>
+                        </div>
+                        <div class="progress" style="height: 8px;">
+                            <div class="progress-bar bg-secondary" role="progressbar" 
+                                 style="width: @(Model.Statistics.TotalCases > 0 ? (Model.Statistics.OtherSexCount * 100.0 / Model.Statistics.TotalCases).ToString("F0") : "0")%">
+                            </div>
+                        </div>
+                    </div>
+                }
+                
+                @if (Model.Statistics.UnknownSexCount > 0)
+                {
+                    <div class="mb-2">
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                            <span class="small">Unknown</span>
+                            <span class="badge bg-light text-dark border">@Model.Statistics.UnknownSexCount</span>
+                        </div>
+                        <div class="progress" style="height: 8px;">
+                            <div class="progress-bar bg-light border" role="progressbar" 
+                                 style="width: @(Model.Statistics.TotalCases > 0 ? (Model.Statistics.UnknownSexCount * 100.0 / Model.Statistics.TotalCases).ToString("F0") : "0")%">
+                            </div>
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+    
+    <!-- Epidemic Curve -->
+    <div class="col-lg-8">
+        <div class="card h-100">
+            <div class="card-header bg-light">
+                <h5 class="mb-0"><i class="bi bi-graph-up me-2"></i>Epidemic Curve</h5>
+                <small class="text-muted">Cases by date of onset (or notification if not available)</small>
+            </div>
+            <div class="card-body">
+                <canvas id="epidemicCurve" style="max-height: 300px;"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Original Statistics Cards for Reference -->
+<div class="row g-3 mb-4">
+    <div class="col-lg-3 col-md-6">
+        <div class="card border-danger">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <h6 class="text-muted mb-1">Total Cases</h6>
+                        <h2 class="mb-0">@Model.Statistics.TotalCases</h2>
+                        <small class="text-muted">
+                            @Model.Statistics.ConfirmedCases Confirmed • 
+                            @Model.Statistics.ProbableCases Probable • 
+                            @Model.Statistics.SuspectCases Suspect
+                        </small>
+                    </div>
+                    <div class="bg-danger bg-opacity-10 p-3 rounded">
+                        <i class="bi bi-virus fs-3 text-danger"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-3 col-md-6">
+        <div class="card border-info">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <h6 class="text-muted mb-1">Contacts</h6>
+                        <h2 class="mb-0">@Model.Statistics.TotalContacts</h2>
+                        <small class="text-muted">Under monitoring</small>
+                    </div>
+                    <div class="bg-info bg-opacity-10 p-3 rounded">
+                        <i class="bi bi-people fs-3 text-info"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-3 col-md-6">
+        <div class="card border-primary">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <h6 class="text-muted mb-1">Investigation Team</h6>
+                        <h2 class="mb-0">@Model.Statistics.TeamMemberCount</h2>
+                        <small class="text-muted">Active members</small>
+                    </div>
+                    <div class="bg-primary bg-opacity-10 p-3 rounded">
+                        <i class="bi bi-people-fill fs-3 text-primary"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-3 col-md-6">
+        <div class="card border-secondary">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <h6 class="text-muted mb-1">Duration</h6>
+                        <h2 class="mb-0">@Model.Statistics.DaysSinceStart</h2>
+                        <small class="text-muted">Days since start</small>
+                    </div>
+                    <div class="bg-secondary bg-opacity-10 p-3 rounded">
+                        <i class="bi bi-calendar3 fs-3 text-secondary"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Outbreak Context -->
+<div class="row g-3 mb-4">
+    <div class="col-md-4">
+        <div class="card h-100">
+            <div class="card-header bg-light">
+                <h6 class="mb-0"><i class="bi bi-info-circle me-2"></i>Outbreak Context</h6>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <strong>Disease:</strong><br>
+                    @if (Model.Outbreak.PrimaryDisease != null)
+                    {
+                        <span class="badge bg-warning text-dark">@Model.Outbreak.PrimaryDisease.Name</span>
+                    }
+                    else
+                    {
+                        <span class="text-muted">Not specified</span>
+                    }
+                </div>
+                
+                @if (Model.Outbreak.PrimaryLocation != null)
+                {
+                    <div class="mb-3">
+                        <strong><i class="bi bi-geo-alt me-1"></i>Primary Location:</strong><br>
+                        <a asp-page="/Locations/Details" asp-route-id="@Model.Outbreak.PrimaryLocation.Id" class="text-decoration-none">
+                            @Model.Outbreak.PrimaryLocation.Name
+                        </a>
+                    </div>
+                }
+                
+                @if (Model.Outbreak.PrimaryEvent != null)
+                {
+                    <div class="mb-3">
+                        <strong><i class="bi bi-calendar-event me-1"></i>Primary Event:</strong><br>
+                        <a asp-page="/Events/Details" asp-route-id="@Model.Outbreak.PrimaryEvent.Id" class="text-decoration-none">
+                            @Model.Outbreak.PrimaryEvent.Name
+                        </a>
+                    </div>
+                }
+                
+                <div class="mb-3">
+                    <strong>Lead Investigator:</strong><br>
+                    @if (Model.Outbreak.LeadInvestigator != null)
+                    {
+                        <span>@Model.Outbreak.LeadInvestigator.UserName</span>
+                    }
+                    else
+                    {
+                        <span class="text-muted">Not assigned</span>
+                    }
+                </div>
+                
+                <div>
+                    <a asp-page="ClassifyCases" asp-route-id="@Model.Outbreak.Id" class="btn btn-sm btn-primary w-100">
+                        <i class="bi bi-clipboard-check me-1"></i>Classify Cases
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-8">
+        <div class="card h-100">
+            <div class="card-header bg-light">
+                <div class="d-flex justify-content-between align-items-center">
+                    <h6 class="mb-0"><i class="bi bi-people-fill me-2"></i>Investigation Team (@Model.TeamMembers.Count)</h6>
+                    <a asp-page="ManageTeam" asp-route-id="@Model.Outbreak.Id" class="btn btn-sm btn-outline-primary">
+                        <i class="bi bi-gear"></i>
+                    </a>
+                </div>
+            </div>
+            <div class="card-body">
+                @if (Model.TeamMembers.Any())
+                {
+                    <div class="table-responsive">
+                        <table class="table table-sm table-hover mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Member</th>
+                                    <th>Role</th>
+                                    <th>Assigned</th>
+                                    <th></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var member in Model.TeamMembers.Take(5))
+                                {
+                                    <tr>
+                                        <td>@member.User?.UserName</td>
+                                        <td>
+                                            <span class="badge bg-primary">@member.Role.ToString().Replace("_", " ")</span>
+                                        </td>
+                                        <td>
+                                            <small class="text-muted">@member.AssignedDate.ToString("MMM d, yyyy")</small>
+                                        </td>
+                                        <td class="text-end">
+                                            <form method="post" asp-page-handler="RemoveTeamMember" asp-route-memberId="@member.Id" class="d-inline" 
+                                                  onsubmit="return confirm('Remove this team member?');">
+                                                <button type="submit" class="btn btn-sm btn-link text-danger p-0">
+                                                    <i class="bi bi-x-circle"></i>
+                                                </button>
+                                            </form>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                    @if (Model.TeamMembers.Count > 5)
+                    {
+                        <div class="text-center mt-2">
+                            <a href="#teamSection" class="btn btn-sm btn-link">View all @Model.TeamMembers.Count members</a>
+                        </div>
+                    }
+                }
+                else
+                {
+                    <p class="text-muted mb-0">No team members assigned yet.</p>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Main Tabs -->
+<ul class="nav nav-tabs nav-fill mb-3" id="outbreakTabs" role="tablist">
+    <li class="nav-item" role="presentation">
+        <button class="nav-link active" id="cases-tab" data-bs-toggle="tab" data-bs-target="#cases" type="button" role="tab">
+            <i class="bi bi-virus me-2"></i>Cases <span class="badge bg-danger ms-2">@Model.Statistics.TotalCases</span>
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="contacts-tab" data-bs-toggle="tab" data-bs-target="#contacts" type="button" role="tab">
+            <i class="bi bi-people me-2"></i>Contacts <span class="badge bg-info ms-2">@Model.Statistics.TotalContacts</span>
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="timeline-tab" data-bs-toggle="tab" data-bs-target="#timeline" type="button" role="tab">
+            <i class="bi bi-clock-history me-2"></i>Timeline <span class="badge bg-secondary ms-2">@Model.Timeline.Count</span>
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="files-tab" data-bs-toggle="tab" data-bs-target="#files" type="button" role="tab">
+            <i class="bi bi-paperclip me-2"></i>Files & Notes
+        </button>
+    </li>
+</ul>
+
+<div class="tab-content" id="outbreakTabsContent">
+    <!-- Cases Tab -->
+    <div class="tab-pane fade show active" id="cases" role="tabpanel" aria-labelledby="cases-tab">
+        <div class="card border-danger">
+            <div class="card-header bg-danger bg-opacity-10 d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="bi bi-virus me-2 text-danger"></i>Outbreak Cases</h5>
+                <div class="btn-group btn-group-sm">
+                    <a asp-page="LinkCases" asp-route-id="@Model.Outbreak.Id" class="btn btn-outline-danger">
+                        <i class="bi bi-plus-circle me-1"></i>Link Case
+                    </a>
+                    <button type="button" class="btn btn-outline-danger" onclick="selectAllCases()">
+                        <i class="bi bi-check-all me-1"></i>Select All
+                    </button>
+                    <button type="button" class="btn btn-danger" id="bulkActionsCasesBtn" disabled onclick="bulkActionsCases()">
+                        <i class="bi bi-lightning me-1"></i>Bulk Actions
+                    </button>
+                </div>
+            </div>
+            <div class="card-body">
+                @if (Model.Cases.Any())
+                {
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th width="40"><input type="checkbox" id="selectAllCasesCheckbox" onchange="toggleAllCases(this)"></th>
+                                    <th>Patient</th>
+                                    <th>Classification</th>
+                                    <th>Disease</th>
+                                    <th>Onset Date</th>
+                                    <th>Linked Date</th>
+                                    <th>Linked By</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var outbreakCase in Model.Cases)
+                                {
+                                    <tr>
+                                        <td><input type="checkbox" class="case-checkbox" value="@outbreakCase.Case.Id"></td>
+                                        <td>
+                                            <a asp-page="/Cases/Details" asp-route-id="@outbreakCase.Case.Id">
+                                                @outbreakCase.Case.Patient?.GivenName @outbreakCase.Case.Patient?.FamilyName
+                                            </a>
+                                            <br>
+                                            <small class="text-muted">@outbreakCase.Case.FriendlyId</small>
+                                        </td>
+                                        <td>
+                                            @if (outbreakCase.Classification.HasValue)
+                                            {
+                                                switch (outbreakCase.Classification.Value)
+                                                {
+                                                    case CaseClassification.Confirmed:
+                                                        <span class="badge bg-danger">Confirmed</span>
+                                                        break;
+                                                    case CaseClassification.Probable:
+                                                        <span class="badge bg-warning text-dark">Probable</span>
+                                                        break;
+                                                    case CaseClassification.Suspect:
+                                                        <span class="badge bg-secondary">Suspect</span>
+                                                        break;
+                                                    case CaseClassification.NotACase:
+                                                        <span class="badge bg-light text-dark">Not a Case</span>
+                                                        break;
+                                                }
+                                            }
+                                        </td>
+                                        <td>@outbreakCase.Case.Disease?.Name</td>
+                                        <td>
+                                            @if (outbreakCase.Case.DateOfOnset.HasValue)
+                                            {
+                                                @outbreakCase.Case.DateOfOnset.Value.ToString("MMM d, yyyy")
+                                            }
+                                        </td>
+                                        <td>
+                                            <small>@outbreakCase.LinkedDate.ToString("MMM d, yyyy")</small>
+                                        </td>
+                                        <td>
+                                            <small class="text-muted">@outbreakCase.LinkMethod.ToString().Replace("_", " ")</small>
+                                        </td>
+                                        <td>
+                                            <div class="btn-group btn-group-sm">
+                                                <a asp-page="/Cases/Details" asp-route-id="@outbreakCase.Case.Id" class="btn btn-sm btn-outline-primary" title="View Case">
+                                                    <i class="bi bi-eye"></i>
+                                                </a>
+                                                <button type="button" class="btn btn-sm btn-outline-danger" 
+                                                        onclick="unlinkCase(@outbreakCase.Id, '@outbreakCase.Case.Patient?.GivenName @outbreakCase.Case.Patient?.FamilyName')" 
+                                                        title="Unlink">
+                                                    <i class="bi bi-link-45deg"></i>
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+                else
+                {
+                    <div class="text-center py-5">
+                        <i class="bi bi-inbox display-1 text-muted"></i>
+                        <p class="text-muted mt-3">No cases linked to this outbreak yet.</p>
+                        <a asp-page="LinkCases" asp-route-id="@Model.Outbreak.Id" class="btn btn-danger">
+                            <i class="bi bi-plus-circle me-1"></i>Link First Case
+                        </a>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+
+    <!-- Contacts Tab -->
+    <div class="tab-pane fade" id="contacts" role="tabpanel" aria-labelledby="contacts-tab">
+        <div class="card border-info">
+            <div class="card-header bg-info bg-opacity-10 d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="bi bi-people me-2 text-info"></i>Contacts Under Monitoring</h5>
+                <div class="btn-group btn-group-sm">
+                    <a asp-page="LinkCases" asp-route-id="@Model.Outbreak.Id" class="btn btn-outline-info">
+                        <i class="bi bi-plus-circle me-1"></i>Link Contact
+                    </a>
+                    <button type="button" class="btn btn-outline-info" onclick="selectAllContacts()">
+                        <i class="bi bi-check-all me-1"></i>Select All
+                    </button>
+                    <button type="button" class="btn btn-info" id="bulkActionsContactsBtn" disabled onclick="bulkActionsContacts()">
+                        <i class="bi bi-lightning me-1"></i>Bulk Actions
+                    </button>
+                </div>
+            </div>
+            <div class="card-body">
+                @if (Model.Contacts.Any())
+                {
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th width="40"><input type="checkbox" id="selectAllContactsCheckbox" onchange="toggleAllContacts(this)"></th>
+                                    <th>Contact</th>
+                                    <th>Disease</th>
+                                    <th>Notification Date</th>
+                                    <th>Linked Date</th>
+                                    <th>Linked By</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var outbreakCase in Model.Contacts)
+                                {
+                                    <tr>
+                                        <td><input type="checkbox" class="contact-checkbox" value="@outbreakCase.Case.Id"></td>
+                                        <td>
+                                            <a asp-page="/Cases/Details" asp-route-id="@outbreakCase.Case.Id">
+                                                @outbreakCase.Case.Patient?.GivenName @outbreakCase.Case.Patient?.FamilyName
+                                            </a>
+                                            <br>
+                                            <small class="text-muted">@outbreakCase.Case.FriendlyId</small>
+                                        </td>
+                                        <td>@outbreakCase.Case.Disease?.Name</td>
+                                        <td>
+                                            @if (outbreakCase.Case.DateOfNotification.HasValue)
+                                            {
+                                                @outbreakCase.Case.DateOfNotification.Value.ToString("MMM d, yyyy")
+                                            }
+                                        </td>
+                                        <td>
+                                            <small>@outbreakCase.LinkedDate.ToString("MMM d, yyyy")</small>
+                                        </td>
+                                        <td>
+                                            <small class="text-muted">@outbreakCase.LinkMethod.ToString().Replace("_", " ")</small>
+                                        </td>
+                                        <td>
+                                            <div class="btn-group btn-group-sm">
+                                                <a asp-page="/Cases/Details" asp-route-id="@outbreakCase.Case.Id" class="btn btn-sm btn-outline-primary" title="View Contact">
+                                                    <i class="bi bi-eye"></i>
+                                                </a>
+                                                <button type="button" class="btn btn-sm btn-outline-danger" 
+                                                        onclick="unlinkCase(@outbreakCase.Id, '@outbreakCase.Case.Patient?.GivenName @outbreakCase.Case.Patient?.FamilyName')" 
+                                                        title="Unlink">
+                                                    <i class="bi bi-link-45deg"></i>
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+                else
+                {
+                    <div class="text-center py-5">
+                        <i class="bi bi-inbox display-1 text-muted"></i>
+                        <p class="text-muted mt-3">No contacts linked to this outbreak yet.</p>
+                        <a asp-page="LinkCases" asp-route-id="@Model.Outbreak.Id" class="btn btn-info">
+                            <i class="bi bi-plus-circle me-1"></i>Link First Contact
+                        </a>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+
+    <!-- Timeline Tab -->
+    <div class="tab-pane fade" id="timeline" role="tabpanel" aria-labelledby="timeline-tab">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="bi bi-clock-history me-2"></i>Investigation Timeline</h5>
+                <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#addTimelineEventModal">
+                    <i class="bi bi-plus-circle me-1"></i>Add Event
+                </button>
+            </div>
+            <div class="card-body">
+                @if (Model.Timeline.Any())
+                {
+                    <div class="timeline">
+                        @foreach (var item in Model.Timeline)
+                        {
+                            <div class="timeline-item mb-3">
+                                <div class="d-flex">
+                                    <div class="timeline-marker">
+                                        @switch (item.EventType)
+                                        {
+                                            case TimelineEventType.OutbreakDeclared:
+                                                <i class="bi bi-flag-fill text-danger"></i>
+                                                break;
+                                            case TimelineEventType.CaseAdded:
+                                            case TimelineEventType.ContactAdded:
+                                                <i class="bi bi-person-plus-fill text-primary"></i>
+                                                break;
+                                            case TimelineEventType.DefinitionUpdated:
+                                                <i class="bi bi-file-earmark-text text-warning"></i>
+                                                break;
+                                            case TimelineEventType.TeamMemberAdded:
+                                                <i class="bi bi-people-fill text-success"></i>
+                                                break;
+                                            default:
+                                                <i class="bi bi-circle-fill text-secondary"></i>
+                                                break;
+                                        }
+                                    </div>
+                                    <div class="flex-grow-1 ms-3">
+                                        <div class="d-flex justify-content-between align-items-start">
+                                            <div>
+                                                <strong>@item.Title</strong>
+                                                @if (!string.IsNullOrEmpty(item.Description))
+                                                {
+                                                    <p class="text-muted mb-0">@item.Description</p>
+                                                }
+                                            </div>
+                                            <small class="text-muted">@item.EventDate.ToString("MMM d, yyyy h:mm tt")</small>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                }
+                else
+                {
+                    <p class="text-muted text-center">No timeline events yet.</p>
+                }
+            </div>
+        </div>
+    </div>
+
+    <!-- Files & Notes Tab -->
+    <div class="tab-pane fade" id="files" role="tabpanel" aria-labelledby="files-tab">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="bi bi-paperclip me-2"></i>Files & Documentation</h5>
+                <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#addNoteModal">
+                    <i class="bi bi-plus-circle me-1"></i>Add Note/File
+                </button>
+            </div>
+            <div class="card-body">
+                <p class="text-muted text-center">Files and notes integration - Coming soon</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Styles {
+    <style>
+        .timeline {
+            position: relative;
+            padding-left: 30px;
+        }
+        
+        .timeline::before {
+            content: '';
+            position: absolute;
+            left: 15px;
+            top: 0;
+            bottom: 0;
+            width: 2px;
+            background: #dee2e6;
+        }
+        
+        .timeline-marker {
+            position: absolute;
+            left: -30px;
+            width: 30px;
+            height: 30px;
+            background: white;
+            border: 2px solid #dee2e6;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.875rem;
+        }
+    </style>
+}
+
+@section Scripts {
+    <script>
+        function toggleAllCases(checkbox) {
+            document.querySelectorAll('.case-checkbox').forEach(cb => cb.checked = checkbox.checked);
+            updateBulkActionButtons();
+        }
+        
+        function toggleAllContacts(checkbox) {
+            document.querySelectorAll('.contact-checkbox').forEach(cb => cb.checked = checkbox.checked);
+            updateBulkActionButtons();
+        }
+        
+        function updateBulkActionButtons() {
+            const casesSelected = document.querySelectorAll('.case-checkbox:checked').length;
+            const contactsSelected = document.querySelectorAll('.contact-checkbox:checked').length;
+            
+            document.getElementById('bulkActionsCasesBtn').disabled = casesSelected === 0;
+            document.getElementById('bulkActionsContactsBtn').disabled = contactsSelected === 0;
+        }
+        
+        function bulkActionsCases() {
+            const selectedIds = Array.from(document.querySelectorAll('.case-checkbox:checked'))
+                .map(cb => cb.value)
+                .join(',');
+            
+            if (selectedIds) {
+                window.location.href = `/Outbreaks/BulkActions?id=@Model.Outbreak.Id&caseIds=${selectedIds}`;
+            }
+        }
+        
+        function bulkActionsContacts() {
+            const selectedIds = Array.from(document.querySelectorAll('.contact-checkbox:checked'))
+                .map(cb => cb.value)
+                .join(',');
+            
+            if (selectedIds) {
+                window.location.href = `/Outbreaks/BulkActions?id=@Model.Outbreak.Id&caseIds=${selectedIds}`;
+            }
+        }
+        
+        // Update on individual checkbox change
+        document.addEventListener('DOMContentLoaded', function() {
+            document.querySelectorAll('.case-checkbox, .contact-checkbox').forEach(cb => {
+                cb.addEventListener('change', updateBulkActionButtons);
+            });
+        });
+        
+        function unlinkCase(outbreakCaseId, patientName) {
+            if (confirm(`Are you sure you want to unlink ${patientName} from this outbreak?`)) {
+                const reason = prompt('Reason for unlinking:');
+                if (reason) {
+                    // Submit form to unlink
+                    const form = document.createElement('form');
+                    form.method = 'POST';
+                    form.action = '?handler=UnlinkCase&id=@Model.Outbreak.Id';
+                    
+                    const idInput = document.createElement('input');
+                    idInput.type = 'hidden';
+                    idInput.name = 'outbreakCaseId';
+                    idInput.value = outbreakCaseId;
+                    form.appendChild(idInput);
+                    
+                    const reasonInput = document.createElement('input');
+                    reasonInput.type = 'hidden';
+                    reasonInput.name = 'reason';
+                    reasonInput.value = reason;
+                    form.appendChild(reasonInput);
+                    
+                    document.body.appendChild(form);
+                    form.submit();
+                }
+            }
+        }
+        
+        // Epidemic Curve Chart
+        document.addEventListener('DOMContentLoaded', function() {
+            const ctx = document.getElementById('epidemicCurve');
+            if (!ctx) return;
+            
+            const epiData = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.Statistics.EpiCurveData));
+            
+            const dates = epiData.map(d => new Date(d.Date));
+            const confirmedData = epiData.map(d => d.ConfirmedCount);
+            const probableData = epiData.map(d => d.ProbableCount);
+            const suspectData = epiData.map(d => d.SuspectCount);
+            const unclassifiedData = epiData.map(d => d.UnclassifiedCount);
+            
+            new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: dates.map(d => d.toLocaleDateString()),
+                    datasets: [
+                        {
+                            label: 'Confirmed',
+                            data: confirmedData,
+                            backgroundColor: 'rgba(220, 53, 69, 0.8)',
+                            borderColor: 'rgb(220, 53, 69)',
+                            borderWidth: 1
+                        },
+                        {
+                            label: 'Probable',
+                            data: probableData,
+                            backgroundColor: 'rgba(255, 193, 7, 0.8)',
+                            borderColor: 'rgb(255, 193, 7)',
+                            borderWidth: 1
+                        },
+                        {
+                            label: 'Suspect',
+                            data: suspectData,
+                            backgroundColor: 'rgba(108, 117, 125, 0.8)',
+                            borderColor: 'rgb(108, 117, 125)',
+                            borderWidth: 1
+                        },
+                        {
+                            label: 'Unclassified',
+                            data: unclassifiedData,
+                            backgroundColor: 'rgba(206, 212, 218, 0.8)',
+                            borderColor: 'rgb(206, 212, 218)',
+                            borderWidth: 1
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: {
+                            stacked: true,
+                            title: {
+                                display: true,
+                                text: 'Date'
+                            }
+                        },
+                        y: {
+                            stacked: true,
+                            beginAtZero: true,
+                            ticks: {
+                                stepSize: 1
+                            },
+                            title: {
+                                display: true,
+                                text: 'Number of Cases'
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                        },
+                        title: {
+                            display: false
+                        },
+                        tooltip: {
+                            mode: 'index',
+                            intersect: false
+                        }
+                    }
+                }
+            });
+        });
+    </script>
+}
+

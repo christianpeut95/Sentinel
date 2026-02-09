@@ -1,0 +1,613 @@
+﻿@page
+@model IndexModel
+@{
+    ViewData["Title"] = "Dashboard";
+}
+
+<style>
+    /* Hero Section */
+    .hero-section {
+        background: linear-gradient(135deg, #5a8fc4 0%, #4a7bb8 50%, #3d6ba3 100%);
+        border-radius: 16px;
+        padding: 3rem;
+        color: white;
+        position: relative;
+        overflow: hidden;
+        box-shadow: 0 8px 24px rgba(90, 143, 196, 0.25);
+    }
+
+    .hero-section::before {
+        content: '';
+        position: absolute;
+        top: -50%;
+        right: -20%;
+        width: 400px;
+        height: 400px;
+        background: radial-gradient(circle, rgba(255, 255, 255, 0.1) 0%, transparent 70%);
+        border-radius: 50%;
+    }
+
+    .hero-section .hero-content {
+        position: relative;
+        z-index: 1;
+    }
+
+    .hero-section h1 {
+        font-size: 2.5rem;
+        font-weight: 600;
+        margin-bottom: 1rem;
+        text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.2);
+    }
+
+    .hero-section .lead {
+        color: rgba(255, 255, 255, 0.95);
+        font-size: 1.1rem;
+    }
+
+    .hero-section .btn-light {
+        background: white;
+        color: #4a7bb8;
+        font-weight: 600;
+        border: none;
+        padding: 0.75rem 1.5rem;
+        transition: all 0.2s;
+    }
+
+    .hero-section .btn-light:hover {
+        background: #f8f9fa;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    }
+
+    .hero-section .btn-outline-light {
+        color: white;
+        border-color: rgba(255, 255, 255, 0.5);
+        font-weight: 600;
+        padding: 0.75rem 1.5rem;
+        transition: all 0.2s;
+    }
+
+    .hero-section .btn-outline-light:hover {
+        background: rgba(255, 255, 255, 0.15);
+        border-color: white;
+        color: white;
+    }
+
+    /* Stat Cards */
+    .stat-card {
+        background: white;
+        border-radius: 12px;
+        padding: 1.5rem;
+        display: flex;
+        align-items: center;
+        gap: 1.25rem;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+        transition: all 0.3s ease;
+        border: 1px solid rgba(0, 0, 0, 0.05);
+    }
+
+    .stat-card:hover {
+        box-shadow: 0 4px 16px rgba(90, 143, 196, 0.15);
+        transform: translateY(-2px);
+    }
+
+    .stat-card-icon {
+        width: 60px;
+        height: 60px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.75rem;
+        color: white;
+        flex-shrink: 0;
+    }
+
+    .stat-card-icon.bg-primary {
+        background: linear-gradient(135deg, #6baae0 0%, #5a8fc4 100%);
+    }
+
+    .stat-card-icon.bg-success {
+        background: linear-gradient(135deg, #4ade80 0%, #22c55e 100%);
+    }
+
+    .stat-card-icon.bg-info {
+        background: linear-gradient(135deg, #38bdf8 0%, #0ea5e9 100%);
+    }
+
+    .stat-card-icon.bg-warning {
+        background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
+    }
+
+    .stat-card-content {
+        flex: 1;
+    }
+
+    .stat-card-number {
+        font-size: 2rem;
+        font-weight: 700;
+        color: #1f2937;
+        margin-bottom: 0.25rem;
+        line-height: 1;
+    }
+
+    .stat-card-label {
+        font-size: 0.875rem;
+        color: #6b7280;
+        margin: 0;
+        font-weight: 500;
+    }
+
+    /* Action Cards */
+    .action-card {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 1.5rem;
+        background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+        border: 1px solid #dee2e6;
+        border-radius: 12px;
+        text-decoration: none;
+        color: #3d6ba3;
+        transition: all 0.3s ease;
+        min-height: 120px;
+    }
+
+    .action-card:hover {
+        background: linear-gradient(135deg, #5a8fc4 0%, #4a7bb8 100%);
+        color: white;
+        transform: translateY(-3px);
+        box-shadow: 0 6px 20px rgba(90, 143, 196, 0.3);
+        border-color: transparent;
+    }
+
+    .action-card i {
+        font-size: 2rem;
+        margin-bottom: 0.75rem;
+    }
+
+    .action-card span {
+        font-weight: 600;
+        font-size: 0.875rem;
+        text-align: center;
+    }
+
+    /* Feature Cards */
+    .feature-card {
+        background: white;
+        border-radius: 12px;
+        padding: 1.75rem;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+        transition: all 0.3s ease;
+        border: 1px solid rgba(0, 0, 0, 0.05);
+        height: 100%;
+    }
+
+    .feature-card:hover {
+        box-shadow: 0 6px 20px rgba(90, 143, 196, 0.15);
+        transform: translateY(-4px);
+    }
+
+    .feature-icon {
+        width: 60px;
+        height: 60px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-bottom: 1rem;
+        font-size: 1.75rem;
+    }
+
+    .feature-icon.bg-primary-subtle {
+        background: linear-gradient(135deg, rgba(90, 143, 196, 0.15) 0%, rgba(74, 123, 184, 0.15) 100%);
+    }
+
+    .feature-icon.bg-success-subtle {
+        background: linear-gradient(135deg, rgba(34, 197, 94, 0.15) 0%, rgba(22, 163, 74, 0.15) 100%);
+    }
+
+    .feature-icon.bg-info-subtle {
+        background: linear-gradient(135deg, rgba(14, 165, 233, 0.15) 0%, rgba(2, 132, 199, 0.15) 100%);
+    }
+
+    .feature-icon.bg-warning-subtle {
+        background: linear-gradient(135deg, rgba(245, 158, 11, 0.15) 0%, rgba(217, 119, 6, 0.15) 100%);
+    }
+
+    .feature-card h5 {
+        color: #1f2937;
+        font-weight: 600;
+        margin-bottom: 0.75rem;
+    }
+
+    /* Card styling */
+    .card {
+        border: 1px solid rgba(0, 0, 0, 0.05);
+        border-radius: 12px;
+        transition: all 0.3s ease;
+    }
+
+    .card:hover {
+        box-shadow: 0 4px 16px rgba(90, 143, 196, 0.12);
+    }
+
+    .card-header {
+        background: white !important;
+        border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+        border-radius: 12px 12px 0 0 !important;
+    }
+
+    .card-header h5 {
+        color: #3d6ba3;
+        font-weight: 600;
+    }
+
+    /* Responsive adjustments */
+    @@media (max-width: 767.98px) {
+        .hero-section {
+            padding: 2rem;
+        }
+
+        .hero-section h1 {
+            font-size: 1.75rem;
+        }
+
+        .stat-card {
+            padding: 1rem;
+        }
+
+        .stat-card-icon {
+            width: 50px;
+            height: 50px;
+            font-size: 1.5rem;
+        }
+
+        .stat-card-number {
+            font-size: 1.5rem;
+        }
+    }
+</style>
+
+<div class="container-fluid">
+    <!-- Welcome Hero Section -->
+    <div class="hero-section mb-4">
+        <div class="hero-content">
+            <div class="row align-items-center">
+                <div class="col-lg-8">
+                    <h1>
+                        <i class="bi bi-activity me-2"></i>
+                        Welcome to Surveillance MVP
+                    </h1>
+                    <p class="lead mb-4">
+                        Your comprehensive patient management and public health surveillance system
+                    </p>
+                    <div class="d-flex gap-3 flex-wrap">
+                        <a asp-page="/Patients/Create" class="btn btn-light">
+                            <i class="bi bi-person-plus me-2"></i>Add New Patient
+                        </a>
+                        <a asp-page="/Patients/Search" class="btn btn-outline-light">
+                            <i class="bi bi-search me-2"></i>Search Patients
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Stats Cards -->
+    <div class="row g-4 mb-4">
+        <div class="col-md-6 col-xl-3">
+            <div class="stat-card">
+                <div class="stat-card-icon bg-primary">
+                    <i class="bi bi-people-fill"></i>
+                </div>
+                <div class="stat-card-content">
+                    <h3 class="stat-card-number">@ViewData["TotalPatients"]</h3>
+                    <p class="stat-card-label">Total Patients</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6 col-xl-3">
+            <div class="stat-card">
+                <div class="stat-card-icon bg-success">
+                    <i class="bi bi-person-plus-fill"></i>
+                </div>
+                <div class="stat-card-content">
+                    <h3 class="stat-card-number">@ViewData["NewPatientsThisMonth"]</h3>
+                    <p class="stat-card-label">New This Month</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6 col-xl-3">
+            <div class="stat-card">
+                <div class="stat-card-icon bg-info">
+                    <i class="bi bi-eye-fill"></i>
+                </div>
+                <div class="stat-card-content">
+                    <h3 class="stat-card-number">@ViewData["RecentViews"]</h3>
+                    <p class="stat-card-label">Recent Views</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6 col-xl-3">
+            <div class="stat-card">
+                <div class="stat-card-icon bg-warning">
+                    <i class="bi bi-pencil-fill"></i>
+                </div>
+                <div class="stat-card-content">
+                    <h3 class="stat-card-number">@ViewData["RecentEdits"]</h3>
+                    <p class="stat-card-label">Recent Edits</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="row g-4 mb-4">
+        <div class="col-lg-8">
+            <div class="card shadow-sm h-100">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="bi bi-lightning-fill me-2"></i>Quick Actions</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            <a asp-page="/Patients/Index" class="action-card">
+                                <i class="bi bi-people"></i>
+                                <span>View All Patients</span>
+                            </a>
+                        </div>
+                        <div class="col-md-4">
+                            <a asp-page="/Patients/Search" class="action-card">
+                                <i class="bi bi-search"></i>
+                                <span>Advanced Search</span>
+                            </a>
+                        </div>
+                        <div class="col-md-4">
+                            <a asp-page="/Patients/Create" class="action-card">
+                                <i class="bi bi-person-plus"></i>
+                                <span>Add Patient</span>
+                            </a>
+                        </div>
+                        <div class="col-md-4">
+                            <a asp-page="/Cases/Index" class="action-card">
+                                <i class="bi bi-virus"></i>
+                                <span>View Cases</span>
+                            </a>
+                        </div>
+                        <div class="col-md-4">
+                            <a asp-page="/Settings/Index" class="action-card">
+                                <i class="bi bi-gear"></i>
+                                <span>Settings</span>
+                            </a>
+                        </div>
+                        <div class="col-md-4">
+                            <a asp-page="/Settings/Users/Index" class="action-card">
+                                <i class="bi bi-person-badge"></i>
+                                <span>Manage Users</span>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-4">
+            <div class="card shadow-sm h-100">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="bi bi-info-circle-fill me-2"></i>System Info</h5>
+                </div>
+                <div class="card-body">
+                    <ul class="list-unstyled mb-0">
+                        <li class="mb-3">
+                            <strong><i class="bi bi-calendar3 me-2" style="color: #5a8fc4;"></i>Today</strong><br>
+                            <small class="text-muted">@DateTime.Now.ToString("dddd, dd MMMM yyyy")</small>
+                        </li>
+                        <li class="mb-3">
+                            <strong><i class="bi bi-person-circle me-2" style="color: #22c55e;"></i>Logged in as</strong><br>
+                            <small class="text-muted">@User.Identity?.Name</small>
+                        </li>
+                        <li class="mb-3">
+                            <strong><i class="bi bi-shield-check me-2" style="color: #f59e0b;"></i>Version</strong><br>
+                            <small class="text-muted">Surveillance MVP v1.0</small>
+                        </li>
+                        <li class="mb-0">
+                            <strong><i class="bi bi-database me-2" style="color: #0ea5e9;"></i>Database</strong><br>
+                            <small class="text-success">Connected</small>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Features Grid -->
+    <div class="row g-4">
+        <div class="col-md-6 col-lg-3">
+            <div class="feature-card">
+                <div class="feature-icon bg-primary-subtle">
+                    <i class="bi bi-shield-lock-fill" style="color: #5a8fc4;"></i>
+                </div>
+                <h5>Secure & Compliant</h5>
+                <p class="text-muted small">HIPAA-compliant audit logging tracks all patient data access and changes</p>
+            </div>
+        </div>
+        <div class="col-md-6 col-lg-3">
+            <div class="feature-card">
+                <div class="feature-icon bg-success-subtle">
+                    <i class="bi bi-search" style="color: #22c55e;"></i>
+                </div>
+                <h5>Advanced Search</h5>
+                <p class="text-muted small">Powerful search with multiple criteria and demographic filters</p>
+            </div>
+        </div>
+        <div class="col-md-6 col-lg-3">
+            <div class="feature-card">
+                <div class="feature-icon bg-info-subtle">
+                    <i class="bi bi-geo-alt-fill" style="color: #0ea5e9;"></i>
+                </div>
+                <h5>Geocoding</h5>
+                <p class="text-muted small">Automatic address geocoding for location-based analysis</p>
+            </div>
+        </div>
+        <div class="col-md-6 col-lg-3">
+            <div class="feature-card">
+                <div class="feature-icon bg-warning-subtle">
+                    <i class="bi bi-clock-history" style="color: #f59e0b;"></i>
+                </div>
+                <h5>Audit Trail</h5>
+                <p class="text-muted small">Complete history of all changes and record access</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    /* Hero Section */
+    .hero-section {
+        padding: 3rem 0;
+        background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+        border-radius: 1rem;
+        margin: -1rem -0.75rem 2rem;
+        padding: 3rem 2rem;
+    }
+
+    /* Stat Cards */
+    .stat-card {
+        background: white;
+        border-radius: 1rem;
+        padding: 1.5rem;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        display: flex;
+        align-items: center;
+        gap: 1.5rem;
+        transition: transform 0.2s, box-shadow 0.2s;
+    }
+
+    .stat-card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 4px 16px rgba(0,0,0,0.12);
+    }
+
+    .stat-card-icon {
+        width: 64px;
+        height: 64px;
+        border-radius: 1rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 2rem;
+        color: white;
+        flex-shrink: 0;
+    }
+
+    .stat-card-content {
+        flex: 1;
+    }
+
+    .stat-card-number {
+        font-size: 2rem;
+        font-weight: 700;
+        margin-bottom: 0.25rem;
+        color: #212529;
+    }
+
+    .stat-card-label {
+        margin-bottom: 0;
+        color: #6c757d;
+        font-size: 0.875rem;
+        font-weight: 500;
+    }
+
+    /* Action Cards */
+    .action-card {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 2rem 1rem;
+        text-align: center;
+        background: #f8f9fa;
+        border-radius: 0.75rem;
+        text-decoration: none;
+        color: #495057;
+        transition: all 0.2s;
+        min-height: 140px;
+    }
+
+    .action-card:hover {
+        background: var(--bs-primary);
+        color: white;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(13, 110, 253, 0.3);
+    }
+
+    .action-card i {
+        font-size: 2.5rem;
+        margin-bottom: 0.75rem;
+    }
+
+    .action-card span {
+        font-weight: 600;
+        font-size: 0.95rem;
+    }
+
+    /* Feature Cards */
+    .feature-card {
+        background: white;
+        padding: 1.5rem;
+        border-radius: 1rem;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+        height: 100%;
+        transition: transform 0.2s;
+    }
+
+    .feature-card:hover {
+        transform: translateY(-4px);
+    }
+
+    .feature-icon {
+        width: 64px;
+        height: 64px;
+        border-radius: 1rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-bottom: 1rem;
+        font-size: 2rem;
+    }
+
+    .feature-card h5 {
+        font-weight: 600;
+        margin-bottom: 0.5rem;
+    }
+
+    /* Card Enhancements */
+    .card-header {
+        border-bottom: 1px solid rgba(0,0,0,0.06);
+        padding: 1rem 1.5rem;
+    }
+
+    /* Responsive */
+    @@media (max-width: 991.98px) {
+        .hero-section {
+            padding: 2rem 1.5rem;
+        }
+
+        .stat-card {
+            padding: 1.25rem;
+        }
+
+        .stat-card-icon {
+            width: 56px;
+            height: 56px;
+            font-size: 1.75rem;
+        }
+
+        .stat-card-number {
+            font-size: 1.75rem;
+        }
+    }
+</style>
+

@@ -1,0 +1,625 @@
+@page
+@model Surveillance_MVP.Pages.Cases.EditModel
+@using Surveillance_MVP.Models
+
+@{
+    ViewData["Title"] = "Edit Case";
+    Layout = "~/Pages/Shared/_Layout.cshtml";
+}
+
+<style>
+    .case-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 2rem;
+        border-radius: 12px;
+        margin-bottom: 2rem;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    }
+    .info-card {
+        border: none;
+        border-radius: 12px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        transition: transform 0.2s, box-shadow 0.2s;
+        margin-bottom: 1.5rem;
+    }
+    .info-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+    }
+    .info-card .card-header {
+        background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+        border-bottom: 3px solid #667eea;
+        font-weight: 600;
+        padding: 1rem 1.5rem;
+    }
+    .action-btn {
+        border-radius: 8px;
+        padding: 0.6rem 1.2rem;
+        font-weight: 500;
+        transition: all 0.3s;
+    }
+    .action-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+    }
+    .stat-badge {
+        padding: 0.5rem 1rem;
+        border-radius: 8px;
+        font-weight: 600;
+    }
+</style>
+
+<nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a asp-page="/Index">Home</a></li>
+        <li class="breadcrumb-item"><a asp-page="./Index">Cases</a></li>
+        <li class="breadcrumb-item"><a asp-page="./Details" asp-route-id="@Model.Case.Id">@Model.Case.FriendlyId</a></li>
+        <li class="breadcrumb-item active" aria-current="page">Edit</li>
+    </ol>
+</nav>
+
+@if (TempData["ErrorMessage"] != null)
+{
+    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+        <i class="bi bi-exclamation-triangle-fill me-2"></i>@TempData["ErrorMessage"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+}
+
+@if (TempData["SuccessMessage"] != null)
+{
+    <div class="alert alert-success alert-dismissible fade show" role="alert">
+        <i class="bi bi-check-circle-fill me-2"></i>@TempData["SuccessMessage"]
+        @if (TempData["OnsetDateUpdated"] != null && (bool)TempData["OnsetDateUpdated"])
+        {
+            <br/>
+            <strong><i class="bi bi-calendar-check me-1"></i>Note:</strong> 
+            <text>Case date of onset was automatically updated to match the earliest symptom onset date.</text>
+        }
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+}
+
+<!-- Case Header -->
+<div class="case-header">
+    <div class="d-flex justify-content-between align-items-center">
+        <div>
+            <h1 class="mb-2"><i class="bi bi-pencil-square me-3"></i>Edit Case</h1>
+            <p class="mb-1 fs-5">@Model.Case.FriendlyId</p>
+            @if (Model.Case.Patient != null)
+            {
+                <p class="mb-0 opacity-75">
+                    <i class="bi bi-person me-2"></i>
+                    <strong>@Model.Case.Patient.GivenName @Model.Case.Patient.FamilyName</strong>
+                </p>
+            }
+        </div>
+        <div class="text-end">
+            @if (Model.Case.Disease != null)
+            {
+                <div class="stat-badge bg-white text-dark mb-2">
+                    <i class="bi bi-virus me-2"></i>@Model.Case.Disease.Name
+                </div>
+            }
+        </div>
+    </div>
+    <div class="mt-3">
+        <a asp-page="./Details" asp-route-id="@Model.Case.Id" class="btn btn-light action-btn me-2">
+            <i class="bi bi-arrow-left me-1"></i>Back to Details
+        </a>
+        <a asp-page="./AuditHistory" asp-route-id="@Model.Case.Id" class="btn btn-light action-btn">
+            <i class="bi bi-clock-history me-1"></i>Audit Log
+        </a>
+    </div>
+</div>
+
+<form method="post">
+    <div class="row">
+        <!-- Left Column: Form Fields -->
+        <div class="col-lg-8">
+            <!-- Case Information Card -->
+            <div class="info-card card">
+                <div class="card-header">
+                    <i class="bi bi-clipboard-data me-2"></i>Case Information
+                </div>
+                <div class="card-body p-4">
+                    <div asp-validation-summary="ModelOnly" class="alert alert-danger mb-3" role="alert"></div>
+                    <input type="hidden" asp-for="Case.Id" />
+                    <input type="hidden" asp-for="Case.FriendlyId" />
+                    <input type="hidden" asp-for="Case.Type" />
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label asp-for="Case.DateOfOnset" class="form-label fw-bold">
+                                Date of Onset
+                                <i class="bi bi-info-circle text-info" 
+                                   data-bs-toggle="tooltip" 
+                                   title="This will be automatically updated to the earliest symptom onset date if it's earlier than the current value"></i>
+                            </label>
+                            <input asp-for="Case.DateOfOnset" class="form-control" type="date" />
+                            <span asp-validation-for="Case.DateOfOnset" class="text-danger"></span>
+                            <small class="form-text text-muted">
+                                <i class="bi bi-lightbulb"></i> Tip: This will auto-update if you enter an earlier symptom onset date below
+                            </small>
+                        </div>
+
+                        <div class="col-md-6 mb-3">
+                            <label asp-for="Case.DateOfNotification" class="form-label fw-bold">Date of Notification</label>
+                            <input asp-for="Case.DateOfNotification" class="form-control" type="date" />
+                            <span asp-validation-for="Case.DateOfNotification" class="text-danger"></span>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="Case.ConfirmationStatusId" class="form-label fw-bold">Confirmation Status</label>
+                        <select asp-for="Case.ConfirmationStatusId" class="form-select" asp-items="ViewBag.ConfirmationStatusId">
+                            <option value="">-- Select Status --</option>
+                        </select>
+                        <span asp-validation-for="Case.ConfirmationStatusId" class="text-danger"></span>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="Case.DiseaseId" class="form-label fw-bold">Disease</label>
+                        <select asp-for="Case.DiseaseId" class="form-select disease-select" asp-items="ViewBag.DiseaseId" id="diseaseDropdown">
+                            <option value="">-- Select Disease --</option>
+                        </select>
+                        <span asp-validation-for="Case.DiseaseId" class="text-danger"></span>
+                        <small class="form-text text-muted">Type to search for a disease</small>
+                    </div>
+
+                    <!-- Exposure Status Alert -->
+                    @if (Model.ShouldPromptForExposure && Model.DiseaseRequirements != null)
+                    {
+                        @if (Model.HasIncompleteExposure)
+                        {
+                            <div class="alert alert-warning" role="alert">
+                                <h6 class="alert-heading">
+                                    <i class="bi bi-exclamation-triangle me-2"></i>
+                                    @if (Model.DiseaseRequirements.ExposureTrackingMode == ExposureTrackingMode.LocalSpecificRegion ||
+                                         Model.DiseaseRequirements.ExposureTrackingMode == ExposureTrackingMode.OverseasAcquired)
+                                    {
+                                        <text>Exposure Data Required</text>
+                                    }
+                                    else
+                                    {
+                                        <text>Exposure Data Recommended</text>
+                                    }
+                                </h6>
+                                @if (!string.IsNullOrWhiteSpace(Model.DiseaseRequirements.ExposureGuidanceText))
+                                {
+                                    <p class="mb-2"><strong>Guidance:</strong> @Model.DiseaseRequirements.ExposureGuidanceText</p>
+                                }
+                                <p class="mb-2">
+                                    <strong>Current Status:</strong> 
+                                    @if (Model.ExposureCount == 0)
+                                    {
+                                        <span class="badge bg-danger">No exposure data recorded</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge bg-warning">@Model.ExposureCount exposure(s) recorded - may need more detail</span>
+                                    }
+                                </p>
+                                <hr />
+                                <div class="d-flex gap-2">
+                                    <a asp-page="./Details" asp-route-id="@Model.Case.Id" asp-fragment="exposures" class="btn btn-warning btn-sm">
+                                        <i class="bi bi-eye me-1"></i>View Exposures
+                                    </a>
+                                    <a asp-page="/Cases/Exposures/Create" asp-route-caseId="@Model.Case.Id" class="btn btn-primary btn-sm">
+                                        <i class="bi bi-plus-circle me-1"></i>Add Exposure
+                                    </a>
+                                </div>
+                            </div>
+                        }
+                        else if (Model.ExposureCount > 0)
+                        {
+                            <div class="alert alert-success" role="alert">
+                                <i class="bi bi-check-circle me-2"></i>
+                                <strong>Exposure data complete</strong> - @Model.ExposureCount exposure(s) recorded
+                                <a asp-page="./Details" asp-route-id="@Model.Case.Id" asp-fragment="exposures" class="alert-link ms-2">View exposures</a>
+                            </div>
+                        }
+                    }
+                </div>
+            </div>
+
+            <!-- Custom Fields Section -->
+            @if (Model.CustomFields.Any())
+            {
+                <div class="info-card card">
+                    <div class="card-header">
+                        <i class="bi bi-ui-checks me-2"></i>Custom Fields
+                    </div>
+                    <div class="card-body p-4">
+                        @foreach (var category in Model.CustomFields.GroupBy(f => f.Category))
+                        {
+                            <div class="mb-4">
+                                <h6 class="border-bottom pb-2 mb-3">@category.Key</h6>
+                                <div class="row">
+                                    @foreach (var field in category.OrderBy(f => f.DisplayOrder))
+                                    {
+                                        var colSize = field.FieldType == CustomFieldType.TextArea ? "col-12" : "col-md-6";
+                                        var fieldName = $"customfield_{field.Id}";
+                                        var fieldValue = Model.CustomFieldValues.ContainsKey(field.Id) ? Model.CustomFieldValues[field.Id] : null;
+
+                                        <div class="@colSize mb-3">
+                                            <label class="form-label fw-bold">
+                                                @if (field.IsRequired)
+                                                {
+                                                    <span class="text-danger">*</span>
+                                                }
+                                                @field.Label
+                                            </label>
+
+                                            @switch (field.FieldType)
+                                            {
+                                                case CustomFieldType.Text:
+                                                case CustomFieldType.Email:
+                                                case CustomFieldType.Phone:
+                                                    <input type="@field.FieldType.ToString().ToLower()" class="form-control" 
+                                                           name="@fieldName" value="@fieldValue" 
+                                                           required="@field.IsRequired" />
+                                                    break;
+
+                                                case CustomFieldType.TextArea:
+                                                    <textarea class="form-control" name="@fieldName" rows="3" 
+                                                              required="@field.IsRequired">@fieldValue</textarea>
+                                                    break;
+
+                                                case CustomFieldType.Number:
+                                                    <input type="number" class="form-control" name="@fieldName" 
+                                                           value="@fieldValue" step="any" 
+                                                           required="@field.IsRequired" />
+                                                    break;
+
+                                                case CustomFieldType.Date:
+                                                    var dateValue = fieldValue != null && DateTime.TryParse(fieldValue.ToString(), out var dt) 
+                                                        ? dt.ToString("yyyy-MM-dd") : "";
+                                                    <input type="date" class="form-control" name="@fieldName" 
+                                                           value="@dateValue" 
+                                                           required="@field.IsRequired" />
+                                                    break;
+
+                                                case CustomFieldType.Checkbox:
+                                                    var isChecked = fieldValue != null && (bool)fieldValue;
+                                                    <div class="form-check">
+                                                        <input type="checkbox" class="form-check-input" name="@fieldName" 
+                                                               value="true" checked="@isChecked" />
+                                                        <label class="form-check-label">@field.Label</label>
+                                                    </div>
+                                                    break;
+
+                                                case CustomFieldType.Dropdown:
+                                                    if (field.LookupTable != null && field.LookupTable.Values != null && field.LookupTable.Values.Any())
+                                                    {
+                                                        <select class="form-select" name="@fieldName" 
+                                                                required="@field.IsRequired">
+                                                            <option value="">-- Select --</option>
+                                                            @foreach (var value in field.LookupTable.Values.OrderBy(v => v.DisplayOrder))
+                                                            {
+                                                                var selected = fieldValue != null && fieldValue.ToString() == value.Id.ToString();
+                                                                <option value="@value.Id" selected="@selected">@value.DisplayText</option>
+                                                            }
+                                                        </select>
+                                                    }
+                                                    else
+                                                    {
+                                                        <div class="alert alert-warning">
+                                                            <small>?? Dropdown field "@field.Label" is missing lookup table data.</small>
+                                                        </div>
+                                                    }
+                                                    break;
+
+                                                default:
+                                                    <input type="text" class="form-control" name="@fieldName" 
+                                                           value="@fieldValue" 
+                                                           required="@field.IsRequired" />
+                                                    break;
+                                            }
+                                        </div>
+                                    }
+                                </div>
+                            </div>
+                        }
+                    </div>
+                </div>
+            }
+
+            <!-- Symptoms Section -->
+            <div class="info-card card">
+                <div class="card-header">
+                    <i class="bi bi-heart-pulse me-2"></i>Symptoms
+                </div>
+                <div class="card-body p-4">
+                    @if (Model.CommonSymptoms.Any())
+                    {
+                        <h6 class="mb-3">Common Symptoms for @Model.Case.Disease?.Name</h6>
+                        <p class="text-muted small mb-3">Check all symptoms present and provide onset dates where known.</p>
+                        
+                        <div class="row">
+                            @foreach (var symptom in Model.CommonSymptoms)
+                            {
+                                var existing = Model.CaseSymptoms.FirstOrDefault(cs => cs.SymptomId == symptom.Id);
+                                var isChecked = existing != null;
+                                
+                                <div class="col-md-6 mb-3">
+                                    <div class="d-flex align-items-start">
+                                        <div class="form-check me-3">
+                                            <input class="form-check-input symptom-checkbox-simple" 
+                                                   type="checkbox" 
+                                                   name="common_symptom_@symptom.Id" 
+                                                   id="symptom_@symptom.Id" 
+                                                   value="true"
+                                                   checked="@isChecked"
+                                                   data-symptom-id="@symptom.Id" />
+                                            <label class="form-check-label fw-bold" for="symptom_@symptom.Id">
+                                                @symptom.Name
+                                            </label>
+                                        </div>
+                                        <div class="flex-grow-1">
+                                            <input type="date" 
+                                                   class="form-control form-control-sm onset-date-field" 
+                                                   name="onset_date_@symptom.Id"
+                                                   id="onset_@symptom.Id"
+                                                   value="@(existing?.OnsetDate?.ToString("yyyy-MM-dd"))"
+                                                   disabled="@(!isChecked)"
+                                                   placeholder="Onset date" />
+                                        </div>
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                        
+                        <hr class="my-4" />
+                    }
+                    
+                    <h6 class="mb-3">
+                        @if (Model.CommonSymptoms.Any())
+                        {
+                            <span>Additional Symptoms</span>
+                        }
+                        else
+                        {
+                            <span>Search for Symptoms</span>
+                        }
+                    </h6>
+                    <p class="text-muted small mb-3">
+                        @if (Model.CommonSymptoms.Any())
+                        {
+                            <span>Type to search for other symptoms not listed above.</span>
+                        }
+                        else
+                        {
+                            <span>No common symptoms configured for this disease. Type to search for any symptom.</span>
+                        }
+                    </p>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Search Symptoms</label>
+                        <select class="form-select symptom-autocomplete" 
+                                id="symptomAutocomplete" 
+                                multiple="multiple" 
+                                style="width: 100%;">
+                            @foreach (var caseSymptom in Model.CaseSymptoms.Where(cs => !Model.CommonSymptoms.Any(common => common.Id == cs.SymptomId)))
+                            {
+                                if (caseSymptom.Symptom != null && caseSymptom.Symptom.Code != "OTHER")
+                                {
+                                    <option value="@caseSymptom.SymptomId" selected="selected">@caseSymptom.Symptom.Name</option>
+                                }
+                            }
+                        </select>
+                        <input type="hidden" name="additional_symptom_ids" id="additionalSymptomIds" />
+                        <small class="form-text text-muted">Start typing to search for symptoms</small>
+                    </div>
+                    
+                    <div id="additionalSymptomsOnset" class="mb-3" style="display: none;">
+                        <label class="form-label fw-bold">Onset Dates for Additional Symptoms</label>
+                        <div id="additionalSymptomDates"></div>
+                    </div>
+                    
+                    <hr class="my-3" />
+                    
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Other (Free Text)</label>
+                        @{
+                            var otherSymptom = Model.CaseSymptoms.FirstOrDefault(cs => cs.Symptom?.Code == "OTHER");
+                        }
+                        <input type="text" 
+                               class="form-control" 
+                               name="other_symptom_text"
+                               id="otherSymptomText"
+                               value="@otherSymptom?.OtherSymptomText"
+                               placeholder="Enter any other symptoms not found above (e.g., night sweats, chest pain)" />
+                        <small class="form-text text-muted">Use this field if a symptom couldn't be found in the search</small>
+                    </div>
+                    
+                    <div class="alert alert-info small mb-0">
+                        <i class="bi bi-lightbulb me-1"></i>
+                        <strong>Tip:</strong> Symptom onset dates help track disease progression and are important for epidemiological analysis.
+                    </div>
+                </div>
+            </div>
+
+            <!-- Patient Information Card -->
+            <div class="info-card card">
+                <div class="card-header">
+                    <i class="bi bi-person-badge me-2"></i>Patient Information
+                </div>
+                <div class="card-body p-4">
+                    <div class="mb-3">
+                        <label asp-for="Case.PatientId" class="form-label fw-bold">Patient <span class="text-danger">*</span></label>
+                        <select asp-for="Case.PatientId" class="form-select" asp-items="ViewBag.PatientId">
+                            <option value="">-- Select Patient --</option>
+                        </select>
+                        <span asp-validation-for="Case.PatientId" class="text-danger"></span>
+                        <small class="form-text text-muted">Required: Select the patient associated with this case</small>
+                    </div>
+                    
+                    @if (Model.Case.Patient != null)
+                    {
+                        <div class="alert alert-info">
+                            <strong>Current Patient:</strong> @Model.Case.Patient.GivenName @Model.Case.Patient.FamilyName (@Model.Case.Patient.FriendlyId)
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Column: Actions & Info -->
+        <div class="col-lg-4">
+            <!-- Save Actions Card -->
+            <div class="info-card card">
+                <div class="card-header">
+                    <i class="bi bi-floppy me-2"></i>Save Changes
+                </div>
+                <div class="card-body">
+                    <button type="submit" class="btn btn-primary w-100 mb-2 action-btn">
+                        <i class="bi bi-save me-2"></i>Save Changes
+                    </button>
+                    <a asp-page="./Details" asp-route-id="@Model.Case.Id" class="btn btn-secondary w-100 action-btn">
+                        <i class="bi bi-x-circle me-2"></i>Cancel
+                    </a>
+                </div>
+            </div>
+
+            <!-- Information Card -->
+            <div class="info-card card bg-light">
+                <div class="card-body">
+                    <h6 class="card-title"><i class="bi bi-info-circle me-2"></i>Information</h6>
+                    <ul class="small mb-0">
+                        <li class="mb-2"><strong>Case ID:</strong> @Model.Case.FriendlyId (cannot be changed)</li>
+                        <li class="mb-2">All changes are automatically logged for audit purposes</li>
+                        <li class="mb-2">Required fields are marked with <span class="text-danger">*</span></li>
+                        <li>Changes will be saved immediately upon clicking "Save Changes"</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Quick Links Card -->
+            <div class="info-card card">
+                <div class="card-header">
+                    <i class="bi bi-lightning-charge me-2"></i>Quick Links
+                </div>
+                <div class="list-group list-group-flush">
+                    <a asp-page="./Details" asp-route-id="@Model.Case.Id" class="list-group-item list-group-item-action">
+                        <i class="bi bi-eye me-2 text-info"></i>View Case Details
+                    </a>
+                    @if (Model.Case.Patient != null)
+                    {
+                        <a asp-page="/Patients/Details" asp-route-id="@Model.Case.PatientId" class="list-group-item list-group-item-action">
+                            <i class="bi bi-person me-2 text-primary"></i>View Patient Record
+                        </a>
+                    }
+                    <a asp-page="./AuditHistory" asp-route-id="@Model.Case.Id" class="list-group-item list-group-item-action">
+                        <i class="bi bi-clock-history me-2 text-warning"></i>View Audit Log
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</form>
+
+@section Scripts {
+    @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+    <script>
+        $(document).ready(function() {
+            // Initialize Select2 on disease dropdown
+            $('.disease-select').select2({
+                theme: 'bootstrap-5',
+                placeholder: '-- Select or search for a disease --',
+                allowClear: true,
+                width: '100%'
+            });
+
+            // Common symptom checkbox handling - simpler version
+            $('.symptom-checkbox-simple').on('change', function() {
+                var symptomId = $(this).data('symptom-id');
+                var onsetField = $('#onset_' + symptomId);
+                
+                if ($(this).is(':checked')) {
+                    onsetField.prop('disabled', false);
+                } else {
+                    onsetField.prop('disabled', true);
+                    onsetField.val('');
+                }
+            });
+
+            // Initialize symptom autocomplete with Select2
+            $('.symptom-autocomplete').select2({
+                theme: 'bootstrap-5',
+                placeholder: 'Type to search for symptoms...',
+                allowClear: true,
+                width: '100%',
+                ajax: {
+                    url: '?handler=SearchSymptoms',
+                    dataType: 'json',
+                    delay: 250,
+                    data: function (params) {
+                        return {
+                            term: params.term
+                        };
+                    },
+                    processResults: function (data) {
+                        return {
+                            results: data
+                        };
+                    },
+                    cache: true
+                },
+                minimumInputLength: 2
+            });
+
+            // Handle symptom autocomplete changes
+            $('.symptom-autocomplete').on('change', function() {
+                var selectedIds = $(this).val() || [];
+                $('#additionalSymptomIds').val(selectedIds.join(','));
+                
+                if (selectedIds.length > 0) {
+                    updateAdditionalSymptomDates(selectedIds);
+                    $('#additionalSymptomsOnset').show();
+                } else {
+                    $('#additionalSymptomsOnset').hide();
+                }
+            });
+
+            // Function to generate onset date fields for additional symptoms
+            function updateAdditionalSymptomDates(symptomIds) {
+                var container = $('#additionalSymptomDates');
+                container.empty();
+                
+                symptomIds.forEach(function(symptomId) {
+                    var symptomText = $('.symptom-autocomplete option[value="' + symptomId + '"]').text();
+                    var existingValue = $('input[name="onset_date_' + symptomId + '"]').val() || '';
+                    
+                    var html = '<div class="row mb-2">' +
+                        '<div class="col-md-6"><label class="form-label small">' + symptomText + '</label></div>' +
+                        '<div class="col-md-6">' +
+                        '<input type="date" class="form-control form-control-sm" ' +
+                        'name="onset_date_' + symptomId + '" value="' + existingValue + '" />' +
+                        '</div>' +
+                        '</div>';
+                    container.append(html);
+                });
+            }
+
+            // Initialize additional symptoms on page load
+            var initialSelectedIds = $('.symptom-autocomplete').val() || [];
+            if (initialSelectedIds.length > 0) {
+                $('#additionalSymptomIds').val(initialSelectedIds.join(','));
+                updateAdditionalSymptomDates(initialSelectedIds);
+                $('#additionalSymptomsOnset').show();
+            }
+        });
+    </script>
+    <style>
+        .onset-date-field:disabled {
+            background-color: #f8f9fa;
+            cursor: not-allowed;
+        }
+        .symptom-checkbox-simple {
+            cursor: pointer;
+        }
+    </style>
+}
+

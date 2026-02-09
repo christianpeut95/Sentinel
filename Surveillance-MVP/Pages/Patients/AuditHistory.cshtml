@@ -1,0 +1,299 @@
+@page
+@model Surveillance_MVP.Pages.Patients.AuditHistoryModel
+
+@{
+    ViewData["Title"] = "Audit History";
+    Layout = "~/Pages/Shared/_Layout.cshtml";
+}
+
+<nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a asp-page="/Index">Home</a></li>
+        <li class="breadcrumb-item"><a asp-page="./Index">Patients</a></li>
+        <li class="breadcrumb-item"><a asp-page="./Details" asp-route-id="@Model.PatientId">Details</a></li>
+        <li class="breadcrumb-item active" aria-current="page">Audit History</li>
+    </ol>
+</nav>
+
+<div class="d-flex justify-content-between align-items-center mb-3 flex-wrap">
+    <h2 class="mb-0"><i class="bi bi-clock-history me-2"></i>Audit History</h2>
+    <a asp-page="./Details" asp-route-id="@Model.PatientId" class="btn btn-outline-secondary">
+        <i class="bi bi-arrow-left me-1"></i>Back to Patient
+    </a>
+</div>
+
+<div class="card shadow-sm mb-3">
+    <div class="card-body">
+        <div class="row align-items-center g-2">
+            <div class="col-12 col-md-4">
+                <p class="mb-0">
+                    <strong>Patient ID:</strong> @Model.PatientId
+                </p>
+            </div>
+            <div class="col-12 col-md-4 text-center">
+                <span class="badge bg-primary me-2">@Model.DataChangeCount data changes</span>
+                <span class="badge bg-info">@Model.ViewCount views</span>
+            </div>
+            <div class="col-12 col-md-4 text-end">
+                <div class="form-check form-switch d-inline-block">
+                    <input class="form-check-input" type="checkbox" id="showViewsToggle" 
+                           @(Model.ShowViews ? "checked" : "") 
+                           onchange="window.location.href='?id=@Model.PatientId&showViews=' + this.checked">
+                    <label class="form-check-label" for="showViewsToggle">
+                        Show View Events
+                    </label>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@if (Model.AuditLogs.Count == 0)
+{
+    <div class="alert alert-info">
+        <i class="bi bi-info-circle me-2"></i>
+        No audit history found for this patient.
+    </div>
+}
+else
+{
+    <div class="card shadow-sm">
+        <div class="card-body">
+            <div class="timeline">
+                @{
+                    DateTime? lastDate = null;
+                    foreach (var log in Model.AuditLogs)
+                    {
+                        var currentDate = log.ChangedAt.Date;
+                        if (lastDate == null || lastDate != currentDate)
+                        {
+                            <div class="timeline-date">
+                                <h5 class="text-muted">
+                                    <i class="bi bi-calendar3 me-2"></i>
+                                    @log.ChangedAt.ToString("dddd, dd MMMM yyyy")
+                                </h5>
+                            </div>
+                            lastDate = currentDate;
+                        }
+
+                        var actionBadgeClass = log.Action switch
+                        {
+                            "Added" => "bg-success",
+                            "Modified" => "bg-primary",
+                            "Deleted" => "bg-danger",
+                            "Viewed" => "bg-info",
+                            _ => "bg-secondary"
+                        };
+
+                        var actionIcon = log.Action switch
+                        {
+                            "Added" => "plus-circle",
+                            "Modified" => "pencil",
+                            "Deleted" => "trash",
+                            "Viewed" => "eye",
+                            _ => "question-circle"
+                        };
+
+                        <div class="timeline-item @(log.Action == "Viewed" ? "timeline-item-view" : "")">
+                            <div class="timeline-marker @actionBadgeClass">
+                                <i class="bi bi-@actionIcon"></i>
+                            </div>
+                            <div class="timeline-content">
+                                <div class="d-flex justify-content-between align-items-start mb-2">
+                                    <div>
+                                        <span class="badge @actionBadgeClass me-2">@log.Action</span>
+                                        @if (log.Action == "Viewed")
+                                        {
+                                            <strong>Record Viewed</strong>
+                                        }
+                                        else
+                                        {
+                                            <strong>@log.FieldName</strong>
+                                        }
+                                    </div>
+                                    <small class="text-muted">
+                                        @log.ChangedAt.ToString("HH:mm:ss")
+                                    </small>
+                                </div>
+
+                                <div class="mb-2">
+                                    @if (log.Action == "Viewed")
+                                    {
+                                        <div class="alert alert-info mb-0 py-2">
+                                            <i class="bi bi-eye me-2"></i>Patient record was accessed
+                                        </div>
+                                    }
+                                    else if (log.Action == "Added")
+                                    {
+                                        <div class="alert alert-success mb-0 py-2">
+                                            <strong>Value:</strong> @(string.IsNullOrWhiteSpace(log.NewValue) ? "(empty)" : log.NewValue)
+                                        </div>
+                                    }
+                                    else if (log.Action == "Deleted")
+                                    {
+                                        <div class="alert alert-danger mb-0 py-2">
+                                            <strong>Value:</strong> @(string.IsNullOrWhiteSpace(log.OldValue) ? "(empty)" : log.OldValue)
+                                        </div>
+                                    }
+                                    else if (log.Action == "Modified")
+                                    {
+                                        <div class="row g-2">
+                                            <div class="col-md-6">
+                                                <div class="alert alert-warning mb-0 py-2">
+                                                    <strong>Old:</strong> @(string.IsNullOrWhiteSpace(log.OldValue) ? "(empty)" : log.OldValue)
+                                                </div>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <div class="alert alert-success mb-0 py-2">
+                                                    <strong>New:</strong> @(string.IsNullOrWhiteSpace(log.NewValue) ? "(empty)" : log.NewValue)
+                                                </div>
+                                            </div>
+                                        </div>
+                                    }
+                                </div>
+
+                                <div class="text-muted small">
+                                    <i class="bi bi-person me-1"></i>
+                                    @if (log.Action == "Viewed")
+                                    {
+                                        <text>Viewed by:</text>
+                                    }
+                                    else
+                                    {
+                                        <text>Changed by:</text>
+                                    }
+                                    <strong>@(log.ChangedByUser?.Email ?? log.ChangedByUserId ?? "System")</strong>
+                                    @if (!string.IsNullOrWhiteSpace(log.IpAddress))
+                                    {
+                                        <span class="ms-2">
+                                            <i class="bi bi-globe me-1"></i>IP: @log.IpAddress
+                                        </span>
+                                    }
+                                </div>
+                            </div>
+                        </div>
+                    }
+                }
+            </div>
+        </div>
+    </div>
+}
+
+<style>
+    /* Ensure page content respects container width */
+    .breadcrumb,
+    .card,
+    .alert,
+    h2 {
+        max-width: 100%;
+        min-width: 0;
+    }
+
+    /* Prevent flex items from overflowing */
+    .d-flex {
+        min-width: 0;
+    }
+
+    .timeline {
+        position: relative;
+        padding: 20px 0;
+        max-width: 100%;
+        min-width: 0;
+    }
+
+    .timeline-date {
+        margin: 30px 0 20px 0;
+        max-width: 100%;
+    }
+
+    .timeline-date:first-child {
+        margin-top: 0;
+    }
+
+    .timeline-item {
+        position: relative;
+        padding-left: 60px;
+        padding-bottom: 30px;
+        border-left: 2px solid #e0e0e0;
+        margin-left: 20px;
+        max-width: 100%;
+        min-width: 0;
+    }
+
+    .timeline-item:last-child {
+        border-left: 2px solid transparent;
+        padding-bottom: 0;
+    }
+
+    .timeline-item-view {
+        opacity: 0.7;
+    }
+
+    .timeline-item-view .timeline-content {
+        background: #f0f8ff;
+    }
+
+    .timeline-marker {
+        position: absolute;
+        left: -21px;
+        top: 0;
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-size: 1.1rem;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        flex-shrink: 0;
+    }
+
+    .timeline-content {
+        background: #f8f9fa;
+        padding: 15px;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        max-width: 100%;
+        min-width: 0;
+        overflow-wrap: break-word;
+        word-wrap: break-word;
+        word-break: break-word;
+    }
+
+    .timeline-content .alert {
+        font-size: 0.9rem;
+        max-width: 100%;
+        min-width: 0;
+        overflow-wrap: break-word;
+        word-wrap: break-word;
+        word-break: break-word;
+    }
+
+    /* Ensure cards don't overflow */
+    .card {
+        max-width: 100%;
+        min-width: 0;
+    }
+
+    .card-body {
+        overflow-x: auto;
+        min-width: 0;
+    }
+
+    /* Make row responsive */
+    .row {
+        --bs-gutter-x: 1rem;
+    }
+
+    /* Ensure long text wraps */
+    strong {
+        word-break: break-word;
+    }
+
+    /* Make badges wrap on small screens */
+    .badge {
+        white-space: normal;
+        word-break: break-word;
+    }
+</style>

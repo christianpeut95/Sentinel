@@ -1,0 +1,131 @@
+@page
+@model Surveillance_MVP.Pages.Settings.Occupations.EditModel
+
+@{
+    ViewData["Title"] = "Edit Occupation";
+    Layout = "~/Pages/Shared/_Layout.cshtml";
+}
+
+<nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a asp-page="/Settings/Index">Settings</a></li>
+        <li class="breadcrumb-item"><a asp-page="/Settings/Occupations/Index">Occupations</a></li>
+        <li class="breadcrumb-item active" aria-current="page">Edit</li>
+    </ol>
+</nav>
+
+<h1>Edit Occupation</h1>
+
+<h4>ANZSCO Occupation</h4>
+<hr />
+<div class="row">
+    <div class="col-md-6">
+        <form method="post">
+            <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+            <input type="hidden" asp-for="Occupation.Id" />
+            
+            <div class="form-group mb-3">
+                <label asp-for="Occupation.Code" class="control-label"></label>
+                <input asp-for="Occupation.Code" class="form-control" maxlength="6" />
+                <span asp-validation-for="Occupation.Code" class="text-danger"></span>
+                <small class="form-text text-muted">6-digit ANZSCO code (e.g., 111111)</small>
+            </div>
+            
+            <div class="form-group mb-3">
+                <label asp-for="Occupation.Name" class="control-label"></label>
+                <input asp-for="Occupation.Name" class="form-control" />
+                <span asp-validation-for="Occupation.Name" class="text-danger"></span>
+            </div>
+
+            <hr />
+            <h5>Hierarchy Information</h5>
+            
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="form-group mb-3">
+                        <label asp-for="Occupation.MajorGroupCode" class="control-label"></label>
+                        <input asp-for="Occupation.MajorGroupCode" class="form-control" maxlength="1" />
+                        <span asp-validation-for="Occupation.MajorGroupCode" class="text-danger"></span>
+                        <small class="form-text text-muted">1 digit (e.g., 1)</small>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="form-group mb-3">
+                        <label asp-for="Occupation.MajorGroupName" class="control-label"></label>
+                        <input asp-for="Occupation.MajorGroupName" class="form-control" />
+                        <span asp-validation-for="Occupation.MajorGroupName" class="text-danger"></span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="form-group mb-3">
+                        <label asp-for="Occupation.SubMajorGroupCode" class="control-label"></label>
+                        <input asp-for="Occupation.SubMajorGroupCode" class="form-control" maxlength="2" />
+                        <span asp-validation-for="Occupation.SubMajorGroupCode" class="text-danger"></span>
+                        <small class="form-text text-muted">2 digits (e.g., 11)</small>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="form-group mb-3">
+                        <label asp-for="Occupation.SubMajorGroupName" class="control-label"></label>
+                        <input asp-for="Occupation.SubMajorGroupName" class="form-control" />
+                        <span asp-validation-for="Occupation.SubMajorGroupName" class="text-danger"></span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="form-group mb-3">
+                        <label asp-for="Occupation.MinorGroupCode" class="control-label"></label>
+                        <input asp-for="Occupation.MinorGroupCode" class="form-control" maxlength="3" />
+                        <span asp-validation-for="Occupation.MinorGroupCode" class="text-danger"></span>
+                        <small class="form-text text-muted">3 digits (e.g., 111)</small>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="form-group mb-3">
+                        <label asp-for="Occupation.MinorGroupName" class="control-label"></label>
+                        <input asp-for="Occupation.MinorGroupName" class="form-control" />
+                        <span asp-validation-for="Occupation.MinorGroupName" class="text-danger"></span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="form-group mb-3">
+                        <label asp-for="Occupation.UnitGroupCode" class="control-label"></label>
+                        <input asp-for="Occupation.UnitGroupCode" class="form-control" maxlength="4" />
+                        <span asp-validation-for="Occupation.UnitGroupCode" class="text-danger"></span>
+                        <small class="form-text text-muted">4 digits (e.g., 1111)</small>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="form-group mb-3">
+                        <label asp-for="Occupation.UnitGroupName" class="control-label"></label>
+                        <input asp-for="Occupation.UnitGroupName" class="form-control" />
+                        <span asp-validation-for="Occupation.UnitGroupName" class="text-danger"></span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-group form-check mb-3">
+                <label class="form-check-label">
+                    <input class="form-check-input" asp-for="Occupation.IsActive" /> @Html.DisplayNameFor(model => model.Occupation.IsActive)
+                </label>
+            </div>
+
+            <div class="form-group">
+                <input type="submit" value="Save" class="btn btn-primary" />
+                <a asp-page="./Index" class="btn btn-secondary">Cancel</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+    @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+}

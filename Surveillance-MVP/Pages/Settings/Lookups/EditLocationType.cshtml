@@ -1,0 +1,51 @@
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.RazorPages;
+using Microsoft.EntityFrameworkCore;
+using Surveillance_MVP.Data;
+using Surveillance_MVP.Models.Lookups;
+
+namespace Surveillance_MVP.Pages.Settings.Lookups
+{
+    [Authorize(Policy = "Permission.Settings.Edit")]
+    public class EditLocationTypeModel : PageModel
+    {
+        private readonly ApplicationDbContext _context;
+
+        public EditLocationTypeModel(ApplicationDbContext context)
+        {
+            _context = context;
+        }
+
+        [BindProperty]
+        public LocationType LocationType { get; set; } = default!;
+
+        public async Task<IActionResult> OnGetAsync(Guid? id)
+        {
+            if (id == null) return NotFound();
+            var locationType = await _context.LocationTypes.FirstOrDefaultAsync(m => m.Id == id);
+            if (locationType == null) return NotFound();
+            LocationType = locationType;
+            return Page();
+        }
+
+        public async Task<IActionResult> OnPostAsync()
+        {
+            if (!ModelState.IsValid) return Page();
+            
+            var exists = await _context.LocationTypes
+                .AnyAsync(l => l.Name == LocationType.Name && l.Id != LocationType.Id);
+            
+            if (exists)
+            {
+                ModelState.AddModelError("LocationType.Name", "A location type with this name already exists.");
+                return Page();
+            }
+
+            _context.Attach(LocationType).State = EntityState.Modified;
+            await _context.SaveChangesAsync();
+            TempData["SuccessMessage"] = $"Location type '{LocationType.Name}' updated successfully.";
+            return RedirectToPage("./LocationTypes");
+        }
+    }
+}

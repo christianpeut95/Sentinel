@@ -1,0 +1,622 @@
+@page "{id:int}"
+@using Surveillance_MVP.Models
+@model Surveillance_MVP.Pages.Outbreaks.LineListModel
+@{
+    ViewData["Title"] = $"Line List - {Model.Outbreak.Name}";
+}
+
+<nav aria-label="breadcrumb" class="mb-4">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a asp-page="/Index">Home</a></li>
+        <li class="breadcrumb-item"><a asp-page="Index">Outbreaks</a></li>
+        <li class="breadcrumb-item"><a asp-page="Details" asp-route-id="@Model.Outbreak.Id">@Model.Outbreak.Name</a></li>
+        <li class="breadcrumb-item active" aria-current="page">Line List</li>
+    </ol>
+</nav>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h2 class="mb-1">
+            <i class="bi bi-table me-2"></i>Line List
+        </h2>
+        <p class="text-muted mb-0">Customize and export outbreak case data</p>
+    </div>
+    <div class="btn-group">
+        <button type="button" class="btn btn-outline-primary" id="btnConfigure">
+            <i class="bi bi-gear me-1"></i>Configure Fields
+        </button>
+        <button type="button" class="btn btn-outline-success" id="btnExport">
+            <i class="bi bi-download me-1"></i>Export CSV
+        </button>
+        <button type="button" class="btn btn-outline-secondary" id="btnSaveView">
+            <i class="bi bi-save me-1"></i>Save View
+        </button>
+    </div>
+</div>
+
+<!-- Configuration Panel (Initially Hidden) -->
+<div class="card mb-4" id="configPanel" style="display: none;">
+    <div class="card-header bg-light d-flex justify-content-between align-items-center">
+        <h5 class="mb-0"><i class="bi bi-sliders me-2"></i>Field Selection</h5>
+        <button type="button" class="btn-close" id="btnCloseConfig" aria-label="Close"></button>
+    </div>
+    <div class="card-body">
+        <div class="row">
+            <!-- Saved Configurations -->
+            <div class="col-md-3 border-end">
+                <h6 class="text-muted small text-uppercase mb-3">Saved Views</h6>
+                
+                <div class="mb-3">
+                    <label class="small text-muted">My Views</label>
+                    <div id="userConfigsList" class="list-group list-group-flush"></div>
+                </div>
+                
+                <div>
+                    <label class="small text-muted">Shared Views</label>
+                    <div id="sharedConfigsList" class="list-group list-group-flush"></div>
+                </div>
+            </div>
+            
+            <!-- Available Fields -->
+            <div class="col-md-4 border-end">
+                <h6 class="text-muted small text-uppercase mb-3">Available Fields</h6>
+                <input type="text" class="form-control form-control-sm mb-3" id="fieldSearch" placeholder="Search fields...">
+                
+                <div id="availableFieldsContainer" style="max-height: 500px; overflow-y: auto;">
+                    <!-- Fields grouped by category will be inserted here -->
+                </div>
+            </div>
+            
+            <!-- Selected Fields -->
+            <div class="col-md-5">
+                <h6 class="text-muted small text-uppercase mb-3">Selected Fields</h6>
+                <p class="small text-muted">Drag to reorder</p>
+                
+                <div id="selectedFieldsList" class="list-group" style="max-height: 500px; overflow-y: auto;">
+                    <!-- Selected fields will be inserted here -->
+                </div>
+                
+                <div class="mt-3">
+                    <button type="button" class="btn btn-sm btn-success" id="btnApplyFields">
+                        <i class="bi bi-check me-1"></i>Apply Changes
+                    </button>
+                    <button type="button" class="btn btn-sm btn-outline-secondary" id="btnResetFields">
+                        <i class="bi bi-arrow-clockwise me-1"></i>Reset to Default
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Line List Grid -->
+<div class="card">
+    <div class="card-body">
+        <div id="lineListGrid" style="width: 100%; height: 600px; overflow: auto;">
+            <div class="text-center py-5">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+                <p class="text-muted mt-2">Loading line list...</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Save View Modal -->
+<div class="modal fade" id="saveViewModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Save Line List View</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label for="viewName" class="form-label">View Name</label>
+                    <input type="text" class="form-control" id="viewName" required>
+                </div>
+                <div class="mb-3">
+                    <label for="viewDescription" class="form-label">Description (Optional)</label>
+                    <textarea class="form-control" id="viewDescription" rows="2"></textarea>
+                </div>
+                <div class="mb-3">
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="viewIsShared">
+                        <label class="form-check-label" for="viewIsShared">
+                            Share with team
+                        </label>
+                    </div>
+                </div>
+                <div class="mb-3">
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="viewIsDefault">
+                        <label class="form-check-label" for="viewIsDefault">
+                            Set as my default view
+                        </label>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="btnSaveViewConfirm">Save View</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <!-- AG Grid Community (Free) -->
+    <script src="https://cdn.jsdelivr.net/npm/ag-grid-community@31.0.1/dist/ag-grid-community.min.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ag-grid-community@31.0.1/styles/ag-grid.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ag-grid-community@31.0.1/styles/ag-theme-alpine.min.css">
+    
+    <!-- SortableJS for drag and drop -->
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.1/Sortable.min.js"></script>
+    
+    <script>
+        const outbreakId = @Model.Outbreak.Id;
+        let availableFields = [];
+        let selectedFields = [];
+        let lineListData = [];
+        let gridApi = null;
+        let currentConfig = null;
+        
+        // Default fields
+        const defaultFields = [
+            'Patient.FamilyName',
+            'Patient.GivenName',
+            'Patient.DateOfBirth',
+            'Patient.Age',
+            'Patient.SexAtBirth.Name',
+            'Case.DateOfOnset',
+            'Case.DateOfNotification',
+            'OutbreakCase.Classification',
+            'Case.Disease.Name'
+        ];
+        
+        document.addEventListener('DOMContentLoaded', async function() {
+            await loadAvailableFields();
+            await loadConfigurations();
+            await initializeWithDefault();
+            setupEventListeners();
+        });
+        
+        async function loadAvailableFields() {
+            try {
+                const response = await fetch(`/api/LineList/fields/${outbreakId}`);
+                availableFields = await response.json();
+                renderAvailableFields();
+            } catch (error) {
+                console.error('Error loading fields:', error);
+                showError('Failed to load available fields');
+            }
+        }
+        
+        function renderAvailableFields() {
+            const container = document.getElementById('availableFieldsContainer');
+            const grouped = groupByCategory(availableFields);
+            
+            container.innerHTML = '';
+            
+            for (const [category, fields] of Object.entries(grouped)) {
+                const categoryDiv = document.createElement('div');
+                categoryDiv.className = 'mb-3';
+                categoryDiv.innerHTML = `
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <h6 class="mb-0 small fw-bold">${category}</h6>
+                        <button class="btn btn-sm btn-link text-decoration-none py-0" onclick="addAllFromCategory('${category}')">
+                            <small>Add all</small>
+                        </button>
+                    </div>
+                    <div class="list-group list-group-flush">
+                        ${fields.map(f => `
+                            <div class="list-group-item list-group-item-action py-2 px-3 d-flex justify-content-between align-items-center field-item" 
+                                 data-field-path="${f.fieldPath}">
+                                <span class="small">${f.displayName}</span>
+                                <button class="btn btn-sm btn-link text-success p-0" onclick="addField('${f.fieldPath}')" title="Add field">
+                                    <i class="bi bi-plus-circle"></i>
+                                </button>
+                            </div>
+                        `).join('')}
+                    </div>
+                `;
+                container.appendChild(categoryDiv);
+            }
+        }
+        
+        function groupByCategory(fields) {
+            const grouped = {};
+            fields.forEach(field => {
+                if (!grouped[field.category]) {
+                    grouped[field.category] = [];
+                }
+                grouped[field.category].push(field);
+            });
+            return grouped;
+        }
+        
+        function addField(fieldPath) {
+            if (!selectedFields.includes(fieldPath)) {
+                selectedFields.push(fieldPath);
+                renderSelectedFields();
+            }
+        }
+        
+        function removeField(fieldPath) {
+            selectedFields = selectedFields.filter(f => f !== fieldPath);
+            renderSelectedFields();
+        }
+        
+        function addAllFromCategory(category) {
+            const categoryFields = availableFields
+                .filter(f => f.category === category)
+                .map(f => f.fieldPath);
+            
+            categoryFields.forEach(fp => {
+                if (!selectedFields.includes(fp)) {
+                    selectedFields.push(fp);
+                }
+            });
+            
+            renderSelectedFields();
+        }
+        
+        function renderSelectedFields() {
+            const container = document.getElementById('selectedFieldsList');
+            
+            if (selectedFields.length === 0) {
+                container.innerHTML = '<div class="text-muted text-center py-4">No fields selected</div>';
+                return;
+            }
+            
+            container.innerHTML = selectedFields.map(fp => {
+                const field = availableFields.find(f => f.fieldPath === fp);
+                if (!field) return '';
+                
+                return `
+                    <div class="list-group-item d-flex justify-content-between align-items-center selected-field-item" 
+                         data-field-path="${fp}">
+                        <div class="d-flex align-items-center flex-grow-1">
+                            <i class="bi bi-grip-vertical text-muted me-2" style="cursor: grab;"></i>
+                            <div>
+                                <div class="small fw-medium">${field.displayName}</div>
+                                <div class="text-muted" style="font-size: 0.75rem;">${field.category}</div>
+                            </div>
+                        </div>
+                        <button class="btn btn-sm btn-link text-danger p-0" onclick="removeField('${fp}')" title="Remove field">
+                            <i class="bi bi-x-circle"></i>
+                        </button>
+                    </div>
+                `;
+            }).join('');
+            
+            // Initialize sortable
+            new Sortable(container, {
+                animation: 150,
+                handle: '.bi-grip-vertical',
+                onEnd: function(evt) {
+                    const newOrder = Array.from(container.children).map(item => 
+                        item.getAttribute('data-field-path'));
+                    selectedFields = newOrder;
+                }
+            });
+        }
+        
+        async function loadConfigurations() {
+            try {
+                const response = await fetch(`/api/LineList/configurations/${outbreakId}`);
+                const configs = await response.json();
+                
+                renderUserConfigurations(configs.userConfigurations);
+                renderSharedConfigurations(configs.sharedConfigurations);
+            } catch (error) {
+                console.error('Error loading configurations:', error);
+            }
+        }
+        
+        function renderUserConfigurations(configs) {
+            const container = document.getElementById('userConfigsList');
+            
+            if (!configs || configs.length === 0) {
+                container.innerHTML = '<small class="text-muted">No saved views</small>';
+                return;
+            }
+            
+            container.innerHTML = configs.map(c => `
+                <button class="list-group-item list-group-item-action py-2 px-3 d-flex justify-content-between align-items-center"
+                        onclick="loadConfiguration(${c.id})">
+                    <div>
+                        <div class="small fw-medium">${c.name}</div>
+                        ${c.isDefault ? '<small class="badge bg-primary">Default</small>' : ''}
+                    </div>
+                    <div>
+                        <button class="btn btn-sm btn-link text-danger p-0" onclick="deleteConfiguration(${c.id}, event)" title="Delete">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </div>
+                </button>
+            `).join('');
+        }
+        
+        function renderSharedConfigurations(configs) {
+            const container = document.getElementById('sharedConfigsList');
+            
+            if (!configs || configs.length === 0) {
+                container.innerHTML = '<small class="text-muted">No shared views</small>';
+                return;
+            }
+            
+            container.innerHTML = configs.map(c => `
+                <button class="list-group-item list-group-item-action py-2 px-3"
+                        onclick="loadConfiguration(${c.id})">
+                    <div class="small fw-medium">${c.name}</div>
+                    <small class="text-muted">by ${c.createdByUser?.userName || 'Unknown'}</small>
+                </button>
+            `).join('');
+        }
+        
+        async function loadConfiguration(configId) {
+            try {
+                const response = await fetch(`/api/LineList/configurations/${outbreakId}`);
+                const configs = await response.json();
+                
+                const config = [...configs.userConfigurations, ...configs.sharedConfigurations]
+                    .find(c => c.id === configId);
+                
+                if (config) {
+                    currentConfig = config;
+                    selectedFields = JSON.parse(config.selectedFields);
+                    renderSelectedFields();
+                    await loadLineListData();
+                }
+            } catch (error) {
+                console.error('Error loading configuration:', error);
+                showError('Failed to load configuration');
+            }
+        }
+        
+        async function deleteConfiguration(configId, event) {
+            event.stopPropagation();
+            
+            if (!confirm('Delete this saved view?')) return;
+            
+            try {
+                await fetch(`/api/LineList/configurations/${configId}`, { method: 'DELETE' });
+                await loadConfigurations();
+                showSuccess('View deleted successfully');
+            } catch (error) {
+                console.error('Error deleting configuration:', error);
+                showError('Failed to delete view');
+            }
+        }
+        
+        async function initializeWithDefault() {
+            selectedFields = [...defaultFields];
+            renderSelectedFields();
+            await loadLineListData();
+        }
+        
+        async function loadLineListData() {
+            try {
+                const response = await fetch('/api/LineList/data', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        outbreakId: outbreakId,
+                        fieldPaths: selectedFields
+                    })
+                });
+                
+                lineListData = await response.json();
+                
+                // Debug logging
+                console.log('Line list data loaded:', lineListData.length, 'rows');
+                if (lineListData.length > 0) {
+                    console.log('Sample row:', lineListData[0]);
+                    console.log('Sample values:', lineListData[0].values);
+                }
+                
+                renderGrid();
+            } catch (error) {
+                console.error('Error loading data:', error);
+                showError('Failed to load line list data');
+            }
+        }
+        
+        function renderGrid() {
+            const container = document.getElementById('lineListGrid');
+            container.innerHTML = '<div class="ag-theme-alpine" style="width: 100%; height: 600px;"></div>';
+            
+            const columnDefs = selectedFields.map(fp => {
+                const field = availableFields.find(f => f.fieldPath === fp);
+                return {
+                    headerName: field ? field.displayName : fp,
+                    field: fp,
+                    sortable: true,
+                    filter: true,
+                    resizable: true,
+                    valueGetter: params => {
+                        if (!params.data || !params.data.values) {
+                            console.warn('Missing data or values for row');
+                            return '';
+                        }
+                        const value = params.data.values[fp];
+                        // Debug specific field if it's the disease field
+                        if (fp === 'Case.Disease.Name' && !value) {
+                            console.log('Disease value is null/undefined for case:', params.data.caseId);
+                        }
+                        return value ?? '';
+                    }
+                };
+            });
+            
+            console.log('Grid column definitions:', columnDefs);
+            
+            const gridOptions = {
+                columnDefs: columnDefs,
+                rowData: lineListData,
+                defaultColDef: {
+                    flex: 1,
+                    minWidth: 100
+                },
+                pagination: true,
+                paginationPageSize: 50,
+                enableCellTextSelection: true,
+                onGridReady: (params) => {
+                    console.log('Grid ready with', lineListData.length, 'rows');
+                }
+            };
+            
+            gridApi = agGrid.createGrid(container.querySelector('.ag-theme-alpine'), gridOptions);
+        }
+        
+        function setupEventListeners() {
+            document.getElementById('btnConfigure').addEventListener('click', function() {
+                document.getElementById('configPanel').style.display = 'block';
+            });
+            
+            document.getElementById('btnCloseConfig').addEventListener('click', function() {
+                document.getElementById('configPanel').style.display = 'none';
+            });
+            
+            document.getElementById('btnApplyFields').addEventListener('click', async function() {
+                await loadLineListData();
+                document.getElementById('configPanel').style.display = 'none';
+            });
+            
+            document.getElementById('btnResetFields').addEventListener('click', function() {
+                selectedFields = [...defaultFields];
+                renderSelectedFields();
+            });
+            
+            document.getElementById('btnSaveView').addEventListener('click', function() {
+                const modal = new bootstrap.Modal(document.getElementById('saveViewModal'));
+                modal.show();
+            });
+            
+            document.getElementById('btnSaveViewConfirm').addEventListener('click', async function() {
+                await saveView();
+            });
+            
+            document.getElementById('btnExport').addEventListener('click', async function() {
+                await exportToCsv();
+            });
+            
+            document.getElementById('fieldSearch').addEventListener('input', function(e) {
+                const search = e.target.value.toLowerCase();
+                document.querySelectorAll('.field-item').forEach(item => {
+                    const text = item.textContent.toLowerCase();
+                    item.style.display = text.includes(search) ? '' : 'none';
+                });
+            });
+        }
+        
+        async function saveView() {
+            const name = document.getElementById('viewName').value.trim();
+            if (!name) {
+                alert('Please enter a view name');
+                return;
+            }
+            
+            try {
+                const config = {
+                    outbreakId: outbreakId,
+                    name: name,
+                    description: document.getElementById('viewDescription').value,
+                    selectedFields: JSON.stringify(selectedFields),
+                    sortConfiguration: '[]',
+                    isShared: document.getElementById('viewIsShared').checked,
+                    isDefault: document.getElementById('viewIsDefault').checked
+                };
+                
+                console.log('Saving configuration:', config);
+                
+                const response = await fetch('/api/LineList/configurations', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(config)
+                });
+                
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.error || 'Failed to save view');
+                }
+                
+                const savedConfig = await response.json();
+                console.log('Configuration saved:', savedConfig);
+                
+                bootstrap.Modal.getInstance(document.getElementById('saveViewModal')).hide();
+                await loadConfigurations();
+                showSuccess('View saved successfully');
+                
+                // Clear form
+                document.getElementById('viewName').value = '';
+                document.getElementById('viewDescription').value = '';
+                document.getElementById('viewIsShared').checked = false;
+                document.getElementById('viewIsDefault').checked = false;
+            } catch (error) {
+                console.error('Error saving view:', error);
+                showError('Failed to save view: ' + error.message);
+            }
+        }
+        
+        async function exportToCsv() {
+            try {
+                const response = await fetch('/api/LineList/export', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        outbreakId: outbreakId,
+                        fieldPaths: selectedFields
+                    })
+                });
+                
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `outbreak-${outbreakId}-linelist-${new Date().toISOString().slice(0,10)}.csv`;
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+                document.body.removeChild(a);
+                
+                showSuccess('Line list exported successfully');
+            } catch (error) {
+                console.error('Error exporting:', error);
+                showError('Failed to export line list');
+            }
+        }
+        
+        function showSuccess(message) {
+            // Use Bootstrap toast or alert
+            alert(message);
+        }
+        
+        function showError(message) {
+            alert(message);
+        }
+    </script>
+}
+
+@section Styles {
+    <style>
+        .selected-field-item {
+            cursor: move;
+            transition: background-color 0.2s;
+        }
+        
+        .selected-field-item:hover {
+            background-color: #f8f9fa;
+        }
+        
+        .field-item:hover {
+            background-color: #f0f6fc;
+        }
+        
+        .list-group-item-action:focus {
+            z-index: auto;
+        }
+    </style>
+}

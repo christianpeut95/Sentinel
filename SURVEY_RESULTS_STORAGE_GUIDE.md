@@ -1,0 +1,548 @@
+# ?? Survey Results Storage - Complete Guide
+
+## ?? Quick Answer
+
+**Survey results are stored in TWO places:**
+
+1. **Raw JSON Responses** ? `CaseTasks.SurveyResponseJson` (database column)
+2. **Mapped Data** ? Various Case/Patient tables via Output Mappings
+
+---
+
+## ?? Storage Architecture
+
+```
+Survey Completed
+    ?
+???????????????????????????????????????????????????
+? 1. Save Raw JSON to CaseTask                   ?
+?    CaseTasks.SurveyResponseJson (JSON string)  ?
+???????????????????????????????????????????????????
+    ?
+???????????????????????????????????????????????????
+? 2. Apply Output Mappings                       ?
+?    Transform survey answers ? database fields   ?
+???????????????????????????????????????????????????
+    ?
+???????????????????????????????????????????????????
+? 3. Update Target Fields                        ?
+?    • Cases.DateOfOnset                         ?
+?    • Patients.Phone                            ?
+?    • Custom Fields                             ?
+?    • Exposures (via ExposureEvents)            ?
+?    • Lab Results                               ?
+???????????????????????????????????????????????????
+```
+
+---
+
+## ??? Primary Storage: CaseTasks Table
+
+### **Database Column**
+```sql
+CaseTasks.SurveyResponseJson NVARCHAR(MAX) NULL
+```
+
+### **Data Format**
+```json
+{
+  "patientName": "John Doe",
+  "lastMeal": "Chicken salad",
+  "drinkWater": "Yes",
+  "symptomOnset": "2026-02-01",
+  "contactPhone": "555-1234"
+}
+```
+
+### **When It's Saved**
+- When user completes a survey via `/Tasks/CompleteSurvey`
+- On form submission (POST)
+- Before output mappings are applied
+
+### **Code Location**
+**File:** `Surveillance-MVP/Services/SurveyService.cs`
+**Method:** `SaveSurveyResponseAsync()`
+**Line:** ~143
+
+```csharp
+public async Task SaveSurveyResponseAsync(Guid taskId, Dictionary<string, object> responses)
+{
+    var task = await _context.CaseTasks
+        .Include(t => t.Case)
+            .ThenInclude(c => c.Patient)
+        .Include(t => t.TaskTemplate)
+        .FirstOrDefaultAsync(t => t.Id == taskId);
+
+    if (task == null)
+        throw new ArgumentException($"Task {taskId} not found");
+
+    // ? SAVE RAW JSON HERE
+    task.SurveyResponseJson = JsonSerializer.Serialize(responses);
+    
+    // ... then apply output mappings ...
+    
+    await _context.SaveChangesAsync();
+}
+```
+
+---
+
+## ?? Secondary Storage: Mapped Fields
+
+Survey responses are **automatically mapped** to database fields based on **Output Mappings**.
+
+### **How Output Mappings Work**
+
+#### **Example Output Mapping JSON**
+```json
+{
+  "lastMeal": "Case.CustomFields.LastMealDescription",
+  "symptomOnset": "Case.DateOfOnset",
+  "contactPhone": "Patient.Phone",
+  "drinkWater": "Case.CustomFields.DrankTapWater"
+}
+```
+
+#### **What Happens**
+```
+Survey Answer           Output Mapping                  Database Field
+?????????????????????????????????????????????????????????????????????
+"Chicken salad"    ?    Case.CustomFields.LastMeal  ?  CaseCustomFieldValues
+"2026-02-01"       ?    Case.DateOfOnset            ?  Cases.DateOfOnset
+"555-1234"         ?    Patient.Phone               ?  Patients.Phone
+"Yes"              ?    Case.CustomFields.Water     ?  CaseCustomFieldValues
+```
+
+---
+
+## ?? Where Survey Data Can Be Mapped
+
+### **1. Case Table** (`Cases`)
+```csharp
+"surveyField": "Case.DateOfOnset"
+"surveyField": "Case.DateOfNotification"
+"surveyField": "Case.SymptomSummary"
+"surveyField": "Case.Notes"
+```
+
+**Examples:**
+- Symptom onset date
+- Diagnosis date
+- Case classification
+- Investigation notes
+
+---
+
+### **2. Patient Table** (`Patients`)
+```csharp
+"surveyField": "Patient.GivenName"
+"surveyField": "Patient.FamilyName"
+"surveyField": "Patient.Phone"
+"surveyField": "Patient.Email"
+"surveyField": "Patient.Address"
+```
+
+**Examples:**
+- Updated contact information
+- Emergency contact
+- Preferred language
+- Occupation
+
+---
+
+### **3. Custom Fields** (`CaseCustomFieldValues`)
+```csharp
+"surveyField": "Case.CustomFields.FoodExposure"
+"surveyField": "Case.CustomFields.TravelHistory"
+"surveyField": "Case.CustomFields.VaccinationStatus"
+```
+
+**Examples:**
+- Disease-specific data
+- Food history details
+- Travel destinations
+- Vaccination records
+
+---
+
+### **4. Exposures** (`ExposureEvents`)
+```csharp
+"surveyField": "Exposures[0].ExposureStartDate"
+"surveyField": "Exposures[0].ExposureType"
+"surveyField": "Exposures[0].Description"
+```
+
+**Examples:**
+- Food exposure dates
+- Location exposures
+- Contact exposures
+- Travel exposures
+
+---
+
+### **5. Lab Results** (`LabResults`)
+```csharp
+"surveyField": "LabResults[0].TestResult"
+"surveyField": "LabResults[0].ResultDate"
+```
+
+**Examples:**
+- Self-reported test results
+- Test dates
+- Laboratory names
+
+---
+
+## ?? How to View Survey Results
+
+### **Method 1: View Raw JSON**
+
+#### **SQL Query**
+```sql
+SELECT 
+    ct.Id AS TaskId,
+    ct.Title AS TaskName,
+    c.FriendlyId AS CaseId,
+    ct.SurveyResponseJson,
+    ct.CompletedAt
+FROM CaseTasks ct
+JOIN Cases c ON ct.CaseId = c.Id
+WHERE ct.SurveyResponseJson IS NOT NULL
+ORDER BY ct.CompletedAt DESC
+```
+
+#### **Expected Result**
+```
+TaskId                              | TaskName              | CaseId        | SurveyResponseJson                | CompletedAt
+??????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????
+abc123...                           | Food History          | C-2026-0001   | {"lastMeal":"Salad",...}         | 2026-02-07 10:30:00
+def456...                           | Contact Interview     | C-2026-0002   | {"contacts":[...],...}           | 2026-02-07 09:15:00
+```
+
+---
+
+### **Method 2: View Mapped Data**
+
+Survey data is **automatically reflected** in the case/patient records after submission.
+
+#### **Example: Case Details Page**
+After completing a food history survey:
+
+**Before Survey:**
+```
+Case: C-2026-0001
+Date of Onset: (empty)
+Last Meal: (empty)
+```
+
+**After Survey:**
+```
+Case: C-2026-0001
+Date of Onset: 2026-02-01  ? Mapped from survey
+Last Meal: Chicken salad   ? Mapped from survey
+```
+
+---
+
+### **Method 3: Programmatic Access**
+
+#### **Get Survey Response via Service**
+```csharp
+public async Task<Dictionary<string, object>?> GetSurveyResponseAsync(Guid taskId)
+{
+    var task = await _context.CaseTasks
+        .AsNoTracking()
+        .FirstOrDefaultAsync(t => t.Id == taskId);
+
+    if (task?.SurveyResponseJson == null)
+        return null;
+
+    return JsonSerializer.Deserialize<Dictionary<string, object>>(
+        task.SurveyResponseJson);
+}
+```
+
+#### **Usage Example**
+```csharp
+var surveyService = serviceProvider.GetService<ISurveyService>();
+var responses = await surveyService.GetSurveyResponseAsync(taskId);
+
+if (responses != null)
+{
+    var lastMeal = responses["lastMeal"]?.ToString();
+    var onsetDate = responses["symptomOnset"]?.ToString();
+    // Use the data...
+}
+```
+
+---
+
+## ?? Data Flow Diagram
+
+```
+User Fills Out Survey
+        ?
+    [Submit]
+        ?
+???????????????????????????????????????
+? POST /Tasks/CompleteSurvey         ?
+? • Receives: Dictionary<string, obj>?
+???????????????????????????????????????
+        ?
+???????????????????????????????????????
+? SurveyService.SaveSurveyResponseAsync?
+? • Step 1: Serialize to JSON        ?
+? • Step 2: Save to CaseTask         ?
+???????????????????????????????????????
+        ?
+???????????????????????????????????????
+? CaseTasks.SurveyResponseJson       ?
+? • NVARCHAR(MAX)                    ?
+? • JSON format                      ?
+? • Permanent storage                ?
+???????????????????????????????????????
+        ?
+???????????????????????????????????????
+? Apply Output Mappings              ?
+? • Read mapping JSON                ?
+? • For each mapping:                ?
+?   - Get survey answer              ?
+?   - Set target field value         ?
+???????????????????????????????????????
+        ?
+???????????????????????????????????????
+? Update Database Fields             ?
+? • Cases table                      ?
+? • Patients table                   ?
+? • CaseCustomFieldValues            ?
+? • ExposureEvents                   ?
+? • LabResults                       ?
+???????????????????????????????????????
+        ?
+???????????????????????????????????????
+? _context.SaveChangesAsync()        ?
+? • Commit all changes               ?
+???????????????????????????????????????
+        ?
+    [Complete]
+```
+
+---
+
+## ?? Data Retention
+
+### **Permanent Storage**
+- **Raw JSON** in `CaseTasks.SurveyResponseJson` is **never deleted**
+- Retained even if task is completed or cancelled
+- Retained even if case is archived
+
+### **Soft Delete Behavior**
+If `CaseTask` is soft-deleted:
+- JSON remains in database
+- Marked with `DeletedAt` timestamp
+- Can be recovered with JSON intact
+
+### **Audit Trail**
+Survey responses are part of:
+- Case audit history
+- Task completion records
+- Investigation documentation
+
+---
+
+## ?? Example: Complete Survey Response Storage
+
+### **Survey Submitted**
+```json
+{
+  "title": "Food History Interview",
+  "responses": {
+    "patientName": "John Doe",
+    "lastMeal": "Chicken Caesar Salad",
+    "mealDate": "2026-02-01",
+    "mealLocation": "Downtown Deli",
+    "symptoms": "Nausea, Vomiting",
+    "symptomOnset": "2026-02-02",
+    "drankTapWater": "Yes",
+    "contactPhone": "555-1234"
+  }
+}
+```
+
+### **Database After Save**
+
+#### **CaseTasks Table**
+```sql
+Id: abc-123-def-456
+CaseId: case-789
+Title: "Food History Interview"
+Status: Completed
+CompletedAt: 2026-02-07 10:30:00
+SurveyResponseJson: '{"patientName":"John Doe","lastMeal":"Chicken Caesar Salad",...}'
+```
+
+#### **Cases Table** (via mappings)
+```sql
+Id: case-789
+DateOfOnset: 2026-02-02           ? Mapped from "symptomOnset"
+Notes: "Symptoms: Nausea, Vomiting" ? Mapped from "symptoms"
+```
+
+#### **Patients Table** (via mappings)
+```sql
+Id: patient-xyz
+Phone: "555-1234"                 ? Mapped from "contactPhone"
+```
+
+#### **CaseCustomFieldValues Table** (via mappings)
+```sql
+CaseId: case-789
+CustomFieldDefinitionId: food-exposure-field
+Value: "Chicken Caesar Salad"     ? Mapped from "lastMeal"
+
+CaseId: case-789
+CustomFieldDefinitionId: water-source-field
+Value: "Yes"                      ? Mapped from "drankTapWater"
+```
+
+#### **ExposureEvents Table** (via mappings)
+```sql
+Id: exposure-123
+CaseId: case-789
+ExposureType: Location
+FreeTextLocation: "Downtown Deli" ? Mapped from "mealLocation"
+ExposureStartDate: 2026-02-01     ? Mapped from "mealDate"
+Description: "Food exposure"
+```
+
+---
+
+## ??? Accessing Survey Data
+
+### **From Case Details Page**
+1. Navigate to case
+2. View Tasks section
+3. See completed tasks with surveys
+4. Data is reflected in case fields
+
+### **From Database**
+```sql
+-- Get all survey responses for a case
+SELECT 
+    ct.Title,
+    ct.CompletedAt,
+    ct.SurveyResponseJson
+FROM CaseTasks ct
+WHERE ct.CaseId = 'your-case-id'
+  AND ct.SurveyResponseJson IS NOT NULL
+
+-- Get specific answer
+SELECT 
+    JSON_VALUE(ct.SurveyResponseJson, '$.lastMeal') AS LastMeal,
+    JSON_VALUE(ct.SurveyResponseJson, '$.symptomOnset') AS OnsetDate
+FROM CaseTasks ct
+WHERE ct.Id = 'your-task-id'
+```
+
+### **From Code**
+```csharp
+// Via SurveyService
+var surveyService = _serviceProvider.GetService<ISurveyService>();
+var responses = await surveyService.GetSurveyResponseAsync(taskId);
+
+// Direct query
+var task = await _context.CaseTasks
+    .FirstOrDefaultAsync(t => t.Id == taskId);
+var json = task?.SurveyResponseJson;
+```
+
+---
+
+## ?? Reporting & Analytics
+
+### **Survey Completion Tracking**
+```sql
+-- Count surveys completed by disease
+SELECT 
+    d.Name AS Disease,
+    COUNT(DISTINCT ct.Id) AS SurveysCompleted
+FROM CaseTasks ct
+JOIN Cases c ON ct.CaseId = c.Id
+JOIN Diseases d ON c.DiseaseId = d.Id
+WHERE ct.SurveyResponseJson IS NOT NULL
+  AND ct.Status = 2 -- Completed
+GROUP BY d.Name
+ORDER BY SurveysCompleted DESC
+```
+
+### **Survey Response Analysis**
+```sql
+-- Extract specific answers for analysis
+SELECT 
+    c.FriendlyId,
+    ct.CompletedAt,
+    JSON_VALUE(ct.SurveyResponseJson, '$.lastMeal') AS FoodEaten,
+    JSON_VALUE(ct.SurveyResponseJson, '$.drankTapWater') AS DrankWater
+FROM CaseTasks ct
+JOIN Cases c ON ct.CaseId = c.Id
+WHERE ct.SurveyResponseJson IS NOT NULL
+  AND ct.TaskTemplate.Name LIKE '%Food%'
+```
+
+---
+
+## ? Best Practices
+
+### **1. Always Check for Null**
+```csharp
+if (!string.IsNullOrWhiteSpace(task.SurveyResponseJson))
+{
+    var responses = JsonSerializer.Deserialize<Dictionary<string, object>>(
+        task.SurveyResponseJson);
+    // Process responses...
+}
+```
+
+### **2. Use Output Mappings**
+Don't manually parse JSON to update fields. Use output mappings:
+```json
+{
+  "surveyField": "Case.TargetField"
+}
+```
+System handles it automatically!
+
+### **3. Preserve Raw Data**
+Never modify `SurveyResponseJson` directly. It's the source of truth.
+
+### **4. Audit Changes**
+Log when survey data updates case/patient records:
+```csharp
+_logger.LogInformation(
+    "Survey response for Task {TaskId} updated Case {CaseId}",
+    taskId, caseId);
+```
+
+---
+
+## ?? Summary
+
+| Storage Type | Location | Format | Purpose |
+|--------------|----------|--------|---------|
+| **Raw JSON** | `CaseTasks.SurveyResponseJson` | JSON string | Complete survey record |
+| **Mapped Data** | Various tables | Native types | Usable case/patient data |
+
+### **Key Points**
+? Raw JSON is **always saved** to `CaseTasks.SurveyResponseJson`  
+? Output mappings **automatically update** database fields  
+? JSON is **permanent** - never deleted  
+? Mapped data is **immediately usable** in case workflows  
+? Both storage methods are **queryable** via SQL or EF Core  
+
+---
+
+**Last Updated:** February 7, 2026  
+**Related Docs:**
+- `SURVEY_SYSTEM_100_PERCENT_COMPLETE.md`
+- `SURVEY_SYSTEM_QUICK_REF.md`
+- `CENTRAL_SURVEY_MAPPINGS_COMPLETE.md`

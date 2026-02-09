@@ -1,0 +1,194 @@
+@page "{id:guid}"
+@model Surveillance_MVP.Pages.Tasks.CompleteSurveyModel
+
+@{
+    ViewData["Title"] = "Complete Survey";
+}
+
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <!-- Task Info Header -->
+            <div class="card mb-4">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0"><i class="bi bi-clipboard-check me-2"></i>@Model.Task.Title</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <p><strong>Patient:</strong> @Model.Task.Case.Patient?.GivenName @Model.Task.Case.Patient?.FamilyName</p>
+                            <p><strong>Case:</strong> @Model.Task.Case.FriendlyId</p>
+                            <p><strong>Disease:</strong> @Model.Task.Case.Disease?.Name</p>
+                        </div>
+                        <div class="col-md-6">
+                            <p><strong>Task Type:</strong> @Model.Task.TaskType?.Name</p>
+                            <p><strong>Priority:</strong> 
+                                <span class="badge 
+                                    @(Model.Task.Priority == Surveillance_MVP.Models.TaskPriority.Urgent ? "bg-danger" : 
+                                      Model.Task.Priority == Surveillance_MVP.Models.TaskPriority.High ? "bg-warning" : 
+                                      Model.Task.Priority == Surveillance_MVP.Models.TaskPriority.Medium ? "bg-info" : "bg-secondary")">
+                                    @Model.Task.Priority
+                                </span>
+                            </p>
+                            <p><strong>Due Date:</strong> @(Model.Task.DueDate?.ToString("MMM dd, yyyy") ?? "Not set")</p>
+                        </div>
+                    </div>
+                    @if (!string.IsNullOrEmpty(Model.Task.Description))
+                    {
+                        <hr />
+                        <p><strong>Instructions:</strong></p>
+                        <p class="text-muted">@Model.Task.Description</p>
+                    }
+                </div>
+            </div>
+
+            <!-- Survey Container -->
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="bi bi-list-check me-2"></i>Survey</h5>
+                </div>
+                <div class="card-body">
+                    <div id="surveyContainer"></div>
+                </div>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="mt-4 d-flex justify-content-between">
+                <a href="/Dashboard/MyTasks" class="btn btn-outline-secondary">
+                    <i class="bi bi-arrow-left me-2"></i>Back to Tasks
+                </a>
+                <div>
+                    <button type="button" class="btn btn-primary" id="completeSurveyBtn" disabled>
+                        <i class="bi bi-check-circle me-2"></i>Complete Survey
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+    (function() {
+        try {
+            console.log('Initializing survey...');
+                
+            const taskId = '@Model.Task.Id';
+                
+            // Output JSON directly as JavaScript objects (not strings)
+            const surveyJson = @Html.Raw(Model.SurveyDefinitionJson ?? "{}");
+            const prePopulatedData = @Html.Raw(Model.PrePopulatedDataJson ?? "{}");
+                
+            console.log('Survey JSON:', surveyJson);
+            console.log('Pre-populated data:', prePopulatedData);
+                
+            // Validate we have valid objects
+            if (!surveyJson || typeof surveyJson !== 'object') {
+                console.error('Invalid survey JSON');
+                alert('Error loading survey definition. Please contact support.');
+                return;
+            }
+                
+                // Check if Survey is available
+                if (typeof Survey === 'undefined') {
+                    console.error('SurveyJS library not loaded');
+                    alert('Survey system not initialized. Please refresh the page.');
+                    return;
+                }
+                
+                console.log('Creating survey model...');
+                
+                // Create survey
+                const survey = new Survey.Model(surveyJson);
+                
+                // Set pre-populated data
+                survey.data = prePopulatedData;
+                
+                // Configure survey
+                survey.showCompletedPage = false;
+                survey.showProgressBar = "top";
+                survey.progressBarType = "pages";
+
+                console.log('Survey model created successfully');
+
+                // Enable complete button only when survey is valid
+                survey.onValueChanged.add(function(sender) {
+                    const isComplete = !sender.hasErrors(true, true);
+                    document.getElementById('completeSurveyBtn').disabled = !isComplete;
+                });
+
+                // Initial validation check
+                const isInitiallyComplete = !survey.hasErrors(true, true);
+                document.getElementById('completeSurveyBtn').disabled = !isInitiallyComplete;
+
+                console.log('Rendering survey...');
+                
+                // Render survey - pass DOM element, not string
+                const container = document.getElementById('surveyContainer');
+                if (!container) {
+                    console.error('Survey container not found');
+                    alert('Survey container not found. Please contact support.');
+                    return;
+                }
+                
+                survey.render(container);
+                
+                console.log('Survey rendered successfully');
+
+                // Handle survey completion
+                document.getElementById('completeSurveyBtn').addEventListener('click', async function() {
+                    console.log('Complete button clicked');
+                    
+                    // Validate all questions
+                    if (survey.hasErrors(true, true)) {
+                        alert('Please complete all required fields before submitting.');
+                        return;
+                    }
+
+                    const btn = this;
+                    btn.disabled = true;
+                    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Saving...';
+
+                    try {
+                        const response = await fetch(`/Tasks/CompleteSurvey?id=${taskId}`, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]')?.value || ''
+                            },
+                            body: JSON.stringify(survey.data)
+                        });
+
+                        const result = await response.json();
+
+                        if (result.success) {
+                            // Show success message
+                            const successDiv = document.createElement('div');
+                            successDiv.className = 'alert alert-success alert-dismissible fade show';
+                            successDiv.innerHTML = `
+                                <i class="bi bi-check-circle me-2"></i>Survey completed successfully!
+                                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                            `;
+                            document.querySelector('.container-fluid').insertBefore(successDiv, document.querySelector('.row'));
+
+                            // Redirect after a short delay
+                            setTimeout(function() {
+                                window.location.href = '/Dashboard/MyTasks?message=Survey+completed+successfully';
+                            }, 1500);
+                        } else {
+                            throw new Error('Failed to save survey');
+                        }
+                    } catch (error) {
+                        console.error('Error saving survey:', error);
+                        alert('An error occurred while saving the survey. Please try again.');
+                        btn.disabled = false;
+                        btn.innerHTML = '<i class="bi bi-check-circle me-2"></i>Complete Survey';
+                    }
+                });
+            } catch (error) {
+                console.error('Fatal error initializing survey:', error);
+                alert('Failed to load survey. Please check the console for details.');
+            }
+        })();
+    </script>
+}

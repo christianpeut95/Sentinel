@@ -1,0 +1,420 @@
+@page
+@model Surveillance_MVP.Pages.Dashboard.InterviewQueueModel
+@using Surveillance_MVP.Models
+@{
+    ViewData["Title"] = "Interview Queue";
+}
+
+<style>
+    .stat-card {
+        border-radius: 8px;
+        border: 2px solid #e2e8f0;
+        background: white;
+        transition: box-shadow 0.2s;
+    }
+    .stat-card:hover {
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    .stat-icon {
+        font-size: 2rem;
+        color: #64748b;
+    }
+    .current-task-card {
+        border: 3px solid #3b82f6;
+        background: #eff6ff;
+        border-radius: 12px;
+        box-shadow: 0 4px 12px rgba(59, 130, 246, 0.2);
+    }
+    .outcome-btn {
+        border-radius: 6px;
+        font-weight: normal;
+        border: 2px solid transparent;
+    }
+    .outcome-btn:hover {
+        border-color: currentColor;
+    }
+    .survey-btn {
+        font-size: 1.1rem;
+        padding: 12px 24px;
+        border-radius: 8px;
+        font-weight: 600;
+    }
+</style>
+
+<div class="container-fluid">
+    <!-- Page Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="mb-1">Interview Queue</h2>
+            <p class="text-muted mb-0">Manage your phone interviews</p>
+        </div>
+        <div>
+            <form method="post" asp-page-handler="SetAvailability" class="d-inline">
+                <input type="hidden" name="available" value="@(!(Model.Stats?.IsAvailable ?? false))" />
+                <button type="submit" class="btn @(Model.Stats?.IsAvailable == true ? "btn-success" : "btn-outline-secondary")">
+                    @if (Model.Stats?.IsAvailable == true)
+                    {
+                        <i class="bi bi-check-circle me-2"></i><text>Available</text>
+                    }
+                    else
+                    {
+                        <i class="bi bi-dash-circle me-2"></i><text>Unavailable</text>
+                    }
+                </button>
+            </form>
+        </div>
+    </div>
+
+    @if (TempData["SuccessMessage"] != null)
+    {
+        <div class="alert alert-success alert-dismissible fade show">
+            <i class="bi bi-check-circle me-2"></i>@TempData["SuccessMessage"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
+
+    @if (TempData["InfoMessage"] != null)
+    {
+        <div class="alert alert-info alert-dismissible fade show">
+            <i class="bi bi-info-circle me-2"></i>@TempData["InfoMessage"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
+
+    @if (TempData["ErrorMessage"] != null)
+    {
+        <div class="alert alert-danger alert-dismissible fade show">
+            <i class="bi bi-exclamation-triangle me-2"></i>@TempData["ErrorMessage"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
+
+    <!-- Statistics Cards -->
+    <div class="row mb-4 g-3">
+        <div class="col-md-3">
+            <div class="card stat-card">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <small class="text-muted">In Progress</small>
+                            <h3 class="mb-0 mt-1">@(Model.Stats?.TasksInProgress ?? 0)</h3>
+                        </div>
+                        <i class="bi bi-hourglass-split stat-icon"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card stat-card">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <small class="text-muted">Completed</small>
+                            <h3 class="mb-0 mt-1 text-success">@(Model.Stats?.TasksCompleted ?? 0)</h3>
+                        </div>
+                        <i class="bi bi-check-circle stat-icon text-success"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card stat-card">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <small class="text-muted">Calls Today</small>
+                            <h3 class="mb-0 mt-1">@(Model.Stats?.CallsToday ?? 0)</h3>
+                        </div>
+                        <i class="bi bi-telephone stat-icon"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card stat-card">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <small class="text-muted">Success Rate</small>
+                            <h3 class="mb-0 mt-1">@((int)(Model.Stats?.CompletionRate ?? 0))%</h3>
+                        </div>
+                        <i class="bi bi-graph-up stat-icon"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Current Task -->
+    @if (Model.CurrentTask != null)
+    {
+        <div class="card current-task-card mb-4">
+            <div class="card-body p-4">
+                <div class="d-flex justify-content-between align-items-start mb-3">
+                    <div>
+                        <h4 class="text-primary mb-1">
+                            <i class="bi bi-arrow-right-circle-fill me-2"></i>Current Task
+                        </h4>
+                        <p class="text-muted mb-0">@Model.CurrentTask.Title</p>
+                    </div>
+                    <span class="badge bg-primary px-3 py-2">Active</span>
+                </div>
+
+                <div class="row">
+                    <div class="col-lg-7 border-end">
+                        <!-- Patient Info -->
+                        <div class="mb-3">
+                            <h5>Patient Information</h5>
+                            <div class="bg-white p-3 rounded border">
+                                <div class="mb-2">
+                                    <strong>Name:</strong> @Model.CurrentTask.Case?.Patient?.GivenName @Model.CurrentTask.Case?.Patient?.FamilyName
+                                </div>
+                                <div class="mb-2">
+                                    <strong>Phone:</strong>
+                                    <span class="badge bg-primary fs-6 ms-2">
+                                        <i class="bi bi-telephone-fill me-1"></i>
+                                        @(Model.CurrentTask.Case?.Patient?.MobilePhone ?? Model.CurrentTask.Case?.Patient?.HomePhone ?? "N/A")
+                                    </span>
+                                </div>
+                                <div class="row">
+                                    @if (!string.IsNullOrEmpty(Model.CurrentTask.LanguageRequired))
+                                    {
+                                        <div class="col-6">
+                                            <small class="text-muted">Language</small><br />
+                                            <span class="badge bg-info">@Model.CurrentTask.LanguageRequired</span>
+                                        </div>
+                                    }
+                                    <div class="col-6">
+                                        <small class="text-muted">Priority</small><br />
+                                        <span class="badge @(Model.CurrentTask.Priority switch {
+                                            TaskPriority.Urgent => "bg-danger",
+                                            TaskPriority.High => "bg-warning text-dark",
+                                            TaskPriority.Medium => "bg-info",
+                                            _ => "bg-secondary"
+                                        })">@Model.CurrentTask.Priority</span>
+                                    </div>
+                                    <div class="col-6 mt-2">
+                                        <small class="text-muted">Attempts</small><br />
+                                        <strong>@Model.CurrentTask.CurrentAttemptCount / @Model.CurrentTask.MaxCallAttempts</strong>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Survey Access -->
+                        @if (!string.IsNullOrEmpty(Model.CurrentTask.TaskTemplate?.SurveyDefinitionJson))
+                        {
+                            <div class="alert alert-success border-success">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <h6 class="mb-1"><i class="bi bi-clipboard-check me-2"></i>Survey Ready</h6>
+                                        <small>Complete the survey when patient answers</small>
+                                    </div>
+                                    <a asp-page="/Tasks/CompleteSurvey" asp-route-id="@Model.CurrentTask.Id" class="btn btn-success survey-btn" target="_blank">
+                                        <i class="bi bi-box-arrow-up-right me-2"></i>Open Survey
+                                    </a>
+                                </div>
+                            </div>
+                        }
+
+                        @if (Model.CurrentTask.LastCallAttempt.HasValue)
+                        {
+                            <div class="alert alert-light">
+                                <small><i class="bi bi-clock-history me-1"></i> Last attempt: @Model.CurrentTask.LastCallAttempt.Value.ToLocalTime().ToString("g")</small>
+                            </div>
+                        }
+                    </div>
+
+                    <div class="col-lg-5">
+                        <h6 class="mb-3">Log Call Outcome</h6>
+                        <div class="d-grid gap-2">
+                            <button type="button" class="btn btn-success outcome-btn" data-bs-toggle="modal" data-bs-target="#logOutcomeModal" data-outcome="@((int)CallOutcome.Completed)">
+                                <i class="bi bi-check-circle me-2"></i>Completed
+                            </button>
+                            <button type="button" class="btn btn-outline-secondary outcome-btn" data-bs-toggle="modal" data-bs-target="#logOutcomeModal" data-outcome="@((int)CallOutcome.NoAnswer)">
+                                <i class="bi bi-telephone-x me-2"></i>No Answer
+                            </button>
+                            <button type="button" class="btn btn-outline-secondary outcome-btn" data-bs-toggle="modal" data-bs-target="#logOutcomeModal" data-outcome="@((int)CallOutcome.CallBackRequested)">
+                                <i class="bi bi-arrow-repeat me-2"></i>Call Back Requested
+                            </button>
+                            <button type="button" class="btn btn-outline-secondary outcome-btn" data-bs-toggle="modal" data-bs-target="#logOutcomeModal" data-outcome="@((int)CallOutcome.Voicemail)">
+                                <i class="bi bi-voicemail me-2"></i>Voicemail
+                            </button>
+                            <button type="button" class="btn btn-outline-danger outcome-btn" data-bs-toggle="modal" data-bs-target="#logOutcomeModal" data-outcome="@((int)CallOutcome.Refused)">
+                                <i class="bi bi-x-circle me-2"></i>Refused
+                            </button>
+                            
+                            <div class="accordion accordion-flush mt-2">
+                                <div class="accordion-item">
+                                    <h2 class="accordion-header">
+                                        <button class="accordion-button collapsed py-2" type="button" data-bs-toggle="collapse" data-bs-target="#moreOutcomes">
+                                            <small>More Options</small>
+                                        </button>
+                                    </h2>
+                                    <div id="moreOutcomes" class="accordion-collapse collapse">
+                                        <div class="accordion-body p-2">
+                                            <div class="d-grid gap-2">
+                                                <button type="button" class="btn btn-sm btn-outline-secondary outcome-btn" data-bs-toggle="modal" data-bs-target="#logOutcomeModal" data-outcome="@((int)CallOutcome.Busy)">
+                                                    <i class="bi bi-phone-vibrate me-1"></i>Busy
+                                                </button>
+                                                <button type="button" class="btn btn-sm btn-outline-secondary outcome-btn" data-bs-toggle="modal" data-bs-target="#logOutcomeModal" data-outcome="@((int)CallOutcome.WrongNumber)">
+                                                    <i class="bi bi-slash-circle me-1"></i>Wrong Number
+                                                </button>
+                                                <button type="button" class="btn btn-sm btn-outline-secondary outcome-btn" data-bs-toggle="modal" data-bs-target="#logOutcomeModal" data-outcome="@((int)CallOutcome.LanguageBarrier)">
+                                                    <i class="bi bi-translate me-1"></i>Language Barrier
+                                                </button>
+                                                <button type="button" class="btn btn-sm btn-outline-secondary outcome-btn" data-bs-toggle="modal" data-bs-target="#logOutcomeModal" data-outcome="@((int)CallOutcome.Disconnected)">
+                                                    <i class="bi bi-telephone-slash me-1"></i>Disconnected
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                @if (Model.CurrentTaskCallAttempts.Any())
+                {
+                    <hr class="my-3" />
+                    <h6><i class="bi bi-clock-history me-2"></i>Call History</h6>
+                    <div class="table-responsive">
+                        <table class="table table-sm table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Time</th>
+                                    <th>Outcome</th>
+                                    <th>Notes</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var attempt in Model.CurrentTaskCallAttempts.Take(5))
+                                {
+                                    <tr>
+                                        <td><small>@attempt.AttemptedAt.ToLocalTime().ToString("g")</small></td>
+                                        <td><span class="badge bg-secondary">@attempt.Outcome</span></td>
+                                        <td><small>@attempt.Notes</small></td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+            </div>
+        </div>
+    }
+    else
+    {
+        <div class="card mb-4">
+            <div class="card-body text-center py-5">
+                <i class="bi bi-inbox text-muted" style="font-size: 3rem;"></i>
+                <h5 class="text-muted mt-3 mb-3">No current task</h5>
+                <form method="post" asp-page-handler="GetNextTask">
+                    <button type="submit" class="btn btn-primary btn-lg">
+                        <i class="bi bi-arrow-right-circle me-2"></i>Get Next Task
+                    </button>
+                </form>
+            </div>
+        </div>
+    }
+
+    <!-- Task Queue -->
+    <div class="card">
+        <div class="card-header bg-light">
+            <h5 class="mb-0">
+                <i class="bi bi-list-ul me-2"></i>My Queue 
+                <span class="badge bg-secondary">@Model.MyTasks.Count</span>
+            </h5>
+        </div>
+        <div class="card-body p-0">
+            @if (Model.MyTasks.Any())
+            {
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Priority</th>
+                                <th>Patient</th>
+                                <th>Task</th>
+                                <th>Phone</th>
+                                <th>Attempts</th>
+                                <th>Due</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var task in Model.MyTasks.Where(t => t.Id != Model.CurrentTask?.Id))
+                            {
+                                <tr>
+                                    <td>
+                                        <span class="badge @(task.Priority switch {
+                                            TaskPriority.Urgent => "bg-danger",
+                                            TaskPriority.High => "bg-warning text-dark",
+                                            TaskPriority.Medium => "bg-info",
+                                            _ => "bg-secondary"
+                                        })">@task.Priority</span>
+                                    </td>
+                                    <td>@task.Case?.Patient?.GivenName @task.Case?.Patient?.FamilyName</td>
+                                    <td>@task.Title</td>
+                                    <td>
+                                        <i class="bi bi-telephone me-1"></i>
+                                        @(task.Case?.Patient?.MobilePhone ?? task.Case?.Patient?.HomePhone ?? "N/A")
+                                    </td>
+                                    <td>@task.CurrentAttemptCount / @task.MaxCallAttempts</td>
+                                    <td>@(task.DueDate?.ToShortDateString() ?? "-")</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+            else
+            {
+                <div class="text-center py-4">
+                    <p class="text-muted mb-0">No tasks in queue</p>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+<!-- Log Outcome Modal -->
+<div class="modal fade" id="logOutcomeModal" tabindex="-1">
+    <div class="modal-dialog">
+        <form method="post" asp-page-handler="LogCallAttempt">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="bi bi-pencil-square me-2"></i>Log Call Outcome</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" name="taskId" value="@Model.CurrentTask?.Id" />
+                    <input type="hidden" name="outcome" id="outcomeValue" />
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Notes</label>
+                        <textarea name="notes" class="form-control" rows="4" placeholder="Add any notes about this call attempt..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-check-lg me-2"></i>Submit
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        var logModal = document.getElementById('logOutcomeModal');
+        logModal.addEventListener('show.bs.modal', function (event) {
+            var button = event.relatedTarget;
+            var outcome = button.getAttribute('data-outcome');
+            document.getElementById('outcomeValue').value = outcome;
+        });
+    </script>
+}
+

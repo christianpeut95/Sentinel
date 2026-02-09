@@ -1,0 +1,117 @@
+﻿@page
+@model Surveillance_MVP.Pages.Patients.IndexModel
+
+@{
+    ViewData["Title"] = "Patients";
+    Layout = "~/Pages/Shared/_Layout.cshtml";
+}
+
+<nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a asp-page="/Index">Home</a></li>
+        <li class="breadcrumb-item active" aria-current="page">Patients</li>
+    </ol>
+</nav>
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2 class="mb-0"><i class="bi bi-person-lines-fill me-2"></i>Patients</h2>
+    <div class="btn-group" role="group">
+        <a asp-page="Search" class="btn btn-outline-primary"><i class="bi bi-search me-1"></i>Advanced Search</a>
+        <a asp-page="SelectMerge" class="btn btn-outline-warning"><i class="bi bi-arrows-collapse me-1"></i>Merge Patients</a>
+        <a asp-page="Create" class="btn btn-primary"><i class="bi bi-plus-circle me-1"></i>Create New Patient</a>
+    </div>
+</div>
+
+@if (TempData["SuccessMessage"] != null)
+{
+    <div class="alert alert-success alert-dismissible fade show" role="alert">
+        <i class="bi bi-check-circle me-2"></i>@TempData["SuccessMessage"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+}
+
+@if (TempData["ErrorMessage"] != null)
+{
+    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+        <i class="bi bi-exclamation-triangle me-2"></i>@TempData["ErrorMessage"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+}
+
+<div class="card shadow-sm">
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Name</th>
+                        <th>Date of Birth</th>
+                        <th>Age</th>
+                        <th>Sex</th>
+                        <th>Country of Birth</th>
+                        <th>Language</th>
+                        <th>Ethnicity</th>
+                        <th>Suburb</th>
+                        <th class="text-center">Geocoded</th>
+                        <th>Created</th>
+                        <th class="text-end">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+@foreach (var item in Model.Patient) {
+        var age = item.DateOfBirth.HasValue 
+            ? (int)Math.Floor((DateTime.UtcNow - item.DateOfBirth.Value).TotalDays / 365.2425) 
+            : (int?)null;
+                    <tr>
+                        <td>
+                            <strong>@item.GivenName @item.FamilyName</strong>
+                        </td>
+                        <td>@(item.DateOfBirth?.ToString("dd MMM yyyy") ?? "-")</td>
+                        <td>@(age?.ToString() ?? "-")</td>
+                        <td>@(item.SexAtBirth?.Name ?? "-")</td>
+                        <td>@(item.CountryOfBirth?.Name ?? "-")</td>
+                        <td>@(item.LanguageSpokenAtHome?.Name ?? "-")</td>
+                        <td>@(item.Ethnicity?.Name ?? "-")</td>
+                        <td>@(item.City ?? "-")</td>
+                        <td class="text-center align-middle">
+                            @if (item.Latitude.HasValue && item.Longitude.HasValue)
+                            {
+                                <span class="badge bg-success" title="Location geocoded">
+                                    <i class="bi bi-geo-alt-fill"></i>
+                                </span>
+                            }
+                            else
+                            {
+                                <span class="badge bg-secondary" title="Location not geocoded">
+                                    <i class="bi bi-geo"></i>
+                                </span>
+                            }
+                        </td>
+                        <td><small class="text-muted">@item.CreatedAt.ToString("dd MMM yyyy")</small></td>
+                        <td class="text-end">
+                            <div class="btn-group btn-group-sm" role="group">
+                                <a asp-page="./Details" asp-route-id="@item.Id" class="btn btn-outline-primary" title="View details">
+                                    <i class="bi bi-eye"></i>
+                                </a>
+                                <a asp-page="./Edit" asp-route-id="@item.Id" class="btn btn-outline-secondary" title="Edit">
+                                    <i class="bi bi-pencil"></i>
+                                </a>
+                                <a asp-page="./Delete" asp-route-id="@item.Id" class="btn btn-outline-danger" title="Delete">
+                                    <i class="bi bi-trash"></i>
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+@if (!Model.Patient.Any())
+{
+    <div class="alert alert-info mt-3">
+        <i class="bi bi-info-circle me-2"></i>No patients found. <a asp-page="Create" class="alert-link">Create your first patient</a>.
+    </div>
+}

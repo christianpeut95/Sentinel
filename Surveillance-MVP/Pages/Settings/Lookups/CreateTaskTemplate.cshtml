@@ -1,0 +1,248 @@
+@page
+@using Surveillance_MVP.Models
+@model Surveillance_MVP.Pages.Settings.Lookups.CreateTaskTemplateModel
+@{
+    ViewData["Title"] = "Create Task Template";
+}
+
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>Create Task Template</h2>
+        <a asp-page="./TaskTemplates" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left"></i> Back to List
+        </a>
+    </div>
+
+    <div class="card">
+        <div class="card-body">
+            <form method="post">
+                <div asp-validation-summary="ModelOnly" class="alert alert-danger" role="alert"></div>
+
+                <!-- Basic Information -->
+                <h4 class="mb-3">Basic Information</h4>
+                <div class="row g-3 mb-4">
+                    <div class="col-md-6">
+                        <label asp-for="Input.Name" class="form-label"></label>
+                        <input asp-for="Input.Name" class="form-control" placeholder="e.g., Isolation for Measles" />
+                        <span asp-validation-for="Input.Name" class="text-danger"></span>
+                    </div>
+                    <div class="col-md-6">
+                        <label asp-for="Input.TaskTypeId" class="form-label"></label>
+                        <select asp-for="Input.TaskTypeId" class="form-select" asp-items="Model.TaskTypeSelectList">
+                            <option value="">-- Select Task Type --</option>
+                        </select>
+                        <span asp-validation-for="Input.TaskTypeId" class="text-danger"></span>
+                        <small class="form-text text-muted">
+                            <a asp-page="/Settings/Lookups/TaskTypes" target="_blank">Manage Task Types</a>
+                        </small>
+                    </div>
+                    <div class="col-md-12">
+                        <label asp-for="Input.DiseaseId" class="form-label"></label>
+                        <input type="hidden" asp-for="Input.DiseaseId" id="diseaseId" />
+                        <input type="text" 
+                               class="form-control" 
+                               id="diseaseAutocomplete" 
+                               placeholder="Start typing disease name... (optional - leave blank for generic task)" 
+                               autocomplete="off" />
+                        <span asp-validation-for="Input.DiseaseId" class="text-danger"></span>
+                        <small class="form-text text-muted">Optional: Link this template to a specific disease</small>
+                        <div id="diseaseDisplay" class="mt-2" style="display: none;">
+                            <span class="badge bg-info" id="diseaseNameBadge"></span>
+                            <button type="button" class="btn btn-sm btn-link text-danger" id="clearDisease">Remove</button>
+                        </div>
+                    </div>
+                    <div class="col-md-12">
+                        <label asp-for="Input.Description" class="form-label"></label>
+                        <textarea asp-for="Input.Description" class="form-control" rows="2" placeholder="Brief description of what this task involves"></textarea>
+                        <span asp-validation-for="Input.Description" class="text-danger"></span>
+                    </div>
+                </div>
+
+                <!-- Task Configuration -->
+                <h4 class="mb-3">Task Configuration</h4>
+                <div class="row g-3 mb-4">
+                    <div class="col-md-4">
+                        <label asp-for="Input.DefaultPriority" class="form-label"></label>
+                        <select asp-for="Input.DefaultPriority" class="form-select" asp-items="Html.GetEnumSelectList<TaskPriority>()"></select>
+                        <span asp-validation-for="Input.DefaultPriority" class="text-danger"></span>
+                    </div>
+                    <div class="col-md-4">
+                        <label asp-for="Input.TriggerType" class="form-label"></label>
+                        <select asp-for="Input.TriggerType" class="form-select" asp-items="Html.GetEnumSelectList<TaskTrigger>()"></select>
+                        <span asp-validation-for="Input.TriggerType" class="text-danger"></span>
+                    </div>
+                    <div class="col-md-4">
+                        <label asp-for="Input.AssignmentType" class="form-label"></label>
+                        <select asp-for="Input.AssignmentType" class="form-select" asp-items="Html.GetEnumSelectList<TaskAssignmentType>()"></select>
+                        <span asp-validation-for="Input.AssignmentType" class="text-danger"></span>
+                    </div>
+                    <div class="col-md-4">
+                        <label asp-for="Input.ApplicableToType" class="form-label"></label>
+                        <select asp-for="Input.ApplicableToType" class="form-select">
+                            <option value="">Both Cases and Contacts</option>
+                            <option value="1">Cases Only</option>
+                            <option value="2">Contacts Only</option>
+                        </select>
+                        <span asp-validation-for="Input.ApplicableToType" class="text-danger"></span>
+                        <small class="form-text text-muted">Leave blank to apply to both</small>
+                    </div>
+                    <div class="col-md-4">
+                        <label asp-for="Input.InheritanceBehavior" class="form-label"></label>
+                        <select asp-for="Input.InheritanceBehavior" class="form-select" asp-items="Html.GetEnumSelectList<TaskInheritanceBehavior>()"></select>
+                        <span asp-validation-for="Input.InheritanceBehavior" class="text-danger"></span>
+                        <small class="form-text text-muted">How this task applies to child diseases</small>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="form-check mt-4">
+                            <input asp-for="Input.RequiresEvidence" class="form-check-input" />
+                            <label asp-for="Input.RequiresEvidence" class="form-check-label"></label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Timing & Due Dates -->
+                <h4 class="mb-3">Timing & Due Dates</h4>
+                <div class="row g-3 mb-4">
+                    <div class="col-md-4">
+                        <label asp-for="Input.DueCalculationMethod" class="form-label"></label>
+                        <select asp-for="Input.DueCalculationMethod" class="form-select" asp-items="Html.GetEnumSelectList<TaskDueCalculationMethod>()"></select>
+                        <span asp-validation-for="Input.DueCalculationMethod" class="text-danger"></span>
+                    </div>
+                    <div class="col-md-4">
+                        <label asp-for="Input.DueDaysFromOnset" class="form-label"></label>
+                        <input asp-for="Input.DueDaysFromOnset" type="number" class="form-control" placeholder="e.g., 7" />
+                        <span asp-validation-for="Input.DueDaysFromOnset" class="text-danger"></span>
+                        <small class="form-text text-muted">Days from onset/notification/contact</small>
+                    </div>
+                </div>
+
+                <!-- Recurrence -->
+                <h4 class="mb-3">Recurrence (Optional)</h4>
+                <div class="row g-3 mb-4">
+                    <div class="col-md-12">
+                        <div class="form-check">
+                            <input asp-for="Input.IsRecurring" class="form-check-input" id="isRecurringCheck" />
+                            <label asp-for="Input.IsRecurring" class="form-check-label"></label>
+                        </div>
+                    </div>
+                </div>
+                <div id="recurrenceOptions" style="display: none;">
+                    <div class="row g-3 mb-4">
+                        <div class="col-md-4">
+                            <label asp-for="Input.RecurrencePattern" class="form-label"></label>
+                            <select asp-for="Input.RecurrencePattern" class="form-select">
+                                <option value="">Select Pattern</option>
+                                <option value="0">Daily</option>
+                                <option value="1">Twice Daily</option>
+                                <option value="2">Weekly</option>
+                                <option value="3">Every Other Day</option>
+                            </select>
+                            <span asp-validation-for="Input.RecurrencePattern" class="text-danger"></span>
+                        </div>
+                        <div class="col-md-4">
+                            <label asp-for="Input.RecurrenceCount" class="form-label"></label>
+                            <input asp-for="Input.RecurrenceCount" type="number" class="form-control" placeholder="e.g., 14" />
+                            <span asp-validation-for="Input.RecurrenceCount" class="text-danger"></span>
+                            <small class="form-text text-muted">Number of times to repeat</small>
+                        </div>
+                        <div class="col-md-4">
+                            <label asp-for="Input.RecurrenceDurationDays" class="form-label"></label>
+                            <input asp-for="Input.RecurrenceDurationDays" type="number" class="form-control" placeholder="e.g., 14" />
+                            <span asp-validation-for="Input.RecurrenceDurationDays" class="text-danger"></span>
+                            <small class="form-text text-muted">Or duration in days</small>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Instructions -->
+                <h4 class="mb-3">Instructions</h4>
+                <div class="row g-3 mb-4">
+                    <div class="col-md-12">
+                        <label asp-for="Input.Instructions" class="form-label"></label>
+                        <textarea asp-for="Input.Instructions" class="form-control" rows="4" 
+                                  placeholder="Detailed instructions for completing this task. This will be shown to users when they view the task."></textarea>
+                        <span asp-validation-for="Input.Instructions" class="text-danger"></span>
+                    </div>
+                    <div class="col-md-12">
+                        <label asp-for="Input.CompletionCriteria" class="form-label"></label>
+                        <textarea asp-for="Input.CompletionCriteria" class="form-control" rows="2" 
+                                  placeholder="Optional: What defines this task as complete?"></textarea>
+                        <span asp-validation-for="Input.CompletionCriteria" class="text-danger"></span>
+                    </div>
+                </div>
+
+                <!-- Status -->
+                <h4 class="mb-3">Status</h4>
+                <div class="row g-3 mb-4">
+                    <div class="col-md-12">
+                        <div class="form-check">
+                            <input asp-for="Input.IsActive" class="form-check-input" checked />
+                            <label asp-for="Input.IsActive" class="form-check-label"></label>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="d-flex gap-2">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save"></i> Create Task Template
+                    </button>
+                    <a asp-page="./TaskTemplates" class="btn btn-outline-secondary">Cancel</a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script src="https://code.jquery.com/ui/1.13.2/jquery-ui.min.js"></script>
+    <link rel="stylesheet" href="https://code.jquery.com/ui/1.13.2/themes/base/jquery-ui.css">
+    <script>
+        // Disease Autocomplete
+        $(document).ready(function() {
+            $("#diseaseAutocomplete").autocomplete({
+                source: function(request, response) {
+                    $.ajax({
+                        url: "/api/diseases/search",
+                        data: { term: request.term },
+                        success: function(data) {
+                            response(data.map(function(item) {
+                                return {
+                                    label: item.name,
+                                    value: item.name,
+                                    id: item.id
+                                };
+                            }));
+                        }
+                    });
+                },
+                minLength: 2,
+                select: function(event, ui) {
+                    $("#diseaseId").val(ui.item.id);
+                    $("#diseaseNameBadge").text(ui.item.label);
+                    $("#diseaseDisplay").show();
+                    return false;
+                }
+            });
+
+            $("#clearDisease").click(function() {
+                $("#diseaseId").val("");
+                $("#diseaseAutocomplete").val("");
+                $("#diseaseDisplay").hide();
+            });
+        });
+
+        // Show/hide recurrence options
+        const isRecurringCheck = document.getElementById('isRecurringCheck');
+        const recurrenceOptions = document.getElementById('recurrenceOptions');
+
+        isRecurringCheck.addEventListener('change', function() {
+            recurrenceOptions.style.display = this.checked ? 'block' : 'none';
+        });
+
+        // Initialize on page load
+        if (isRecurringCheck.checked) {
+            recurrenceOptions.style.display = 'block';
+        }
+    </script>
+}

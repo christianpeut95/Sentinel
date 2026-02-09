@@ -1,0 +1,549 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Settings - Surveillance System</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --spacing-1: 4px;
+            --spacing-2: 8px;
+            --spacing-3: 12px;
+            --spacing-4: 16px;
+            --spacing-6: 24px;
+            --spacing-8: 32px;
+            
+            --color-primary: #007AFF;
+            --color-success: #34C759;
+            
+            --gray-1: #000000;
+            --gray-2: rgba(60, 60, 67, 0.6);
+            --gray-4: #F2F2F7;
+            --gray-5: #E5E5EA;
+            --white: #FFFFFF;
+            
+            --radius-small: 8px;
+            --radius-medium: 12px;
+            --shadow-small: 0 2px 8px rgba(0,0,0,0.04);
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            font-size: 16px;
+            line-height: 1.5;
+            color: var(--gray-1);
+            background: var(--gray-4);
+        }
+
+        .header {
+            background: var(--white);
+            border-bottom: 1px solid var(--gray-5);
+            padding: var(--spacing-4) var(--spacing-8);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: var(--shadow-small);
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-4);
+        }
+
+        .menu-icon {
+            font-size: 24px;
+            cursor: pointer;
+            padding: var(--spacing-2);
+        }
+
+        .header-title {
+            font-size: 20px;
+            font-weight: 600;
+        }
+
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-4);
+        }
+
+        .icon-button {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+        }
+
+        .container {
+            max-width: 1440px;
+            margin: 0 auto;
+            padding: var(--spacing-8);
+        }
+
+        .page-title {
+            font-size: 28px;
+            font-weight: 700;
+            margin-bottom: var(--spacing-6);
+        }
+
+        .settings-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: var(--spacing-6);
+            margin-bottom: var(--spacing-6);
+        }
+
+        .setting-card {
+            background: var(--white);
+            border-radius: var(--radius-medium);
+            box-shadow: var(--shadow-small);
+            overflow: hidden;
+            transition: transform 0.2s, box-shadow 0.2s;
+            cursor: pointer;
+        }
+
+        .setting-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+        }
+
+        .setting-card-header {
+            padding: var(--spacing-4);
+            border-bottom: 1px solid var(--gray-5);
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-3);
+        }
+
+        .setting-icon {
+            font-size: 24px;
+        }
+
+        .setting-card-title {
+            font-size: 18px;
+            font-weight: 600;
+        }
+
+        .setting-card-body {
+            padding: var(--spacing-4);
+        }
+
+        .setting-item {
+            display: flex;
+            justify-content: space-between;
+            padding: var(--spacing-2) 0;
+            font-size: 15px;
+        }
+
+        .setting-label {
+            color: var(--gray-2);
+        }
+
+        .setting-value {
+            font-weight: 600;
+        }
+
+        .setting-action {
+            padding: var(--spacing-4);
+            border-top: 1px solid var(--gray-5);
+        }
+
+        .btn {
+            width: 100%;
+            padding: var(--spacing-2) var(--spacing-4);
+            border-radius: var(--radius-small);
+            border: none;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            background: var(--color-primary);
+            color: var(--white);
+        }
+
+        .btn:hover {
+            background: #0051D5;
+        }
+
+        .card {
+            background: var(--white);
+            border-radius: var(--radius-medium);
+            box-shadow: var(--shadow-small);
+            overflow: hidden;
+            margin-bottom: var(--spacing-6);
+        }
+
+        .card-header {
+            padding: var(--spacing-4);
+            border-bottom: 1px solid var(--gray-5);
+            font-weight: 600;
+            font-size: 18px;
+        }
+
+        .card-body {
+            padding: var(--spacing-4);
+        }
+
+        .activity-item {
+            padding: var(--spacing-3);
+            border-bottom: 1px solid var(--gray-5);
+            font-size: 14px;
+        }
+
+        .activity-item:last-child {
+            border-bottom: none;
+        }
+
+        .activity-time {
+            color: var(--gray-2);
+            font-weight: 600;
+        }
+
+        .quick-actions {
+            display: flex;
+            gap: var(--spacing-2);
+            flex-wrap: wrap;
+        }
+
+        .quick-action-btn {
+            padding: var(--spacing-2) var(--spacing-4);
+            border-radius: var(--radius-small);
+            border: 1px solid var(--gray-5);
+            background: var(--white);
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .quick-action-btn:hover {
+            background: var(--gray-4);
+            border-color: var(--color-primary);
+        }
+
+        .checkmark {
+            color: var(--color-success);
+            font-weight: 700;
+        }
+
+        @media (max-width: 1024px) {
+            .settings-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        @media (max-width: 768px) {
+            .settings-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .container {
+                padding: var(--spacing-4);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="header-left">
+            <div class="menu-icon">?</div>
+            <div class="header-title">Settings</div>
+        </div>
+        <div class="header-right">
+            <div class="icon-button">??</div>
+            <div class="icon-button">??</div>
+            <span style="font-size: 15px; font-weight: 500;">John Doe</span>
+        </div>
+    </div>
+
+    <div class="container">
+        <h1 class="page-title">? System Configuration</h1>
+
+        <!-- Settings Grid Row 1 -->
+        <div class="settings-grid">
+            <div class="setting-card">
+                <div class="setting-card-header">
+                    <div class="setting-icon">??</div>
+                    <div class="setting-card-title">Users & Security</div>
+                </div>
+                <div class="setting-card-body">
+                    <div class="setting-item">
+                        <span class="setting-label">Users</span>
+                        <span class="setting-value">42</span>
+                    </div>
+                    <div class="setting-item">
+                        <span class="setting-label">Roles</span>
+                        <span class="setting-value">5</span>
+                    </div>
+                    <div class="setting-item">
+                        <span class="setting-label">Permissions</span>
+                        <span class="setting-value">28</span>
+                    </div>
+                </div>
+                <div class="setting-action">
+                    <button class="btn">Manage Users ?</button>
+                </div>
+            </div>
+
+            <div class="setting-card">
+                <div class="setting-card-header">
+                    <div class="setting-icon">??</div>
+                    <div class="setting-card-title">Organizations</div>
+                </div>
+                <div class="setting-card-body">
+                    <div class="setting-item">
+                        <span class="setting-label">Healthcare Orgs</span>
+                        <span class="setting-value">12</span>
+                    </div>
+                    <div class="setting-item">
+                        <span class="setting-label">Lab Facilities</span>
+                        <span class="setting-value">8</span>
+                    </div>
+                    <div class="setting-item">
+                        <span class="setting-label">Org Types</span>
+                        <span class="setting-value">6</span>
+                    </div>
+                </div>
+                <div class="setting-action">
+                    <button class="btn">Manage Orgs ?</button>
+                </div>
+            </div>
+
+            <div class="setting-card">
+                <div class="setting-card-header">
+                    <div class="setting-icon">??</div>
+                    <div class="setting-card-title">Lookups</div>
+                </div>
+                <div class="setting-card-body">
+                    <div class="setting-item">
+                        <span class="setting-label">Diseases</span>
+                        <span class="setting-value">45</span>
+                    </div>
+                    <div class="setting-item">
+                        <span class="setting-label">Symptoms</span>
+                        <span class="setting-value">89</span>
+                    </div>
+                    <div class="setting-item">
+                        <span class="setting-label">Test Types</span>
+                        <span class="setting-value">34</span>
+                    </div>
+                    <div class="setting-item">
+                        <span class="setting-label">Specimen T.</span>
+                        <span class="setting-value">28</span>
+                    </div>
+                </div>
+                <div class="setting-action">
+                    <button class="btn">Manage ?</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Settings Grid Row 2 -->
+        <div class="settings-grid">
+            <div class="setting-card">
+                <div class="setting-card-header">
+                    <div class="setting-icon">??</div>
+                    <div class="setting-card-title">Surveys & Forms</div>
+                </div>
+                <div class="setting-card-body">
+                    <div class="setting-item">
+                        <span class="setting-label">Templates</span>
+                        <span class="setting-value">18</span>
+                    </div>
+                    <div class="setting-item">
+                        <span class="setting-label">Active Surveys</span>
+                        <span class="setting-value">6</span>
+                    </div>
+                    <div class="setting-item">
+                        <span class="setting-label">Versions</span>
+                        <span class="setting-value">45</span>
+                    </div>
+                </div>
+                <div class="setting-action">
+                    <button class="btn">Manage Surveys ?</button>
+                </div>
+            </div>
+
+            <div class="setting-card">
+                <div class="setting-card-header">
+                    <div class="setting-icon">?</div>
+                    <div class="setting-card-title">Tasks & Workflows</div>
+                </div>
+                <div class="setting-card-body">
+                    <div class="setting-item">
+                        <span class="setting-label">Task Types</span>
+                        <span class="setting-value">12</span>
+                    </div>
+                    <div class="setting-item">
+                        <span class="setting-label">Task Templates</span>
+                        <span class="setting-value">23</span>
+                    </div>
+                    <div class="setting-item">
+                        <span class="setting-label">Auto-assignment</span>
+                        <span class="setting-value checkmark">?</span>
+                    </div>
+                </div>
+                <div class="setting-action">
+                    <button class="btn">Manage Tasks ?</button>
+                </div>
+            </div>
+
+            <div class="setting-card">
+                <div class="setting-card-header">
+                    <div class="setting-icon">??</div>
+                    <div class="setting-card-title">Notifications</div>
+                </div>
+                <div class="setting-card-body">
+                    <div class="setting-item">
+                        <span class="setting-label">Email alerts</span>
+                        <span class="setting-value checkmark">?</span>
+                    </div>
+                    <div class="setting-item">
+                        <span class="setting-label">SMS alerts</span>
+                        <span class="setting-value checkmark">?</span>
+                    </div>
+                    <div class="setting-item">
+                        <span class="setting-label">In-app alerts</span>
+                        <span class="setting-value checkmark">?</span>
+                    </div>
+                    <div class="setting-item">
+                        <span class="setting-label">Digest</span>
+                        <span class="setting-value">Daily</span>
+                    </div>
+                </div>
+                <div class="setting-action">
+                    <button class="btn">Configure ?</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Settings Grid Row 3 -->
+        <div class="settings-grid">
+            <div class="setting-card">
+                <div class="setting-card-header">
+                    <div class="setting-icon">??</div>
+                    <div class="setting-card-title">Locations & Events</div>
+                </div>
+                <div class="setting-card-body">
+                    <div class="setting-item">
+                        <span class="setting-label">Location Types</span>
+                        <span class="setting-value">8</span>
+                    </div>
+                    <div class="setting-item">
+                        <span class="setting-label">Event Types</span>
+                        <span class="setting-value">14</span>
+                    </div>
+                    <div class="setting-item">
+                        <span class="setting-label">Geocoding API</span>
+                        <span class="setting-value checkmark">?</span>
+                    </div>
+                </div>
+                <div class="setting-action">
+                    <button class="btn">Manage ?</button>
+                </div>
+            </div>
+
+            <div class="setting-card">
+                <div class="setting-card-header">
+                    <div class="setting-icon">??</div>
+                    <div class="setting-card-title">Lab Integration</div>
+                </div>
+                <div class="setting-card-body">
+                    <div class="setting-item">
+                        <span class="setting-label">Connected Labs</span>
+                        <span class="setting-value">8</span>
+                    </div>
+                    <div class="setting-item">
+                        <span class="setting-label">Auto-import</span>
+                        <span class="setting-value checkmark">?</span>
+                    </div>
+                    <div class="setting-item">
+                        <span class="setting-label">HL7 Interface</span>
+                        <span class="setting-value checkmark">?</span>
+                    </div>
+                    <div class="setting-item">
+                        <span class="setting-label">Last sync</span>
+                        <span class="setting-value">5m ago</span>
+                    </div>
+                </div>
+                <div class="setting-action">
+                    <button class="btn">Configure ?</button>
+                </div>
+            </div>
+
+            <div class="setting-card">
+                <div class="setting-card-header">
+                    <div class="setting-icon">??</div>
+                    <div class="setting-card-title">System</div>
+                </div>
+                <div class="setting-card-body">
+                    <div class="setting-item">
+                        <span class="setting-label">App Version</span>
+                        <span class="setting-value">v2.4.1</span>
+                    </div>
+                    <div style="height: var(--spacing-4);"></div>
+                    <div class="setting-item">
+                        <span class="setting-label">Database</span>
+                        <span class="setting-value">1.2 GB / 50 GB</span>
+                    </div>
+                    <div style="background: var(--gray-4); height: 8px; border-radius: 4px; margin-top: var(--spacing-2);">
+                        <div style="width: 2.4%; background: var(--color-primary); height: 100%; border-radius: 4px;"></div>
+                    </div>
+                </div>
+                <div class="setting-action">
+                    <button class="btn">System Info ?</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Recent Changes -->
+        <div class="card">
+            <div class="card-header">? Recent Changes</div>
+            <div class="card-body" style="padding: 0;">
+                <div class="activity-item">
+                    <span class="activity-time">15m ago</span> • John Doe added new task type "Vaccine Verification"
+                </div>
+                <div class="activity-item">
+                    <span class="activity-time">1h ago</span> • Admin updated disease "Measles" configuration
+                </div>
+                <div class="activity-item">
+                    <span class="activity-time">3h ago</span> • Sarah Kim modified survey template "Contact Interview"
+                </div>
+                <div class="activity-item">
+                    <span class="activity-time">5h ago</span> • Admin created new user "Mike Wilson"
+                </div>
+                <div style="padding: var(--spacing-4); text-align: center;">
+                    <button class="btn" style="width: auto; background: var(--white); color: var(--color-primary); border: 1px solid var(--color-primary);">View Audit Log ?</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quick Actions -->
+        <div class="card">
+            <div class="card-header">? Quick Actions</div>
+            <div class="card-body">
+                <div class="quick-actions">
+                    <button class="quick-action-btn">Create User</button>
+                    <button class="quick-action-btn">Add Disease</button>
+                    <button class="quick-action-btn">New Survey</button>
+                    <button class="quick-action-btn">Import Data</button>
+                    <button class="quick-action-btn">Backup</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

@@ -1,0 +1,525 @@
+@page
+@model Surveillance_MVP.Pages.Settings.Surveys.EditSurveyTemplateModel
+@using Surveillance_MVP.Models
+
+@{
+    ViewData["Title"] = "Edit Survey Template";
+}
+
+<div class="container-fluid">
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-start mb-3">
+            <div>
+                <h2><i class="bi bi-pencil me-2"></i>Edit Survey Template</h2>
+                <p class="text-muted">Update reusable survey template</p>
+            </div>
+            <div class="text-end">
+                <div class="mb-2">
+                    <span class="badge bg-secondary">Version @Model.SurveyTemplate.VersionNumber</span>
+                    @if (Model.SurveyTemplate.VersionStatus == SurveyVersionStatus.Active)
+                    {
+                        <span class="badge bg-success">
+                            <i class="bi bi-check-circle me-1"></i>Active
+                        </span>
+                    }
+                    else if (Model.SurveyTemplate.VersionStatus == SurveyVersionStatus.Draft)
+                    {
+                        <span class="badge bg-warning text-dark">
+                            <i class="bi bi-pencil me-1"></i>Draft
+                        </span>
+                    }
+                    else
+                    {
+                        <span class="badge bg-secondary">
+                            <i class="bi bi-archive me-1"></i>Archived
+                        </span>
+                    }
+                </div>
+                @if (Model.AllVersions.Count > 1)
+                {
+                    <small class="text-muted">
+                        @Model.AllVersions.Count version(s) total
+                    </small>
+                }
+            </div>
+        </div>
+            
+        @if (Model.TaskTemplateUsageCount > 0)
+        {
+            <div class="alert alert-warning">
+                <i class="bi bi-exclamation-triangle me-2"></i>
+                <strong>In Use:</strong> This survey template is currently used by <strong>@Model.TaskTemplateUsageCount</strong> task template(s).
+                Changes to the survey definition will increment the version number.
+            </div>
+        }
+            
+        @if (Model.SurveyTemplate.IsSystemTemplate)
+        {
+            <div class="alert alert-danger">
+                <i class="bi bi-shield-lock me-2"></i>
+                <strong>System Template:</strong> This is a system template and cannot be edited.
+            </div>
+        }
+        </div>
+    </div>
+
+    <form method="post">
+        <input type="hidden" asp-for="SurveyTemplate.Id" />
+        
+        <div class="row">
+            <!-- Left Column - Basic Info -->
+            <div class="col-lg-6">
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <i class="bi bi-info-circle me-2"></i>Basic Information
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <label class="form-label">Version</label>
+                            <input type="text" class="form-control" value="Version @Model.SurveyTemplate.Version" disabled />
+                            <small class="text-muted">Version is auto-incremented when survey definition changes</small>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label asp-for="SurveyTemplate.Name" class="form-label required"></label>
+                            <input asp-for="SurveyTemplate.Name" class="form-control" />
+                            <span asp-validation-for="SurveyTemplate.Name" class="text-danger"></span>
+                        </div>
+
+                        <div class="mb-3">
+                            <label asp-for="SurveyTemplate.Description" class="form-label"></label>
+                            <textarea asp-for="SurveyTemplate.Description" class="form-control" rows="3"></textarea>
+                            <span asp-validation-for="SurveyTemplate.Description" class="text-danger"></span>
+                        </div>
+
+                        <div class="mb-3">
+                            <label asp-for="SurveyTemplate.Category" class="form-label"></label>
+                            <select asp-for="SurveyTemplate.Category" class="form-select">
+                                <option value="">-- Select Category --</option>
+                                <option value="Foodborne">Foodborne</option>
+                                <option value="Respiratory">Respiratory</option>
+                                <option value="Vector-borne">Vector-borne</option>
+                                <option value="Contact Investigation">Contact Investigation</option>
+                                <option value="Risk Assessment">Risk Assessment</option>
+                                <option value="Symptom Screening">Symptom Screening</option>
+                                <option value="Exposure History">Exposure History</option>
+                                <option value="Other">Other</option>
+                            </select>
+                            <span asp-validation-for="SurveyTemplate.Category" class="text-danger"></span>
+                        </div>
+
+                        <div class="mb-3">
+                            <label asp-for="SurveyTemplate.Tags" class="form-label"></label>
+                            <input asp-for="SurveyTemplate.Tags" class="form-control" 
+                                   placeholder="Enter comma-separated tags (e.g., food, history, investigation)" />
+                            <span asp-validation-for="SurveyTemplate.Tags" class="text-danger"></span>
+                            <small class="form-text text-muted">
+                                Tags help organize and search for survey templates
+                            </small>
+                        </div>
+
+                        <div class="form-check mb-3">
+                            <input asp-for="SurveyTemplate.IsActive" class="form-check-input" type="checkbox" />
+                            <label asp-for="SurveyTemplate.IsActive" class="form-check-label">
+                                Active (available for use)
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Applicable Diseases -->
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <i class="bi bi-clipboard2-pulse me-2"></i>Applicable Diseases
+                    </div>
+                    <div class="card-body">
+                        <p class="text-muted small">
+                            Select which diseases this survey template applies to. This helps organize surveys and makes them easier to find.
+                        </p>
+                        <div class="border rounded p-3" style="max-height: 300px; overflow-y: auto;">
+                            @foreach (var disease in Model.Diseases)
+                            {
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="SelectedDiseaseIds" 
+                                           value="@disease.Value" id="disease-@disease.Value"
+                                           @(Model.SelectedDiseaseIds.Contains(Guid.Parse(disease.Value)) ? "checked" : "") />
+                                    <label class="form-check-label" for="disease-@disease.Value">
+                                        @disease.Text
+                                    </label>
+                                </div>
+                            }
+                        </div>
+                        <small class="form-text text-muted mt-2 d-block">
+                            <i class="bi bi-info-circle me-1"></i>
+                            Optional: Select all diseases that this survey might be used for
+                        </small>
+                    </div>
+                </div>
+
+                <!-- Usage Information -->
+                @if (Model.TaskTemplateUsageCount > 0)
+                {
+                    <div class="card mb-4">
+                        <div class="card-header bg-info text-white">
+                            <i class="bi bi-graph-up me-2"></i>Usage Information
+                        </div>
+                        <div class="card-body">
+                            <div class="mb-2">
+                                <strong>Used in:</strong> @Model.TaskTemplateUsageCount task template(s)
+                            </div>
+                            <small class="text-muted">
+                                <i class="bi bi-info-circle me-1"></i>
+                                Changes will affect all task templates using this survey
+                            </small>
+                        </div>
+                    </div>
+                }
+            </div>
+
+            <!-- Right Column - Survey Definition & Mappings -->
+            <div class="col-lg-6">
+                <!-- Survey Definition -->
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <i class="bi bi-pencil-square me-2"></i>Survey Definition
+                    </div>
+                    <div class="card-body">
+                        <div class="alert alert-info">
+                            <i class="bi bi-exclamation-circle me-1"></i>
+                            Changes to survey definition will increment the version number
+                        </div>
+                        
+                        @if (string.IsNullOrWhiteSpace(Model.SurveyTemplate.SurveyDefinitionJson))
+                        {
+                            <div class="text-center py-5">
+                                <i class="bi bi-file-earmark-plus" style="font-size: 3rem; color: #ccc;"></i>
+                                <h5 class="mt-3">No Survey Defined</h5>
+                                <p class="text-muted">Use the visual designer to create your survey</p>
+                                <button type="button" class="btn btn-primary btn-lg" id="openDesignerBtn">
+                                    <i class="bi bi-pencil-square me-2"></i>Open Visual Designer
+                                </button>
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="mb-3">
+                                <div class="alert alert-success">
+                                    <i class="bi bi-check-circle me-2"></i>
+                                    Survey definition exists
+                                    @{
+                                        var surveyObj = System.Text.Json.JsonDocument.Parse(Model.SurveyTemplate.SurveyDefinitionJson);
+                                        if (surveyObj.RootElement.TryGetProperty("elements", out var elements))
+                                        {
+                                            <span class="badge bg-success ms-2">@elements.GetArrayLength() question(s)</span>
+                                        }
+                                    }
+                                </div>
+                                
+                                <div class="d-flex gap-2">
+                                    <button type="button" class="btn btn-primary" id="openDesignerBtn">
+                                        <i class="bi bi-pencil-square me-1"></i>Edit in Visual Designer
+                                    </button>
+                                    <button type="button" class="btn btn-outline-secondary" id="viewJsonBtn">
+                                        <i class="bi bi-code-square me-1"></i>View JSON
+                                    </button>
+                                </div>
+                            </div>
+                        }
+
+                        <!-- Hidden input to store the JSON -->
+                        <input type="hidden" asp-for="SurveyTemplate.SurveyDefinitionJson" id="surveyJson" />
+                    </div>
+                </div>
+
+                <!-- Default Mappings -->
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <i class="bi bi-arrows-expand me-2"></i>Default Field Mappings
+                    </div>
+                    <div class="card-body">
+                        <div class="alert alert-info small">
+                            <i class="bi bi-info-circle me-2"></i>
+                            These default mappings will be used unless overridden at the task template or disease level.
+                        </div>
+
+                        <div class="mb-3">
+                            <label asp-for="SurveyTemplate.DefaultInputMappingJson" class="form-label">
+                                <i class="bi bi-download me-1"></i>Input Mapping (Pre-populate)
+                            </label>
+                            <textarea asp-for="SurveyTemplate.DefaultInputMappingJson" 
+                                      class="form-control font-monospace" 
+                                      rows="6"
+                                      placeholder='{"patientName": "Patient.GivenName", "caseNumber": "Case.FriendlyId"}'></textarea>
+                            <span asp-validation-for="SurveyTemplate.DefaultInputMappingJson" class="text-danger"></span>
+                        </div>
+
+                        <div class="mb-3">
+                            <label asp-for="SurveyTemplate.DefaultOutputMappingJson" class="form-label">
+                                <i class="bi bi-upload me-1"></i>Output Mapping (Save responses)
+                            </label>
+                            <textarea asp-for="SurveyTemplate.DefaultOutputMappingJson" 
+                                      class="form-control font-monospace" 
+                                      rows="6"
+                                      placeholder='{"isolationDate": "Case.IsolationStartDate", "riskLevel": "Case.CustomFields.RiskLevel"}'></textarea>
+                            <span asp-validation-for="SurveyTemplate.DefaultOutputMappingJson" class="text-danger"></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Version History -->
+        @if (Model.AllVersions.Count > 1)
+        {
+            <div class="card mb-4">
+                <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                    <div>
+                        <i class="bi bi-clock-history me-2"></i>Version History
+                    </div>
+                    <span class="badge bg-light text-primary">@Model.AllVersions.Count version(s)</span>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-info">
+                        <i class="bi bi-info-circle me-2"></i>
+                        <strong>Version Management:</strong> Only one version can be Active at a time. 
+                        Use "Save As Version" in the designer to create new versions.
+                    </div>
+                    
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Version</th>
+                                    <th>Status</th>
+                                    <th>Notes</th>
+                                    <th>Created</th>
+                                    <th>Published</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var version in Model.AllVersions)
+                                {
+                                    <tr class="@(version.VersionStatus == SurveyVersionStatus.Active ? "table-success" : "")">
+                                        <td>
+                                            <strong>v@version.VersionNumber</strong>
+                                            @if (version.Id == Model.SurveyTemplate.Id)
+                                            {
+                                                <span class="badge bg-info">Current</span>
+                                            }
+                                        </td>
+                                        <td>
+                                            @if (version.VersionStatus == SurveyVersionStatus.Active)
+                                            {
+                                                <span class="badge bg-success">
+                                                    <i class="bi bi-check-circle me-1"></i>Active
+                                                </span>
+                                            }
+                                            else if (version.VersionStatus == SurveyVersionStatus.Draft)
+                                            {
+                                                <span class="badge bg-warning text-dark">
+                                                    <i class="bi bi-pencil me-1"></i>Draft
+                                                </span>
+                                            }
+                                            else
+                                            {
+                                                <span class="badge bg-secondary">
+                                                    <i class="bi bi-archive me-1"></i>Archived
+                                                </span>
+                                            }
+                                        </td>
+                                        <td>
+                                            <small>@(version.VersionNotes ?? "No notes")</small>
+                                        </td>
+                                        <td>
+                                            @version.CreatedAt.ToString("MMM d, yyyy")
+                                            <br>
+                                            <small class="text-muted">by @version.CreatedBy</small>
+                                        </td>
+                                        <td>
+                                            @if (version.PublishedAt.HasValue)
+                                            {
+                                                @version.PublishedAt.Value.ToString("MMM d, yyyy")
+                                                <br>
+                                                <small class="text-muted">by @version.PublishedBy</small>
+                                            }
+                                            else
+                                            {
+                                                <span class="text-muted">-</span>
+                                            }
+                                        </td>
+                                        <td>
+                                            <div class="btn-group btn-group-sm">
+                                                @if (version.VersionStatus == SurveyVersionStatus.Draft)
+                                                {
+                                                    <button type="button" class="btn btn-success btn-sm" 
+                                                            onclick="publishVersion('@version.Id', '@version.VersionNumber')"
+                                                            title="Publish this version">
+                                                        <i class="bi bi-upload me-1"></i>Publish
+                                                    </button>
+                                                }
+                                                <a href="?id=@version.Id" class="btn btn-primary btn-sm" title="View this version">
+                                                    <i class="bi bi-eye me-1"></i>View
+                                                </a>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        }
+
+        <!-- Action Buttons -->
+        <div class="card">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <a asp-page="./SurveyTemplates" class="btn btn-outline-secondary">
+                        <i class="bi bi-x-circle me-2"></i>Cancel
+                    </a>
+                    <button type="submit" class="btn btn-primary" @(Model.SurveyTemplate.IsSystemTemplate ? "disabled" : "")>
+                        <i class="bi bi-save me-2"></i>Update Survey Template
+                    </button>
+                </div>
+            </div>
+        </div>
+    </form>
+</div>
+
+<!-- Survey Preview Modal -->
+<div class="modal fade" id="surveyPreviewModal" tabindex="-1">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="bi bi-eye me-2"></i>Survey Preview
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="surveyPreviewContainer"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Styles {
+}
+
+@section Scripts {
+    @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+    
+    <script>
+        const surveyTemplateId = '@Model.SurveyTemplate.Id';
+        let designerWindow = null;
+        
+        // Open designer in a popup window
+        $('#openDesignerBtn').on('click', function() {
+            const designerUrl = `/Settings/Surveys/DesignSurvey/${surveyTemplateId}?returnUrl=${encodeURIComponent(window.location.pathname)}`;
+            
+            // Open in a large popup window
+            const width = Math.min(1400, screen.width * 0.9);
+            const height = Math.min(900, screen.height * 0.9);
+            const left = (screen.width - width) / 2;
+            const top = (screen.height - height) / 2;
+            
+            designerWindow = window.open(
+                designerUrl,
+                'surveyDesigner',
+                `width=${width},height=${height},left=${left},top=${top},menubar=no,toolbar=no,location=no,status=no,scrollbars=yes,resizable=yes`
+            );
+            
+            if (designerWindow) {
+                designerWindow.focus();
+            } else {
+                alert('Please allow popups for this site to use the visual designer.');
+            }
+        });
+        
+        // View JSON button
+        $('#viewJsonBtn').on('click', function() {
+            const json = $('#surveyJson').val();
+            if (!json) {
+                alert('No survey definition available.');
+                return;
+            }
+            
+            try {
+                const parsed = JSON.parse(json);
+                const formatted = JSON.stringify(parsed, null, 2);
+                
+                // Show in a modal
+                const modalHtml = `
+                    <div class="modal fade" id="jsonViewModal" tabindex="-1">
+                        <div class="modal-dialog modal-xl">
+                            <div class="modal-content">
+                                <div class="modal-header">
+                                    <h5 class="modal-title">
+                                        <i class="bi bi-code-square me-2"></i>Survey JSON
+                                    </h5>
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                </div>
+                                <div class="modal-body">
+                                    <pre class="bg-light p-3 border rounded" style="max-height: 600px; overflow: auto;"><code>${formatted}</code></pre>
+                                </div>
+                                <div class="modal-footer">
+                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                
+                // Remove any existing modal
+                $('#jsonViewModal').remove();
+                
+                // Add and show modal
+                $('body').append(modalHtml);
+                const modal = new bootstrap.Modal(document.getElementById('jsonViewModal'));
+                modal.show();
+                
+                // Clean up after close
+                $('#jsonViewModal').on('hidden.bs.modal', function() {
+                    $(this).remove();
+                });
+            } catch (e) {
+                alert('Error parsing JSON: ' + e.message);
+            }
+        });
+        
+        // Listen for messages from designer window (optional)
+        window.addEventListener('message', function(event) {
+            // You can handle messages from the designer window here if needed
+            if (event.data && event.data.type === 'surveySaved') {
+                console.log('Survey saved in designer');
+                // Optionally reload the page to show updated data
+                // location.reload();
+            }
+        });
+        
+        // Publish version function
+        function publishVersion(versionId, versionNumber) {
+            if (!confirm(`Publish version ${versionNumber} as Active?\n\nThis will archive the current active version.`)) {
+                return;
+            }
+            
+            $.ajax({
+                url: `/api/SurveyVersion/PublishVersion/${versionId}`,
+                method: 'POST',
+                success: function(response) {
+                    alert(`Version ${versionNumber} published successfully!`);
+                    location.reload();
+                },
+                error: function(xhr) {
+                    alert('Failed to publish version: ' + (xhr.responseText || 'Unknown error'));
+                }
+            });
+        }
+    </script>
+}

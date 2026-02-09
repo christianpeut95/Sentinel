@@ -1,0 +1,110 @@
+@page
+@model Surveillance_MVP.Pages.Cases.IndexModel
+@using Surveillance_MVP.Models
+
+@{
+    ViewData["Title"] = "Cases";
+    Layout = "~/Pages/Shared/_Layout.cshtml";
+}
+
+<nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a asp-page="/Index">Home</a></li>
+        <li class="breadcrumb-item active" aria-current="page">Cases</li>
+    </ol>
+</nav>
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2><i class="bi bi-virus me-2"></i>Cases</h2>
+    <div class="btn-group" role="group">
+        <a asp-page="Search" class="btn btn-outline-primary">
+            <i class="bi bi-search me-1"></i>Advanced Search
+        </a>
+        @if (User.HasClaim(c => c.Type == "Permission" && c.Value == "Case.Create"))
+        {
+            <a asp-page="Create" class="btn btn-primary">
+                <i class="bi bi-plus-circle me-1"></i>Create New Case
+            </a>
+        }
+    </div>
+</div>
+
+@if (!Model.Cases.Any())
+{
+    <div class="alert alert-info">
+        <i class="bi bi-info-circle me-2"></i>No cases found. Create your first case to get started.
+    </div>
+}
+else
+{
+    <div class="table-responsive">
+        <table class="table table-striped table-hover">
+            <thead class="table-light">
+                <tr>
+                    <th>Case ID</th>
+                    <th>Patient</th>
+                    <th>Disease</th>
+                    <th>Date of Onset</th>
+                    <th>Date of Notification</th>
+                    <th>Confirmation Status</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var item in Model.Cases)
+                {
+                    <tr>
+                        <td>
+                            <a asp-page="./Details" asp-route-id="@item.Id">@item.FriendlyId</a>
+                        </td>
+                        <td>
+                            @if (item.Patient != null)
+                            {
+                                <a asp-page="/Patients/Details" asp-route-id="@item.PatientId">
+                                    @item.Patient.GivenName @item.Patient.FamilyName
+                                </a>
+                            }
+                            else
+                            {
+                                <span class="text-muted">Unknown</span>
+                            }
+                        </td>
+                        <td>
+                            @if (item.Disease != null)
+                            {
+                                <text>@item.Disease.Name</text>
+                            }
+                            else
+                            {
+                                <span class="text-muted">-</span>
+                            }
+                        </td>
+                        <td>@(item.DateOfOnset?.ToString("dd MMM yyyy") ?? "-")</td>
+                        <td>@(item.DateOfNotification?.ToString("dd MMM yyyy") ?? "-")</td>
+                        <td>@(item.ConfirmationStatus?.Name ?? "-")</td>
+                        <td>
+                            @if (User.HasClaim(c => c.Type == "Permission" && c.Value == "Case.View"))
+                            {
+                                <a asp-page="./Details" asp-route-id="@item.Id" class="btn btn-sm btn-outline-primary" title="Details">
+                                    <i class="bi bi-eye"></i>
+                                </a>
+                            }
+                            @if (User.HasClaim(c => c.Type == "Permission" && c.Value == "Case.Edit"))
+                            {
+                                <a asp-page="./Edit" asp-route-id="@item.Id" class="btn btn-sm btn-outline-secondary" title="Edit">
+                                    <i class="bi bi-pencil"></i>
+                                </a>
+                            }
+                            @if (User.HasClaim(c => c.Type == "Permission" && c.Value == "Case.Delete"))
+                            {
+                                <a asp-page="./Delete" asp-route-id="@item.Id" class="btn btn-sm btn-outline-danger" title="Delete">
+                                    <i class="bi bi-trash"></i>
+                                </a>
+                            }
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}

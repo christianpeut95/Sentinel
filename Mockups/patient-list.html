@@ -1,0 +1,540 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Patients - Surveillance System</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --spacing-1: 4px;
+            --spacing-2: 8px;
+            --spacing-3: 12px;
+            --spacing-4: 16px;
+            --spacing-6: 24px;
+            --spacing-8: 32px;
+            
+            --color-primary: #007AFF;
+            --color-success: #34C759;
+            --color-warning: #FF9500;
+            --color-danger: #FF3B30;
+            --color-yellow: #FFCC00;
+            
+            --gray-1: #000000;
+            --gray-2: rgba(60, 60, 67, 0.6);
+            --gray-3: rgba(60, 60, 67, 0.3);
+            --gray-4: #F2F2F7;
+            --gray-5: #E5E5EA;
+            --white: #FFFFFF;
+            
+            --radius-small: 8px;
+            --radius-medium: 12px;
+            --shadow-small: 0 2px 8px rgba(0,0,0,0.04);
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            font-size: 16px;
+            line-height: 1.5;
+            color: var(--gray-1);
+            background: var(--gray-4);
+        }
+
+        .header {
+            background: var(--white);
+            border-bottom: 1px solid var(--gray-5);
+            padding: var(--spacing-4) var(--spacing-8);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: var(--shadow-small);
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-4);
+        }
+
+        .menu-icon {
+            font-size: 24px;
+            cursor: pointer;
+            padding: var(--spacing-2);
+        }
+
+        .header-title {
+            font-size: 20px;
+            font-weight: 600;
+        }
+
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-4);
+        }
+
+        .icon-button {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+        }
+
+        .container {
+            max-width: 1440px;
+            margin: 0 auto;
+            padding: var(--spacing-8);
+        }
+
+        .search-header {
+            display: flex;
+            gap: var(--spacing-4);
+            margin-bottom: var(--spacing-4);
+        }
+
+        .search-input {
+            flex: 1;
+            padding: var(--spacing-3) var(--spacing-4);
+            border: 1px solid var(--gray-5);
+            border-radius: var(--radius-medium);
+            font-size: 15px;
+            background: var(--white);
+        }
+
+        .search-input:focus {
+            outline: 2px solid var(--color-primary);
+        }
+
+        .btn {
+            padding: var(--spacing-2) var(--spacing-4);
+            border-radius: var(--radius-small);
+            border: none;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            white-space: nowrap;
+        }
+
+        .btn-primary {
+            background: var(--color-primary);
+            color: var(--white);
+        }
+
+        .btn-primary:hover {
+            background: #0051D5;
+        }
+
+        .tabs {
+            display: flex;
+            gap: var(--spacing-2);
+            margin-bottom: var(--spacing-4);
+            flex-wrap: wrap;
+        }
+
+        .tab {
+            padding: var(--spacing-2) var(--spacing-4);
+            border-radius: var(--radius-small);
+            border: none;
+            background: var(--white);
+            cursor: pointer;
+            font-size: 15px;
+            transition: all 0.2s;
+        }
+
+        .tab:hover {
+            background: var(--gray-4);
+        }
+
+        .tab.active {
+            background: var(--color-primary);
+            color: var(--white);
+        }
+
+        .toolbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: var(--spacing-4);
+        }
+
+        select {
+            padding: var(--spacing-2) var(--spacing-4);
+            border: 1px solid var(--gray-5);
+            border-radius: var(--radius-small);
+            font-size: 14px;
+            background: var(--white);
+        }
+
+        .card {
+            background: var(--white);
+            border-radius: var(--radius-medium);
+            box-shadow: var(--shadow-small);
+            overflow: hidden;
+            margin-bottom: var(--spacing-4);
+        }
+
+        .letter-header {
+            background: var(--gray-4);
+            padding: var(--spacing-2) var(--spacing-4);
+            font-weight: 700;
+            font-size: 18px;
+            color: var(--gray-1);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th {
+            background: var(--white);
+            padding: var(--spacing-3) var(--spacing-4);
+            text-align: left;
+            font-weight: 600;
+            font-size: 14px;
+            color: var(--gray-2);
+            border-bottom: 1px solid var(--gray-5);
+        }
+
+        td {
+            padding: var(--spacing-4);
+            border-bottom: 1px solid var(--gray-5);
+            vertical-align: top;
+        }
+
+        tr:hover {
+            background: #F9F9F9;
+            cursor: pointer;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            display: inline-block;
+            vertical-align: middle;
+            margin-right: var(--spacing-1);
+        }
+
+        .status-critical { background: var(--color-danger); }
+        .status-warning { background: var(--color-warning); }
+        .status-attention { background: var(--color-yellow); }
+        .status-normal { background: var(--color-success); }
+
+        .patient-name {
+            font-weight: 600;
+            margin-bottom: var(--spacing-1);
+        }
+
+        .patient-mrn {
+            font-size: 13px;
+            color: var(--gray-2);
+        }
+
+        .patient-demo {
+            font-size: 14px;
+        }
+
+        .patient-detail {
+            font-size: 13px;
+            color: var(--gray-2);
+        }
+
+        .activity-status {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-1);
+            font-size: 14px;
+        }
+
+        .activity-badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: var(--radius-small);
+            background: var(--color-warning);
+            color: var(--white);
+            font-size: 11px;
+            font-weight: 600;
+            margin-top: var(--spacing-1);
+        }
+
+        .load-more {
+            padding: var(--spacing-4);
+            text-align: center;
+            background: var(--white);
+            border-radius: var(--radius-medium);
+            box-shadow: var(--shadow-small);
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .load-more:hover {
+            background: var(--gray-4);
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: var(--spacing-4);
+            }
+            
+            .tabs {
+                overflow-x: auto;
+                flex-wrap: nowrap;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="header-left">
+            <div class="menu-icon">?</div>
+            <div class="header-title">Patients</div>
+        </div>
+        <div class="header-right">
+            <div class="icon-button">??</div>
+            <div class="icon-button">??</div>
+            <span style="font-size: 15px; font-weight: 500;">John Doe</span>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="search-header">
+            <input type="text" class="search-input" placeholder="?? Search by name, DOB, phone, MRN...">
+            <button class="btn btn-primary">+ New</button>
+        </div>
+
+        <div class="tabs">
+            <button class="tab active">All</button>
+            <button class="tab">Active Cases</button>
+            <button class="tab">Monitored</button>
+            <button class="tab">Recently Added</button>
+            <div style="flex: 1;"></div>
+            <select>
+                <option>Sort: A-Z</option>
+                <option>Sort: Z-A</option>
+                <option>Sort: Recent</option>
+            </select>
+        </div>
+
+        <div class="toolbar">
+            <div style="font-size: 20px; font-weight: 600;">? 4,582 patients</div>
+            <button class="btn btn-primary">Export</button>
+        </div>
+
+        <!-- Letter Group A -->
+        <div class="card">
+            <div class="letter-header">A</div>
+            <table>
+                <thead>
+                    <tr>
+                        <th style="width: 20px;"></th>
+                        <th>Name</th>
+                        <th>Demographics</th>
+                        <th>Contact</th>
+                        <th>Recent Activity</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><span class="status-dot status-critical"></span></td>
+                        <td>
+                            <div class="patient-name">Anderson, Mark</div>
+                            <div class="patient-mrn">MRN: PAT-0042</div>
+                        </td>
+                        <td class="patient-demo">
+                            M • Age 45<br>
+                            <span class="patient-detail">DOB 05/12/81</span>
+                        </td>
+                        <td class="patient-detail">
+                            555-0123<br>
+                            mark@...
+                        </td>
+                        <td>
+                            <div class="activity-status">
+                                <span class="status-dot status-critical"></span> 1 active case
+                            </div>
+                            <div class="patient-detail">COVID-19 • 3d</div>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td><span class="status-dot status-critical"></span></td>
+                        <td>
+                            <div class="patient-name">Adams, Sarah</div>
+                            <div class="patient-mrn">MRN: PAT-0018</div>
+                        </td>
+                        <td class="patient-demo">
+                            F • Age 8<br>
+                            <span class="patient-detail">DOB 02/08/18</span>
+                        </td>
+                        <td class="patient-detail">
+                            555-0142<br>
+                            parent@...
+                        </td>
+                        <td>
+                            <div class="activity-status">
+                                <span class="status-dot status-critical"></span> 1 active case
+                            </div>
+                            <div class="patient-detail">Measles • 2h</div>
+                            <span class="activity-badge">OUTBREAK</span>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td></td>
+                        <td>
+                            <div class="patient-name">Allen, Robert</div>
+                            <div class="patient-mrn">MRN: PAT-0156</div>
+                        </td>
+                        <td class="patient-demo">
+                            M • Age 67<br>
+                            <span class="patient-detail">DOB 11/23/59</span>
+                        </td>
+                        <td class="patient-detail">
+                            555-0234<br>
+                            rob@...
+                        </td>
+                        <td>
+                            <div class="activity-status">
+                                <span class="status-dot status-normal"></span> Monitored
+                            </div>
+                            <div class="patient-detail">TB • 14d</div>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Letter Group C -->
+        <div class="card">
+            <div class="letter-header">C</div>
+            <table>
+                <thead>
+                    <tr>
+                        <th style="width: 20px;"></th>
+                        <th>Name</th>
+                        <th>Demographics</th>
+                        <th>Contact</th>
+                        <th>Recent Activity</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><span class="status-dot status-attention"></span></td>
+                        <td>
+                            <div class="patient-name">Chen, Michael</div>
+                            <div class="patient-mrn">MRN: PAT-0289</div>
+                        </td>
+                        <td class="patient-demo">
+                            M • Age 34<br>
+                            <span class="patient-detail">DOB 07/19/92</span>
+                        </td>
+                        <td class="patient-detail">
+                            555-0198<br>
+                            mchen@...
+                        </td>
+                        <td>
+                            <div class="activity-status">
+                                <span class="status-dot status-attention"></span> Follow-up due
+                            </div>
+                            <div class="patient-detail">COVID-19 • 5h</div>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td></td>
+                        <td>
+                            <div class="patient-name">Cooper, Lisa</div>
+                            <div class="patient-mrn">MRN: PAT-0412</div>
+                        </td>
+                        <td class="patient-demo">
+                            F • Age 29<br>
+                            <span class="patient-detail">DOB 03/15/97</span>
+                        </td>
+                        <td class="patient-detail">
+                            555-0301<br>
+                            lisa@...
+                        </td>
+                        <td>
+                            <div class="patient-detail">No active cases</div>
+                            <div class="patient-detail">Last: 6mo ago</div>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Letter Group D -->
+        <div class="card">
+            <div class="letter-header">D</div>
+            <table>
+                <thead>
+                    <tr>
+                        <th style="width: 20px;"></th>
+                        <th>Name</th>
+                        <th>Demographics</th>
+                        <th>Contact</th>
+                        <th>Recent Activity</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><span class="status-dot status-normal"></span></td>
+                        <td>
+                            <div class="patient-name">Davis, Emma</div>
+                            <div class="patient-mrn">MRN: PAT-0367</div>
+                        </td>
+                        <td class="patient-demo">
+                            F • Age 29<br>
+                            <span class="patient-detail">DOB 09/22/97</span>
+                        </td>
+                        <td class="patient-detail">
+                            555-0287<br>
+                            emma@...
+                        </td>
+                        <td>
+                            <div class="activity-status">
+                                <span class="status-dot status-normal"></span> Stable
+                            </div>
+                            <div class="patient-detail">Influenza • 2d</div>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td></td>
+                        <td>
+                            <div class="patient-name">Diaz, Carlos</div>
+                            <div class="patient-mrn">MRN: PAT-0501</div>
+                        </td>
+                        <td class="patient-demo">
+                            M • Age 52<br>
+                            <span class="patient-detail">DOB 01/30/74</span>
+                        </td>
+                        <td class="patient-detail">
+                            555-0389<br>
+                            carlos@...
+                        </td>
+                        <td>
+                            <div class="patient-detail">No active cases</div>
+                            <div class="patient-detail">Last: 2y ago</div>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Load More -->
+        <div class="load-more">
+            <strong>Show more...</strong> (4,574 remaining)
+        </div>
+    </div>
+</body>
+</html>

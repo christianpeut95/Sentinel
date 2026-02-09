@@ -1,0 +1,67 @@
+@page
+@model Surveillance_MVP.Pages.Settings.DiseaseCategories.CreateModel
+
+@{
+    ViewData["Title"] = "Create Category";
+}
+
+<nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a asp-page="/Index">Home</a></li>
+        <li class="breadcrumb-item"><a asp-page="/Settings/Index">Settings</a></li>
+        <li class="breadcrumb-item"><a asp-page="/Settings/DiseaseCategories/Index">Disease Categories</a></li>
+        <li class="breadcrumb-item active" aria-current="page">Create</li>
+    </ol>
+</nav>
+
+<h2><i class="bi bi-plus-circle me-2"></i>Create Disease Category</h2>
+<hr />
+
+<div class="row">
+    <div class="col-md-6">
+        <form method="post">
+            <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
+
+            <div class="mb-3">
+                <label asp-for="Category.Name" class="form-label"></label>
+                <input asp-for="Category.Name" class="form-control" />
+                <span asp-validation-for="Category.Name" class="text-danger"></span>
+                <small class="form-text text-muted">e.g., "STI/BBV", "Food Borne Diseases"</small>
+            </div>
+
+            <div class="mb-3">
+                <label asp-for="Category.ReportingId" class="form-label"></label>
+                <input asp-for="Category.ReportingId" class="form-control" />
+                <span asp-validation-for="Category.ReportingId" class="text-danger"></span>
+                <small class="form-text text-muted">Unique identifier for reporting (e.g., RPT-001)</small>
+            </div>
+
+            <div class="mb-3">
+                <label asp-for="Category.Description" class="form-label"></label>
+                <textarea asp-for="Category.Description" class="form-control" rows="3"></textarea>
+                <span asp-validation-for="Category.Description" class="text-danger"></span>
+            </div>
+
+            <div class="mb-3">
+                <label asp-for="Category.DisplayOrder" class="form-label"></label>
+                <input asp-for="Category.DisplayOrder" class="form-control" type="number" />
+                <span asp-validation-for="Category.DisplayOrder" class="text-danger"></span>
+                <small class="form-text text-muted">Lower numbers appear first</small>
+            </div>
+
+            <div class="mb-3 form-check">
+                <input asp-for="Category.IsActive" class="form-check-input" type="checkbox" checked />
+                <label asp-for="Category.IsActive" class="form-check-label"></label>
+            </div>
+
+            <div class="mt-3">
+                <button type="submit" class="btn btn-primary"><i class="bi bi-check-circle me-1"></i>Create</button>
+                <a asp-page="Index" class="btn btn-outline-secondary ms-2"><i class="bi bi-arrow-left me-1"></i>Back to List</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+    @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+}

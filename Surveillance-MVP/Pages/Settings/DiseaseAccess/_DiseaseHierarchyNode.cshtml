@@ -1,0 +1,89 @@
+@model Surveillance_MVP.Pages.Settings.DiseaseAccess.DiseaseHierarchyNode
+
+@{
+    var selectedDiseaseId = ViewBag.SelectedDiseaseId as Guid?;
+    var isSelected = selectedDiseaseId.HasValue && Model.Disease.Id == selectedDiseaseId.Value;
+    var hasChildren = Model.Children.Any();
+    var collapseId = $"collapse-{Model.Disease.Id}";
+    var currentPage = ViewContext.RouteData.Values["page"]?.ToString();
+    var isRestricted = Model.Disease.AccessLevel == Surveillance_MVP.Models.Lookups.DiseaseAccessLevel.Restricted;
+}
+
+<div class="disease-hierarchy-item" style="margin-left: @(Model.Level * 20)px;">
+    @if (hasChildren)
+    {
+        <div class="list-group-item d-flex justify-content-between align-items-center @(isSelected ? "active" : "") @(isRestricted ? "list-group-item-warning" : "")"
+             style="padding-left: @(Model.Level * 20 + 10)px;">
+            <a asp-page="@currentPage" asp-route-diseaseId="@Model.Disease.Id" class="flex-grow-1 text-decoration-none @(isSelected ? "text-white" : "text-dark")" style="cursor: pointer;">
+                <span class="collapse-toggle me-2" data-bs-toggle="collapse" data-bs-target="#@collapseId" 
+                      onclick="event.stopPropagation(); event.preventDefault();" style="cursor: pointer;">
+                    <i class="bi bi-caret-right-fill"></i>
+                </span>
+                <strong>@Model.Disease.Name</strong>
+                @if (isRestricted)
+                {
+                    <span class="badge bg-warning text-dark ms-1">Restricted</span>
+                }
+                @if (!string.IsNullOrEmpty(Model.Disease.Code))
+                {
+                    <br /><small style="margin-left: 30px;"><code>@Model.Disease.Code</code></small>
+                }
+                @if (Model.Disease.DiseaseCategory != null)
+                {
+                    <br /><small class="text-muted" style="margin-left: 30px;">@Model.Disease.DiseaseCategory.Name</small>
+                }
+            </a>
+            <span class="badge bg-secondary">@Model.Children.Count</span>
+        </div>
+        <div class="collapse" id="@collapseId">
+            @foreach (var child in Model.Children)
+            {
+                @await Html.PartialAsync("_DiseaseHierarchyNode", child)
+            }
+        </div>
+    }
+    else
+    {
+        <a asp-page="@currentPage" asp-route-diseaseId="@Model.Disease.Id"
+           class="list-group-item list-group-item-action @(isSelected ? "active" : "") @(isRestricted ? "list-group-item-warning" : "")"
+           style="padding-left: @(Model.Level * 20 + 10)px;">
+            <div>
+                <strong>@Model.Disease.Name</strong>
+                @if (isRestricted)
+                {
+                    <span class="badge bg-warning text-dark ms-1">Restricted</span>
+                }
+                @if (!string.IsNullOrEmpty(Model.Disease.Code))
+                {
+                    <br /><small><code>@Model.Disease.Code</code></small>
+                }
+                @if (Model.Disease.DiseaseCategory != null)
+                {
+                    <br /><small class="text-muted">@Model.Disease.DiseaseCategory.Name</small>
+                }
+            </div>
+        </a>
+    }
+</div>
+
+@section Scripts {
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            document.querySelectorAll('.collapse-toggle').forEach(function(toggle) {
+                var target = toggle.getAttribute('data-bs-target');
+                var collapseElement = document.querySelector(target);
+                
+                if (collapseElement) {
+                    collapseElement.addEventListener('shown.bs.collapse', function() {
+                        toggle.querySelector('i').classList.replace('bi-caret-right-fill', 'bi-caret-down-fill');
+                    });
+                    collapseElement.addEventListener('hidden.bs.collapse', function() {
+                        toggle.querySelector('i').classList.replace('bi-caret-down-fill', 'bi-caret-right-fill');
+                    });
+                }
+            });
+        });
+    </script>
+}
+
+

@@ -1,0 +1,577 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cases - Surveillance System</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --spacing-1: 4px;
+            --spacing-2: 8px;
+            --spacing-3: 12px;
+            --spacing-4: 16px;
+            --spacing-6: 24px;
+            --spacing-8: 32px;
+            
+            --color-primary: #007AFF;
+            --color-success: #34C759;
+            --color-warning: #FF9500;
+            --color-danger: #FF3B30;
+            --color-yellow: #FFCC00;
+            
+            --gray-1: #000000;
+            --gray-2: rgba(60, 60, 67, 0.6);
+            --gray-3: rgba(60, 60, 67, 0.3);
+            --gray-4: #F2F2F7;
+            --gray-5: #E5E5EA;
+            --gray-6: #8E8E93;
+            --white: #FFFFFF;
+            
+            --radius-small: 8px;
+            --radius-medium: 12px;
+            --shadow-small: 0 2px 8px rgba(0,0,0,0.04);
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            font-size: 16px;
+            line-height: 1.5;
+            color: var(--gray-1);
+            background: var(--gray-4);
+        }
+
+        .header {
+            background: var(--white);
+            border-bottom: 1px solid var(--gray-5);
+            padding: var(--spacing-4) var(--spacing-8);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: var(--shadow-small);
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-4);
+        }
+
+        .menu-icon {
+            font-size: 24px;
+            cursor: pointer;
+            padding: var(--spacing-2);
+        }
+
+        .header-title {
+            font-size: 20px;
+            font-weight: 600;
+        }
+
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-4);
+        }
+
+        .icon-button {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .icon-button:hover {
+            background: var(--gray-4);
+        }
+
+        .container {
+            max-width: 1440px;
+            margin: 0 auto;
+            padding: var(--spacing-8);
+        }
+
+        .search-header {
+            display: flex;
+            gap: var(--spacing-4);
+            margin-bottom: var(--spacing-4);
+        }
+
+        .search-input {
+            flex: 1;
+            padding: var(--spacing-3) var(--spacing-4);
+            border: 1px solid var(--gray-5);
+            border-radius: var(--radius-medium);
+            font-size: 15px;
+            background: var(--white);
+        }
+
+        .search-input:focus {
+            outline: 2px solid var(--color-primary);
+        }
+
+        .btn {
+            padding: var(--spacing-2) var(--spacing-4);
+            border-radius: var(--radius-small);
+            border: none;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            white-space: nowrap;
+        }
+
+        .btn-primary {
+            background: var(--color-primary);
+            color: var(--white);
+        }
+
+        .btn-primary:hover {
+            background: #0051D5;
+        }
+
+        .tabs {
+            display: flex;
+            gap: var(--spacing-2);
+            margin-bottom: var(--spacing-4);
+            flex-wrap: wrap;
+        }
+
+        .tab {
+            padding: var(--spacing-2) var(--spacing-4);
+            border-radius: var(--radius-small);
+            border: none;
+            background: var(--white);
+            cursor: pointer;
+            font-size: 15px;
+            transition: all 0.2s;
+        }
+
+        .tab:hover {
+            background: var(--gray-4);
+        }
+
+        .tab.active {
+            background: var(--color-primary);
+            color: var(--white);
+        }
+
+        .card {
+            background: var(--white);
+            border-radius: var(--radius-medium);
+            box-shadow: var(--shadow-small);
+            overflow: hidden;
+        }
+
+        .card-header {
+            padding: var(--spacing-4);
+            border-bottom: 1px solid var(--gray-5);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .card-title {
+            font-size: 20px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-2);
+        }
+
+        .table-container {
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th {
+            background: var(--gray-4);
+            padding: var(--spacing-3) var(--spacing-4);
+            text-align: left;
+            font-weight: 600;
+            font-size: 14px;
+            color: var(--gray-2);
+            border-bottom: 1px solid var(--gray-5);
+        }
+
+        td {
+            padding: var(--spacing-4);
+            border-bottom: 1px solid var(--gray-5);
+            vertical-align: top;
+        }
+
+        tr:hover {
+            background: #F9F9F9;
+            cursor: pointer;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            display: inline-block;
+            vertical-align: middle;
+        }
+
+        .status-critical { background: var(--color-danger); }
+        .status-warning { background: var(--color-warning); }
+        .status-attention { background: var(--color-yellow); }
+        .status-normal { background: var(--color-success); }
+
+        .patient-name {
+            font-weight: 600;
+            margin-bottom: var(--spacing-1);
+        }
+
+        .patient-detail {
+            font-size: 13px;
+            color: var(--gray-2);
+            line-height: 1.4;
+        }
+
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: var(--spacing-1);
+            font-size: 13px;
+        }
+
+        .status-text {
+            font-size: 13px;
+            color: var(--gray-2);
+            margin-top: var(--spacing-1);
+        }
+
+        .assignee {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: var(--color-primary);
+            color: var(--white);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .pagination {
+            padding: var(--spacing-4);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-top: 1px solid var(--gray-5);
+        }
+
+        .pagination-info {
+            font-size: 14px;
+            color: var(--gray-2);
+        }
+
+        .pagination-controls {
+            display: flex;
+            gap: var(--spacing-2);
+            align-items: center;
+        }
+
+        .toolbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: var(--spacing-4);
+        }
+
+        select {
+            padding: var(--spacing-2) var(--spacing-4);
+            border: 1px solid var(--gray-5);
+            border-radius: var(--radius-small);
+            font-size: 14px;
+            background: var(--white);
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: var(--spacing-4);
+            }
+            
+            .tabs {
+                overflow-x: auto;
+                flex-wrap: nowrap;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="header-left">
+            <div class="menu-icon">?</div>
+            <div class="header-title">Cases</div>
+        </div>
+        <div class="header-right">
+            <div class="icon-button">??</div>
+            <div class="icon-button">??</div>
+            <span style="font-size: 15px; font-weight: 500;">John Doe</span>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="search-header">
+            <input type="text" class="search-input" placeholder="?? Search MRN, name, disease...">
+            <button class="btn btn-primary">+ New Case</button>
+        </div>
+
+        <div class="tabs">
+            <button class="tab active">All</button>
+            <button class="tab">Active</button>
+            <button class="tab">Follow-up</button>
+            <button class="tab">Closed</button>
+            <button class="tab">Outbreak</button>
+            <div style="flex: 1;"></div>
+            <select>
+                <option>?? Columns</option>
+            </select>
+        </div>
+
+        <div class="toolbar">
+            <div style="font-size: 20px; font-weight: 600;">? 1,247 cases</div>
+            <div style="display: flex; gap: var(--spacing-2); align-items: center;">
+                <span style="font-size: 14px; color: var(--gray-2);">Sort:</span>
+                <select>
+                    <option>Recent</option>
+                    <option>Name</option>
+                    <option>Priority</option>
+                </select>
+                <button class="btn btn-primary">Export</button>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th style="width: 20px;">?</th>
+                            <th>MRN</th>
+                            <th>Patient</th>
+                            <th>Disease</th>
+                            <th>Status</th>
+                            <th>Date</th>
+                            <th>Asn.</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><span class="status-dot status-critical"></span></td>
+                            <td>
+                                <strong>2045</strong><br>
+                                <span style="font-size: 13px; color: var(--gray-2);">Age 8</span>
+                            </td>
+                            <td>
+                                <div class="patient-name">Johnson, Sarah</div>
+                                <div class="patient-detail">?? Lincoln Elem<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;555-0142</div>
+                            </td>
+                            <td><strong>Measles</strong></td>
+                            <td>
+                                <div class="status-badge">
+                                    <span class="status-dot status-critical"></span> Active
+                                </div>
+                                <div class="status-text">Inv. due</div>
+                            </td>
+                            <td>
+                                <div>2h</div>
+                                <div style="font-size: 13px; color: var(--gray-2);">ago</div>
+                            </td>
+                            <td><div class="assignee">JD</div></td>
+                        </tr>
+                        <tr>
+                            <td><span class="status-dot status-warning"></span></td>
+                            <td>
+                                <strong>8934</strong><br>
+                                <span style="font-size: 13px; color: var(--gray-2);">Age 34</span>
+                            </td>
+                            <td>
+                                <div class="patient-name">Chen, Michael</div>
+                                <div class="patient-detail">?? Tech worker<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;555-0198</div>
+                            </td>
+                            <td><strong>COVID-19</strong></td>
+                            <td>
+                                <div class="status-badge">
+                                    <span class="status-dot status-attention"></span> Follow
+                                </div>
+                                <div class="status-text">Test due</div>
+                            </td>
+                            <td>
+                                <div>5h</div>
+                                <div style="font-size: 13px; color: var(--gray-2);">ago</div>
+                            </td>
+                            <td><div class="assignee" style="background: var(--color-success);">AC</div></td>
+                        </tr>
+                        <tr>
+                            <td><span class="status-dot status-attention"></span></td>
+                            <td>
+                                <strong>3421</strong><br>
+                                <span style="font-size: 13px; color: var(--gray-2);">Age 67</span>
+                            </td>
+                            <td>
+                                <div class="patient-name">Wilson, James</div>
+                                <div class="patient-detail">?? Healthcare<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;555-0223</div>
+                            </td>
+                            <td><strong>TB</strong></td>
+                            <td>
+                                <div class="status-badge">
+                                    <span class="status-dot status-attention"></span> Active
+                                </div>
+                                <div class="status-text">Contact<br>tracing</div>
+                            </td>
+                            <td>
+                                <div>1d</div>
+                                <div style="font-size: 13px; color: var(--gray-2);">ago</div>
+                            </td>
+                            <td><div class="assignee" style="background: var(--color-warning);">MR</div></td>
+                        </tr>
+                        <tr>
+                            <td><span class="status-dot status-normal"></span></td>
+                            <td>
+                                <strong>7612</strong><br>
+                                <span style="font-size: 13px; color: var(--gray-2);">Age 29</span>
+                            </td>
+                            <td>
+                                <div class="patient-name">Davis, Emma</div>
+                                <div class="patient-detail">?? Teacher<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;555-0287</div>
+                            </td>
+                            <td><strong>Influenza</strong></td>
+                            <td>
+                                <div class="status-badge">
+                                    <span class="status-dot status-normal"></span> Monitor
+                                </div>
+                                <div class="status-text">Stable</div>
+                            </td>
+                            <td>
+                                <div>2d</div>
+                                <div style="font-size: 13px; color: var(--gray-2);">ago</div>
+                            </td>
+                            <td><div class="assignee">JD</div></td>
+                        </tr>
+                        <tr>
+                            <td><span class="status-dot status-critical"></span></td>
+                            <td>
+                                <strong>2098</strong><br>
+                                <span style="font-size: 13px; color: var(--gray-2);">Age 6</span>
+                            </td>
+                            <td>
+                                <div class="patient-name">Thompson, Emma</div>
+                                <div class="patient-detail">?? Student<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;555-0156</div>
+                            </td>
+                            <td><strong>Measles</strong></td>
+                            <td>
+                                <div class="status-badge">
+                                    <span class="status-dot status-critical"></span> New
+                                </div>
+                                <div class="status-text">Needs<br>assign</div>
+                            </td>
+                            <td>
+                                <div>2m</div>
+                                <div style="font-size: 13px; color: var(--gray-2);">ago</div>
+                            </td>
+                            <td><div style="font-size: 13px; color: var(--gray-2);">--</div></td>
+                        </tr>
+                        <tr>
+                            <td><span class="status-dot status-attention"></span></td>
+                            <td>
+                                <strong>4523</strong><br>
+                                <span style="font-size: 13px; color: var(--gray-2);">Age 42</span>
+                            </td>
+                            <td>
+                                <div class="patient-name">Martinez, Ana</div>
+                                <div class="patient-detail">?? Food service<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;555-0334</div>
+                            </td>
+                            <td><strong>Hepatitis A</strong></td>
+                            <td>
+                                <div class="status-badge">
+                                    <span class="status-dot status-attention"></span> Active
+                                </div>
+                                <div class="status-text">Exposure<br>invest.</div>
+                            </td>
+                            <td>
+                                <div>3d</div>
+                                <div style="font-size: 13px; color: var(--gray-2);">ago</div>
+                            </td>
+                            <td><div class="assignee" style="background: var(--gray-6);">LK</div></td>
+                        </tr>
+                        <tr>
+                            <td><span class="status-dot status-normal"></span></td>
+                            <td>
+                                <strong>6789</strong><br>
+                                <span style="font-size: 13px; color: var(--gray-2);">Age 51</span>
+                            </td>
+                            <td>
+                                <div class="patient-name">Brown, Robert</div>
+                                <div class="patient-detail">?? Chef<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;555-0401</div>
+                            </td>
+                            <td><strong>Salm.</strong></td>
+                            <td>
+                                <div class="status-badge">
+                                    <span class="status-dot status-normal"></span> Closed
+                                </div>
+                                <div class="status-text">Resolved</div>
+                            </td>
+                            <td>
+                                <div>5d</div>
+                                <div style="font-size: 13px; color: var(--gray-2);">ago</div>
+                            </td>
+                            <td><div class="assignee" style="background: var(--color-success);">AC</div></td>
+                        </tr>
+                        <tr>
+                            <td><span class="status-dot status-warning"></span></td>
+                            <td>
+                                <strong>5634</strong><br>
+                                <span style="font-size: 13px; color: var(--gray-2);">Age 38</span>
+                            </td>
+                            <td>
+                                <div class="patient-name">Lee, Jennifer</div>
+                                <div class="patient-detail">?? Nurse<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;555-0478</div>
+                            </td>
+                            <td><strong>COVID-19</strong></td>
+                            <td>
+                                <div class="status-badge">
+                                    <span class="status-dot status-warning"></span> Active
+                                </div>
+                                <div class="status-text">HCW case</div>
+                            </td>
+                            <td>
+                                <div>1w</div>
+                                <div style="font-size: 13px; color: var(--gray-2);">ago</div>
+                            </td>
+                            <td><div class="assignee" style="background: var(--color-warning);">MR</div></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            <div class="pagination">
+                <div class="pagination-controls">
+                    <button class="btn" style="background: var(--white);">? Previous</button>
+                    <span>Page 1 of 125</span>
+                    <button class="btn" style="background: var(--white);">Next ?</button>
+                </div>
+                <div class="pagination-info">Showing 1-8 of 1,247</div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

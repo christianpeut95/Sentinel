@@ -1,0 +1,120 @@
+@using Surveillance_MVP.Models
+@model (List<CustomFieldDefinition> Fields, Dictionary<int, string?> Values)
+
+@foreach (var category in Model.Fields.GroupBy(f => f.Category))
+{
+    <div class="card shadow-sm mb-4">
+        <div class="card-header bg-light fw-semibold">
+            <i class="bi bi-clipboard-data me-2"></i>@category.Key
+        </div>
+        <div class="card-body">
+            <div class="row">
+                @foreach (var field in category.OrderBy(f => f.DisplayOrder))
+                {
+                    var fieldName = $"customfield_{field.Id}";
+                    var fieldValue = Model.Values != null && Model.Values.TryGetValue(field.Id, out var val) ? val : null;
+                    var colSize = field.FieldType == CustomFieldType.TextArea ? "col-12" : "col-md-6";
+
+                    <div class="@colSize mb-3">
+                        <label for="@fieldName" class="form-label">
+                            @if (field.IsRequired)
+                            {
+                                <span class="text-danger">*</span>
+                            }
+                            @field.Label
+                        </label>
+
+                        @switch (field.FieldType)
+                        {
+                            case CustomFieldType.Text:
+                                <input type="text" 
+                                       class="form-control" 
+                                       id="@fieldName" 
+                                       name="@fieldName" 
+                                       value="@fieldValue"
+                                       required="@field.IsRequired" />
+                                break;
+
+                            case CustomFieldType.TextArea:
+                                <textarea class="form-control" 
+                                          id="@fieldName" 
+                                          name="@fieldName" 
+                                          rows="3"
+                                          required="@field.IsRequired">@fieldValue</textarea>
+                                break;
+
+                            case CustomFieldType.Number:
+                                <input type="number" 
+                                       class="form-control" 
+                                       id="@fieldName" 
+                                       name="@fieldName" 
+                                       value="@fieldValue"
+                                       step="any"
+                                       required="@field.IsRequired" />
+                                break;
+
+                            case CustomFieldType.Date:
+                                <input type="date" 
+                                       class="form-control" 
+                                       id="@fieldName" 
+                                       name="@fieldName" 
+                                       value="@fieldValue"
+                                       required="@field.IsRequired" />
+                                break;
+
+                            case CustomFieldType.Email:
+                                <input type="email" 
+                                       class="form-control" 
+                                       id="@fieldName" 
+                                       name="@fieldName" 
+                                       value="@fieldValue"
+                                       required="@field.IsRequired" />
+                                break;
+
+                            case CustomFieldType.Phone:
+                                <input type="tel" 
+                                       class="form-control" 
+                                       id="@fieldName" 
+                                       name="@fieldName" 
+                                       value="@fieldValue"
+                                       required="@field.IsRequired" />
+                                break;
+
+                            case CustomFieldType.Checkbox:
+                                <div class="form-check">
+                                    <input type="checkbox" 
+                                           class="form-check-input" 
+                                           id="@fieldName" 
+                                           name="@fieldName" 
+                                           value="true"
+                                           checked="@(fieldValue == "True")" />
+                                    <label class="form-check-label" for="@fieldName">
+                                        @field.Label
+                                    </label>
+                                </div>
+                                break;
+
+                            case CustomFieldType.Dropdown:
+                                <select class="form-select" 
+                                        id="@fieldName" 
+                                        name="@fieldName"
+                                        required="@field.IsRequired">
+                                    <option value="">-- Select --</option>
+                                    @if (field.LookupTable?.Values != null)
+                                    {
+                                        foreach (var lookupValue in field.LookupTable.Values.Where(v => v.IsActive).OrderBy(v => v.DisplayOrder))
+                                        {
+                                            <option value="@lookupValue.Id" selected="@(fieldValue == lookupValue.Id.ToString())">
+                                                @lookupValue.DisplayText
+                                            </option>
+                                        }
+                                    }
+                                </select>
+                                break;
+                        }
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+}

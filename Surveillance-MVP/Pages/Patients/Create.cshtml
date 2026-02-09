@@ -1,0 +1,632 @@
+﻿@page
+@model Surveillance_MVP.Pages.Patients.CreateModel
+@using Surveillance_MVP.Services
+
+@{
+    ViewData["Title"] = "Create Patient";
+    Layout = "~/Pages/Shared/_Layout.cshtml";
+}
+
+<nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a asp-page="/Index">Home</a></li>
+        <li class="breadcrumb-item"><a asp-page="./Index">Patients</a></li>
+        <li class="breadcrumb-item active" aria-current="page">Create</li>
+    </ol>
+</nav>
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2><i class="bi bi-person-plus me-2"></i>Create Patient</h2>
+</div>
+
+@if (Model.ShowDuplicateWarning && Model.PotentialDuplicates.Any())
+{
+    <div class="alert alert-warning alert-dismissible fade show" role="alert">
+        <h5 class="alert-heading">
+            <i class="bi bi-exclamation-triangle-fill me-2"></i>Potential Duplicate Patients Found
+        </h5>
+        <p>We found <strong>@Model.PotentialDuplicates.Count</strong> existing patient(s) that may be similar to the one you're creating. Please review them before continuing.</p>
+        <hr />
+        <div class="mb-3">
+            @foreach (var duplicate in Model.PotentialDuplicates)
+            {
+                var age = duplicate.Patient.DateOfBirth.HasValue 
+                    ? (int)Math.Floor((DateTime.UtcNow - duplicate.Patient.DateOfBirth.Value).TotalDays / 365.2425) 
+                    : (int?)null;
+
+                <div class="card mb-2">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div>
+                                <h6 class="card-title mb-1">
+                                    @duplicate.Patient.GivenName @duplicate.Patient.FamilyName
+                                    @if (age.HasValue)
+                                    {
+                                        <span class="badge bg-info text-dark">@age years</span>
+                                    }
+                                </h6>
+                                <p class="card-text mb-1">
+                                    <small class="text-muted">
+                                        <strong>DOB:</strong> @(duplicate.Patient.DateOfBirth?.ToString("dd MMM yyyy") ?? "-")
+                        | <strong>Sex at Birth:</strong> @(duplicate.Patient.SexAtBirth?.Name ?? "-")
+                                    </small>
+                                </p>
+                                @if (!string.IsNullOrWhiteSpace(duplicate.Patient.AddressLine) || !string.IsNullOrWhiteSpace(duplicate.Patient.City))
+                                {
+                                    <p class="card-text mb-1">
+                                        <small class="text-muted">
+                                            <i class="bi bi-geo-alt"></i>
+                                            @duplicate.Patient.AddressLine @duplicate.Patient.City @duplicate.Patient.State @duplicate.Patient.PostalCode
+                                        </small>
+                                    </p>
+                                }
+                                <div class="mt-2">
+                                    <span class="badge bg-secondary me-1">Match Score: @duplicate.MatchScore</span>
+                                    @foreach (var reason in duplicate.MatchReasons)
+                                    {
+                                        <span class="badge bg-warning text-dark me-1">@reason</span>
+                                    }
+                                </div>
+                            </div>
+                            <div>
+                                <a asp-page="./Details" asp-route-id="@duplicate.Patient.Id" 
+                                   target="_blank" 
+                                   class="btn btn-sm btn-outline-primary">
+                                    <i class="bi bi-eye"></i> Review
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+        <div class="d-flex gap-2">
+            <form method="post" class="d-inline">
+                <input type="hidden" asp-for="ConfirmDuplicate" value="true" />
+                @Html.AntiForgeryToken()
+                @* Re-bind all Patient fields as hidden to preserve data *@
+                <input type="hidden" asp-for="Patient.GivenName" />
+                <input type="hidden" asp-for="Patient.FamilyName" />
+                <input type="hidden" asp-for="Patient.DateOfBirth" />
+                <input type="hidden" asp-for="Patient.SexAtBirthId" />
+                <input type="hidden" asp-for="Patient.GenderId" />
+                <input type="hidden" asp-for="Patient.CountryOfBirthId" />
+                <input type="hidden" asp-for="Patient.LanguageSpokenAtHomeId" />
+                <input type="hidden" asp-for="Patient.EthnicityId" />
+                <input type="hidden" asp-for="Patient.AtsiStatusId" />
+                <input type="hidden" asp-for="Patient.OccupationId" />
+                <input type="hidden" asp-for="Patient.AddressLine" />
+                <input type="hidden" asp-for="Patient.City" />
+                <input type="hidden" asp-for="Patient.State" />
+                <input type="hidden" asp-for="Patient.PostalCode" />
+                <input type="hidden" asp-for="Patient.Latitude" />
+                <input type="hidden" asp-for="Patient.Longitude" />
+                <button type="submit" class="btn btn-warning">
+                    <i class="bi bi-check-circle me-1"></i>Continue Anyway (Create Duplicate)
+                </button>
+            </form>
+            <button type="button" class="btn btn-secondary" onclick="window.location.reload();">
+                <i class="bi bi-arrow-counterclockwise me-1"></i>Go Back and Edit
+            </button>
+            <a asp-page="./Index" class="btn btn-outline-secondary">
+                <i class="bi bi-x-circle me-1"></i>Cancel
+            </a>
+        </div>
+    </div>
+}
+
+@if (TempData["SuccessMessage"] != null)
+{
+    <div class="alert alert-success alert-dismissible fade show" role="alert">
+        <i class="bi bi-check-circle me-2"></i>@TempData["SuccessMessage"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+}
+
+@if (TempData["ErrorMessage"] != null)
+{
+    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+        <i class="bi bi-exclamation-triangle me-2"></i>@TempData["ErrorMessage"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+}
+
+@if (TempData["WarningMessage"] != null)
+{
+    <div class="alert alert-warning alert-dismissible fade show" role="alert">
+        <i class="bi bi-exclamation-triangle me-2"></i>@TempData["WarningMessage"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+}
+
+<form method="post">
+    <div asp-validation-summary="ModelOnly" class="alert alert-danger" role="alert"></div>
+
+    <div class="card shadow-sm mb-4">
+        <div class="card-header bg-light fw-semibold">
+            <i class="bi bi-person me-2"></i>Demographics
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label asp-for="Patient.GivenName" class="form-label">
+                        <span class="text-danger">*</span> @Html.DisplayNameFor(m => m.Patient.GivenName)
+                    </label>
+                    <input asp-for="Patient.GivenName" class="form-control" aria-required="true" />
+                    <span asp-validation-for="Patient.GivenName" class="text-danger small"></span>
+                </div>
+
+                <div class="col-md-6 mb-3">
+                    <label asp-for="Patient.FamilyName" class="form-label">
+                        <span class="text-danger">*</span> @Html.DisplayNameFor(m => m.Patient.FamilyName)
+                    </label>
+                    <input asp-for="Patient.FamilyName" class="form-control" aria-required="true" />
+                    <span asp-validation-for="Patient.FamilyName" class="text-danger small"></span>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-md-4 mb-3">
+                    <label asp-for="Patient.DateOfBirth" class="form-label">@Html.DisplayNameFor(m => m.Patient.DateOfBirth)</label>
+                    <input asp-for="Patient.DateOfBirth" class="form-control" type="date" />
+                    <span asp-validation-for="Patient.DateOfBirth" class="text-danger small"></span>
+                </div>
+
+                <div class="col-md-4 mb-3">
+                    <label asp-for="Patient.SexAtBirthId" class="form-label">@Html.DisplayNameFor(m => m.Patient.SexAtBirthId)</label>
+                    <select asp-for="Patient.SexAtBirthId" class="form-select" asp-items="ViewBag.SexAtBirthId">
+                        <option value="">-- Select --</option>
+                    </select>
+                    <span asp-validation-for="Patient.SexAtBirthId" class="text-danger small"></span>
+                </div>
+
+                <div class="col-md-4 mb-3">
+                    <label asp-for="Patient.GenderId" class="form-label">@Html.DisplayNameFor(m => m.Patient.GenderId)</label>
+                    <select asp-for="Patient.GenderId" class="form-select" asp-items="ViewBag.GenderId">
+                        <option value="">-- Select --</option>
+                    </select>
+                    <span asp-validation-for="Patient.GenderId" class="text-danger small"></span>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-md-4 mb-3">
+                    <label asp-for="Patient.CountryOfBirthId" class="form-label">@Html.DisplayNameFor(m => m.Patient.CountryOfBirthId)</label>
+                    <select asp-for="Patient.CountryOfBirthId" class="form-select" asp-items="ViewBag.CountryOfBirthId">
+                        <option value="">-- Select --</option>
+                    </select>
+                    <span asp-validation-for="Patient.CountryOfBirthId" class="text-danger small"></span>
+                </div>
+
+                <div class="col-md-4 mb-3">
+                    <label asp-for="Patient.LanguageSpokenAtHomeId" class="form-label">@Html.DisplayNameFor(m => m.Patient.LanguageSpokenAtHomeId)</label>
+                    <select asp-for="Patient.LanguageSpokenAtHomeId" class="form-select" asp-items="ViewBag.LanguageSpokenAtHomeId">
+                        <option value="">-- Select --</option>
+                    </select>
+                    <span asp-validation-for="Patient.LanguageSpokenAtHomeId" class="text-danger small"></span>
+                </div>
+
+                <div class="col-md-4 mb-3">
+                    <label asp-for="Patient.EthnicityId" class="form-label">Ethnicity</label>
+                    <select asp-for="Patient.EthnicityId" class="form-select" asp-items="ViewBag.EthnicityId">
+                        <option value="">-- Select --</option>
+                    </select>
+                    <span asp-validation-for="Patient.EthnicityId" class="text-danger small"></span>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-md-12 mb-3">
+                    <label asp-for="Patient.AtsiStatusId" class="form-label">@Html.DisplayNameFor(m => m.Patient.AtsiStatusId)</label>
+                    <select asp-for="Patient.AtsiStatusId" class="form-select" asp-items="ViewBag.AtsiStatusId">
+                        <option value="">-- Select --</option>
+                    </select>
+                    <span asp-validation-for="Patient.AtsiStatusId" class="text-danger small"></span>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-md-12 mb-3">
+                    <label asp-for="Patient.OccupationId" class="form-label">@Html.DisplayNameFor(m => m.Patient.OccupationId)</label>
+                    <input type="text" 
+                           class="form-control" 
+                           id="occupationSearch" 
+                           placeholder="Start typing to search occupations..." 
+                           autocomplete="off" />
+                    <input type="hidden" asp-for="Patient.OccupationId" id="occupationId" />
+                    <span asp-validation-for="Patient.OccupationId" class="text-danger small"></span>
+                    <small class="form-text text-muted">
+                        Search by occupation name or code (e.g., "Chief Executive" or "111111")
+                    </small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card shadow-sm mb-4">
+        <div class="card-header bg-light fw-semibold">
+            <i class="bi bi-telephone me-2"></i>Contact Information
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-4 mb-3">
+                    <label asp-for="Patient.HomePhone" class="form-label">@Html.DisplayNameFor(m => m.Patient.HomePhone)</label>
+                    <input asp-for="Patient.HomePhone" class="form-control" type="tel" placeholder="e.g., (02) 1234 5678" />
+                    <span asp-validation-for="Patient.HomePhone" class="text-danger small"></span>
+                </div>
+
+                <div class="col-md-4 mb-3">
+                    <label asp-for="Patient.MobilePhone" class="form-label">@Html.DisplayNameFor(m => m.Patient.MobilePhone)</label>
+                    <input asp-for="Patient.MobilePhone" class="form-control" type="tel" placeholder="e.g., 0400 123 456" />
+                    <span asp-validation-for="Patient.MobilePhone" class="text-danger small"></span>
+                </div>
+
+                <div class="col-md-4 mb-3">
+                    <label asp-for="Patient.EmailAddress" class="form-label">@Html.DisplayNameFor(m => m.Patient.EmailAddress)</label>
+                    <input asp-for="Patient.EmailAddress" class="form-control" type="email" placeholder="e.g., patient@example.com" />
+                    <span asp-validation-for="Patient.EmailAddress" class="text-danger small"></span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card shadow-sm mb-4">
+        <div class="card-header bg-primary text-white fw-semibold">
+            <i class="bi bi-search me-2"></i>Address Lookup
+        </div>
+        <div class="card-body">
+            <div class="alert alert-info mb-3">
+                <i class="bi bi-lightbulb me-2"></i>
+                <strong>Quick Start:</strong> Search for any business or address (e.g., "123 Main St", "Woolworths Adelaide"). 
+                Selecting a result will auto-fill all address fields and coordinates.
+            </div>
+            
+            <div class="position-relative">
+                <label class="form-label fw-bold">
+                    <i class="bi bi-geo-alt me-1"></i>Search for Address or Business
+                </label>
+                <input type="text" class="form-control form-control-lg" id="placeSearchInput" autocomplete="off"
+                       placeholder="Try '123 Main Street', 'Coles Adelaide', or 'Springfield Hospital'..." 
+                       aria-haspopup="listbox" aria-expanded="false" aria-controls="placeDropdown" />
+                <div class="dropdown-menu w-100" id="placeDropdown" role="listbox" style="max-height:300px;overflow:auto;" aria-label="Place suggestions"></div>
+                <small class="form-text text-muted">
+                    <i class="bi bi-info-circle me-1"></i>Search works for residential addresses and any business location
+                </small>
+            </div>
+        </div>
+    </div>
+
+    <div class="card shadow-sm mb-4">
+        <div class="card-header bg-light fw-semibold">
+            <i class="bi bi-geo-alt me-2"></i>Address Details
+        </div>
+        <div class="card-body">
+            <div class="mb-3">
+                <label asp-for="Patient.AddressLine" class="form-label">@Html.DisplayNameFor(m => m.Patient.AddressLine)</label>
+                <input asp-for="Patient.AddressLine" class="form-control" id="addressInput" autocomplete="off" 
+                       placeholder="Street address (auto-fills from search above)" />
+                <span asp-validation-for="Patient.AddressLine" class="text-danger small"></span>
+                <small class="form-text text-muted">Auto-fills when you search above, but you can edit it</small>
+            </div>
+
+            <div class="row">
+                <div class="col-md-4 mb-3">
+                    <label asp-for="Patient.City" class="form-label">@Html.DisplayNameFor(m => m.Patient.City)</label>
+                    <input asp-for="Patient.City" class="form-control" id="Patient_City" placeholder="City/Suburb" />
+                    <span asp-validation-for="Patient.City" class="text-danger small"></span>
+                </div>
+
+                <div class="col-md-4 mb-3">
+                    <label asp-for="Patient.State" class="form-label">State</label>
+                    <input asp-for="Patient.State" class="form-control" id="Patient_State" placeholder="State" />
+                    <span asp-validation-for="Patient.State" class="text-danger small"></span>
+                </div>
+
+                <div class="col-md-4 mb-3">
+                    <label asp-for="Patient.PostalCode" class="form-label">@Html.DisplayNameFor(m => m.Patient.PostalCode)</label>
+                    <input asp-for="Patient.PostalCode" class="form-control" id="Patient_PostalCode" placeholder="Postcode" />
+                    <span asp-validation-for="Patient.PostalCode" class="text-danger small"></span>
+                </div>
+            </div>
+
+            <input type="hidden" asp-for="Patient.Latitude" id="Patient_Latitude" />
+            <input type="hidden" asp-for="Patient.Longitude" id="Patient_Longitude" />
+        </div>
+    </div>
+
+    @if (Model.CustomFields.Any())
+    {
+        @await Html.PartialAsync("_CustomFieldsForm", (Model.CustomFields, new Dictionary<int, string?>()))
+    }
+
+
+
+    <div class="d-flex gap-2">
+        <button type="submit" class="btn btn-primary">
+            <i class="bi bi-check-circle me-1"></i>Create Patient
+        </button>
+        <a asp-page="Index" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left me-1"></i>Back to List
+        </a>
+    </div>
+</form>
+
+@section Scripts {
+@{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+@inject Microsoft.Extensions.Configuration.IConfiguration Configuration
+
+<script>
+    (function () {
+        // Enhanced Google Places JS autocomplete for businesses and addresses
+        var apiKey = '@Configuration["Geocoding:ApiKey"]';
+        var defaultCountry = '@(Configuration["Geocoding:DefaultCountry"] ?? "AU")';
+            
+        if (!apiKey) {
+            console.warn('Google Maps API key not configured (Geocoding:ApiKey). Address autocomplete disabled.');
+            return;
+        }
+
+        console.log('Initializing Google Places with country:', defaultCountry);
+
+        window.initPlaces = function () {
+            var placeInput = document.getElementById('placeSearchInput');
+            var placeDropdown = document.getElementById('placeDropdown');
+            var service = new google.maps.places.AutocompleteService();
+            var detailsService = new google.maps.places.PlacesService(document.createElement('div'));
+            var sessionToken = new google.maps.places.AutocompleteSessionToken();
+            var items = [];
+            var focused = -1;
+
+            function debounce(fn, ms) { var t; return function () { var args = arguments; clearTimeout(t); t = setTimeout(function () { fn.apply(null, args); }, ms); }; }
+
+            function clearDropdown() {
+                placeDropdown.innerHTML = '';
+                placeDropdown.classList.remove('show');
+                placeInput.setAttribute('aria-expanded', 'false');
+                items = [];
+                focused = -1;
+            }
+
+            function buildItem(pred, idx) {
+                var btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = 'dropdown-item';
+                btn.setAttribute('role', 'option');
+                btn.dataset.index = String(idx);
+                    
+                var icon = document.createElement('i');
+                icon.className = 'bi bi-geo-alt-fill me-2 text-primary';
+                    
+                var text = document.createElement('span');
+                text.innerText = pred.description || '';
+                    
+                btn.appendChild(icon);
+                btn.appendChild(text);
+                btn.addEventListener('click', function () { selectItem(idx); });
+                return btn;
+            }
+
+            function renderResults(preds) {
+                placeDropdown.innerHTML = '';
+                if (!preds || preds.length === 0) { clearDropdown(); return; }
+                preds.forEach(function (p, i) { placeDropdown.appendChild(buildItem(p, i)); });
+                placeDropdown.classList.add('show');
+                placeInput.setAttribute('aria-expanded', 'true');
+                items = Array.from(placeDropdown.querySelectorAll('[role="option"]'));
+                focused = -1;
+                window.__lastPlaceResults = preds;
+            }
+
+            function focusItem(i) {
+                if (focused >= 0 && items[focused]) items[focused].classList.remove('active');
+                focused = i;
+                if (focused >= 0 && items[focused]) { items[focused].classList.add('active'); items[focused].scrollIntoView({ block: 'nearest' }); }
+            }
+
+            function selectItem(i) {
+                var sel = items[i];
+                if (!sel) return;
+                var idx = Number(sel.dataset.index);
+                var pred = window.__lastPlaceResults && window.__lastPlaceResults[idx];
+                if (!pred) return;
+
+                detailsService.getDetails({ 
+                    placeId: pred.place_id, 
+                    fields: ['name', 'formatted_address', 'address_components', 'geometry'], 
+                    sessionToken: sessionToken 
+                }, function (result, status) {
+                    if (status !== google.maps.places.PlacesServiceStatus.OK || !result) {
+                        console.error('Place details failed:', status);
+                        return;
+                    }
+
+                    console.log('Selected place details:', result);
+
+                    var comps = {};
+                    (result.address_components || []).forEach(function (c) {
+                        (c.types || []).forEach(function (t) {
+                            if (!comps[t]) comps[t] = c.long_name;
+                        });
+                    });
+
+                    var street = [comps['street_number'], comps['route']].filter(Boolean).join(' ');
+                    var city = comps['locality'] || comps['postal_town'] || comps['sublocality'] || comps['administrative_area_level_2'] || '';
+                    var state = comps['administrative_area_level_1'] || '';
+                    var postal = comps['postal_code'] || '';
+
+                    // Fill all address fields
+                    var addressInput = document.getElementById('addressInput');
+                    if (addressInput) addressInput.value = street || result.formatted_address || pred.description || '';
+
+                    var cityEl = document.getElementById('Patient_City');
+                    var stateEl = document.getElementById('Patient_State');
+                    var postalEl = document.getElementById('Patient_PostalCode');
+                    if (cityEl) cityEl.value = city;
+                    if (stateEl) stateEl.value = state;
+                    if (postalEl) postalEl.value = postal;
+
+                    // Fill coordinates
+                    var latEl = document.getElementById('Patient_Latitude');
+                    var lonEl = document.getElementById('Patient_Longitude');
+                    if (latEl && lonEl && result.geometry && result.geometry.location) {
+                        latEl.value = result.geometry.location.lat();
+                        lonEl.value = result.geometry.location.lng();
+                        console.log('Coordinates filled:', { lat: latEl.value, lng: lonEl.value });
+                    }
+
+                    clearDropdown();
+                    placeInput.value = ''; // Clear search after selection
+                        
+                    // Show success message
+                    showSuccessMessage(result.name || 'Address');
+                        
+                    sessionToken = new google.maps.places.AutocompleteSessionToken();
+                });
+            }
+
+            function showSuccessMessage(placeName) {
+                if (document.getElementById('placeSuccess')) {
+                    document.getElementById('placeSuccess').remove();
+                }
+                var successDiv = document.createElement('div');
+                successDiv.id = 'placeSuccess';
+                successDiv.className = 'alert alert-success mt-3';
+                successDiv.innerHTML = '<i class="bi bi-check-circle me-2"></i><strong>Selected:</strong> ' + placeName + ' - All address fields filled!';
+                placeInput.parentElement.appendChild(successDiv);
+                setTimeout(function() {
+                    successDiv.style.opacity = '0';
+                    successDiv.style.transition = 'opacity 0.5s';
+                    setTimeout(function() { if (successDiv.parentElement) successDiv.remove(); }, 500);
+                }, 3000);
+            }
+
+            function fetchSuggestions(q) {
+                if (!q) { clearDropdown(); return; }
+                    
+                var request = { 
+                    input: q, 
+                    sessionToken: sessionToken 
+                };
+                    
+                // Add country bias for localization
+                if (defaultCountry) {
+                    request.componentRestrictions = { country: defaultCountry };
+                    console.log('Searching with country restriction:', defaultCountry);
+                }
+                    
+                service.getPlacePredictions(request, function (predictions, status) {
+                    if (status !== google.maps.places.PlacesServiceStatus.OK || !predictions) { 
+                        console.warn('Place search status:', status);
+                        clearDropdown(); 
+                        return; 
+                    }
+                    console.log('Found', predictions.length, 'place suggestions');
+                    renderResults(predictions.slice(0, 8));
+                });
+            }
+
+            placeInput.addEventListener('input', debounce(function (e) { fetchSuggestions(e.target.value); }, 300));
+
+            placeInput.addEventListener('keydown', function (e) {
+                if (!placeDropdown.classList.contains('show')) return;
+                if (e.key === 'ArrowDown') { e.preventDefault(); focusItem(Math.min(items.length - 1, focused + 1)); }
+                else if (e.key === 'ArrowUp') { e.preventDefault(); focusItem(Math.max(0, focused - 1)); }
+                else if (e.key === 'Enter') { e.preventDefault(); if (focused >= 0) selectItem(focused); }
+                else if (e.key === 'Escape') { clearDropdown(); }
+            });
+
+            document.addEventListener('click', function (ev) { if (!ev.target) return; if (ev.target === placeInput || placeDropdown.contains(ev.target)) return; clearDropdown(); });
+            placeInput.addEventListener('blur', function () { setTimeout(function () { if (document.activeElement && !placeDropdown.contains(document.activeElement)) clearDropdown(); }, 150); });
+                
+            console.log('Google Places business search initialized for patient address');
+        };
+
+        // Load the Google Maps JS with callback
+        var s = document.createElement('script');
+        s.src = 'https://maps.googleapis.com/maps/api/js?key=' + encodeURIComponent(apiKey) + '&libraries=places&callback=initPlaces';
+        s.async = true; s.defer = true; document.head.appendChild(s);
+    })();
+
+    // Occupation autocomplete
+    $(document).ready(function () {
+        if (typeof $.fn.autocomplete === 'undefined') {
+            console.error('jQuery UI autocomplete is not loaded!');
+            return;
+        }
+
+        var $searchInput = $('#occupationSearch');
+        var $hiddenInput = $('#occupationId');
+            
+        // Load existing occupation name if editing
+        @if (Model.Patient?.OccupationId != null)
+        {
+            <text>
+            var existingOccupationId = @Model.Patient.OccupationId;
+            var existingOccupationName = '@(Model.Patient.Occupation?.Name ?? "")';
+            if (existingOccupationName) {
+                $searchInput.val(existingOccupationName);
+            }
+            </text>
+        }
+
+        $searchInput.autocomplete({
+            source: function (request, response) {
+                console.log('Searching for occupation:', request.term);
+                $.ajax({
+                    url: '/Api/OccupationSearch',
+                    method: 'GET',
+                    data: { term: request.term },
+                    dataType: 'json',
+                    success: function (data) {
+                        console.log('Occupation search results:', data);
+                        if (!data || data.length === 0) {
+                            console.warn('No occupations found for term:', request.term);
+                        }
+                        response($.map(data, function (item) {
+                            return {
+                                label: item.label + ' (' + item.code + ')',
+                                value: item.label,
+                                id: item.id,
+                                code: item.code,
+                                majorGroup: item.majorGroup
+                            };
+                        }));
+                    },
+                    error: function (xhr, status, error) {
+                        console.error('Autocomplete AJAX error:', {
+                            status: status,
+                            error: error,
+                            responseText: xhr.responseText,
+                            statusCode: xhr.status
+                        });
+                        response([]);
+                    }
+                });
+            },
+            minLength: 2,
+            select: function (event, ui) {
+                $hiddenInput.val(ui.item.id);
+                $searchInput.val(ui.item.value);
+                return false;
+            },
+            focus: function (event, ui) {
+                $searchInput.val(ui.item.value);
+                return false;
+            }
+        }).autocomplete("instance")._renderItem = function (ul, item) {
+            return $("<li>")
+                .append("<div><strong>" + item.value + "</strong><br/><small class='text-muted'>" + item.code + (item.majorGroup ? " - " + item.majorGroup : "") + "</small></div>")
+                .appendTo(ul);
+        };
+
+        // Clear hidden field when search input is cleared
+            $searchInput.on('input', function () {
+                if ($(this).val() === '') {
+                    $hiddenInput.val('');
+                }
+            });
+            
+            console.log('Occupation autocomplete initialized successfully');
+        });
+    </script>
+}

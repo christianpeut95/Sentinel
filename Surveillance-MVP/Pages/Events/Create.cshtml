@@ -1,0 +1,211 @@
+@page
+@model Surveillance_MVP.Pages.Events.CreateModel
+
+@{
+    ViewData["Title"] = "Create Event";
+}
+
+<nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a asp-page="/Index">Home</a></li>
+        <li class="breadcrumb-item"><a asp-page="./Index">Events</a></li>
+        <li class="breadcrumb-item active" aria-current="page">Create</li>
+    </ol>
+</nav>
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2><i class="bi bi-plus-circle me-2"></i>Create Event</h2>
+</div>
+
+@if (TempData["ErrorMessage"] != null)
+{
+    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+        <i class="bi bi-exclamation-triangle me-2"></i>@TempData["ErrorMessage"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+}
+
+<form method="post">
+    <div asp-validation-summary="ModelOnly" class="alert alert-danger" role="alert"></div>
+
+    <div class="card shadow-sm mb-4">
+        <div class="card-header bg-light fw-semibold">
+            <i class="bi bi-info-circle me-2"></i>Event Information
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-8 mb-3">
+                    <label asp-for="Event.Name" class="form-label">
+                        <span class="text-danger">*</span> @Html.DisplayNameFor(m => m.Event.Name)
+                    </label>
+                    <input asp-for="Event.Name" class="form-control" aria-required="true" placeholder="e.g., Johnson Wedding, Sunday Service Jan 15" />
+                    <span asp-validation-for="Event.Name" class="text-danger small"></span>
+                </div>
+
+                <div class="col-md-4 mb-3">
+                    <label asp-for="Event.EventTypeId" class="form-label">
+                        @Html.DisplayNameFor(m => m.Event.EventTypeId)
+                    </label>
+                    <select asp-for="Event.EventTypeId" asp-items="Model.EventTypesList" class="form-select">
+                        <option value="">-- Select Type --</option>
+                    </select>
+                    <span asp-validation-for="Event.EventTypeId" class="text-danger small"></span>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-md-12 mb-3">
+                    <label class="form-label">
+                        <span class="text-danger">*</span> @Html.DisplayNameFor(m => m.Event.LocationId)
+                    </label>
+                    <input type="text" class="form-control" id="locationAutocomplete" placeholder="Start typing location name..." />
+                    <input type="hidden" asp-for="Event.LocationId" id="locationIdHidden" />
+                    <span asp-validation-for="Event.LocationId" class="text-danger small"></span>
+                    <small class="form-text text-muted">
+                        <i class="bi bi-info-circle me-1"></i>Don't see the location? <a asp-page="/Locations/Create" target="_blank">Create a new location</a>
+                    </small>
+                    <div id="selectedLocationInfo" class="alert alert-info mt-2" style="display: none;">
+                        <strong>Selected:</strong> <span id="selectedLocationDisplay"></span><br/>
+                        <small>
+                            <strong>Address:</strong> <span id="selectedLocationAddress"></span> | 
+                            <strong>Type:</strong> <span id="selectedLocationType"></span>
+                        </small>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label asp-for="Event.StartDateTime" class="form-label">
+                        <span class="text-danger">*</span> @Html.DisplayNameFor(m => m.Event.StartDateTime)
+                    </label>
+                    <input asp-for="Event.StartDateTime" class="form-control" type="datetime-local" aria-required="true" />
+                    <span asp-validation-for="Event.StartDateTime" class="text-danger small"></span>
+                </div>
+
+                <div class="col-md-6 mb-3">
+                    <label asp-for="Event.EndDateTime" class="form-label">
+                        @Html.DisplayNameFor(m => m.Event.EndDateTime)
+                    </label>
+                    <input asp-for="Event.EndDateTime" class="form-control" type="datetime-local" />
+                    <span asp-validation-for="Event.EndDateTime" class="text-danger small"></span>
+                    <small class="form-text text-muted">Leave blank for single-point-in-time events</small>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label asp-for="Event.EstimatedAttendees" class="form-label">
+                        @Html.DisplayNameFor(m => m.Event.EstimatedAttendees)
+                    </label>
+                    <input asp-for="Event.EstimatedAttendees" class="form-control" type="number" min="0" placeholder="Number of attendees" />
+                    <span asp-validation-for="Event.EstimatedAttendees" class="text-danger small"></span>
+                    <small class="form-text text-muted">Used for attack rate calculations</small>
+                </div>
+
+                <div class="col-md-6 mb-3">
+                    <label asp-for="Event.OrganizerOrganizationId" class="form-label">
+                        @Html.DisplayNameFor(m => m.Event.OrganizerOrganizationId)
+                    </label>
+                    <select asp-for="Event.OrganizerOrganizationId" asp-items="Model.OrganizationsList" class="form-select">
+                        <option value="">-- None --</option>
+                    </select>
+                    <span asp-validation-for="Event.OrganizerOrganizationId" class="text-danger small"></span>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-md-12 mb-3">
+                    <label asp-for="Event.Description" class="form-label">
+                        @Html.DisplayNameFor(m => m.Event.Description)
+                    </label>
+                    <textarea asp-for="Event.Description" class="form-control" rows="3" placeholder="Event details, context, or notes..."></textarea>
+                    <span asp-validation-for="Event.Description" class="text-danger small"></span>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <div class="form-check">
+                        <input id="Event_IsIndoor" name="Event.IsIndoor" class="form-check-input" type="checkbox" value="true" checked />
+                        <label class="form-check-label" for="Event_IsIndoor">
+                            <i class="bi bi-building me-1"></i>Indoor Event
+                        </label>
+                        <small class="form-text text-muted d-block">Indoor events may have higher transmission risk</small>
+                    </div>
+                </div>
+
+                <div class="col-md-6 mb-3">
+                    <div class="form-check">
+                        <input asp-for="Event.IsActive" class="form-check-input" type="checkbox" />
+                        <label class="form-check-label" asp-for="Event.IsActive">
+                            Active
+                        </label>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="d-flex justify-content-between">
+        <a asp-page="./Index" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left me-1"></i>Cancel
+        </a>
+        <button type="submit" class="btn btn-primary">
+            <i class="bi bi-check-circle me-1"></i>Create Event
+        </button>
+    </div>
+</form>
+
+@section Scripts {
+    @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+    
+    <script>
+        $(function() {
+            console.log('Initializing event form location autocomplete...');
+            
+            // Location Autocomplete
+            const locationInput = $("#locationAutocomplete");
+            if (locationInput.length) {
+                locationInput.autocomplete({
+                    source: function(request, response) {
+                        $.ajax({
+                            url: "/api/locations/search",
+                            data: { term: request.term },
+                            success: function(data) {
+                                console.log('Location results:', data);
+                                response($.map(data, function(item) {
+                                    var label = item.name;
+                                    if (item.address) label += ' - ' + item.address;
+                                    if (item.locationType) label += ' [' + item.locationType + ']';
+                                    return { 
+                                        label: label, 
+                                        value: item.name, 
+                                        locationId: item.id, 
+                                        name: item.name, 
+                                        address: item.address, 
+                                        locationType: item.locationType 
+                                    };
+                                }));
+                            },
+                            error: function(err) {
+                                console.error('Location error:', err);
+                                response([]);
+                            }
+                        });
+                    },
+                    minLength: 2,
+                    select: function(event, ui) {
+                        if (!ui.item.locationId) return false;
+                        $('#locationIdHidden').val(ui.item.locationId);
+                        $('#selectedLocationDisplay').text(ui.item.name);
+                        $('#selectedLocationAddress').text(ui.item.address || 'Not specified');
+                        $('#selectedLocationType').text(ui.item.locationType || 'Not specified');
+                        $('#selectedLocationInfo').show();
+                        return true;
+                    }
+                });
+            }
+        });
+    </script>
+}

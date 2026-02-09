@@ -1,0 +1,202 @@
+@page
+@model Surveillance_MVP.Pages.Cases.CreateModel
+@using Surveillance_MVP.Models
+
+@{
+    ViewData["Title"] = "Create Case";
+    Layout = "~/Pages/Shared/_Layout.cshtml";
+}
+
+<nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a asp-page="/Index">Home</a></li>
+        <li class="breadcrumb-item"><a asp-page="./Index">Cases</a></li>
+        <li class="breadcrumb-item active" aria-current="page">Create</li>
+    </ol>
+</nav>
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2><i class="bi bi-plus-circle me-2"></i>Create Case</h2>
+</div>
+
+@if (TempData["ErrorMessage"] != null)
+{
+    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+        <i class="bi bi-exclamation-triangle-fill me-2"></i>@TempData["ErrorMessage"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+}
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-body">
+                <form method="post">
+                    <div asp-validation-summary="ModelOnly" class="alert alert-danger" role="alert"></div>
+                    
+                    <input type="hidden" asp-for="Case.Type" value="@CaseType.Case" />
+                    
+                    <div class="mb-3">
+                        <label asp-for="Case.PatientId" class="form-label">Patient <span class="text-danger">*</span></label>
+                        <select asp-for="Case.PatientId" class="form-select" asp-items="ViewBag.PatientId">
+                            <option value="">-- Select Patient --</option>
+                        </select>
+                        <span asp-validation-for="Case.PatientId" class="text-danger"></span>
+                        <small class="form-text text-muted">Select the patient for this case</small>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="Case.DateOfOnset" class="form-label">Date of Onset</label>
+                        <input asp-for="Case.DateOfOnset" class="form-control" type="date" />
+                        <span asp-validation-for="Case.DateOfOnset" class="text-danger"></span>
+                        <small class="form-text text-muted">Date when symptoms first appeared</small>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="Case.DateOfNotification" class="form-label">Date of Notification</label>
+                        <input asp-for="Case.DateOfNotification" class="form-control" type="date" />
+                        <span asp-validation-for="Case.DateOfNotification" class="text-danger"></span>
+                        <small class="form-text text-muted">Date when the case was reported (defaults to today if not specified)</small>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="Case.ConfirmationStatusId" class="form-label">Confirmation Status</label>
+                        <select asp-for="Case.ConfirmationStatusId" class="form-select" asp-items="ViewBag.ConfirmationStatusId">
+                            <option value="">-- Select Status --</option>
+                        </select>
+                        <span asp-validation-for="Case.ConfirmationStatusId" class="text-danger"></span>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="Case.DiseaseId" class="form-label">Disease</label>
+                        <select asp-for="Case.DiseaseId" class="form-select disease-select" asp-items="ViewBag.DiseaseId" id="diseaseDropdown">
+                            <option value="">-- Select Disease --</option>
+                        </select>
+                        <span asp-validation-for="Case.DiseaseId" class="text-danger"></span>
+                        <small class="form-text text-muted">Type to search for a disease</small>
+                    </div>
+
+                    <!-- Exposure Tracking Section (Dynamic) -->
+                    <div id="exposureSection" class="mb-3" style="display: none;">
+                        <div class="card border-warning">
+                            <div class="card-header bg-warning bg-opacity-10">
+                                <h6 class="mb-0">
+                                    <i class="bi bi-geo-alt me-2"></i>Exposure Information
+                                    <span id="exposureRequiredBadge" class="badge bg-danger ms-2" style="display: none;">Required</span>
+                                    <span id="exposureRecommendedBadge" class="badge bg-warning ms-2" style="display: none;">Recommended</span>
+                                </h6>
+                            </div>
+                            <div class="card-body">
+                                <div id="exposureGuidanceAlert" class="alert alert-info d-none">
+                                    <i class="bi bi-info-circle me-2"></i>
+                                    <span id="exposureGuidanceText"></span>
+                                </div>
+                                
+                                <p class="mb-3">
+                                    <i class="bi bi-exclamation-circle text-warning me-2"></i>
+                                    <span id="exposureMessage">Exposure data will be collected after the case is created.</span>
+                                </p>
+                                
+                                <div class="alert alert-secondary small mb-0">
+                                    <strong>After creating this case:</strong>
+                                    <ul class="mb-0 mt-2">
+                                        <li>You'll be redirected to the case details page</li>
+                                        <li>Navigate to the <strong>Exposures</strong> tab</li>
+                                        <li>Click <strong>Add Exposure</strong> to document exposure information</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="d-flex justify-content-between mt-4">
+                        <a asp-page="./Index" class="btn btn-secondary">
+                            <i class="bi bi-arrow-left me-1"></i>Back to List
+                        </a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-save me-1"></i>Create Case
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <i class="bi bi-info-circle me-2"></i>Information
+            </div>
+            <div class="card-body">
+                <p class="card-text">
+                    <strong>Case ID:</strong> A unique identifier will be automatically generated in the format C-YYYY-####.
+                </p>
+                <p class="card-text">
+                    <strong>Required Fields:</strong> Patient and Type are required. Other fields are optional but recommended for complete records.
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+    <script>
+        $(document).ready(function() {
+            // Initialize Select2 on disease dropdown
+            $('.disease-select').select2({
+                theme: 'bootstrap-5',
+                placeholder: '-- Select or search for a disease --',
+                allowClear: true,
+                width: '100%'
+            });
+
+            // Check exposure requirements when disease changes
+            $('#diseaseDropdown').on('change', function() {
+                var diseaseId = $(this).val();
+                if (diseaseId) {
+                    checkExposureRequirements(diseaseId);
+                } else {
+                    $('#exposureSection').slideUp();
+                }
+            });
+        });
+
+        function checkExposureRequirements(diseaseId) {
+            $.ajax({
+                url: '/api/diseases/' + diseaseId + '/exposure-requirements',
+                type: 'GET',
+                success: function(data) {
+                    if (data.shouldPrompt) {
+                        // Show exposure section
+                        $('#exposureSection').slideDown();
+                        
+                        // Update badges
+                        if (data.isRequired) {
+                            $('#exposureRequiredBadge').show();
+                            $('#exposureRecommendedBadge').hide();
+                            $('#exposureMessage').html('<strong>This disease requires exposure data.</strong> You will need to add exposure information after creating the case.');
+                        } else {
+                            $('#exposureRequiredBadge').hide();
+                            $('#exposureRecommendedBadge').show();
+                            $('#exposureMessage').text('Exposure data is recommended for this disease.');
+                        }
+                        
+                        // Show guidance text if available
+                        if (data.guidanceText) {
+                            $('#exposureGuidanceText').text(data.guidanceText);
+                            $('#exposureGuidanceAlert').removeClass('d-none');
+                        } else {
+                            $('#exposureGuidanceAlert').addClass('d-none');
+                        }
+                    } else {
+                        $('#exposureSection').slideUp();
+                    }
+                },
+                error: function() {
+                    console.error('Failed to check exposure requirements');
+                }
+            });
+        }
+    </script>
+}

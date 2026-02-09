@@ -1,0 +1,1388 @@
+@page "{id?}"
+@model Surveillance_MVP.Pages.Settings.Surveys.DesignSurveyModel
+@{
+    Layout = null; // Standalone page - no layout
+}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Survey Designer - @Model.SurveyName</title>
+    
+    <!-- Bootstrap CSS -->
+    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="~/css/site.css" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.min.css" />
+    
+    <!-- SurveyJS Styles - BOTH Core and Creator CSS Required -->
+    <link href="~/lib/survey-core/defaultV2.min.css" rel="stylesheet" />
+    <link href="~/lib/survey-creator-core/survey-creator-core.min.css" rel="stylesheet" />
+    
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+        }
+        
+        #designerContainer {
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        #designerHeader {
+            background: #fff;
+            border-bottom: 2px solid #dee2e6;
+            padding: 15px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            z-index: 1000;
+        }
+        
+        #surveyCreatorContainer {
+            flex: 1;
+            overflow: hidden;
+        }
+        
+        .designer-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: #333;
+            margin: 0;
+        }
+        
+        .btn-group {
+            gap: 10px;
+        }
+        
+        .status-indicator {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 4px;
+            font-size: 0.875rem;
+            background: #d1ecf1;
+            color: #0c5460;
+            margin-right: 15px;
+        }
+        
+        .save-status {
+            font-size: 0.875rem;
+            color: #666;
+            margin-right: 15px;
+        }
+        
+        .save-status.saved {
+            color: #28a745;
+        }
+        
+        .save-status.error {
+            color: #dc3545;
+        }
+        
+        /* Tab Styles */
+        .nav-tabs .nav-link {
+            border: none;
+            color: #666;
+            padding: 12px 24px;
+            font-weight: 500;
+        }
+        
+        .nav-tabs .nav-link:hover {
+            color: #0d6efd;
+            border: none;
+        }
+        
+        .nav-tabs .nav-link.active {
+            color: #0d6efd;
+            background: #fff;
+            border: none;
+            border-bottom: 3px solid #0d6efd;
+        }
+        
+        /* Tab Panel Container */
+        #tabContentContainer {
+            position: relative;
+            flex: 1;
+            overflow: hidden;
+        }
+        
+        .tab-panel {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: none;
+            z-index: 1;
+        }
+        
+        .tab-panel.active {
+            display: block !important;
+            z-index: 2;
+        }
+        
+        #surveyCreatorContainer {
+            background: #fff;
+        }
+        
+        #mappingsPanel {
+            background: #fff;
+            overflow-y: auto;
+        }
+        
+        /* Mapping Row Styles */
+        .mapping-row {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 6px;
+            padding: 12px;
+            margin-bottom: 10px;
+        }
+        
+        .mapping-row:hover {
+            background: #e9ecef;
+            border-color: #0d6efd;
+        }
+        
+        .question-name {
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 4px;
+        }
+        
+        .question-title {
+            color: #666;
+            font-size: 0.875rem;
+            margin-bottom: 8px;
+        }
+        
+        .field-select {
+            width: 100%;
+        }
+        
+        .clear-mapping-btn {
+            padding: 4px 8px;
+            font-size: 0.875rem;
+        }
+        
+        /* Field Reference Chips */
+        .field-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 12px;
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 0.875rem;
+        }
+        
+        .field-chip:hover {
+            background: #e9ecef;
+            border-color: #0d6efd;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        
+        .field-chip code {
+            background: none;
+            color: #0d6efd;
+            font-weight: 600;
+            padding: 0;
+        }
+        
+        .field-chip .copy-icon {
+            color: #6c757d;
+            font-size: 1rem;
+        }
+        
+        .field-chip:hover .copy-icon {
+            color: #0d6efd;
+        }
+        
+        .field-chip.copied {
+            background: #d1e7dd;
+            border-color: #198754;
+        }
+        
+        .field-chip.copied code {
+            color: #198754;
+        }
+        
+        .field-description {
+            color: #6c757d;
+            font-size: 0.75rem;
+            margin-top: 2px;
+        }
+        
+        .custom-field-item {
+            background: #fff3cd;
+            border-color: #ffc107;
+        }
+        
+        .custom-field-item:hover {
+            background: #ffe69c;
+            border-color: #ffca2c;
+        }
+    </style>
+</head>
+<body>
+    <div id="designerContainer">
+        <!-- Header -->
+        <div id="designerHeader">
+            <div class="d-flex align-items-center">
+                <h1 class="designer-title">
+                    <i class="bi bi-pencil-square me-2"></i>@Model.SurveyName
+                </h1>
+                @if (!string.IsNullOrEmpty(Model.Category))
+                {
+                    <span class="status-indicator">
+                        <i class="bi bi-tag me-1"></i>@Model.Category
+                    </span>
+                }
+                <span class="save-status" id="saveStatus">
+                    <i class="bi bi-check-circle me-1"></i>All changes saved
+                </span>
+            </div>
+            
+            <div class="btn-group">
+                <button type="button" class="btn btn-outline-secondary" id="cancelBtn" title="Cancel and close">
+                    <i class="bi bi-x-circle me-1"></i>Cancel
+                </button>
+                <button type="button" class="btn btn-outline-info" id="saveAsVersionBtn" title="Save as new version">
+                    <i class="bi bi-plus-circle me-1"></i>Save As Version
+                </button>
+                <button type="button" class="btn btn-outline-primary" id="previewBtn" title="Preview survey">
+                    <i class="bi bi-eye me-1"></i>Preview
+                </button>
+                <button type="button" class="btn btn-primary" id="saveBtn" title="Save and close">
+                    <i class="bi bi-save me-1"></i>Save & Close
+                </button>
+            </div>
+        </div>
+        
+        <!-- Tab Navigation -->
+        <div style="background: #f8f9fa; border-bottom: 1px solid #dee2e6; padding: 0 20px;">
+            <ul class="nav nav-tabs border-0" style="margin-bottom: -1px;">
+                <li class="nav-item">
+                    <a class="nav-link active" id="designerTab" href="#" data-tab="designer">
+                        <i class="bi bi-pencil-square me-1"></i>Survey Designer
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" id="mappingsTab" href="#" data-tab="mappings">
+                        <i class="bi bi-arrow-left-right me-1"></i>Field Mappings
+                    </a>
+                </li>
+            </ul>
+        </div>
+        
+        <!-- Tab Content Container -->
+        <div id="tabContentContainer">
+            <!-- Survey Creator Panel -->
+            <div id="surveyCreatorContainer" class="tab-panel active"></div>
+            
+            <!-- Field Mappings Panel -->
+            <div id="mappingsPanel" class="tab-panel">
+                <div class="container-fluid" style="padding: 20px;">
+                    <div class="row mb-4">
+                        <div class="col-12">
+                            <div class="alert alert-info">
+                                <i class="bi bi-info-circle me-2"></i>
+                                <strong>Field Mappings</strong> define how survey responses are saved to your database.
+                                Questions are automatically detected from your survey design.
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Output Mappings (Survey ? Database) -->
+                    <div class="row">
+                        <div class="col-lg-6">
+                            <div class="card mb-4">
+                                <div class="card-header bg-primary text-white">
+                                    <i class="bi bi-upload me-2"></i>Output Mappings (Save to Database)
+                                </div>
+                                <div class="card-body">
+                                    <p class="text-muted small mb-3">
+                                        Map survey questions to database fields. When a survey is completed, answers are saved to these fields.
+                                    </p>
+                                    <div id="outputMappingsContainer">
+                                        <div class="text-center text-muted py-4">
+                                            <i class="bi bi-arrow-left-circle" style="font-size: 2rem;"></i>
+                                            <p class="mt-2">Switch to Designer tab to add questions first</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Input Mappings (Database ? Survey) -->
+                        <div class="col-lg-6">
+                            <div class="card mb-4">
+                                <div class="card-header bg-success text-white">
+                                    <i class="bi bi-download me-2"></i>Input Mappings (Pre-fill from Database)
+                                </div>
+                                <div class="card-body">
+                                    <p class="text-muted small mb-3">
+                                        Pre-populate survey questions with existing data from the database.
+                                    </p>
+                                    <div id="inputMappingsContainer">
+                                        <div class="text-center text-muted py-4">
+                                            <i class="bi bi-arrow-left-circle" style="font-size: 2rem;"></i>
+                                            <p class="mt-2">Switch to Designer tab to add questions first</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Field Reference Helper -->
+                    <div class="row">
+                        <div class="col-12">
+                            <div class="card border-info">
+                                <div class="card-header bg-info text-white d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <i class="bi bi-book me-2"></i>Available Database Fields
+                                    </div>
+                                    <button type="button" class="btn btn-sm btn-light" id="refreshFieldsBtn">
+                                        <i class="bi bi-arrow-clockwise me-1"></i>Refresh
+                                    </button>
+                                </div>
+                                <div class="card-body">
+                                    <div class="alert alert-light mb-3">
+                                        <i class="bi bi-lightbulb me-2"></i>
+                                        <strong>Quick Copy:</strong> Click any field path to copy it to clipboard, then paste into your mapping dropdown.
+                                    </div>
+                                    
+                                    <ul class="nav nav-pills mb-3" id="fieldCategoryTabs" role="tablist">
+                                        <li class="nav-item" role="presentation">
+                                            <button class="nav-link active" id="case-fields-tab" data-bs-toggle="pill" 
+                                                    data-bs-target="#case-fields" type="button">
+                                                <i class="bi bi-clipboard me-1"></i>Case Fields
+                                            </button>
+                                        </li>
+                                        <li class="nav-item" role="presentation">
+                                            <button class="nav-link" id="patient-fields-tab" data-bs-toggle="pill" 
+                                                    data-bs-target="#patient-fields" type="button">
+                                                <i class="bi bi-person me-1"></i>Patient Fields
+                                            </button>
+                                        </li>
+                                        <li class="nav-item" role="presentation">
+                                            <button class="nav-link" id="custom-fields-tab" data-bs-toggle="pill" 
+                                                    data-bs-target="#custom-fields" type="button">
+                                                <i class="bi bi-gear me-1"></i>Custom Fields
+                                                <span class="badge bg-primary" id="customFieldCount">0</span>
+                                            </button>
+                                        </li>
+                                        <li class="nav-item" role="presentation">
+                                            <button class="nav-link" id="exposure-fields-tab" data-bs-toggle="pill" 
+                                                    data-bs-target="#exposure-fields" type="button">
+                                                <i class="bi bi-geo-alt me-1"></i>Exposure Fields
+                                            </button>
+                                        </li>
+                                    </ul>
+                                    
+                                    <div class="tab-content" id="fieldCategoryContent">
+                                        <!-- Case Fields -->
+                                        <div class="tab-pane fade show active" id="case-fields">
+                                            <div class="row g-2" id="caseFieldsList">
+                                                <!-- Populated by JavaScript -->
+                                            </div>
+                                        </div>
+                                        
+                                        <!-- Patient Fields -->
+                                        <div class="tab-pane fade" id="patient-fields">
+                                            <div class="row g-2" id="patientFieldsList">
+                                                <!-- Populated by JavaScript -->
+                                            </div>
+                                        </div>
+                                        
+                                        <!-- Custom Fields -->
+                                        <div class="tab-pane fade" id="custom-fields">
+                                            <div id="customFieldsList">
+                                                <div class="text-center text-muted py-4">
+                                                    <i class="bi bi-hourglass-split" style="font-size: 2rem;"></i>
+                                                    <p class="mt-2">Loading custom fields...</p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        
+                                        <!-- Exposure Fields -->
+                                        <div class="tab-pane fade" id="exposure-fields">
+                                            <div class="row g-2" id="exposureFieldsList">
+                                                <!-- Populated by JavaScript -->
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Preview Modal -->
+    <div class="modal fade" id="previewModal" tabindex="-1">
+        <div class="modal-dialog modal-xl">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <i class="bi bi-eye me-2"></i>Survey Preview
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="surveyPreviewContainer"></div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- jQuery & Bootstrap -->
+    <script src="~/lib/jquery/dist/jquery.min.js"></script>
+    <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <!-- SurveyJS Libraries - Correct Order -->
+    <script src="~/lib/knockout/build/output/knockout-latest.js"></script>
+    <script src="~/lib/survey-core/survey.core.min.js"></script>
+    <script src="~/lib/survey-knockout-ui/survey-knockout-ui.min.js"></script>
+    <script src="~/lib/survey-creator-core/survey-creator-core.min.js"></script>
+    <script src="~/lib/survey-creator-knockout/survey-creator-knockout.min.js"></script>
+
+    <script>
+        let surveyCreator;
+        let hasUnsavedChanges = false;
+        const surveyId = '@Model.SurveyTemplateId';
+        const isNewSurvey = surveyId === '00000000-0000-0000-0000-000000000000';
+        const returnUrl = '@Model.ReturnUrl';
+        
+        // Initial survey JSON from server
+        const initialSurveyJson = @Html.Raw(Model.SurveyDefinitionJson ?? "null");
+        
+        function initializeSurveyCreator() {
+            console.log('Initializing Survey Creator...');
+            console.log('Checking libraries:', {
+                knockout: typeof ko !== 'undefined',
+                survey: typeof Survey !== 'undefined',
+                surveyCreator: typeof SurveyCreator !== 'undefined'
+            });
+            
+            // Check if all required libraries are loaded
+            if (typeof ko === 'undefined' || typeof Survey === 'undefined' || typeof SurveyCreator === 'undefined') {
+                console.error('Required libraries not loaded', {
+                    ko: typeof ko,
+                    Survey: typeof Survey,
+                    SurveyCreator: typeof SurveyCreator
+                });
+                alert('Failed to load survey designer libraries. Please refresh the page.');
+                return;
+            }
+            
+            try {
+                // Initialize creator with correct options for Knockout
+                const creatorOptions = {
+                    showLogicTab: true,
+                    showTranslationTab: false,
+                    isAutoSave: false,
+                    showJSONEditorTab: true,
+                    showTestSurveyTab: true,
+                    showEmbeddedSurveyTab: false,
+                    showPropertyGrid: "right",
+                    showToolbox: "left",
+                    questionTypes: ["text", "checkbox", "radiogroup", "dropdown", "comment", "rating", "ranking", "boolean", "html", "expression"]
+                };
+                
+                // Create the SurveyCreator instance
+                surveyCreator = new SurveyCreator.SurveyCreator(creatorOptions);
+                
+                console.log('Survey Creator instance created');
+                
+                // Load initial JSON
+                if (initialSurveyJson && typeof initialSurveyJson === 'object') {
+                    console.log('Loading existing survey JSON');
+                    surveyCreator.JSON = initialSurveyJson;
+                } else {
+                    console.log('Starting with blank survey');
+                    // Start with a basic template
+                    surveyCreator.JSON = {
+                        title: "@Model.SurveyName",
+                        description: "Create your survey by adding questions below",
+                        elements: []
+                    };
+                }
+                
+                // Render the creator
+                surveyCreator.render("surveyCreatorContainer");
+                console.log('Survey Creator rendered successfully');
+                
+                // Track changes
+                surveyCreator.onModified.add(function() {
+                    hasUnsavedChanges = true;
+                    updateSaveStatus('unsaved');
+                });
+                
+            } catch (error) {
+                console.error('Failed to initialize survey creator:', error);
+                alert('Error initializing survey designer: ' + error.message + '\n\nCheck console for details.');
+            }
+        }
+        
+        function updateSaveStatus(status) {
+            const statusElement = $('#saveStatus');
+            statusElement.removeClass('saved error');
+            
+            switch(status) {
+                case 'saving':
+                    statusElement.html('<i class="bi bi-arrow-repeat spin me-1"></i>Saving...');
+                    break;
+                case 'saved':
+                    statusElement.addClass('saved');
+                    statusElement.html('<i class="bi bi-check-circle me-1"></i>All changes saved');
+                    hasUnsavedChanges = false;
+                    break;
+                case 'unsaved':
+                    statusElement.html('<i class="bi bi-exclamation-circle me-1"></i>Unsaved changes');
+                    break;
+                case 'error':
+                    statusElement.addClass('error');
+                    statusElement.html('<i class="bi bi-x-circle me-1"></i>Error saving');
+                    break;
+            }
+        }
+        
+        // ========================================
+        // FIELD REFERENCE PANEL
+        // ========================================
+        
+        function populateFieldReference() {
+            // Case Fields
+            const caseFields = [
+                { path: 'Case.FriendlyId', desc: 'Case number/ID', variable: 'caseNumber' },
+                { path: 'Case.DateOfOnset', desc: 'Symptom onset date', variable: 'dateOfOnset' },
+                { path: 'Case.DateOfDiagnosis', desc: 'Diagnosis date', variable: 'diagnosisDate' },
+                { path: 'Case.DateOfNotification', desc: 'Notification date', variable: 'notificationDate' },
+                { path: 'Case.IsolationStartDate', desc: 'Isolation start', variable: 'isolationStartDate' },
+                { path: 'Case.IsolationEndDate', desc: 'Isolation end', variable: 'isolationEndDate' },
+                { path: 'Case.Outcome', desc: 'Case outcome', variable: 'outcome' },
+                { path: 'Case.OutcomeDate', desc: 'Outcome date', variable: 'outcomeDate' },
+                { path: 'Case.RiskLevel', desc: 'Risk assessment', variable: 'riskLevel' },
+                { path: 'Case.Notes', desc: 'Case notes', variable: 'caseNotes' }
+            ];
+            
+            // Patient Fields
+            const patientFields = [
+                { path: 'Patient.GivenName', desc: 'First name', variable: 'patientFirstName' },
+                { path: 'Patient.FamilyName', desc: 'Last name', variable: 'patientLastName' },
+                { path: 'Patient.FullName', desc: 'Full name', variable: 'patientName' },
+                { path: 'Patient.DateOfBirth', desc: 'Date of birth', variable: 'patientDOB' },
+                { path: 'Patient.Age', desc: 'Age in years', variable: 'patientAge' },
+                { path: 'Patient.Phone', desc: 'Phone number', variable: 'patientPhone' },
+                { path: 'Patient.Email', desc: 'Email address', variable: 'patientEmail' },
+                { path: 'Patient.Address', desc: 'Street address', variable: 'patientAddress' },
+                { path: 'Patient.City', desc: 'City', variable: 'patientCity' },
+                { path: 'Patient.State', desc: 'State', variable: 'patientState' },
+                { path: 'Patient.PostalCode', desc: 'ZIP code', variable: 'patientZip' }
+            ];
+            
+            // Exposure Fields
+            const exposureFields = [
+                { path: 'Exposures[0].ExposureStartDate', desc: 'Exposure start date', variable: 'exposureDate' },
+                { path: 'Exposures[0].ExposureEndDate', desc: 'Exposure end date', variable: 'exposureEndDate' },
+                { path: 'Exposures[0].ExposureType', desc: 'Type of exposure', variable: 'exposureType' },
+                { path: 'Exposures[0].FoodItemDescription', desc: 'Food item', variable: 'foodItem' },
+                { path: 'Exposures[0].FreeTextLocation', desc: 'Location name', variable: 'locationName' },
+                { path: 'Exposures[0].Description', desc: 'Exposure description', variable: 'exposureDescription' }
+            ];
+            
+            // Populate lists
+            $('#caseFieldsList').html(generateFieldChips(caseFields));
+            $('#patientFieldsList').html(generateFieldChips(patientFields));
+            $('#exposureFieldsList').html(generateFieldChips(exposureFields));
+            
+            // Load custom fields from server
+            loadCustomFields();
+        }
+        
+        function generateFieldChips(fields) {
+            let html = '';
+            fields.forEach(field => {
+                html += `
+                    <div class="col-md-6">
+                        <div class="field-chip" data-field="${field.path}" data-variable="${field.variable}" 
+                             title="Click to copy '${field.path}'">
+                            <div class="flex-grow-1">
+                                <code>${field.path}</code>
+                                <div class="field-description">${field.desc}</div>
+                                <small class="text-muted">Variable: {${field.variable}}</small>
+                            </div>
+                            <i class="bi bi-clipboard copy-icon"></i>
+                        </div>
+                    </div>
+                `;
+            });
+            return html;
+        }
+        
+        function loadCustomFields() {
+            $('#customFieldsList').html(`
+                <div class="text-center text-muted py-4">
+                    <div class="spinner-border spinner-border-sm me-2" role="status"></div>
+                    Loading custom fields from your diseases...
+                </div>
+            `);
+            
+            // Fetch custom fields from server
+            $.ajax({
+                url: '/api/CustomFields/GetAvailableFields',
+                method: 'GET',
+                success: function(response) {
+                    if (response && response.length > 0) {
+                        let html = '<div class="row g-2">';
+                        response.forEach(field => {
+                            html += `
+                                <div class="col-md-6">
+                                    <div class="field-chip custom-field-item" 
+                                         data-field="Case.CustomFields.${field.name}" 
+                                         data-variable="${field.name}"
+                                         title="Click to copy 'Case.CustomFields.${field.name}'">
+                                        <div class="flex-grow-1">
+                                            <code>Case.CustomFields.${field.name}</code>
+                                            <div class="field-description">${field.description || 'Custom field'}</div>
+                                            <small class="text-muted">From: ${field.diseaseName}</small>
+                                        </div>
+                                        <i class="bi bi-clipboard copy-icon"></i>
+                                    </div>
+                                </div>
+                            `;
+                        });
+                        html += '</div>';
+                        $('#customFieldsList').html(html);
+                        $('#customFieldCount').text(response.length);
+                    } else {
+                        $('#customFieldsList').html(`
+                            <div class="alert alert-warning">
+                                <i class="bi bi-exclamation-triangle me-2"></i>
+                                No custom fields found. Define custom fields in <strong>Settings ? Diseases</strong> first.
+                            </div>
+                        `);
+                        $('#customFieldCount').text('0');
+                    }
+                },
+                error: function() {
+                    $('#customFieldsList').html(`
+                        <div class="alert alert-secondary">
+                            <i class="bi bi-info-circle me-2"></i>
+                            <strong>Define Custom Fields:</strong> Go to Settings ? Diseases ? Edit Disease ? Custom Fields
+                            <br><br>
+                            <strong>Pattern:</strong> <code>Case.CustomFields.YourFieldName</code>
+                            <br>
+                            <strong>Example:</strong> <code>Case.CustomFields.FoodExposure</code>
+                        </div>
+                    `);
+                    $('#customFieldCount').text('0');
+                }
+            });
+        }
+        
+        // Copy to clipboard functionality
+        $(document).on('click', '.field-chip', function() {
+            const field = $(this).data('field');
+            const chip = $(this);
+            
+            // Copy to clipboard
+            navigator.clipboard.writeText(field).then(function() {
+                // Visual feedback
+                chip.addClass('copied');
+                const originalContent = chip.html();
+                chip.find('.copy-icon').removeClass('bi-clipboard').addClass('bi-check-circle-fill');
+                
+                // Show toast
+                showToast('Copied!', `${field} copied to clipboard`);
+                
+                // Reset after 2 seconds
+                setTimeout(function() {
+                    chip.removeClass('copied');
+                    chip.find('.copy-icon').removeClass('bi-check-circle-fill').addClass('bi-clipboard');
+                }, 2000);
+            }).catch(function(err) {
+                console.error('Failed to copy:', err);
+                alert('Failed to copy to clipboard');
+            });
+        });
+        
+        // Refresh custom fields
+        $('#refreshFieldsBtn').on('click', function() {
+            loadCustomFields();
+        });
+        
+        function showToast(title, message) {
+            // Simple toast notification
+            const toast = $(`
+                <div class="position-fixed top-0 end-0 p-3" style="z-index: 99999;">
+                    <div class="toast show" role="alert">
+                        <div class="toast-header bg-success text-white">
+                            <i class="bi bi-check-circle-fill me-2"></i>
+                            <strong class="me-auto">${title}</strong>
+                            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="toast"></button>
+                        </div>
+                        <div class="toast-body">
+                            ${message}
+                        </div>
+                    </div>
+                </div>
+            `);
+            
+            $('body').append(toast);
+            setTimeout(function() {
+                toast.remove();
+            }, 3000);
+        }
+        
+        // ========================================
+        // TAB SWITCHING AND MAPPING FUNCTIONALITY
+        // ========================================
+        
+        let currentMappings = {
+            output: {},
+            input: {}
+        };
+        
+        // Load initial mappings if they exist
+        const initialOutputMapping = @Html.Raw(Model.OutputMappingJson ?? "{}");
+        const initialInputMapping = @Html.Raw(Model.InputMappingJson ?? "{}");
+        
+        if (initialOutputMapping && typeof initialOutputMapping === 'object') {
+            currentMappings.output = initialOutputMapping;
+        }
+        if (initialInputMapping && typeof initialInputMapping === 'object') {
+            currentMappings.input = initialInputMapping;
+        }
+        
+        // Tab switching
+        $('[data-tab]').on('click', function(e) {
+            e.preventDefault();
+            const targetTab = $(this).data('tab');
+            
+            console.log('Switching to tab:', targetTab);
+            
+            // Update tab UI
+            $('[data-tab]').removeClass('active');
+            $(this).addClass('active');
+            
+            // Hide all panels first
+            $('.tab-panel').removeClass('active');
+            
+            // Show target panel
+            if (targetTab === 'designer') {
+                $('#surveyCreatorContainer').addClass('active');
+            } else if (targetTab === 'mappings') {
+                $('#mappingsPanel').addClass('active');
+                
+                // Populate field reference on first load
+                if ($('#caseFieldsList').children().length === 0) {
+                    populateFieldReference();
+                }
+                
+                // Generate mapping UI when switching to mappings tab
+                generateMappingUI();
+            }
+        });
+        
+        // Common database fields for dropdowns
+        const commonFields = [
+            { value: '', label: '-- Select Field --', group: '' },
+            
+            // Case fields
+            { value: 'Case.DateOfOnset', label: 'Date of Onset', group: 'Case' },
+            { value: 'Case.DateOfDiagnosis', label: 'Date of Diagnosis', group: 'Case' },
+            { value: 'Case.DateOfNotification', label: 'Date of Notification', group: 'Case' },
+            { value: 'Case.IsolationStartDate', label: 'Isolation Start Date', group: 'Case' },
+            { value: 'Case.IsolationEndDate', label: 'Isolation End Date', group: 'Case' },
+            { value: 'Case.Outcome', label: 'Outcome', group: 'Case' },
+            { value: 'Case.OutcomeDate', label: 'Outcome Date', group: 'Case' },
+            { value: 'Case.Notes', label: 'Notes', group: 'Case' },
+            { value: 'Case.RiskLevel', label: 'Risk Level', group: 'Case' },
+            
+            // Patient fields
+            { value: 'Patient.GivenName', label: 'Given Name', group: 'Patient' },
+            { value: 'Patient.FamilyName', label: 'Family Name', group: 'Patient' },
+            { value: 'Patient.Phone', label: 'Phone', group: 'Patient' },
+            { value: 'Patient.Email', label: 'Email', group: 'Patient' },
+            { value: 'Patient.DateOfBirth', label: 'Date of Birth', group: 'Patient' },
+            { value: 'Patient.Address', label: 'Address', group: 'Patient' },
+            { value: 'Patient.City', label: 'City', group: 'Patient' },
+            { value: 'Patient.PostalCode', label: 'Postal Code', group: 'Patient' },
+            
+            // Custom fields
+            { value: 'Case.CustomFields.', label: 'Custom Field (enter name)', group: 'Custom' }
+        ];
+        
+        function generateMappingUI() {
+            if (!surveyCreator) {
+                console.log('Survey creator not initialized');
+                return;
+            }
+            
+            const surveyJson = surveyCreator.JSON;
+            const questions = extractQuestions(surveyJson);
+            
+            console.log('Extracted questions:', questions);
+            
+            if (questions.length === 0) {
+                $('#outputMappingsContainer').html(`
+                    <div class="text-center text-muted py-4">
+                        <i class="bi bi-exclamation-circle" style="font-size: 2rem;"></i>
+                        <p class="mt-2">No questions found in survey. Add questions in the Designer tab first.</p>
+                    </div>
+                `);
+                $('#inputMappingsContainer').html($('#outputMappingsContainer').html());
+                return;
+            }
+            
+            // Generate output mappings UI
+            let outputHtml = '';
+            questions.forEach(q => {
+                const currentValue = currentMappings.output[q.name] || '';
+                outputHtml += createMappingRow(q, currentValue, 'output');
+            });
+            $('#outputMappingsContainer').html(outputHtml);
+            
+            // Generate input mappings UI
+            let inputHtml = '';
+            questions.forEach(q => {
+                const currentValue = currentMappings.input[q.name] || '';
+                inputHtml += createMappingRow(q, currentValue, 'input');
+            });
+            $('#inputMappingsContainer').html(inputHtml);
+            
+            // Attach change handlers
+            $('.mapping-select').on('change', function() {
+                const questionName = $(this).data('question');
+                const mappingType = $(this).data('type');
+                const value = $(this).val();
+                
+                if (mappingType === 'output') {
+                    if (value) {
+                        currentMappings.output[questionName] = value;
+                    } else {
+                        delete currentMappings.output[questionName];
+                    }
+                } else {
+                    if (value) {
+                        currentMappings.input[questionName] = value;
+                    } else {
+                        delete currentMappings.input[questionName];
+                    }
+                }
+                
+                hasUnsavedChanges = true;
+                updateSaveStatus('unsaved');
+                
+                console.log('Mappings updated:', currentMappings);
+            });
+            
+            // Custom field input handlers
+            $('.custom-field-input').on('input', function() {
+                const questionName = $(this).data('question');
+                const mappingType = $(this).data('type');
+                const customName = $(this).val();
+                const value = customName ? `Case.CustomFields.${customName}` : '';
+                
+                if (mappingType === 'output') {
+                    if (value) {
+                        currentMappings.output[questionName] = value;
+                    } else {
+                        delete currentMappings.output[questionName];
+                    }
+                } else {
+                    if (value) {
+                        currentMappings.input[questionName] = value;
+                    } else {
+                        delete currentMappings.input[questionName];
+                    }
+                }
+                
+                hasUnsavedChanges = true;
+                updateSaveStatus('unsaved');
+            });
+        }
+        
+        function extractQuestions(surveyJson) {
+            const questions = [];
+            
+            if (!surveyJson) return questions;
+            
+            // Check for elements (single-page survey)
+            if (surveyJson.elements && Array.isArray(surveyJson.elements)) {
+                surveyJson.elements.forEach(el => {
+                    if (el.name && el.type !== 'html') {
+                        questions.push({
+                            name: el.name,
+                            title: el.title || el.name,
+                            type: el.type || 'text'
+                        });
+                    }
+                });
+            }
+            
+            // Check for pages (multi-page survey)
+            if (surveyJson.pages && Array.isArray(surveyJson.pages)) {
+                surveyJson.pages.forEach(page => {
+                    if (page.elements && Array.isArray(page.elements)) {
+                        page.elements.forEach(el => {
+                            if (el.name && el.type !== 'html') {
+                                questions.push({
+                                    name: el.name,
+                                    title: el.title || el.name,
+                                    type: el.type || 'text'
+                                });
+                            }
+                        });
+                    }
+                });
+            }
+            
+            return questions;
+        }
+        
+        function createMappingRow(question, currentValue, mappingType) {
+            const isCustomField = currentValue && currentValue.startsWith('Case.CustomFields.');
+            const customFieldName = isCustomField ? currentValue.replace('Case.CustomFields.', '') : '';
+            
+            let html = `
+                <div class="mapping-row">
+                    <div class="question-name">
+                        <i class="bi bi-question-circle me-1"></i>${escapeHtml(question.name)}
+                    </div>
+                    <div class="question-title text-muted">${escapeHtml(question.title)}</div>
+                    <div class="row g-2 align-items-center">
+                        <div class="col-md-8">
+                            <select class="form-select form-select-sm mapping-select field-select" 
+                                    data-question="${escapeHtml(question.name)}" 
+                                    data-type="${mappingType}">
+            `;
+            
+            // Group fields by category
+            let lastGroup = '';
+            commonFields.forEach(field => {
+                if (field.group && field.group !== lastGroup) {
+                    if (lastGroup !== '') html += '</optgroup>';
+                    html += `<optgroup label="${field.group}">`;
+                    lastGroup = field.group;
+                }
+                
+                const selected = (field.value === currentValue || (field.value === 'Case.CustomFields.' && isCustomField)) ? 'selected' : '';
+                html += `<option value="${field.value}" ${selected}>${field.label}</option>`;
+            });
+            
+            if (lastGroup !== '') html += '</optgroup>';
+            
+            html += `
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <input type="text" 
+                                   class="form-control form-control-sm custom-field-input" 
+                                   placeholder="Custom field name"
+                                   data-question="${escapeHtml(question.name)}"
+                                   data-type="${mappingType}"
+                                   value="${escapeHtml(customFieldName)}"
+                                   ${isCustomField ? '' : 'style="display:none"'} />
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            return html;
+        }
+        
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+        
+        // Show/hide custom field input based on dropdown selection
+        $(document).on('change', '.mapping-select', function() {
+            const customInput = $(this).closest('.row').find('.custom-field-input');
+            if ($(this).val() === 'Case.CustomFields.') {
+                customInput.show().focus();
+            } else {
+                customInput.hide().val('');
+            }
+        });
+        
+        // ========================================
+        // END MAPPING FUNCTIONALITY
+        // ========================================
+        
+        // ========================================
+        // SAVE AS NEW VERSION
+        // ========================================
+        
+        $('#saveAsVersionBtn').on('click', function() {
+            if (!surveyCreator) {
+                alert('Survey creator not initialized');
+                return;
+            }
+            
+            // Check if this is a new survey
+            if (isNewSurvey) {
+                alert('Please save the survey first before creating versions. Click "Save & Close" to save this survey.');
+                return;
+            }
+            
+            showSaveAsVersionModal();
+        });
+        
+        function showSaveAsVersionModal() {
+            const modalHtml = `
+                <div class="modal fade" id="saveAsVersionModal" tabindex="-1">
+                    <div class="modal-dialog">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h5 class="modal-title">
+                                    <i class="bi bi-plus-circle me-2"></i>Save As New Version
+                                </h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                            </div>
+                            <div class="modal-body">
+                                <div class="alert alert-info">
+                                    <i class="bi bi-info-circle me-2"></i>
+                                    Create a new version of this survey. Draft versions can be edited without affecting active surveys.
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label class="form-label">Version Number <span class="text-danger">*</span></label>
+                                    <input type="text" class="form-control" id="versionNumber" 
+                                           placeholder="e.g., 2.0, 2.1, 3.0-beta" />
+                                    <small class="text-muted">
+                                        Recommended: Use semantic versioning (major.minor)
+                                    </small>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label class="form-label">What Changed? <span class="text-danger">*</span></label>
+                                    <textarea class="form-control" id="versionNotes" rows="4"
+                                              placeholder="Describe changes made in this version..."></textarea>
+                                    <small class="text-muted">
+                                        Help others understand what's different in this version
+                                    </small>
+                                </div>
+                                
+                                <div class="form-check">
+                                    <input type="checkbox" class="form-check-input" id="publishNow" />
+                                    <label class="form-check-label">
+                                        <strong>Publish immediately</strong> as Active version
+                                    </label>
+                                    <div class="form-text">
+                                        <i class="bi bi-exclamation-triangle me-1"></i>
+                                        If checked, this version becomes active and the current active version is archived.
+                                        If unchecked, version is saved as Draft.
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                                <button type="button" class="btn btn-primary" id="createVersionBtn">
+                                    <i class="bi bi-save me-1"></i>Create Version
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            // Remove existing modal if any
+            $('#saveAsVersionModal').remove();
+            
+            // Add to body
+            $('body').append(modalHtml);
+            
+            // Show modal
+            const modal = new bootstrap.Modal(document.getElementById('saveAsVersionModal'));
+            modal.show();
+            
+            // Handle create button
+            $('#createVersionBtn').off('click').on('click', function() {
+                saveNewVersion(modal);
+            });
+            
+            // Clean up on close
+            $('#saveAsVersionModal').on('hidden.bs.modal', function() {
+                $(this).remove();
+            });
+        }
+        
+        function saveNewVersion(modal) {
+            const versionNumber = $('#versionNumber').val().trim();
+            const versionNotes = $('#versionNotes').val().trim();
+            const publishNow = $('#publishNow').is(':checked');
+            
+            // Validation
+            if (!versionNumber) {
+                alert('Version number is required');
+                $('#versionNumber').focus();
+                return;
+            }
+            
+            if (!versionNotes) {
+                alert('Please describe what changed in this version');
+                $('#versionNotes').focus();
+                return;
+            }
+            
+            const surveyJson = surveyCreator.JSON;
+            
+            // Validate survey has questions
+            let hasQuestions = false;
+            if (surveyJson.elements && surveyJson.elements.length > 0) {
+                hasQuestions = true;
+            } else if (surveyJson.pages && surveyJson.pages.length > 0) {
+                for (let page of surveyJson.pages) {
+                    if (page.elements && page.elements.length > 0) {
+                        hasQuestions = true;
+                        break;
+                    }
+                }
+            }
+            
+            if (!hasQuestions) {
+                if (!confirm('Your survey has no questions. Create version anyway?')) {
+                    return;
+                }
+            }
+            
+            // Disable button
+            $('#createVersionBtn').prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-2"></span>Creating...');
+            
+            console.log('Creating new version...', {
+                versionNumber: versionNumber,
+                publishNow: publishNow
+            });
+            
+            // Send to server
+            $.ajax({
+                url: '/api/SurveyVersion/SaveAsNewVersion',
+                method: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify({
+                    parentSurveyId: surveyId,
+                    versionNumber: versionNumber,
+                    versionNotes: versionNotes,
+                    publishImmediately: publishNow,
+                    surveyDefinitionJson: JSON.stringify(surveyJson),
+                    outputMappingJson: JSON.stringify(currentMappings.output),
+                    inputMappingJson: JSON.stringify(currentMappings.input)
+                }),
+                success: function(response) {
+                    console.log('Version created successfully', response);
+                    
+                    modal.hide();
+                    
+                    showToast('Success!', `Version ${versionNumber} created successfully`);
+                    
+                    hasUnsavedChanges = false;
+                    
+                    // Redirect to new version
+                    setTimeout(function() {
+                        window.location.href = `/Settings/Surveys/EditSurveyTemplate?id=${response.newVersionId}`;
+                    }, 1000);
+                },
+                error: function(xhr, status, error) {
+                    console.error('Failed to create version', {
+                        status: xhr.status,
+                        statusText: xhr.statusText,
+                        responseText: xhr.responseText,
+                        error: error
+                    });
+                    
+                    let errorMessage = 'Failed to create version';
+                    
+                    try {
+                        // Try to parse error response as text
+                        const responseText = xhr.responseText;
+                        if (responseText) {
+                            if (xhr.status === 400) {
+                                // Bad request - show the specific error
+                                errorMessage = responseText;
+                            } else if (xhr.status === 404) {
+                                // Not found
+                                errorMessage = responseText || 'Parent survey not found. The survey may have been deleted.';
+                            } else {
+                                errorMessage = responseText || error || 'Unknown error occurred';
+                            }
+                        }
+                    } catch (e) {
+                        console.error('Error parsing error response:', e);
+                        errorMessage += ': ' + (xhr.statusText || error || 'Unknown error');
+                    }
+                    
+                    alert('Error: ' + errorMessage);
+                    
+                    // Re-enable button
+                    $('#createVersionBtn').prop('disabled', false).html('<i class="bi bi-save me-1"></i>Create Version');
+                }
+            });
+        }
+        
+        // ========================================
+        // END SAVE AS VERSION
+        // ========================================
+        
+        // Save survey
+        $('#saveBtn').on('click', function() {
+            if (!surveyCreator) {
+                alert('Survey creator not initialized');
+                return;
+            }
+            
+            const surveyJson = surveyCreator.JSON;
+            
+            // Validate - check for questions in either elements or pages
+            let hasQuestions = false;
+            if (surveyJson) {
+                // Check for elements array (single page survey)
+                if (surveyJson.elements && surveyJson.elements.length > 0) {
+                    hasQuestions = true;
+                }
+                // Check for pages array (multi-page survey)
+                else if (surveyJson.pages && surveyJson.pages.length > 0) {
+                    for (let page of surveyJson.pages) {
+                        if (page.elements && page.elements.length > 0) {
+                            hasQuestions = true;
+                            break;
+                        }
+                    }
+                }
+            }
+            
+            if (!hasQuestions) {
+                if (!confirm('Your survey has no questions. Save anyway?')) {
+                    return;
+                }
+            }
+            
+            updateSaveStatus('saving');
+            
+            console.log('Saving survey...', {
+                surveyId: surveyId,
+                url: window.location.pathname,
+                outputMappings: currentMappings.output,
+                inputMappings: currentMappings.input
+            });
+            
+            // Send to server with mappings
+            $.ajax({
+                url: window.location.pathname,
+                method: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify({
+                    surveyDefinitionJson: JSON.stringify(surveyJson),
+                    outputMappingJson: JSON.stringify(currentMappings.output),
+                    inputMappingJson: JSON.stringify(currentMappings.input)
+                }),
+                success: function(response) {
+                    console.log('Save successful', response);
+                    updateSaveStatus('saved');
+                    hasUnsavedChanges = false;
+                    
+                    // Close window after short delay
+                    setTimeout(function() {
+                        if (window.opener) {
+                            window.opener.location.reload();
+                            window.close();
+                        } else {
+                            window.location.href = returnUrl || '/Settings/Surveys/SurveyTemplates';
+                        }
+                    }, 500);
+                },
+                error: function(xhr, status, error) {
+                    console.error('Save failed', {
+                        status: xhr.status,
+                        statusText: xhr.statusText,
+                        responseText: xhr.responseText,
+                        error: error
+                    });
+                    updateSaveStatus('error');
+                    
+                    let errorMessage = 'Failed to save survey';
+                    if (xhr.status === 400) {
+                        errorMessage += ': ' + (xhr.responseText || 'Bad request');
+                    } else if (xhr.status === 404) {
+                        errorMessage += ': Survey template not found';
+                    } else if (xhr.status === 500) {
+                        errorMessage += ': Server error - ' + (xhr.responseText || error);
+                    } else {
+                        errorMessage += ': ' + (xhr.responseText || error);
+                    }
+                    
+                    alert(errorMessage);
+                }
+            });
+        });
+        
+        // Cancel
+        $('#cancelBtn').on('click', function() {
+            if (hasUnsavedChanges) {
+                if (!confirm('You have unsaved changes. Are you sure you want to cancel?')) {
+                    return;
+                }
+            }
+            
+            if (window.opener) {
+                window.close();
+            } else {
+                window.location.href = returnUrl || '/Settings/Surveys/SurveyTemplates';
+            }
+        });
+        
+        // Preview
+        $('#previewBtn').on('click', function() {
+            if (!surveyCreator) return;
+            
+            const surveyJson = surveyCreator.JSON;
+            const survey = new Survey.Model(surveyJson);
+            survey.render("surveyPreviewContainer");
+            
+            $('#previewModal').modal('show');
+        });
+        
+        // Warn before leaving with unsaved changes
+        window.addEventListener('beforeunload', function(e) {
+            if (hasUnsavedChanges) {
+                e.preventDefault();
+                e.returnValue = 'You have unsaved changes. Are you sure you want to leave?';
+                return e.returnValue;
+            }
+        });
+        
+        // Initialize when page loads
+        $(document).ready(function() {
+            console.log('Page ready, initializing survey creator...');
+            initializeSurveyCreator();
+            
+            // Disable "Save As Version" button for new surveys
+            if (isNewSurvey) {
+                $('#saveAsVersionBtn')
+                    .prop('disabled', true)
+                    .attr('title', 'Save the survey first before creating versions')
+                    .addClass('disabled');
+            }
+        });
+    </script>
+</body>
+</html>

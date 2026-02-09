@@ -1,0 +1,267 @@
+@page
+@using Surveillance_MVP.Models
+@model Surveillance_MVP.Pages.Settings.Lookups.TaskTemplatesModel
+@{
+    ViewData["Title"] = "Task Templates";
+}
+
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>Task Templates</h2>
+        <a asp-page="./CreateTaskTemplate" class="btn btn-primary">
+            <i class="fas fa-plus"></i> Create Task Template
+        </a>
+    </div>
+
+    @if (TempData["SuccessMessage"] != null)
+    {
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            @TempData["SuccessMessage"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    }
+
+    <div class="card">
+        <div class="card-body">
+            <!-- Filter by Task Type -->
+            <div class="row mb-3">
+                <div class="col-md-4">
+                    <label class="form-label">Filter by Task Type</label>
+                    <select class="form-select" id="taskTypeFilter">
+                        <option value="">All Task Types</option>
+                        @foreach (var taskType in Model.TaskTypes)
+                        {
+                            <option value="@taskType.Id">@taskType.Name</option>
+                        }
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Filter by Trigger</label>
+                    <select class="form-select" id="triggerFilter">
+                        <option value="">All Triggers</option>
+                        <option value="0">On Case Creation</option>
+                        <option value="1">On Contact Identification</option>
+                        <option value="2">On Lab Confirmation</option>
+                        <option value="3">On Symptom Onset</option>
+                        <option value="4">On Exposure Recorded</option>
+                        <option value="5">Manual</option>
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Status</label>
+                    <select class="form-select" id="statusFilter">
+                        <option value="">All</option>
+                        <option value="true" selected>Active Only</option>
+                        <option value="false">Inactive Only</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="table-responsive">
+                <table class="table table-hover" id="taskTemplatesTable">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Name</th>
+                            <th>Task Type</th>
+                            <th>Disease</th>
+                            <th>Trigger</th>
+                            <th>Priority</th>
+                            <th>Applies To</th>
+                            <th>Recurring</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var template in Model.TaskTemplates.OrderBy(t => t.TaskType?.Name).ThenBy(t => t.Name))
+                        {
+                            <tr data-tasktype="@template.TaskTypeId" 
+                                data-trigger="@((int)template.TriggerType)"
+                                data-active="@template.IsActive.ToString().ToLower()">
+                                <td>
+                                    <strong>@template.Name</strong>
+                                    @if (!string.IsNullOrEmpty(template.Description))
+                                    {
+                                        <br />
+                                        <small class="text-muted">@template.Description</small>
+                                    }
+                                </td>
+                                <td>
+                                    @if (template.TaskType != null)
+                                    {
+                                        <span class="badge @template.TaskType.ColorClass">
+                                            <i class="@template.TaskType.IconClass"></i> @template.TaskType.Name
+                                        </span>
+                                    }
+                                </td>
+                                <td>
+                                    @{
+                                        var diseaseAssignments = Model.DiseaseAssignments.Where(d => d.TaskTemplateId == template.Id).ToList();
+                                        if (diseaseAssignments.Any())
+                                        {
+                                            foreach (var assignment in diseaseAssignments.Take(2))
+                                            {
+                                                <span class="badge bg-secondary">@assignment.Disease?.Name</span><br />
+                                            }
+                                            if (diseaseAssignments.Count > 2)
+                                            {
+                                                <small class="text-muted">+@(diseaseAssignments.Count - 2) more</small>
+                                            }
+                                        }
+                                        else
+                                        {
+                                            <span class="text-muted">Generic</span>
+                                        }
+                                    }
+                                </td>
+                                <td>
+                                    <span class="badge bg-secondary">@template.TriggerType.ToString().Replace("On", "On ")</span>
+                                </td>
+                                <td>
+                                    @switch (template.DefaultPriority)
+                                    {
+                                        case TaskPriority.Urgent:
+                                            <span class="badge bg-danger">Urgent</span>
+                                            break;
+                                        case TaskPriority.High:
+                                            <span class="badge bg-warning">High</span>
+                                            break;
+                                        case TaskPriority.Medium:
+                                            <span class="badge bg-primary">Medium</span>
+                                            break;
+                                        case TaskPriority.Low:
+                                            <span class="badge bg-secondary">Low</span>
+                                            break;
+                                    }
+                                </td>
+                                <td>
+                                    @if (template.ApplicableToType == null)
+                                    {
+                                        <span class="text-muted">Both</span>
+                                    }
+                                    else
+                                    {
+                                        <span>@template.ApplicableToType.ToString()</span>
+                                    }
+                                </td>
+                                <td>
+                                    @if (template.IsRecurring)
+                                    {
+                                        <i class="fas fa-check text-success"></i>
+                                        @if (template.RecurrencePattern != null)
+                                        {
+                                            <small class="text-muted">(@template.RecurrencePattern)</small>
+                                        }
+                                    }
+                                    else
+                                    {
+                                        <i class="fas fa-times text-muted"></i>
+                                    }
+                                </td>
+                                <td>
+                                    @if (template.IsActive)
+                                    {
+                                        <span class="badge bg-success">Active</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge bg-secondary">Inactive</span>
+                                    }
+                                </td>
+                                <td>
+                                    <div class="btn-group btn-group-sm" role="group">
+                                        <a asp-page="./EditTaskTemplate" asp-route-id="@template.Id" 
+                                           class="btn btn-outline-primary" title="Edit">
+                                            <i class="fas fa-edit"></i> Edit
+                                        </a>
+                                        <button type="button" class="btn btn-outline-danger" 
+                                                data-bs-toggle="modal" 
+                                                data-bs-target="#deleteModal-@template.Id"
+                                                title="Delete">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </div>
+
+                                    <!-- Delete Confirmation Modal -->
+                                    <div class="modal fade" id="deleteModal-@template.Id" tabindex="-1">
+                                        <div class="modal-dialog">
+                                            <div class="modal-content">
+                                                <div class="modal-header">
+                                                    <h5 class="modal-title">Delete Task Template</h5>
+                                                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                                </div>
+                                                <div class="modal-body">
+                                                    <p>Are you sure you want to delete "<strong>@template.Name</strong>"?</p>
+                                                    <p class="text-danger">
+                                                        <i class="fas fa-exclamation-triangle"></i>
+                                                        This will remove the template from all diseases. Existing task instances will not be affected.
+                                                    </p>
+                                                </div>
+                                                <div class="modal-footer">
+                                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                                                    <form method="post" asp-page-handler="Delete" asp-route-id="@template.Id" class="d-inline">
+                                                        <button type="submit" class="btn btn-danger">Delete</button>
+                                                    </form>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+
+            @if (!Model.TaskTemplates.Any())
+            {
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle"></i> No task templates found.
+                    <a asp-page="./CreateTaskTemplate">Create your first task template</a>.
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        // Simple client-side filtering
+        document.addEventListener('DOMContentLoaded', function() {
+            const taskTypeFilter = document.getElementById('taskTypeFilter');
+            const triggerFilter = document.getElementById('triggerFilter');
+            const statusFilter = document.getElementById('statusFilter');
+            const table = document.getElementById('taskTemplatesTable');
+
+            function filterTable() {
+                const taskTypeValue = taskTypeFilter.value;
+                const triggerValue = triggerFilter.value;
+                const statusValue = statusFilter.value;
+
+                const rows = table.querySelectorAll('tbody tr');
+                rows.forEach(row => {
+                    const taskType = row.getAttribute('data-tasktype');
+                    const trigger = row.getAttribute('data-trigger');
+                    const active = row.getAttribute('data-active');
+
+                    const matchesTaskType = !taskTypeValue || taskType === taskTypeValue;
+                    const matchesTrigger = !triggerValue || trigger === triggerValue;
+                    const matchesStatus = !statusValue || active === statusValue;
+
+                    if (matchesTaskType && matchesTrigger && matchesStatus) {
+                        row.style.display = '';
+                    } else {
+                        row.style.display = 'none';
+                    }
+                });
+            }
+
+            taskTypeFilter.addEventListener('change', filterTable);
+            triggerFilter.addEventListener('change', filterTable);
+            statusFilter.addEventListener('change', filterTable);
+
+            // Initial filter
+            filterTable();
+        });
+    </script>
+}

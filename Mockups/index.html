@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Apple Aesthetic Mockups - Surveillance System</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 32px;
+        }
+
+        .container {
+            max-width: 1200px;
+            width: 100%;
+        }
+
+        h1 {
+            color: white;
+            font-size: 48px;
+            font-weight: 700;
+            text-align: center;
+            margin-bottom: 16px;
+            text-shadow: 0 2px 8px rgba(0,0,0,0.2);
+        }
+
+        .subtitle {
+            color: rgba(255, 255, 255, 0.9);
+            font-size: 20px;
+            text-align: center;
+            margin-bottom: 48px;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 24px;
+        }
+
+        .card {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+            overflow: hidden;
+            transition: transform 0.3s, box-shadow 0.3s;
+            text-decoration: none;
+            color: inherit;
+        }
+
+        .card:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 12px 32px rgba(0,0,0,0.2);
+        }
+
+        .card-image {
+            width: 100%;
+            height: 200px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 64px;
+        }
+
+        .card-body {
+            padding: 24px;
+        }
+
+        .card-title {
+            font-size: 24px;
+            font-weight: 700;
+            margin-bottom: 8px;
+            color: #000;
+        }
+
+        .card-description {
+            font-size: 15px;
+            color: rgba(60, 60, 67, 0.6);
+            line-height: 1.5;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 4px 12px;
+            background: #007AFF;
+            color: white;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-top: 12px;
+        }
+
+        .footer {
+            text-align: center;
+            margin-top: 48px;
+            color: rgba(255, 255, 255, 0.8);
+            font-size: 14px;
+        }
+
+        @media (max-width: 768px) {
+            h1 {
+                font-size: 36px;
+            }
+            
+            .subtitle {
+                font-size: 18px;
+            }
+            
+            .grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Apple Aesthetic Mockups</h1>
+        <p class="subtitle">Clean, minimal design with maximum information density</p>
+
+        <div class="grid">
+            <a href="dashboard.html" class="card">
+                <div class="card-image">??</div>
+                <div class="card-body">
+                    <div class="card-title">Dashboard</div>
+                    <div class="card-description">
+                        Overview page with stats, tasks, priority cases, and active outbreaks. 
+                        Features real-time activity feed and disease trends.
+                    </div>
+                    <span class="badge">Homepage</span>
+                </div>
+            </a>
+
+            <a href="case-list.html" class="card">
+                <div class="card-image" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">??</div>
+                <div class="card-body">
+                    <div class="card-title">Case List</div>
+                    <div class="card-description">
+                        Dense table layout with multi-line rows showing patient info, disease, status, 
+                        and assignment. Includes filters and search.
+                    </div>
+                    <span class="badge">Browse Cases</span>
+                </div>
+            </a>
+
+            <a href="case-detail.html" class="card">
+                <div class="card-image" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);">??</div>
+                <div class="card-body">
+                    <div class="card-title">Case Detail</div>
+                    <div class="card-description">
+                        Three-column layout showing patient demographics, case information, clinical details, 
+                        lab results, exposures, contacts, and timeline.
+                    </div>
+                    <span class="badge">Full Details</span>
+                </div>
+            </a>
+
+            <a href="patient-list.html" class="card">
+                <div class="card-image" style="background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);">??</div>
+                <div class="card-body">
+                    <div class="card-title">Patient List</div>
+                    <div class="card-description">
+                        Alphabetically grouped patient directory with compact rows showing demographics, 
+                        contact info, and recent case activity.
+                    </div>
+                    <span class="badge">Directory</span>
+                </div>
+            </a>
+
+            <a href="settings.html" class="card">
+                <div class="card-image" style="background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);">??</div>
+                <div class="card-body">
+                    <div class="card-title">Settings</div>
+                    <div class="card-description">
+                        Card-grid overview of all configuration areas including users, organizations, 
+                        lookups, surveys, tasks, and system settings.
+                    </div>
+                    <span class="badge">Configuration</span>
+                </div>
+            </a>
+        </div>
+
+        <div class="footer">
+            <p><strong>Design System:</strong> Apple SF Pro fonts, 8px grid, subtle shadows, rounded corners</p>
+            <p style="margin-top: 8px;"><strong>Colors:</strong> Blue #007AFF • Green #34C759 • Orange #FF9500 • Red #FF3B30</p>
+        </div>
+    </div>
+</body>
+</html>

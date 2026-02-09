@@ -1,0 +1,174 @@
+@page
+@model Surveillance_MVP.Pages.Settings.Surveys.CreateSurveyTemplateModel
+
+@{
+    ViewData["Title"] = "Create Survey Template";
+}
+
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col-12">
+            <h2><i class="bi bi-plus-circle me-2"></i>Create Survey Template</h2>
+            <p class="text-muted">Enter basic information, then design your survey in the visual designer</p>
+            
+            <div class="alert alert-info">
+                <i class="bi bi-info-circle me-2"></i>
+                <strong>Quick Start:</strong> Just enter the basic details below. After saving, you'll be able to open the visual designer to build your survey questions.
+            </div>
+            
+            @if (!ViewData.ModelState.IsValid)
+            {
+                <div class="alert alert-danger">
+                    <i class="bi bi-exclamation-triangle me-2"></i>
+                    <strong>Please fix the following errors:</strong>
+                    <ul class="mb-0 mt-2">
+                        @foreach (var error in ViewData.ModelState.Values.SelectMany(v => v.Errors))
+                        {
+                            <li>@error.ErrorMessage</li>
+                        }
+                    </ul>
+                </div>
+            }
+        </div>
+    </div>
+
+    <form method="post">
+        <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
+        
+        <!-- Hidden field with default empty survey JSON to satisfy [Required] validation -->
+        <input type="hidden" asp-for="SurveyTemplate.SurveyDefinitionJson" value='{"title":"New Survey","elements":[]}' />
+        
+        <div class="row">
+            <!-- Left Column - Basic Info -->
+            <div class="col-lg-6">
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <i class="bi bi-info-circle me-2"></i>Basic Information
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <label asp-for="SurveyTemplate.Name" class="form-label required"></label>
+                            <input asp-for="SurveyTemplate.Name" class="form-control" autofocus />
+                            <span asp-validation-for="SurveyTemplate.Name" class="text-danger"></span>
+                            <small class="form-text text-muted">Give your survey a descriptive name</small>
+                        </div>
+
+                        <div class="mb-3">
+                            <label asp-for="SurveyTemplate.Description" class="form-label"></label>
+                            <textarea asp-for="SurveyTemplate.Description" class="form-control" rows="3"></textarea>
+                            <span asp-validation-for="SurveyTemplate.Description" class="text-danger"></span>
+                            <small class="form-text text-muted">What is this survey used for?</small>
+                        </div>
+
+                        <div class="mb-3">
+                            <label asp-for="SurveyTemplate.Category" class="form-label"></label>
+                            <select asp-for="SurveyTemplate.Category" class="form-select">
+                                <option value="">-- Select Category --</option>
+                                <option value="Foodborne">Foodborne</option>
+                                <option value="Respiratory">Respiratory</option>
+                                <option value="Vector-borne">Vector-borne</option>
+                                <option value="Contact Investigation">Contact Investigation</option>
+                                <option value="Risk Assessment">Risk Assessment</option>
+                                <option value="Symptom Screening">Symptom Screening</option>
+                                <option value="Exposure History">Exposure History</option>
+                                <option value="Other">Other</option>
+                            </select>
+                            <span asp-validation-for="SurveyTemplate.Category" class="text-danger"></span>
+                        </div>
+
+                        <div class="mb-3">
+                            <label asp-for="SurveyTemplate.Tags" class="form-label"></label>
+                            <input asp-for="SurveyTemplate.Tags" class="form-control" 
+                                   placeholder="Enter comma-separated tags (e.g., food, history, investigation)" />
+                            <span asp-validation-for="SurveyTemplate.Tags" class="text-danger"></span>
+                            <small class="form-text text-muted">
+                                Tags help organize and search for survey templates
+                            </small>
+                        </div>
+
+                        <div class="form-check mb-3">
+                            <input asp-for="SurveyTemplate.IsActive" class="form-check-input" type="checkbox" checked />
+                            <label asp-for="SurveyTemplate.IsActive" class="form-check-label">
+                                Active (available for use)
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Column - Applicable Diseases & Next Steps -->
+            <div class="col-lg-6">
+                <!-- Applicable Diseases -->
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <i class="bi bi-clipboard2-pulse me-2"></i>Applicable Diseases (Optional)
+                    </div>
+                    <div class="card-body">
+                        <p class="text-muted small">
+                            Select which diseases this survey template applies to. This helps organize surveys and makes them easier to find.
+                        </p>
+                        <div class="border rounded p-3" style="max-height: 300px; overflow-y: auto;">
+                            @foreach (var disease in Model.Diseases)
+                            {
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="SelectedDiseaseIds" 
+                                           value="@disease.Value" id="disease-@disease.Value" />
+                                    <label class="form-check-label" for="disease-@disease.Value">
+                                        @disease.Text
+                                    </label>
+                                </div>
+                            }
+                        </div>
+                        <small class="form-text text-muted mt-2 d-block">
+                            <i class="bi bi-info-circle me-1"></i>
+                            Optional: You can change this later
+                        </small>
+                    </div>
+                </div>
+
+                <!-- Next Steps Info -->
+                <div class="card border-primary mb-4">
+                    <div class="card-header bg-primary text-white">
+                        <i class="bi bi-lightbulb me-2"></i>Next Steps
+                    </div>
+                    <div class="card-body">
+                        <h6>After saving, you can:</h6>
+                        <ul class="mb-0">
+                            <li class="mb-2">
+                                <strong>Open Visual Designer</strong>
+                                <br><small class="text-muted">Build your survey with drag-and-drop interface</small>
+                            </li>
+                            <li class="mb-2">
+                                <strong>Configure Field Mappings</strong>
+                                <br><small class="text-muted">Map survey questions to database fields</small>
+                            </li>
+                            <li class="mb-2">
+                                <strong>Create Versions</strong>
+                                <br><small class="text-muted">Save drafts and publish when ready</small>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="card">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <a asp-page="./SurveyTemplates" class="btn btn-outline-secondary">
+                        <i class="bi bi-x-circle me-2"></i>Cancel
+                    </a>
+                    <button type="submit" class="btn btn-primary btn-lg">
+                        <i class="bi bi-save me-2"></i>Create Survey Template
+                        <i class="bi bi-arrow-right ms-2"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </form>
+</div>
+
+@section Scripts {
+    @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+}
