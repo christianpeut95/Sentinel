@@ -150,7 +150,7 @@ namespace Sentinel.Services
                 {
                     Email = "manager@sentinel-demo.com",
                     Password = "Demo123!@#Manager",
-                    FirstName = "Sarah",
+                    FirstName = "Emma",
                     LastName = "Chen",
                     Role = "Surveillance Manager",
                     IsInterviewWorker = false,
@@ -161,7 +161,7 @@ namespace Sentinel.Services
                 {
                     Email = "officer@sentinel-demo.com",
                     Password = "Demo123!@#Officer",
-                    FirstName = "Michael",
+                    FirstName = "Isabella",
                     LastName = "Thompson",
                     Role = "Surveillance Officer",
                     IsInterviewWorker = true,
@@ -194,7 +194,7 @@ namespace Sentinel.Services
                 {
                     Email = "stiofficer@sentinel-demo.com",
                     Password = "Demo123!@#STI",
-                    FirstName = "Lisa",
+                    FirstName = "Megge",
                     LastName = "Patel",
                     Role = "STI/BBV Surveillance Officer",
                     IsInterviewWorker = true,

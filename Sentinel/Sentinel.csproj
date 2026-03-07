@@ -36,6 +36,7 @@
   <ItemGroup>
     <Folder Include="Events\Handlers\" />
     <Folder Include="Pages\ReviewQueue\" />
+    <Folder Include="Sentinel\Pages\Admin\" />
   </ItemGroup>
 
 </Project>
