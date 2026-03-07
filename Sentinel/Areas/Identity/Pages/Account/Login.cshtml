@@ -1,10 +1,12 @@
 @page
 @model LoginModel
 @using Sentinel.Constants
+@inject Microsoft.Extensions.Configuration.IConfiguration Configuration
 
 @{
     ViewData["Title"] = "Sign In";
     Layout = null;
+    var isDemoMode = Configuration.GetValue<bool>("Demo:EnableDemoUsers");
 }
 
 <!DOCTYPE html>
@@ -253,7 +255,13 @@
     </style>
 </head>
 <body>
-    <div class="login-container">
+    @if (isDemoMode)
+    {
+        <div style="position: fixed; top: 0; left: 0; right: 0; background: linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%); color: white; padding: 12px; text-align: center; z-index: 10000; box-shadow: 0 4px 12px rgba(0,0,0,0.15); font-weight: 600;">
+            <i class="bi bi-exclamation-triangle-fill me-2"></i>DEMO ENVIRONMENT - Test accounts available below
+        </div>
+    }
+    <div class="login-container" style="@(isDemoMode ? "margin-top: 50px;" : "")">
         <div class="login-card">
             <div class="login-left">
                 <div class="logo-circle">
@@ -269,6 +277,35 @@
 
             <div class="login-right">
                 <h2 class="form-title">Sign In</h2>
+                
+                @if (isDemoMode)
+                {
+                    <div class="alert alert-info" style="margin-bottom: 20px; font-size: 0.875rem;">
+                        <strong><i class="bi bi-info-circle me-2"></i>Demo Test Accounts:</strong>
+                        <div style="margin-top: 10px; font-family: 'Courier New', monospace; font-size: 0.813rem;">
+                            <div class="mb-2">
+                                <strong>Surveillance Manager:</strong> manager@@sentinel-demo.com<br/>
+                                <strong>Password:</strong> Demo123!@@#Manager
+                            </div>
+                            <div class="mb-2">
+                                <strong>Surveillance Officer:</strong> officer@@sentinel-demo.com<br/>
+                                <strong>Password:</strong> Demo123!@@#Officer
+                            </div>
+                            <div class="mb-2">
+                                <strong>Contact Tracer:</strong> tracer@@sentinel-demo.com<br/>
+                                <strong>Password:</strong> Demo123!@@#Tracer
+                            </div>
+                            <div class="mb-2">
+                                <strong>Contact Tracing Supervisor:</strong> supervisor@@sentinel-demo.com<br/>
+                                <strong>Password:</strong> Demo123!@@#Supervisor
+                            </div>
+                            <div class="mb-2">
+                                <strong>STI/BBV Officer:</strong> stiofficer@@sentinel-demo.com<br/>
+                                <strong>Password:</strong> Demo123!@@#STI
+                            </div>
+                        </div>
+                    </div>
+                }
                 
                 <form id="account" method="post">
                     @if (!ModelState.IsValid || Model.ExternalLogins?.Count > 0)

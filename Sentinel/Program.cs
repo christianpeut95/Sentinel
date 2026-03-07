@@ -605,6 +605,14 @@ using (var scope = app.Services.CreateScope())
     await Sentinel.Services.PermissionSeedService.SeedAsync(scope.ServiceProvider);
     await Sentinel.Services.LookupDataSeedService.SeedAsync(scope.ServiceProvider);
     logger.LogInformation("Data seeding complete");
+    
+    // Seed demo users and roles (only for demo environment)
+    if (app.Environment.EnvironmentName.Equals("Demo", StringComparison.OrdinalIgnoreCase) || 
+        app.Configuration.GetValue<bool>("Demo:EnableDemoUsers"))
+    {
+        logger.LogInformation("?? Demo environment detected - seeding demo users and roles...");
+        await Sentinel.Services.DemoUserSeedService.SeedAsync(scope.ServiceProvider);
+    }
 }
 
 // Health check endpoint for Docker and monitoring
