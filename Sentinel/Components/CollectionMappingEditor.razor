@@ -1,0 +1,647 @@
+@using Sentinel.Models
+@using Sentinel.Models.Reporting
+@using Sentinel.Services
+@using System.Text.Json
+@using Newtonsoft.Json
+@using Newtonsoft.Json.Linq
+@using Microsoft.JSInterop
+@using Microsoft.AspNetCore.Components
+@inject ICollectionMappingService CollectionMappingService
+@inject ISurveyMappingService MappingService
+@inject IJSRuntime JS
+
+<div class="apple-card mb-4">
+    <div class="apple-card-header">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <h4 class="mb-1">
+                    <i class="bi bi-grid-3x3-gap"></i> Collection Mapping Configuration
+                </h4>
+                <p class="text-muted mb-0 small">
+                    Configure how matrix/dynamic questions create multiple entities with duplicate detection
+                </p>
+            </div>
+            <div>
+                <button type="button" 
+                        class="btn btn-sm btn-outline-info me-2" 
+                        @onclick="ToggleHelp"
+                        title="Show/hide help">
+                    <i class="bi bi-question-circle"></i>
+                </button>
+                <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="ToggleExpanded">
+                    <i class="bi bi-@(IsExpanded ? "chevron-up" : "chevron-down")"></i>
+                </button>
+            </div>
+        </div>
+        
+        @if (ShowHelp && IsExpanded)
+        {
+            <div class="alert alert-info mt-3 mb-0">
+                <h6 class="alert-heading">
+                    <i class="bi bi-lightbulb"></i> Quick Guide
+                </h6>
+                <ul class="mb-0 small">
+                    <li><strong>Matrix Question:</strong> Select the survey question that collects multiple rows (e.g., household contacts)</li>
+                    <li><strong>Target Entity:</strong> Choose what database entity each row creates (Patient, Contact, Exposure, etc.)</li>
+                    <li><strong>Column Mappings:</strong> Map each column to a database field - mark required ones</li>
+                    <li><strong>Duplicate Detection:</strong> Enable to check if entity already exists before creating</li>
+                    <li><strong>Match Fields:</strong> Fields to compare for duplicates (e.g., Name + DOB)</li>
+                    <li><strong>Confidence:</strong> How strict the match must be - higher = fewer false positives</li>
+                </ul>
+            </div>
+        }
+    </div>
+
+    @if (IsExpanded)
+    {
+        <div class="apple-card-body">
+            @if (IsLoading)
+            {
+                <div class="text-center py-4">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                </div>
+            }
+            else if (ValidationErrors.Any())
+            {
+                <div class="alert alert-danger">
+                    <strong><i class="bi bi-exclamation-triangle"></i> Validation Errors:</strong>
+                    <ul class="mb-0 mt-2">
+                        @foreach (var error in ValidationErrors)
+                        {
+                            <li>@error</li>
+                        }
+                    </ul>
+                </div>
+            }
+            else
+            {
+                <!-- Question Selection -->
+                <div class="row mb-4">
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold">
+                            <i class="bi bi-question-circle"></i> Matrix/Dynamic Question
+                        </label>
+                        <select class="form-select" @onchange="OnQuestionSelected" value="@Config.SourceQuestionName">
+                            <option value="">-- Select Matrix Question --</option>
+                            @foreach (var question in AvailableQuestions)
+                            {
+                                <option value="@question.Name">
+                                    @question.Title (@question.Type)
+                                </option>
+                            }
+                        </select>
+                        <small class="form-text text-muted">
+                            @if (AvailableQuestions.Any())
+                            {
+                                <text>@AvailableQuestions.Count matrix question(s) available</text>
+                            }
+                            else
+                            {
+                                <span class="text-warning">
+                                    <i class="bi bi-exclamation-triangle"></i> No matrix questions found. 
+                                    <a href="/Settings/Surveys/DesignSurvey?id=@GetSurveyTemplateId()" target="_blank">Add one in Survey Designer</a>
+                                </span>
+                            }
+                        </small>
+                        <div class="mt-1">
+                            <small class="text-muted">DEBUG: Config.SourceQuestionName = '@Config.SourceQuestionName'</small>
+                        </div>
+                    </div>
+
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold">
+                            <i class="bi bi-database"></i> Target Entity Type
+                        </label>
+                        <select class="form-select" @bind="Config.TargetEntityType" @bind:after="OnEntityTypeChanged">
+                            <option value="">-- Select Entity Type --</option>
+                            @foreach (var entityType in AvailableEntityTypes)
+                            {
+                                <option value="@entityType">@entityType</option>
+                            }
+                        </select>
+                        <small class="form-text text-muted">
+                            @if (!string.IsNullOrEmpty(Config.TargetEntityType))
+                            {
+                                <text>? Selected: @Config.TargetEntityType</text>
+                            }
+                            else
+                            {
+                                <text>Entity that will be created for each row</text>
+                            }
+                        </small>
+                        <div class="mt-1">
+                            <small class="text-muted">DEBUG: Config.TargetEntityType = '@Config.TargetEntityType'</small>
+                        </div>
+                    </div>
+                </div>
+                
+                @* DEBUG: Show condition result *@
+                <div class="alert alert-secondary mb-3">
+                    <strong>DEBUG INFO:</strong><br />
+                    SourceQuestionName: '@Config.SourceQuestionName' (IsEmpty: @string.IsNullOrEmpty(Config.SourceQuestionName))<br />
+                    TargetEntityType: '@Config.TargetEntityType' (IsEmpty: @string.IsNullOrEmpty(Config.TargetEntityType))<br />
+                    MatrixColumns.Count: @MatrixColumns.Count<br />
+                    TargetFields.Count: @TargetFields.Count<br />
+                    Condition Result: @(!string.IsNullOrEmpty(Config.SourceQuestionName) && !string.IsNullOrEmpty(Config.TargetEntityType))
+                </div>
+                
+                @if (string.IsNullOrEmpty(Config.SourceQuestionName) || string.IsNullOrEmpty(Config.TargetEntityType))
+                {
+                    <div class="alert alert-info">
+                        <i class="bi bi-info-circle"></i>
+                        <strong>Next Step:</strong> 
+                        @if (string.IsNullOrEmpty(Config.SourceQuestionName))
+                        {
+                            <text>Select a matrix question from the dropdown above to continue.</text>
+                        }
+                        else if (string.IsNullOrEmpty(Config.TargetEntityType))
+                        {
+                            <text>Select a target entity type to continue.</text>
+                        }
+                    </div>
+                }
+
+                <!-- Column Mappings -->
+                @if (!string.IsNullOrEmpty(Config.SourceQuestionName) && !string.IsNullOrEmpty(Config.TargetEntityType))
+                {
+                    <div class="mb-4">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h5 class="mb-0">
+                                <i class="bi bi-arrows-collapse"></i> Column to Field Mappings
+                            </h5>
+                            <button type="button" class="btn btn-sm btn-outline-primary" @onclick="AddColumnMapping">
+                                <i class="bi bi-plus-circle"></i> Add Mapping
+                            </button>
+                        </div>
+
+                        @if (!Config.RowMappings.Any())
+                        {
+                            <div class="alert alert-warning">
+                                <i class="bi bi-exclamation-triangle"></i>
+                                No column mappings configured. Click "Add Mapping" to start.
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="table-responsive">
+                                <table class="table table-sm apple-table">
+                                    <thead>
+                                        <tr>
+                                            <th style="width: 25%;">Source Column</th>
+                                            <th style="width: 30%;">Target Field</th>
+                                            <th style="width: 15%;">Required</th>
+                                            <th style="width: 20%;">Default Value</th>
+                                            <th style="width: 10%;"></th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @foreach (var (mapping, index) in Config.RowMappings.Select((m, i) => (m, i)))
+                                        {
+                                            <tr>
+                                                <td>
+                                                    <select class="form-select form-select-sm" @bind="mapping.SourceColumn">
+                                                        <option value="">-- Select Column --</option>
+                                                        @foreach (var col in MatrixColumns)
+                                                        {
+                                                            <option value="@col">@col</option>
+                                                        }
+                                                    </select>
+                                                </td>
+                                                <td>
+                                                    <select class="form-select form-select-sm" @bind="mapping.TargetFieldPath">
+                                                        <option value="">-- Select Field --</option>
+                                                        @foreach (var field in TargetFields)
+                                                        {
+                                                            <option value="@field.FieldPath">
+                                                                @field.DisplayName (@field.DataType)
+                                                            </option>
+                                                        }
+                                                    </select>
+                                                </td>
+                                                <td>
+                                                    <div class="form-check form-switch">
+                                                        <input class="form-check-input" type="checkbox" @bind="mapping.Required" />
+                                                    </div>
+                                                </td>
+                                                <td>
+                                                    <input type="text" class="form-control form-control-sm" @bind="mapping.DefaultValue" 
+                                                           placeholder="Optional" />
+                                                </td>
+                                                <td class="text-center">
+                                                    <button type="button" class="btn btn-sm btn-outline-danger" 
+                                                            @onclick="() => RemoveColumnMapping(index)">
+                                                        <i class="bi bi-trash"></i>
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </table>
+                            </div>
+                        }
+                    </div>
+
+                    <!-- Duplicate Detection -->
+                    <div class="mb-4">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h5 class="mb-0">
+                                <i class="bi bi-search"></i> Duplicate Detection
+                            </h5>
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="enableDuplicateDetection"
+                                       checked="@(Config.MatchingConfig != null)" 
+                                       @onchange="ToggleDuplicateDetection" />
+                                <label class="form-check-label" for="enableDuplicateDetection">
+                                    Enable duplicate detection
+                                </label>
+                            </div>
+                        </div>
+
+                        @if (Config.MatchingConfig != null)
+                        {
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <label class="form-label">Match On Fields</label>
+                                    <div class="card">
+                                        <div class="card-body p-2">
+                                            @if (MatchFieldOptions.Any())
+                                            {
+                                                @foreach (var field in MatchFieldOptions)
+                                                {
+                                                    var fieldPath = field.FieldPath;
+                                                    <div class="form-check">
+                                                        <input class="form-check-input" type="checkbox" 
+                                                               id="match_@fieldPath"
+                                                               checked="@Config.MatchingConfig.MatchOnFields.Contains(fieldPath)"
+                                                               @onchange="@((ChangeEventArgs e) => ToggleMatchField(fieldPath, (bool)e.Value!))" />
+                                                        <label class="form-check-label" for="match_@fieldPath">
+                                                            <strong>@field.DisplayName</strong>
+                                                            <br />
+                                                            <small class="text-muted">@fieldPath</small>
+                                                        </label>
+                                                    </div>
+                                                }
+                                            }
+                                            else
+                                            {
+                                                <small class="text-muted">No fields available for matching</small>
+                                            }
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label">
+                                            Confidence Threshold: <strong>@Config.MatchingConfig.ConfidenceThreshold.ToString("P0")</strong>
+                                        </label>
+                                        <input type="range" class="form-range" min="0.5" max="1.0" step="0.05"
+                                               @bind="Config.MatchingConfig.ConfidenceThreshold" />
+                                        <small class="form-text text-muted">
+                                            Higher = more strict (fewer matches)
+                                        </small>
+                                    </div>
+
+                                    <div class="mb-3">
+                                        <label class="form-label">Matching Strategy</label>
+                                        <select class="form-select" @bind="Config.MatchingConfig.Strategy">
+                                            <option value="@MatchingStrategy.Exact">Exact Match</option>
+                                            <option value="@MatchingStrategy.Fuzzy" disabled>Fuzzy Match (Phase 3)</option>
+                                            <option value="@MatchingStrategy.Phonetic" disabled>Phonetic Match (Phase 3)</option>
+                                            <option value="@MatchingStrategy.Combined" disabled>Combined (Phase 3)</option>
+                                        </select>
+                                    </div>
+
+                                    <div class="mb-3">
+                                        <label class="form-label">When Duplicate Found</label>
+                                        <select class="form-select" @bind="Config.OnDuplicateFound">
+                                            <option value="@DuplicateHandling.RequireReview">Require Human Review</option>
+                                            <option value="@DuplicateHandling.CreateNew">Always Create New</option>
+                                            <option value="@DuplicateHandling.SkipAndLink">Skip and Link to Existing</option>
+                                            <option value="@DuplicateHandling.UpdateExisting" disabled>Update Existing (Phase 3)</option>
+                                            <option value="@DuplicateHandling.MergeData" disabled>Merge Data (Phase 3)</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+                        }
+                    </div>
+
+                    <!-- Preview/Validation -->
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <h5 class="mb-0">
+                                <i class="bi bi-eye"></i> Configuration Preview
+                            </h5>
+                            <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="ValidateConfiguration">
+                                <i class="bi bi-check-circle"></i> Validate
+                            </button>
+                        </div>
+
+                        <pre class="bg-light p-3 rounded small" style="max-height: 300px; overflow-y: auto;">@ConfigJson</pre>
+                    </div>
+
+                    <!-- Actions -->
+                    <div class="d-flex justify-content-end gap-2">
+                        <button type="button" class="btn btn-secondary" @onclick="OnCancel">
+                            <i class="bi bi-x-circle"></i> Cancel
+                        </button>
+                        <button type="button" class="btn btn-primary" @onclick="OnSaveClick" disabled="@(!IsValid)">
+                            <i class="bi bi-save"></i> Save Configuration
+                        </button>
+                    </div>
+                }
+            }
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public SurveyFieldMapping? ExistingMapping { get; set; }
+    [Parameter] public string? SurveyDefinitionJson { get; set; }
+
+    private bool IsExpanded { get; set; } = true;
+    private bool IsLoading { get; set; }
+    private bool IsValid { get; set; }
+    private bool ShowHelp { get; set; } = false;
+
+    private CollectionMappingConfig Config { get; set; } = new();
+    private List<string> ValidationErrors { get; set; } = new();
+
+    private List<SurveyQuestion> AvailableQuestions { get; set; } = new();
+    private List<string> AvailableEntityTypes { get; set; } = new();
+    private List<string> MatrixColumns { get; set; } = new();
+    private List<ReportFieldMetadata> TargetFields { get; set; } = new();
+    private List<ReportFieldMetadata> MatchFieldOptions { get; set; } = new();
+
+    private string ConfigJson => 
+        Newtonsoft.Json.JsonConvert.SerializeObject(Config, Newtonsoft.Json.Formatting.Indented);
+
+    protected override async Task OnInitializedAsync()
+    {
+        IsLoading = true;
+
+        try
+        {
+            // Load available entity types
+            AvailableEntityTypes = await CollectionMappingService.GetAvailableTargetEntityTypesAsync();
+
+            // Parse survey definition to get matrix questions
+            if (!string.IsNullOrEmpty(SurveyDefinitionJson))
+            {
+                var allQuestions = await MappingService.GetSurveyQuestionsAsync(SurveyDefinitionJson);
+                AvailableQuestions = allQuestions
+                    .Where(q => q.Type == "matrix" || 
+                               q.Type == "matrixdynamic" || 
+                               q.Type == "matrixdropdown")
+                    .ToList();
+                
+                if (!AvailableQuestions.Any())
+                {
+                    ValidationErrors.Add("No matrix or dynamic questions found in this survey. Please add a matrix/matrixdynamic question in the survey designer first.");
+                }
+            }
+
+            // Load existing configuration if editing
+            if (ExistingMapping != null && !string.IsNullOrEmpty(ExistingMapping.CollectionConfigJson))
+            {
+                Config = Newtonsoft.Json.JsonConvert.DeserializeObject<CollectionMappingConfig>(
+                    ExistingMapping.CollectionConfigJson
+                ) ?? new CollectionMappingConfig();
+
+                // Load entity fields
+                if (!string.IsNullOrEmpty(Config.TargetEntityType))
+                {
+                    await LoadEntityFields();
+                }
+
+                // Load matrix columns
+                if (!string.IsNullOrEmpty(Config.SourceQuestionName))
+                {
+                    await LoadMatrixColumns(Config.SourceQuestionName);
+                }
+            }
+        }
+        finally
+        {
+            IsLoading = false;
+        }
+    }
+
+    private async Task OnQuestionSelected(ChangeEventArgs e)
+    {
+        var questionName = e.Value?.ToString() ?? string.Empty;
+        Config.SourceQuestionName = questionName;
+
+        if (!string.IsNullOrEmpty(questionName))
+        {
+            await LoadMatrixColumns(questionName);
+        }
+        else
+        {
+            MatrixColumns.Clear();
+        }
+
+        StateHasChanged();
+    }
+
+    private async Task OnEntityTypeChanged()
+    {
+        if (!string.IsNullOrEmpty(Config.TargetEntityType))
+        {
+            await LoadEntityFields();
+        }
+        else
+        {
+            TargetFields.Clear();
+            MatchFieldOptions.Clear();
+        }
+
+        StateHasChanged();
+    }
+
+    private async Task LoadMatrixColumns(string questionName)
+    {
+        MatrixColumns.Clear();
+
+        try
+        {
+            var surveyJson = JObject.Parse(SurveyDefinitionJson ?? "{}");
+            var questions = surveyJson["pages"]?
+                .SelectMany(p => p["elements"] ?? new JArray())
+                .Where(q => q["name"]?.ToString() == questionName)
+                .ToList();
+
+            if (questions.Any())
+            {
+                var question = questions.First();
+                var columns = question["columns"] as JArray;
+
+                if (columns != null)
+                {
+                    MatrixColumns = columns
+                        .Select(c => c["name"]?.ToString())
+                        .Where(n => !string.IsNullOrEmpty(n))
+                        .Cast<string>()
+                        .ToList();
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            ValidationErrors.Add($"Error parsing matrix columns: {ex.Message}");
+        }
+    }
+
+    private async Task LoadEntityFields()
+    {
+        try
+        {
+            TargetFields = await CollectionMappingService.GetEntityFieldsAsync(Config.TargetEntityType);
+            
+            // Filter fields suitable for matching (typically on Patient entity for duplicate detection)
+            if (Config.MatchingConfig != null)
+            {
+                var matchEntityType = Config.MatchingConfig.EntityType;
+                if (!string.IsNullOrEmpty(matchEntityType))
+                {
+                    MatchFieldOptions = await CollectionMappingService.GetEntityFieldsAsync(matchEntityType);
+                }
+                else
+                {
+                    // Default to Patient for matching
+                    MatchFieldOptions = await CollectionMappingService.GetEntityFieldsAsync("Patient");
+                    if (Config.MatchingConfig.MatchOnFields == null)
+                    {
+                        Config.MatchingConfig.MatchOnFields = new List<string>();
+                    }
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            ValidationErrors.Add($"Error loading entity fields: {ex.Message}");
+        }
+    }
+
+    private void AddColumnMapping()
+    {
+        Config.RowMappings.Add(new CollectionColumnMapping
+        {
+            SourceColumn = string.Empty,
+            TargetFieldPath = string.Empty,
+            Required = false
+        });
+    }
+
+    private void RemoveColumnMapping(int index)
+    {
+        if (index >= 0 && index < Config.RowMappings.Count)
+        {
+            Config.RowMappings.RemoveAt(index);
+        }
+    }
+
+    private void ToggleDuplicateDetection(ChangeEventArgs e)
+    {
+        var enabled = (bool)(e.Value ?? false);
+
+        if (enabled)
+        {
+            Config.MatchingConfig = new MatchingConfig
+            {
+                EntityType = "Patient",
+                MatchOnFields = new List<string>(),
+                ConfidenceThreshold = 0.85,
+                Strategy = MatchingStrategy.Exact
+            };
+            Config.OnDuplicateFound = DuplicateHandling.RequireReview;
+
+            // Load match field options
+            _ = LoadEntityFields();
+        }
+        else
+        {
+            Config.MatchingConfig = null;
+            Config.OnDuplicateFound = DuplicateHandling.CreateNew;
+        }
+    }
+
+    private void ToggleMatchField(string fieldPath, bool isChecked)
+    {
+        if (Config.MatchingConfig == null) return;
+
+        if (isChecked)
+        {
+            if (!Config.MatchingConfig.MatchOnFields.Contains(fieldPath))
+            {
+                Config.MatchingConfig.MatchOnFields.Add(fieldPath);
+            }
+        }
+        else
+        {
+            Config.MatchingConfig.MatchOnFields.Remove(fieldPath);
+        }
+    }
+
+    private async Task ValidateConfiguration()
+    {
+        ValidationErrors.Clear();
+        IsValid = false;
+
+        try
+        {
+            var result = await CollectionMappingService.ValidateMappingConfigAsync(Config);
+
+            ValidationErrors.AddRange(result.Errors);
+            IsValid = result.IsValid;
+
+            if (IsValid)
+            {
+                ValidationErrors.Add("? Configuration is valid!");
+            }
+        }
+        catch (Exception ex)
+        {
+            ValidationErrors.Add($"Validation error: {ex.Message}");
+        }
+
+        StateHasChanged();
+    }
+
+    private async Task OnSaveClick()
+    {
+        await ValidateConfiguration();
+
+        if (IsValid)
+        {
+            // Notify parent window via JavaScript
+            var configJson = Newtonsoft.Json.JsonConvert.SerializeObject(Config);
+            await JS.InvokeVoidAsync("notifyParent", configJson);
+        }
+    }
+
+    private Task OnCancel()
+    {
+        // Just close the window
+        return JS.InvokeVoidAsync("window.close").AsTask();
+    }
+
+    private void ToggleExpanded()
+    {
+        IsExpanded = !IsExpanded;
+    }
+    
+    private void ToggleHelp()
+    {
+        ShowHelp = !ShowHelp;
+    }
+    
+    private string GetSurveyTemplateId()
+    {
+        // Try to extract survey template ID from URL or return empty
+        return ExistingMapping?.ConfigurationId.ToString() ?? "";
+    }
+}

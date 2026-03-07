@@ -1,0 +1,2249 @@
+@page
+@model Sentinel.Pages.DataInbox.ReviewModel
+@using System.Text.Json
+@using Sentinel.Services
+@using Sentinel.Models
+@{
+    ViewData["Title"] = "Review Item";
+    Layout = "~/Pages/Shared/_Layout.cshtml";
+}
+@functions {
+    public string GetCspNonce()
+    {
+        if (HttpContext?.Items?.TryGetValue("csp-nonce", out var nonce) == true && nonce is string nonceStr)
+        {
+            return nonceStr;
+        }
+        return string.Empty;
+    }
+}
+
+<style>
+    /* Modern Design System - Clean & Professional */
+    
+    /* Hero Section - Simplified */
+    .review-hero {
+        background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+        color: white;
+        padding: 1.75rem 2rem;
+        border-radius: 10px;
+        margin-bottom: 1.5rem;
+        box-shadow: 0 2px 12px rgba(59, 130, 246, 0.2);
+    }
+    
+    /* Card System - Subtle & Clean */
+    .context-card {
+        background: white;
+        border: 1px solid #e5e7eb;
+        border-radius: 10px;
+        transition: all 0.2s ease;
+        overflow: hidden;
+    }
+    
+    .context-card:hover {
+        box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+        border-color: #d1d5db;
+    }
+    
+    /* Card Headers - Subtle */
+    .card-header {
+        background: #f9fafb !important;
+        border-bottom: 1px solid #e5e7eb !important;
+        padding: 1rem 1.25rem !important;
+    }
+    
+    .card-header h5 {
+        color: #374151 !important;
+        font-size: 1rem !important;
+        font-weight: 600 !important;
+        margin: 0 !important;
+    }
+    
+    /* Remove colored borders - use subtle ones */
+    .border-warning, .border-danger, .border-info, .border-success {
+        border: 1px solid #e5e7eb !important;
+        border-left: 3px solid !important;
+    }
+    
+    .border-warning { border-left-color: #f59e0b !important; }
+    .border-danger { border-left-color: #ef4444 !important; }
+    .border-info { border-left-color: #3b82f6 !important; }
+    .border-success { border-left-color: #10b981 !important; }
+    
+    /* Alert Improvements - Subtle backgrounds */
+    .alert {
+        border-radius: 8px;
+        border: 1px solid;
+    }
+    
+    .alert-warning {
+        background: #fffbeb;
+        border-color: #fde047;
+        color: #92400e;
+    }
+    
+    .alert-danger {
+        background: #fef2f2;
+        border-color: #fca5a5;
+        color: #991b1b;
+    }
+    
+    .alert-info {
+        background: #eff6ff;
+        border-color: #93c5fd;
+        color: #1e40af;
+    }
+    
+    /* Impact Badges - Refined */
+    .impact-badge {
+        font-size: 0.75rem;
+        padding: 0.375rem 0.75rem;
+        border-radius: 6px;
+        font-weight: 500;
+    }
+    
+    .impact-high { 
+        background: #fee2e2; 
+        color: #991b1b; 
+        border: 1px solid #fca5a5; 
+    }
+    
+    .impact-medium { 
+        background: #fef3c7; 
+        color: #92400e; 
+        border: 1px solid #fde047; 
+    }
+    
+    .impact-low { 
+        background: #dbeafe; 
+        color: #1e40af; 
+        border: 1px solid #93c5fd; 
+    }
+    
+    /* Action Panel - Cleaner */
+    .action-panel {
+        position: sticky;
+        top: 1rem;
+        background: white;
+        border-radius: 10px;
+        box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+        border: 1px solid #e5e7eb;
+    }
+    
+    /* Info Grid - Modern */
+    .quick-info-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1rem;
+    }
+    
+    .quick-info-item {
+        background: #f9fafb;
+        padding: 1rem;
+        border-radius: 8px;
+        border: 1px solid #e5e7eb;
+        transition: all 0.2s ease;
+    }
+    
+    .quick-info-item:hover {
+        border-color: #3b82f6;
+        background: #eff6ff;
+    }
+    
+    /* Timeline - Subtle */
+    .timeline-item {
+        border-left: 2px solid #e5e7eb;
+        padding-left: 1rem;
+        margin-bottom: 1rem;
+        position: relative;
+    }
+    
+    .timeline-item::before {
+        content: '';
+        position: absolute;
+        left: -6px;
+        top: 5px;
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        background: #3b82f6;
+        border: 2px solid white;
+    }
+    
+    /* Table Highlights - Subtle */
+    .table-success {
+        background-color: #f0fdf4 !important;
+    }
+    
+    .table-warning {
+        background-color: #fffbeb !important;
+    }
+    
+    .table-success td, .table-warning td {
+        font-weight: 500;
+    }
+    
+    /* Button Improvements */
+    .btn {
+        border-radius: 8px;
+        font-weight: 500;
+        transition: all 0.2s ease;
+    }
+    
+    .btn:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }
+    
+    /* Badge Improvements */
+    .badge {
+        font-weight: 500;
+        padding: 0.375rem 0.75rem;
+        border-radius: 6px;
+    }
+    
+    /* Remove aggressive backgrounds */
+    .bg-warning, .bg-danger, .bg-info, .bg-success {
+        opacity: 0.9;
+    }
+    
+    /* Text improvements */
+    .text-muted {
+        color: #6b7280 !important;
+    }
+    
+    /* Spacing improvements */
+    .card-body {
+        padding: 1.25rem !important;
+    }
+    
+    /* Form controls */
+    .form-control, .form-select {
+        border-radius: 6px;
+        border-color: #d1d5db;
+    }
+    
+    .form-control:focus, .form-select:focus {
+        border-color: #3b82f6;
+        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    }
+</style>
+
+<nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a asp-page="/Index">Home</a></li>
+        <li class="breadcrumb-item"><a asp-page="./Index">Data Review Inbox</a></li>
+        <li class="breadcrumb-item active" aria-current="page">Review</li>
+    </ol>
+</nav>
+
+@if (Model.ReviewDetail == null)
+{
+    <div class="alert alert-warning">
+        <i class="bi bi-exclamation-triangle"></i> Review item not found.
+    </div>
+    return;
+}
+
+<!-- Hero Section with Key Context -->
+<div class="review-hero">
+    <div class="d-flex justify-content-between align-items-start">
+        <div>
+            <h3 class="mb-2">
+                <i class="bi bi-@GetEntityIcon(Model.ReviewDetail.ReviewItem.EntityType)"></i>
+                @GetHumanFriendlyTitle(Model.ReviewDetail.ReviewItem)
+            </h3>
+            <p class="mb-3 opacity-90" style="font-size: 1.1rem;">
+                @GetHumanFriendlyDescription(Model.ReviewDetail.ReviewItem)
+            </p>
+            <div class="d-flex gap-2 flex-wrap">
+                <span class="badge bg-white bg-opacity-25 px-3 py-2">
+                    <i class="bi bi-clock"></i> @GetRelativeTime(Model.ReviewDetail.ReviewItem.CreatedDate)
+                </span>
+                <span class="badge bg-@GetPriorityColor(Model.ReviewDetail.ReviewItem.Priority) px-3 py-2">
+                    <i class="bi bi-exclamation-circle"></i> @GetPriorityLabel(Model.ReviewDetail.ReviewItem.Priority) Priority
+                </span>
+                @if (!string.IsNullOrEmpty(Model.ReviewDetail.Patient?.GivenName))
+                {
+                    <span class="badge bg-white bg-opacity-25 px-3 py-2">
+                        <i class="bi bi-person"></i> @Model.ReviewDetail.Patient.GivenName @Model.ReviewDetail.Patient.FamilyName
+                    </span>
+                }
+                @if (!string.IsNullOrEmpty(Model.ReviewDetail.Case?.DiseaseName))
+                {
+                    <span class="badge bg-white bg-opacity-25 px-3 py-2">
+                        <i class="bi bi-virus"></i> @Model.ReviewDetail.Case.DiseaseName
+                    </span>
+                }
+            </div>
+        </div>
+        <div>
+            @if (Model.ReviewDetail.ReviewItem.ReviewStatus == "Pending")
+            {
+                <span class="badge bg-warning text-dark px-3 py-2" style="font-size: 1rem;">
+                    <i class="bi bi-clock"></i> Awaiting Your Decision
+                </span>
+            }
+            else
+            {
+                <span class="badge bg-success px-3 py-2" style="font-size: 1rem;">
+                    <i class="bi bi-check-circle"></i> @Model.ReviewDetail.ReviewItem.ReviewStatus
+                </span>
+            }
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Left Panel: Detailed Information -->
+    <div class="col-lg-8">
+        <!-- What's Being Reviewed? -->
+        <div class="card mb-3">
+            <div class="card-header bg-light">
+                <h5 class="mb-0">
+                    <i class="bi bi-question-circle"></i> What's Being Reviewed?
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-info border-0" style="background: linear-gradient(135deg, #e0f2fe 0%, #dbeafe 100%);">
+                    <h6 class="alert-heading">
+                        <i class="bi bi-info-circle"></i> @GetActionDescription(Model.ReviewDetail.ReviewItem)
+                    </h6>
+                    <p class="mb-0">
+                        @GetDetailedExplanation(Model.ReviewDetail.ReviewItem, Model.ReviewDetail.ChangeSnapshot)
+                    </p>
+                </div>
+                
+                @if (GetImpactLevel(Model.ReviewDetail) != "low")
+                {
+                    <div class="alert alert-@(GetImpactLevel(Model.ReviewDetail) == "high" ? "danger" : "warning") border-0 mt-2">
+                        <strong><i class="bi bi-exclamation-triangle"></i> Impact:</strong>
+                        @GetImpactDescription(Model.ReviewDetail)
+                    </div>
+                }
+            </div>
+        </div>
+
+        <!-- DUPLICATE PATIENT COMPARISON - Show side-by-side for duplicate reviews -->
+        @if ((Model.ReviewDetail.ReviewItem.ChangeType == "DuplicateDetected" || 
+              Model.ReviewDetail.ReviewItem.ChangeType == "PotentialDuplicate"))
+        {
+            // Load the full ReviewQueue entity to get duplicate data
+            var reviewQueueEntity = await Model.GetFullReviewQueueEntityAsync(Model.ReviewDetail.ReviewItem.Id);
+            var duplicateData = GetDuplicateMatchDataFromReviewQueue(reviewQueueEntity);
+            
+            <div class="card mb-3 border-warning">
+                <div class="card-header bg-warning text-dark">
+                    <h5 class="mb-0">
+                        <i class="bi bi-exclamation-triangle-fill"></i> Potential Duplicate Detected
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-warning border-warning">
+                        <strong>? Review Required:</strong> A new patient record was submitted, but our system found an existing patient 
+                        that might be the same person. Please compare both records carefully and decide:
+                        <ul class="mb-0 mt-2">
+                            <li><strong>Same Person:</strong> If they're the same, choose "Merge Records" to avoid duplicates</li>
+                            <li><strong>Different People:</strong> If they're different people, choose "Keep Separate" to create the new record</li>
+                        </ul>
+                    </div>
+
+                    <!-- Match Details -->
+                    @if (duplicateData.MatchScore > 0)
+                    {
+                        <div class="mb-3">
+                            <h6>Match Confidence</h6>
+                            <div class="progress" style="height: 30px;">
+                                <div class="progress-bar @GetMatchConfidenceClass(duplicateData.MatchScore)" 
+                                     role="progressbar" 
+                                     style="width: @duplicateData.MatchScore%"
+                                     aria-valuenow="@duplicateData.MatchScore" 
+                                     aria-valuemin="0" 
+                                     aria-valuemax="100">
+                                    <strong>@duplicateData.MatchScore% Match</strong>
+                                </div>
+                            </div>
+                            @if (duplicateData.MatchReasons.Any())
+                            {
+                                <div class="mt-2">
+                                    <small class="text-muted">Match reasons:</small>
+                                    <ul class="mb-0">
+                                        @foreach (var reason in duplicateData.MatchReasons)
+                                        {
+                                            <li>@reason</li>
+                                        }
+                                    </ul>
+                                </div>
+                            }
+                        </div>
+                    }
+
+                    <!-- Side-by-Side Comparison -->
+                    <h6 class="mb-3"><i class="bi bi-people-fill"></i> Choose the Correct Patient</h6>
+                    
+                    <div class="row g-3">
+                        <!-- NEW PATIENT (Attempted to add) -->
+                        <div class="col-md-4">
+                            <div class="card border-primary h-100">
+                                <div class="card-header bg-primary text-white">
+                                    <strong>?? NEW Patient from Survey</strong>
+                                </div>
+                                <div class="card-body">
+                                    @if (duplicateData.NewPatient != null)
+                                    {
+                                        <table class="table table-sm mb-0">
+                                            <tbody>
+                                                <tr>
+                                                    <th style="width: 45%;">Full Name</th>
+                                                    <td><strong>@duplicateData.NewPatient.GivenName @duplicateData.NewPatient.FamilyName</strong></td>
+                                                </tr>
+                                                <tr>
+                                                    <th>DOB</th>
+                                                    <td>@(duplicateData.NewPatient.DateOfBirth?.ToString("MMM dd, yyyy") ?? "(not provided)")</td>
+                                                </tr>
+                                                <tr>
+                                                    <th>Phone</th>
+                                                    <td>@(duplicateData.NewPatient.MobilePhone ?? "(not provided)")</td>
+                                                </tr>
+                                                <tr>
+                                                    <th>Email</th>
+                                                    <td>@(duplicateData.NewPatient.EmailAddress ?? "(not provided)")</td>
+                                                </tr>
+                                                <tr>
+                                                    <th>Address</th>
+                                                    <td>
+                                                        @if (!string.IsNullOrEmpty(duplicateData.NewPatient.Address))
+                                                        {
+                                                            <small>@duplicateData.NewPatient.Address<br />
+                                                            <text>@duplicateData.NewPatient.City, @duplicateData.NewPatient.State</text></small>
+                                                        }
+                                                        else
+                                                        {
+                                                            <em class="small">(not provided)</em>
+                                                        }
+                                                    </td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+                                    }
+                                    else
+                                    {
+                                        <em class="text-muted">New patient details not available</em>
+                                    }
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- POTENTIAL MATCHES -->
+                        <div class="col-md-8">
+                            <div class="card border-warning h-100">
+                                <div class="card-header bg-warning text-dark">
+                                    <strong>?? Potential Matches Found (@duplicateData.PotentialMatches.Count)</strong>
+                                </div>
+                                <div class="card-body">
+                                    @if (duplicateData.PotentialMatches.Any())
+                                    {
+                                        <p class="small mb-3 text-muted">
+                                            <strong>Select one if they're the same person,</strong> or choose "Create New" if none match:
+                                        </p>
+                                        
+                                        <div class="list-group">
+                                            @foreach (var match in duplicateData.PotentialMatches.OrderByDescending(m => m.MatchScore))
+                                            {
+                                                <label class="list-group-item list-group-item-action cursor-pointer" style="cursor: pointer;">
+                                                    <div class="d-flex align-items-start">
+                                                        <div class="form-check mt-1">
+                                                            <input class="form-check-input" type="radio" name="selectedPatientId" 
+                                                                   value="@match.Patient.Id" id="patient_@match.Patient.Id">
+                                                        </div>
+                                                        <div class="flex-grow-1 ms-3">
+                                                            <div class="d-flex justify-content-between align-items-start mb-2">
+                                                                <div>
+                                                                    <strong class="d-block">@match.Patient.GivenName @match.Patient.FamilyName</strong>
+                                                                    <small class="text-muted">ID: @match.Patient.FriendlyId</small>
+                                                                </div>
+                                                                <div class="text-end">
+                                                                    <div class="badge @GetMatchConfidenceClass(match.MatchScore)">
+                                                                        @match.MatchScore% Match
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                            
+                                                            <div class="row g-2 small">
+                                                                <div class="col-6">
+                                                                    <div class="@GetDifferenceClass(duplicateData.NewPatient?.DateOfBirth, match.Patient.DateOfBirth) p-1 rounded">
+                                                                        <strong>DOB:</strong> @(match.Patient.DateOfBirth?.ToString("MMM dd, yyyy") ?? "N/A")
+                                                                        @if (match.Patient.DateOfBirth.HasValue)
+                                                                        {
+                                                                            <span class="text-muted ms-1">(Age @((DateTime.Today.Year - match.Patient.DateOfBirth.Value.Year)))</span>
+                                                                        }
+                                                                    </div>
+                                                                </div>
+                                                                <div class="col-6">
+                                                                    <div class="@GetDifferenceClass(duplicateData.NewPatient?.MobilePhone, match.Patient.MobilePhone) p-1 rounded">
+                                                                        <strong>Phone:</strong> @(match.Patient.MobilePhone ?? "N/A")
+                                                                    </div>
+                                                                </div>
+                                                                <div class="col-6">
+                                                                    <div class="@GetDifferenceClass(duplicateData.NewPatient?.EmailAddress, match.Patient.EmailAddress) p-1 rounded">
+                                                                        <strong>Email:</strong> @(match.Patient.EmailAddress ?? "N/A")
+                                                                    </div>
+                                                                </div>
+                                                                <div class="col-6">
+                                                                    <div class="@GetDifferenceClass(duplicateData.NewPatient?.Address, match.Patient.Address) p-1 rounded">
+                                                                        <strong>Address:</strong> 
+                                                                        @if (!string.IsNullOrEmpty(match.Patient.Address))
+                                                                        {
+                                                                            <span>@match.Patient.City, @match.Patient.State</span>
+                                                                        }
+                                                                        else
+                                                                        {
+                                                                            <span>N/A</span>
+                                                                        }
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                            
+                                                            @if (match.MatchReasons.Any())
+                                                            {
+                                                                <div class="mt-2">
+                                                                    <small class="text-muted">Why matched:</small>
+                                                                    <div class="d-flex flex-wrap gap-1 mt-1">
+                                                                        @foreach (var reason in match.MatchReasons.Take(3))
+                                                                        {
+                                                                            <span class="badge bg-light text-dark border">@reason</span>
+                                                                        }
+                                                                    </div>
+                                                                </div>
+                                                            }
+                                                            
+                                                            <div class="mt-2">
+                                                                <a href="/Patients/Details?id=@match.Patient.Id" target="_blank" class="btn btn-sm btn-outline-primary">
+                                                                    <i class="bi bi-box-arrow-up-right"></i> View Full Record
+                                                                </a>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </label>
+                                            }
+                                            
+                                            <!-- CREATE NEW OPTION -->
+                                            <label class="list-group-item list-group-item-action border-primary cursor-pointer" style="cursor: pointer;">
+                                                <div class="d-flex align-items-start">
+                                                    <div class="form-check mt-1">
+                                                        <input class="form-check-input" type="radio" name="selectedPatientId" 
+                                                               value="CREATE_NEW" id="patient_create_new">
+                                                    </div>
+                                                    <div class="flex-grow-1 ms-3">
+                                                        <strong class="text-primary">
+                                                            <i class="bi bi-person-plus"></i> Create New Patient Record
+                                                        </strong>
+                                                        <p class="small text-muted mb-0 mt-1">
+                                                            None of the above match - this is a different person. Create a new patient record 
+                                                            and continue processing the survey data.
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                            </label>
+                                        </div>
+                                    }
+                                    else
+                                    {
+                                        <em class="text-muted">No potential matches found</em>
+                                    }
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Legend -->
+                    <div class="alert alert-light border mt-3 mb-0">
+                        <small>
+                            <strong>Legend:</strong>
+                            <span class="badge bg-success ms-2">Green</span> = Same value
+                            <span class="badge bg-warning text-dark ms-2">Yellow</span> = Different value
+                        </small>
+                    </div>
+                </div>
+            </div>
+        }
+        
+        <!-- PENDING CREATION REVIEW - Always-review without duplicates -->
+        @if (Model.ReviewDetail.ReviewItem.ChangeType == "PendingCreation")
+        {
+            // Load the full ReviewQueue entity to get proposed patient data
+            var reviewQueueEntity = await Model.GetFullReviewQueueEntityAsync(Model.ReviewDetail.ReviewItem.Id);
+            var proposedPatientData = GetProposedPatientDataFromReviewQueue(reviewQueueEntity);
+            
+            <div class="card mb-3 border-info">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0">
+                        <i class="bi bi-person-plus-fill"></i> New Patient Pending Review
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-info border-info">
+                        <strong>? Manual Review Required:</strong> This collection row requires manual review before 
+                        creating the patient record. No duplicates were detected, but verification is required before 
+                        creating related entities (contacts, exposures, etc.).
+                    </div>
+                    
+                    <!-- Patient Data Preview -->
+                    <h6 class="mb-3"><i class="bi bi-person-badge"></i> Patient Information to Create</h6>
+                    
+                    <div class="card border-primary">
+                        <div class="card-header bg-primary text-white">
+                            <strong>New Patient Data</strong>
+                        </div>
+                        <div class="card-body">
+                            <table class="table table-sm mb-0">
+                                <tbody>
+                                    <tr>
+                                        <th style="width: 30%;">Full Name</th>
+                                        <td><strong>@proposedPatientData.GivenName @proposedPatientData.FamilyName</strong></td>
+                                    </tr>
+                                    @if (proposedPatientData.DateOfBirth.HasValue)
+                                    {
+                                        <tr>
+                                            <th>Date of Birth</th>
+                                            <td>@proposedPatientData.DateOfBirth.Value.ToString("MMM dd, yyyy")</td>
+                                        </tr>
+                                    }
+                                    @if (!string.IsNullOrEmpty(proposedPatientData.MobilePhone))
+                                    {
+                                        <tr>
+                                            <th>Phone</th>
+                                            <td>@proposedPatientData.MobilePhone</td>
+                                        </tr>
+                                    }
+                                    @if (!string.IsNullOrEmpty(proposedPatientData.EmailAddress))
+                                    {
+                                        <tr>
+                                            <th>Email</th>
+                                            <td>@proposedPatientData.EmailAddress</td>
+                                        </tr>
+                                    }
+                                    @if (!string.IsNullOrEmpty(proposedPatientData.Address))
+                                    {
+                                        <tr>
+                                            <th>Address</th>
+                                            <td>
+                                                <small>
+                                                    @proposedPatientData.Address<br />
+                                                    @proposedPatientData.City, @proposedPatientData.State
+                                                </small>
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    
+                    <!-- Action Form -->
+                    <form method="post" asp-page-handler="ResolveAlwaysReview" asp-route-id="@Model.ReviewDetail.ReviewItem.Id" class="mt-3">
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-success btn-lg">
+                                <i class="bi bi-check-circle"></i> Approve & Create Patient + Related Entities
+                            </button>
+                        </div>
+                        
+                        <div class="text-center mt-2">
+                            <small class="text-muted">
+                                This will create the patient record and process all related entities (contacts, exposures, etc.)
+                            </small>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        }
+        
+        <!-- SURVEY MAPPING ERROR - Display survey responses and error details -->
+        @if (Model.ReviewDetail.ReviewItem.EntityType == "SurveyResponse" && 
+             Model.ReviewDetail.ReviewItem.ChangeType == "SurveyMappingError")
+        {
+            // Load the full ReviewQueue entity to get ProposedEntityDataJson
+            var reviewQueueEntity = await Model.GetFullReviewQueueEntityAsync(Model.ReviewDetail.ReviewItem.Id);
+            
+            <div class="card mb-3 border-danger">
+                <div class="card-header bg-danger text-white">
+                    <h5 class="mb-0">
+                        <i class="bi bi-exclamation-octagon-fill"></i> Survey Mapping Error
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-danger border-danger">
+                        <h6 class="alert-heading">
+                            <i class="bi bi-bug-fill"></i> Automatic Processing Failed
+                        </h6>
+                        <p class="mb-2">
+                            This survey was submitted successfully and the responses were saved, but an error occurred 
+                            when trying to automatically map the data to the database. This requires manual intervention.
+                        </p>
+                        <hr />
+                        <p class="mb-0">
+                            <strong>What to do:</strong>
+                            <ul class="mb-0 mt-2">
+                                <li>Review the survey responses below</li>
+                                <li>Check the error details to understand what went wrong</li>
+                                <li>You can either re-edit the survey or manually enter the data</li>
+                            </ul>
+                        </p>
+                    </div>
+                    
+                    @if (reviewQueueEntity != null && !string.IsNullOrEmpty(reviewQueueEntity.ProposedEntityDataJson))
+                    {
+                        try
+                        {
+                            var errorData = System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, object>>(
+                                reviewQueueEntity.ProposedEntityDataJson
+                            );
+                            
+                            if (errorData != null)
+                            {
+                                <div class="mb-4">
+                                    <h6><i class="bi bi-info-circle"></i> Task Information</h6>
+                                    <table class="table table-sm table-bordered">
+                                        <tbody>
+                                            @if (errorData.ContainsKey("TaskId"))
+                                            {
+                                                <tr>
+                                                    <th style="width: 30%;">Task ID</th>
+                                                    <td>
+                                                        <a href="/Tasks/Details?id=@errorData["TaskId"]" class="btn btn-sm btn-outline-primary">
+                                                            <i class="bi bi-box-arrow-up-right"></i> View Task @errorData["TaskId"]
+                                                        </a>
+                                                    </td>
+                                                </tr>
+                                            }
+                                            @if (errorData.ContainsKey("TaskName"))
+                                            {
+                                                <tr>
+                                                    <th>Task Name</th>
+                                                    <td>@errorData["TaskName"]</td>
+                                                </tr>
+                                            }
+                                            @if (errorData.ContainsKey("ErrorTimestamp"))
+                                            {
+                                                <tr>
+                                                    <th>Error Occurred</th>
+                                                    <td>@DateTime.Parse(errorData["ErrorTimestamp"].ToString()!).ToString("MMM dd, yyyy HH:mm:ss")</td>
+                                                </tr>
+                                            }
+                                        </tbody>
+                                    </table>
+                                </div>
+                                
+                                <div class="mb-4">
+                                    <h6><i class="bi bi-exclamation-triangle"></i> Error Details</h6>
+                                    <div class="alert alert-danger">
+                                        <code style="white-space: pre-wrap; word-wrap: break-word;">@errorData.GetValueOrDefault("ErrorMessage", "Unknown error")</code>
+                                    </div>
+                                    
+                                    @if (errorData.ContainsKey("StackTrace") && !string.IsNullOrEmpty(errorData["StackTrace"]?.ToString()))
+                                    {
+                                        <details class="mt-2">
+                                            <summary class="text-muted" style="cursor: pointer;">
+                                                <i class="bi bi-code-slash"></i> Technical Details (Stack Trace)
+                                            </summary>
+                                            <pre class="bg-light p-3 rounded mt-2" style="max-height: 300px; overflow-y: auto; font-size: 0.75rem;">@errorData["StackTrace"]</pre>
+                                        </details>
+                                    }
+                                </div>
+                                
+                                @if (errorData.ContainsKey("SurveyResponses"))
+                                {
+                                    <div class="mb-4">
+                                        <h6><i class="bi bi-file-text"></i> Survey Responses</h6>
+                                        <p class="text-muted small">The following data was submitted by the user:</p>
+                                        <pre class="bg-light p-3 rounded" style="max-height: 500px; overflow-y: auto;">@System.Text.Json.JsonSerializer.Serialize(errorData["SurveyResponses"], new System.Text.Json.JsonSerializerOptions { WriteIndented = true })</pre>
+                                    </div>
+                                }
+                                
+                                <div class="d-flex gap-2 mt-4">
+                                    @if (errorData.ContainsKey("TaskId"))
+                                    {
+                                        <a href="/Tasks/CompleteSurvey/@errorData["TaskId"]" class="btn btn-primary">
+                                            <i class="bi bi-pencil"></i> Re-edit Survey
+                                        </a>
+                                        <button type="button" class="btn btn-warning" onclick="if(confirm('Attempt to reprocess this survey? This will retry the automatic mapping.')) { reprocessSurvey('@errorData["TaskId"]'); }">
+                                            <i class="bi bi-arrow-repeat"></i> Retry Automatic Processing
+                                        </button>
+                                    }
+                                    <button type="button" class="btn btn-secondary" onclick="window.print()">
+                                        <i class="bi bi-printer"></i> Print for Manual Entry
+                                    </button>
+                                </div>
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            <div class="alert alert-warning">
+                                <i class="bi bi-exclamation-triangle"></i> Unable to parse error data: @ex.Message
+                                <pre class="mt-2 bg-light p-2">@reviewQueueEntity.ProposedEntityDataJson</pre>
+                            </div>
+                        }
+                    }
+                    else
+                    {
+                        <div class="alert alert-warning">
+                            <i class="bi bi-exclamation-triangle"></i> Error data not available.
+                        </div>
+                    }
+                    }
+                </div>
+            </div>
+        }
+
+        <!-- Detailed Changes -->
+        @if (Model.ReviewDetail.ChangeSnapshot.Any())
+        {
+            var meaningfulChanges = GetMeaningfulChanges(Model.ReviewDetail.ChangeSnapshot);
+            
+            @if (meaningfulChanges.Any())
+            {
+                <div class="card mb-3">
+                    <div class="card-header bg-light">
+                        <h5 class="mb-0">
+                            <i class="bi bi-pencil-square"></i> What Actually Changed
+                        </h5>
+                    </div>
+                    <div class="card-body p-0">
+                        <table class="table table-hover mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th style="width: 35%;">What Changed</th>
+                                    <th style="width: 28%;">Previous Value</th>
+                                    <th style="width: 5%;"></th>
+                                    <th style="width: 28%;">New Value</th>
+                                    <th style="width: 4%;"></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var change in meaningfulChanges)
+                                {
+                                    var impact = GetFieldImpact(change.TechnicalName);
+                                    
+                                    <tr class="change-row">
+                                        <td>
+                                            <strong>@change.DisplayName</strong>
+                                            @if (!string.IsNullOrEmpty(change.Context))
+                                            {
+                                                <br><small class="text-muted">@change.Context</small>
+                                            }
+                                        </td>
+                                        <td>
+                                            @if (string.IsNullOrEmpty(change.OldValue))
+                                            {
+                                                <em class="text-secondary">
+                                                    <i class="bi bi-dash-circle"></i> (not set)
+                                                </em>
+                                            }
+                                            else
+                                            {
+                                                <span class="text-muted">@change.OldValue</span>
+                                            }
+                                        </td>
+                                        <td class="text-center">
+                                            <i class="bi bi-arrow-right text-primary" style="font-size: 1.2rem;"></i>
+                                        </td>
+                                        <td>
+                                            @if (string.IsNullOrEmpty(change.NewValue))
+                                            {
+                                                <em class="text-danger">
+                                                    <i class="bi bi-x-circle"></i> (cleared)
+                                                </em>
+                                            }
+                                            else
+                                            {
+                                                <strong class="text-success">@change.NewValue</strong>
+                                            }
+                                        </td>
+                                        <td>
+                                            @if (impact != "low")
+                                            {
+                                                <span class="impact-badge impact-@impact">
+                                                    @(impact == "high" ? "??" : "!")
+                                                </span>
+                                            }
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="card-footer bg-light text-muted small">
+                        <i class="bi bi-info-circle"></i> 
+                        Showing @meaningfulChanges.Count @(meaningfulChanges.Count == 1 ? "change" : "changes") that require your review
+                    </div>
+                </div>
+            }
+            else
+            {
+                <div class="card mb-3">
+                    <div class="card-body text-center text-muted">
+                        <i class="bi bi-info-circle display-4"></i>
+                        <p class="mt-2 mb-0">No field changes detected in this review item</p>
+                        <small>This may be a new record or a metadata-only change</small>
+                    </div>
+                </div>
+            }
+        }
+
+        <!-- Patient Context (Enhanced) -->
+        @if (Model.ReviewDetail.Patient != null)
+        {
+            <div class="card mb-3 context-card">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0">
+                        <i class="bi bi-person-badge"></i> Patient Information
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="quick-info-grid">
+                        <div class="quick-info-item">
+                            <div class="text-muted small mb-1">Patient ID</div>
+                            <div class="h5 mb-0">@Model.ReviewDetail.Patient.FriendlyId</div>
+                        </div>
+                        <div class="quick-info-item">
+                            <div class="text-muted small mb-1">Full Name</div>
+                            <div class="h5 mb-0">@Model.ReviewDetail.Patient.GivenName @Model.ReviewDetail.Patient.FamilyName</div>
+                        </div>
+                        <div class="quick-info-item">
+                            <div class="text-muted small mb-1">Date of Birth</div>
+                            <div class="h6 mb-0">
+                                @if (Model.ReviewDetail.Patient.DateOfBirth.HasValue)
+                                {
+                                    @Model.ReviewDetail.Patient.DateOfBirth.Value.ToString("MMM dd, yyyy")
+                                    <small class="text-muted ms-2">
+                                        (Age @((DateTime.Today.Year - Model.ReviewDetail.Patient.DateOfBirth.Value.Year)))
+                                    </small>
+                                }
+                                else
+                                {
+                                    <em class="text-muted">Not recorded</em>
+                                }
+                            </div>
+                        </div>
+                        <div class="quick-info-item">
+                            <div class="text-muted small mb-1">Contact Information</div>
+                            <div>
+                                @if (!string.IsNullOrEmpty(Model.ReviewDetail.Patient.MobilePhone))
+                                {
+                                    <div><i class="bi bi-phone"></i> @Model.ReviewDetail.Patient.MobilePhone</div>
+                                }
+                                @if (!string.IsNullOrEmpty(Model.ReviewDetail.Patient.EmailAddress))
+                                {
+                                    <div><i class="bi bi-envelope"></i> @Model.ReviewDetail.Patient.EmailAddress</div>
+                                }
+                                @if (string.IsNullOrEmpty(Model.ReviewDetail.Patient.MobilePhone) && string.IsNullOrEmpty(Model.ReviewDetail.Patient.EmailAddress))
+                                {
+                                    <em class="text-muted">No contact info</em>
+                                }
+                            </div>
+                        </div>
+                    </div>
+                    
+                    @if (!string.IsNullOrEmpty(Model.ReviewDetail.Patient.Address))
+                    {
+                        <div class="mt-3 p-3 bg-light rounded">
+                            <div class="text-muted small mb-1"><i class="bi bi-geo-alt"></i> Address</div>
+                            <div>
+                                @Model.ReviewDetail.Patient.Address<br />
+                                @Model.ReviewDetail.Patient.City, @Model.ReviewDetail.Patient.State @Model.ReviewDetail.Patient.Postcode
+                            </div>
+                        </div>
+                    }
+                    
+                    <div class="mt-3">
+                        <a href="/Patients/Details?id=@Model.ReviewDetail.Patient.Id" target="_blank" class="btn btn-sm btn-outline-primary">
+                            <i class="bi bi-box-arrow-up-right"></i> View Full Patient Record
+                        </a>
+                    </div>
+                </div>
+            </div>
+        }
+
+        <!-- Case Context (Enhanced) -->
+        @if (Model.ReviewDetail.Case != null)
+        {
+            <div class="card mb-3 context-card">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0">
+                        <i class="bi bi-file-medical-fill"></i> Case Information
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="quick-info-grid">
+                        <div class="quick-info-item">
+                            <div class="text-muted small mb-1">Case Number</div>
+                            <div class="h5 mb-0">@Model.ReviewDetail.Case.FriendlyId</div>
+                        </div>
+                        <div class="quick-info-item">
+                            <div class="text-muted small mb-1">Disease</div>
+                            <div class="h6 mb-0">
+                                <i class="bi bi-virus"></i> @Model.ReviewDetail.Case.DiseaseName
+                            </div>
+                        </div>
+                        <div class="quick-info-item">
+                            <div class="text-muted small mb-1">Confirmation Status</div>
+                            <div>
+                                <span class="badge @GetConfirmationStatusBadge(Model.ReviewDetail.Case.ConfirmationStatus)" style="font-size: 0.9rem;">
+                                    @Model.ReviewDetail.Case.ConfirmationStatus
+                                </span>
+                            </div>
+                        </div>
+                        <div class="quick-info-item">
+                            <div class="text-muted small mb-1">Case Status</div>
+                            <div>
+                                <span class="badge bg-secondary" style="font-size: 0.9rem;">
+                                    @Model.ReviewDetail.Case.Status
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row g-3 mt-2">
+                        <div class="col-md-6">
+                            <div class="p-2 bg-light rounded">
+                                <small class="text-muted">?? Symptom Onset</small>
+                                <div>@(Model.ReviewDetail.Case.DateOfOnset?.ToString("MMM dd, yyyy") ?? "Not recorded")</div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="p-2 bg-light rounded">
+                                <small class="text-muted">?? Notification Date</small>
+                                <div>@(Model.ReviewDetail.Case.DateOfNotification?.ToString("MMM dd, yyyy") ?? "Not recorded")</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mt-3">
+                        <a href="/Cases/Details?id=@Model.ReviewDetail.Case.Id" target="_blank" class="btn btn-sm btn-outline-primary">
+                            <i class="bi bi-box-arrow-up-right"></i> Open Full Case Record
+                        </a>
+                    </div>
+                </div>
+            </div>
+        }
+
+        <!-- Related Items -->
+        @if (Model.ReviewDetail.RelatedItems.Any())
+        {
+            <div class="card mb-3">
+                <div class="card-header">
+                    <h6 class="mb-0"><i class="bi bi-link-45deg"></i> Related Items</h6>
+                </div>
+                <div class="card-body">
+                    <div class="list-group">
+                        @foreach (var item in Model.ReviewDetail.RelatedItems.Take(10))
+                        {
+                            <div class="list-group-item list-group-item-action flex-column align-items-start">
+                                <div class="d-flex w-100 justify-content-between">
+                                    <h6 class="mb-1">
+                                        <span class="badge bg-secondary">@item.Type</span>
+                                        @item.Description
+                                    </h6>
+                                    <small class="text-muted">@item.Date.ToString("g")</small>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+
+    <!-- Right Panel: Actions -->
+    <div class="col-lg-4">
+        <div class="action-panel">
+            <div class="card-header bg-light">
+                <h6 class="mb-0">
+                    <i class="bi bi-hand-thumbs-up"></i> Your Decision
+                </h6>
+            </div>
+            <div class="card-body">
+                <!-- Review Info -->
+                <div class="mb-3 pb-3 border-bottom">
+                    <div class="d-flex justify-content-between mb-2">
+                        <span class="text-muted">Priority:</span>
+                        <span class="badge bg-@GetPriorityColor(Model.ReviewDetail.ReviewItem.Priority) px-3 py-2">
+                            @GetPriorityLabel(Model.ReviewDetail.ReviewItem.Priority)
+                        </span>
+                    </div>
+                    <div class="d-flex justify-content-between mb-2">
+                        <span class="text-muted">Status:</span>
+                        <span class="badge bg-warning px-3 py-2">@Model.ReviewDetail.ReviewItem.ReviewStatus</span>
+                    </div>
+                    <div class="d-flex justify-content-between">
+                        <span class="text-muted">Created:</span>
+                        <span>@Model.ReviewDetail.ReviewItem.CreatedDate.ToLocalTime().ToString("g")</span>
+                    </div>
+                </div>
+
+                <hr />
+
+                <!-- Quick Actions -->
+                @if (Model.ReviewDetail.ReviewItem.ReviewStatus == "Pending")
+                {
+                    @if (Model.ReviewDetail.ReviewItem.ChangeType == "DuplicateDetected" || 
+                         Model.ReviewDetail.ReviewItem.ChangeType == "PotentialDuplicate")
+                    {
+                        <!-- DUPLICATE-SPECIFIC ACTIONS -->
+                        <div class="alert alert-info border-info mb-3">
+                            <strong><i class="bi bi-hand-thumbs-up"></i> Make Your Selection:</strong>
+                            <p class="small mb-0 mt-1">
+                                Choose a patient from the list on the left, then click the button below to process the survey.
+                            </p>
+                        </div>
+
+                        <form method="post" asp-page-handler="ResolveDuplicate" asp-route-id="@Model.ReviewDetail.ReviewItem.Id" id="duplicateForm">
+                            <input type="hidden" asp-for="SelectedPatientId" id="selectedPatientIdInput" />
+                            
+                            <div class="mb-3">
+                                <label class="form-label">Decision Notes (optional)</label>
+                                <textarea asp-for="ReviewNotes" class="form-control" rows="2" 
+                                          placeholder="Why did you choose this option?"></textarea>
+                            </div>
+                            
+                            <button type="submit" class="btn btn-success w-100 py-3" id="submitDuplicateBtn" disabled>
+                                <i class="bi bi-check-circle me-2"></i>
+                                <strong>Confirm Selection & Process Survey</strong>
+                                <br><small class="opacity-75" id="submitBtnText">Select a patient first</small>
+                            </button>
+                        </form>
+                        
+                        <script>
+                            document.addEventListener('DOMContentLoaded', function() {                                const form = document.getElementById('duplicateForm');
+                                const radios = document.querySelectorAll('input[name="selectedPatientId"]');
+                                const submitBtn = document.getElementById('submitDuplicateBtn');
+                                const submitBtnText = document.getElementById('submitBtnText');
+                                const hiddenInput = document.getElementById('selectedPatientIdInput');                                // Listen for form submit
+                                if (form) {
+                                    form.addEventListener('submit', function(e) {                                    });
+                                }
+                                
+                                radios.forEach(radio => {
+                                    radio.addEventListener('change', function() {                                        if (this.checked) {
+                                            hiddenInput.value = this.value;
+                                            submitBtn.disabled = false;
+                                            submitBtn.classList.remove('btn-secondary');
+                                            submitBtn.classList.add('btn-success');                                            if (this.value === 'CREATE_NEW') {
+                                                submitBtnText.textContent = 'Create new patient and process survey';
+                                            } else {
+                                                submitBtnText.textContent = 'Link to selected patient and process survey';
+                                            }
+                                        }
+                                    });
+                                });
+                            });
+                        </script>
+                    }
+                    else if (Model.ReviewDetail.ReviewItem.ChangeType != "PendingCreation")
+                    {
+                        <!-- STANDARD REVIEW ACTIONS -->
+                        <!-- Note: PendingCreation has its own form in the main content area -->
+                        <form method="post" asp-page-handler="Confirm" asp-route-id="@Model.ReviewDetail.ReviewItem.Id">
+                            <div class="mb-3">
+                                <label class="form-label">Review Notes (optional)</label>
+                                <textarea asp-for="ReviewNotes" class="form-control" rows="3" 
+                                          placeholder="Add any notes about your review..."></textarea>
+                            </div>
+                            <button type="submit" class="btn btn-success w-100 mb-2 py-2" 
+                                    onclick="return confirm('Confirm this review?')">
+                                <i class="bi bi-check-lg me-2"></i> 
+                                <strong>? Approve Changes</strong>
+                            </button>
+                        </form>
+
+                        <form method="post" asp-page-handler="Dismiss" asp-route-id="@Model.ReviewDetail.ReviewItem.Id">
+                            <input type="hidden" asp-for="ReviewNotes" />
+                            <button type="submit" class="btn btn-outline-danger w-100 mb-3 py-2" 
+                                    onclick="return confirm('Reject this review?')">
+                                <i class="bi bi-x-lg me-2"></i> 
+                                <strong>? Reject Changes</strong>
+                            </button>
+                        </form>
+                    }
+
+                    <hr />
+
+                    <!-- Create Task -->
+                    <div class="card bg-light">
+                        <div class="card-body">
+                            <h6 class="card-title">Create Follow-up Task</h6>
+                            <form method="post" asp-page-handler="CreateTask" asp-route-id="@Model.ReviewDetail.ReviewItem.Id">
+                                <div class="mb-2">
+                                    <label class="form-label small">Task Title *</label>
+                                    <input asp-for="TaskTitle" class="form-control form-control-sm" 
+                                           placeholder="Follow up on..." required />
+                                </div>
+                                <div class="mb-2">
+                                    <label class="form-label small">Description</label>
+                                    <textarea asp-for="TaskDescription" class="form-control form-control-sm" 
+                                              rows="2" placeholder="Task details..."></textarea>
+                                </div>
+                                <button type="submit" class="btn btn-primary btn-sm w-100">
+                                    <i class="bi bi-calendar-plus"></i> Create Task & Mark Reviewed
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                }
+                else
+                {
+                    <div class="alert alert-success">
+                        <i class="bi bi-check-circle"></i> This item has been reviewed.
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+@functions {
+    string GetEntityIcon(string entityType)
+    {
+        return entityType switch
+        {
+            "LabResult" => "flask",
+            "Exposure" => "geo-alt",
+            "Contact" => "people",
+            "CaseChange" => "pencil-square",
+            "ClinicalNotification" => "clipboard-pulse",
+            _ => "circle"
+        };
+    }
+
+    string GetPriorityColor(int priority)
+    {
+        return priority switch
+        {
+            3 => "danger",
+            2 => "warning",
+            1 => "info",
+            _ => "secondary"
+        };
+    }
+
+    string GetPriorityLabel(int priority)
+    {
+        return priority switch
+        {
+            3 => "Urgent",
+            2 => "High",
+            1 => "Medium",
+            _ => "Low"
+        };
+    }
+
+    string ExtractValue(string? json, string key)
+    {
+        if (string.IsNullOrEmpty(json)) return "-";
+        try
+        {
+            var obj = JsonSerializer.Deserialize<Dictionary<string, object>>(json);
+            return obj?.ContainsKey(key) == true ? obj[key]?.ToString() ?? "-" : "-";
+        }
+        catch
+        {
+            return json;
+        }
+    }
+
+    string GetHumanFriendlyTitle(Sentinel.Services.ReviewQueueItem item)
+    {
+        return item.EntityType switch
+        {
+            "LabResult" => "?? Laboratory Result Review",
+            "Exposure" => "?? Exposure Event Review",
+            "Contact" => "?? Contact Person Review",
+            "NewCase" => "?? New Case Review",
+            "CaseChange" => "?? Case Update Review",
+            "ClinicalNotification" => "?? Clinical Notification Review",
+            _ => $"{item.EntityType} Review"
+        };
+    }
+
+    string GetHumanFriendlyDescription(Sentinel.Services.ReviewQueueItem item)
+    {
+        if (!string.IsNullOrEmpty(item.PatientName))
+        {
+            var action = item.ChangeType switch
+            {
+                "New" => "added for",
+                "Updated" => "updated for",
+                "FieldChanged" => "changed for",
+                _ => "affecting"
+            };
+            return $"{action} patient {item.PatientName}";
+        }
+
+        return item.ChangeType switch
+        {
+            "New" => "A new record was created and needs your review",
+            "Updated" => "An existing record was updated",
+            "FieldChanged" => "Important field values have changed",
+            "DuplicateDetected" => "A potential duplicate was detected",
+            _ => "Review this data change"
+        };
+    }
+
+    string GetFieldDisplayName(string fieldName)
+    {
+        return fieldName switch
+        {
+            // Case fields
+            "ConfirmationStatusId" => "Confirmation Status",
+            "DiseaseId" => "Disease",
+            "ClinicalNotificationDate" => "Clinical Notification Date",
+            "OnsetDate" => "Symptom Onset Date",
+            "DiagnosisDate" => "Diagnosis Date",
+            "HospitalizedDate" => "Hospitalization Date",
+            "DischargeDate" => "Discharge Date",
+            "OutcomeDate" => "Outcome Date",
+            "DeathDate" => "Date of Death",
+            "Outcome" => "Case Outcome",
+            "OutbreakId" => "Outbreak",
+            "TransmissionMode" => "Transmission Mode",
+            "RiskFactors" => "Risk Factors",
+            "ClinicalNotes" => "Clinical Notes",
+            "EpiNotes" => "Epidemiology Notes",
+            
+            // Patient fields
+            "GivenName" => "First Name",
+            "FamilyName" => "Last Name",
+            "DateOfBirth" => "Date of Birth",
+            "Gender" => "Gender",
+            "PhoneNumber" => "Phone Number",
+            "EmailAddress" => "Email Address",
+            "StreetAddress" => "Street Address",
+            "City" => "City",
+            "PostalCode" => "Postal Code",
+            "Province" => "Province/State",
+            "Country" => "Country",
+            
+            // Exposure fields
+            "ExposureDate" => "Date of Exposure",
+            "ExposureLocation" => "Exposure Location",
+            "ExposureType" => "Type of Exposure",
+            "ExposureSource" => "Exposure Source",
+            "RelatedCaseId" => "Related Case",
+            
+            // Lab fields
+            "SpecimenCollectionDate" => "Specimen Collection Date",
+            "ResultDate" => "Result Date",
+            "TestResult" => "Test Result",
+            "TestType" => "Test Type",
+            "LabName" => "Laboratory Name",
+            
+            // Default - convert CamelCase to Title Case with spaces
+            _ => System.Text.RegularExpressions.Regex.Replace(fieldName, "(\\B[A-Z])", " $1")
+        };
+    }
+
+    string GetDisplayValue(object? value, string key)
+    {
+        if (value == null) return "-";
+        
+        try
+        {
+            // Try to parse as JSON object with old/new/oldDisplay/newDisplay
+            var jsonString = value.ToString();
+            if (string.IsNullOrEmpty(jsonString)) return "-";
+            
+            var obj = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(jsonString);
+            
+            if (obj != null)
+            {
+                // Try display value first (human-friendly lookup values)
+                var displayKey = key + "ValueDisplay";
+                if (obj.ContainsKey(displayKey) && obj[displayKey].ValueKind != JsonValueKind.Null)
+                {
+                    return obj[displayKey].GetString() ?? "-";
+                }
+                
+                // Fallback to raw value
+                var valueKey = key + "Value";
+                if (obj.ContainsKey(valueKey) && obj[valueKey].ValueKind != JsonValueKind.Null)
+                {
+                    return obj[valueKey].ToString() ?? "-";
+                }
+            }
+            
+            return jsonString;
+        }
+        catch
+        {
+            return value.ToString() ?? "-";
+        }
+    }
+
+    string GetActionDescription(Sentinel.Services.ReviewQueueItem item)
+    {
+        return item.ChangeType switch
+        {
+            "New" when item.EntityType == "NewCase" => "Review a new case that was created from a survey submission",
+            "New" when item.EntityType == "LabResult" => "Review a new laboratory test result",
+            "New" when item.EntityType == "Exposure" => "Review a newly reported exposure event",
+            "New" when item.EntityType == "Contact" => "Review a newly identified contact person",
+            "Updated" => $"Review updates made to an existing {item.EntityType}",
+            "FieldChanged" => "Review important field changes that require verification",
+            "DuplicateDetected" => "Review a potential duplicate record that was automatically detected",
+            _ => $"Review this {item.EntityType} change"
+        };
+    }
+
+    string GetDetailedExplanation(Sentinel.Services.ReviewQueueItem item, Dictionary<string, object?> changes)
+    {
+        var changeCount = changes.Count;
+        var fieldList = string.Join(", ", changes.Keys.Take(3).Select(GetFieldDisplayName));
+        
+        if (changeCount > 3)
+        {
+            fieldList += $", and {changeCount - 3} more";
+        }
+
+        return item.ChangeType switch
+        {
+            "New" => $"This new record was automatically created and needs your verification before it's finalized. Please review all the information to ensure it's accurate and complete.",
+            "Updated" when changeCount > 0 => $"The following fields were modified: {fieldList}. Please verify these changes are correct and authorized.",
+            "FieldChanged" when changeCount > 0 => $"Critical fields ({fieldList}) have been changed. These changes may impact case management, reporting, or contact tracing.",
+            "DuplicateDetected" => "Our system detected this might be a duplicate of an existing record. Please review both records and decide if they should be merged or kept separate.",
+            _ => "Please review the changes below and decide whether to accept or reject them."
+        };
+    }
+
+    string GetImpactLevel(ReviewQueueDetail detail)
+    {
+        // High impact: Status changes, critical fields, duplicates
+        var highImpactFields = new[] { "ConfirmationStatusId", "Outcome", "DeathDate", "OutbreakId", "HospitalizedDate" };
+        if (detail.ChangeSnapshot.Keys.Any(k => highImpactFields.Contains(k)))
+            return "high";
+            
+        if (detail.ReviewItem.ChangeType == "DuplicateDetected")
+            return "high";
+            
+        // Medium impact: Dates, contact info
+        var mediumImpactFields = new[] { "OnsetDate", "DiagnosisDate", "PhoneNumber", "EmailAddress", "Address" };
+        if (detail.ChangeSnapshot.Keys.Any(k => mediumImpactFields.Contains(k)))
+            return "medium";
+            
+        return "low";
+    }
+
+    string GetImpactDescription(ReviewQueueDetail detail)
+    {
+        var level = GetImpactLevel(detail);
+        
+        if (level == "high")
+        {
+            if (detail.ReviewItem.ChangeType == "DuplicateDetected")
+                return "Duplicate records can cause data quality issues and affect reporting accuracy. Careful review is essential.";
+                
+            if (detail.ChangeSnapshot.ContainsKey("ConfirmationStatusId"))
+                return "Status changes affect official case counts and reporting. Ensure this change is clinically justified and properly documented.";
+                
+            if (detail.ChangeSnapshot.ContainsKey("Outcome") || detail.ChangeSnapshot.ContainsKey("DeathDate"))
+                return "Changes to outcome or death information are critical and will affect mortality statistics. Verify this information carefully.";
+                
+            if (detail.ChangeSnapshot.ContainsKey("OutbreakId"))
+                return "Linking or unlinking cases from outbreaks affects outbreak management and response. Ensure this change is intentional.";
+                
+            return "These changes affect critical case information and may impact public health response decisions.";
+        }
+        
+        if (level == "medium")
+        {
+            return "These changes affect important case timeline or contact information. Verify accuracy for proper follow-up.";
+        }
+        
+        return "";
+    }
+
+    string GetFieldImpact(string fieldName)
+    {
+        var highImpact = new[] { "ConfirmationStatusId", "Outcome", "DeathDate", "OutbreakId", "DiseaseId" };
+        if (highImpact.Contains(fieldName)) return "high";
+        
+        var mediumImpact = new[] { "OnsetDate", "DiagnosisDate", "HospitalizedDate", "PhoneNumber", "EmailAddress" };
+        if (mediumImpact.Contains(fieldName)) return "medium";
+        
+        return "low";
+    }
+
+    string GetConfirmationStatusBadge(string? status)
+    {
+        if (string.IsNullOrEmpty(status)) return "bg-secondary";
+        
+        return status.ToLower() switch
+        {
+            var s when s.Contains("confirmed") => "bg-danger",
+            var s when s.Contains("probable") => "bg-warning text-dark",
+            var s when s.Contains("suspected") => "bg-info",
+            var s when s.Contains("not") || s.Contains("ruled") => "bg-secondary",
+            _ => "bg-primary"
+        };
+    }
+
+    string GetRelativeTime(DateTime dateTime)
+    {
+        var now = DateTime.UtcNow;
+        var diff = now - dateTime;
+
+        if (diff.TotalMinutes < 1)
+            return "Just now";
+        if (diff.TotalMinutes < 60)
+            return $"{(int)diff.TotalMinutes} minutes ago";
+        if (diff.TotalHours < 24)
+            return $"{(int)diff.TotalHours} hours ago";
+        if (diff.TotalDays < 7)
+            return $"{(int)diff.TotalDays} days ago";
+        
+        return dateTime.ToLocalTime().ToString("MMM d, yyyy 'at' h:mm tt");
+    }
+
+    // Parse meaningful changes from the ChangeSnapshot dictionary
+    List<MeaningfulChange> GetMeaningfulChanges(Dictionary<string, object?> changeSnapshot)
+    {
+        var changes = new List<MeaningfulChange>();
+        
+        try
+        {
+            // CASE 1: ChangeSnapshot is a single object with field/oldValue/newValue structure
+            if (changeSnapshot.ContainsKey("field") && 
+                (changeSnapshot.ContainsKey("oldValue") || changeSnapshot.ContainsKey("newValue")))
+            {
+                var fieldName = changeSnapshot["field"]?.ToString() ?? "";
+                var oldValue = changeSnapshot.ContainsKey("oldValue") ? changeSnapshot["oldValue"]?.ToString() ?? "" : "";
+                var newValue = changeSnapshot.ContainsKey("newValue") ? changeSnapshot["newValue"]?.ToString() ?? "" : "";
+                
+                // Clean up field name
+                var cleanFieldName = fieldName;
+                var context = "";
+                
+                if (fieldName.StartsWith("CustomField:", StringComparison.OrdinalIgnoreCase))
+                {
+                    context = "Custom Field";
+                    cleanFieldName = fieldName.Replace("CustomField:", "").Replace("_", " ");
+                }
+                else if (fieldName.StartsWith("question", StringComparison.OrdinalIgnoreCase))
+                {
+                    context = "Survey Response";
+                    cleanFieldName = $"Survey {fieldName}";
+                }
+                
+                changes.Add(new MeaningfulChange
+                {
+                    DisplayName = GetFieldDisplayName(cleanFieldName),
+                    TechnicalName = fieldName,
+                    OldValue = oldValue == "null" || oldValue == "" ? "" : oldValue,
+                    NewValue = newValue == "null" || newValue == "" ? "" : newValue,
+                    Context = context
+                });
+                
+                return changes;
+            }
+            
+            // CASE 2: ChangeSnapshot has nested objects with old/new values
+            foreach (var kvp in changeSnapshot)
+            {
+                // Skip pure metadata fields
+                if (kvp.Key.Equals("field", StringComparison.OrdinalIgnoreCase) ||
+                    kvp.Key.Equals("surveyQuestion", StringComparison.OrdinalIgnoreCase) ||
+                    kvp.Key.Equals("mappingId", StringComparison.OrdinalIgnoreCase) ||
+                    kvp.Key.Equals("changedAt", StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+                
+                try
+                {
+                    var oldVal = "";
+                    var newVal = "";
+                    var fieldName = kvp.Key;
+                    
+                    // Try to parse as JSON with old/new values
+                    if (kvp.Value != null)
+                    {
+                        var jsonString = kvp.Value.ToString();
+                        if (!string.IsNullOrEmpty(jsonString) && jsonString.StartsWith("{"))
+                        {
+                            try
+                            {
+                                var obj = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(jsonString);
+                                if (obj != null)
+                                {
+                                    // Extract field name if present
+                                    if (obj.ContainsKey("field") && obj["field"].ValueKind != JsonValueKind.Null)
+                                    {
+                                        fieldName = obj["field"].GetString() ?? fieldName;
+                                    }
+                                    
+                                    // Extract old value (try display first, then raw)
+                                    if (obj.ContainsKey("oldValueDisplay") && obj["oldValueDisplay"].ValueKind != JsonValueKind.Null)
+                                    {
+                                        oldVal = obj["oldValueDisplay"].GetString() ?? "";
+                                    }
+                                    else if (obj.ContainsKey("oldValue") && obj["oldValue"].ValueKind != JsonValueKind.Null)
+                                    {
+                                        oldVal = obj["oldValue"].ToString() ?? "";
+                                    }
+                                    
+                                    // Extract new value (try display first, then raw)
+                                    if (obj.ContainsKey("newValueDisplay") && obj["newValueDisplay"].ValueKind != JsonValueKind.Null)
+                                    {
+                                        newVal = obj["newValueDisplay"].GetString() ?? "";
+                                    }
+                                    else if (obj.ContainsKey("newValue") && obj["newValue"].ValueKind != JsonValueKind.Null)
+                                    {
+                                        newVal = obj["newValue"].ToString() ?? "";
+                                    }
+                                }
+                            }
+                            catch { }
+                        }
+                        else
+                        {
+                            // Direct value (not JSON)
+                            newVal = jsonString ?? "";
+                        }
+                    }
+                    
+                    // Only include if there's an actual change OR if it's a meaningful field
+                    if (oldVal != newVal || !string.IsNullOrEmpty(newVal))
+                    {
+                        // Determine context (e.g., "Survey Field", "Custom Field")
+                        var context = "";
+                        if (fieldName.StartsWith("CustomField:", StringComparison.OrdinalIgnoreCase))
+                        {
+                            context = "Custom Field";
+                            fieldName = fieldName.Replace("CustomField:", "").Replace("_", " ");
+                        }
+                        else if (fieldName.StartsWith("question", StringComparison.OrdinalIgnoreCase))
+                        {
+                            context = "Survey Response";
+                        }
+                        
+                        changes.Add(new MeaningfulChange
+                        {
+                            DisplayName = GetFieldDisplayName(fieldName),
+                            TechnicalName = fieldName,
+                            OldValue = oldVal,
+                            NewValue = newVal,
+                            Context = context
+                        });
+                    }
+                }
+                catch { }
+            }
+        }
+        catch { }
+        
+        return changes;
+    }
+
+    // Helper class for structured change display
+    public class MeaningfulChange
+    {
+        public string DisplayName { get; set; } = "";
+        public string TechnicalName { get; set; } = "";
+        public string OldValue { get; set; } = "";
+        public string NewValue { get; set; } = "";
+        public string Context { get; set; } = "";
+    }
+
+    // Helper class for duplicate match data
+    public class DuplicateMatchData
+    {
+        public PatientContext? NewPatient { get; set; }
+        public List<PotentialMatch> PotentialMatches { get; set; } = new();
+        public int MatchScore { get; set; }
+        public List<string> MatchReasons { get; set; } = new();
+        public Dictionary<string, object> SurveyData { get; set; } = new();
+    }
+
+    public class PotentialMatch
+    {
+        public PatientContext Patient { get; set; } = new();
+        public int MatchScore { get; set; }
+        public List<string> MatchReasons { get; set; } = new();
+    }
+    
+    // NEW: Load duplicate data directly from ReviewQueue entity
+    DuplicateMatchData GetDuplicateMatchDataFromReviewQueue(ReviewQueue? reviewQueue)
+    {
+        var data = new DuplicateMatchData();
+        
+        if (reviewQueue == null) return data;
+        
+        try
+        {
+            // Parse proposed entity data (the new patient being submitted)
+            if (!string.IsNullOrEmpty(reviewQueue.ProposedEntityDataJson))
+            {
+                var proposedData = JsonSerializer.Deserialize<Dictionary<string, object>>(
+                    reviewQueue.ProposedEntityDataJson
+                );
+                
+                if (proposedData != null)
+                {
+                    // Build PatientContext from proposed data
+                    data.NewPatient = new PatientContext
+                    {
+                        GivenName = proposedData.GetValueOrDefault("Patient.GivenName")?.ToString() ?? "",
+                        FamilyName = proposedData.GetValueOrDefault("Patient.FamilyName")?.ToString() ?? "",
+                        DateOfBirth = proposedData.ContainsKey("Patient.DateOfBirth") && 
+                            DateTime.TryParse(proposedData["Patient.DateOfBirth"]?.ToString(), out var dob) ? dob : null,
+                        MobilePhone = proposedData.GetValueOrDefault("Patient.MobilePhone")?.ToString(),
+                        EmailAddress = proposedData.GetValueOrDefault("Patient.EmailAddress")?.ToString(),
+                        Address = proposedData.GetValueOrDefault("Patient.StreetAddress")?.ToString(),
+                        City = proposedData.GetValueOrDefault("Patient.City")?.ToString(),
+                        State = proposedData.GetValueOrDefault("Patient.Province")?.ToString(),
+                        Postcode = proposedData.GetValueOrDefault("Patient.PostalCode")?.ToString()
+                    };
+                }
+            }
+            
+            // Parse potential matches
+            if (!string.IsNullOrEmpty(reviewQueue.PotentialMatchesJson))
+            {
+                var matchesArray = JsonSerializer.Deserialize<List<Dictionary<string, JsonElement>>>(
+                    reviewQueue.PotentialMatchesJson
+                );
+                
+                if (matchesArray != null)
+                {
+                    foreach (var matchObj in matchesArray)
+                    {
+                        if (matchObj.ContainsKey("MatchedFields") && matchObj.ContainsKey("ConfidenceScore"))
+                        {
+                            var matchedFields = matchObj["MatchedFields"];
+                            var score = matchObj["ConfidenceScore"].GetDouble();
+                            var entityId = matchObj.ContainsKey("ExistingEntityId") 
+                                ? matchObj["ExistingEntityId"].GetGuid() 
+                                : Guid.Empty;
+                            
+                            // Load the actual patient from database
+                            var patient = Model.GetPatientByIdAsync(entityId).Result;
+                            
+                            if (patient != null)
+                            {
+                                var reasons = new List<string>();
+                                
+                                // Extract match reasons from matched fields
+                                if (matchedFields.ValueKind == JsonValueKind.Object)
+                                {
+                                    var fields = JsonSerializer.Deserialize<Dictionary<string, object>>(
+                                        matchedFields.GetRawText()
+                                    );
+                                    
+                                    if (fields != null)
+                                    {
+                                        foreach (var field in fields.Keys)
+                                        {
+                                            if (field.Contains("GivenName")) reasons.Add("? Same first name");
+                                            if (field.Contains("FamilyName")) reasons.Add("? Same last name");
+                                            if (field.Contains("DateOfBirth")) reasons.Add("? Same date of birth");
+                                            if (field.Contains("Phone")) reasons.Add("? Same phone number");
+                                        }
+                                    }
+                                }
+                                
+                                data.PotentialMatches.Add(new PotentialMatch
+                                {
+                                    Patient = new PatientContext
+                                    {
+                                        Id = patient.Id,
+                                        FriendlyId = patient.FriendlyId,
+                                        GivenName = patient.GivenName,
+                                        FamilyName = patient.FamilyName,
+                                        DateOfBirth = patient.DateOfBirth,
+                                        MobilePhone = patient.MobilePhone,
+                                        EmailAddress = patient.EmailAddress,
+                                        Address = patient.AddressLine,
+                                        City = patient.City,
+                                        State = patient.State,
+                                        Postcode = patient.PostalCode
+                                    },
+                                    MatchScore = (int)(score * 100),
+                                    MatchReasons = reasons
+                                });
+                            }
+                        }
+                    }
+                }
+            }
+            
+            // Set overall match score
+            if (data.PotentialMatches.Any())
+            {
+                var topMatch = data.PotentialMatches.OrderByDescending(m => m.MatchScore).First();
+                data.MatchScore = topMatch.MatchScore;
+                data.MatchReasons = topMatch.MatchReasons;
+            }
+            
+            // Calculate match scores if needed
+            if (data.NewPatient != null)
+            {
+                foreach (var match in data.PotentialMatches.Where(m => m.MatchScore == 0))
+                {
+                    var reasons = match.MatchReasons;
+                    match.MatchScore = CalculateBasicMatchScore(data.NewPatient, match.Patient, ref reasons);
+                    match.MatchReasons = reasons;
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            // Note: Cannot log from Razor @functions block
+            // Error details: ex.Message
+        }
+        
+        return data;
+    }
+
+    PatientContext GetProposedPatientDataFromReviewQueue(ReviewQueue? reviewQueue)
+    {
+        var patient = new PatientContext();
+        
+        if (reviewQueue == null || string.IsNullOrEmpty(reviewQueue.ProposedEntityDataJson))
+            return patient;
+        
+        try
+        {
+            var proposedData = JsonSerializer.Deserialize<Dictionary<string, object>>(
+                reviewQueue.ProposedEntityDataJson
+            );
+            
+            if (proposedData != null)
+            {
+                patient.GivenName = proposedData.GetValueOrDefault("Patient.GivenName")?.ToString() ?? "";
+                patient.FamilyName = proposedData.GetValueOrDefault("Patient.FamilyName")?.ToString() ?? "";
+                
+                var dobStr = proposedData.GetValueOrDefault("Patient.DateOfBirth")?.ToString();
+                if (!string.IsNullOrEmpty(dobStr) && DateTime.TryParse(dobStr, out var dob))
+                {
+                    patient.DateOfBirth = dob;
+                }
+                
+                patient.MobilePhone = proposedData.GetValueOrDefault("Patient.MobilePhone")?.ToString();
+                patient.EmailAddress = proposedData.GetValueOrDefault("Patient.EmailAddress")?.ToString();
+                patient.Address = proposedData.GetValueOrDefault("Patient.AddressLine")?.ToString();
+                patient.City = proposedData.GetValueOrDefault("Patient.City")?.ToString();
+                patient.State = proposedData.GetValueOrDefault("Patient.State")?.ToString();
+            }
+        }
+        catch (Exception ex)
+        {
+            // Note: Cannot log from Razor @functions block
+            // Error: ex.Message
+        }
+        
+        return patient;
+    }
+
+    DuplicateMatchData GetDuplicateMatchData(Dictionary<string, object?> changeSnapshot, Dictionary<string, object?> entityData)
+    {
+        var data = new DuplicateMatchData();
+        
+        try
+        {
+            // Try to extract survey data
+            if (entityData.ContainsKey("surveyData"))
+            {
+                var surveyDataObj = entityData["surveyData"];
+                if (surveyDataObj != null)
+                {
+                    try
+                    {
+                        if (surveyDataObj is Dictionary<string, object> dict)
+                        {
+                            data.SurveyData = dict;
+                        }
+                        else
+                        {
+                            var jsonString = surveyDataObj.ToString();
+                            if (!string.IsNullOrEmpty(jsonString))
+                            {
+                                data.SurveyData = JsonSerializer.Deserialize<Dictionary<string, object>>(jsonString) ?? new();
+                            }
+                        }
+                    }
+                    catch { }
+                }
+            }
+            
+            // Try to extract new patient data (the one being submitted)
+            if (changeSnapshot.ContainsKey("newPatient"))
+            {
+                data.NewPatient = ParsePatientContext(changeSnapshot["newPatient"]);
+            }
+            else if (entityData.ContainsKey("newPatient"))
+            {
+                data.NewPatient = ParsePatientContext(entityData["newPatient"]);
+            }
+            else if (entityData.ContainsKey("submittedPatient"))
+            {
+                data.NewPatient = ParsePatientContext(entityData["submittedPatient"]);
+            }
+            
+            // Try to extract potential matches (MULTIPLE!)
+            if (changeSnapshot.ContainsKey("potentialDuplicates"))
+            {
+                data.PotentialMatches = ParsePotentialMatches(changeSnapshot["potentialDuplicates"]);
+            }
+            else if (entityData.ContainsKey("potentialDuplicates"))
+            {
+                data.PotentialMatches = ParsePotentialMatches(entityData["potentialDuplicates"]);
+            }
+            // Fallback to single match
+            else if (changeSnapshot.ContainsKey("existingPatient") || entityData.ContainsKey("existingPatient"))
+            {
+                var existingPatientData = changeSnapshot.ContainsKey("existingPatient") 
+                    ? changeSnapshot["existingPatient"] 
+                    : entityData["existingPatient"];
+                    
+                if (existingPatientData != null)
+                {
+                    var patient = ParsePatientContext(existingPatientData);
+                    if (patient != null)
+                    {
+                        var matchScore = 0;
+                        var matchReasons = new List<string>();
+                        
+                        if (changeSnapshot.ContainsKey("matchScore"))
+                        {
+                            matchScore = Convert.ToInt32(changeSnapshot["matchScore"]);
+                        }
+                        else if (entityData.ContainsKey("matchScore"))
+                        {
+                            matchScore = Convert.ToInt32(entityData["matchScore"]);
+                        }
+                        
+                        if (changeSnapshot.ContainsKey("matchReasons"))
+                        {
+                            matchReasons = ParseMatchReasons(changeSnapshot["matchReasons"]);
+                        }
+                        else if (entityData.ContainsKey("matchReasons"))
+                        {
+                            matchReasons = ParseMatchReasons(entityData["matchReasons"]);
+                        }
+                        
+                        data.PotentialMatches.Add(new PotentialMatch
+                        {
+                            Patient = patient,
+                            MatchScore = matchScore,
+                            MatchReasons = matchReasons
+                        });
+                    }
+                }
+            }
+            // FALLBACK: Use the Patient from context as a potential match
+            else if (Model.ReviewDetail.Patient != null)
+            {
+                data.PotentialMatches.Add(new PotentialMatch
+                {
+                    Patient = Model.ReviewDetail.Patient,
+                    MatchScore = 0,
+                    MatchReasons = new List<string>()
+                });
+            }
+            
+            // Try to reconstruct new patient from EntityData if not found
+            if (data.NewPatient == null && entityData.Any())
+            {
+                data.NewPatient = new PatientContext
+                {
+                    GivenName = entityData.ContainsKey("GivenName") ? entityData["GivenName"]?.ToString() ?? "" : "",
+                    FamilyName = entityData.ContainsKey("FamilyName") ? entityData["FamilyName"]?.ToString() ?? "" : "",
+                    DateOfBirth = entityData.ContainsKey("DateOfBirth") && DateTime.TryParse(entityData["DateOfBirth"]?.ToString(), out var dob) ? dob : null,
+                    MobilePhone = entityData.ContainsKey("MobilePhone") ? entityData["MobilePhone"]?.ToString() : null,
+                    EmailAddress = entityData.ContainsKey("EmailAddress") ? entityData["EmailAddress"]?.ToString() : null,
+                    Address = entityData.ContainsKey("StreetAddress") ? entityData["StreetAddress"]?.ToString() : null,
+                    City = entityData.ContainsKey("City") ? entityData["City"]?.ToString() : null,
+                    State = entityData.ContainsKey("Province") ? entityData["Province"]?.ToString() : null,
+                    Postcode = entityData.ContainsKey("PostalCode") ? entityData["PostalCode"]?.ToString() : null
+                };
+            }
+            
+            // Calculate match scores if missing
+            if (data.NewPatient != null)
+            {
+                foreach (var match in data.PotentialMatches.Where(m => m.MatchScore == 0))
+                {
+                    var reasons = match.MatchReasons;
+                    match.MatchScore = CalculateBasicMatchScore(data.NewPatient, match.Patient, ref reasons);
+                    match.MatchReasons = reasons;
+                }
+            }
+            
+            // Set overall match score to highest
+            if (data.PotentialMatches.Any())
+            {
+                var topMatch = data.PotentialMatches.OrderByDescending(m => m.MatchScore).First();
+                data.MatchScore = topMatch.MatchScore;
+                if (!data.MatchReasons.Any())
+                {
+                    data.MatchReasons = topMatch.MatchReasons;
+                }
+            }
+        }
+        catch { }
+        
+        return data;
+    }
+
+    List<PotentialMatch> ParsePotentialMatches(object? matchesData)
+    {
+        var matches = new List<PotentialMatch>();
+        
+        if (matchesData == null) return matches;
+        
+        try
+        {
+            // Try to parse as JSON array
+            var jsonString = matchesData.ToString();
+            if (!string.IsNullOrEmpty(jsonString))
+            {
+                if (jsonString.StartsWith("["))
+                {
+                    var matchArray = JsonSerializer.Deserialize<List<Dictionary<string, JsonElement>>>(jsonString);
+                    if (matchArray != null)
+                    {
+                        foreach (var matchObj in matchArray)
+                        {
+                            PatientContext? patient = null;
+                            int score = 0;
+                            var reasons = new List<string>();
+                            
+                            if (matchObj.ContainsKey("patient") || matchObj.ContainsKey("Patient"))
+                            {
+                                var key = matchObj.ContainsKey("patient") ? "patient" : "Patient";
+                                patient = ParsePatientContext(matchObj[key]);
+                            }
+                            
+                            if (matchObj.ContainsKey("matchScore"))
+                            {
+                                score = matchObj["matchScore"].GetInt32();
+                            }
+                            else if (matchObj.ContainsKey("MatchScore"))
+                            {
+                                score = matchObj["MatchScore"].GetInt32();
+                            }
+                            
+                            if (matchObj.ContainsKey("matchReasons"))
+                            {
+                                reasons = ParseMatchReasons(matchObj["matchReasons"]);
+                            }
+                            else if (matchObj.ContainsKey("MatchReasons"))
+                            {
+                                reasons = ParseMatchReasons(matchObj["MatchReasons"]);
+                            }
+                            
+                            if (patient != null)
+                            {
+                                matches.Add(new PotentialMatch
+                                {
+                                    Patient = patient,
+                                    MatchScore = score,
+                                    MatchReasons = reasons
+                                });
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        catch { }
+        
+        return matches;
+    }
+
+    List<string> ParseMatchReasons(object? reasons)
+    {
+        if (reasons == null) return new List<string>();
+        
+        try
+        {
+            if (reasons is List<string> list)
+            {
+                return list;
+            }
+            else if (reasons is JsonElement element && element.ValueKind == JsonValueKind.Array)
+            {
+                return element.EnumerateArray()
+                    .Select(e => e.GetString() ?? "")
+                    .Where(s => !string.IsNullOrEmpty(s))
+                    .ToList();
+            }
+            else if (reasons is string str && str.StartsWith("["))
+            {
+                return JsonSerializer.Deserialize<List<string>>(str) ?? new List<string>();
+            }
+        }
+        catch { }
+        
+        return new List<string>();
+    }
+
+    int CalculateBasicMatchScore(PatientContext newPat, PatientContext existingPat, ref List<string> reasons)
+    {
+        int score = 0;
+        reasons = reasons ?? new List<string>();
+        
+        // Name match
+        if (!string.IsNullOrEmpty(newPat.GivenName) && !string.IsNullOrEmpty(existingPat.GivenName))
+        {
+            if (newPat.GivenName.Equals(existingPat.GivenName, StringComparison.OrdinalIgnoreCase))
+            {
+                score += 30;
+                reasons.Add("? Same first name");
+            }
+        }
+        
+        if (!string.IsNullOrEmpty(newPat.FamilyName) && !string.IsNullOrEmpty(existingPat.FamilyName))
+        {
+            if (newPat.FamilyName.Equals(existingPat.FamilyName, StringComparison.OrdinalIgnoreCase))
+            {
+                score += 30;
+                reasons.Add("? Same last name");
+            }
+        }
+        
+        // Date of birth match
+        if (newPat.DateOfBirth.HasValue && existingPat.DateOfBirth.HasValue)
+        {
+            if (newPat.DateOfBirth.Value.Date == existingPat.DateOfBirth.Value.Date)
+            {
+                score += 30;
+                reasons.Add("? Same date of birth");
+            }
+        }
+        
+        // Phone match
+        if (!string.IsNullOrEmpty(newPat.MobilePhone) && !string.IsNullOrEmpty(existingPat.MobilePhone))
+        {
+            if (newPat.MobilePhone.Replace(" ", "").Replace("-", "") == existingPat.MobilePhone.Replace(" ", "").Replace("-", ""))
+            {
+                score += 20;
+                reasons.Add("? Same phone number");
+            }
+        }
+        
+        // Address match
+        if (!string.IsNullOrEmpty(newPat.Address) && !string.IsNullOrEmpty(existingPat.Address))
+        {
+            if (newPat.Address.Contains(existingPat.Address, StringComparison.OrdinalIgnoreCase) ||
+                existingPat.Address.Contains(newPat.Address, StringComparison.OrdinalIgnoreCase))
+            {
+                score += 15;
+                reasons.Add("? Similar address");
+            }
+        }
+        
+        return score;
+    }
+
+    PatientContext? ParsePatientContext(object? data)
+    {
+        if (data == null) return null;
+        
+        try
+        {
+            // If it's already a PatientContext, return it
+            if (data is PatientContext pc) return pc;
+            
+            // Try to deserialize from JSON
+            var jsonString = data.ToString();
+            if (!string.IsNullOrEmpty(jsonString))
+            {
+                return JsonSerializer.Deserialize<PatientContext>(jsonString);
+            }
+        }
+        catch { }
+        
+        return null;
+    }
+
+    string GetDifferenceClass(object? value1, object? value2)
+    {
+        var str1 = value1?.ToString()?.Trim().ToLower() ?? "";
+        var str2 = value2?.ToString()?.Trim().ToLower() ?? "";
+        
+        if (string.IsNullOrEmpty(str1) && string.IsNullOrEmpty(str2))
+            return ""; // Both empty
+            
+        if (str1 == str2)
+            return "table-success"; // Same
+            
+        return "table-warning"; // Different
+    }
+
+    string GetMatchConfidenceClass(int matchScore)
+    {
+        if (matchScore >= 80) return "bg-danger"; // High match - likely same person
+        if (matchScore >= 50) return "bg-warning"; // Medium match - uncertain
+        return "bg-info"; // Low match - probably different
+    }
+}
+
+@section Scripts {
+<script>
+    // Function to reprocess a failed survey
+    async function reprocessSurvey(taskId) {
+        try {
+            const btn = event.target;
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Reprocessing...';
+            
+            const token = document.querySelector('input[name="__RequestVerificationToken"]')?.value;
+            if (!token) {
+                throw new Error('Anti-forgery token not found');
+            }
+            
+            // Get the task to retrieve survey responses
+            const taskResponse = await fetch(`/api/tasks/${taskId}`, {
+                headers: {
+                    'RequestVerificationToken': token
+                }
+            });
+            
+            if (!taskResponse.ok) {
+                throw new Error('Failed to retrieve task data');
+            }
+            
+            const taskData = await taskResponse.json();
+            const surveyResponses = JSON.parse(taskData.surveyResponseJson);
+            
+            // Retry the survey submission
+            const response = await fetch(`/Tasks/CompleteSurvey/${taskId}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'RequestVerificationToken': token
+                },
+                body: JSON.stringify(surveyResponses)
+            });
+            
+            if (!response.ok) {
+                throw new Error(`Server returned ${response.status}`);
+            }
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                alert('Survey reprocessed successfully! The review item will be marked as resolved.');
+                window.location.reload();
+            } else {
+                throw new Error(result.error || 'Reprocessing failed');
+            }
+        } catch (error) {            alert('Failed to reprocess survey: ' + error.message);
+            
+            const btn = event.target;
+            btn.disabled = false;
+            btn.innerHTML = '<i class="bi bi-arrow-repeat"></i> Retry Automatic Processing';
+        }
+    }
+</script>
+}

@@ -1,0 +1,198 @@
+@page
+@using Sentinel.Models
+@model Sentinel.Pages.Settings.Mappings.SuggestMappingsModel
+@{
+    ViewData["Title"] = "Suggest Mappings";
+}
+@functions {
+    public string GetCspNonce()
+    {
+        if (HttpContext?.Items?.TryGetValue("csp-nonce", out var nonce) == true && nonce is string nonceStr)
+        {
+            return nonceStr;
+        }
+        return string.Empty;
+    }
+}
+
+<nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a asp-page="/Index">Home</a></li>
+        <li class="breadcrumb-item"><a asp-page="/Settings/Index">Settings</a></li>
+        <li class="breadcrumb-item active" aria-current="page">Suggest Mappings</li>
+    </ol>
+</nav>
+
+<div class="row">
+    <div class="col-lg-10">
+        <div class="apple-card">
+            <div class="apple-card-header">
+                <h3><i class="bi bi-lightbulb"></i> Auto-Suggest Field Mappings</h3>
+                <p class="text-muted">AI-powered mapping suggestions based on field name similarity</p>
+            </div>
+            
+            <div class="apple-card-body">
+                @if (TempData["ErrorMessage"] != null)
+                {
+                    <div class="alert alert-danger">
+                        <i class="bi bi-exclamation-triangle"></i> @TempData["ErrorMessage"]
+                    </div>
+                }
+
+                @if (Model.SuggestedMappings != null && Model.SuggestedMappings.Any())
+                {
+                    <div class="alert alert-success mb-4">
+                        <i class="bi bi-check-circle"></i>
+                        <strong>Generated @Model.SuggestedMappings.Count suggestion(s)!</strong>
+                        Review the suggestions below and activate the ones you want to use.
+                    </div>
+
+                    <form method="post" asp-page-handler="">
+                        <input type="hidden" asp-for="ConfigurationType" />
+                        <input type="hidden" asp-for="ConfigurationId" />
+                        <input type="hidden" asp-for="SurveyTemplateId" />
+                        <input type="hidden" asp-for="ReturnUrl" />
+
+                        <div class="table-responsive">
+                            <table class="table table-sm apple-table">
+                                <thead>
+                                    <tr>
+                                        <th style="width: 40px;">
+                                            <input type="checkbox" id="selectAll" class="form-check-input" />
+                                        </th>
+                                        <th>Survey Question</th>
+                                        <th>Suggested Field</th>
+                                        <th>Action</th>
+                                        <th>Business Rule</th>
+                                        <th>Confidence</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @for (int i = 0; i < Model.SuggestedMappings.Count; i++)
+                                    {
+                                        var suggestion = Model.SuggestedMappings[i];
+                                        var confidence = Model.GetMatchConfidence(suggestion);
+                                        
+                                        <tr>
+                                            <td>
+                                                <input type="checkbox" 
+                                                       name="SelectedMappingIds" 
+                                                       value="@suggestion.Id"
+                                                       class="form-check-input mapping-checkbox"
+                                                       checked />
+                                            </td>
+                                            <td>
+                                                <strong>@suggestion.DisplayName</strong>
+                                                <br />
+                                                <small class="text-muted">@suggestion.SurveyQuestionName</small>
+                                            </td>
+                                            <td>
+                                                <code class="small">@suggestion.TargetFieldPath</code>
+                                                <br />
+                                                <span class="badge bg-secondary badge-sm">@suggestion.FieldCategory</span>
+                                            </td>
+                                            <td>
+                                                <span class="badge bg-success">@suggestion.MappingAction</span>
+                                            </td>
+                                            <td>
+                                                <span class="badge bg-light text-dark border">@suggestion.BusinessRule</span>
+                                            </td>
+                                            <td>
+                                                @if (confidence >= 0.9)
+                                                {
+                                                    <span class="badge bg-success">High</span>
+                                                }
+                                                else if (confidence >= 0.6)
+                                                {
+                                                    <span class="badge bg-warning">Medium</span>
+                                                }
+                                                else
+                                                {
+                                                    <span class="badge bg-secondary">Low</span>
+                                                }
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <div class="mt-4">
+                            <button type="submit" name="action" value="activate" class="btn btn-primary">
+                                <i class="bi bi-check-circle"></i> Activate Selected Mappings
+                            </button>
+                            <button type="submit" name="action" value="discard" class="btn btn-outline-danger">
+                                <i class="bi bi-trash"></i> Discard All Suggestions
+                            </button>
+                            <a href="@Model.ReturnUrl" class="btn btn-secondary">
+                                <i class="bi bi-x-circle"></i> Cancel
+                            </a>
+                        </div>
+                    </form>
+                }
+                else if (Model.IsGenerated)
+                {
+                    <div class="alert alert-warning">
+                        <i class="bi bi-exclamation-triangle"></i>
+                        <strong>No suggestions found.</strong>
+                        The survey questions don't match any known database fields. You'll need to create mappings manually.
+                    </div>
+                    
+                    <a href="@Model.ReturnUrl" class="btn btn-secondary">
+                        <i class="bi bi-arrow-left"></i> Back
+                    </a>
+                }
+                else
+                {
+                    <div class="alert alert-info">
+                        <i class="bi bi-lightbulb"></i>
+                        <strong>How it works:</strong>
+                        <ul>
+                            <li>We'll analyze your survey questions</li>
+                            <li>Match them to database fields by name similarity</li>
+                            <li>Suggest appropriate mapping actions and business rules</li>
+                            <li>You review and activate the ones you want</li>
+                        </ul>
+                    </div>
+
+                    <form method="post" asp-page-handler="Generate">
+                        <input type="hidden" asp-for="ConfigurationType" />
+                        <input type="hidden" asp-for="ConfigurationId" />
+                        <input type="hidden" asp-for="SurveyTemplateId" />
+                        <input type="hidden" asp-for="ReturnUrl" />
+
+                        <button type="submit" class="btn btn-primary btn-lg">
+                            <i class="bi bi-magic"></i> Generate Suggestions
+                        </button>
+                        <a href="@Model.ReturnUrl" class="btn btn-secondary btn-lg">
+                            <i class="bi bi-x-circle"></i> Cancel
+                        </a>
+                    </form>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        $(document).ready(function() {
+            // Select/deselect all checkboxes
+            $('#selectAll').on('change', function() {
+                $('.mapping-checkbox').prop('checked', $(this).is(':checked'));
+            });
+
+            // Debug: Log form submission
+            $('form').on('submit', function(e) {
+                var action = $('button[type="submit"]:focus').val();
+                var checkedIds = $('input[name="SelectedMappingIds"]:checked').map(function() {
+                    return $(this).val();
+                }).get();                if (checkedIds.length === 0 && action === 'activate') {
+                    alert('No mappings selected!');
+                    e.preventDefault();
+                    return false;
+                }
+            });
+        });
+    </script>
+}

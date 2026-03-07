@@ -1,0 +1,76 @@
+@page
+@model Sentinel.Pages.Settings.AtsiStatuses.IndexModel
+
+@{
+    ViewData["Title"] = "Aboriginal and Torres Strait Islander Status";
+}
+
+<nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a asp-page="/Index">Home</a></li>
+        <li class="breadcrumb-item"><a asp-page="/Settings/Index">Settings</a></li>
+        <li class="breadcrumb-item active" aria-current="page">ATSI Status</li>
+    </ol>
+</nav>
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2><i class="bi bi-list-ul me-2"></i>Aboriginal and Torres Strait Islander Status</h2>
+    <a asp-page="Create" class="btn btn-primary"><i class="bi bi-plus-circle me-1"></i>Create New</a>
+</div>
+
+<div class="card shadow-sm">
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Order</th>
+                        <th>Status</th>
+                        <th>Description</th>
+                        <th class="text-center">Active</th>
+                        <th class="text-end">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @if (!Model.AtsiStatuses.Any())
+                    {
+                        <tr>
+                            <td colspan="5" class="text-center text-muted">No statuses configured. <a asp-page="Create">Create one</a>.</td>
+                        </tr>
+                    }
+                    @foreach (var item in Model.AtsiStatuses)
+                    {
+                        <tr>
+                            <td>@item.DisplayOrder</td>
+                            <td><strong>@item.Name</strong></td>
+                            <td>@(item.Description ?? "-")</td>
+                            <td class="text-center">
+                                @if (item.IsActive)
+                                {
+                                    <span class="badge bg-success"><i class="bi bi-check-circle"></i> Active</span>
+                                }
+                                else
+                                {
+                                    <span class="badge bg-secondary"><i class="bi bi-x-circle"></i> Inactive</span>
+                                }
+                            </td>
+                            <td class="text-end">
+                                <div class="btn-group btn-group-sm" role="group">
+                                    <a asp-page="./Details" asp-route-id="@item.Id" class="btn btn-outline-primary" title="View details">
+                                        <i class="bi bi-eye"></i>
+                                    </a>
+                                    <a asp-page="./Edit" asp-route-id="@item.Id" class="btn btn-outline-secondary" title="Edit">
+                                        <i class="bi bi-pencil"></i>
+                                    </a>
+                                    <a asp-page="./Delete" asp-route-id="@item.Id" class="btn btn-outline-danger" title="Delete">
+                                        <i class="bi bi-trash"></i>
+                                    </a>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>

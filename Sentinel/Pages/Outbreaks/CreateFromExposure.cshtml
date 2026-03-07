@@ -1,0 +1,196 @@
+@page "/Outbreaks/CreateFromExposure"
+@model Sentinel.Pages.Outbreaks.CreateFromExposureModel
+@{
+    ViewData["Title"] = "Create Contact Tracing Event";
+}
+
+<div class="container-fluid" style="max-width: 1200px;">
+    <!-- Breadcrumb -->
+    <nav aria-label="breadcrumb" class="mb-4">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a asp-page="/Index">Home</a></li>
+            <li class="breadcrumb-item"><a asp-page="/Cases/Index">Cases</a></li>
+            <li class="breadcrumb-item"><a asp-page="/Cases/Details" asp-route-id="@Model.CaseId">@Model.SourceCase?.FriendlyId</a></li>
+            <li class="breadcrumb-item active">Create Contact Tracing Event</li>
+        </ol>
+    </nav>
+
+    <!-- Page Header -->
+    <div class="card mb-4" style="border-left: 4px solid #dc2626;">
+        <div class="card-body">
+            <h1 class="h3 mb-3"><i class="bi bi-diagram-3 me-2"></i>Create Contact Tracing Event</h1>
+            
+            <div class="alert alert-info">
+                <i class="bi bi-info-circle me-2"></i>
+                <strong>What is this?</strong> A Contact Tracing Event allows you to track multiple contacts from a single exposure location/event as a unified investigation. This uses the outbreak management system for centralized task assignment, progress tracking, and reporting - without requiring it to be declared as an actual outbreak.
+            </div>
+
+            <div class="row g-3">
+                <div class="col-md-4">
+                    <strong><i class="bi bi-virus me-2"></i>Index Case:</strong>
+                    <div>@Model.SourceCase?.FriendlyId - @Model.SourceCase?.Patient?.GivenName @Model.SourceCase?.Patient?.FamilyName</div>
+                    <small class="text-muted">@Model.SourceCase?.Disease?.Name</small>
+                </div>
+                
+                @if (Model.Location != null)
+                {
+                    <div class="col-md-4">
+                        <strong><i class="bi bi-geo-alt me-2"></i>Location:</strong>
+                        <div>@Model.Location.Name</div>
+                        @if (!string.IsNullOrEmpty(Model.Location.Address))
+                        {
+                            <small class="text-muted">@Model.Location.Address</small>
+                        }
+                    </div>
+                }
+                else if (Model.Event != null)
+                {
+                    <div class="col-md-4">
+                        <strong><i class="bi bi-calendar-event me-2"></i>Event:</strong>
+                        <div>@Model.Event.Name</div>
+                        <small class="text-muted">@Model.Event.StartDateTime.ToString("dd MMM yyyy")</small>
+                    </div>
+                }
+                else
+                {
+                    <div class="col-md-4">
+                        <strong><i class="bi bi-people me-2"></i>Investigation Type:</strong>
+                        <div>General Contact Tracing</div>
+                        <small class="text-muted">All contacts for this case</small>
+                    </div>
+                }
+
+                <div class="col-md-4">
+                    <strong><i class="bi bi-people me-2"></i>Existing Contacts:</strong>
+                    <div class="fs-4 text-primary">@Model.ExistingContactCount</div>
+                    <small class="text-muted">will be linked to this event</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    @if (!string.IsNullOrEmpty(Model.ErrorMessage))
+    {
+        <div class="alert alert-danger alert-dismissible fade show">
+            <i class="bi bi-exclamation-triangle me-2"></i>@Model.ErrorMessage
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
+
+    <!-- Outbreak Details Form -->
+    <form method="post">
+        <input type="hidden" asp-for="CaseId" />
+        <input type="hidden" asp-for="LocationId" />
+        <input type="hidden" asp-for="EventId" />
+        <input type="hidden" asp-for="ExposureId" />
+
+        <div class="card mb-4">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0"><i class="bi bi-pencil me-2"></i>Contact Tracing Event Details</h5>
+            </div>
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-md-8">
+                        <label asp-for="Input.Name" class="form-label">
+                            Event Name <span class="text-danger">*</span>
+                        </label>
+                        <input asp-for="Input.Name" class="form-control" />
+                        <span asp-validation-for="Input.Name" class="text-danger"></span>
+                        <small class="form-text text-muted">
+                            Give this contact tracing investigation a descriptive name (auto-generated from disease + location/event)
+                        </small>
+                    </div>
+
+                    <div class="col-md-4">
+                        <label asp-for="Input.StartDate" class="form-label">
+                            Investigation Start Date <span class="text-danger">*</span>
+                        </label>
+                        <input asp-for="Input.StartDate" type="date" class="form-control" />
+                        <span asp-validation-for="Input.StartDate" class="text-danger"></span>
+                    </div>
+
+                    <div class="col-12">
+                        <label asp-for="Input.Description" class="form-label">
+                            Description
+                        </label>
+                        <textarea asp-for="Input.Description" class="form-control" rows="3"></textarea>
+                        <span asp-validation-for="Input.Description" class="text-danger"></span>
+                        <small class="form-text text-muted">
+                            Additional details about this investigation
+                        </small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Investigation Type Info -->
+        <div class="card mb-4">
+            <div class="card-header bg-light">
+                <h5 class="mb-0"><i class="bi bi-info-circle me-2"></i>What Happens Next?</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6 class="text-primary"><i class="bi bi-check-circle me-2"></i>Immediate Actions:</h6>
+                        <ul class="mb-0">
+                            <li>Contact Tracing Event created as <strong>@(Model.EventId.HasValue ? "Event-Based" : Model.LocationId.HasValue ? "Location-Based" : "General Investigation")</strong></li>
+                            <li>Index case (@Model.SourceCase?.FriendlyId) linked as primary source</li>
+                            @if (Model.ExistingContactCount > 0)
+                            {
+                                <li><strong>@Model.ExistingContactCount existing contacts</strong> automatically linked</li>
+                            }
+                            else
+                            {
+                                <li>Ready to add contacts via bulk creation or manual linking</li>
+                            }
+                            <li>You will be assigned as Lead Investigator</li>
+                        </ul>
+                    </div>
+                    <div class="col-md-6">
+                        <h6 class="text-success"><i class="bi bi-arrow-right-circle me-2"></i>Next Steps:</h6>
+                        <ul class="mb-0">
+                            <li>Add team members to the investigation</li>
+                            <li>Assign follow-up tasks to contacts in bulk</li>
+                            <li>Assign surveys for contact tracing data collection</li>
+                            <li>Track progress across all contacts</li>
+                            <li>Generate contact tracing reports</li>
+                        </ul>
+                    </div>
+                </div>
+
+                @if (Model.ExistingContactCount == 0)
+                {
+                    <div class="alert alert-warning mt-3 mb-0">
+                        <i class="bi bi-exclamation-triangle me-2"></i>
+                        <strong>Note:</strong> No contacts have been created yet for this exposure. 
+                        <a asp-page="/Cases/Contacts/BulkCreate" 
+                           asp-route-caseId="@Model.CaseId"
+                           asp-route-locationId="@Model.LocationId"
+                           asp-route-eventId="@Model.EventId">
+                            Click here to bulk add contacts first
+                        </a>, or create the contact tracing event now and add contacts later.
+                    </div>
+                }
+            </div>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="card">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <a asp-page="/Cases/Details" asp-route-id="@Model.CaseId" class="btn btn-outline-secondary">
+                        <i class="bi bi-arrow-left me-2"></i>Cancel
+                    </a>
+
+                    <button type="submit" class="btn btn-danger btn-lg">
+                        <i class="bi bi-diagram-3 me-2"></i>Create Contact Tracing Event
+                    </button>
+                </div>
+            </div>
+        </div>
+    </form>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

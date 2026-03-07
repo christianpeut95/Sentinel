@@ -1,0 +1,205 @@
+@page
+@using Sentinel.Models
+@model Sentinel.Pages.Outbreaks.BulkActionsModel
+@{
+    ViewData["Title"] = "Bulk Actions - " + Model.Outbreak.Name;
+}
+@functions {
+    public string GetCspNonce()
+    {
+        if (HttpContext?.Items?.TryGetValue("csp-nonce", out var nonce) == true && nonce is string nonceStr)
+        {
+            return nonceStr;
+        }
+        return string.Empty;
+    }
+}
+
+<nav aria-label="breadcrumb" class="mb-4">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a asp-page="/Index">Home</a></li>
+        <li class="breadcrumb-item"><a asp-page="Index">Outbreaks</a></li>
+        <li class="breadcrumb-item"><a asp-page="Details" asp-route-id="@Model.Outbreak.Id">@Model.Outbreak.Name</a></li>
+        <li class="breadcrumb-item active" aria-current="page">Bulk Actions</li>
+    </ol>
+</nav>
+
+<div class="mb-4">
+    <h2><i class="bi bi-lightning me-2"></i>Bulk Actions</h2>
+    <p class="text-muted">Assign tasks or surveys to multiple cases/contacts at once</p>
+</div>
+
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card mb-4">
+            <div class="card-header bg-light">
+                <h5 class="mb-0"><i class="bi bi-people-fill me-2"></i>Selected Records (@Model.SelectedRecords.Count)</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-sm table-hover">
+                        <thead>
+                            <tr>
+                                <th>Type</th>
+                                <th>Case ID</th>
+                                <th>Patient</th>
+                                <th>Disease</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var record in Model.SelectedRecords)
+                            {
+                                <tr>
+                                    <td>
+                                        @if (record.Type == CaseType.Case)
+                                        {
+                                            <span class="badge bg-danger">Case</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge bg-info">Contact</span>
+                                        }
+                                    </td>
+                                    <td>
+                                        <a asp-page="/Cases/Details" asp-route-id="@record.Id" target="_blank">
+                                            @record.FriendlyId
+                                        </a>
+                                    </td>
+                                    <td>
+                                        @if (record.Patient != null)
+                                        {
+                                            @record.Patient.GivenName @record.Patient.FamilyName
+                                        }
+                                    </td>
+                                    <td>@record.Disease?.Name</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <form method="post">
+            @foreach (var caseId in Model.CaseIds)
+            {
+                <input type="hidden" name="CaseIds" value="@caseId" />
+            }
+
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">Select Action</h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-4">
+                        <label class="form-label fw-bold">Action Type</label>
+                        <div class="btn-group w-100" role="group">
+                            <input type="radio" class="btn-check" name="ActionType" id="actionTask" value="task" checked>
+                            <label class="btn btn-outline-primary" for="actionTask">
+                                <i class="bi bi-list-check me-2"></i>Assign Task
+                            </label>
+
+                            <input type="radio" class="btn-check" name="ActionType" id="actionSurvey" value="survey">
+                            <label class="btn btn-outline-primary" for="actionSurvey">
+                                <i class="bi bi-clipboard-data me-2"></i>Assign Survey
+                            </label>
+                        </div>
+                    </div>
+
+                    <div id="taskSection">
+                        <div class="mb-3">
+                            <label for="taskTemplate" class="form-label">Task Template</label>
+                            <select name="TemplateId" id="taskTemplate" class="form-select" required>
+                                <option value="">-- Select Task Template --</option>
+                                @foreach (var template in Model.TaskTemplates)
+                                {
+                                    <option value="@template.Value">@template.Text</option>
+                                }
+                            </select>
+                            <small class="text-muted">The task will be created for each selected case/contact</small>
+                        </div>
+                    </div>
+
+                    <div id="surveySection" style="display: none;">
+                        <div class="mb-3">
+                            <label for="surveyTemplate" class="form-label">Survey Template</label>
+                            <select name="TemplateId" id="surveyTemplate" class="form-select">
+                                <option value="">-- Select Survey Template --</option>
+                                @foreach (var template in Model.SurveyTemplates)
+                                {
+                                    <option value="@template.Value">@template.Text</option>
+                                }
+                            </select>
+                            <small class="text-muted">A task to complete the survey will be created for each person</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-footer">
+                    <button type="submit" class="btn btn-primary btn-lg">
+                        <i class="bi bi-lightning-fill me-2"></i>Execute Bulk Action
+                    </button>
+                    <a asp-page="Details" asp-route-id="@Model.Outbreak.Id" class="btn btn-secondary">
+                        Cancel
+                    </a>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <div class="col-lg-4">
+        <div class="card bg-light">
+            <div class="card-body">
+                <h6 class="card-title"><i class="bi bi-info-circle me-2"></i>Bulk Actions</h6>
+                <p class="small">Use bulk actions to:</p>
+                <ul class="small">
+                    <li><strong>Assign Tasks:</strong> Create the same task for multiple people (e.g., daily monitoring, isolation orders)</li>
+                    <li><strong>Assign Surveys:</strong> Request information from multiple cases/contacts simultaneously</li>
+                </ul>
+                <hr>
+                <p class="small mb-0">
+                    <strong>Note:</strong> Each person will receive an individual task. You can track completion in the My Tasks dashboard.
+                </p>
+            </div>
+        </div>
+
+        <div class="card mt-3">
+            <div class="card-header bg-light">
+                <h6 class="mb-0">Common Use Cases</h6>
+            </div>
+            <div class="card-body small">
+                <p class="mb-2"><strong>For Cases:</strong></p>
+                <ul class="mb-3">
+                    <li>Daily symptom monitoring</li>
+                    <li>Isolation compliance checks</li>
+                    <li>Treatment adherence surveys</li>
+                </ul>
+                <p class="mb-2"><strong>For Contacts:</strong></p>
+                <ul class="mb-0">
+                    <li>Quarantine monitoring</li>
+                    <li>Symptom watch surveys</li>
+                    <li>Exposure questionnaires</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        document.querySelectorAll('input[name="ActionType"]').forEach(radio => {
+            radio.addEventListener('change', function() {
+                if (this.value === 'task') {
+                    document.getElementById('taskSection').style.display = 'block';
+                    document.getElementById('surveySection').style.display = 'none';
+                    document.getElementById('taskTemplate').required = true;
+                    document.getElementById('surveyTemplate').required = false;
+                } else {
+                    document.getElementById('taskSection').style.display = 'none';
+                    document.getElementById('surveySection').style.display = 'block';
+                    document.getElementById('taskTemplate').required = false;
+                    document.getElementById('surveyTemplate').required = true;
+                }
+            });
+        });
+    </script>
+}

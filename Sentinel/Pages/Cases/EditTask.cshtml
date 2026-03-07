@@ -1,0 +1,172 @@
+@page
+@model Sentinel.Pages.Cases.EditTaskModel
+@using Sentinel.Models
+
+@{
+    ViewData["Title"] = "Edit Task";
+    Layout = null; // No layout for popup window
+}
+@functions {
+    public string GetCspNonce()
+    {
+        if (HttpContext?.Items?.TryGetValue("csp-nonce", out var nonce) == true && nonce is string nonceStr)
+        {
+            return nonceStr;
+        }
+        return string.Empty;
+    }
+}
+
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"]</title>
+    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="~/css/site.css" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+</head>
+<body>
+    <div class="container-fluid p-4">
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0">
+                    <i class="bi bi-pencil me-2"></i>Edit Task
+                </h5>
+            </div>
+            <div class="card-body">
+                <form method="post">
+                    <input type="hidden" asp-for="Task.Id" />
+                    <input type="hidden" asp-for="CaseId" />
+                    <input type="hidden" asp-for="Task.CaseId" />
+                    <input type="hidden" asp-for="Task.TaskTemplateId" />
+                    <input type="hidden" asp-for="Task.TaskTypeId" />
+                    <input type="hidden" asp-for="Task.Title" />
+                    <input type="hidden" asp-for="Task.AssignmentType" />
+
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Task Name</label>
+                        <p class="form-control-plaintext">@Model.Task.Title</p>
+                    </div>
+
+                    @if (Model.Task.TaskType != null)
+                    {
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Task Type</label>
+                            <p class="form-control-plaintext">@Model.Task.TaskType.Name</p>
+                        </div>
+                    }
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label asp-for="Task.Status" class="form-label">Status <span class="text-danger">*</span></label>
+                            <select asp-for="Task.Status" class="form-select" asp-items="Model.StatusList">
+                                <option value="">Select status...</option>
+                            </select>
+                            <span asp-validation-for="Task.Status" class="text-danger"></span>
+                        </div>
+
+                        <div class="col-md-6 mb-3">
+                            <label asp-for="Task.Priority" class="form-label">Priority <span class="text-danger">*</span></label>
+                            <select asp-for="Task.Priority" class="form-select" asp-items="Model.PriorityList">
+                                <option value="">Select priority...</option>
+                            </select>
+                            <span asp-validation-for="Task.Priority" class="text-danger"></span>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="Task.DueDate" class="form-label">Due Date</label>
+                        <input asp-for="Task.DueDate" type="date" class="form-control" />
+                        <span asp-validation-for="Task.DueDate" class="text-danger"></span>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="assignedToUserSearch" class="form-label">Assign To User</label>
+                        <input type="text" id="assignedToUserSearch" class="form-control" 
+                               placeholder="Type to search users..." 
+                               value="@Model.Task.AssignedToUser?.UserName" />
+                        <input type="hidden" asp-for="Task.AssignedToUserId" id="assignedToUserId" />
+                        <small class="form-text text-muted">Leave blank to keep current assignment or unassign</small>
+                    </div>
+
+                    <div class="alert alert-info">
+                        <i class="bi bi-info-circle me-2"></i>
+                        <strong>Note:</strong> Changes will be saved and the parent window will be refreshed.
+                    </div>
+
+                    <div class="d-flex justify-content-end gap-2">
+                        <button type="button" class="btn btn-secondary" onclick="window.close()">
+                            <i class="bi bi-x-circle me-1"></i>Cancel
+                        </button>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-save me-1"></i>Save Changes
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script src="~/lib/jquery/dist/jquery.min.js"></script>
+    <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://code.jquery.com/ui/1.13.2/jquery-ui.min.js"></script>
+    <link rel="stylesheet" href="https://code.jquery.com/ui/1.13.2/themes/base/jquery-ui.css">
+    <style>
+        /* jQuery UI Autocomplete styling */
+        .ui-autocomplete {
+            max-height: 200px;
+            overflow-y: auto;
+            overflow-x: hidden;
+            font-size: 0.85rem;
+            z-index: 9999 !important;
+        }
+        .ui-menu-item {
+            padding: 0.4rem 0.6rem;
+        }
+    </style>
+    <script src="~/js/site.js" asp-append-version="true"></script>
+
+    <script>
+        // User autocomplete for assignment
+        $(document).ready(function() {
+            $("#assignedToUserSearch").autocomplete({
+                source: function(request, response) {
+                    $.ajax({
+                        url: '/api/Patients/SearchUsers',
+                        data: { term: request.term },
+                        dataType: 'json',
+                        success: function(data) {
+                            response(data.map(function(item) {
+                                return {
+                                    label: item.text,
+                                    value: item.text,
+                                    id: item.id
+                                };
+                            }));
+                        },
+                        error: function(xhr, status, error) {                            response([]);
+                        }
+                    });
+                },
+                minLength: 2,
+                select: function(event, ui) {
+                    $("#assignedToUserId").val(ui.item.id);
+                    return true;
+                },
+                change: function(event, ui) {
+                    // If field is cleared, clear the hidden ID field
+                    if (!ui.item) {
+                        $("#assignedToUserId").val('');
+                    }
+                }
+            });
+        });
+    </script>
+
+    @section Scripts {
+        @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+    }
+</body>
+</html>

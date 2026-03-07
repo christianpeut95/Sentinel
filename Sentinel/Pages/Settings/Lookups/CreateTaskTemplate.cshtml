@@ -1,0 +1,174 @@
+@page
+@using Sentinel.Models
+@model Sentinel.Pages.Settings.Lookups.CreateTaskTemplateModel
+@{
+    ViewData["Title"] = "Create Task Template";
+}
+
+<div class="container-fluid">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2><i class="bi bi-plus-circle me-2"></i>Create Task Template</h2>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-0">
+                    <li class="breadcrumb-item"><a asp-page="/Index">Home</a></li>
+                    <li class="breadcrumb-item"><a asp-page="/Settings/Index">Settings</a></li>
+                    <li class="breadcrumb-item"><a asp-page="./TaskTemplates">Task Templates</a></li>
+                    <li class="breadcrumb-item active">Create</li>
+                </ol>
+            </nav>
+        </div>
+        <a asp-page="./TaskTemplates" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left"></i> Back to List
+        </a>
+    </div>
+
+    <!-- Form -->
+    <form method="post">
+        <div asp-validation-summary="ModelOnly" class="alert alert-danger"></div>
+
+        <div class="card mb-3">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0"><i class="bi bi-info-circle me-2"></i>Basic Information</h5>
+            </div>
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label asp-for="Input.Name" class="form-label fw-bold"></label>
+                        <input asp-for="Input.Name" class="form-control" />
+                        <span asp-validation-for="Input.Name" class="text-danger"></span>
+                    </div>
+                    <div class="col-md-6">
+                        <label asp-for="Input.TaskTypeId" class="form-label fw-bold"></label>
+                        <select asp-for="Input.TaskTypeId" class="form-select" asp-items="Model.TaskTypeSelectList">
+                            <option value="">-- Select --</option>
+                        </select>
+                        <span asp-validation-for="Input.TaskTypeId" class="text-danger"></span>
+                    </div>
+                    <div class="col-12">
+                        <label asp-for="Input.Description" class="form-label fw-bold"></label>
+                        <textarea asp-for="Input.Description" class="form-control" rows="2"></textarea>
+                        <span asp-validation-for="Input.Description" class="text-danger"></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card mb-3">
+            <div class="card-header bg-info text-white">
+                <h5 class="mb-0"><i class="bi bi-sliders me-2"></i>Configuration</h5>
+            </div>
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        <label asp-for="Input.DefaultPriority" class="form-label fw-bold"></label>
+                        <select asp-for="Input.DefaultPriority" class="form-select" asp-items="Html.GetEnumSelectList<TaskPriority>()"></select>
+                    </div>
+                    <div class="col-md-4">
+                        <label asp-for="Input.TriggerType" class="form-label fw-bold"></label>
+                        <select asp-for="Input.TriggerType" class="form-select" asp-items="Html.GetEnumSelectList<TaskTrigger>()"></select>
+                    </div>
+                    <div class="col-md-4">
+                        <label asp-for="Input.AssignmentType" class="form-label fw-bold"></label>
+                        <select asp-for="Input.AssignmentType" class="form-select" asp-items="Html.GetEnumSelectList<TaskAssignmentType>()"></select>
+                    </div>
+                    <div class="col-md-6">
+                        <label asp-for="Input.DueCalculationMethod" class="form-label fw-bold"></label>
+                        <select asp-for="Input.DueCalculationMethod" class="form-select" asp-items="Html.GetEnumSelectList<TaskDueCalculationMethod>()"></select>
+                    </div>
+                    <div class="col-md-6">
+                        <label asp-for="Input.DueDaysFromOnset" class="form-label fw-bold"></label>
+                        <input asp-for="Input.DueDaysFromOnset" type="number" class="form-control" />
+                        <small class="text-muted">Days from onset/notification</small>
+                    </div>
+                    <div class="col-md-12">
+                        <label asp-for="Input.SurveyTemplateId" class="form-label fw-bold"></label>
+                        <select asp-for="Input.SurveyTemplateId" class="form-select" asp-items="Model.SurveyTemplateSelectList">
+                            <option value="">-- No Survey --</option>
+                        </select>
+                        <span asp-validation-for="Input.SurveyTemplateId" class="text-danger"></span>
+                        <small class="text-muted d-block mt-1">
+                            <i class="bi bi-clipboard-data me-1"></i>
+                            Link a survey template to collect data for this task
+                        </small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card mb-3">
+            <div class="card-header bg-warning">
+                <h5 class="mb-0"><i class="bi bi-toggles me-2"></i>Options</h5>
+            </div>
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        <div class="form-check form-switch">
+                            <input asp-for="Input.IsActive" class="form-check-input" />
+                            <label asp-for="Input.IsActive" class="form-check-label fw-bold"></label>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="form-check form-switch">
+                            <input asp-for="Input.RequiresEvidence" class="form-check-input" />
+                            <label asp-for="Input.RequiresEvidence" class="form-check-label fw-bold"></label>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="form-check form-switch">
+                            <input asp-for="Input.IsInterviewTask" class="form-check-input" />
+                            <label asp-for="Input.IsInterviewTask" class="form-check-label fw-bold"></label>
+                        </div>
+                        <small class="text-muted d-block mt-1">
+                            <i class="bi bi-telephone"></i> For interview workers
+                        </small>
+                    </div>
+                </div>
+                <div class="row g-3 mt-1">
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold">Applies To</label>
+                        <select asp-for="Input.ApplicableToType" class="form-select">
+                            <option value="">Both — Cases &amp; Contacts</option>
+                            <option value="1">Cases only</option>
+                            <option value="2">Contacts only</option>
+                        </select>
+                        <div class="form-text">Controls which Add Task dialogs show this template.</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card mb-3">
+            <div class="card-header bg-secondary text-white">
+                <h5 class="mb-0"><i class="bi bi-file-text me-2"></i>Instructions</h5>
+            </div>
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-12">
+                        <label asp-for="Input.Instructions" class="form-label fw-bold"></label>
+                        <textarea asp-for="Input.Instructions" class="form-control" rows="4"></textarea>
+                    </div>
+                    <div class="col-12">
+                        <label asp-for="Input.CompletionCriteria" class="form-label fw-bold"></label>
+                        <textarea asp-for="Input.CompletionCriteria" class="form-control" rows="2"></textarea>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Actions -->
+        <div class="d-flex gap-2 mb-4">
+            <button type="submit" class="btn btn-success btn-lg">
+                <i class="bi bi-check-circle me-2"></i>Create Task Template
+            </button>
+            <a asp-page="./TaskTemplates" class="btn btn-outline-secondary btn-lg">
+                <i class="bi bi-x-circle me-2"></i>Cancel
+            </a>
+        </div>
+    </form>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

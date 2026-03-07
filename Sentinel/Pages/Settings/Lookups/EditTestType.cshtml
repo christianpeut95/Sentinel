@@ -1,0 +1,108 @@
+@page
+@model Sentinel.Pages.Settings.Lookups.EditTestTypeModel
+
+@{
+    ViewData["Title"] = "Edit Test Type";
+    Layout = "~/Pages/Shared/_Layout.cshtml";
+}
+
+<nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a asp-page="/Index">Home</a></li>
+        <li class="breadcrumb-item"><a asp-page="/Settings/Index">Settings</a></li>
+        <li class="breadcrumb-item"><a asp-page="./TestTypes">Test Types</a></li>
+        <li class="breadcrumb-item active" aria-current="page">@Model.TestType.Name</li>
+    </ol>
+</nav>
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2><i class="bi bi-pencil me-2"></i>Edit Test Type</h2>
+</div>
+
+@if (TempData["ErrorMessage"] != null)
+{
+    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+        <i class="bi bi-exclamation-triangle me-2"></i>@TempData["ErrorMessage"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+}
+
+<form method="post">
+    <div asp-validation-summary="ModelOnly" class="alert alert-danger" role="alert"></div>
+    <input type="hidden" asp-for="TestType.Id" />
+
+    <div class="card shadow-sm mb-4">
+        <div class="card-header bg-light fw-semibold">
+            <i class="bi bi-info-circle me-2"></i>Test Type Information
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label asp-for="TestType.Name" class="form-label">
+                        <span class="text-danger">*</span> @Html.DisplayNameFor(m => m.TestType.Name)
+                    </label>
+                    <input asp-for="TestType.Name" class="form-control" aria-required="true" />
+                    <span asp-validation-for="TestType.Name" class="text-danger small"></span>
+                </div>
+
+                <div class="col-md-3 mb-3">
+                    <label asp-for="TestType.ExportCode" class="form-label">
+                        @Html.DisplayNameFor(m => m.TestType.ExportCode)
+                    </label>
+                    <input asp-for="TestType.ExportCode" class="form-control" />
+                    <span asp-validation-for="TestType.ExportCode" class="text-danger small"></span>
+                    <small class="form-text text-muted">Code for external systems</small>
+                </div>
+
+                <div class="col-md-3 mb-3">
+                    <label asp-for="TestType.DisplayOrder" class="form-label">
+                        @Html.DisplayNameFor(m => m.TestType.DisplayOrder)
+                    </label>
+                    <input asp-for="TestType.DisplayOrder" class="form-control" type="number" />
+                    <span asp-validation-for="TestType.DisplayOrder" class="text-danger small"></span>
+                    <small class="form-text text-muted">Lower numbers appear first</small>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-md-12 mb-3">
+                    <label asp-for="TestType.Description" class="form-label">
+                        @Html.DisplayNameFor(m => m.TestType.Description)
+                    </label>
+                    <textarea asp-for="TestType.Description" class="form-control" rows="3"></textarea>
+                    <span asp-validation-for="TestType.Description" class="text-danger small"></span>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-md-12 mb-3">
+                    <div class="form-check">
+                        <input asp-for="TestType.IsActive" class="form-check-input" type="checkbox" />
+                        <label asp-for="TestType.IsActive" class="form-check-label">
+                            Active (available for selection)
+                        </label>
+                    </div>
+                    @if (Model.UsageCount > 0)
+                    {
+                        <small class="form-text text-muted">
+                            <i class="bi bi-info-circle me-1"></i>This test type is currently used in @Model.UsageCount laboratory result(s)
+                        </small>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="d-flex justify-content-between">
+        <a asp-page="./TestTypes" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left me-1"></i>Cancel
+        </a>
+        <button type="submit" class="btn btn-primary">
+            <i class="bi bi-check-circle me-1"></i>Save Changes
+        </button>
+    </div>
+</form>
+
+@section Scripts {
+    @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+}

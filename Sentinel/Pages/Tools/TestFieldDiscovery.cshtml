@@ -1,0 +1,214 @@
+@page
+@model Sentinel.Pages.Tools.TestFieldDiscoveryModel
+@{
+    ViewData["Title"] = "Test Field Discovery";
+}
+
+<div class="container-fluid py-4">
+    <div class="row">
+        <div class="col-lg-12">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0">
+                        <i class="bi bi-database me-2"></i>
+                        Field Discovery Test - Reporting System
+                    </h4>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-info">
+                        <i class="bi bi-info-circle me-2"></i>
+                        This page tests the Field Metadata Service that discovers all available fields for reporting.
+                        It shows both regular database fields AND your custom fields from the EAV system.
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Select Entity Type:</label>
+                        <div class="btn-group" role="group">
+                            <a asp-page="/Tools/TestFieldDiscovery" asp-route-entityType="Case" 
+                               class="btn @(Model.SelectedEntityType == "Case" ? "btn-primary" : "btn-outline-primary")">
+                                Case
+                            </a>
+                            <a asp-page="/Tools/TestFieldDiscovery" asp-route-entityType="Outbreak" 
+                               class="btn @(Model.SelectedEntityType == "Outbreak" ? "btn-primary" : "btn-outline-primary")">
+                                Outbreak
+                            </a>
+                            <a asp-page="/Tools/TestFieldDiscovery" asp-route-entityType="Patient" 
+                               class="btn @(Model.SelectedEntityType == "Patient" ? "btn-primary" : "btn-outline-primary")">
+                                Patient
+                            </a>
+                        </div>
+                    </div>
+
+                    @if (Model.CaseFields != null)
+                    {
+                        <h5 class="mt-4">Case Fields - Grouped by Category</h5>
+                        
+                        @foreach (var category in Model.CaseFields)
+                        {
+                            <div class="card mb-3">
+                                <div class="card-header">
+                                    <h6 class="mb-0">
+                                        @category.Key
+                                        <span class="badge bg-secondary">@category.Value.Count fields</span>
+                                    </h6>
+                                </div>
+                                <div class="card-body">
+                                    <div class="table-responsive">
+                                        <table class="table table-sm table-hover">
+                                            <thead>
+                                                <tr>
+                                                    <th>Field Path</th>
+                                                    <th>Display Name</th>
+                                                    <th>Data Type</th>
+                                                    <th>Nullable</th>
+                                                    <th>Custom Field</th>
+                                                    <th>Filterable</th>
+                                                    <th>Groupable</th>
+                                                    <th>Aggregatable</th>
+                                                    <th>Suggested Aggregations</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                @foreach (var field in category.Value)
+                                                {
+                                                    <tr>
+                                                        <td>
+                                                            <code>@field.FieldPath</code>
+                                                            @if (field.IsNavigationProperty)
+                                                            {
+                                                                <span class="badge bg-info" title="Navigation Property">Nav</span>
+                                                            }
+                                                            @if (field.IsCollection)
+                                                            {
+                                                                <span class="badge bg-warning" title="Collection">[]</span>
+                                                            }
+                                                        </td>
+                                                        <td>@field.DisplayName</td>
+                                                        <td><span class="badge bg-light text-dark">@field.DataType</span></td>
+                                                        <td>
+                                                            @if (field.IsNullable)
+                                                            {
+                                                                <i class="bi bi-check-circle text-success"></i>
+                                                            }
+                                                            else
+                                                            {
+                                                                <i class="bi bi-x-circle text-muted"></i>
+                                                            }
+                                                        </td>
+                                                        <td>
+                                                            @if (field.IsCustomField)
+                                                            {
+                                                                <span class="badge bg-success" title="From EAV Custom Fields">
+                                                                    Custom
+                                                                    @if (field.CustomFieldDefinitionId.HasValue)
+                                                                    {
+                                                                        <text>(ID: @field.CustomFieldDefinitionId)</text>
+                                                                    }
+                                                                </span>
+                                                            }
+                                                        </td>
+                                                        <td>
+                                                            @if (field.IsFilterable)
+                                                            {
+                                                                <i class="bi bi-check-circle text-success"></i>
+                                                            }
+                                                        </td>
+                                                        <td>
+                                                            @if (field.IsGroupable)
+                                                            {
+                                                                <i class="bi bi-check-circle text-success"></i>
+                                                            }
+                                                        </td>
+                                                        <td>
+                                                            @if (field.IsAggregatable)
+                                                            {
+                                                                <i class="bi bi-check-circle text-success"></i>
+                                                            }
+                                                        </td>
+                                                        <td>
+                                                            @if (field.SuggestedAggregations.Any())
+                                                            {
+                                                                <small>@string.Join(", ", field.SuggestedAggregations)</small>
+                                                            }
+                                                        </td>
+                                                    </tr>
+                                                    @if (!string.IsNullOrEmpty(field.PerformanceWarning))
+                                                    {
+                                                        <tr>
+                                                            <td colspan="9" class="bg-warning bg-opacity-10">
+                                                                <small class="text-warning">
+                                                                    <i class="bi bi-exclamation-triangle me-1"></i>
+                                                                    @field.PerformanceWarning
+                                                                </small>
+                                                            </td>
+                                                        </tr>
+                                                    }
+                                                }
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        }
+
+                        @if (Model.CaseCustomFields != null && Model.CaseCustomFields.Any())
+                        {
+                            <div class="alert alert-success mt-4">
+                                <h5>
+                                    <i class="bi bi-check-circle me-2"></i>
+                                    Custom Fields Detected!
+                                </h5>
+                                <p class="mb-0">
+                                    Found <strong>@Model.CaseCustomFields.Count</strong> active custom fields for Case entity.
+                                    These are from your EAV (Entity-Attribute-Value) custom field system.
+                                </p>
+                            </div>
+                        }
+                    }
+
+                    @if (Model.OutbreakFields != null)
+                    {
+                        <h5 class="mt-4">Outbreak Fields - Grouped by Category</h5>
+                        
+                        @foreach (var category in Model.OutbreakFields)
+                        {
+                            <div class="card mb-3">
+                                <div class="card-header">
+                                    <h6 class="mb-0">
+                                        @category.Key
+                                        <span class="badge bg-secondary">@category.Value.Count fields</span>
+                                    </h6>
+                                </div>
+                                <div class="card-body">
+                                    <div class="table-responsive">
+                                        <table class="table table-sm table-hover">
+                                            <thead>
+                                                <tr>
+                                                    <th>Field Path</th>
+                                                    <th>Display Name</th>
+                                                    <th>Data Type</th>
+                                                    <th>Suggested Aggregations</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                @foreach (var field in category.Value)
+                                                {
+                                                    <tr>
+                                                        <td><code>@field.FieldPath</code></td>
+                                                        <td>@field.DisplayName</td>
+                                                        <td><span class="badge bg-light text-dark">@field.DataType</span></td>
+                                                        <td><small>@string.Join(", ", field.SuggestedAggregations)</small></td>
+                                                    </tr>
+                                                }
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        }
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

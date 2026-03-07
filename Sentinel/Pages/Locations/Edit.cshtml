@@ -1,0 +1,204 @@
+@page
+@model Sentinel.Pages.Locations.EditModel
+
+@{
+    ViewData["Title"] = "Edit Location";
+}
+@functions {
+    public string GetCspNonce()
+    {
+        if (HttpContext?.Items?.TryGetValue("csp-nonce", out var nonce) == true && nonce is string nonceStr)
+        {
+            return nonceStr;
+        }
+        return string.Empty;
+    }
+}
+
+<nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a asp-page="/Index">Home</a></li>
+        <li class="breadcrumb-item"><a asp-page="./Index">Locations</a></li>
+        <li class="breadcrumb-item active" aria-current="page">Edit</li>
+    </ol>
+</nav>
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2><i class="bi bi-pencil me-2"></i>Edit Location</h2>
+</div>
+
+@if (TempData["ErrorMessage"] != null)
+{
+    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+        <i class="bi bi-exclamation-triangle me-2"></i>@TempData["ErrorMessage"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+}
+
+<form method="post">
+    <div asp-validation-summary="ModelOnly" class="alert alert-danger" role="alert"></div>
+    <input type="hidden" asp-for="Location.Id" />
+
+    <div class="card shadow-sm mb-4">
+        <div class="card-header bg-light fw-semibold">
+            <i class="bi bi-info-circle me-2"></i>Basic Information
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-8 mb-3">
+                    <label asp-for="Location.Name" class="form-label">
+                        <span class="text-danger">*</span> @Html.DisplayNameFor(m => m.Location.Name)
+                    </label>
+                    <input asp-for="Location.Name" class="form-control" aria-required="true" placeholder="e.g., Springfield Hospital, Central Mall" />
+                    <span asp-validation-for="Location.Name" class="text-danger small"></span>
+                </div>
+
+                <div class="col-md-4 mb-3">
+                    <label asp-for="Location.LocationTypeId" class="form-label">
+                        @Html.DisplayNameFor(m => m.Location.LocationTypeId)
+                    </label>
+                    <select asp-for="Location.LocationTypeId" asp-items="Model.LocationTypesList" class="form-select">
+                        <option value="">-- Select Type --</option>
+                    </select>
+                    <span asp-validation-for="Location.LocationTypeId" class="text-danger small"></span>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-md-12 mb-3">
+                    <label asp-for="Location.Address" class="form-label">
+                        @Html.DisplayNameFor(m => m.Location.Address)
+                        <i class="bi bi-geo-alt text-primary ms-1" title="Address will be automatically geocoded"></i>
+                    </label>
+                    <textarea asp-for="Location.Address" class="form-control" rows="2" placeholder="Full address for geocoding..."></textarea>
+                    <span asp-validation-for="Location.Address" class="text-danger small"></span>
+                    <small class="form-text text-muted">
+                        <i class="bi bi-info-circle me-1"></i>Address changes will trigger automatic re-geocoding
+                    </small>
+                </div>
+            </div>
+
+            @if (Model.Location.Latitude.HasValue && Model.Location.Longitude.HasValue)
+            {
+                <div class="row">
+                    <div class="col-md-12 mb-3">
+                        <div class="alert alert-info d-flex align-items-center">
+                            <i class="bi bi-geo-alt-fill me-2"></i>
+                            <div>
+                                <strong>Current Coordinates:</strong> @Model.Location.Latitude, @Model.Location.Longitude
+                                @if (Model.Location.LastGeocoded.HasValue)
+                                {
+                                    <span class="ms-2 text-muted">(Last geocoded: @Model.Location.LastGeocoded.Value.ToLocalTime().ToString("g"))</span>
+                                }
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            }
+
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label class="form-label">
+                        @Html.DisplayNameFor(m => m.Location.OrganizationId)
+                    </label>
+                    <input type="text" class="form-control" id="organizationAutocomplete" placeholder="Start typing organization name..." value="@(Model.Location.Organization?.Name ?? "")" />
+                    <input type="hidden" asp-for="Location.OrganizationId" id="organizationIdHidden" />
+                    <span asp-validation-for="Location.OrganizationId" class="text-danger small"></span>
+                    <small class="form-text text-muted">Link to an organization if applicable</small>
+                    @if (Model.Location.Organization != null)
+                    {
+                        <div id="selectedOrganizationInfo" class="alert alert-success mt-2">
+                            <strong>Selected:</strong> <span id="selectedOrgDisplay">@Model.Location.Organization.Name</span>
+                        </div>
+                    }
+                    else
+                    {
+                        <div id="selectedOrganizationInfo" class="alert alert-success mt-2" style="display: none;">
+                            <strong>Selected:</strong> <span id="selectedOrgDisplay"></span>
+                        </div>
+                    }
+                </div>
+
+                <div class="col-md-6 mb-3">
+                    <label class="form-label">Status & Risk</label>
+                    <div class="form-check">
+                        <input asp-for="Location.IsHighRisk" class="form-check-input" type="checkbox" />
+                        <label asp-for="Location.IsHighRisk" class="form-check-label">
+                            <i class="bi bi-exclamation-triangle text-warning me-1"></i>High Risk Location
+                        </label>
+                    </div>
+                    <div class="form-check mt-2">
+                        <input asp-for="Location.IsActive" class="form-check-input" type="checkbox" />
+                        <label asp-for="Location.IsActive" class="form-check-label">
+                            Active
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-md-12 mb-3">
+                    <label asp-for="Location.Notes" class="form-label">
+                        @Html.DisplayNameFor(m => m.Location.Notes)
+                    </label>
+                    <textarea asp-for="Location.Notes" class="form-control" rows="3" placeholder="Additional notes or details..."></textarea>
+                    <span asp-validation-for="Location.Notes" class="text-danger small"></span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="d-flex justify-content-between">
+        <a asp-page="./Index" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left me-1"></i>Cancel
+        </a>
+        <div>
+            @if (!string.IsNullOrEmpty(Model.Location.Address) && Model.Location.GeocodingStatus != "Success")
+            {
+                <button type="submit" name="geocode" value="true" class="btn btn-outline-primary me-2">
+                    <i class="bi bi-geo me-1"></i>Re-Geocode Address
+                </button>
+            }
+            <button type="submit" class="btn btn-primary">
+                <i class="bi bi-check-circle me-1"></i>Update Location
+            </button>
+        </div>
+    </div>
+</form>
+
+@section Scripts {
+    @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+    
+    <script>
+        $(function() {            // Organization Autocomplete
+            const orgInput = $("#organizationAutocomplete");
+            if (orgInput.length) {
+                orgInput.autocomplete({
+                    source: function(request, response) {
+                        $.ajax({
+                            url: "/api/organizations/search",
+                            data: { term: request.term },
+                            success: function(data) {
+                                response($.map(data, function(item) {
+                                    var label = item.name;
+                                    if (item.contactPerson) label += ' (Contact: ' + item.contactPerson + ')';
+                                    return { label: label, value: item.name, orgId: item.id, name: item.name };
+                                }));
+                            },
+                            error: function(err) {                                response([]);
+                            }
+                        });
+                    },
+                    minLength: 2,
+                    select: function(event, ui) {
+                        if (!ui.item.orgId) return false;
+                        $('#organizationIdHidden').val(ui.item.orgId);
+                        $('#selectedOrgDisplay').text(ui.item.name);
+                        $('#selectedOrganizationInfo').show();
+                        return true;
+                    }
+                });
+            }
+        });
+    </script>
+}

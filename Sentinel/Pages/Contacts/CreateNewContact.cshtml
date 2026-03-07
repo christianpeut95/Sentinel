@@ -1,0 +1,1008 @@
+@page
+@model Sentinel.Pages.Contacts.CreateNewContactModel
+
+@{
+    ViewData["Title"] = "Create Contact";
+    Layout = "~/Pages/Shared/_Layout.cshtml";
+}
+@functions {
+    public string GetCspNonce()
+    {
+        if (HttpContext?.Items?.TryGetValue("csp-nonce", out var nonce) == true && nonce is string nonceStr)
+        {
+            return nonceStr;
+        }
+        return string.Empty;
+    }
+}
+
+<style>
+    /* Purple Theme for Contact Creation */
+    .create-contact-container {
+        max-width: 1200px;
+        margin: 0 auto;
+    }
+
+    /* Progress Steps */
+    .progress-steps {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 3rem;
+        position: relative;
+    }
+
+    .progress-steps::before {
+        content: '';
+        position: absolute;
+        top: 20px;
+        left: 10%;
+        right: 10%;
+        height: 2px;
+        background: #e2e8f0;
+        z-index: 0;
+    }
+
+    .step {
+        flex: 1;
+        text-align: center;
+        position: relative;
+        z-index: 1;
+    }
+
+    .step-circle {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        background: white;
+        border: 2px solid #e2e8f0;
+        color: #9ca3af;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 600;
+        margin-bottom: 0.5rem;
+        transition: all 0.3s;
+    }
+
+    .step.active .step-circle {
+        background: #7c3aed;
+        border-color: #7c3aed;
+        color: white;
+    }
+
+    .step.completed .step-circle {
+        background: #22c55e;
+        border-color: #22c55e;
+        color: white;
+    }
+
+    .step-label {
+        font-size: 14px;
+        color: #718096;
+        font-weight: 500;
+    }
+
+    .step.active .step-label {
+        color: #7c3aed;
+        font-weight: 600;
+    }
+
+    /* Step Content Card */
+    .step-content {
+        background: white;
+        border-radius: 12px;
+        padding: 2rem;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+        border: 1px solid rgba(0, 0, 0, 0.06);
+        display: none;
+    }
+
+    .step-content.active {
+        display: block;
+        animation: fadeIn 0.3s;
+    }
+
+    @@keyframes fadeIn {
+        from { opacity: 0; transform: translateY(10px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Patient Search */
+    .search-box {
+        position: relative;
+        margin-bottom: 1.5rem;
+    }
+
+    .search-input {
+        width: 100%;
+        padding: 14px 16px 14px 45px;
+        border: 1px solid #e2e8f0;
+        border-radius: 10px;
+        font-size: 16px;
+        transition: all 0.2s;
+    }
+
+    .search-input:focus {
+        outline: none;
+        border-color: #7c3aed;
+        box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.1);
+    }
+
+    .search-icon {
+        position: absolute;
+        left: 16px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: #9ca3af;
+        font-size: 18px;
+    }
+
+    .search-results {
+        position: absolute;
+        top: 100%;
+        left: 0;
+        right: 0;
+        background: white;
+        border: 1px solid #e2e8f0;
+        border-radius: 10px;
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+        max-height: 400px;
+        overflow-y: auto;
+        z-index: 100;
+        display: none;
+    }
+
+    .search-results.show {
+        display: block;
+    }
+
+    .search-result-item {
+        padding: 12px 16px;
+        cursor: pointer;
+        transition: background 0.15s;
+        border-bottom: 1px solid #f7fafc;
+    }
+
+    .search-result-item:last-child {
+        border-bottom: none;
+    }
+
+    .search-result-item:hover {
+        background: #faf5ff;
+    }
+
+    .search-result-name {
+        font-weight: 600;
+        color: #2d3748;
+        margin-bottom: 4px;
+    }
+
+    .search-result-meta {
+        font-size: 13px;
+        color: #718096;
+    }
+
+    /* Selected Patient/Case Card */
+    .selected-patient-card, .selected-case-card {
+        background: #faf5ff;
+        border: 1px solid #c4b5fd;
+        border-radius: 10px;
+        padding: 1.25rem;
+        margin-bottom: 1.5rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .patient-info h4, .case-info h4 {
+        font-size: 18px;
+        font-weight: 600;
+        color: #2d3748;
+        margin-bottom: 4px;
+    }
+
+    .patient-info p, .case-info p {
+        font-size: 14px;
+        color: #718096;
+        margin: 0;
+    }
+
+    .btn-change {
+        background: white;
+        border: 1px solid #c4b5fd;
+        color: #7c3aed;
+        padding: 8px 16px;
+        border-radius: 8px;
+        font-size: 14px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .btn-change:hover {
+        background: #faf5ff;
+        border-color: #7c3aed;
+    }
+
+    /* Form Elements */
+    .form-group {
+        margin-bottom: 1.5rem;
+    }
+
+    .form-label {
+        display: block;
+        font-size: 14px;
+        font-weight: 600;
+        color: #2d3748;
+        margin-bottom: 8px;
+    }
+
+    .form-label .required {
+        color: #dc2626;
+        margin-left: 4px;
+    }
+
+    .form-control-modern {
+        width: 100%;
+        padding: 12px 16px;
+        border: 1px solid #e2e8f0;
+        border-radius: 10px;
+        font-size: 15px;
+        transition: all 0.2s;
+    }
+
+    .form-control-modern:focus {
+        outline: none;
+        border-color: #7c3aed;
+        box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.1);
+    }
+
+    .form-hint {
+        font-size: 13px;
+        color: #718096;
+        margin-top: 6px;
+    }
+
+    /* Action Buttons */
+    .step-actions {
+        display: flex;
+        justify-content: space-between;
+        margin-top: 2rem;
+        padding-top: 2rem;
+        border-top: 1px solid #e2e8f0;
+    }
+
+    .btn-modern {
+        padding: 12px 24px;
+        border-radius: 10px;
+        font-size: 15px;
+        font-weight: 600;
+        border: none;
+        cursor: pointer;
+        transition: all 0.2s;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .btn-primary {
+        background: #7c3aed;
+        color: white;
+    }
+
+    .btn-primary:hover {
+        background: #6d28d9;
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(124, 58, 237, 0.3);
+    }
+
+    .btn-secondary {
+        background: white;
+        color: #7c3aed;
+        border: 1px solid #c4b5fd;
+    }
+
+    .btn-secondary:hover {
+        background: #faf5ff;
+        border-color: #7c3aed;
+    }
+
+    .btn-success {
+        background: #22c55e;
+        color: white;
+    }
+
+    .btn-success:hover {
+        background: #16a34a;
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(34, 197, 94, 0.3);
+    }
+
+    /* Create New Patient Link */
+    .create-patient-prompt {
+        text-align: center;
+        padding: 2rem;
+        background: #faf5ff;
+        border-radius: 10px;
+        margin-top: 1rem;
+    }
+
+    .create-patient-prompt p {
+        color: #718096;
+        margin-bottom: 1rem;
+    }
+
+    /* Breadcrumb */
+    .breadcrumb {
+        background: transparent;
+        padding: 0;
+        margin-bottom: 1.5rem;
+        font-size: 14px;
+    }
+
+    .breadcrumb-item a {
+        color: #718096;
+        text-decoration: none;
+    }
+
+    .breadcrumb-item a:hover {
+        color: #7c3aed;
+    }
+
+    .breadcrumb-item.active {
+        color: #2d3748;
+    }
+</style>
+
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a asp-page="/Index">Home</a></li>
+        <li class="breadcrumb-item"><a asp-page="./Index">Contacts</a></li>
+        <li class="breadcrumb-item active">Create Contact</li>
+    </ol>
+</nav>
+
+<div class="create-contact-container">
+<h1 style="font-size: 28px; font-weight: 600; color: #2d3748; margin-bottom: 2rem;">
+    <i class="bi bi-people me-2" style="color: #7c3aed;"></i>Create New Contact
+</h1>
+
+<!-- Progress Steps -->
+    <div class="progress-steps">
+        <div class="step active" data-step="1">
+            <div class="step-circle">1</div>
+            <div class="step-label">Patient</div>
+        </div>
+        <div class="step" data-step="2">
+            <div class="step-circle">2</div>
+            <div class="step-label">Contact Details</div>
+        </div>
+        <div class="step" data-step="3">
+            <div class="step-circle">3</div>
+            <div class="step-label">Source Case</div>
+        </div>
+        <div class="step" data-step="4">
+            <div class="step-circle">4</div>
+            <div class="step-label">Review</div>
+        </div>
+    </div>
+
+    <form id="createContactForm" method="post">
+        @Html.AntiForgeryToken()
+        
+        <!-- Step 1: Patient Selection -->
+        <div class="step-content active" data-step="1">
+            <h2 style="font-size: 20px; font-weight: 600; margin-bottom: 1.5rem;">Select or Create Patient</h2>
+            
+            <div id="patientSearchSection">
+                <div class="search-box">
+                    <i class="bi bi-search search-icon"></i>
+                    <input type="text" 
+                           id="patientSearch" 
+                           class="search-input" 
+                           placeholder="Search by name, date of birth, or ID..." 
+                           autocomplete="off">
+                    <div id="searchResults" class="search-results"></div>
+                </div>
+
+                <div class="create-patient-prompt">
+                    <p>Can't find the patient?</p>
+                    <a asp-page="/Patients/Create" asp-route-returnUrl="@Url.Page("/Contacts/CreateNewContact")" class="btn-modern btn-secondary">
+                        <i class="bi bi-person-plus"></i>
+                        Create New Patient
+                    </a>
+                </div>
+            </div>
+
+            <div id="selectedPatientSection" style="display: none;">
+                <div class="selected-patient-card">
+                    <div class="patient-info">
+                        <h4 id="selectedPatientName"></h4>
+                        <p id="selectedPatientDetails"></p>
+                    </div>
+                    <button type="button" class="btn-change" onclick="changePatient()">
+                        <i class="bi bi-arrow-left-right"></i>
+                        Change
+                    </button>
+                </div>
+
+                <div class="alert alert-success" id="patientDetailsConfirmed" style="display: none;">
+                    <i class="bi bi-check-circle me-2"></i>
+                    Patient selected. You can proceed with creating the contact.
+                </div>
+            </div>
+
+            <input type="hidden" id="selectedPatientId" name="PatientId" />
+
+            <div class="step-actions">
+                <div></div>
+                <button type="button" class="btn-modern btn-primary" onclick="nextStep()" id="step1Next" disabled>
+                    Next
+                    <i class="bi bi-arrow-right"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- Step 2: Contact Details -->
+        <div class="step-content" data-step="2">
+            <h2 style="font-size: 20px; font-weight: 600; margin-bottom: 1.5rem;">Contact Information</h2>
+            
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="form-group">
+                        <label class="form-label">Disease<span class="required">*</span></label>
+                        <select id="diseaseSelect" name="DiseaseId" class="form-control-modern" required>
+                            <option value="">-- Select Disease --</option>
+                            @if (Model.Diseases != null)
+                            {
+                                @foreach (var disease in Model.Diseases)
+                                {
+                                    <option value="@disease.Id">@disease.Name</option>
+                                }
+                            }
+                        </select>
+                        <div class="form-hint">Select the disease this contact was exposed to</div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="form-group">
+                        <label class="form-label">Contact Status</label>
+                        <select name="ConfirmationStatusId" class="form-control-modern">
+                            <option value="">-- Select Status --</option>
+                            @if (Model.CaseStatuses != null)
+                            {
+                                @foreach (var status in Model.CaseStatuses)
+                                {
+                                    <option value="@status.Id">@status.Name</option>
+                                }
+                            }
+                        </select>
+                        <div class="form-hint">Current status of this contact</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="form-group">
+                        <label class="form-label">Date of First Exposure</label>
+                        <input type="date" id="dateOfOnset" name="DateOfOnset" class="form-control-modern">
+                        <div class="form-hint">When was this person first exposed?</div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="form-group">
+                        <label class="form-label">Date Contact Identified</label>
+                        <input type="date" name="DateOfNotification" class="form-control-modern" value="@DateTime.Today.ToString("yyyy-MM-dd")">
+                        <div class="form-hint">When was this contact identified?</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Clinical Notes</label>
+                <textarea name="ClinicalNotes" class="form-control-modern" rows="4" placeholder="Enter any relevant information about this contact..."></textarea>
+            </div>
+
+            <div class="step-actions">
+                <button type="button" class="btn-modern btn-secondary" onclick="prevStep()">
+                    <i class="bi bi-arrow-left"></i>
+                    Back
+                </button>
+                <button type="button" class="btn-modern btn-primary" onclick="nextStep()">
+                    Next
+                    <i class="bi bi-arrow-right"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- Step 3: Link to Source Case -->
+        <div class="step-content" data-step="3">
+            <h2 style="font-size: 20px; font-weight: 600; margin-bottom: 1.5rem;">Link to Source Case</h2>
+            
+            <div class="alert alert-info mb-4">
+                <i class="bi bi-diagram-3 me-2"></i>
+                Link this contact to the <strong>source case</strong> they were exposed to. This creates the exposure record that tracks the relationship.
+            </div>
+
+            <!-- Search for Source Case -->
+            <div id="sourceCaseSearchSection">
+                <div class="search-box">
+                    <i class="bi bi-search search-icon"></i>
+                    <input type="text" 
+                           id="sourceCaseSearch" 
+                           class="search-input" 
+                           placeholder="Search for source case by ID, patient name, or disease..." 
+                           autocomplete="off">
+                    <div id="sourceCaseSearchResults" class="search-results"></div>
+                </div>
+
+                <div class="text-center mt-3">
+                    <p class="text-muted mb-2">Or skip this step if you don't know the source case yet</p>
+                    <button type="button" class="btn-modern btn-secondary" onclick="skipSourceCase()">
+                        <i class="bi bi-skip-forward"></i>
+                        Skip for Now
+                    </button>
+                </div>
+            </div>
+
+            <!-- Selected Source Case -->
+            <div id="selectedSourceCaseSection" style="display: none;">
+                <div class="selected-case-card">
+                    <div class="case-info">
+                        <h4 id="selectedSourceCaseName"></h4>
+                        <p id="selectedSourceCaseDetails"></p>
+                    </div>
+                    <button type="button" class="btn-change" onclick="changeSourceCase()">
+                        <i class="bi bi-arrow-left-right"></i>
+                        Change
+                    </button>
+                </div>
+
+                <!-- Exposure Details -->
+                <div class="card mt-3">
+                    <div class="card-header" style="background: #faf5ff; border-bottom: 1px solid #c4b5fd;">
+                        <h6 class="mb-0" style="color: #7c3aed;">
+                            <i class="bi bi-link-45deg me-2"></i>Exposure Details
+                        </h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label class="form-label">Contact Classification</label>
+                                    <select id="contactClassification" class="form-control-modern">
+                                        <option value="">-- Select Classification --</option>
+                                        @if (Model.ContactClassifications != null)
+                                        {
+                                            @foreach (var classification in Model.ContactClassifications)
+                                            {
+                                                <option value="@classification.Id">@classification.Name</option>
+                                            }
+                                        }
+                                    </select>
+                                    <div class="form-hint">Type of contact (e.g., Household, Close, Casual)</div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label class="form-label">Exposure Start Date</label>
+                                    <input type="date" id="exposureStartDate" class="form-control-modern" value="@DateTime.Today.ToString("yyyy-MM-dd")">
+                                    <div class="form-hint">When did the exposure begin?</div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label class="form-label">Exposure End Date</label>
+                                    <input type="date" id="exposureEndDate" class="form-control-modern">
+                                    <div class="form-hint">When did the exposure end? (optional)</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label">Exposure Description</label>
+                            <textarea id="exposureDescription" class="form-control-modern" rows="3" placeholder="Describe the nature of the exposure..."></textarea>
+                            <div class="form-hint">Details about how and where the exposure occurred</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <input type="hidden" id="selectedSourceCaseId" />
+
+            <div class="step-actions">
+                <button type="button" class="btn-modern btn-secondary" onclick="prevStep()">
+                    <i class="bi bi-arrow-left"></i>
+                    Back
+                </button>
+                <button type="button" class="btn-modern btn-primary" onclick="nextStep()" id="step3Next">
+                    Next
+                    <i class="bi bi-arrow-right"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- Step 4: Review & Submit -->
+        <div class="step-content" data-step="4">
+            <h2 style="font-size: 20px; font-weight: 600; margin-bottom: 1.5rem;">Review & Submit</h2>
+            
+            <div id="reviewSummary" style="background: #faf5ff; padding: 2rem; border-radius: 10px; border: 1px solid #c4b5fd;">
+                <!-- Summary will be populated by JavaScript -->
+            </div>
+
+            <div class="step-actions">
+                <button type="button" class="btn-modern btn-secondary" onclick="prevStep()">
+                    <i class="bi bi-arrow-left"></i>
+                    Back
+                </button>
+                <button type="button" class="btn-modern btn-success" onclick="submitContact()">
+                    <i class="bi bi-check-circle"></i>
+                    Create Contact
+                </button>
+            </div>
+        </div>
+    </form>
+</div>
+
+@section Scripts {
+@{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+@inject Microsoft.Extensions.Configuration.IConfiguration Configuration
+    
+<script src="~/lib/jquery/dist/jquery.min.js"></script>
+<script>
+    let currentStep = 1;
+    let selectedPatient = null;
+    let selectedSourceCase = null;
+    let createdContactId = null;
+
+    $(document).ready(function() {    });
+
+    // Patient Search with Debounce
+    let searchTimeout;
+    $('#patientSearch').on('input', function() {
+        clearTimeout(searchTimeout);
+        const query = $(this).val();
+        
+        if (query.length < 2) {
+            $('#searchResults').removeClass('show');
+            return;
+        }
+
+        searchTimeout = setTimeout(() => searchPatients(query), 300);
+    });
+
+    function searchPatients(query) {
+        $.ajax({
+            url: '/api/patients/search',
+            method: 'GET',
+            data: { query: query },
+            success: function(patients) {
+                displayPatientSearchResults(patients);
+            },
+            error: function() {            }
+        });
+    }
+
+    function displayPatientSearchResults(patients) {
+        const $results = $('#searchResults');
+        $results.empty();
+
+        if (patients.length === 0) {
+            $results.html('<div class="search-result-item">No patients found</div>');
+        } else {
+            patients.forEach(patient => {
+                const $item = $(`
+                    <div class="search-result-item" onclick="selectPatient('${patient.id}', '${patient.name}', '${patient.dateOfBirth}', '${patient.friendlyId}')">
+                        <div class="search-result-name">${patient.name}</div>
+                        <div class="search-result-meta">DOB: ${patient.dateOfBirth || 'N/A'} | ID: ${patient.friendlyId}</div>
+                    </div>
+                `);
+                $results.append($item);
+            });
+        }
+
+        $results.addClass('show');
+    }
+
+    function selectPatient(id, name, dob, friendlyId) {
+        selectedPatient = { id, name, dob, friendlyId };
+        
+        $('#selectedPatientId').val(id);
+        $('#selectedPatientName').text(name);
+        $('#selectedPatientDetails').text(`DOB: ${dob || 'N/A'} | ID: ${friendlyId}`);
+        
+        $('#patientSearchSection').hide();
+        $('#selectedPatientSection').show();
+        $('#searchResults').removeClass('show');
+        $('#patientDetailsConfirmed').show();
+        $('#step1Next').prop('disabled', false);
+    }
+
+    function changePatient() {
+        $('#patientSearchSection').show();
+        $('#selectedPatientSection').hide();
+        $('#patientSearch').val('').focus();
+        $('#step1Next').prop('disabled', true);
+    }
+
+    // Source Case Search
+    $('#sourceCaseSearch').on('input', function() {
+        clearTimeout(searchTimeout);
+        const query = $(this).val();
+        
+        if (query.length < 2) {
+            $('#sourceCaseSearchResults').removeClass('show');
+            return;
+        }
+
+        searchTimeout = setTimeout(() => searchSourceCases(query), 300);
+    });
+
+    function searchSourceCases(query) {        $.ajax({
+            url: '/api/cases/search',
+            method: 'GET',
+            data: { query: query, type: 'Case' },
+            success: function(cases) {                displaySourceCaseResults(cases);
+            },
+            error: function(xhr, status, error) {                alert('Failed to search for source cases. Please try again.');
+            }
+        });
+    }
+
+    function displaySourceCaseResults(cases) {
+        const $results = $('#sourceCaseSearchResults');
+        $results.empty();
+
+        if (cases.length === 0) {
+            $results.html('<div class="search-result-item">No cases found</div>');
+        } else {
+            cases.forEach(caseItem => {
+                const $item = $(`
+                    <div class="search-result-item" onclick="selectSourceCase('${caseItem.id}', '${caseItem.friendlyId}', '${caseItem.patientName}', '${caseItem.diseaseName}')">
+                        <div class="search-result-name">${caseItem.friendlyId} - ${caseItem.patientName}</div>
+                        <div class="search-result-meta">Disease: ${caseItem.diseaseName} | Notified: ${caseItem.dateOfNotification}</div>
+                    </div>
+                `);
+                $results.append($item);
+            });
+        }
+
+        $results.addClass('show');
+    }
+
+    function selectSourceCase(id, friendlyId, patientName, diseaseName) {
+        selectedSourceCase = { id, friendlyId, patientName, diseaseName };
+        
+        $('#selectedSourceCaseId').val(id);
+        $('#selectedSourceCaseName').text(`${friendlyId} - ${patientName}`);
+        $('#selectedSourceCaseDetails').text(`Disease: ${diseaseName}`);
+        
+        $('#sourceCaseSearchSection').hide();
+        $('#selectedSourceCaseSection').show();
+        $('#sourceCaseSearchResults').removeClass('show');
+    }
+
+    function changeSourceCase() {
+        $('#sourceCaseSearchSection').show();
+        $('#selectedSourceCaseSection').hide();
+        $('#sourceCaseSearch').val('').focus();
+    }
+
+    function skipSourceCase() {
+        // Allow user to proceed without linking to source case
+        selectedSourceCase = null;
+        $('#selectedSourceCaseId').val('');
+        nextStep();
+    }
+
+    // Step Navigation
+    function nextStep() {
+        // If moving from Step 2 to Step 3, save the contact first
+        if (currentStep === 2 && !createdContactId) {
+            saveContactAndContinue();
+            return;
+        }
+        
+        if (currentStep < 4) {
+            $(`.step-content[data-step="${currentStep}"]`).removeClass('active');
+            $(`.step[data-step="${currentStep}"]`).removeClass('active').addClass('completed');
+            
+            currentStep++;
+            
+            $(`.step-content[data-step="${currentStep}"]`).addClass('active');
+            $(`.step[data-step="${currentStep}"]`).addClass('active');
+
+            if (currentStep === 4) {
+                populateReviewSummary();
+            }
+            
+            $('html, body').animate({ scrollTop: 0 }, 300);
+        }
+    }
+
+    function prevStep() {
+        if (currentStep > 1) {
+            $(`.step-content[data-step="${currentStep}"]`).removeClass('active');
+            $(`.step[data-step="${currentStep}"]`).removeClass('active');
+            
+            currentStep--;
+            
+            $(`.step-content[data-step="${currentStep}"]`).addClass('active');
+            $(`.step[data-step="${currentStep}"]`).removeClass('completed').addClass('active');
+            
+            $('html, body').animate({ scrollTop: 0 }, 300);
+        }
+    }
+
+    // Save contact after Step 2 and proceed to Step 3 (Source Case)
+    function saveContactAndContinue() {
+        const patientId = $('#selectedPatientId').val();
+        const diseaseId = $('#diseaseSelect').val();
+        const confirmationStatusId = $('select[name="ConfirmationStatusId"]').val();
+        const dateOfOnset = $('input[name="DateOfOnset"]').val();
+        const dateOfNotification = $('input[name="DateOfNotification"]').val();
+        const clinicalNotes = $('textarea[name="ClinicalNotes"]').val();
+
+        if (!diseaseId) {
+            alert('Please select a disease before continuing.');
+            return;
+        }
+
+        // Show loading indicator
+        const $nextBtn = $('.step-content[data-step="2"] .btn-primary');
+        const originalText = $nextBtn.html();
+        $nextBtn.prop('disabled', true).html('<i class="bi bi-hourglass-split"></i> Creating contact...');
+
+        $.ajax({
+            url: '/Contacts/CreateNewContact?handler=SaveInitialContact',
+            type: 'POST',
+            headers: {
+                'RequestVerificationToken': $('input[name="__RequestVerificationToken"]').val()
+            },
+            contentType: 'application/json',
+            data: JSON.stringify({
+                patientId: patientId,
+                diseaseId: diseaseId,
+                confirmationStatusId: confirmationStatusId || null,
+                dateOfOnset: dateOfOnset || null,
+                dateOfNotification: dateOfNotification,
+                clinicalNotes: clinicalNotes || null
+            }),
+            success: function(response) {
+                if (response.success && response.contactId) {
+                    createdContactId = response.contactId;                    // Restore button and proceed to next step
+                    $nextBtn.prop('disabled', false).html(originalText);
+                    
+                    // Move to Step 3
+                    $(`.step-content[data-step="2"]`).removeClass('active');
+                    $(`.step[data-step="2"]`).removeClass('active').addClass('completed');
+                    currentStep = 3;
+                    $(`.step-content[data-step="3"]`).addClass('active');
+                    $(`.step[data-step="3"]`).addClass('active');
+                    $('html, body').animate({ scrollTop: 0 }, 300);
+                } else {
+                    alert('Error creating contact: ' + (response.message || 'Unknown error'));
+                    $nextBtn.prop('disabled', false).html(originalText);
+                }
+            },
+            error: function(xhr) {
+                alert('Error creating contact. Please try again.');                $nextBtn.prop('disabled', false).html(originalText);
+            }
+        });
+    }
+
+    function populateReviewSummary() {
+        let summaryHtml = '<h3 style="margin-bottom: 1.5rem;">Contact Summary</h3>';
+        
+        // Patient Info
+        summaryHtml += `
+            <div class="mb-4">
+                <h5 style="color: #7c3aed; margin-bottom: 1rem;"><i class="bi bi-person me-2"></i>Patient</h5>
+                <p><strong>${selectedPatient.name}</strong></p>
+                <p class="text-muted">DOB: ${selectedPatient.dob || 'N/A'} | ID: ${selectedPatient.friendlyId}</p>
+            </div>
+        `;
+        
+        // Contact Details
+        const disease = $('#diseaseSelect option:selected').text();
+        const status = $('select[name="ConfirmationStatusId"] option:selected').text();
+        const dateOfOnset = $('input[name="DateOfOnset"]').val();
+        const dateOfNotification = $('input[name="DateOfNotification"]').val();
+        
+        summaryHtml += `
+            <div class="mb-4">
+                <h5 style="color: #7c3aed; margin-bottom: 1rem;"><i class="bi bi-file-medical me-2"></i>Contact Details</h5>
+                <p><strong>Disease:</strong> ${disease}</p>
+                <p><strong>Status:</strong> ${status || 'Not specified'}</p>
+                <p><strong>Date of First Exposure:</strong> ${dateOfOnset ? new Date(dateOfOnset).toLocaleDateString() : 'Not specified'}</p>
+                <p><strong>Date Identified:</strong> ${dateOfNotification ? new Date(dateOfNotification).toLocaleDateString() : 'Not specified'}</p>
+            </div>
+        `;
+        
+        // Source Case Info
+        if (selectedSourceCase) {
+            const classification = $('#contactClassification option:selected').text();
+            const exposureStart = $('#exposureStartDate').val();
+            const exposureEnd = $('#exposureEndDate').val();
+            const exposureDesc = $('#exposureDescription').val();
+            
+            summaryHtml += `
+                <div class="mb-4">
+                    <h5 style="color: #7c3aed; margin-bottom: 1rem;"><i class="bi bi-diagram-3 me-2"></i>Source Case & Exposure</h5>
+                    <p><strong>Source Case:</strong> ${selectedSourceCase.friendlyId} - ${selectedSourceCase.patientName}</p>
+                    <p><strong>Source Disease:</strong> ${selectedSourceCase.diseaseName}</p>
+                    <p><strong>Contact Classification:</strong> ${classification || 'Not specified'}</p>
+                    <p><strong>Exposure Period:</strong> ${exposureStart ? new Date(exposureStart).toLocaleDateString() : 'Not specified'} 
+                       ${exposureEnd ? ' to ' + new Date(exposureEnd).toLocaleDateString() : ''}</p>
+                    ${exposureDesc ? '<p><strong>Description:</strong> ' + exposureDesc + '</p>' : ''}
+                </div>
+            `;
+        } else {
+            summaryHtml += `
+                <div class="mb-4">
+                    <div class="alert alert-warning">
+                        <i class="bi bi-exclamation-triangle me-2"></i>
+                        No source case linked. You can add exposure information later from the contact details page.
+                    </div>
+                </div>
+            `;
+        }
+        
+        $('#reviewSummary').html(summaryHtml);
+    }
+
+    function submitContact() {
+        if (!createdContactId) {
+            alert('Error: Contact not created properly');
+            return;
+        }
+
+        // If source case is selected, create exposure record
+        if (selectedSourceCase && selectedSourceCase.id) {
+            const sourceCaseId = selectedSourceCase.id;
+            const contactClassificationId = $('#contactClassification').val() || null;
+            const exposureStartDate = $('#exposureStartDate').val() || null;
+            const exposureEndDate = $('#exposureEndDate').val() || null;
+            const exposureDescription = $('#exposureDescription').val() || null;
+
+            // Show loading
+            const $submitBtn = $('.step-content[data-step="4"] .btn-success');
+            const originalText = $submitBtn.html();
+            $submitBtn.prop('disabled', true).html('<i class="bi bi-hourglass-split"></i> Linking to source case...');
+
+            $.ajax({
+                url: '/Contacts/CreateNewContact?handler=LinkToSourceCase',
+                type: 'POST',
+                headers: {
+                    'RequestVerificationToken': $('input[name="__RequestVerificationToken"]').val()
+                },
+                contentType: 'application/json',
+                data: JSON.stringify({
+                    contactCaseId: createdContactId,
+                    sourceCaseId: sourceCaseId,
+                    contactClassificationId: contactClassificationId,
+                    exposureStartDate: exposureStartDate,
+                    exposureEndDate: exposureEndDate,
+                    description: exposureDescription
+                }),
+                success: function(response) {
+                    if (response.success) {
+                        window.location.href = response.redirectUrl;
+                    } else {
+                        alert('Error linking to source case: ' + (response.message || 'Unknown error'));
+                        $submitBtn.prop('disabled', false).html(originalText);
+                    }
+                },
+                error: function(xhr) {
+                    alert('Error linking to source case. Redirecting to contact details...');                    // Still redirect to contact details even if exposure link fails
+                    window.location.href = `/Contacts/Details?id=${createdContactId}`;
+                }
+            });
+        } else {
+            // No source case - just redirect to contact details
+            window.location.href = `/Contacts/Details?id=${createdContactId}`;
+        }
+    }
+</script>
+}

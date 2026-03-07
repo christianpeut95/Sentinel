@@ -1,0 +1,587 @@
+@page
+@model Sentinel.Pages.Cases.CreateModel
+@using Sentinel.Models
+@using Sentinel.Models.Lookups
+
+@{
+    ViewData["Title"] = "Create Case";
+    Layout = "~/Pages/Shared/_Layout.cshtml";
+}
+@functions {
+    public string GetCspNonce()
+    {
+        if (HttpContext?.Items?.TryGetValue("csp-nonce", out var nonce) == true && nonce is string nonceStr)
+        {
+            return nonceStr;
+        }
+        return string.Empty;
+    }
+}
+
+<nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a asp-page="/Index">Home</a></li>
+        <li class="breadcrumb-item"><a asp-page="./Index">Cases</a></li>
+        <li class="breadcrumb-item active" aria-current="page">Create</li>
+    </ol>
+</nav>
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2><i class="bi bi-plus-circle me-2"></i>Create Case</h2>
+</div>
+
+@if (TempData["ErrorMessage"] != null)
+{
+    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+        <i class="bi bi-exclamation-triangle-fill me-2"></i>@TempData["ErrorMessage"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+}
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-body">
+                <form method="post">
+                    <div asp-validation-summary="ModelOnly" class="alert alert-danger" role="alert"></div>
+                    
+                    <input type="hidden" asp-for="Case.Type" value="@CaseType.Case" />
+                    
+                    <div class="mb-3">
+                        <label asp-for="Case.PatientId" class="form-label">Patient <span class="text-danger">*</span></label>
+                        <select asp-for="Case.PatientId" class="form-select" asp-items="ViewBag.PatientId" id="patientDropdown">
+                            <option value="">-- Select Patient --</option>
+                        </select>
+                        <span asp-validation-for="Case.PatientId" class="text-danger"></span>
+                        <small class="form-text text-muted">Select the patient for this case</small>
+                    </div>
+
+                    <!-- Patient Details Review Section -->
+                    <div id="patientReviewSection" class="mb-3" style="display: none;">
+                        <div class="card border-primary">
+                            <div class="card-header bg-primary bg-opacity-10">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <h6 class="mb-0">
+                                        <i class="bi bi-person-check me-2"></i>Review Patient Details
+                                    </h6>
+                                    <button type="button" class="btn btn-sm btn-outline-primary" id="editPatientDetailsBtn">
+                                        <i class="bi bi-pencil me-1"></i>Edit Details
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="card-body">
+                                <div class="alert alert-info mb-3">
+                                    <i class="bi bi-info-circle me-2"></i>
+                                    Please review the patient details below. You can edit them if needed before creating the case.
+                                </div>
+
+                                <!-- Patient Details Display -->
+                                <div id="patientDetailsDisplay">
+                                    <div class="row g-3">
+                                        <div class="col-md-6">
+                                            <label class="form-label fw-bold">Name</label>
+                                            <div id="patientNameDisplay" class="form-control-plaintext">-</div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label class="form-label fw-bold">Date of Birth</label>
+                                            <div id="patientDOBDisplay" class="form-control-plaintext">-</div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label class="form-label fw-bold">Email</label>
+                                            <div id="patientEmailDisplay" class="form-control-plaintext">-</div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label class="form-label fw-bold">Mobile Phone</label>
+                                            <div id="patientMobileDisplay" class="form-control-plaintext">-</div>
+                                        </div>
+                                        <div class="col-md-12">
+                                            <label class="form-label fw-bold">Home Address</label>
+                                            <div id="patientAddressDisplay" class="form-control-plaintext">-</div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Patient Details Edit Form (Hidden by default) -->
+                                <div id="patientDetailsEdit" style="display: none;">
+                                    <div class="row g-3">
+                                        <div class="col-md-6">
+                                            <label for="editGivenName" class="form-label">Given Name</label>
+                                            <input type="text" id="editGivenName" class="form-control" />
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label for="editFamilyName" class="form-label">Family Name</label>
+                                            <input type="text" id="editFamilyName" class="form-control" />
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label for="editDateOfBirth" class="form-label">Date of Birth</label>
+                                            <input type="date" id="editDateOfBirth" class="form-control" />
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label for="editGender" class="form-label">Gender</label>
+                                            <select id="editGender" class="form-select">
+                                                <option value="">-- Select --</option>
+                                            </select>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label for="editEmailAddress" class="form-label">Email</label>
+                                            <input type="email" id="editEmailAddress" class="form-control" />
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label for="editMobilePhone" class="form-label">Mobile Phone</label>
+                                            <input type="tel" id="editMobilePhone" class="form-control" />
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label for="editHomePhone" class="form-label">Home Phone</label>
+                                            <input type="tel" id="editHomePhone" class="form-control" />
+                                        </div>
+                                        <div class="col-md-12">
+                                            <label for="editAddress" class="form-label">Street Address</label>
+                                            <input type="text" id="editAddress" class="form-control" />
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label for="editCity" class="form-label">City/Suburb</label>
+                                            <input type="text" id="editCity" class="form-control" />
+                                        </div>
+                                        <div class="col-md-3">
+                                            <label for="editState" class="form-label">State</label>
+                                            <select id="editState" class="form-select">
+                                                <option value="">-- Select --</option>
+                                                <option value="NSW">NSW</option>
+                                                <option value="VIC">VIC</option>
+                                                <option value="QLD">QLD</option>
+                                                <option value="SA">SA</option>
+                                                <option value="WA">WA</option>
+                                                <option value="TAS">TAS</option>
+                                                <option value="NT">NT</option>
+                                                <option value="ACT">ACT</option>
+                                            </select>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <label for="editPostcode" class="form-label">Postcode</label>
+                                            <input type="text" id="editPostcode" class="form-control" maxlength="4" />
+                                        </div>
+                                    </div>
+                                    <div class="d-flex gap-2 mt-3">
+                                        <button type="button" class="btn btn-primary" id="savePatientDetailsBtn">
+                                            <i class="bi bi-save me-1"></i>Save Changes
+                                        </button>
+                                        <button type="button" class="btn btn-secondary" id="cancelPatientEditBtn">
+                                            <i class="bi bi-x me-1"></i>Cancel
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <div class="alert alert-success mt-3 mb-0" id="patientDetailsConfirmed" style="display: none;">
+                                    <i class="bi bi-check-circle me-2"></i>
+                                    Patient details confirmed. You can proceed with creating the case.
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="Case.DateOfOnset" class="form-label">Date of Onset</label>
+                        <input asp-for="Case.DateOfOnset" class="form-control" type="date" />
+                        <span asp-validation-for="Case.DateOfOnset" class="text-danger"></span>
+                        <small class="form-text text-muted">Date when symptoms first appeared</small>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="Case.DateOfNotification" class="form-label">Date of Notification</label>
+                        <input asp-for="Case.DateOfNotification" class="form-control" type="date" />
+                        <span asp-validation-for="Case.DateOfNotification" class="text-danger"></span>
+                        <small class="form-text text-muted">Date when the case was reported (defaults to today if not specified)</small>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="Case.ClinicalNotificationDate" class="form-label">Clinical Notification Date</label>
+                        <input asp-for="Case.ClinicalNotificationDate" class="form-control" type="date" />
+                        <span asp-validation-for="Case.ClinicalNotificationDate" class="text-danger"></span>
+                        <small class="form-text text-muted">Date when clinical notification was received</small>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="Case.ClinicalNotifierOrganisation" class="form-label">Clinical Notifier Organisation</label>
+                        <input asp-for="Case.ClinicalNotifierOrganisation" class="form-control organization-autocomplete" id="clinicalNotifierOrgAutocomplete" placeholder="Type to search organizations..." />
+                        <span asp-validation-for="Case.ClinicalNotifierOrganisation" class="text-danger"></span>
+                        <small class="form-text text-muted">Organisation that provided the clinical notification</small>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="Case.ClinicalNotificationNotes" class="form-label">Clinical Notification Notes</label>
+                        <textarea asp-for="Case.ClinicalNotificationNotes" class="form-control" rows="3"></textarea>
+                        <span asp-validation-for="Case.ClinicalNotificationNotes" class="text-danger"></span>
+                        <small class="form-text text-muted">Additional details about the clinical notification</small>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="Case.ConfirmationStatusId" class="form-label">Confirmation Status</label>
+                        <select asp-for="Case.ConfirmationStatusId" class="form-select" asp-items="ViewBag.ConfirmationStatusId">
+                            <option value="">-- Select Status --</option>
+                        </select>
+                        <span asp-validation-for="Case.ConfirmationStatusId" class="text-danger"></span>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="Case.DiseaseId" class="form-label">Disease</label>
+                        <select asp-for="Case.DiseaseId" class="form-select disease-select" asp-items="ViewBag.DiseaseId" id="diseaseDropdown">
+                            <option value="">-- Select Disease --</option>
+                        </select>
+                        <span asp-validation-for="Case.DiseaseId" class="text-danger"></span>
+                        <small class="form-text text-muted">Type to search for a disease</small>
+                    </div>
+
+                    <!-- Exposure Tracking Section (Dynamic) -->
+                    <div id="exposureSection" class="mb-3" style="display: none;">
+                        <div class="card border-warning">
+                            <div class="card-header bg-warning bg-opacity-10">
+                                <h6 class="mb-0">
+                                    <i class="bi bi-geo-alt me-2"></i>Exposure Information
+                                    <span id="exposureRequiredBadge" class="badge bg-danger ms-2" style="display: none;">Required</span>
+                                    <span id="exposureRecommendedBadge" class="badge bg-warning ms-2" style="display: none;">Recommended</span>
+                                </h6>
+                            </div>
+                            <div class="card-body">
+                                <div id="exposureGuidanceAlert" class="alert alert-info d-none">
+                                    <i class="bi bi-info-circle me-2"></i>
+                                    <span id="exposureGuidanceText"></span>
+                                </div>
+                                
+                                <p class="mb-3">
+                                    <i class="bi bi-exclamation-circle text-warning me-2"></i>
+                                    <span id="exposureMessage">Exposure data will be collected after the case is created.</span>
+                                </p>
+                                
+                                <div class="alert alert-secondary small mb-0">
+                                    <strong>After creating this case:</strong>
+                                    <ul class="mb-0 mt-2">
+                                        <li>You'll be redirected to the case details page</li>
+                                        <li>Navigate to the <strong>Exposures</strong> tab</li>
+                                        <li>Click <strong>Add Exposure</strong> to document exposure information</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Jurisdictions Section -->
+                    @if (Model.ActiveJurisdictionTypes.Any())
+                    {
+                        <div class="card shadow-sm mb-3">
+                            <div class="card-header bg-light fw-semibold">
+                                <i class="bi bi-pin-map me-2"></i>Geographic Jurisdictions
+                            </div>
+                            <div class="card-body">
+                                <div class="alert alert-info alert-sm mb-3">
+                                    <i class="bi bi-info-circle me-2"></i>
+                                    Select the jurisdictions for this case. These can be auto-detected from the patient's address.
+                                </div>
+                                
+                                <div class="row">
+                                    @foreach (var jurisdictionType in Model.ActiveJurisdictionTypes.OrderBy(jt => jt.DisplayOrder))
+                                    {
+                                        var fieldProperty = $"Jurisdiction{jurisdictionType.FieldNumber}Id";
+                                        var jurisdictionsForType = Model.JurisdictionsByType.ContainsKey(jurisdictionType.Id) 
+                                            ? Model.JurisdictionsByType[jurisdictionType.Id] 
+                                            : new List<Jurisdiction>();
+                                        
+                                        <div class="col-md-6 mb-3">
+                                            <label for="@fieldProperty" class="form-label">
+                                                @jurisdictionType.Name
+                                                @if (!string.IsNullOrEmpty(jurisdictionType.Code))
+                                                {
+                                                    <small class="text-muted">(@jurisdictionType.Code)</small>
+                                                }
+                                            </label>
+                                            <select id="@fieldProperty" 
+                                                    name="Case.@fieldProperty" 
+                                                    class="form-select jurisdiction-select"
+                                                    data-field-number="@jurisdictionType.FieldNumber">
+                                                <option value="">-- Select @jurisdictionType.Name --</option>
+                                                @foreach (var jurisdiction in jurisdictionsForType.OrderBy(j => j.DisplayOrder).ThenBy(j => j.Name))
+                                                {
+                                                    <option value="@jurisdiction.Id">@jurisdiction.Name</option>
+                                                }
+                                            </select>
+                                            @if (!string.IsNullOrEmpty(jurisdictionType.Description))
+                                            {
+                                                <small class="form-text text-muted">@jurisdictionType.Description</small>
+                                            }
+                                        </div>
+                                    }
+                                </div>
+                            </div>
+                        </div>
+                    }
+
+                    <div class="d-flex justify-content-between mt-4">
+                        <a asp-page="./Index" class="btn btn-secondary">
+                            <i class="bi bi-arrow-left me-1"></i>Back to List
+                        </a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-save me-1"></i>Create Case
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <i class="bi bi-info-circle me-2"></i>Information
+            </div>
+            <div class="card-body">
+                <p class="card-text">
+                    <strong>Case ID:</strong> A unique identifier will be automatically generated in the format C-YYYY-####.
+                </p>
+                <p class="card-text">
+                    <strong>Required Fields:</strong> Patient and Type are required. Other fields are optional but recommended for complete records.
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+    <script>
+        var selectedPatientData = null;
+        var isPatientConfirmed = false;
+
+        $(document).ready(function() {
+            // Initialize Select2 on disease dropdown
+            $('.disease-select').select2({
+                theme: 'bootstrap-5',
+                placeholder: '-- Select or search for a disease --',
+                allowClear: true,
+                width: '100%'
+            });
+
+            // Populate gender dropdown from ViewData
+            var genders = @Html.Raw(Json.Serialize(ViewData["GenderId"]));
+            if (genders && genders.length > 0) {
+                var $genderSelect = $('#editGender');
+                $genderSelect.empty();
+                $genderSelect.append('<option value="">-- Select --</option>');
+                genders.forEach(function(gender) {
+                    $genderSelect.append('<option value="' + gender.value + '">' + gender.text + '</option>');
+                });
+            }
+
+            // Check exposure requirements when disease changes
+            $('#diseaseDropdown').on('change', function() {
+                var diseaseId = $(this).val();
+                if (diseaseId) {
+                    checkExposureRequirements(diseaseId);
+                } else {
+                    $('#exposureSection').slideUp();
+                }
+            });
+
+            // Load patient details when patient is selected
+            $('#patientDropdown').on('change', function() {
+                var patientId = $(this).val();
+                if (patientId) {
+                    loadPatientDetails(patientId);
+                } else {
+                    $('#patientReviewSection').slideUp();
+                    isPatientConfirmed = false;
+                }
+            });
+
+            // Edit patient details button
+            $('#editPatientDetailsBtn').on('click', function() {
+                $('#patientDetailsDisplay').hide();
+                $('#patientDetailsEdit').show();
+                $('#patientDetailsConfirmed').hide();
+                $(this).prop('disabled', true);
+            });
+
+            // Cancel edit
+            $('#cancelPatientEditBtn').on('click', function() {
+                $('#patientDetailsEdit').hide();
+                $('#patientDetailsDisplay').show();
+                $('#editPatientDetailsBtn').prop('disabled', false);
+            });
+
+            // Save patient details
+            $('#savePatientDetailsBtn').on('click', function() {
+                savePatientDetails();
+            });
+
+            // Form validation - check patient is confirmed
+            $('form').on('submit', function(e) {
+                if (!isPatientConfirmed && $('#patientDropdown').val()) {
+                    e.preventDefault();
+                    alert('Please review and confirm the patient details before creating the case.');
+                    $('html, body').animate({
+                        scrollTop: $('#patientReviewSection').offset().top - 100
+                    }, 500);
+                    return false;
+                }
+            });
+
+            // Auto-confirm patient details when they're loaded
+            // (allows users to proceed without editing)
+            setTimeout(function() {
+                if (selectedPatientData && !isPatientConfirmed) {
+                    isPatientConfirmed = true;
+                    $('#patientDetailsConfirmed').show();
+                }
+            }, 1000);
+        });
+
+        function loadPatientDetails(patientId) {
+            $.ajax({
+                url: '/api/patients/' + patientId,
+                type: 'GET',
+                success: function(data) {
+                    selectedPatientData = data;
+                    displayPatientDetails(data);
+                    populateEditForm(data);
+                    $('#patientReviewSection').slideDown();
+                    isPatientConfirmed = false;
+                    $('#patientDetailsConfirmed').hide();
+                },
+                error: function() {
+                    alert('Failed to load patient details. Please try again.');
+                }
+            });
+        }
+
+        function displayPatientDetails(patient) {
+            $('#patientNameDisplay').text(patient.givenName + ' ' + patient.familyName);
+            $('#patientDOBDisplay').text(patient.dateOfBirth ? new Date(patient.dateOfBirth).toLocaleDateString('en-AU') : 'Not provided');
+            $('#patientEmailDisplay').text(patient.emailAddress || 'Not provided');
+            $('#patientMobileDisplay').text(patient.mobilePhone || 'Not provided');
+            
+            var address = [];
+            if (patient.address) address.push(patient.address);
+            if (patient.city) address.push(patient.city);
+            if (patient.state && patient.postcode) address.push(patient.state + ' ' + patient.postcode);
+            $('#patientAddressDisplay').text(address.length > 0 ? address.join(', ') : 'Not provided');
+        }
+
+        function populateEditForm(patient) {
+            $('#editGivenName').val(patient.givenName || '');
+            $('#editFamilyName').val(patient.familyName || '');
+            $('#editDateOfBirth').val(patient.dateOfBirth ? patient.dateOfBirth.split('T')[0] : '');
+            $('#editGender').val(patient.genderId || '');
+            $('#editEmailAddress').val(patient.emailAddress || '');
+            $('#editMobilePhone').val(patient.mobilePhone || '');
+            $('#editHomePhone').val(patient.homePhone || '');
+            $('#editAddress').val(patient.address || '');
+            $('#editCity').val(patient.city || '');
+            $('#editState').val(patient.state || '');
+            $('#editPostcode').val(patient.postcode || '');
+        }
+
+        function savePatientDetails() {
+            var patientId = $('#patientDropdown').val();
+            var updatedData = {
+                id: patientId,
+                givenName: $('#editGivenName').val(),
+                familyName: $('#editFamilyName').val(),
+                dateOfBirth: $('#editDateOfBirth').val() || null,
+                genderId: $('#editGender').val() || null,
+                emailAddress: $('#editEmailAddress').val() || null,
+                mobilePhone: $('#editMobilePhone').val() || null,
+                homePhone: $('#editHomePhone').val() || null,
+                address: $('#editAddress').val() || null,
+                city: $('#editCity').val() || null,
+                state: $('#editState').val() || null,
+                postcode: $('#editPostcode').val() || null
+            };
+
+            $.ajax({
+                url: '/api/patients/' + patientId,
+                type: 'PUT',
+                contentType: 'application/json',
+                data: JSON.stringify(updatedData),
+                success: function(data) {
+                    selectedPatientData = data;
+                    displayPatientDetails(data);
+                    $('#patientDetailsEdit').hide();
+                    $('#patientDetailsDisplay').show();
+                    $('#editPatientDetailsBtn').prop('disabled', false);
+                    $('#patientDetailsConfirmed').show();
+                    isPatientConfirmed = true;
+                    
+                    // Show success message
+                    var successMsg = $('<div class="alert alert-success alert-dismissible fade show mt-3" role="alert">' +
+                        '<i class="bi bi-check-circle me-2"></i>Patient details updated successfully.' +
+                        '<button type="button" class="btn-close" data-bs-dismiss="alert"></button>' +
+                        '</div>');
+                    $('#patientReviewSection .card-body').prepend(successMsg);
+                    setTimeout(function() { successMsg.fadeOut(); }, 5000);
+                },
+                error: function() {
+                    alert('Failed to save patient details. Please try again.');
+                }
+            });
+        }
+
+        function checkExposureRequirements(diseaseId) {
+            $.ajax({
+                url: '/api/diseases/' + diseaseId + '/exposure-requirements',
+                type: 'GET',
+                success: function(data) {
+                    if (data.shouldPrompt) {
+                        // Show exposure section
+                        $('#exposureSection').slideDown();
+                        
+                        // Update badges
+                        if (data.isRequired) {
+                            $('#exposureRequiredBadge').show();
+                            $('#exposureRecommendedBadge').hide();
+                            $('#exposureMessage').html('<strong>This disease requires exposure data.</strong> You will need to add exposure information after creating the case.');
+                        } else {
+                            $('#exposureRequiredBadge').hide();
+                            $('#exposureRecommendedBadge').show();
+                            $('#exposureMessage').text('Exposure data is recommended for this disease.');
+                        }
+                        
+                        // Show guidance text if available
+                        if (data.guidanceText) {
+                            $('#exposureGuidanceText').text(data.guidanceText);
+                            $('#exposureGuidanceAlert').removeClass('d-none');
+                        } else {
+                            $('#exposureGuidanceAlert').addClass('d-none');
+                        }
+                    } else {
+                        $('#exposureSection').slideUp();
+                    }
+                },
+                error: function() {                }
+            });
+        }
+
+        // Initialize organization autocomplete for Clinical Notifier Organisation
+        $('#clinicalNotifierOrgAutocomplete').autocomplete({
+            source: function(request, response) {
+                $.ajax({
+                    url: '/api/organizations/search',
+                    data: { term: request.term },
+                    success: function(data) {
+                        response($.map(data, function(item) {
+                            var label = item.name;
+                            if (item.contactPerson) {
+                                label += ' (Contact: ' + item.contactPerson + ')';
+                            }
+                            return {
+                                label: label,
+                                value: item.name
+                            };
+                        }));
+                    },
+                    error: function(err) {                        response([]);
+                    }
+                });
+            },
+            minLength: 2,
+            delay: 300
+        });
+    </script>
+}

@@ -1,0 +1,175 @@
+@using Sentinel.Models
+@using Sentinel.Models.Reporting
+@using Sentinel.Services
+@inject ICollectionMappingService CollectionMappingService
+@inject ILogger<RelatedEntityCard> Logger
+
+<div class="card entity-card order-@Entity.CreationOrder mb-3">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <div>
+            <strong>Related Entity #@(Index + 1)</strong>
+            <span class="badge bg-secondary ms-2">Order: @Entity.CreationOrder</span>
+        </div>
+        <button type="button" class="btn btn-sm btn-danger" @onclick="OnRemove">
+            <i class="bi bi-trash"></i>
+        </button>
+    </div>
+    <div class="card-body">
+        <!-- Entity Configuration -->
+        <div class="row mb-3">
+            <div class="col-md-4">
+                <label class="form-label small">Entity Type</label>
+                <select class="form-select form-select-sm" value="@Entity.EntityType" @onchange="OnEntityTypeChanged">
+                    <option value="">-- Select Type --</option>
+                    <option value="Case">Case</option>
+                    <option value="ExposureEvent">ExposureEvent</option>
+                    <option value="Contact">Contact</option>
+                </select>
+            </div>
+            <div class="col-md-4">
+                <label class="form-label small">Creation Order</label>
+                <input type="number" class="form-control form-control-sm" min="1" value="@Entity.CreationOrder" 
+                       @onchange="OnCreationOrderChanged" />
+            </div>
+            <div class="col-md-4">
+                <label class="form-label small">Requires Primary Entity</label>
+                <div class="form-check form-switch">
+                    <input class="form-check-input" type="checkbox" checked="@Entity.RequiresPrimaryEntity" 
+                           @onchange="OnRequiresPrimaryChanged" />
+                </div>
+            </div>
+        </div>
+
+        <!-- Field Mappings -->
+        @if (!string.IsNullOrEmpty(Entity.EntityType))
+        {
+            <div>
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <label class="form-label mb-0"><strong>Field Mappings</strong></label>
+                    <button type="button" class="btn btn-sm btn-outline-primary" @onclick="AddMapping">
+                        <i class="bi bi-plus"></i> Add Mapping
+                    </button>
+                </div>
+
+                @if (entityFields == null)
+                {
+                    <div class="spinner-border spinner-border-sm" role="status">
+                        <span class="visually-hidden">Loading fields...</span>
+                    </div>
+                }
+                else if (Entity.Mappings?.Count > 0)
+                {
+                    <div>
+                        @foreach (var (mapping, mIndex) in Entity.Mappings.Select((m, i) => (m, i)))
+                        {
+                            <FieldMappingRow 
+                                Mapping="@mapping"
+                                Index="@mIndex"
+                                MatrixColumns="@MatrixColumns"
+                                EntityFields="@entityFields"
+                                Config="@Config"
+                                CurrentEntityOrder="@Entity.CreationOrder"
+                                OnMappingChanged="OnEntityChanged"
+                                OnRemove="() => RemoveMapping(mIndex)" />
+                        }
+                    </div>
+                }
+                else
+                {
+                    <p class="text-muted small">No mappings configured. Click "Add Mapping" to start.</p>
+                }
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+    [Parameter]
+    public RelatedEntityConfig Entity { get; set; } = new();
+
+    [Parameter]
+    public int Index { get; set; }
+
+    [Parameter]
+    public List<string> MatrixColumns { get; set; } = new();
+
+    [Parameter]
+    public CollectionMappingConfig? Config { get; set; }
+
+    [Parameter]
+    public EventCallback OnEntityChanged { get; set; }
+
+    [Parameter]
+    public EventCallback OnRemove { get; set; }
+
+    private List<ReportFieldMetadata>? entityFields;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (!string.IsNullOrEmpty(Entity.EntityType))
+        {
+            await LoadEntityFields();
+        }
+    }
+
+    private async Task OnEntityTypeChanged(ChangeEventArgs e)
+    {
+        Entity.EntityType = e.Value?.ToString() ?? "";
+        await LoadEntityFields();
+        await OnEntityChanged.InvokeAsync();
+    }
+
+    private async Task LoadEntityFields()
+    {
+        try
+        {
+            Logger.LogCritical("?? LoadEntityFields CALLED for EntityType: '{EntityType}'", Entity.EntityType);
+            entityFields = await CollectionMappingService.GetEntityFieldsAsync(Entity.EntityType);
+            Logger.LogCritical("?? LoadEntityFields COMPLETE: Received {Count} fields", entityFields?.Count ?? 0);
+            
+            // ?? CRITICAL FIX: Force Blazor to re-render with the loaded fields
+            StateHasChanged();
+            Logger.LogCritical("?? StateHasChanged() called - UI should now update");
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "?? Error loading fields for {EntityType}", Entity.EntityType);
+            entityFields = new List<ReportFieldMetadata>();
+            StateHasChanged();
+        }
+    }
+
+    private void AddMapping()
+    {
+        Entity.Mappings ??= new List<RelatedEntityMapping>();
+        Entity.Mappings.Add(new RelatedEntityMapping
+        {
+            SourceType = "",
+            Source = "",
+            TargetFieldPath = "",
+            Required = false
+        });
+        OnEntityChanged.InvokeAsync();
+    }
+
+    private void RemoveMapping(int mIndex)
+    {
+        if (Entity.Mappings != null && mIndex < Entity.Mappings.Count)
+        {
+            Entity.Mappings.RemoveAt(mIndex);
+            OnEntityChanged.InvokeAsync();
+        }
+    }
+
+    private void OnCreationOrderChanged(ChangeEventArgs e)
+    {
+        Entity.CreationOrder = int.Parse(e.Value?.ToString() ?? "1");
+        OnEntityChanged.InvokeAsync();
+    }
+
+    private void OnRequiresPrimaryChanged(ChangeEventArgs e)
+    {
+        Entity.RequiresPrimaryEntity = (bool)(e.Value ?? true);
+        OnEntityChanged.InvokeAsync();
+    }
+}

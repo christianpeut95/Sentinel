@@ -1,0 +1,86 @@
+@page
+@model Sentinel.Pages.Patients.SelectMergeModel
+@{
+    ViewData["Title"] = "Select Patients to Merge";
+}
+
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-12">
+            <h2>@ViewData["Title"]</h2>
+            <hr />
+        </div>
+    </div>
+
+    @if (!string.IsNullOrEmpty(Model.ErrorMessage))
+    {
+        <div class="alert alert-danger" role="alert">
+            @Model.ErrorMessage
+        </div>
+    }
+
+    <div class="alert alert-warning" role="alert">
+        <i class="bi bi-exclamation-triangle-fill"></i>
+        <strong>Warning:</strong> Merging patients is a permanent action. The source patient will be deleted and all their data will be merged into the target patient.
+    </div>
+
+    <form method="post">
+        <div class="row">
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header bg-danger text-white">
+                        <h5 class="mb-0">Source Patient (Will be Deleted)</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="form-group">
+                            <label asp-for="SourcePatientId" class="form-label">Patient ID</label>
+                            <input asp-for="SourcePatientId" class="form-control" required />
+                            <div class="form-text">This patient will be deleted after the merge.</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header bg-success text-white">
+                        <h5 class="mb-0">Target Patient (Will be Kept)</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="form-group">
+                            <label asp-for="TargetPatientId" class="form-label">Patient ID</label>
+                            <input asp-for="TargetPatientId" class="form-control" required />
+                            <div class="form-text">This patient will receive the merged data.</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row mt-4">
+            <div class="col-md-12">
+                <button type="submit" class="btn btn-primary">
+                    <i class="bi bi-arrow-right-circle"></i> Next: Compare Patients
+                </button>
+                <a asp-page="./Index" class="btn btn-secondary">Cancel</a>
+            </div>
+        </div>
+    </form>
+
+    <div class="mt-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">How Patient Merge Works</h5>
+            </div>
+            <div class="card-body">
+                <ol>
+                    <li><strong>Select Patients:</strong> Choose which patient to keep (target) and which to delete (source).</li>
+                    <li><strong>Compare Data:</strong> Review all fields from both patients side-by-side.</li>
+                    <li><strong>Select Values:</strong> Choose which values to keep for each field.</li>
+                    <li><strong>Merge:</strong> The selected values are saved to the target patient, and the source patient is deleted.</li>
+                    <li><strong>Audit Trail:</strong> All audit logs from both patients are preserved and linked to the target patient.</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>

@@ -1,0 +1,108 @@
+@page
+@model Sentinel.Pages.Settings.Lookups.EditResultUnitModel
+
+@{
+    ViewData["Title"] = "Edit Result Unit";
+    Layout = "~/Pages/Shared/_Layout.cshtml";
+}
+
+<nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a asp-page="/Index">Home</a></li>
+        <li class="breadcrumb-item"><a asp-page="/Settings/Index">Settings</a></li>
+        <li class="breadcrumb-item"><a asp-page="./ResultUnits">Result Units</a></li>
+        <li class="breadcrumb-item active" aria-current="page">@Model.ResultUnit.Name</li>
+    </ol>
+</nav>
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2><i class="bi bi-pencil me-2"></i>Edit Result Unit</h2>
+</div>
+
+@if (TempData["ErrorMessage"] != null)
+{
+    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+        <i class="bi bi-exclamation-triangle me-2"></i>@TempData["ErrorMessage"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+}
+
+<form method="post">
+    <div asp-validation-summary="ModelOnly" class="alert alert-danger" role="alert"></div>
+    <input type="hidden" asp-for="ResultUnit.Id" />
+
+    <div class="card shadow-sm mb-4">
+        <div class="card-header bg-light fw-semibold">
+            <i class="bi bi-info-circle me-2"></i>Result Unit Information
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-4 mb-3">
+                    <label asp-for="ResultUnit.Name" class="form-label">
+                        <span class="text-danger">*</span> @Html.DisplayNameFor(m => m.ResultUnit.Name)
+                    </label>
+                    <input asp-for="ResultUnit.Name" class="form-control" aria-required="true" />
+                    <span asp-validation-for="ResultUnit.Name" class="text-danger small"></span>
+                </div>
+
+                <div class="col-md-4 mb-3">
+                    <label asp-for="ResultUnit.Abbreviation" class="form-label">
+                        @Html.DisplayNameFor(m => m.ResultUnit.Abbreviation)
+                    </label>
+                    <input asp-for="ResultUnit.Abbreviation" class="form-control" />
+                    <span asp-validation-for="ResultUnit.Abbreviation" class="text-danger small"></span>
+                    <small class="form-text text-muted">Short form displayed in results</small>
+                </div>
+
+                <div class="col-md-4 mb-3">
+                    <label asp-for="ResultUnit.DisplayOrder" class="form-label">
+                        @Html.DisplayNameFor(m => m.ResultUnit.DisplayOrder)
+                    </label>
+                    <input asp-for="ResultUnit.DisplayOrder" class="form-control" type="number" />
+                    <span asp-validation-for="ResultUnit.DisplayOrder" class="text-danger small"></span>
+                    <small class="form-text text-muted">Lower numbers appear first</small>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-md-12 mb-3">
+                    <label asp-for="ResultUnit.Description" class="form-label">
+                        @Html.DisplayNameFor(m => m.ResultUnit.Description)
+                    </label>
+                    <textarea asp-for="ResultUnit.Description" class="form-control" rows="2"></textarea>
+                    <span asp-validation-for="ResultUnit.Description" class="text-danger small"></span>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-md-12 mb-3">
+                    <div class="form-check">
+                        <input asp-for="ResultUnit.IsActive" class="form-check-input" type="checkbox" />
+                        <label asp-for="ResultUnit.IsActive" class="form-check-label">
+                            Active (available for selection)
+                        </label>
+                    </div>
+                    @if (Model.UsageCount > 0)
+                    {
+                        <small class="form-text text-muted">
+                            <i class="bi bi-info-circle me-1"></i>This result unit is currently used in @Model.UsageCount laboratory result(s)
+                        </small>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="d-flex justify-content-between">
+        <a asp-page="./ResultUnits" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left me-1"></i>Cancel
+        </a>
+        <button type="submit" class="btn btn-primary">
+            <i class="bi bi-check-circle me-1"></i>Save Changes
+        </button>
+    </div>
+</form>
+
+@section Scripts {
+    @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+}

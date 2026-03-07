@@ -1,0 +1,315 @@
+@page
+@model Sentinel.Pages.Patients.MergeModel
+@{
+    ViewData["Title"] = "Merge Patients";
+}
+@functions {
+    public string GetCspNonce()
+    {
+        if (HttpContext?.Items?.TryGetValue("csp-nonce", out var nonce) == true && nonce is string nonceStr)
+        {
+            return nonceStr;
+        }
+        return string.Empty;
+    }
+}
+
+<div class="container-fluid mt-4">
+    <div class="row">
+        <div class="col-md-12">
+            <h2>@ViewData["Title"]</h2>
+            <p class="text-muted">
+                Review and select which values to keep for each field. 
+                Patient @Model.SourceId will be deleted and merged into Patient @Model.TargetId.
+            </p>
+            <hr />
+        </div>
+    </div>
+
+    @if (!string.IsNullOrEmpty(Model.ErrorMessage))
+    {
+        <div class="alert alert-danger" role="alert">
+            @Model.ErrorMessage
+        </div>
+    }
+
+    @if (Model.Comparison != null)
+    {
+        <form method="post">
+            <input type="hidden" asp-for="SourceId" />
+            <input type="hidden" asp-for="TargetId" />
+
+            <div class="alert alert-info mb-4">
+                <strong>Tip:</strong> Click on a value to select it. The selected value will be kept in the merged patient record.
+            </div>
+
+            <!-- Standard Fields -->
+            <div class="card mb-4">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0">Standard Fields</h4>
+                </div>
+                <div class="card-body">
+                    <table class="table table-bordered">
+                        <thead>
+                            <tr>
+                                <th style="width: 20%">Field</th>
+                                <th style="width: 40%" class="bg-danger bg-opacity-10">
+                                    Source Patient (@Model.SourceId) - Will be Deleted
+                                </th>
+                                <th style="width: 40%" class="bg-success bg-opacity-10">
+                                    Target Patient (@Model.TargetId) - Will be Kept
+                                </th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @await Html.PartialAsync("_MergeFieldRow", new { 
+                                FieldName = "GivenName", 
+                                Label = "First Name", 
+                                SourceValue = Model.Comparison.SourcePatient.GivenName,
+                                TargetValue = Model.Comparison.TargetPatient.GivenName
+                            })
+                            
+                            @await Html.PartialAsync("_MergeFieldRow", new { 
+                                FieldName = "FamilyName", 
+                                Label = "Last Name", 
+                                SourceValue = Model.Comparison.SourcePatient.FamilyName,
+                                TargetValue = Model.Comparison.TargetPatient.FamilyName
+                            })
+                            
+                            @await Html.PartialAsync("_MergeFieldRow", new { 
+                                FieldName = "DateOfBirth", 
+                                Label = "Date of Birth", 
+                                SourceValue = Model.Comparison.SourcePatient.DateOfBirth?.ToString("yyyy-MM-dd"),
+                                TargetValue = Model.Comparison.TargetPatient.DateOfBirth?.ToString("yyyy-MM-dd")
+                            })
+                            
+                            @await Html.PartialAsync("_MergeFieldRow", new { 
+                                FieldName = "SexAtBirthId", 
+                                Label = "Sex at Birth", 
+                                SourceValue = Model.Comparison.SourcePatient.SexAtBirth?.Name,
+                                TargetValue = Model.Comparison.TargetPatient.SexAtBirth?.Name
+                            })
+                            
+                            @await Html.PartialAsync("_MergeFieldRow", new { 
+                                FieldName = "GenderId", 
+                                Label = "Gender", 
+                                SourceValue = Model.Comparison.SourcePatient.Gender?.Name,
+                                TargetValue = Model.Comparison.TargetPatient.Gender?.Name
+                            })
+                            
+                            @await Html.PartialAsync("_MergeFieldRow", new { 
+                                FieldName = "HomePhone", 
+                                Label = "Home Phone", 
+                                SourceValue = Model.Comparison.SourcePatient.HomePhone,
+                                TargetValue = Model.Comparison.TargetPatient.HomePhone
+                            })
+                            
+                            @await Html.PartialAsync("_MergeFieldRow", new { 
+                                FieldName = "MobilePhone", 
+                                Label = "Mobile Phone", 
+                                SourceValue = Model.Comparison.SourcePatient.MobilePhone,
+                                TargetValue = Model.Comparison.TargetPatient.MobilePhone
+                            })
+                            
+                            @await Html.PartialAsync("_MergeFieldRow", new { 
+                                FieldName = "EmailAddress", 
+                                Label = "Email Address", 
+                                SourceValue = Model.Comparison.SourcePatient.EmailAddress,
+                                TargetValue = Model.Comparison.TargetPatient.EmailAddress
+                            })
+                            
+                            @await Html.PartialAsync("_MergeFieldRow", new { 
+                                FieldName = "AddressLine", 
+                                Label = "Address", 
+                                SourceValue = Model.Comparison.SourcePatient.AddressLine,
+                                TargetValue = Model.Comparison.TargetPatient.AddressLine
+                            })
+                            
+                            @await Html.PartialAsync("_MergeFieldRow", new { 
+                                FieldName = "City", 
+                                Label = "Suburb", 
+                                SourceValue = Model.Comparison.SourcePatient.City,
+                                TargetValue = Model.Comparison.TargetPatient.City
+                            })
+                            
+                            @await Html.PartialAsync("_MergeFieldRow", new { 
+                                FieldName = "State", 
+                                Label = "State", 
+                                SourceValue = Model.Comparison.SourcePatient.State,
+                                TargetValue = Model.Comparison.TargetPatient.State
+                            })
+                            
+                            @await Html.PartialAsync("_MergeFieldRow", new { 
+                                FieldName = "PostalCode", 
+                                Label = "Postcode", 
+                                SourceValue = Model.Comparison.SourcePatient.PostalCode,
+                                TargetValue = Model.Comparison.TargetPatient.PostalCode
+                            })
+                            
+                            @await Html.PartialAsync("_MergeFieldRow", new { 
+                                FieldName = "CountryOfBirthId", 
+                                Label = "Country of Birth", 
+                                SourceValue = Model.Comparison.SourcePatient.CountryOfBirth?.Name,
+                                TargetValue = Model.Comparison.TargetPatient.CountryOfBirth?.Name
+                            })
+                            
+                            @await Html.PartialAsync("_MergeFieldRow", new { 
+                                FieldName = "LanguageSpokenAtHomeId", 
+                                Label = "Language Spoken at Home", 
+                                SourceValue = Model.Comparison.SourcePatient.LanguageSpokenAtHome?.Name,
+                                TargetValue = Model.Comparison.TargetPatient.LanguageSpokenAtHome?.Name
+                            })
+                            
+                            @await Html.PartialAsync("_MergeFieldRow", new { 
+                                FieldName = "AncestryId", 
+                                Label = "Ancestry", 
+                                SourceValue = Model.Comparison.SourcePatient.Ancestry?.Name,
+                                TargetValue = Model.Comparison.TargetPatient.Ancestry?.Name
+                            })
+                            
+                            @await Html.PartialAsync("_MergeFieldRow", new { 
+                                FieldName = "AtsiStatusId", 
+                                Label = "ATSI Status", 
+                                SourceValue = Model.Comparison.SourcePatient.AtsiStatus?.Name,
+                                TargetValue = Model.Comparison.TargetPatient.AtsiStatus?.Name
+                            })
+                            
+                            @await Html.PartialAsync("_MergeFieldRow", new { 
+                                FieldName = "OccupationId", 
+                                Label = "Occupation", 
+                                SourceValue = Model.Comparison.SourcePatient.Occupation?.Name,
+                                TargetValue = Model.Comparison.TargetPatient.Occupation?.Name
+                            })
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Custom Fields -->
+            @if (Model.Comparison.SourceCustomFields.Any() || Model.Comparison.TargetCustomFields.Any())
+            {
+                <div class="card mb-4">
+                    <div class="card-header bg-primary text-white">
+                        <h4 class="mb-0">Custom Fields</h4>
+                    </div>
+                    <div class="card-body">
+                        <table class="table table-bordered">
+                            <thead>
+                                <tr>
+                                    <th style="width: 20%">Field</th>
+                                    <th style="width: 40%" class="bg-danger bg-opacity-10">
+                                        Source Patient (@Model.SourceId)
+                                    </th>
+                                    <th style="width: 40%" class="bg-success bg-opacity-10">
+                                        Target Patient (@Model.TargetId)
+                                    </th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @{
+                                    var allFieldIds = Model.Comparison.SourceCustomFields.Keys
+                                        .Union(Model.Comparison.TargetCustomFields.Keys)
+                                        .Distinct();
+                                }
+                                @foreach (var fieldId in allFieldIds)
+                                {
+                                    var sourceField = Model.Comparison.SourceCustomFields.GetValueOrDefault(fieldId);
+                                    var targetField = Model.Comparison.TargetCustomFields.GetValueOrDefault(fieldId);
+                                    var label = sourceField?.Label ?? targetField?.Label ?? "Unknown";
+                                    
+                                    <tr>
+                                        <td><strong>@label</strong></td>
+                                        <td>
+                                            <label class="merge-option">
+                                                <input type="radio" 
+                                                       name="SelectedCustomFieldValues[@int.Parse(fieldId)]" 
+                                                       value="source:@fieldId" 
+                                                       checked="@(sourceField?.DisplayValue != null)" />
+                                                <span class="value-display">
+                                                    @(sourceField?.DisplayValue ?? "(empty)")
+                                                </span>
+                                            </label>
+                                        </td>
+                                        <td>
+                                            <label class="merge-option">
+                                                <input type="radio" 
+                                                       name="SelectedCustomFieldValues[@int.Parse(fieldId)]" 
+                                                       value="target:@fieldId"
+                                                       checked="@(sourceField?.DisplayValue == null && targetField?.DisplayValue != null)" />
+                                                <span class="value-display">
+                                                    @(targetField?.DisplayValue ?? "(empty)")
+                                                </span>
+                                            </label>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            }
+
+            <!-- Summary -->
+            <div class="card mb-4">
+                <div class="card-header bg-info text-white">
+                    <h4 class="mb-0">Additional Information</h4>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <p><strong>Source Patient Audit Logs:</strong> @Model.Comparison.SourceAuditLogCount</p>
+                            <p class="text-muted small">All audit logs will be preserved and linked to the target patient.</p>
+                        </div>
+                        <div class="col-md-6">
+                            <p><strong>Target Patient Audit Logs:</strong> @Model.Comparison.TargetAuditLogCount</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Actions -->
+            <div class="row">
+                <div class="col-md-12">
+                    <button type="submit" class="btn btn-danger btn-lg" onclick="return confirm('Are you sure you want to merge these patients? This action cannot be undone.');">
+                        <i class="bi bi-check-circle"></i> Confirm Merge
+                    </button>
+                    <a asp-page="./SelectMerge" class="btn btn-secondary btn-lg">
+                        <i class="bi bi-arrow-left"></i> Back
+                    </a>
+                    <a asp-page="./Index" class="btn btn-outline-secondary btn-lg">
+                        Cancel
+                    </a>
+                </div>
+            </div>
+        </form>
+    }
+</div>
+
+@section Scripts {
+    <style>
+        .merge-option {
+            display: block;
+            padding: 10px;
+            cursor: pointer;
+            border-radius: 4px;
+            transition: background-color 0.2s;
+        }
+
+        .merge-option:hover {
+            background-color: #f8f9fa;
+        }
+
+        .merge-option input[type="radio"]:checked + .value-display {
+            font-weight: bold;
+            color: #0d6efd;
+        }
+
+        .value-display {
+            margin-left: 8px;
+        }
+
+        td {
+            vertical-align: middle !important;
+        }
+    </style>
+}

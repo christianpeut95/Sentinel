@@ -1,0 +1,130 @@
+@page
+@model Sentinel.Pages.Settings.AboutModel
+@{
+    ViewData["Title"] = "About Sentinel";
+}
+
+<nav aria-label="breadcrumb" class="mb-4">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a asp-page="/Index">Home</a></li>
+        <li class="breadcrumb-item"><a asp-page="/Settings/Index">Settings</a></li>
+        <li class="breadcrumb-item active" aria-current="page">About</li>
+    </ol>
+</nav>
+
+<div class="apple-container">
+    <div class="apple-card">
+        <div class="card-body text-center py-5">
+            <!-- Logo -->
+            <div class="mb-4">
+                <div style="width: 120px; height: 120px; margin: 0 auto; background: linear-gradient(135deg, #007AFF 0%, #0051D5 100%); border-radius: 24px; display: flex; align-items: center; justify-content: center; box-shadow: 0 8px 32px rgba(0, 122, 255, 0.3);">
+                    <i class="bi bi-activity" style="font-size: 60px; color: white;"></i>
+                </div>
+            </div>
+
+            <!-- Product Name -->
+            <h1 style="font-size: 2.5rem; font-weight: 600; color: #2d3748; margin-bottom: 0.5rem;">
+                @Model.ProductName
+            </h1>
+            
+            <!-- Tagline -->
+            <p style="font-size: 1.25rem; color: #718096; margin-bottom: 2rem;">
+                Disease Surveillance System
+            </p>
+
+            <!-- Version Badge -->
+            <div class="mb-4">
+                <span class="badge" style="background: linear-gradient(135deg, #007AFF 0%, #0051D5 100%); font-size: 1rem; padding: 0.75rem 1.5rem; border-radius: 12px;">
+                    Version @Model.Version
+                </span>
+            </div>
+
+            <!-- Release Date -->
+            <p style="color: #9ca3af; font-size: 0.875rem; margin-bottom: 3rem;">
+                Released: @Model.ReleaseDate
+            </p>
+
+            <hr class="my-4" />
+
+            <!-- System Information -->
+            <div class="row g-4 text-start">
+                <div class="col-md-6">
+                    <h5 class="mb-3"><i class="bi bi-info-circle me-2"></i>System Information</h5>
+                    <table class="table table-sm">
+                        <tbody>
+                            <tr>
+                                <td class="text-muted">Product Version:</td>
+                                <td><strong>@Model.Version</strong></td>
+                            </tr>
+                            <tr>
+                                <td class="text-muted">Release Date:</td>
+                                <td><strong>@Model.ReleaseDate</strong></td>
+                            </tr>
+                            <tr>
+                                <td class="text-muted">Framework:</td>
+                                <td><strong>.NET 10.0</strong></td>
+                            </tr>
+                            <tr>
+                                <td class="text-muted">Platform:</td>
+                                <td><strong>ASP.NET Core Razor Pages + Blazor</strong></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="col-md-6">
+                    <h5 class="mb-3"><i class="bi bi-stack me-2"></i>Key Features</h5>
+                    <ul class="list-unstyled">
+                        <li class="mb-2"><i class="bi bi-check-circle text-success me-2"></i>Patient & Contact Management</li>
+                        <li class="mb-2"><i class="bi bi-check-circle text-success me-2"></i>Case Investigation & Tracking</li>
+                        <li class="mb-2"><i class="bi bi-check-circle text-success me-2"></i>Outbreak Management</li>
+                        <li class="mb-2"><i class="bi bi-check-circle text-success me-2"></i>Task Assignment & Workflows</li>
+                        <li class="mb-2"><i class="bi bi-check-circle text-success me-2"></i>Survey & Form Builder</li>
+                        <li class="mb-2"><i class="bi bi-check-circle text-success me-2"></i>Geospatial Analysis</li>
+                        <li class="mb-2"><i class="bi bi-check-circle text-success me-2"></i>Advanced Reporting Engine</li>
+                        <li class="mb-2"><i class="bi bi-check-circle text-success me-2"></i>Custom Field Management</li>
+                    </ul>
+                </div>
+            </div>
+
+            <hr class="my-4" />
+
+            <!-- Copyright & Links -->
+            <div class="text-center" style="color: #9ca3af; font-size: 0.875rem;">
+                <p class="mb-2">
+                    &copy; @DateTime.Now.Year SA Health. All rights reserved.
+                </p>
+                <div class="d-flex justify-content-center gap-3 flex-wrap">
+                    <a asp-page="/Settings/Index" class="text-decoration-none" style="color: #007AFF;">
+                        <i class="bi bi-gear me-1"></i>Settings
+                    </a>
+                    <a href="https://github.com/christianpeut95/Sentinel" target="_blank" class="text-decoration-none" style="color: #007AFF;">
+                        <i class="bi bi-github me-1"></i>GitHub
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .apple-card {
+        background: white;
+        border-radius: 16px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+        border: 1px solid rgba(0, 0, 0, 0.06);
+    }
+
+    .apple-card .card-body {
+        padding: 2rem;
+    }
+
+    .table td {
+        padding: 0.75rem 1rem;
+        border-bottom: 1px solid #f3f4f6;
+    }
+
+    .table tr:last-child td {
+        border-bottom: none;
+    }
+</style>

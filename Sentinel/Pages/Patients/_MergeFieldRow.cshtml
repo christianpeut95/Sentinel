@@ -1,0 +1,35 @@
+@model dynamic
+
+@{
+    var fieldName = Model.FieldName as string;
+    var label = Model.Label as string;
+    var sourceValue = Model.SourceValue as string;
+    var targetValue = Model.TargetValue as string;
+    
+    var sourceDisplay = string.IsNullOrWhiteSpace(sourceValue) ? "(empty)" : sourceValue;
+    var targetDisplay = string.IsNullOrWhiteSpace(targetValue) ? "(empty)" : targetValue;
+    
+    var valuesMatch = sourceValue == targetValue;
+}
+
+<tr>
+    <td><strong>@label</strong></td>
+    <td>
+        <label class="merge-option @(valuesMatch ? "text-muted" : "")">
+            <input type="radio" 
+                   name="SelectedValues[@fieldName]" 
+                   value="source:@fieldName" 
+                   checked="@(!string.IsNullOrWhiteSpace(sourceValue))" />
+            <span class="value-display">@sourceDisplay</span>
+        </label>
+    </td>
+    <td>
+        <label class="merge-option @(valuesMatch ? "text-muted" : "")">
+            <input type="radio" 
+                   name="SelectedValues[@fieldName]" 
+                   value="target:@fieldName"
+                   checked="@(string.IsNullOrWhiteSpace(sourceValue) && !string.IsNullOrWhiteSpace(targetValue))" />
+            <span class="value-display">@targetDisplay</span>
+        </label>
+    </td>
+</tr>

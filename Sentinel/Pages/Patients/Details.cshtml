@@ -1,0 +1,754 @@
+@page
+@model Sentinel.Pages.Patients.DetailsModel
+@using Sentinel.Models
+@using Sentinel.Models.Lookups
+
+@{
+    ViewData["Title"] = "Patient Details";
+    
+    // Calculate age
+    int? age = null;
+    if (Model.Patient.DateOfBirth.HasValue)
+    {
+        var today = DateTime.UtcNow;
+        age = today.Year - Model.Patient.DateOfBirth.Value.Year;
+        if (Model.Patient.DateOfBirth.Value.Date > today.AddYears(-age.Value)) age--;
+    }
+@functions {
+    public string GetCspNonce()
+    {
+        if (HttpContext?.Items?.TryGetValue("csp-nonce", out var nonce) == true && nonce is string nonceStr)
+        {
+            return nonceStr;
+        }
+        return string.Empty;
+    }
+}
+}
+
+<style>
+    .note-item {
+        border-left: 4px solid #667eea;
+        padding: 1rem;
+        margin-bottom: 1rem;
+        background: #f8f9fa;
+        border-radius: 8px;
+    }
+</style>
+
+<nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a asp-page="/Index">Home</a></li>
+        <li class="breadcrumb-item"><a asp-page="./Index">Patients</a></li>
+        <li class="breadcrumb-item active" aria-current="page">Details</li>
+    </ol>
+</nav>
+
+@if (TempData["SuccessMessage"] != null)
+{
+    <div class="alert alert-success alert-dismissible fade show" role="alert">
+        <i class="bi bi-check-circle-fill me-2"></i>@TempData["SuccessMessage"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+}
+
+@if (TempData["ErrorMessage"] != null)
+{
+    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+        <i class="bi bi-exclamation-triangle-fill me-2"></i>@TempData["ErrorMessage"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+}
+
+<div class="container-fluid">
+    <div class="row mb-3">
+        <div class="col">
+            <h2 class="fw-semibold">
+                <i class="bi bi-person-badge me-2"></i>
+                Patient Details
+            </h2>
+        </div>
+        <div class="col text-end">
+            @if (User.HasClaim(c => c.Type == "Permission" && c.Value == "Case.Create"))
+            {
+                <a asp-page="/Cases/Create" asp-route-patientId="@Model.Patient.Id" class="btn btn-outline-success">
+                    <i class="bi bi-virus"></i> Create Case
+                </a>
+            }
+            <a asp-page="./AuditHistory" asp-route-id="@Model.Patient.Id" class="btn btn-outline-info">
+                <i class="bi bi-clock-history"></i> Audit History
+            </a>
+            <a asp-page="./SelectMerge" asp-route-patientId="@Model.Patient.Id" class="btn btn-outline-warning">
+                <i class="bi bi-arrows-collapse"></i> Merge
+            </a>
+            <a asp-page="./Edit" asp-route-id="@Model.Patient.Id" class="btn btn-primary">
+                <i class="bi bi-pencil"></i> Edit
+            </a>
+            <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#addNoteModal">
+                <i class="bi bi-plus-circle"></i> Add Note
+            </button>
+            <a asp-page="./Index" class="btn btn-outline-secondary ms-2">
+                Back
+            </a>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-6 mb-3">
+            <div class="card shadow-sm">
+                <div class="card-header bg-light fw-semibold">
+                    <i class="bi bi-person me-2"></i>Demographics
+                </div>
+                <div class="card-body">
+                    <div class="row mb-3">
+                        <div class="col-sm-5 text-muted">Patient ID</div>
+                        <div class="col-sm-7 fw-medium">
+                            @if (!string.IsNullOrWhiteSpace(Model.Patient.FriendlyId))
+                            {
+                                <span class="badge bg-secondary">@Model.Patient.FriendlyId</span>
+                            }
+                            else
+                            {
+                                <span class="text-muted">-</span>
+                            }
+                        </div>
+                    </div>
+
+                    <div class="row mb-3">
+                        <div class="col-sm-5 text-muted">First Name</div>
+                        <div class="col-sm-7 fw-medium">@Model.Patient.GivenName</div>
+                    </div>
+
+                    <div class="row mb-3">
+                        <div class="col-sm-5 text-muted">Last Name</div>
+                        <div class="col-sm-7 fw-medium">@Model.Patient.FamilyName</div>
+                    </div>
+
+                    <div class="row mb-3">
+                        <div class="col-sm-5 text-muted">Date of Birth</div>
+                        <div class="col-sm-7 fw-medium">
+                            @(Model.Patient.DateOfBirth?.ToString("dd MMM yyyy") ?? "-")
+                        </div>
+                    </div>
+
+                    <div class="row mb-3">
+                        <div class="col-sm-5 text-muted">Age</div>
+                        <div class="col-sm-7 fw-medium">
+                            @if (age.HasValue)
+                            {
+                                <span class="badge bg-info text-dark">@age years</span>
+                            }
+                            else
+                            {
+                                <span class="text-muted">-</span>
+                            }
+                        </div>
+                    </div>
+
+                    <div class="row mb-3">
+                        <div class="col-sm-5 text-muted">@Html.DisplayNameFor(m => m.Patient.SexAtBirthId)</div>
+                        <div class="col-sm-7 fw-medium">@(Model.Patient.SexAtBirth?.Name ?? "-")</div>
+                    </div>
+
+                    <div class="row mb-3">
+                        <div class="col-sm-5 text-muted">@Html.DisplayNameFor(m => m.Patient.GenderId)</div>
+                        <div class="col-sm-7 fw-medium">@(Model.Patient.Gender?.Name ?? "-")</div>
+                    </div>
+
+                    <div class="row mb-3">
+                        <div class="col-sm-5 text-muted">Country of Birth</div>
+                        <div class="col-sm-7 fw-medium">@(Model.Patient.CountryOfBirth?.Name ?? "-")</div>
+                    </div>
+
+                    <div class="row mb-3">
+                        <div class="col-sm-5 text-muted">Language Spoken at Home</div>
+                        <div class="col-sm-7 fw-medium">@(Model.Patient.LanguageSpokenAtHome?.Name ?? "-")</div>
+                    </div>
+
+                    <div class="row mb-3">
+                        <div class="col-sm-5 text-muted">Ancestry</div>
+                        <div class="col-sm-7 fw-medium">@(Model.Patient.Ancestry?.Name ?? "-")</div>
+                    </div>
+
+                    <div class="row mb-3">
+                        <div class="col-sm-5 text-muted">@Html.DisplayNameFor(m => m.Patient.AtsiStatusId)</div>
+                        <div class="col-sm-7 fw-medium">@(Model.Patient.AtsiStatus?.Name ?? "-")</div>
+                    </div>
+
+                    <div class="row mb-3">
+                        <div class="col-sm-5 text-muted">@Html.DisplayNameFor(m => m.Patient.OccupationId)</div>
+                        <div class="col-sm-7 fw-medium">@(Model.Patient.Occupation?.Name ?? "-")</div>
+                    </div>
+
+                    <hr />
+
+                    <div class="row mb-3">
+                        <div class="col-sm-5 text-muted">Deceased</div>
+                        <div class="col-sm-7 fw-medium">
+                            @if (Model.Patient.IsDeceased)
+                            {
+                                <span class="badge bg-dark">Yes</span>
+                                @if (Model.Patient.DateOfDeath.HasValue)
+                                {
+                                    <br /><small class="text-muted">@Model.Patient.DateOfDeath.Value.ToString("dd MMM yyyy")</small>
+                                }
+                            }
+                            else
+                            {
+                                <span class="badge bg-success">No</span>
+                            }
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6 mb-3">
+            <div class="card shadow-sm mb-3">
+                <div class="card-header bg-light fw-semibold">
+                    <i class="bi bi-telephone me-2"></i>Contact Information
+                </div>
+                <div class="card-body">
+                    <div class="row mb-3">
+                        <div class="col-sm-5 text-muted">@Html.DisplayNameFor(m => m.Patient.HomePhone)</div>
+                        <div class="col-sm-7 fw-medium">
+                            @if (!string.IsNullOrWhiteSpace(Model.Patient.HomePhone))
+                            {
+                                <a href="tel:@Model.Patient.HomePhone"><i class="bi bi-telephone"></i> @Model.Patient.HomePhone</a>
+                            }
+                            else
+                            {
+                                <span class="text-muted">-</span>
+                            }
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-sm-5 text-muted">@Html.DisplayNameFor(m => m.Patient.MobilePhone)</div>
+                        <div class="col-sm-7 fw-medium">
+                            @if (!string.IsNullOrWhiteSpace(Model.Patient.MobilePhone))
+                            {
+                                <a href="tel:@Model.Patient.MobilePhone"><i class="bi bi-phone"></i> @Model.Patient.MobilePhone</a>
+                            }
+                            else
+                            {
+                                <span class="text-muted">-</span>
+                            }
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-sm-5 text-muted">@Html.DisplayNameFor(m => m.Patient.EmailAddress)</div>
+                        <div class="col-sm-7 fw-medium">
+                            @if (!string.IsNullOrWhiteSpace(Model.Patient.EmailAddress))
+                            {
+                                <a href="mailto:@Model.Patient.EmailAddress"><i class="bi bi-envelope"></i> @Model.Patient.EmailAddress</a>
+                            }
+                            else
+                            {
+                                <span class="text-muted">-</span>
+                            }
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card shadow-sm">
+                <div class="card-header bg-light fw-semibold">
+                    <i class="bi bi-geo-alt me-2"></i>Address
+                </div>
+                <div class="card-body">
+                    <div class="row mb-3">
+                        <div class="col-sm-5 text-muted">Address</div>
+                        <div class="col-sm-7 fw-medium">@(Model.Patient.AddressLine ?? "-")</div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-sm-5 text-muted">Suburb</div>
+                        <div class="col-sm-7 fw-medium">@(Model.Patient.City ?? "-")</div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-sm-5 text-muted">State</div>
+                        <div class="col-sm-7 fw-medium">@(Model.Patient.State ?? "-")</div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-sm-5 text-muted">Postcode</div>
+                        <div class="col-sm-7 fw-medium">@(Model.Patient.PostalCode ?? "-")</div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-sm-5 text-muted">Geocoded</div>
+                        <div class="col-sm-7 fw-medium">
+                            @if (Model.Patient.Latitude.HasValue && Model.Patient.Longitude.HasValue)
+                            {
+                                <span class="badge bg-success"><i class="bi bi-geo-alt-fill me-1"></i>Yes</span>
+                            }
+                            else
+                            {
+                                <span class="badge bg-secondary"><i class="bi bi-geo me-1"></i>No</span>
+                            }
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-sm-5 text-muted">Coordinates</div>
+                        <div class="col-sm-7 fw-medium">
+                            @if (Model.Patient.Latitude.HasValue && Model.Patient.Longitude.HasValue)
+                            {
+                                <small class="text-muted">@($"{Model.Patient.Latitude.Value:F5}, {Model.Patient.Longitude.Value:F5}")</small>
+                            }
+                            else
+                            {
+                                <span class="text-muted">-</span>
+                            }
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Jurisdictions Card -->
+            @if (Model.ActiveJurisdictionTypes.Any() && 
+                (Model.Patient.Jurisdiction1Id.HasValue || 
+                 Model.Patient.Jurisdiction2Id.HasValue || 
+                 Model.Patient.Jurisdiction3Id.HasValue || 
+                 Model.Patient.Jurisdiction4Id.HasValue || 
+                 Model.Patient.Jurisdiction5Id.HasValue))
+            {
+                <div class="card shadow-sm mt-3">
+                    <div class="card-header bg-light fw-semibold">
+                        <i class="bi bi-pin-map me-2"></i>Geographic Jurisdictions
+                    </div>
+                    <div class="card-body">
+                        @foreach (var jurisdictionType in Model.ActiveJurisdictionTypes.OrderBy(jt => jt.DisplayOrder))
+                        {
+                            var jurisdiction = jurisdictionType.FieldNumber switch
+                            {
+                                1 => Model.Patient.Jurisdiction1,
+                                2 => Model.Patient.Jurisdiction2,
+                                3 => Model.Patient.Jurisdiction3,
+                                4 => Model.Patient.Jurisdiction4,
+                                5 => Model.Patient.Jurisdiction5,
+                                _ => null
+                            };
+
+                            if (jurisdiction != null)
+                            {
+                                <div class="row mb-3">
+                                    <div class="col-sm-5 text-muted">
+                                        @jurisdictionType.Name
+                                        @if (!string.IsNullOrEmpty(jurisdictionType.Code))
+                                        {
+                                            <small class="text-muted">(@jurisdictionType.Code)</small>
+                                        }
+                                    </div>
+                                    <div class="col-sm-7 fw-medium">
+                                        @jurisdiction.Name
+                                        @if (!string.IsNullOrEmpty(jurisdiction.Code))
+                                        {
+                                            <span class="badge bg-secondary ms-2">@jurisdiction.Code</span>
+                                        }
+                                    </div>
+                                </div>
+                            }
+                        }
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+
+    @if (Model.CustomFields.Any())
+    {
+        @foreach (var category in Model.FieldsByCategory)
+        {
+            <div class="row mt-3">
+                <div class="col-12">
+                    <div class="card shadow-sm">
+                        <div class="card-header bg-light fw-semibold">
+                            <i class="bi bi-clipboard-data me-2"></i>@category.Key
+                        </div>
+                        <div class="card-body">
+                            @foreach (var field in category.Value.OrderBy(f => f.DisplayOrder))
+                            {
+                                var hasValue = Model.CustomFieldValues.TryGetValue(field.Id, out var value) && !string.IsNullOrWhiteSpace(value);
+                                var displayValue = hasValue ? value : "-";
+
+                                @if (field.FieldType == CustomFieldType.Checkbox)
+                                {
+                                    <div class="row mb-3">
+                                        <div class="col-sm-5 text-muted">@field.Label</div>
+                                        <div class="col-sm-7 fw-medium">
+                                            @if (displayValue == "True")
+                                            {
+                                                <i class="bi bi-check-square-fill text-success"></i>
+                                                <span>Yes</span>
+                                            }
+                                            else
+                                            {
+                                                <i class="bi bi-square text-muted"></i>
+                                                <span class="text-muted">No</span>
+                                            }
+                                        </div>
+                                    </div>
+                                }
+                                else
+                                {
+                                    <div class="row mb-3">
+                                        <div class="col-sm-5 text-muted">@field.Label</div>
+                                        <div class="col-sm-7 fw-medium">
+                                            @if (field.FieldType == CustomFieldType.Email && hasValue)
+                                            {
+                                                <a href="mailto:@displayValue"><i class="bi bi-envelope"></i> @displayValue</a>
+                                            }
+                                            else if (field.FieldType == CustomFieldType.Phone && hasValue)
+                                            {
+                                                <a href="tel:@displayValue"><i class="bi bi-telephone"></i> @displayValue</a>
+                                            }
+                                            else if (field.FieldType == CustomFieldType.Date && hasValue && DateTime.TryParse(displayValue, out var dateValue))
+                                            {
+                                                @dateValue.ToString("dd MMM yyyy")
+                                            }
+                                            else
+                                            {
+                                                @displayValue
+                                            }
+                                        </div>
+                                    </div>
+                                }
+                            }
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+    }
+
+    <!-- Patient Notes Section -->
+    <div class="card shadow-sm mt-4">
+        <div class="card-header bg-light fw-semibold d-flex justify-content-between align-items-center">
+            <span><i class="bi bi-chat-left-text me-2"></i>Patient Notes</span>
+            <span class="badge bg-primary">@Model.PatientNotes.Count</span>
+        </div>
+        <div class="card-body">
+            @if (Model.PatientNotes.Any())
+            {
+                @foreach (var note in Model.PatientNotes)
+                {
+                    <div class="note-item">
+                        <div class="d-flex justify-content-between align-items-start mb-2">
+                            <div>
+                                @if (note.Type == "SMS")
+                                {
+                                    <span class="badge bg-info me-2"><i class="bi bi-chat-dots"></i> SMS</span>
+                                }
+                                else if (note.Type == "Phone Call")
+                                {
+                                    <span class="badge bg-success me-2"><i class="bi bi-telephone"></i> Phone Call</span>
+                                }
+                                else if (note.Type == "Email")
+                                {
+                                    <span class="badge bg-primary me-2"><i class="bi bi-envelope"></i> Email</span>
+                                }
+                                else
+                                {
+                                    <span class="badge bg-secondary me-2"><i class="bi bi-chat-left-text"></i> Note</span>
+                                }
+                                @if (!string.IsNullOrEmpty(note.Subject))
+                                {
+                                    <strong>@note.Subject</strong>
+                                }
+                            </div>
+                            <div class="d-flex align-items-center">
+                                <small class="text-muted me-2">@note.CreatedAt.ToLocalTime().ToString("dd MMM yyyy HH:mm")</small>
+                                <form method="post" asp-page-handler="DeleteNote" asp-route-id="@Model.Patient.Id" asp-route-noteId="@note.Id" class="d-inline">
+                                    <button type="submit" class="btn btn-sm btn-outline-danger" 
+                                            onclick="return confirm('Are you sure you want to delete this note? This action cannot be undone.');"
+                                            title="Delete note">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+                        <p class="mb-2">@note.Content</p>
+                        <small class="text-muted">
+                            <i class="bi bi-person me-1"></i>@(note.CreatedBy ?? "Unknown")
+                            @if (!string.IsNullOrEmpty(note.Recipient))
+                            {
+                                <span class="ms-2"><i class="bi bi-arrow-right"></i> @note.Recipient</span>
+                            }
+                        </small>
+                        @if (!string.IsNullOrEmpty(note.AttachmentFileName))
+                        {
+                            <div class="mt-2">
+                                <a href="@note.AttachmentPath" target="_blank" class="btn btn-sm btn-outline-primary">
+                                    <i class="bi bi-paperclip"></i> @note.AttachmentFileName
+                                </a>
+                            </div>
+                        }
+                    </div>
+                }
+            }
+            else
+            {
+                <div class="text-center text-muted py-5">
+                    <i class="bi bi-chat-left-text display-1 opacity-25"></i>
+                    <p class="mt-3">No notes yet. Click "Add Note" to create the first one.</p>
+                </div>
+            }
+        </div>
+    </div>
+
+    <!-- Case Communication Notes Section -->
+    @if (Model.CaseCommunicationNotes.Any())
+    {
+        <div class="card shadow-sm mt-4">
+            <div class="card-header bg-light fw-semibold d-flex justify-content-between align-items-center">
+                <span><i class="bi bi-telephone-forward me-2"></i>Case Communications</span>
+                <span class="badge bg-info">@Model.CaseCommunicationNotes.Count</span>
+            </div>
+            <div class="card-body">
+                <p class="text-muted mb-3"><small>Phone calls, emails, and SMS messages from cases related to this patient.</small></p>
+                @foreach (var note in Model.CaseCommunicationNotes)
+                {
+                    <div class="note-item" style="border-left-color: #17a2b8;">
+                        <div class="d-flex justify-content-between align-items-start mb-2">
+                            <div>
+                                @if (note.Type == "SMS")
+                                {
+                                    <span class="badge bg-info me-2"><i class="bi bi-chat-dots"></i> SMS</span>
+                                }
+                                else if (note.Type == "Phone Call")
+                                {
+                                    <span class="badge bg-success me-2"><i class="bi bi-telephone"></i> Phone Call</span>
+                                }
+                                else if (note.Type == "Email")
+                                {
+                                    <span class="badge bg-primary me-2"><i class="bi bi-envelope"></i> Email</span>
+                                }
+                                @if (!string.IsNullOrEmpty(note.Subject))
+                                {
+                                    <strong>@note.Subject</strong>
+                                }
+                                @if (note.Case != null)
+                                {
+                                    <a asp-page="/Cases/Details" asp-route-id="@note.CaseId" class="badge bg-light text-dark ms-2">
+                                        <i class="bi bi-virus2"></i> @note.Case.FriendlyId
+                                    </a>
+                                }
+                            </div>
+                            <div class="d-flex align-items-center">
+                                <small class="text-muted me-2">@note.CreatedAt.ToLocalTime().ToString("dd MMM yyyy HH:mm")</small>
+                                <form method="post" asp-page-handler="DeleteCaseNote" asp-route-id="@Model.Patient.Id" asp-route-noteId="@note.Id" class="d-inline">
+                                    <button type="submit" class="btn btn-sm btn-outline-danger" 
+                                            onclick="return confirm('Are you sure you want to delete this case communication note? This action cannot be undone.');"
+                                            title="Delete note">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+                        <p class="mb-2">@note.Content</p>
+                        <small class="text-muted">
+                            <i class="bi bi-person me-1"></i>@(note.CreatedBy ?? "Unknown")
+                            @if (!string.IsNullOrEmpty(note.Recipient))
+                            {
+                                <span class="ms-2"><i class="bi bi-arrow-right"></i> @note.Recipient</span>
+                            }
+                        </small>
+                        @if (!string.IsNullOrEmpty(note.AttachmentFileName))
+                        {
+                            <div class="mt-2">
+                                <a href="@note.AttachmentPath" target="_blank" class="btn btn-sm btn-outline-primary">
+                                    <i class="bi bi-paperclip"></i> @note.AttachmentFileName
+                                </a>
+                            </div>
+                        }
+                    </div>
+                }
+            </div>
+        </div>
+    }
+
+    <!-- Cases Section -->
+    <div class="card shadow-sm mt-4">
+        <div class="card-header bg-light fw-semibold d-flex justify-content-between align-items-center">
+            <span><i class="bi bi-virus me-2"></i>Cases</span>
+            <span class="badge bg-primary">@Model.Cases.Count</span>
+        </div>
+        <div class="card-body">
+            @if (Model.Cases.Any())
+            {
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Case ID</th>
+                                <th>Type</th>
+                                <th>Disease</th>
+                                <th>Date of Onset</th>
+                                <th>Date of Notification</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var caseItem in Model.Cases)
+                            {
+                                <tr>
+                                    <td>
+                                        @if (!string.IsNullOrWhiteSpace(caseItem.FriendlyId))
+                                        {
+                                            <span class="badge bg-secondary">@caseItem.FriendlyId</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="text-muted">-</span>
+                                        }
+                                    </td>
+                                    <td>
+                                        @if (caseItem.Type == CaseType.Case)
+                                        {
+                                            <span class="badge bg-danger"><i class="bi bi-virus2"></i> Case</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge bg-warning text-dark"><i class="bi bi-people"></i> Contact</span>
+                                        }
+                                    </td>
+                                    <td>@(caseItem.Disease?.Name ?? "-")</td>
+                                    <td>@(caseItem.DateOfOnset?.ToString("dd MMM yyyy") ?? "-")</td>
+                                    <td>@(caseItem.DateOfNotification?.ToString("dd MMM yyyy") ?? "-")</td>
+                                    <td>@(caseItem.ConfirmationStatus?.Name ?? "-")</td>
+                                    <td>
+                                        <a asp-page="/Cases/Details" asp-route-id="@caseItem.Id" class="btn btn-sm btn-outline-primary">
+                                            <i class="bi bi-eye"></i> View
+                                        </a>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+            else
+            {
+                <div class="text-center text-muted py-5">
+                    <i class="bi bi-virus display-1 opacity-25"></i>
+                    <p class="mt-3">No cases found for this patient.</p>
+                    @if (User.HasClaim(c => c.Type == "Permission" && c.Value == "Case.Create"))
+                    {
+                        <a asp-page="/Cases/Create" asp-route-patientId="@Model.Patient.Id" class="btn btn-outline-success mt-2">
+                            <i class="bi bi-plus-circle"></i> Create First Case
+                        </a>
+                    }
+                </div>
+            }
+        </div>
+    </div>
+
+    <!-- Metadata -->
+    <div class="card shadow-sm mt-4">
+        <div class="card-header bg-light fw-semibold">
+            <i class="bi bi-info-circle me-2"></i>Record Information
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-6 mb-2">
+                    <small class="text-muted">Created:</small>
+                    <div>@Model.Patient.CreatedAt.ToString("dd MMM yyyy HH:mm")</div>
+                </div>
+                <div class="col-md-6 mb-2">
+                    <small class="text-muted">Created By:</small>
+                    <div>
+                        @if (Model.Patient.CreatedByUser != null)
+                        {
+                            <span>@Model.Patient.CreatedByUser.UserName</span>
+                        }
+                        else
+                        {
+                            <span class="text-muted">Unknown</span>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add Note Modal -->
+<div class="modal fade" id="addNoteModal" tabindex="-1" aria-labelledby="addNoteModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <form method="post" asp-page-handler="AddNote" asp-route-id="@Model.Patient.Id" enctype="multipart/form-data">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="addNoteModalLabel"><i class="bi bi-plus-circle me-2"></i>Add Note/Communication</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label asp-for="NewNote.Type" class="form-label">Type <span class="text-danger">*</span></label>
+                                <select asp-for="NewNote.Type" class="form-select" required id="noteTypeSelect">
+                                    <option value="Note">Note</option>
+                                    <option value="SMS">SMS</option>
+                                    <option value="Phone Call">Phone Call</option>
+                                    <option value="Email">Email</option>
+                                </select>
+                                <span asp-validation-for="NewNote.Type" class="text-danger"></span>
+                            </div>
+                        </div>
+                        <div class="col-md-6" id="recipientField" style="display: none;">
+                            <div class="mb-3">
+                                <label asp-for="NewNote.Recipient" class="form-label">Recipient</label>
+                                <input asp-for="NewNote.Recipient" class="form-control" placeholder="Contact name or number/email" />
+                                <span asp-validation-for="NewNote.Recipient" class="text-danger"></span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="NewNote.Subject" class="form-label">Subject</label>
+                        <input asp-for="NewNote.Subject" class="form-control" placeholder="Brief summary" />
+                        <span asp-validation-for="NewNote.Subject" class="text-danger"></span>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="NewNote.Content" class="form-label">Content <span class="text-danger">*</span></label>
+                        <textarea asp-for="NewNote.Content" class="form-control" rows="5" required></textarea>
+                        <span asp-validation-for="NewNote.Content" class="text-danger"></span>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="Attachment" class="form-label">Attachment (optional)</label>
+                        <input asp-for="Attachment" type="file" class="form-control" />
+                        <small class="text-muted">Upload a file related to this note (e.g., document, image)</small>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary"><i class="bi bi-save me-2"></i>Save Note</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+    <script>
+        // Show/hide recipient field based on note type
+        document.getElementById('noteTypeSelect').addEventListener('change', function() {
+            var recipientField = document.getElementById('recipientField');
+            var communicationTypes = ['SMS', 'Phone Call', 'Email'];
+            
+            if (communicationTypes.includes(this.value)) {
+                recipientField.style.display = 'block';
+            } else {
+                recipientField.style.display = 'none';
+            }
+        });
+
+        // Reset form when modal is closed
+        document.getElementById('addNoteModal').addEventListener('hidden.bs.modal', function () {
+            this.querySelector('form').reset();
+            document.getElementById('recipientField').style.display = 'none';
+        });
+    </script>
+}
+

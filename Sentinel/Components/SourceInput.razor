@@ -1,0 +1,236 @@
+@using Sentinel.Models
+@using Sentinel.Models.Reporting
+@using Sentinel.Services
+@inject ICollectionMappingService CollectionMappingService
+
+@switch (SourceType?.ToLower())
+{
+    case "column":
+        <select class="form-select form-select-sm" value="@SourceValue" @onchange="HandleSourceChange">
+            <option value="">-- Select Column --</option>
+            @foreach (var col in MatrixColumns)
+            {
+                <option value="@col">@col</option>
+            }
+        </select>
+        break;
+
+    case "context":
+        <select class="form-select form-select-sm" value="@SourceValue" @onchange="HandleSourceChange">
+            <option value="">-- Select Context --</option>
+            <option value="{{Context.CaseId}}">CaseId</option>
+            <option value="{{Context.PatientId}}">PatientId</option>
+            <option value="{{Context.DiseaseId}}">DiseaseId</option>
+            <option value="{{Context.TaskId}}">TaskId</option>
+            <option value="{{Context.SubmittedDate}}">SubmittedDate</option>
+            <option value="{{Context.SubmittedBy}}">SubmittedBy</option>
+        </select>
+        break;
+
+    case "primary":
+        <select class="form-select form-select-sm" value="@SourceValue" @onchange="HandleSourceChange">
+            <option value="">-- Select Primary Field --</option>
+            <option value="{Primary.Id}">Id</option>
+            @if (Config?.TargetEntityType == "Patient")
+            {
+                <option value="{Primary.GivenName}">GivenName</option>
+                <option value="{Primary.FamilyName}">FamilyName</option>
+                <option value="{Primary.DateOfBirth}">DateOfBirth</option>
+            }
+        </select>
+        break;
+
+    case "relatedentity":
+        <div class="row g-1">
+            <div class="col-6">
+                <select class="form-select form-select-sm" value="@selectedEntity" @onchange="OnRelatedEntityChanged">
+                    <option value="">-- Entity --</option>
+                    @foreach (var entity in GetAvailableRelatedEntities())
+                    {
+                        <option value="@entity.EntityType">@entity.EntityType (Order @entity.CreationOrder)</option>
+                    }
+                </select>
+            </div>
+            <div class="col-6">
+                <select class="form-select form-select-sm" value="@selectedField" @onchange="OnRelatedFieldChanged">
+                    <option value="">-- Field --</option>
+                    @if (relatedEntityFields != null)
+                    {
+                        @foreach (var field in relatedEntityFields)
+                        {
+                            <option value="@field">@field</option>
+                        }
+                    }
+                    else if (!string.IsNullOrEmpty(selectedEntity))
+                    {
+                        <option value="Id">Id</option>
+                        <option value="PatientId">PatientId</option>
+                        <option value="CaseId">CaseId</option>
+                        <option value="RelatedCaseId">RelatedCaseId</option>
+                        <option value="DiseaseId">DiseaseId</option>
+                    }
+                </select>
+            </div>
+        </div>
+        @if (!string.IsNullOrEmpty(SourceValue))
+        {
+            <small class="text-muted d-block mt-1">@SourceValue</small>
+        }
+        break;
+
+    case "constant":
+        @if (TargetFieldMetadata?.IsEnum == true && TargetFieldMetadata.EnumValues?.Any() == true)
+        {
+            <!-- Enum dropdown with display names -->
+            <select class="form-select form-select-sm" value="@SourceValue" @onchange="HandleSourceChange">
+                <option value="">-- Select @TargetFieldMetadata.DisplayName --</option>
+                @foreach (var enumValue in TargetFieldMetadata.EnumValues)
+                {
+                    <option value="@enumValue.Value" title="Code: @enumValue.Code">
+                        @enumValue.DisplayName (@enumValue.Code)
+                    </option>
+                }
+            </select>
+            <small class="text-muted d-block mt-1">
+                ?? Accepts enum name (e.g., "@TargetFieldMetadata.EnumValues.FirstOrDefault()?.Value") or code (e.g., @TargetFieldMetadata.EnumValues.FirstOrDefault()?.Code)
+            </small>
+        }
+        else
+        {
+            <!-- Regular text input for non-enum constants -->
+            <input type="text" class="form-control form-control-sm" value="@SourceValue" 
+                   @onchange="HandleSourceChange" 
+                   placeholder="Enter constant value" />
+        }
+        break;
+
+    default:
+        <input type="text" class="form-control form-control-sm" disabled placeholder="Select source type first" />
+        break;
+}
+
+@code {
+[Parameter]
+public string? SourceType { get; set; }
+
+[Parameter]
+public string? SourceValue { get; set; }
+
+[Parameter]
+public List<string> MatrixColumns { get; set; } = new();
+
+[Parameter]
+public CollectionMappingConfig? Config { get; set; }
+
+[Parameter]
+public int CurrentEntityOrder { get; set; }
+
+[Parameter]
+public EventCallback<string> OnSourceChanged { get; set; }
+    
+[Parameter]
+public ReportFieldMetadata? TargetFieldMetadata { get; set; }
+
+private string selectedEntity = "";
+    private string selectedField = "";
+    private List<string>? relatedEntityFields;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        // Parse selected entity and field from SourceValue if it's a RelatedEntity reference
+        if (SourceType?.ToLower() == "relatedentity" && !string.IsNullOrEmpty(SourceValue))
+        {
+            // Format: {RelatedEntity.Case.Id}
+            if (SourceValue.StartsWith("{RelatedEntity.") && SourceValue.EndsWith("}"))
+            {
+                var parts = SourceValue.Replace("{RelatedEntity.", "").Replace("}", "").Split('.');
+                if (parts.Length == 2)
+                {
+                    selectedEntity = parts[0];
+                    selectedField = parts[1];
+                    
+                    // Load fields for this entity type
+                    await LoadRelatedEntityFields(selectedEntity);
+                }
+            }
+        }
+    }
+
+    private List<RelatedEntityConfig> GetAvailableRelatedEntities()
+    {
+        if (Config?.RelatedEntities == null) return new();
+        
+        // Only show entities with lower creation order (created before this one)
+        return Config.RelatedEntities
+            .Where(e => e.CreationOrder < CurrentEntityOrder && !string.IsNullOrEmpty(e.EntityType))
+            .OrderBy(e => e.CreationOrder)
+            .ToList();
+    }
+
+    private async Task OnRelatedEntityChanged(ChangeEventArgs e)
+    {
+        selectedEntity = e.Value?.ToString() ?? "";
+        selectedField = ""; // Reset field when entity changes
+        
+        // Load fields for the selected entity
+        await LoadRelatedEntityFields(selectedEntity);
+        
+        UpdateRelatedEntityReference();
+    }
+
+    private async Task LoadRelatedEntityFields(string entityType)
+    {
+        if (string.IsNullOrEmpty(entityType)) return;
+
+        try
+        {
+            // ? Load dynamically from service (includes custom fields!)
+            var fields = await CollectionMappingService.GetEntityFieldsAsync(entityType);
+            
+            // Extract just the field names (last part of FieldPath)
+            relatedEntityFields = fields
+                .Select(f => f.FieldPath.Contains('.') 
+                    ? f.FieldPath.Split('.').Last() 
+                    : f.FieldPath)
+                .Distinct()
+                .OrderBy(f => f)
+                .ToList();
+        }
+        catch
+        {
+            // Fallback to common fields if service fails
+            relatedEntityFields = entityType switch
+            {
+                "Case" => new List<string> { "Id", "PatientId", "DiseaseId", "OutbreakId", "CaseNumber", "ConfirmationStatusId" },
+                "ExposureEvent" => new List<string> { "Id", "SourceCaseId", "ExposedCaseId", "PatientId", "ExposureType", "ContactClassificationId" },
+                "Patient" => new List<string> { "Id", "GivenName", "FamilyName", "DateOfBirth" },
+                "Contact" => new List<string> { "Id", "CaseId", "PatientId", "ContactType" },
+                _ => new List<string> { "Id" }
+            };
+        }
+
+        StateHasChanged();
+    }
+
+    private Task OnRelatedFieldChanged(ChangeEventArgs e)
+    {
+        selectedField = e.Value?.ToString() ?? "";
+        UpdateRelatedEntityReference();
+        return Task.CompletedTask;
+    }
+
+    private void UpdateRelatedEntityReference()
+    {
+        if (!string.IsNullOrEmpty(selectedEntity) && !string.IsNullOrEmpty(selectedField))
+        {
+            var reference = $"{{RelatedEntity.{selectedEntity}.{selectedField}}}";
+            OnSourceChanged.InvokeAsync(reference);
+        }
+    }
+
+    private Task HandleSourceChange(ChangeEventArgs e)
+    {
+        var value = e.Value?.ToString() ?? "";
+        return OnSourceChanged.InvokeAsync(value);
+    }
+}

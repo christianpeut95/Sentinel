@@ -1,0 +1,235 @@
+@page
+@using Sentinel.Models
+@model Sentinel.Pages.Settings.Roles.PermissionsModel
+
+@{
+    ViewData["Title"] = $"Manage Permissions - {Model.Role.Name}";
+}
+
+<div class="container-fluid">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a asp-page="/Index">Home</a></li>
+            <li class="breadcrumb-item"><a asp-page="/Settings/Index">Settings</a></li>
+            <li class="breadcrumb-item"><a asp-page="./Index">Roles</a></li>
+            <li class="breadcrumb-item active" aria-current="page">Permissions</li>
+        </ol>
+    </nav>
+
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1><i class="bi bi-shield-check me-2"></i>Manage Permissions</h1>
+            <p class="text-muted">Role: <strong>@Model.Role.Name</strong></p>
+        </div>
+        <div>
+            <a asp-page="./Index" class="btn btn-secondary">
+                <i class="bi bi-arrow-left"></i> Back to Roles
+            </a>
+        </div>
+    </div>
+
+    @if (TempData["SuccessMessage"] != null)
+    {
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            <i class="bi bi-check-circle me-2"></i>@TempData["SuccessMessage"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    }
+
+    @if (TempData["ErrorMessage"] != null)
+    {
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            <i class="bi bi-exclamation-triangle me-2"></i>@TempData["ErrorMessage"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    }
+
+    <div class="row mb-3">
+        <div class="col">
+            <div class="alert alert-info">
+                <i class="bi bi-info-circle me-2"></i>
+                <strong>Total Permissions:</strong> @Model.GrantedPermissions.Count granted out of @(Model.GrantedPermissions.Count + Model.NotGrantedPermissions.Count) total
+            </div>
+        </div>
+    </div>
+
+    <div class="row mb-3">
+        <div class="col">
+            <form method="post" asp-page-handler="GrantAll" asp-route-roleId="@Model.Role.Id" class="d-inline">
+                <button type="submit" class="btn btn-success" onclick="return confirm('Grant ALL permissions to this role?')">
+                    <i class="bi bi-check-all"></i> Grant All Permissions
+                </button>
+            </form>
+            <form method="post" asp-page-handler="RevokeAll" asp-route-roleId="@Model.Role.Id" class="d-inline ms-2">
+                <button type="submit" class="btn btn-danger" onclick="return confirm('Revoke ALL permissions from this role?')">
+                    <i class="bi bi-x-circle"></i> Revoke All Permissions
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- GRANTED PERMISSIONS -->
+        <div class="col-lg-6 mb-4">
+            <div class="card border-success shadow-sm">
+                <div class="card-header bg-success text-white">
+                    <h4 class="mb-0">
+                        <i class="bi bi-check-circle-fill me-2"></i>
+                        Granted Permissions (@Model.GrantedPermissions.Count)
+                    </h4>
+                </div>
+                <div class="card-body">
+                    @if (Model.GrantedPermissions.Any())
+                    {
+                        @foreach (var moduleGroup in Model.GrantedByModule.OrderBy(g => g.Key))
+                        {
+                            <div class="mb-4">
+                                <div class="d-flex justify-content-between align-items-center border-bottom pb-2 mb-3">
+                                    <h5 class="mb-0">
+                                        <i class="bi bi-@GetModuleIcon(moduleGroup.Key) me-2"></i>
+                                        @moduleGroup.Key
+                                        <span class="badge bg-success">@moduleGroup.Value.Count</span>
+                                    </h5>
+                                    <form method="post" asp-page-handler="RevokeModule" asp-route-roleId="@Model.Role.Id" asp-route-module="@((int)moduleGroup.Key)">
+                                        <button type="submit" class="btn btn-sm btn-outline-danger" title="Revoke all @moduleGroup.Key permissions">
+                                            <i class="bi bi-dash-circle"></i> Revoke All
+                                        </button>
+                                    </form>
+                                </div>
+
+                                <div class="list-group">
+                                    @foreach (var permission in moduleGroup.Value)
+                                    {
+                                        <div class="list-group-item d-flex justify-content-between align-items-start">
+                                            <div class="flex-grow-1">
+                                                <div class="fw-bold text-success">
+                                                    <i class="bi bi-check-circle-fill me-1"></i>
+                                                    @GetFriendlyActionName(permission.Action)
+                                                </div>
+                                                <small class="text-muted">@permission.Description</small>
+                                                <div><code class="small">@permission.Name</code></div>
+                                            </div>
+                                            <form method="post" asp-page-handler="Revoke" asp-route-roleId="@Model.Role.Id" asp-route-permissionId="@permission.Id">
+                                                <button type="submit" class="btn btn-sm btn-danger" title="Revoke this permission">
+                                                    <i class="bi bi-x-circle"></i> Revoke
+                                                </button>
+                                            </form>
+                                        </div>
+                                    }
+                                </div>
+                            </div>
+                        }
+                    }
+                    else
+                    {
+                        <div class="alert alert-warning mb-0">
+                            <i class="bi bi-exclamation-triangle me-2"></i>
+                            <strong>No permissions granted!</strong> This role currently has no permissions.
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <!-- NOT GRANTED PERMISSIONS -->
+        <div class="col-lg-6 mb-4">
+            <div class="card border-secondary shadow-sm">
+                <div class="card-header bg-secondary text-white">
+                    <h4 class="mb-0">
+                        <i class="bi bi-dash-circle me-2"></i>
+                        Available Permissions (@Model.NotGrantedPermissions.Count)
+                    </h4>
+                </div>
+                <div class="card-body">
+                    @if (Model.NotGrantedPermissions.Any())
+                    {
+                        @foreach (var moduleGroup in Model.NotGrantedByModule.OrderBy(g => g.Key))
+                        {
+                            <div class="mb-4">
+                                <div class="d-flex justify-content-between align-items-center border-bottom pb-2 mb-3">
+                                    <h5 class="mb-0">
+                                        <i class="bi bi-@GetModuleIcon(moduleGroup.Key) me-2"></i>
+                                        @moduleGroup.Key
+                                        <span class="badge bg-secondary">@moduleGroup.Value.Count</span>
+                                    </h5>
+                                    <form method="post" asp-page-handler="GrantModule" asp-route-roleId="@Model.Role.Id" asp-route-module="@((int)moduleGroup.Key)">
+                                        <button type="submit" class="btn btn-sm btn-outline-success" title="Grant all @moduleGroup.Key permissions">
+                                            <i class="bi bi-plus-circle"></i> Grant All
+                                        </button>
+                                    </form>
+                                </div>
+
+                                <div class="list-group">
+                                    @foreach (var permission in moduleGroup.Value)
+                                    {
+                                        <div class="list-group-item d-flex justify-content-between align-items-start">
+                                            <div class="flex-grow-1">
+                                                <div class="fw-bold text-muted">
+                                                    <i class="bi bi-circle me-1"></i>
+                                                    @GetFriendlyActionName(permission.Action)
+                                                </div>
+                                                <small class="text-muted">@permission.Description</small>
+                                                <div><code class="small">@permission.Name</code></div>
+                                                <div class="text-danger small"><strong>DEBUG: ID=@permission.Id, Module=@((int)permission.Module), Action=@((int)permission.Action)</strong></div>
+                                            </div>
+                                            <form method="post" asp-page-handler="Grant" asp-route-roleId="@Model.Role.Id" asp-route-permissionId="@permission.Id">
+                                                <button type="submit" class="btn btn-sm btn-success" title="Grant this permission">
+                                                    <i class="bi bi-plus-circle"></i> Grant (ID: @permission.Id)
+                                                </button>
+                                            </form>
+                                        </div>
+                                    }
+                                </div>
+                            </div>
+                        }
+                    }
+                    else
+                    {
+                        <div class="alert alert-success mb-0">
+                            <i class="bi bi-check-circle me-2"></i>
+                            <strong>All permissions granted!</strong> This role has all available permissions.
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@functions {
+    private string GetModuleIcon(PermissionModule module)
+    {
+        return module switch
+        {
+            PermissionModule.Patient => "person",
+            PermissionModule.Case => "virus",
+            PermissionModule.Settings => "gear",
+            PermissionModule.Audit => "clock-history",
+            PermissionModule.User => "people",
+            PermissionModule.Report => "graph-up",
+            _ => "app"
+        };
+    }
+
+    private string GetFriendlyActionName(PermissionAction action)
+    {
+        return action switch
+        {
+            PermissionAction.View => "View",
+            PermissionAction.Create => "Create",
+            PermissionAction.Edit => "Edit",
+            PermissionAction.Delete => "Delete",
+            PermissionAction.Search => "Search",
+            PermissionAction.Merge => "Merge",
+            PermissionAction.Export => "Export",
+            PermissionAction.Import => "Import",
+            PermissionAction.ManagePermissions => "Manage Permissions",
+            PermissionAction.ManageCustomFields => "Manage Custom Fields",
+            PermissionAction.ManageCustomLookups => "Manage Custom Lookups",
+            PermissionAction.ManageSystemLookups => "Manage System Lookups",
+            PermissionAction.ManageOrganization => "Manage Organization",
+            PermissionAction.ResetPassword => "Reset Password",
+            _ => action.ToString()
+        };
+    }
+}

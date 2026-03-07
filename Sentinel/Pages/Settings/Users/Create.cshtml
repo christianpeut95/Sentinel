@@ -1,0 +1,157 @@
+@page
+@model Sentinel.Pages.Settings.Users.CreateModel
+
+@{
+    ViewData["Title"] = "Create New User";
+}
+
+<div class="container-fluid">
+    <nav aria-label="breadcrumb" class="mb-3">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a asp-page="/Index">Home</a></li>
+            <li class="breadcrumb-item"><a asp-page="/Settings/Index">Settings</a></li>
+            <li class="breadcrumb-item"><a asp-page="./Index">Users</a></li>
+            <li class="breadcrumb-item active" aria-current="page">Create</li>
+        </ol>
+    </nav>
+
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0"><i class="bi bi-person-plus me-2"></i>Create New User</h4>
+                </div>
+                <div class="card-body">
+                    <form method="post">
+                        <div asp-validation-summary="ModelOnly" class="alert alert-danger" role="alert"></div>
+
+                        <div class="row g-3">
+                            <!-- Email -->
+                            <div class="col-md-6">
+                                <label asp-for="Input.Email" class="form-label">
+                                    <i class="bi bi-envelope me-1"></i>Email Address
+                                </label>
+                                <input asp-for="Input.Email" class="form-control" placeholder="user@example.com" />
+                                <span asp-validation-for="Input.Email" class="text-danger"></span>
+                            </div>
+
+                            <!-- Username -->
+                            <div class="col-md-6">
+                                <label asp-for="Input.UserName" class="form-label">
+                                    <i class="bi bi-person me-1"></i>Username
+                                </label>
+                                <input asp-for="Input.UserName" class="form-control" placeholder="username" />
+                                <span asp-validation-for="Input.UserName" class="text-danger"></span>
+                                <small class="form-text text-muted">Optional - defaults to email if not provided</small>
+                            </div>
+
+                            <!-- Password -->
+                            <div class="col-md-6">
+                                <label asp-for="Input.Password" class="form-label">
+                                    <i class="bi bi-key me-1"></i>Password
+                                </label>
+                                <input asp-for="Input.Password" class="form-control" />
+                                <span asp-validation-for="Input.Password" class="text-danger"></span>
+                            </div>
+
+                            <!-- Confirm Password -->
+                            <div class="col-md-6">
+                                <label asp-for="Input.ConfirmPassword" class="form-label">
+                                    <i class="bi bi-key-fill me-1"></i>Confirm Password
+                                </label>
+                                <input asp-for="Input.ConfirmPassword" class="form-control" />
+                                <span asp-validation-for="Input.ConfirmPassword" class="text-danger"></span>
+                            </div>
+
+                            <!-- Email Confirmed -->
+                            <div class="col-12">
+                                <div class="form-check">
+                                    <input asp-for="Input.EmailConfirmed" class="form-check-input" />
+                                    <label asp-for="Input.EmailConfirmed" class="form-check-label">
+                                        Email is confirmed (user can log in immediately)
+                                    </label>
+                                </div>
+                            </div>
+
+                            <!-- Roles -->
+                            <div class="col-12">
+                                <label class="form-label">
+                                    <i class="bi bi-shield-check me-1"></i>Assign Roles
+                                </label>
+                                <div class="card">
+                                    <div class="card-body">
+                                        @if (Model.AllRoles.Any())
+                                        {
+                                            <div class="row g-2">
+                                                @foreach (var role in Model.AllRoles)
+                                                {
+                                                    <div class="col-md-4">
+                                                        <div class="form-check">
+                                                            <input class="form-check-input" type="checkbox" name="Input.SelectedRoles" value="@role" id="role_@role" />
+                                                            <label class="form-check-label" for="role_@role">
+                                                                @role
+                                                            </label>
+                                                        </div>
+                                                    </div>
+                                                }
+                                            </div>
+                                        }
+                                        else
+                                        {
+                                            <p class="text-muted mb-0">No roles available. <a asp-page="/Settings/Roles/Index">Create roles first</a>.</p>
+                                        }
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <hr class="my-4">
+
+                        <div class="d-flex gap-2">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-check-lg me-2"></i>Create User
+                            </button>
+                            <a asp-page="./Index" class="btn btn-outline-secondary">
+                                <i class="bi bi-x-lg me-2"></i>Cancel
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4">
+            <div class="card shadow-sm mb-3">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0"><i class="bi bi-info-circle me-2"></i>Password Requirements</h5>
+                </div>
+                <div class="card-body">
+                    <ul class="mb-0">
+                        <li>At least 6 characters long</li>
+                        <li>Contains uppercase and lowercase letters</li>
+                        <li>Contains at least one number</li>
+                        <li>Contains at least one special character</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="card shadow-sm">
+                <div class="card-header bg-warning text-dark">
+                    <h5 class="mb-0"><i class="bi bi-shield-exclamation me-2"></i>Security Tips</h5>
+                </div>
+                <div class="card-body">
+                    <ul class="mb-0">
+                        <li>Use strong, unique passwords</li>
+                        <li>Assign only necessary roles</li>
+                        <li>Consider email confirmation for security</li>
+                        <li>Review user permissions regularly</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

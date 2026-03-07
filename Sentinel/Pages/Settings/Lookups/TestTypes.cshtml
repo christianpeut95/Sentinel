@@ -1,0 +1,178 @@
+@page
+@model Sentinel.Pages.Settings.Lookups.TestTypesModel
+
+@{
+    ViewData["Title"] = "Test Types";
+    Layout = "~/Pages/Shared/_Layout.cshtml";
+}
+@functions {
+    public string GetCspNonce()
+    {
+        if (HttpContext?.Items?.TryGetValue("csp-nonce", out var nonce) == true && nonce is string nonceStr)
+        {
+            return nonceStr;
+        }
+        return string.Empty;
+    }
+}
+
+<nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a asp-page="/Index">Home</a></li>
+        <li class="breadcrumb-item"><a asp-page="/Settings/Index">Settings</a></li>
+        <li class="breadcrumb-item active" aria-current="page">Test Types</li>
+    </ol>
+</nav>
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2 class="mb-0"><i class="bi bi-clipboard2-pulse me-2"></i>Test Types</h2>
+    <div>
+        <a asp-page="CreateTestType" class="btn btn-primary"><i class="bi bi-plus-circle me-1"></i>Add Test Type</a>
+    </div>
+</div>
+
+@if (TempData["SuccessMessage"] != null)
+{
+    <div class="alert alert-success alert-dismissible fade show" role="alert">
+        <i class="bi bi-check-circle me-2"></i>@TempData["SuccessMessage"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+}
+
+@if (TempData["ErrorMessage"] != null)
+{
+    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+        <i class="bi bi-exclamation-triangle me-2"></i>@TempData["ErrorMessage"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+}
+
+<div class="card shadow-sm mb-3">
+    <div class="card-body">
+        <form method="get">
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <label for="searchTerm" class="form-label">Search</label>
+                    <input type="text" class="form-control" id="searchTerm" name="searchTerm" value="@Model.SearchTerm" placeholder="Search by name, description, or export code..." />
+                </div>
+                <div class="col-md-3">
+                    <label for="isActive" class="form-label">Status</label>
+                    <select class="form-select" id="isActive" name="isActive">
+                        <option value="">All</option>
+                        <option value="true" selected="@(Model.IsActive == true)">Active</option>
+                        <option value="false" selected="@(Model.IsActive == false)">Inactive</option>
+                    </select>
+                </div>
+                <div class="col-md-3 d-flex align-items-end">
+                    <button type="submit" class="btn btn-primary me-2">
+                        <i class="bi bi-search me-1"></i>Search
+                    </button>
+                    <a asp-page="./TestTypes" class="btn btn-outline-secondary">
+                        <i class="bi bi-x-circle me-1"></i>Clear
+                    </a>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="card shadow-sm">
+    <div class="card-body">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <div>
+                <strong>@Model.TestTypes.Count</strong> test type(s) found
+            </div>
+        </div>
+
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Name</th>
+                        <th>Description</th>
+                        <th>Export Code</th>
+                        <th>Display Order</th>
+                        <th>Status</th>
+                        <th>Used in Results</th>
+                        <th class="text-end">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+@foreach (var item in Model.TestTypes) {
+                    <tr>
+                        <td><strong>@item.Name</strong></td>
+                        <td>@(item.Description ?? "-")</td>
+                        <td>
+                            @if (!string.IsNullOrEmpty(item.ExportCode))
+                            {
+                                <code>@item.ExportCode</code>
+                            }
+                            else
+                            {
+                                <span class="text-muted">-</span>
+                            }
+                        </td>
+                        <td>@(item.DisplayOrder?.ToString() ?? "-")</td>
+                        <td>
+                            @if (item.IsActive)
+                            {
+                                <span class="badge bg-success">Active</span>
+                            }
+                            else
+                            {
+                                <span class="badge bg-secondary">Inactive</span>
+                            }
+                        </td>
+                        <td>
+                            @if (Model.LabResultCounts.ContainsKey(item.Id))
+                            {
+                                <span class="badge bg-info">@Model.LabResultCounts[item.Id] results</span>
+                            }
+                            else
+                            {
+                                <span class="text-muted">0</span>
+                            }
+                        </td>
+                        <td class="text-end">
+                            <div class="btn-group btn-group-sm" role="group">
+                                <a asp-page="./EditTestType" asp-route-id="@item.Id" class="btn btn-outline-secondary" title="Edit">
+                                    <i class="bi bi-pencil"></i>
+                                </a>
+                                @if (!item.IsActive || !Model.LabResultCounts.ContainsKey(item.Id) || Model.LabResultCounts[item.Id] == 0)
+                                {
+                                    <button type="button" class="btn btn-outline-danger" onclick="confirmDelete(@item.Id, '@item.Name')" title="Delete">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                }
+                            </div>
+                        </td>
+                    </tr>
+}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+@if (!Model.TestTypes.Any())
+{
+    <div class="alert alert-info mt-3">
+        <i class="bi bi-info-circle me-2"></i>No test types found. <a asp-page="CreateTestType" class="alert-link">Create your first test type</a>.
+    </div>
+}
+
+<form method="post" id="deleteForm">
+    <input type="hidden" name="id" id="deleteId" />
+</form>
+
+@section Scripts {
+<script>
+    function confirmDelete(id, name) {
+        if (confirm(`Are you sure you want to delete "${name}"?\n\nThis test type will be permanently removed.`)) {
+            document.getElementById('deleteId').value = id;
+            document.getElementById('deleteForm').action = '?handler=Delete&id=' + id;
+            document.getElementById('deleteForm').submit();
+        }
+    }
+</script>
+}

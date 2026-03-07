@@ -1,0 +1,163 @@
+@using Sentinel.Models
+@using Sentinel.Services
+@using Microsoft.JSInterop
+@inject ISurveyMappingService MappingService
+@inject IJSRuntime JS
+
+@if (PreviewResult != null)
+{
+    <div class="alert @GetAlertClass() alert-dismissible fade show" role="alert">
+        <h6 class="alert-heading">
+            <i class="bi bi-info-circle-fill"></i> 
+            Preview: What Will Happen When You Submit
+        </h6>
+        
+        <div class="row mb-2">
+            <div class="col-md-3">
+                <div class="text-center p-2 bg-success bg-opacity-10 rounded">
+                    <div class="h4 mb-0">@PreviewResult.WillAutoSave</div>
+                    <small class="text-muted">Auto-Save</small>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="text-center p-2 bg-warning bg-opacity-10 rounded">
+                    <div class="h4 mb-0">@PreviewResult.WillQueueForReview</div>
+                    <small class="text-muted">Queue for Review</small>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="text-center p-2 bg-danger bg-opacity-10 rounded">
+                    <div class="h4 mb-0">@PreviewResult.WillRequireApproval</div>
+                    <small class="text-muted">Require Approval</small>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="text-center p-2 bg-secondary bg-opacity-10 rounded">
+                    <div class="h4 mb-0">@PreviewResult.WillSkip</div>
+                    <small class="text-muted">Skipped</small>
+                </div>
+            </div>
+        </div>
+
+        @if (ShowDetails)
+        {
+            <hr />
+            <div class="table-responsive">
+                <table class="table table-sm mb-0">
+                    <thead>
+                        <tr>
+                            <th></th>
+                            <th>Survey Question</th>
+                            <th>Your Answer</th>
+                            <th>Current Value</th>
+                            <th>Will Become</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var item in PreviewResult.Items.Where(i => i.WillModify))
+                        {
+                            <tr>
+                                <td><i class="bi bi-@item.Icon @item.CssClass"></i></td>
+                                <td>
+                                    <strong>@item.SurveyQuestion</strong>
+                                    <br />
+                                    <small class="text-muted">? @item.TargetField</small>
+                                </td>
+                                <td>@FormatValue(item.SurveyValue)</td>
+                                <td>
+                                    @if (item.CurrentDatabaseValue != null)
+                                    {
+                                        <span>@FormatValue(item.CurrentDatabaseValue)</span>
+                                    }
+                                    else
+                                    {
+                                        <em class="text-muted">(empty)</em>
+                                    }
+                                </td>
+                                <td>
+                                    <strong>@FormatValue(item.ProjectedValue)</strong>
+                                    @if (!Equals(item.SurveyValue, item.ProjectedValue))
+                                    {
+                                        <br />
+                                        <small class="text-muted">(@item.BusinessRule)</small>
+                                    }
+                                </td>
+                                <td>
+                                    <span class="badge @item.CssClass">
+                                        @item.ActionDisplay
+                                    </span>
+                                </td>
+                            </tr>
+                        }
+
+                        @if (PreviewResult.Items.Any(i => !i.WillModify))
+                        {
+                            <tr>
+                                <td colspan="6" class="text-center text-muted">
+                                    <small>
+                                        <i class="bi bi-info-circle"></i>
+                                        @PreviewResult.Items.Count(i => !i.WillModify) field(s) will not change 
+                                        (business rules applied)
+                                    </small>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+
+        <div class="mt-2">
+            <button class="btn btn-sm btn-outline-secondary" @onclick="ToggleDetails">
+                <i class="bi bi-@(ShowDetails ? "chevron-up" : "chevron-down")"></i>
+                @(ShowDetails ? "Hide" : "Show") Details
+            </button>
+        </div>
+
+        <button type="button" class="btn-close" @onclick="Close"></button>
+    </div>
+}
+
+@code {
+    [Parameter] public MappingPreviewResult? PreviewResult { get; set; }
+    [Parameter] public EventCallback OnClose { get; set; }
+    
+    private bool ShowDetails = false;
+
+    private void ToggleDetails()
+    {
+        ShowDetails = !ShowDetails;
+    }
+
+    private async Task Close()
+    {
+        await OnClose.InvokeAsync();
+    }
+
+    private string GetAlertClass()
+    {
+        if (PreviewResult == null) return "alert-info";
+
+        if (PreviewResult.WillRequireApproval > 0)
+            return "alert-danger";
+        
+        if (PreviewResult.WillQueueForReview > 0)
+            return "alert-warning";
+        
+        return "alert-success";
+    }
+
+    private string FormatValue(object? value)
+    {
+        if (value == null) return "(empty)";
+        
+        if (value is DateTime dt)
+            return dt.ToString("yyyy-MM-dd");
+        
+        if (value is bool b)
+            return b ? "Yes" : "No";
+        
+        return value.ToString() ?? "(empty)";
+    }
+}

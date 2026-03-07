@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Autocomplete Debug Test</title>
+    <link rel="stylesheet" href="https://code.jquery.com/ui/1.13.2/themes/base/jquery-ui.css" />
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <script src="https://code.jquery.com/ui/1.13.2/jquery-ui.min.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 40px; }
+        .test-section { border: 1px solid #ccc; padding: 20px; margin-bottom: 20px; }
+        .pass { color: green; font-weight: bold; }
+        .fail { color: red; font-weight: bold; }
+        input { width: 300px; padding: 8px; margin: 10px 0; }
+        #console { background: #f0f0f0; padding: 10px; height: 200px; overflow-y: scroll; font-family: monospace; font-size: 12px; }
+    </style>
+</head>
+<body>
+    <h1>?? Autocomplete Diagnostic Page</h1>
+    
+    <div class="test-section">
+        <h2>1. jQuery Test</h2>
+        <div id="jqueryTest">Testing...</div>
+    </div>
+
+    <div class="test-section">
+        <h2>2. jQuery UI Test</h2>
+        <div id="jqueryUITest">Testing...</div>
+    </div>
+
+    <div class="test-section">
+        <h2>3. Country API Test</h2>
+        <button onclick="testCountryAPI()">Test Country API</button>
+        <div id="countryAPITest">Click button to test</div>
+    </div>
+
+    <div class="test-section">
+        <h2>4. Case API Test</h2>
+        <button onclick="testCaseAPI()">Test Case API</button>
+        <div id="caseAPITest">Click button to test</div>
+    </div>
+
+    <div class="test-section">
+        <h2>5. Country Autocomplete Test</h2>
+        <label>Type "uni" to test:</label><br/>
+        <input type="text" id="countryTest" placeholder="Start typing country name..." />
+        <div id="countryResult"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>6. Case Autocomplete Test</h2>
+        <label>Type case ID or patient name:</label><br/>
+        <input type="text" id="caseTest" placeholder="Start typing case..." />
+        <div id="caseResult"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>Console Log</h2>
+        <div id="console"></div>
+    </div>
+
+    <script>
+        // Capture console.log
+        var originalLog = console.log;
+        console.log = function(msg) {
+            originalLog.apply(console, arguments);
+            var consoleDiv = document.getElementById('console');
+            consoleDiv.innerHTML += new Date().toLocaleTimeString() + ' - ' + msg + '<br/>';
+            consoleDiv.scrollTop = consoleDiv.scrollHeight;
+        };
+
+        // Test 1: jQuery
+        if (typeof $ !== 'undefined') {
+            $('#jqueryTest').html('<span class="pass">? PASS</span> - jQuery version: ' + $.fn.jquery);
+            console.log('jQuery loaded: ' + $.fn.jquery);
+        } else {
+            $('#jqueryTest').html('<span class="fail">? FAIL</span> - jQuery not loaded');
+            console.log('ERROR: jQuery not loaded');
+        }
+
+        // Test 2: jQuery UI
+        if (typeof $.fn.autocomplete !== 'undefined') {
+            $('#jqueryUITest').html('<span class="pass">? PASS</span> - jQuery UI autocomplete is available');
+            console.log('jQuery UI autocomplete loaded');
+        } else {
+            $('#jqueryUITest').html('<span class="fail">? FAIL</span> - jQuery UI autocomplete not available');
+            console.log('ERROR: jQuery UI not loaded');
+        }
+
+        // Test 3: Country API
+        function testCountryAPI() {
+            $('#countryAPITest').html('Testing...');
+            console.log('Testing country API...');
+            $.ajax({
+                url: '/api/countries/search',
+                data: { term: 'uni' },
+                success: function(data) {
+                    console.log('Country API response:', data);
+                    if (data && data.length > 0) {
+                        $('#countryAPITest').html('<span class="pass">? PASS</span> - Found ' + data.length + ' countries: ' + JSON.stringify(data.slice(0, 3)));
+                    } else {
+                        $('#countryAPITest').html('<span class="fail">? FAIL</span> - No countries returned');
+                    }
+                },
+                error: function(xhr, status, error) {
+                    console.log('Country API ERROR:', error, xhr.responseText);
+                    $('#countryAPITest').html('<span class="fail">? FAIL</span> - Error: ' + error + ' - ' + xhr.responseText);
+                }
+            });
+        }
+
+        // Test 4: Case API
+        function testCaseAPI() {
+            $('#caseAPITest').html('Testing...');
+            console.log('Testing case API...');
+            $.ajax({
+                url: '/api/cases/search',
+                data: { term: 'test' },
+                success: function(data) {
+                    console.log('Case API response:', data);
+                    if (data && data.length >= 0) {
+                        $('#caseAPITest').html('<span class="pass">? PASS</span> - Found ' + data.length + ' cases');
+                    } else {
+                        $('#caseAPITest').html('<span class="fail">? FAIL</span> - Invalid response');
+                    }
+                },
+                error: function(xhr, status, error) {
+                    console.log('Case API ERROR:', error, xhr.responseText);
+                    $('#caseAPITest').html('<span class="fail">? FAIL</span> - Error: ' + error);
+                }
+            });
+        }
+
+        // Test 5: Country Autocomplete
+        $(function() {
+            console.log('Initializing country autocomplete test...');
+            $('#countryTest').autocomplete({
+                source: function(request, response) {
+                    console.log('Country autocomplete triggered for:', request.term);
+                    $('#countryResult').html('Searching...');
+                    $.ajax({
+                        url: '/api/countries/search',
+                        data: { term: request.term },
+                        success: function(data) {
+                            console.log('Country autocomplete got:', data);
+                            $('#countryResult').html('<span class="pass">? Got ' + data.length + ' results</span>');
+                            response($.map(data, function(item) {
+                                return { label: item.name, value: item.name, code: item.code };
+                            }));
+                        },
+                        error: function(err) {
+                            console.log('Country autocomplete ERROR:', err);
+                            $('#countryResult').html('<span class="fail">? Error</span>');
+                            response([]);
+                        }
+                    });
+                },
+                minLength: 2,
+                select: function(event, ui) {
+                    console.log('Selected country:', ui.item);
+                    $('#countryResult').html('<span class="pass">? Selected: ' + ui.item.label + ' (' + ui.item.code + ')</span>');
+                }
+            });
+            console.log('Country autocomplete initialized');
+        });
+
+        // Test 6: Case Autocomplete
+        $(function() {
+            console.log('Initializing case autocomplete test...');
+            $('#caseTest').autocomplete({
+                source: function(request, response) {
+                    console.log('Case autocomplete triggered for:', request.term);
+                    $('#caseResult').html('Searching...');
+                    $.ajax({
+                        url: '/api/cases/search',
+                        data: { term: request.term },
+                        success: function(data) {
+                            console.log('Case autocomplete got:', data);
+                            $('#caseResult').html('<span class="pass">? Got ' + data.length + ' results</span>');
+                            response($.map(data, function(item) {
+                                return { label: item.friendlyId + ' - ' + item.patientName, value: item.friendlyId };
+                            }));
+                        },
+                        error: function(err) {
+                            console.log('Case autocomplete ERROR:', err);
+                            $('#caseResult').html('<span class="fail">? Error</span>');
+                            response([]);
+                        }
+                    });
+                },
+                minLength: 2,
+                select: function(event, ui) {
+                    console.log('Selected case:', ui.item);
+                    $('#caseResult').html('<span class="pass">? Selected: ' + ui.item.label + '</span>');
+                }
+            });
+            console.log('Case autocomplete initialized');
+        });
+
+        console.log('All tests initialized');
+    </script>
+</body>
+</html>

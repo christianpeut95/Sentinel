@@ -1,0 +1,92 @@
+@using System.Text.Json
+
+<div class="mb-3">
+    <label class="form-label">Matrix/Dynamic Question</label>
+    <select class="form-select" value="@SelectedQuestion" @onchange="OnQuestionChange">
+        <option value="">-- Select Matrix Question --</option>
+        @foreach (var question in matrixQuestions)
+        {
+            <option value="@question.Name">@question.Title (@question.Type)</option>
+        }
+    </select>
+    <small class="text-muted">Only matrix/matrixdynamic/matrixdropdown questions shown</small>
+</div>
+
+@code {
+    [Parameter]
+    public string? SurveyJson { get; set; }
+
+    [Parameter]
+    public string? SelectedQuestion { get; set; }
+
+    [Parameter]
+    public EventCallback<string> OnQuestionSelected { get; set; }
+
+    private List<MatrixQuestion> matrixQuestions = new();
+
+    protected override void OnParametersSet()
+    {
+        LoadMatrixQuestions();
+    }
+
+    private void LoadMatrixQuestions()
+    {
+        matrixQuestions.Clear();
+
+        if (string.IsNullOrEmpty(SurveyJson)) return;
+
+        try
+        {
+            var surveyDef = JsonSerializer.Deserialize<JsonElement>(SurveyJson);
+
+            if (surveyDef.TryGetProperty("pages", out var pages))
+            {
+                foreach (var page in pages.EnumerateArray())
+                {
+                    if (page.TryGetProperty("elements", out var elements))
+                    {
+                        foreach (var element in elements.EnumerateArray())
+                        {
+                            if (element.TryGetProperty("type", out var type))
+                            {
+                                var typeStr = type.GetString();
+                                if (typeStr == "matrix" || typeStr == "matrixdynamic" || typeStr == "matrixdropdown")
+                                {
+                                    var name = element.TryGetProperty("name", out var n) ? n.GetString() : "";
+                                    var title = element.TryGetProperty("title", out var t) ? t.GetString() : name;
+
+                                    if (!string.IsNullOrEmpty(name))
+                                    {
+                                        matrixQuestions.Add(new MatrixQuestion
+                                        {
+                                            Name = name,
+                                            Title = title ?? name,
+                                            Type = typeStr ?? "matrix"
+                                        });
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading matrix questions: {ex.Message}");
+        }
+    }
+
+    private async Task OnQuestionChange(ChangeEventArgs e)
+    {
+        var questionName = e.Value?.ToString() ?? "";
+        await OnQuestionSelected.InvokeAsync(questionName);
+    }
+
+    private class MatrixQuestion
+    {
+        public string Name { get; set; } = "";
+        public string Title { get; set; } = "";
+        public string Type { get; set; } = "";
+    }
+}

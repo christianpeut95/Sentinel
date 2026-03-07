@@ -1,0 +1,216 @@
+@page
+@model Sentinel.Pages.Settings.Jurisdictions.BulkImportModel
+@{
+    ViewData["Title"] = "Bulk Import Jurisdictions";
+}
+
+<nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a asp-page="/Index">Home</a></li>
+        <li class="breadcrumb-item"><a asp-page="/Settings/Index">Settings</a></li>
+        <li class="breadcrumb-item"><a asp-page="./Index">Jurisdictions</a></li>
+        <li class="breadcrumb-item active" aria-current="page">Bulk Import</li>
+    </ol>
+</nav>
+
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="mb-1">
+                <i class="bi bi-upload me-2"></i>Bulk Import Jurisdictions
+            </h2>
+            <p class="text-muted mb-0">Import multiple jurisdictions from a single shapefile</p>
+        </div>
+        <a asp-page="./Index" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left me-1"></i>Back to List
+        </a>
+    </div>
+
+    @if (TempData["SuccessMessage"] != null)
+    {
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            <i class="bi bi-check-circle me-2"></i>@TempData["SuccessMessage"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
+
+    @if (TempData["ErrorMessage"] != null)
+    {
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            <i class="bi bi-exclamation-triangle me-2"></i>@TempData["ErrorMessage"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
+
+    <div class="row">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title mb-3">
+                        <i class="bi bi-1-circle me-2"></i>Step 1: Upload Shapefile & Select Type
+                    </h5>
+                    
+                    <form method="post" asp-page-handler="Analyze" enctype="multipart/form-data">
+                        <div class="mb-3">
+                            <label asp-for="JurisdictionTypeId" class="form-label">Jurisdiction Type</label>
+                            <select asp-for="JurisdictionTypeId" asp-items="Model.JurisdictionTypes" class="form-select">
+                                <option value="">-- Select Jurisdiction Type --</option>
+                            </select>
+                            <span asp-validation-for="JurisdictionTypeId" class="text-danger"></span>
+                            <small class="form-text text-muted">All imported jurisdictions will be assigned to this type</small>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="ShapefileUpload" class="form-label">
+                                <i class="bi bi-upload me-1"></i>Shapefile (ZIP containing .shp, .shx, .dbf)
+                            </label>
+                            <input type="file" 
+                                   id="ShapefileUpload" 
+                                   name="ShapefileUpload" 
+                                   class="form-control" 
+                                   accept=".zip" 
+                                   required />
+                            <span asp-validation-for="ShapefileUpload" class="text-danger"></span>
+                            <small class="form-text text-muted">Must be a ZIP file containing shapefile components</small>
+                        </div>
+
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-search me-1"></i>Analyze Shapefile
+                        </button>
+                    </form>
+
+                    @if (Model.AttributeNames.Any())
+                    {
+                        <hr class="my-4" />
+
+                        <h5 class="card-title mb-3">
+                            <i class="bi bi-2-circle me-2"></i>Step 2: Map Attributes
+                        </h5>
+
+                        <div class="alert alert-info">
+                            <i class="bi bi-info-circle me-2"></i>
+                            Found <strong>@TempData["FeatureCount"]</strong> features in shapefile with <strong>@Model.AttributeNames.Count</strong> attributes
+                        </div>
+
+                        <form method="post" asp-page-handler="Import">
+                            <input type="hidden" asp-for="JurisdictionTypeId" value="@TempData.Peek("JurisdictionTypeId")" />
+
+                            <div class="mb-3">
+                                <label asp-for="NameFieldMapping" class="form-label">
+                                    Name Field <span class="text-danger">*</span>
+                                </label>
+                                <select asp-for="NameFieldMapping" class="form-select" required>
+                                    <option value="">-- Select Attribute for Name --</option>
+                                    @foreach (var attr in Model.AttributeNames)
+                                    {
+                                        <option value="@attr">@attr</option>
+                                    }
+                                </select>
+                                <small class="form-text text-muted">Select which attribute contains the jurisdiction name</small>
+                            </div>
+
+                            <div class="mb-3">
+                                <label asp-for="CodeFieldMapping" class="form-label">Code Field (Optional)</label>
+                                <select asp-for="CodeFieldMapping" class="form-select">
+                                    <option value="">-- None --</option>
+                                    @foreach (var attr in Model.AttributeNames)
+                                    {
+                                        <option value="@attr">@attr</option>
+                                    }
+                                </select>
+                                <small class="form-text text-muted">Select which attribute contains a code/abbreviation</small>
+                            </div>
+
+                            <h6 class="mt-4 mb-3">Preview (First 10 Features)</h6>
+                            <div class="table-responsive">
+                                <table class="table table-sm table-bordered">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th>#</th>
+                                            @foreach (var attr in Model.AttributeNames)
+                                            {
+                                                <th>@attr</th>
+                                            }
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @for (int i = 0; i < Model.PreviewJurisdictions.Count; i++)
+                                        {
+                                            var preview = Model.PreviewJurisdictions[i];
+                                            <tr>
+                                                <td>@(i + 1)</td>
+                                                @foreach (var attr in Model.AttributeNames)
+                                                {
+                                                    <td>@(preview.Attributes.ContainsKey(attr) ? preview.Attributes[attr]?.ToString() : "-")</td>
+                                                }
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            <div class="alert alert-warning mt-3">
+                                <i class="bi bi-exclamation-triangle me-2"></i>
+                                <strong>Warning:</strong> This will create <strong>@TempData["FeatureCount"]</strong> new jurisdictions. This action cannot be undone.
+                            </div>
+
+                            <button type="submit" class="btn btn-success btn-lg">
+                                <i class="bi bi-download me-1"></i>Import @TempData["FeatureCount"] Jurisdictions
+                            </button>
+                        </form>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card bg-light">
+                <div class="card-body">
+                    <h6 class="card-title">
+                        <i class="bi bi-lightbulb me-2"></i>Instructions
+                    </h6>
+                    <ol class="mb-0 small">
+                        <li class="mb-2">
+                            <strong>Select a jurisdiction type</strong> - all imported jurisdictions will be assigned to this type
+                        </li>
+                        <li class="mb-2">
+                            <strong>Upload your shapefile</strong> as a ZIP file containing .shp, .shx, and .dbf files
+                        </li>
+                        <li class="mb-2">
+                            <strong>Click "Analyze"</strong> to extract attribute names and preview data
+                        </li>
+                        <li class="mb-2">
+                            <strong>Map attributes</strong> to jurisdiction properties (Name, Code)
+                        </li>
+                        <li>
+                            <strong>Click "Import"</strong> to create all jurisdictions at once
+                        </li>
+                    </ol>
+                </div>
+            </div>
+
+            <div class="card mt-3">
+                <div class="card-body">
+                    <h6 class="card-title">
+                        <i class="bi bi-info-circle me-2"></i>Common Attribute Names
+                    </h6>
+                    <p class="small mb-2"><strong>ABS Shapefiles:</strong></p>
+                    <ul class="small mb-3">
+                        <li>LGA_NAME22 (LGA name)</li>
+                        <li>LGA_CODE22 (LGA code)</li>
+                        <li>SA2_NAME21 (SA2 name)</li>
+                        <li>SA3_NAME21 (SA3 name)</li>
+                        <li>SA4_NAME21 (SA4 name)</li>
+                    </ul>
+                    <p class="small mb-0">
+                        <strong>Tip:</strong> Look for attributes ending in "NAME" or "NAME22" for names, and "CODE" or "CODE22" for codes.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

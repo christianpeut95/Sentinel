@@ -1,0 +1,251 @@
+@page
+@model Sentinel.Pages.Events.DetailsModel
+
+@{
+    ViewData["Title"] = "Event Details";
+}
+
+<nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a asp-page="/Index">Home</a></li>
+        <li class="breadcrumb-item"><a asp-page="./Index">Events</a></li>
+        <li class="breadcrumb-item active" aria-current="page">Details</li>
+    </ol>
+</nav>
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2>
+        <i class="bi bi-calendar-event me-2"></i>@Model.Event.Name
+        @if (!Model.Event.IsActive)
+        {
+            <span class="badge bg-secondary ms-2">Inactive</span>
+        }
+    </h2>
+    <div>
+        <a asp-page="./Edit" asp-route-id="@Model.Event.Id" class="btn btn-primary">
+            <i class="bi bi-pencil me-1"></i>Edit
+        </a>
+        <a asp-page="./Index" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left me-1"></i>Back to List
+        </a>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="card shadow-sm mb-4">
+            <div class="card-header bg-light fw-semibold">
+                <i class="bi bi-info-circle me-2"></i>Event Information
+            </div>
+            <div class="card-body">
+                <dl class="row mb-0">
+                    <dt class="col-sm-3">Event Name</dt>
+                    <dd class="col-sm-9">@Model.Event.Name</dd>
+
+                    <dt class="col-sm-3">Type</dt>
+                    <dd class="col-sm-9">
+                        @if (Model.Event.EventType != null)
+                        {
+                            <span class="badge bg-secondary">@Model.Event.EventType.Name</span>
+                        }
+                        else
+                        {
+                            <span class="text-muted">-</span>
+                        }
+                    </dd>
+
+                    <dt class="col-sm-3">Location</dt>
+                    <dd class="col-sm-9">
+                        @if (Model.Event.Location != null)
+                        {
+                            <a asp-page="/Locations/Details" asp-route-id="@Model.Event.Location.Id">@Model.Event.Location.Name</a>
+                            @if (Model.Event.Location.LocationType != null)
+                            {
+                                <br/><small class="text-muted">(@Model.Event.Location.LocationType.Name)</small>
+                            }
+                        }
+                        else
+                        {
+                            <span class="text-muted">-</span>
+                        }
+                    </dd>
+
+                    <dt class="col-sm-3">Start Date/Time</dt>
+                    <dd class="col-sm-9">@Model.Event.StartDateTime.ToLocalTime().ToString("g")</dd>
+
+                    @if (Model.Event.EndDateTime.HasValue)
+                    {
+                        <dt class="col-sm-3">End Date/Time</dt>
+                        <dd class="col-sm-9">@Model.Event.EndDateTime.Value.ToLocalTime().ToString("g")</dd>
+                    }
+
+                    <dt class="col-sm-3">Duration</dt>
+                    <dd class="col-sm-9">
+                        @if (Model.Event.EndDateTime.HasValue)
+                        {
+                            var duration = Model.Event.EndDateTime.Value - Model.Event.StartDateTime;
+                            <text>@duration.TotalHours.ToString("F1") hours</text>
+                        }
+                        else
+                        {
+                            <span class="text-muted">Single-point event</span>
+                        }
+                    </dd>
+
+                    <dt class="col-sm-3">Setting</dt>
+                    <dd class="col-sm-9">
+                        @if (Model.Event.IsIndoor == true)
+                        {
+                            <span class="badge bg-info">Indoor</span>
+                        }
+                        else
+                        {
+                            <span class="badge bg-success">Outdoor</span>
+                        }
+                    </dd>
+
+                    <dt class="col-sm-3">Estimated Attendees</dt>
+                    <dd class="col-sm-9">@(Model.Event.EstimatedAttendees?.ToString() ?? "-")</dd>
+
+                    @if (Model.Event.OrganizerOrganization != null)
+                    {
+                        <dt class="col-sm-3">Organizer</dt>
+                        <dd class="col-sm-9">@Model.Event.OrganizerOrganization.Name</dd>
+                    }
+
+                    @if (!string.IsNullOrEmpty(Model.Event.Description))
+                    {
+                        <dt class="col-sm-3">Description</dt>
+                        <dd class="col-sm-9">@Model.Event.Description</dd>
+                    }
+
+                    <dt class="col-sm-3">Created</dt>
+                    <dd class="col-sm-9">@Model.Event.CreatedDate.ToLocalTime().ToString("g")</dd>
+
+                    @if (Model.Event.LastModified.HasValue)
+                    {
+                        <dt class="col-sm-3">Last Modified</dt>
+                        <dd class="col-sm-9">@Model.Event.LastModified.Value.ToLocalTime().ToString("g")</dd>
+                    }
+                </dl>
+            </div>
+        </div>
+
+        @if (Model.Exposures.Any())
+        {
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-light fw-semibold d-flex justify-content-between align-items-center">
+                    <span><i class="bi bi-diagram-3 me-2"></i>Case Exposures (@Model.UniqueCaseCount unique cases)</span>
+                    @if (Model.AttackRate.HasValue)
+                    {
+                        <span class="badge bg-@(Model.AttackRate > 10 ? "danger" : Model.AttackRate > 5 ? "warning" : "secondary")">
+                            Attack Rate: @Model.AttackRate.Value.ToString("F1")%
+                        </span>
+                    }
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-sm mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Case ID</th>
+                                    <th>Patient</th>
+                                    <th>Disease</th>
+                                    <th>Exposure Date</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var exposure in Model.Exposures)
+                                {
+                                    <tr>
+                                        <td>
+                                            <a asp-page="/Cases/Details" asp-route-id="@exposure.ExposedCaseId">
+                                                @Model.CaseIdentifiers[exposure.ExposedCaseId]
+                                            </a>
+                                        </td>
+                                        <td>
+                                        @if (exposure.ExposedCase?.Patient != null)
+                                        {
+                                            <text>@exposure.ExposedCase.Patient.GivenName @exposure.ExposedCase.Patient.FamilyName</text>
+                                        }
+                                        </td>
+                                        <td>
+                                            @if (exposure.ExposedCase?.Disease != null)
+                                            {
+                                                <text>@exposure.ExposedCase.Disease.Name</text>
+                                            }
+                                        </td>
+                                        <td>@exposure.ExposureStartDate.ToLocalTime().ToString("d")</td>
+                                        <td>
+                                            @switch (exposure.ExposureStatus)
+                                            {
+                                                case Sentinel.Models.ExposureStatus.ConfirmedExposure:
+                                                    <span class="badge bg-danger">Confirmed</span>
+                                                    break;
+                                                case Sentinel.Models.ExposureStatus.UnderInvestigation:
+                                                    <span class="badge bg-warning text-dark">Investigating</span>
+                                                    break;
+                                                case Sentinel.Models.ExposureStatus.PotentialExposure:
+                                                    <span class="badge bg-info">Potential</span>
+                                                    break;
+                                                case Sentinel.Models.ExposureStatus.RuledOut:
+                                                    <span class="badge bg-success">Ruled Out</span>
+                                                    break;
+                                                default:
+                                                    <span class="badge bg-secondary">Unknown</span>
+                                                    break;
+                                            }
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+
+    <div class="col-md-4">
+        <div class="card shadow-sm mb-4">
+            <div class="card-header bg-light fw-semibold">
+                <i class="bi bi-bar-chart me-2"></i>Statistics
+            </div>
+            <div class="card-body">
+                <div class="d-flex justify-content-between mb-3">
+                    <span>Total Exposures:</span>
+                    <strong>@Model.Exposures.Count</strong>
+                </div>
+                <div class="d-flex justify-content-between mb-3">
+                    <span>Unique Cases:</span>
+                    <strong>@Model.UniqueCaseCount</strong>
+                </div>
+                @if (Model.Event.EstimatedAttendees.HasValue)
+                {
+                    <div class="d-flex justify-content-between mb-3">
+                        <span>Estimated Attendees:</span>
+                        <strong>@Model.Event.EstimatedAttendees</strong>
+                    </div>
+                }
+                @if (Model.AttackRate.HasValue)
+                {
+                    <div class="d-flex justify-content-between">
+                        <span>Attack Rate:</span>
+                        <strong class="text-@(Model.AttackRate > 10 ? "danger" : Model.AttackRate > 5 ? "warning" : "secondary")">
+                            @Model.AttackRate.Value.ToString("F1")%
+                        </strong>
+                    </div>
+                }
+            </div>
+        </div>
+
+        @if (!Model.Exposures.Any())
+        {
+            <div class="alert alert-info">
+                <i class="bi bi-info-circle me-2"></i>
+                No exposures recorded for this event yet.
+            </div>
+        }
+    </div>
+</div>

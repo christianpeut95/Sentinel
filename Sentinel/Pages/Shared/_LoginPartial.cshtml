@@ -1,0 +1,55 @@
+@using Microsoft.AspNetCore.Identity
+@using Sentinel.Models
+@inject SignInManager<ApplicationUser> SignInManager
+@inject UserManager<ApplicationUser> UserManager
+
+@if (SignInManager.IsSignedIn(User))
+{
+    <div class="d-flex align-items-center gap-3">
+        <div class="user-info flex-grow-1">
+            <a asp-area="Identity" asp-page="/Account/Manage/Index" 
+               class="nav-link d-flex align-items-center gap-2 py-2" 
+               style="color: rgba(255, 255, 255, 0.9);">
+                <div class="user-avatar">
+                    <i class="bi bi-person-circle fs-4"></i>
+                </div>
+                <div class="user-details">
+                    <div class="user-name" style="font-weight: 600; font-size: 0.9rem;">@User.Identity?.Name</div>
+                    <div class="user-role" style="font-size: 0.75rem; opacity: 0.7;">View Profile</div>
+                </div>
+            </a>
+        </div>
+        <form asp-area="Identity" asp-page="/Account/Logout" asp-route-returnUrl="@Url.Page("/Index", new { area = "" })" class="d-inline">
+            <button type="submit" class="btn btn-sm" 
+                    style="background: rgba(255, 255, 255, 0.15); color: white; border: none; border-radius: 8px; padding: 0.5rem 0.75rem;"
+                    title="Logout">
+                <i class="bi bi-box-arrow-right"></i>
+            </button>
+        </form>
+    </div>
+}
+else
+{
+    <div class="d-flex flex-column gap-2">
+        <a asp-area="Identity" asp-page="/Account/Login" 
+           class="btn btn-light btn-sm w-100" 
+           style="border-radius: 8px; font-weight: 500;">
+            <i class="bi bi-box-arrow-in-right me-2"></i>Login
+        </a>
+        <a asp-area="Identity" asp-page="/Account/Register" 
+           class="nav-link text-center" 
+           style="color: rgba(255, 255, 255, 0.8); font-size: 0.85rem;">
+            Register
+        </a>
+    </div>
+}
+
+<style>
+    .sidebar-collapsed .user-details {
+        display: none;
+    }
+
+    .sidebar-collapsed .user-avatar {
+        margin: 0 auto;
+    }
+</style>

@@ -1,0 +1,435 @@
+@page
+@model Sentinel.Pages.Organizations.IndexModel
+
+@{
+    ViewData["Title"] = "Organizations";
+    Layout = "~/Pages/Shared/_Layout.cshtml";
+}
+@functions {
+    public string GetCspNonce()
+    {
+        if (HttpContext?.Items?.TryGetValue("csp-nonce", out var nonce) == true && nonce is string nonceStr)
+        {
+            return nonceStr;
+        }
+        return string.Empty;
+    }
+}
+
+<style>
+    /* Organizations Page - Purple/Indigo Theme */
+    .page-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1rem;
+    }
+
+    .page-title {
+        font-size: 24px;
+        font-weight: 600;
+        color: #2d3748;
+        display: flex;
+        align-items: center;
+        gap: 0.4rem;
+    }
+
+    .page-title i {
+        color: #6366f1; /* Indigo icon for Organizations */
+        font-size: 26px;
+    }
+
+    .page-subtitle {
+        font-size: 13px;
+        color: #718096;
+        font-weight: 400;
+        margin-top: 0.15rem;
+    }
+
+    .btn-hero {
+        background: #6366f1; /* Indigo for Organizations */
+        color: white;
+        font-weight: 600;
+        border: none;
+        padding: 0.5rem 1rem;
+        border-radius: 8px;
+        transition: all 0.2s;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 14px;
+    }
+
+    .btn-hero:hover {
+        background: #4f46e5;
+        transform: translateY(-1px);
+        box-shadow: 0 3px 10px rgba(99, 102, 241, 0.3);
+        color: white;
+    }
+
+    .btn-secondary-hero {
+        background: white;
+        color: #6366f1;
+        font-weight: 600;
+        border: 1px solid #a5b4fc;
+        padding: 0.5rem 1rem;
+        border-radius: 8px;
+        transition: all 0.2s;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 14px;
+    }
+
+    .btn-secondary-hero:hover {
+        background: #eef2ff;
+        border-color: #6366f1;
+        color: #6366f1;
+        box-shadow: 0 2px 6px rgba(99, 102, 241, 0.15);
+    }
+
+    /* Stats Bar */
+    .stats-bar {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+        gap: 0.75rem;
+        margin-bottom: 1rem;
+    }
+
+    .stat-item {
+        background: white;
+        border-radius: 8px;
+        padding: 0.75rem 1rem;
+        border-left: 3px solid #6366f1;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+        border-top: 1px solid rgba(0, 0, 0, 0.06);
+        border-right: 1px solid rgba(0, 0, 0, 0.06);
+        border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+    }
+
+    .stat-value {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: #6366f1;
+        margin-bottom: 0.1rem;
+        line-height: 1;
+    }
+
+    .stat-label {
+        font-size: 0.8rem;
+        color: #718096;
+        font-weight: 500;
+    }
+
+    /* Table Card */
+    .table-card {
+        background: white;
+        border-radius: 10px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+        border: 1px solid rgba(0, 0, 0, 0.06);
+        overflow: hidden;
+    }
+
+    .table-card-header {
+        padding: 0.75rem 1rem;
+        border-bottom: 1px solid #e2e8f0;
+        background: linear-gradient(to right, #eef2ff, white);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .table-card-title {
+        margin: 0;
+        font-size: 1rem;
+        font-weight: 600;
+        color: #2d3748;
+        display: flex;
+        align-items: center;
+        gap: 0.4rem;
+    }
+
+    .table-card-title i {
+        color: #6366f1;
+    }
+
+    /* Apple-style Table */
+    .apple-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 13px;
+    }
+
+    .apple-table thead {
+        background: #eef2ff;
+    }
+
+    .apple-table th {
+        padding: 0.5rem 0.75rem;
+        text-align: left;
+        font-weight: 600;
+        font-size: 11px;
+        color: #3730a3;
+        border-bottom: 1px solid #a5b4fc;
+        text-transform: uppercase;
+        letter-spacing: 0.3px;
+    }
+
+    .apple-table td {
+        padding: 0.6rem 0.75rem;
+        border-bottom: 1px solid #e2e8f0;
+        vertical-align: middle;
+    }
+
+    .apple-table tbody tr {
+        transition: background 0.15s;
+    }
+
+    .apple-table tbody tr:hover {
+        background: #eef2ff;
+    }
+
+    .apple-table tbody tr:last-child td {
+        border-bottom: none;
+    }
+
+    /* Quick Search */
+    .quick-search-wrapper {
+        position: relative;
+        max-width: 400px;
+    }
+
+    .quick-search-input {
+        padding-left: 2.5rem;
+        border-radius: 20px;
+        border: 1px solid #e2e8f0;
+        transition: all 0.2s;
+    }
+
+    .quick-search-input:focus {
+        border-color: #6366f1;
+        box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+    }
+
+    .quick-search-icon {
+        position: absolute;
+        left: 0.75rem;
+        top: 50%;
+        transform: translateY(-50%);
+        color: #6366f1;
+        pointer-events: none;
+    }
+</style>
+
+<nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a asp-page="/Index">Home</a></li>
+        <li class="breadcrumb-item active" aria-current="page">Organizations</li>
+    </ol>
+</nav>
+
+<div class="page-header">
+    <div>
+        <div class="page-title">
+            <i class="bi bi-building"></i>
+            Organizations
+        </div>
+        <div class="page-subtitle">@Model.Organizations.Count organization(s) found</div>
+    </div>
+    <div class="d-flex gap-2">
+        <a asp-page="Create" class="btn-hero">
+            <i class="bi bi-plus-circle"></i>
+            New Organization
+        </a>
+    </div>
+</div>
+
+<!-- Quick Search Bar -->
+<div class="quick-search-wrapper mb-3">
+    <i class="bi bi-search quick-search-icon"></i>
+    <input type="text" 
+           class="form-control quick-search-input" 
+           id="quickSearchOrganizations" 
+           placeholder="Quick search organizations..."
+           onkeyup="quickFilterOrganizations()" />
+</div>
+
+@if (TempData["SuccessMessage"] != null)
+{
+    <div class="alert alert-success alert-dismissible fade show" role="alert">
+        <i class="bi bi-check-circle me-2"></i>@TempData["SuccessMessage"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+}
+
+@if (TempData["ErrorMessage"] != null)
+{
+    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+        <i class="bi bi-exclamation-triangle me-2"></i>@TempData["ErrorMessage"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+}
+
+<!-- Advanced Filters -->
+<div class="table-card mb-3">
+    <div class="table-card-header">
+        <div class="table-card-title">
+            <i class="bi bi-funnel"></i>
+            Advanced Filters
+        </div>
+    </div>
+    <div class="card-body">
+        <form method="get">
+            <div class="row g-3">
+                <div class="col-md-4">
+                    <label for="searchTerm" class="form-label">Search by Name</label>
+                    <input type="text" class="form-control" id="searchTerm" name="searchTerm" value="@Model.SearchTerm" placeholder="Organization name..." />
+                </div>
+                <div class="col-md-3">
+                    <label for="organizationTypeId" class="form-label">Organization Type</label>
+                    <select class="form-select" id="organizationTypeId" name="organizationTypeId" asp-items="Model.OrganizationTypesList">
+                        <option value="">All Types</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label for="isActive" class="form-label">Status</label>
+                    <select class="form-select" id="isActive" name="isActive">
+                        <option value="">All</option>
+                        <option value="true" selected="@(Model.IsActive == true)">Active</option>
+                        <option value="false" selected="@(Model.IsActive == false)">Inactive</option>
+                    </select>
+                </div>
+                <div class="col-md-3 d-flex align-items-end">
+                    <button type="submit" class="btn-hero me-2">
+                        <i class="bi bi-search"></i>Search
+                    </button>
+                    <a asp-page="./Index" class="btn-secondary-hero">
+                        <i class="bi bi-x-circle"></i>Clear
+                    </a>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Organizations Table -->
+<div class="table-card">
+    <div class="table-card-header">
+        <div class="table-card-title">
+            <i class="bi bi-list-ul"></i>
+            All Organizations
+        </div>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="apple-table" id="organizationsTable">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Name</th>
+                        <th>Type</th>
+                        <th>Contact Person</th>
+                        <th>Phone</th>
+                        <th>Email</th>
+                        <th>Status</th>
+                        <th>Created</th>
+                        <th class="text-end">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+@foreach (var item in Model.Organizations) {
+                    <tr class="org-row">
+                        <td><span class="badge" style="background: #6366f1; color: white;">@item.FriendlyId</span></td>
+                        <td>
+                            <strong>@item.Name</strong>
+                        </td>
+                        <td>
+                            @if (item.OrganizationType != null)
+                            {
+                                <span class="badge" style="background: #a5b4fc; color: #3730a3;">@item.OrganizationType.Name</span>
+                            }
+                            else
+                            {
+                                <span class="text-muted">-</span>
+                            }
+                        </td>
+                        <td>@(item.ContactPerson ?? "-")</td>
+                        <td>@(item.Phone ?? "-")</td>
+                        <td>
+                            @if (!string.IsNullOrEmpty(item.Email))
+                            {
+                                <a href="mailto:@item.Email" style="color: #6366f1;">@item.Email</a>
+                            }
+                            else
+                            {
+                                <span class="text-muted">-</span>
+                            }
+                        </td>
+                        <td>
+                            @if (item.IsActive)
+                            {
+                                <span class="badge bg-success">Active</span>
+                            }
+                            else
+                            {
+                                <span class="badge bg-secondary">Inactive</span>
+                            }
+                        </td>
+                        <td><small class="text-muted">@item.CreatedAt.ToString("dd MMM yyyy")</small></td>
+                        <td class="text-end">
+                            <div class="btn-group btn-group-sm" role="group">
+                                <a asp-page="./Details" asp-route-id="@item.Id" class="btn btn-outline-primary" title="View details">
+                                    <i class="bi bi-eye"></i>
+                                </a>
+                                <a asp-page="./Edit" asp-route-id="@item.Id" class="btn btn-outline-secondary" title="Edit">
+                                    <i class="bi bi-pencil"></i>
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+@if (!Model.Organizations.Any())
+{
+    <div class="alert alert-info mt-3">
+        <i class="bi bi-info-circle me-2"></i>No organizations found. <a asp-page="Create" class="alert-link">Create your first organization</a>.
+    </div>
+}
+
+@section Scripts {
+<script>
+    // Quick Filter Function for Organizations
+    function quickFilterOrganizations() {
+        const searchText = document.getElementById('quickSearchOrganizations').value.toLowerCase();
+        const rows = document.querySelectorAll('.org-row');
+        let visibleCount = 0;
+
+        rows.forEach(row => {
+            const text = row.textContent.toLowerCase();
+            if (text.includes(searchText)) {
+                row.style.display = '';
+                visibleCount++;
+            } else {
+                row.style.display = 'none';
+            }
+        });
+
+        // Update count if needed
+        const subtitle = document.querySelector('.page-subtitle');
+        if (subtitle) {
+            if (searchText) {
+                subtitle.textContent = `${visibleCount} of @Model.Organizations.Count organization(s) shown`;
+            } else {
+                subtitle.textContent = '@Model.Organizations.Count organization(s) found';
+            }
+        }
+    }
+</script>
+}

@@ -1,0 +1,409 @@
+@page
+@using Sentinel.Models
+@model Sentinel.Pages.Outbreaks.CaseDefinitionsModel
+@{
+    ViewData["Title"] = "Case Definitions - " + Model.Outbreak.Name;
+    
+    // Pre-calculate history lists to avoid nested code blocks
+    var confirmedHistory = Model.Definitions.Where(d => d.Classification == CaseClassification.Confirmed && !d.IsActive).ToList();
+    var probableHistory = Model.Definitions.Where(d => d.Classification == CaseClassification.Probable && !d.IsActive).ToList();
+    var suspectHistory = Model.Definitions.Where(d => d.Classification == CaseClassification.Suspect && !d.IsActive).ToList();
+    var notacaseHistory = Model.Definitions.Where(d => d.Classification == CaseClassification.NotACase && !d.IsActive).ToList();
+}
+@functions {
+    public string GetCspNonce()
+    {
+        if (HttpContext?.Items?.TryGetValue("csp-nonce", out var nonce) == true && nonce is string nonceStr)
+        {
+            return nonceStr;
+        }
+        return string.Empty;
+    }
+}
+
+<nav aria-label="breadcrumb" class="mb-4">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a asp-page="/Index">Home</a></li>
+        <li class="breadcrumb-item"><a asp-page="Index">Outbreaks</a></li>
+        <li class="breadcrumb-item"><a asp-page="Details" asp-route-id="@Model.Outbreak.Id">@Model.Outbreak.Name</a></li>
+        <li class="breadcrumb-item active" aria-current="page">Case Definitions</li>
+    </ol>
+</nav>
+
+@if (!string.IsNullOrEmpty(Model.SuccessMessage))
+{
+    <div class="alert alert-success alert-dismissible fade show" role="alert">
+        <i class="bi bi-check-circle me-2"></i>@Model.SuccessMessage
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+
+@if (!string.IsNullOrEmpty(Model.ErrorMessage))
+{
+    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+        <i class="bi bi-exclamation-triangle me-2"></i>@Model.ErrorMessage
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+
+<div class="mb-4">
+    <h2><i class="bi bi-clipboard2-check me-2"></i>Case Definitions</h2>
+    <p class="text-muted">Define criteria for classifying cases in <strong>@Model.Outbreak.Name</strong></p>
+</div>
+
+<!-- Active Definitions Overview -->
+<div class="row g-3 mb-4">
+    <!-- Confirmed -->
+    <div class="col-lg-6">
+        <div class="card border-danger h-100">
+            <div class="card-header bg-danger text-white d-flex justify-content-between align-items-center">
+                <h6 class="mb-0"><i class="bi bi-check-circle-fill me-2"></i>Confirmed Case</h6>
+                <button type="button" class="btn btn-sm btn-light" onclick="openDefinitionModal(@((int)CaseClassification.Confirmed), null)">
+                    <i class="bi bi-plus"></i> Create
+                </button>
+            </div>
+            <div class="card-body">
+                @if (Model.ConfirmedDefinition != null)
+                {
+                    <h6>@Model.ConfirmedDefinition.DefinitionName <small class="text-muted">(v@Model.ConfirmedDefinition.Version)</small></h6>
+                    @if (!string.IsNullOrEmpty(Model.ConfirmedDefinition.DefinitionText))
+                    {
+                        <p class="mb-0">@Model.ConfirmedDefinition.DefinitionText</p>
+                    }
+                    <div class="mt-3">
+                        <button type="button" class="btn btn-sm btn-outline-primary" 
+                                onclick="openDefinitionModal(@((int)CaseClassification.Confirmed), @Model.ConfirmedDefinition.Id)">
+                            <i class="bi bi-pencil"></i> Edit
+                        </button>
+                        <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-toggle="collapse" data-bs-target="#confirmedHistory">
+                            <i class="bi bi-clock-history"></i> History
+                        </button>
+                    </div>
+                    
+                    @if (confirmedHistory.Any())
+                    {
+                        <div class="collapse mt-3" id="confirmedHistory">
+                            <h6 class="text-muted">Previous Versions</h6>
+                            <ul class="list-group list-group-sm">
+                                @foreach (var def in confirmedHistory)
+                                {
+                                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                                        <div>
+                                            <small><strong>v@def.Version:</strong> @def.DefinitionName</small>
+                                            <br>
+                                            <small class="text-muted">Effective: @def.EffectiveDate.ToString("MMM d, yyyy")</small>
+                                        </div>
+                                        <form method="post" asp-page-handler="ActivateDefinition" asp-route-id="@Model.Outbreak.Id" asp-route-definitionId="@def.Id" class="d-inline">
+                                            <button type="submit" class="btn btn-sm btn-outline-success" title="Reactivate">
+                                                <i class="bi bi-arrow-clockwise"></i>
+                                            </button>
+                                        </form>
+                                    </li>
+                                }
+                            </ul>
+                        </div>
+                    }
+                }
+                else
+                {
+                    <p class="text-muted mb-0">No confirmed case definition set.</p>
+                    <button type="button" class="btn btn-sm btn-danger mt-2" onclick="openDefinitionModal(@((int)CaseClassification.Confirmed), null)">
+                        <i class="bi bi-plus-circle"></i> Create Definition
+                    </button>
+                }
+            </div>
+        </div>
+    </div>
+
+    <!-- Probable -->
+    <div class="col-lg-6">
+        <div class="card border-warning h-100">
+            <div class="card-header bg-warning d-flex justify-content-between align-items-center">
+                <h6 class="mb-0"><i class="bi bi-exclamation-circle-fill me-2"></i>Probable Case</h6>
+                <button type="button" class="btn btn-sm btn-light" onclick="openDefinitionModal(@((int)CaseClassification.Probable), null)">
+                    <i class="bi bi-plus"></i> Create
+                </button>
+            </div>
+            <div class="card-body">
+                @if (Model.ProbableDefinition != null)
+                {
+                    <h6>@Model.ProbableDefinition.DefinitionName <small class="text-muted">(v@Model.ProbableDefinition.Version)</small></h6>
+                    @if (!string.IsNullOrEmpty(Model.ProbableDefinition.DefinitionText))
+                    {
+                        <p class="mb-0">@Model.ProbableDefinition.DefinitionText</p>
+                    }
+                    <div class="mt-3">
+                        <button type="button" class="btn btn-sm btn-outline-primary" 
+                                onclick="openDefinitionModal(@((int)CaseClassification.Probable), @Model.ProbableDefinition.Id)">
+                            <i class="bi bi-pencil"></i> Edit
+                        </button>
+                        <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-toggle="collapse" data-bs-target="#probableHistory">
+                            <i class="bi bi-clock-history"></i> History
+                        </button>
+                    </div>
+                    
+                    @if (probableHistory.Any())
+                    {
+                        <div class="collapse mt-3" id="probableHistory">
+                            <h6 class="text-muted">Previous Versions</h6>
+                            <ul class="list-group list-group-sm">
+                                @foreach (var def in probableHistory)
+                                {
+                                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                                        <div>
+                                            <small><strong>v@def.Version:</strong> @def.DefinitionName</small>
+                                            <br>
+                                            <small class="text-muted">Effective: @def.EffectiveDate.ToString("MMM d, yyyy")</small>
+                                        </div>
+                                        <form method="post" asp-page-handler="ActivateDefinition" asp-route-id="@Model.Outbreak.Id" asp-route-definitionId="@def.Id" class="d-inline">
+                                            <button type="submit" class="btn btn-sm btn-outline-success" title="Reactivate">
+                                                <i class="bi bi-arrow-clockwise"></i>
+                                            </button>
+                                        </form>
+                                    </li>
+                                }
+                            </ul>
+                        </div>
+                    }
+                }
+                else
+                {
+                    <p class="text-muted mb-0">No probable case definition set.</p>
+                    <button type="button" class="btn btn-sm btn-warning mt-2" onclick="openDefinitionModal(@((int)CaseClassification.Probable), null)">
+                        <i class="bi bi-plus-circle"></i> Create Definition
+                    </button>
+                }
+            </div>
+        </div>
+    </div>
+
+    <!-- Suspect -->
+    <div class="col-lg-6">
+        <div class="card border-secondary h-100">
+            <div class="card-header bg-secondary text-white d-flex justify-content-between align-items-center">
+                <h6 class="mb-0"><i class="bi bi-question-circle-fill me-2"></i>Suspect Case</h6>
+                <button type="button" class="btn btn-sm btn-light" onclick="openDefinitionModal(@((int)CaseClassification.Suspect), null)">
+                    <i class="bi bi-plus"></i> Create
+                </button>
+            </div>
+            <div class="card-body">
+                @if (Model.SuspectDefinition != null)
+                {
+                    <h6>@Model.SuspectDefinition.DefinitionName <small class="text-muted">(v@Model.SuspectDefinition.Version)</small></h6>
+                    @if (!string.IsNullOrEmpty(Model.SuspectDefinition.DefinitionText))
+                    {
+                        <p class="mb-0">@Model.SuspectDefinition.DefinitionText</p>
+                    }
+                    <div class="mt-3">
+                        <button type="button" class="btn btn-sm btn-outline-primary" 
+                                onclick="openDefinitionModal(@((int)CaseClassification.Suspect), @Model.SuspectDefinition.Id)">
+                            <i class="bi bi-pencil"></i> Edit
+                        </button>
+                        <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-toggle="collapse" data-bs-target="#suspectHistory">
+                            <i class="bi bi-clock-history"></i> History
+                        </button>
+                    </div>
+                    
+                    @if (suspectHistory.Any())
+                    {
+                        <div class="collapse mt-3" id="suspectHistory">
+                            <h6 class="text-muted">Previous Versions</h6>
+                            <ul class="list-group list-group-sm">
+                                @foreach (var def in suspectHistory)
+                                {
+                                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                                        <div>
+                                            <small><strong>v@def.Version:</strong> @def.DefinitionName</small>
+                                            <br>
+                                            <small class="text-muted">Effective: @def.EffectiveDate.ToString("MMM d, yyyy")</small>
+                                        </div>
+                                        <form method="post" asp-page-handler="ActivateDefinition" asp-route-id="@Model.Outbreak.Id" asp-route-definitionId="@def.Id" class="d-inline">
+                                            <button type="submit" class="btn btn-sm btn-outline-success" title="Reactivate">
+                                                <i class="bi bi-arrow-clockwise"></i>
+                                            </button>
+                                        </form>
+                                    </li>
+                                }
+                            </ul>
+                        </div>
+                    }
+                }
+                else
+                {
+                    <p class="text-muted mb-0">No suspect case definition set.</p>
+                    <button type="button" class="btn btn-sm btn-secondary mt-2" onclick="openDefinitionModal(@((int)CaseClassification.Suspect), null)">
+                        <i class="bi bi-plus-circle"></i> Create Definition
+                    </button>
+                }
+            </div>
+        </div>
+    </div>
+
+    <!-- Not a Case -->
+    <div class="col-lg-6">
+        <div class="card border-light h-100">
+            <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                <h6 class="mb-0"><i class="bi bi-x-circle-fill me-2"></i>Not a Case</h6>
+                <button type="button" class="btn btn-sm btn-secondary" onclick="openDefinitionModal(@((int)CaseClassification.NotACase), null)">
+                    <i class="bi bi-plus"></i> Create
+                </button>
+            </div>
+            <div class="card-body">
+                @if (Model.NotACaseDefinition != null)
+                {
+                    <h6>@Model.NotACaseDefinition.DefinitionName <small class="text-muted">(v@Model.NotACaseDefinition.Version)</small></h6>
+                    @if (!string.IsNullOrEmpty(Model.NotACaseDefinition.DefinitionText))
+                    {
+                        <p class="mb-0">@Model.NotACaseDefinition.DefinitionText</p>
+                    }
+                    <div class="mt-3">
+                        <button type="button" class="btn btn-sm btn-outline-primary" 
+                                onclick="openDefinitionModal(@((int)CaseClassification.NotACase), @Model.NotACaseDefinition.Id)">
+                            <i class="bi bi-pencil"></i> Edit
+                        </button>
+                        <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-toggle="collapse" data-bs-target="#notacaseHistory">
+                            <i class="bi bi-clock-history"></i> History
+                        </button>
+                    </div>
+                    
+                    @if (notacaseHistory.Any())
+                    {
+                        <div class="collapse mt-3" id="notacaseHistory">
+                            <h6 class="text-muted">Previous Versions</h6>
+                            <ul class="list-group list-group-sm">
+                                @foreach (var def in notacaseHistory)
+                                {
+                                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                                        <div>
+                                            <small><strong>v@def.Version:</strong> @def.DefinitionName</small>
+                                            <br>
+                                            <small class="text-muted">Effective: @def.EffectiveDate.ToString("MMM d, yyyy")</small>
+                                        </div>
+                                        <form method="post" asp-page-handler="ActivateDefinition" asp-route-id="@Model.Outbreak.Id" asp-route-definitionId="@def.Id" class="d-inline">
+                                            <button type="submit" class="btn btn-sm btn-outline-success" title="Reactivate">
+                                                <i class="bi bi-arrow-clockwise"></i>
+                                            </button>
+                                        </form>
+                                    </li>
+                                }
+                            </ul>
+                        </div>
+                    }
+                }
+                else
+                {
+                    <p class="text-muted mb-0">No exclusion criteria defined.</p>
+                    <button type="button" class="btn btn-sm btn-secondary mt-2" onclick="openDefinitionModal(@((int)CaseClassification.NotACase), null)">
+                        <i class="bi bi-plus-circle"></i> Create Definition
+                    </button>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="mt-3">
+    <a asp-page="Details" asp-route-id="@Model.Outbreak.Id" class="btn btn-secondary">
+        <i class="bi bi-arrow-left me-1"></i>Back to Outbreak
+    </a>
+</div>
+
+<!-- Case Definition Modal -->
+<div class="modal fade" id="definitionModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <form method="post" asp-page-handler="SaveDefinition" asp-route-id="@Model.Outbreak.Id" id="definitionForm">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="modalTitle">Case Definition</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" name="EditingDefinitionId" id="editingDefinitionId">
+                    <input type="hidden" name="Definition.Classification" id="definitionClassification">
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Definition Name <span class="text-danger">*</span></label>
+                        <input type="text" name="Definition.DefinitionName" class="form-control" id="definitionName" required 
+                               placeholder="e.g., Gastroenteritis Outbreak Definition">
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Definition Text</label>
+                        <textarea name="Definition.DefinitionText" class="form-control" id="definitionText" rows="5" 
+                                  placeholder="Describe the criteria for this classification..."></textarea>
+                        <small class="text-muted">Provide a clear description of what constitutes this classification.</small>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Specific Criteria (Optional)</label>
+                        <textarea name="Definition.CriteriaJson" class="form-control" id="criteriaJson" rows="4"
+                                  placeholder="Enter structured criteria in JSON format or leave blank"></textarea>
+                        <small class="text-muted">Define specific measurable criteria for classification (optional).</small>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Notes</label>
+                        <textarea name="Definition.Notes" class="form-control" id="definitionNotes" rows="2" 
+                                  placeholder="Additional notes or references..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-save me-1"></i>Save Definition
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        // Serialize only the needed properties to avoid circular reference
+        const definitions = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(
+            Model.Definitions.Select(d => new {
+                d.Id,
+                d.Classification,
+                d.DefinitionName,
+                d.DefinitionText,
+                d.CriteriaJson,
+                d.Notes,
+                d.Version
+            })
+        ));
+        
+        function openDefinitionModal(classification, definitionId) {
+            const modal = new bootstrap.Modal(document.getElementById('definitionModal'));
+            const classificationNames = {
+                1: 'Confirmed',
+                2: 'Probable',
+                3: 'Suspect',
+                4: 'Not a Case'
+            };
+            
+            const form = document.getElementById('definitionForm');
+            form.reset();
+            
+            document.getElementById('modalTitle').textContent = 
+                (definitionId ? 'Edit ' : 'Create ') + classificationNames[classification] + ' Case Definition';
+            document.getElementById('definitionClassification').value = classification;
+            document.getElementById('editingDefinitionId').value = definitionId || '';
+            
+            // Load existing definition data if editing
+            if (definitionId) {
+                const definition = definitions.find(d => d.Id === definitionId);
+                if (definition) {
+                    document.getElementById('definitionName').value = definition.DefinitionName || '';
+                    document.getElementById('definitionText').value = definition.DefinitionText || '';
+                    document.getElementById('criteriaJson').value = definition.CriteriaJson === '{}' ? '' : (definition.CriteriaJson || '');
+                    document.getElementById('definitionNotes').value = definition.Notes || '';
+                }
+            }
+            
+            modal.show();
+        }
+    </script>
+}
+
+

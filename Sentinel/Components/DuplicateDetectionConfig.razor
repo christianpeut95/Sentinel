@@ -1,0 +1,104 @@
+@using Sentinel.Models
+@using Sentinel.Models.Reporting
+
+<div class="row">
+    <div class="col-md-6">
+        <label class="form-label">Match On Fields</label>
+        @foreach (var field in TargetFields)
+        {
+            var isChecked = Config?.MatchingConfig?.MatchOnFields?.Contains(field.FieldPath) ?? false;
+            <div class="form-check">
+                <input class="form-check-input" type="checkbox" 
+                       id="match_@field.FieldPath.Replace(".", "_")" 
+                       checked="@isChecked"
+                       @onchange="e => ToggleMatchField(field.FieldPath, (bool)(e.Value ?? false))" />
+                <label class="form-check-label" for="match_@field.FieldPath.Replace(".", "_")">
+                    @field.DisplayName
+                    <br><small class="text-muted">@field.FieldPath</small>
+                </label>
+            </div>
+        }
+    </div>
+    <div class="col-md-6">
+        <div class="mb-3">
+            <label class="form-label">Confidence Threshold: @((Config?.MatchingConfig?.ConfidenceThreshold ?? 0.85) * 100)%</label>
+            <input type="range" class="form-range" min="50" max="100" 
+                   value="@((Config?.MatchingConfig?.ConfidenceThreshold ?? 0.85) * 100)"
+                   @onchange="OnConfidenceChanged" />
+        </div>
+        <div class="mb-3">
+            <label class="form-label">When Duplicate Found</label>
+            <select class="form-select" value="@Config?.OnDuplicateFound" @onchange="OnDuplicateHandlingChanged">
+                <option value="@DuplicateHandling.RequireReview">Require Human Review</option>
+                <option value="@DuplicateHandling.CreateNew">Always Create New</option>
+                <option value="@DuplicateHandling.SkipAndLink">Skip and Link to Existing</option>
+            </select>
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter]
+    public CollectionMappingConfig? Config { get; set; }
+
+    [Parameter]
+    public List<ReportFieldMetadata> TargetFields { get; set; } = new();
+
+    [Parameter]
+    public EventCallback OnConfigChanged { get; set; }
+
+    protected override void OnParametersSet()
+    {
+        // Initialize matching config if needed
+        if (Config != null && Config.MatchingConfig == null)
+        {
+            Config.MatchingConfig = new MatchingConfig
+            {
+                EntityType = Config.TargetEntityType,
+                MatchOnFields = new List<string>(),
+                ConfidenceThreshold = 0.85,
+                Strategy = MatchingStrategy.Exact
+            };
+        }
+    }
+
+    private void ToggleMatchField(string fieldPath, bool isChecked)
+    {
+        if (Config?.MatchingConfig?.MatchOnFields == null) return;
+
+        if (isChecked && !Config.MatchingConfig.MatchOnFields.Contains(fieldPath))
+        {
+            Config.MatchingConfig.MatchOnFields.Add(fieldPath);
+        }
+        else if (!isChecked)
+        {
+            Config.MatchingConfig.MatchOnFields.Remove(fieldPath);
+        }
+
+        OnConfigChanged.InvokeAsync();
+    }
+
+    private void UpdateConfidence(double value)
+    {
+        if (Config?.MatchingConfig != null)
+        {
+            Config.MatchingConfig.ConfidenceThreshold = value / 100.0;
+            OnConfigChanged.InvokeAsync();
+        }
+    }
+
+    private void OnConfidenceChanged(ChangeEventArgs e)
+    {
+        var value = double.Parse(e.Value?.ToString() ?? "85");
+        UpdateConfidence(value);
+    }
+
+    private void OnDuplicateHandlingChanged(ChangeEventArgs e)
+    {
+        if (Config != null)
+        {
+            Config.OnDuplicateFound = Enum.Parse<DuplicateHandling>(e.Value?.ToString() ?? "CreateNew");
+            OnConfigChanged.InvokeAsync();
+        }
+    }
+}

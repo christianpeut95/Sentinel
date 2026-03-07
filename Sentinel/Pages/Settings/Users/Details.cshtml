@@ -1,0 +1,265 @@
+@page "{id}"
+@model Sentinel.Pages.Settings.Users.DetailsModel
+
+@{
+    ViewData["Title"] = "User Details";
+}
+@functions {
+    public string GetCspNonce()
+    {
+        if (HttpContext?.Items?.TryGetValue("csp-nonce", out var nonce) == true && nonce is string nonceStr)
+        {
+            return nonceStr;
+        }
+        return string.Empty;
+    }
+}
+
+<div class="container-fluid">
+    <nav aria-label="breadcrumb" class="mb-3">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a asp-page="/Index">Home</a></li>
+            <li class="breadcrumb-item"><a asp-page="/Settings/Index">Settings</a></li>
+            <li class="breadcrumb-item"><a asp-page="./Index">Users</a></li>
+            <li class="breadcrumb-item active" aria-current="page">@Model.User.Email</li>
+        </ol>
+    </nav>
+
+    @if (Model.StatusMessage != null)
+    {
+        <div class="alert alert-success alert-dismissible fade show">
+            @Model.StatusMessage
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
+
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0"><i class="bi bi-person-circle me-2"></i>User Information</h4>
+                </div>
+                <div class="card-body">
+                    <dl class="row mb-0">
+                        <dt class="col-sm-3">Email:</dt>
+                        <dd class="col-sm-9">
+                            <strong>@Model.User?.Email</strong>
+                            @if (Model.User?.EmailConfirmed == true)
+                            {
+                                <span class="badge bg-success ms-2">Verified</span>
+                            }
+                            else
+                            {
+                                <span class="badge bg-warning ms-2">Not Verified</span>
+                            }
+                        </dd>
+
+                        <dt class="col-sm-3">Username:</dt>
+                        <dd class="col-sm-9">@Model.User?.UserName</dd>
+
+                        <dt class="col-sm-3">Name:</dt>
+                        <dd class="col-sm-9">
+                            @if (!string.IsNullOrEmpty(Model.User?.FirstName) || !string.IsNullOrEmpty(Model.User?.LastName))
+                            {
+                                <text>@Model.User?.FirstName @Model.User?.LastName</text>
+                            }
+                            else
+                            {
+                                <span class="text-muted">Not set</span>
+                            }
+                        </dd>
+
+                        <dt class="col-sm-3">Status:</dt>
+                        <dd class="col-sm-9">
+                            @if (Model.User?.LockoutEnd.HasValue == true && Model.User.LockoutEnd.Value > DateTimeOffset.UtcNow)
+                            {
+                                <span class="badge bg-danger">Locked until @Model.User.LockoutEnd.Value.ToString("dd MMM yyyy HH:mm")</span>
+                            }
+                            else if (Model.User?.EmailConfirmed == true)
+                            {
+                                <span class="badge bg-success">Active</span>
+                            }
+                            else
+                            {
+                                <span class="badge bg-warning">Pending Verification</span>
+                            }
+                        </dd>
+
+                        <dt class="col-sm-3">Created:</dt>
+                        <dd class="col-sm-9">
+                            <span class="text-muted">N/A</span>
+                        </dd>
+
+                        <dt class="col-sm-3">Roles:</dt>
+                        <dd class="col-sm-9">
+                            @if (Model.UserRoles.Any())
+                            {
+                                foreach (var role in Model.UserRoles)
+                                {
+                                    <span class="badge bg-primary me-1">@role</span>
+                                }
+                            }
+                            else
+                            {
+                                <span class="text-muted">No roles assigned</span>
+                            }
+                        </dd>
+                    </dl>
+                </div>
+            </div>
+
+            @if (Model.User?.IsInterviewWorker == true)
+            {
+                <div class="card shadow-sm mb-4 border-info">
+                    <div class="card-header bg-info text-white">
+                        <h5 class="mb-0"><i class="bi bi-telephone me-2"></i>Interview Worker Information</h5>
+                    </div>
+                    <div class="card-body">
+                        <dl class="row mb-0">
+                            <dt class="col-sm-4">Primary Language:</dt>
+                            <dd class="col-sm-8">
+                                <span class="badge bg-primary">@(Model.User.PrimaryLanguage ?? "Not specified")</span>
+                            </dd>
+
+                            <dt class="col-sm-4">Additional Languages:</dt>
+                            <dd class="col-sm-8">
+                                @if (Model.LanguagesSpoken.Any())
+                                {
+                                    foreach (var lang in Model.LanguagesSpoken)
+                                    {
+                                        <span class="badge bg-secondary me-1">@lang</span>
+                                    }
+                                }
+                                else
+                                {
+                                    <span class="text-muted">None</span>
+                                }
+                            </dd>
+
+                            <dt class="col-sm-4">Task Capacity:</dt>
+                            <dd class="col-sm-8">
+                                <strong>@Model.User.CurrentTaskCapacity</strong> concurrent tasks
+                            </dd>
+
+                            <dt class="col-sm-4">Auto-Assignment:</dt>
+                            <dd class="col-sm-8">
+                                @if (Model.User.AvailableForAutoAssignment)
+                                {
+                                    <span class="badge bg-success">Enabled</span>
+                                }
+                                else
+                                {
+                                    <span class="badge bg-secondary">Disabled</span>
+                                }
+                            </dd>
+
+                            <dt class="col-sm-4">Dashboard Access:</dt>
+                            <dd class="col-sm-8">
+                                <a href="/dashboard/interview-queue" class="btn btn-sm btn-outline-primary">
+                                    <i class="bi bi-box-arrow-up-right me-1"></i>Interview Queue
+                                </a>
+                            </dd>
+                        </dl>
+                    </div>
+                </div>
+            }
+
+            <div class="card shadow-sm">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0"><i class="bi bi-people-fill me-2"></i>User Groups</h5>
+                </div>
+                <div class="card-body">
+                    @if (!Model.Groups.Any())
+                    {
+                        <p class="text-muted">This user is not in any groups.</p>
+                    }
+                    else
+                    {
+                        <div class="list-group mb-3">
+                            @foreach (var g in Model.Groups)
+                            {
+                                <div class="list-group-item d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <i class="bi bi-people me-2"></i>
+                                        <strong>@g.Name</strong>
+                                    </div>
+                                    <form method="post" class="d-inline">
+                                        <input type="hidden" name="removeGroup" value="@g.Id" />
+                                        <button type="submit" class="btn btn-sm btn-outline-danger">
+                                            <i class="bi bi-x-lg me-1"></i>Remove
+                                        </button>
+                                    </form>
+                                </div>
+                            }
+                        </div>
+                    }
+
+                    <form method="post">
+                        <label class="form-label"><i class="bi bi-plus-circle me-1"></i>Add to Group</label>
+                        <div class="input-group">
+                            <select name="addGroupId" class="form-select">
+                                <option value="">-- Select a group --</option>
+                                @foreach (var g in Model.AllGroups.Where(g => !Model.Groups.Any(ug => ug.Id == g.Id)))
+                                {
+                                    <option value="@g.Id">@g.Name</option>
+                                }
+                            </select>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-plus-lg me-1"></i>Add
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4">
+            <div class="card shadow-sm mb-3">
+                <div class="card-header bg-secondary text-white">
+                    <h5 class="mb-0"><i class="bi bi-gear me-2"></i>Actions</h5>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        <a asp-page="./Edit" asp-route-id="@Model.User?.Id" class="btn btn-primary">
+                            <i class="bi bi-pencil me-2"></i>Edit User
+                        </a>
+                        <a asp-page="./Delete" asp-route-id="@Model.User?.Id" class="btn btn-danger">
+                            <i class="bi bi-trash me-2"></i>Delete User
+                        </a>
+                        <a asp-page="./Index" class="btn btn-outline-secondary">
+                            <i class="bi bi-arrow-left me-2"></i>Back to List
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card shadow-sm">
+                <div class="card-header bg-warning text-dark">
+                    <h5 class="mb-0"><i class="bi bi-info-circle me-2"></i>Quick Stats</h5>
+                </div>
+                <div class="card-body">
+                    <ul class="list-unstyled mb-0">
+                        <li class="mb-2">
+                            <i class="bi bi-shield-check text-primary me-2"></i>
+                            <strong>@Model.UserRoles.Count</strong> role(s) assigned
+                        </li>
+                        <li class="mb-0">
+                            <i class="bi bi-people text-info me-2"></i>
+                            <strong>@Model.Groups.Count</strong> group(s) membership
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .list-group-item {
+        transition: background-color 0.2s;
+    }
+
+    .list-group-item:hover {
+        background-color: #f8f9fa;
+    }
+</style>

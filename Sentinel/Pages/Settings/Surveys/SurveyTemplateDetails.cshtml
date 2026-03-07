@@ -1,0 +1,458 @@
+@page
+@model Sentinel.Pages.Settings.Surveys.SurveyTemplateDetailsModel
+@using Sentinel.Models
+
+@{
+    ViewData["Title"] = "Survey Template Details";
+}
+@functions {
+    public string GetCspNonce()
+    {
+        if (HttpContext?.Items?.TryGetValue("csp-nonce", out var nonce) == true && nonce is string nonceStr)
+        {
+            return nonceStr;
+        }
+        return string.Empty;
+    }
+}
+
+<nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a asp-page="/Index">Home</a></li>
+        <li class="breadcrumb-item"><a asp-page="/Settings/Index">Settings</a></li>
+        <li class="breadcrumb-item"><a asp-page="./SurveyTemplates">Survey Templates</a></li>
+        <li class="breadcrumb-item active" aria-current="page">@Model.SurveyTemplate.Name</li>
+    </ol>
+</nav>
+
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-start">
+                <div>
+                    <h2><i class="bi bi-file-earmark-text me-2"></i>@Model.SurveyTemplate.Name</h2>
+                    <p class="text-muted">Survey Template Details</p>
+                </div>
+            <div class="text-end">
+                <div class="mb-3">
+                    @if (Model.SurveyTemplate.IsActive)
+                    {
+                        <span class="badge bg-success">
+                            <i class="bi bi-check-circle me-1"></i>Active
+                        </span>
+                    }
+                    else
+                    {
+                        <span class="badge bg-secondary">
+                            <i class="bi bi-circle me-1"></i>Inactive
+                        </span>
+                    }
+                </div>
+                    @if (!Model.SurveyTemplate.IsSystemTemplate)
+                    {
+                        <a asp-page="./EditSurveyTemplate" asp-route-id="@Model.SurveyTemplate.Id" 
+                           class="btn btn-primary me-2">
+                            <i class="bi bi-pencil me-1"></i>Edit
+                        </a>
+                    }
+                    <a asp-page="./SurveyTemplates" class="btn btn-outline-secondary">
+                        <i class="bi bi-arrow-left me-1"></i>Back to List
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Left Column - Template Information -->
+        <div class="col-lg-6">
+            <!-- Basic Information -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <i class="bi bi-info-circle me-2"></i>Basic Information
+                </div>
+                <div class="card-body">
+                    <dl class="row mb-0">
+                        <dt class="col-sm-4">Name:</dt>
+                        <dd class="col-sm-8">@Model.SurveyTemplate.Name</dd>
+
+                        <dt class="col-sm-4">Category:</dt>
+                        <dd class="col-sm-8">
+                            @if (!string.IsNullOrEmpty(Model.SurveyTemplate.Category))
+                            {
+                                <span class="badge bg-primary">@Model.SurveyTemplate.Category</span>
+                            }
+                            else
+                            {
+                                <span class="text-muted">Not categorized</span>
+                            }
+                        </dd>
+
+                        <dt class="col-sm-4">Status:</dt>
+                        <dd class="col-sm-8">
+                            @if (Model.SurveyTemplate.IsActive)
+                            {
+                                <span class="badge bg-success">Active</span>
+                            }
+                            else
+                            {
+                                <span class="badge bg-secondary">Inactive</span>
+                            }
+                            
+                            @if (Model.SurveyTemplate.IsSystemTemplate)
+                            {
+                                <span class="badge bg-warning text-dark ms-1">System Template</span>
+                            }
+                        </dd>
+
+                        @if (!string.IsNullOrEmpty(Model.SurveyTemplate.Description))
+                        {
+                            <dt class="col-sm-4">Description:</dt>
+                            <dd class="col-sm-8">@Model.SurveyTemplate.Description</dd>
+                        }
+
+                        @if (!string.IsNullOrEmpty(Model.SurveyTemplate.Tags))
+                        {
+                            <dt class="col-sm-4">Tags:</dt>
+                            <dd class="col-sm-8">
+                                @foreach (var tag in Model.SurveyTemplate.Tags.Split(','))
+                                {
+                                    <span class="badge bg-light text-dark me-1">@tag.Trim()</span>
+                                }
+                            </dd>
+                        }
+
+                        <dt class="col-sm-4">Created:</dt>
+                        <dd class="col-sm-8">
+                            @Model.SurveyTemplate.CreatedAt.ToString("MMM dd, yyyy")
+                            @if (!string.IsNullOrEmpty(Model.SurveyTemplate.CreatedBy))
+                            {
+                                <span class="text-muted">by @Model.SurveyTemplate.CreatedBy</span>
+                            }
+                        </dd>
+
+                        @if (Model.SurveyTemplate.ModifiedAt.HasValue)
+                        {
+                            <dt class="col-sm-4">Last Modified:</dt>
+                            <dd class="col-sm-8">
+                                @Model.SurveyTemplate.ModifiedAt.Value.ToString("MMM dd, yyyy")
+                                @if (!string.IsNullOrEmpty(Model.SurveyTemplate.ModifiedBy))
+                                {
+                                    <span class="text-muted">by @Model.SurveyTemplate.ModifiedBy</span>
+                                }
+                            </dd>
+                        }
+                    </dl>
+                </div>
+            </div>
+
+            <!-- Applicable Diseases -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <i class="bi bi-clipboard2-pulse me-2"></i>Applicable Diseases
+                    <span class="badge bg-primary ms-2">@Model.SurveyTemplate.ApplicableDiseases.Count</span>
+                </div>
+                <div class="card-body">
+                    @if (Model.SurveyTemplate.ApplicableDiseases.Any())
+                    {
+                        <ul class="list-unstyled mb-0">
+                            @foreach (var diseaseAssoc in Model.SurveyTemplate.ApplicableDiseases.OrderBy(d => d.Disease?.Name))
+                            {
+                                <li class="mb-2">
+                                    <i class="bi bi-check-circle text-success me-2"></i>
+                                    @diseaseAssoc.Disease?.Name
+                                </li>
+                            }
+                        </ul>
+                    }
+                    else
+                    {
+                        <p class="text-muted mb-0">
+                            <i class="bi bi-info-circle me-2"></i>
+                            No diseases specified - can be used with any disease
+                        </p>
+                    }
+                </div>
+            </div>
+
+            <!-- Usage Statistics -->
+            <div class="card mb-4">
+                <div class="card-header bg-info text-white">
+                    <i class="bi bi-graph-up me-2"></i>Usage Statistics
+                </div>
+                <div class="card-body">
+                    <div class="row text-center">
+                        <div class="col-6">
+                            <h3 class="text-primary mb-0">@Model.TotalUsageCount</h3>
+                            <small class="text-muted">Task Templates</small>
+                        </div>
+                        <div class="col-6">
+                            <h3 class="text-success mb-0">@Model.SurveyTemplate.UsageCount</h3>
+                            <small class="text-muted">Total Uses</small>
+                        </div>
+                    </div>
+                    
+                    @if (Model.SurveyTemplate.LastUsedAt.HasValue)
+                    {
+                        <hr />
+                        <p class="mb-0 small text-muted">
+                            <i class="bi bi-clock me-1"></i>
+                            Last used: @Model.SurveyTemplate.LastUsedAt.Value.ToString("MMM dd, yyyy HH:mm")
+                        </p>
+                    }
+                </div>
+            </div>
+
+            <!-- Version History -->
+            @if (Model.AllVersions.Any())
+            {
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <i class="bi bi-clock-history me-2"></i>Version History
+                        <span class="badge bg-primary ms-2">@Model.AllVersions.Count</span>
+                    </div>
+                    <div class="card-body">
+                        <div class="list-group list-group-flush" style="max-height: 350px; overflow-y: auto;">
+                            @foreach (var version in Model.AllVersions)
+                            {
+                                <div class="list-group-item @(version.Id == Model.SurveyTemplate.Id ? "active" : "")">
+                                    <div class="d-flex justify-content-between align-items-start">
+                                        <div class="flex-grow-1">
+                                            <h6 class="mb-1">
+                                                <i class="bi bi-tag me-1"></i>
+                                                Version @version.VersionNumber
+                                                @if (version.Id == Model.SurveyTemplate.Id)
+                                                {
+                                                    <span class="badge bg-light text-dark ms-1">Current</span>
+                                                }
+                                            </h6>
+                                            <div class="mb-2">
+                                                @switch (version.VersionStatus)
+                                                {
+                                                    case Sentinel.Models.SurveyVersionStatus.Draft:
+                                                        <span class="badge bg-secondary">Draft</span>
+                                                        break;
+                                                    case Sentinel.Models.SurveyVersionStatus.Active:
+                                                        <span class="badge bg-success">Active</span>
+                                                        break;
+                                                    case Sentinel.Models.SurveyVersionStatus.Archived:
+                                                        <span class="badge bg-warning text-dark">Archived</span>
+                                                        break;
+                                                }
+                                                @if (version.IsActive)
+                                                {
+                                                    <span class="badge bg-success ms-1">Enabled</span>
+                                                }
+                                            </div>
+                                            <small class="text-muted d-block">
+                                                <i class="bi bi-calendar me-1"></i>
+                                                Created: @version.CreatedAt.ToString("MMM dd, yyyy HH:mm")
+                                                @if (!string.IsNullOrEmpty(version.CreatedBy))
+                                                {
+                                                    <span>by @version.CreatedBy</span>
+                                                }
+                                            </small>
+                                            @if (version.PublishedAt.HasValue)
+                                            {
+                                                <small class="text-muted d-block">
+                                                    <i class="bi bi-check-circle me-1"></i>
+                                                    Published: @version.PublishedAt.Value.ToString("MMM dd, yyyy HH:mm")
+                                                    @if (!string.IsNullOrEmpty(version.PublishedBy))
+                                                    {
+                                                        <span>by @version.PublishedBy</span>
+                                                    }
+                                                </small>
+                                            }
+                                            @if (!string.IsNullOrEmpty(version.VersionNotes))
+                                            {
+                                                <small class="text-muted d-block mt-1">
+                                                    <i class="bi bi-journal-text me-1"></i>
+                                                    @version.VersionNotes
+                                                </small>
+                                            }
+                                        </div>
+                                        @if (version.Id != Model.SurveyTemplate.Id)
+                                        {
+                                            <div class="ms-2">
+                                                <a asp-page="./SurveyTemplateDetails" asp-route-id="@version.Id" 
+                                                   class="btn btn-sm btn-outline-primary" title="View this version">
+                                                    <i class="bi bi-eye"></i>
+                                                </a>
+                                            </div>
+                                        }
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                    </div>
+                </div>
+            }
+
+            <!-- Task Templates Using This Survey -->
+            @if (Model.TaskTemplatesUsing.Any())
+            {
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <i class="bi bi-list-task me-2"></i>Task Templates Using This Survey
+                        <span class="badge bg-primary ms-2">@Model.TaskTemplatesUsing.Count</span>
+                    </div>
+                    <div class="card-body">
+                        <div class="list-group list-group-flush">
+                            @foreach (var taskTemplate in Model.TaskTemplatesUsing)
+                            {
+                                <div class="list-group-item d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <a asp-page="/Settings/Lookups/EditTaskTemplate" asp-route-id="@taskTemplate.Id" 
+                                           class="text-decoration-none">
+                                            <strong>@taskTemplate.Name</strong>
+                                        </a>
+                                        @if (taskTemplate.TaskType != null)
+                                        {
+                                            <br />
+                                            <small class="text-muted">
+                                                <i class="bi bi-tag me-1"></i>@taskTemplate.TaskType.Name
+                                            </small>
+                                        }
+                                    </div>
+                                    <div>
+                                        @if (taskTemplate.IsActive)
+                                        {
+                                            <span class="badge bg-success">Active</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge bg-secondary">Inactive</span>
+                                        }
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+
+        <!-- Right Column - Survey Definition & Mappings -->
+        <div class="col-lg-6">
+            <!-- Survey Definition -->
+            <div class="card mb-4">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <span>
+                        <i class="bi bi-code-square me-2"></i>Survey Definition (JSON)
+                    </span>
+                    <button type="button" class="btn btn-sm btn-outline-success" id="previewSurveyBtn">
+                        <i class="bi bi-eye me-1"></i>Preview Survey
+                    </button>
+                </div>
+                <div class="card-body">
+                    <pre class="bg-light p-3 rounded" style="max-height: 400px; overflow-y: auto;"><code id="surveyJsonCode">@Model.SurveyTemplate.SurveyDefinitionJson</code></pre>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Survey Preview Modal -->
+<div class="modal fade" id="surveyPreviewModal" tabindex="-1">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="bi bi-eye me-2"></i>Survey Preview - @Model.SurveyTemplate.Name
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="surveyPreviewContainer"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <link href="https://unpkg.com/survey-jquery@1.9.131/defaultV2.min.css" type="text/css" rel="stylesheet" />
+    <script src="https://unpkg.com/survey-jquery@1.9.131/survey.jquery.min.js"></script>
+    
+    <script>
+        $(document).ready(function() {
+            // Format JSON for display
+            try {
+                const jsonText = $('#surveyJsonCode').text();
+                const parsed = JSON.parse(jsonText);
+                const formatted = JSON.stringify(parsed, null, 2);
+                $('#surveyJsonCode').text(formatted);
+            } catch (error) {            }
+
+            // Preview Survey
+            $('#previewSurveyBtn').on('click', function() {
+                try {
+                    const jsonText = $('#surveyJsonCode').text();
+                    const surveyJson = JSON.parse(jsonText);
+                    $('#surveyPreviewContainer').empty();
+                    
+                    const survey = new Survey.Model(surveyJson);
+                    $('#surveyPreviewModal').modal('show');
+                    
+                    $('#surveyPreviewModal').on('shown.bs.modal', function () {
+                        survey.render('surveyPreviewContainer');
+                    });
+                } catch (error) {
+                    alert('Failed to preview survey: ' + error.message);
+                }
+            });
+            
+            // Publish Version
+            $('.publish-version-btn').on('click', function() {
+                const versionId = $(this).data('version-id');
+                const versionNumber = $(this).data('version-number');
+                
+                if (!confirm(`Publish version ${versionNumber}?\n\nThis will:\n• Make this version Active\n• Archive the current active version\n• Start using this version in new tasks`)) {
+                    return;
+                }
+                
+                $(this).prop('disabled', true).html('<span class="spinner-border spinner-border-sm"></span>');
+                
+                $.ajax({
+                    url: `/api/SurveyVersion/PublishVersion/${versionId}`,
+                    method: 'POST',
+                    success: function() {
+                        alert(`Version ${versionNumber} published successfully!`);
+                        location.reload();
+                    },
+                    error: function(xhr) {
+                        alert('Failed to publish version: ' + (xhr.responseText || 'Unknown error'));
+                        location.reload();
+                    }
+                });
+            });
+            
+            // Archive Version
+            $('.archive-version-btn').on('click', function() {
+                const versionId = $(this).data('version-id');
+                const versionNumber = $(this).data('version-number');
+                
+                if (!confirm(`Archive version ${versionNumber}?\n\nThis version will no longer be available for use.`)) {
+                    return;
+                }
+                
+                $(this).prop('disabled', true).html('<span class="spinner-border spinner-border-sm"></span>');
+                
+                $.ajax({
+                    url: `/api/SurveyVersion/ArchiveVersion/${versionId}`,
+                    method: 'POST',
+                    success: function() {
+                        alert(`Version ${versionNumber} archived successfully!`);
+                        location.reload();
+                    },
+                    error: function(xhr) {
+                        alert('Failed to archive version: ' + (xhr.responseText || 'Unknown error'));
+                        location.reload();
+                    }
+                });
+            });
+        });
+    </script>
+}

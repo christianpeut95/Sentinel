@@ -1,0 +1,509 @@
+@page "/Settings/Mappings/ConfigureCollectionBlazor/{MappingId:guid?}"
+@using Sentinel.Models
+@using Sentinel.Models.Reporting
+@using Sentinel.Services
+@using Sentinel.Data
+@using Microsoft.EntityFrameworkCore
+@using Microsoft.AspNetCore.Components.Web
+@inject ICollectionMappingService CollectionMappingService
+@inject ApplicationDbContext Context
+@inject ILogger<ConfigureCollectionBlazor> Logger
+@inject NavigationManager Navigation
+
+@rendermode RenderMode.InteractiveServer
+
+<PageTitle>Configure Collection Mapping</PageTitle>
+
+<div class="container-fluid py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2><i class="bi bi-grid-3x3-gap"></i> Configure Collection Mapping</h2>
+        <button type="button" class="btn btn-outline-secondary" @onclick="Close">
+            <i class="bi bi-x-circle"></i> Close
+        </button>
+    </div>
+
+    @if (errorMessage != null)
+    {
+        <div class="alert alert-danger alert-dismissible">
+            <i class="bi bi-exclamation-triangle"></i> @errorMessage
+            <button type="button" class="btn-close" @onclick="() => errorMessage = null"></button>
+        </div>
+    }
+
+    @if (successMessage != null)
+    {
+        <div class="alert alert-success alert-dismissible">
+            <i class="bi bi-check-circle"></i> @successMessage
+            <button type="button" class="btn-close" @onclick="() => successMessage = null"></button>
+        </div>
+    }
+
+    @if (isLoading)
+    {
+        <div class="text-center py-5">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <p class="mt-2">Loading configuration...</p>
+        </div>
+    }
+    else if (surveyTemplate != null && config != null)
+    {
+        <div class="row">
+            <div class="col-12">
+                <!-- Step 1: Question & Entity Selection -->
+                <div class="card mb-3">
+                    <div class="card-header"><strong>Step 1: Select Matrix Question & Primary Entity</strong></div>
+                    <div class="card-body">
+                        <QuestionSelector 
+                            SurveyJson="@surveyTemplate.SurveyDefinitionJson"
+                            SelectedQuestion="@config.SourceQuestionName"
+                            OnQuestionSelected="OnQuestionSelected" />
+                        
+                        <div class="mt-3">
+                            <label class="form-label">Primary Entity Type</label>
+                            <select class="form-select" value="@config.TargetEntityType" @onchange="OnEntityTypeChanged">
+                                <option value="">-- Select Primary Entity --</option>
+                                <option value="Patient">Patient (Person Record)</option>
+                            </select>
+                            <small class="text-muted">Primary entity created from each matrix row</small>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Step 2: Primary Entity Field Mappings -->
+                @if (!string.IsNullOrEmpty(config.SourceQuestionName) && !string.IsNullOrEmpty(config.TargetEntityType))
+                {
+                    <div class="card mb-3">
+                        <div class="card-header">
+                            <strong>Step 2: Map Columns to @config.TargetEntityType Fields</strong>
+                        </div>
+                        <div class="card-body">
+                            <PrimaryEntityMapper 
+                                Config="@config"
+                                MatrixColumns="@matrixColumns"
+                                TargetFields="@targetFields"
+                                OnMappingsChanged="StateHasChanged" />
+                        </div>
+                    </div>
+
+                    <!-- Step 3: Related Entities -->
+                    <div class="card mb-3">
+                        <div class="card-header">
+                            <strong>Step 3: Related Entities (Optional)</strong>
+                            <br><small class="text-muted">Create additional entities for each row (e.g., Case for contact, ExposureEvent to link)</small>
+                        </div>
+                        <div class="card-body">
+                            <RelatedEntitiesEditor 
+                                Config="@config"
+                                MatrixColumns="@matrixColumns"
+                                TargetFields="@targetFields"
+                                OnConfigChanged="StateHasChanged" />
+                        </div>
+                    </div>
+
+                    <!-- Step 4: Duplicate Detection -->
+                    <div class="card mb-3">
+                        <div class="card-header">
+                            <div class="form-check form-switch">
+                                <input type="checkbox" class="form-check-input" checked="@enableDuplicates" @onchange="e => { enableDuplicates = (bool)(e.Value ?? false); OnDuplicatesToggled(); }" />
+                                <label class="form-check-label"><strong>Step 4: Enable Duplicate Detection</strong></label>
+                            </div>
+                        </div>
+                        @if (enableDuplicates)
+                        {
+                            <div class="card-body">
+                                <DuplicateDetectionConfig 
+                                    Config="@config"
+                                    TargetFields="@targetFields"
+                                    OnConfigChanged="StateHasChanged" />
+                            </div>
+                        }
+                    </div>
+                }
+
+                <!-- Save Actions -->
+                <div class="d-flex justify-content-end gap-2 mt-4">
+                    <button type="button" class="btn btn-secondary" @onclick="Close" disabled="@isSaving">
+                        Cancel
+                    </button>
+                    <button type="button" class="btn btn-primary" @onclick="SaveConfiguration" disabled="@(isSaving || !CanSave())">
+                        @if (isSaving)
+                        {
+                            <span class="spinner-border spinner-border-sm me-2" role="status"></span>
+                        }
+                        else
+                        {
+                            <i class="bi bi-save me-2"></i>
+                        }
+                        Save Configuration
+                    </button>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+[Parameter]
+public Guid? MappingId { get; set; }
+
+[SupplyParameterFromQuery]
+public Guid? SurveyTemplateId { get; set; }
+
+[SupplyParameterFromQuery]
+public string? ReturnUrl { get; set; }
+
+    private SurveyFieldMapping? mapping;
+    private SurveyTemplate? surveyTemplate;
+    private CollectionMappingConfig? config;
+    private List<string> matrixColumns = new();
+    private List<ReportFieldMetadata> targetFields = new();
+    
+    private bool isLoading = true;
+    private bool isSaving = false;
+    private bool enableDuplicates = false;
+    private string? errorMessage;
+    private string? successMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            isLoading = true;
+
+            if (MappingId.HasValue)
+            {
+                mapping = await Context.SurveyFieldMappings
+                    .FirstOrDefaultAsync(m => m.Id == MappingId.Value);
+
+                if (mapping == null)
+                {
+                    errorMessage = "Mapping not found.";
+                    return;
+                }
+
+                // Load survey template from mapping
+                if (mapping.ConfigurationType == MappingConfigurationType.Survey && mapping.ConfigurationId != Guid.Empty)
+                {
+                    Logger.LogCritical("?? Loading SurveyTemplate with ID: {SurveyTemplateId}", mapping.ConfigurationId);
+                    
+                    surveyTemplate = await Context.SurveyTemplates
+                        .FirstOrDefaultAsync(st => st.Id == mapping.ConfigurationId);
+                    
+                    if (surveyTemplate == null)
+                    {
+                        Logger.LogCritical("? SurveyTemplate NOT FOUND with ID: {SurveyTemplateId}", mapping.ConfigurationId);
+                    }
+                    else
+                    {
+                        Logger.LogCritical("? SurveyTemplate FOUND: Name='{Name}', Version={Version}", 
+                            surveyTemplate.Name, surveyTemplate.Version);
+                        Logger.LogCritical("   - SurveyDefinitionJson is null: {IsNull}", 
+                            string.IsNullOrEmpty(surveyTemplate.SurveyDefinitionJson));
+                        Logger.LogCritical("   - SurveyDefinitionJson length: {Length} chars", 
+                            surveyTemplate.SurveyDefinitionJson?.Length ?? 0);
+                        
+                        // ?? AUTO-FIX: If NULL JSON, find latest published version
+                        if (string.IsNullOrEmpty(surveyTemplate.SurveyDefinitionJson))
+                        {
+                            Logger.LogWarning("?? Survey template has NULL JSON - searching for latest published version...");
+                            
+                            var latestPublished = await Context.SurveyTemplates
+                                .Where(st => st.Name == surveyTemplate.Name 
+                                          && st.SurveyDefinitionJson != null 
+                                          && st.SurveyDefinitionJson.Length > 100
+                                          && st.IsActive
+                                          && st.PublishedAt != null)
+                                .OrderByDescending(st => st.PublishedAt)
+                                .ThenByDescending(st => st.VersionNumber)
+                                .FirstOrDefaultAsync();
+                            
+                            if (latestPublished != null)
+                            {
+                                Logger.LogInformation("? AUTO-FIX: Found latest published version: {Name} v{Version} (ID: {Id})", 
+                                    latestPublished.Name, latestPublished.Version, latestPublished.Id);
+                                
+                                // Update mapping to point to correct survey
+                                mapping.ConfigurationId = latestPublished.Id;
+                                mapping.LastModified = DateTime.UtcNow;
+                                await Context.SaveChangesAsync();
+                                
+                                // Use the correct survey template
+                                surveyTemplate = latestPublished;
+                                
+                                Logger.LogInformation("?? ConfigurationId updated from {OldId} to {NewId}", 
+                                    mapping.ConfigurationId, latestPublished.Id);
+                                
+                                successMessage = $"? Auto-fixed: Mapping now uses published survey '{latestPublished.Name}' v{latestPublished.Version}";
+                            }
+                            else
+                            {
+                                Logger.LogError("? No published version found for survey '{Name}' - config tool will not work properly", 
+                                    surveyTemplate.Name);
+                                errorMessage = $"?? Survey '{surveyTemplate.Name}' has no published version with definition. Please publish the survey first.";
+                            }
+                        }
+                    }
+                }
+
+                // Parse existing config
+                if (!string.IsNullOrEmpty(mapping.CollectionConfigJson))
+                {
+                    config = System.Text.Json.JsonSerializer.Deserialize<CollectionMappingConfig>(
+                        mapping.CollectionConfigJson
+                    );
+                    
+                    // ? FIX: Load matrix columns and entity fields for existing config
+                    if (config != null)
+                    {
+                        // Check if duplicate detection is enabled BEFORE we set isLoading = false
+                        enableDuplicates = config.MatchingConfig != null;
+                        
+                        if (!string.IsNullOrEmpty(config.SourceQuestionName))
+                        {
+                            Logger.LogInformation("Loading matrix columns for existing question: {QuestionName}", config.SourceQuestionName);
+                            await LoadMatrixColumns(config.SourceQuestionName);
+                        }
+                        
+                        if (!string.IsNullOrEmpty(config.TargetEntityType))
+                        {
+                            Logger.LogInformation("Loading entity fields for existing entity: {EntityType}", config.TargetEntityType);
+                            await LoadEntityFields(config.TargetEntityType);
+                        }
+                    }
+                }
+            }
+
+            // If survey template ID provided directly (for new mappings), use that
+            if (SurveyTemplateId.HasValue && surveyTemplate == null)
+            {
+                surveyTemplate = await Context.SurveyTemplates
+                    .FirstOrDefaultAsync(st => st.Id == SurveyTemplateId.Value);
+            }
+
+            // Initialize empty config if null
+            config ??= new CollectionMappingConfig
+            {
+                SourceQuestionName = string.Empty,
+                TargetEntityType = string.Empty,
+                RowMappings = new List<CollectionColumnMapping>(),
+                RelatedEntities = new List<RelatedEntityConfig>(),
+                OnDuplicateFound = DuplicateHandling.CreateNew
+            };
+
+            // Check if duplicate detection is enabled (already set above if config loaded from DB)
+            if (!MappingId.HasValue)
+            {
+                enableDuplicates = config.MatchingConfig != null;
+            }
+
+            if (surveyTemplate == null)
+            {
+                errorMessage = "Survey template not found. Collection mappings require a survey template.";
+            }
+            else if (string.IsNullOrEmpty(surveyTemplate.SurveyDefinitionJson))
+            {
+                errorMessage = $"?? Survey template '{surveyTemplate.Name}' has no survey definition. " +
+                              $"Please re-design and publish this survey, or update the mapping to use a different survey template.";
+                Logger.LogWarning("Survey template {SurveyTemplateId} ({Name}) has null SurveyDefinitionJson", 
+                    surveyTemplate.Id, surveyTemplate.Name);
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error loading collection mapping configuration");
+            errorMessage = $"Error loading configuration: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task OnQuestionSelected(string questionName)
+    {
+        config!.SourceQuestionName = questionName;
+        await LoadMatrixColumns(questionName);
+        StateHasChanged();
+    }
+
+    private async Task OnEntityTypeChanged(ChangeEventArgs e)
+    {
+        var entityType = e.Value?.ToString();
+        if (!string.IsNullOrEmpty(entityType))
+        {
+            config!.TargetEntityType = entityType;
+            await LoadEntityFields(entityType);
+            StateHasChanged();
+        }
+    }
+
+    private async Task LoadMatrixColumns(string questionName)
+    {
+        try
+        {
+            Logger.LogCritical("?? LoadMatrixColumns CALLED for question: '{QuestionName}'", questionName);
+            
+            if (string.IsNullOrEmpty(surveyTemplate?.SurveyDefinitionJson))
+            {
+                Logger.LogCritical("? SurveyDefinitionJson is null or empty!");
+                return;
+            }
+
+            Logger.LogCritical("?? SurveyDefinitionJson length: {Length} chars", surveyTemplate.SurveyDefinitionJson.Length);
+
+            var surveyDef = System.Text.Json.JsonSerializer.Deserialize<System.Text.Json.JsonElement>(
+                surveyTemplate.SurveyDefinitionJson
+            );
+
+            matrixColumns.Clear();
+            Logger.LogCritical("?? Searching for question '{QuestionName}' in survey JSON...", questionName);
+
+            if (surveyDef.TryGetProperty("pages", out var pages))
+            {
+                Logger.LogCritical("? Found 'pages' property with {Count} pages", pages.GetArrayLength());
+                
+                foreach (var page in pages.EnumerateArray())
+                {
+                    if (page.TryGetProperty("elements", out var elements))
+                    {
+                        foreach (var element in elements.EnumerateArray())
+                        {
+                            if (element.TryGetProperty("name", out var name) && 
+                                name.GetString() == questionName)
+                            {
+                                Logger.LogCritical("? FOUND question '{QuestionName}'!", questionName);
+                                
+                                if (element.TryGetProperty("columns", out var columns))
+                                {
+                                    Logger.LogCritical("? Found 'columns' property with {Count} columns", columns.GetArrayLength());
+                                    
+                                    foreach (var col in columns.EnumerateArray())
+                                    {
+                                        var colName = col.TryGetProperty("name", out var n) ? n.GetString() : col.GetString();
+                                        if (!string.IsNullOrEmpty(colName))
+                                        {
+                                            matrixColumns.Add(colName);
+                                            Logger.LogCritical("   - Added column: '{ColumnName}'", colName);
+                                        }
+                                    }
+                                    
+                                    Logger.LogCritical("? TOTAL MATRIX COLUMNS LOADED: {Count}", matrixColumns.Count);
+                                }
+                                else
+                                {
+                                    Logger.LogCritical("? Question found but NO 'columns' property!");
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            else
+            {
+                Logger.LogCritical("? Survey JSON has no 'pages' property!");
+            }
+            
+            if (matrixColumns.Count == 0)
+            {
+                Logger.LogCritical("?? WARNING: No columns loaded for question '{QuestionName}'", questionName);
+            }
+            
+            // ?? CRITICAL: Force UI update so child components re-render with populated columns
+            StateHasChanged();
+            Logger.LogCritical("?? StateHasChanged() called - child components should now update");
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "?? Error loading matrix columns");
+        }
+    }
+
+    private async Task LoadEntityFields(string entityType)
+    {
+        try
+        {
+            targetFields = await CollectionMappingService.GetEntityFieldsAsync(entityType);
+            
+            // ?? CRITICAL: Force UI update so child components re-render with populated fields
+            StateHasChanged();
+            Logger.LogInformation("?? StateHasChanged() called after loading {Count} target fields", targetFields?.Count ?? 0);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error loading entity fields for {EntityType}", entityType);
+            errorMessage = $"Error loading fields for {entityType}: {ex.Message}";
+        }
+    }
+
+    private bool CanSave()
+    {
+        return !string.IsNullOrEmpty(config?.SourceQuestionName) && 
+               !string.IsNullOrEmpty(config?.TargetEntityType) &&
+               MappingId.HasValue;
+    }
+
+    private void OnDuplicatesToggled()
+    {
+        if (enableDuplicates)
+        {
+            config!.MatchingConfig = new MatchingConfig
+            {
+                EntityType = config.TargetEntityType,
+                MatchOnFields = new List<string>(),
+                ConfidenceThreshold = 0.85,
+                Strategy = MatchingStrategy.Exact
+            };
+        }
+        else
+        {
+            config!.MatchingConfig = null;
+        }
+        StateHasChanged();
+    }
+
+    private async Task SaveConfiguration()
+    {
+        try
+        {
+            isSaving = true;
+            errorMessage = null;
+
+            if (mapping == null)
+            {
+                errorMessage = "Mapping not found.";
+                return;
+            }
+
+            // Serialize config
+            mapping.CollectionConfigJson = System.Text.Json.JsonSerializer.Serialize(config);
+            mapping.LastModified = DateTime.UtcNow;
+
+            await Context.SaveChangesAsync();
+
+            successMessage = "Configuration saved successfully!";
+            
+            // Refresh parent window if available
+            await Task.Delay(1000);
+            Close();
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error saving configuration");
+            errorMessage = $"Error saving: {ex.Message}";
+        }
+        finally
+        {
+            isSaving = false;
+        }
+    }
+
+    private void Close()
+    {
+        if (!string.IsNullOrEmpty(ReturnUrl))
+            Navigation.NavigateTo(ReturnUrl);
+        else
+            Navigation.NavigateTo("/Settings/Mappings");
+    }
+}

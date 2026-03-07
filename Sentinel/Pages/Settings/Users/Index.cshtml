@@ -1,0 +1,299 @@
+@page
+@model Sentinel.Pages.Settings.Users.IndexModel
+
+@{
+    ViewData["Title"] = "User Management";
+}
+@functions {
+    public string GetCspNonce()
+    {
+        if (HttpContext?.Items?.TryGetValue("csp-nonce", out var nonce) == true && nonce is string nonceStr)
+        {
+            return nonceStr;
+        }
+        return string.Empty;
+    }
+}
+
+<nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a asp-page="/Index">Home</a></li>
+        <li class="breadcrumb-item"><a asp-page="/Settings/Index">Settings</a></li>
+        <li class="breadcrumb-item active" aria-current="page">Users</li>
+    </ol>
+</nav>
+
+<div class="container-fluid">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="mb-1"><i class="bi bi-people-fill me-2 text-primary"></i>User Management</h2>
+            <p class="text-muted mb-0">Manage users, roles, and permissions</p>
+        </div>
+        <div>
+            <a asp-page="./Create" class="btn btn-primary">
+                <i class="bi bi-person-plus me-2"></i>Add New User
+            </a>
+        </div>
+    </div>
+
+    <!-- Success/Error Messages -->
+    @if (!string.IsNullOrEmpty(Model.StatusMessage))
+    {
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            <i class="bi bi-check-circle me-2"></i>@Model.StatusMessage
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
+
+    <!-- Search and Filter Bar -->
+    <div class="card shadow-sm mb-4">
+        <div class="card-body">
+            <form method="get" class="row g-3 align-items-end">
+                <div class="col-md-6">
+                    <label for="searchEmail" class="form-label"><i class="bi bi-search me-1"></i>Search by Email</label>
+                    <input type="text" class="form-control" id="searchEmail" name="searchEmail" 
+                           value="@Model.SearchEmail" placeholder="Enter email address...">
+                </div>
+                <div class="col-md-4">
+                    <label for="roleFilter" class="form-label"><i class="bi bi-filter me-1"></i>Filter by Role</label>
+                    <select class="form-select" id="roleFilter" name="roleFilter">
+                        <option value="">All Roles</option>
+                        @foreach (var role in Model.Roles)
+                        {
+                            <option value="@role" selected="@(Model.RoleFilter == role)">@role</option>
+                        }
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <button type="submit" class="btn btn-primary w-100">
+                        <i class="bi bi-search me-1"></i>Search
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Users Count Badge -->
+    @if (Model.Users.Any())
+    {
+        <div class="mb-3">
+            <span class="badge bg-info fs-6">
+                <i class="bi bi-people me-1"></i>@Model.Users.Count() user(s) found
+            </span>
+        </div>
+    }
+
+    <!-- Users Table -->
+    @if (!Model.Users.Any())
+    {
+        <div class="card shadow-sm">
+            <div class="card-body text-center py-5">
+                <i class="bi bi-people" style="font-size: 4rem; color: #dee2e6;"></i>
+                <h5 class="mt-3">No Users Found</h5>
+                <p class="text-muted">Try adjusting your search criteria or add a new user.</p>
+                <a asp-page="./Create" class="btn btn-primary mt-2">
+                    <i class="bi bi-person-plus me-2"></i>Add First User
+                </a>
+            </div>
+        </div>
+    }
+    else
+    {
+        <div class="card shadow-sm">
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th style="width: 50px;">#</th>
+                                <th><i class="bi bi-person me-1"></i>User</th>
+                                <th><i class="bi bi-shield-check me-1"></i>Roles</th>
+                                <th><i class="bi bi-calendar me-1"></i>Created</th>
+                                <th><i class="bi bi-toggles me-1"></i>Status</th>
+                                <th class="text-end" style="width: 200px;">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @{
+                                int rowNumber = 1;
+                            }
+                            @foreach (var user in Model.Users)
+                            {
+                                <tr>
+                                    <td class="text-muted">@rowNumber</td>
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            <div class="user-avatar me-3">
+                                                <i class="bi bi-person-circle"></i>
+                                            </div>
+                                            <div>
+                                                <div class="fw-semibold">
+                                                    @user.Email
+                                                    @if (user.IsInterviewWorker)
+                                                    {
+                                                        <span class="badge bg-info ms-1" title="Interview Worker">
+                                                            <i class="bi bi-telephone"></i>
+                                                        </span>
+                                                    }
+                                                </div>
+                                                @if (!string.IsNullOrEmpty(user.UserName) && user.UserName != user.Email)
+                                                {
+                                                    <small class="text-muted">@user.UserName</small>
+                                                }
+                                                @if (!string.IsNullOrEmpty(user.FirstName) || !string.IsNullOrEmpty(user.LastName))
+                                                {
+                                                    <br />
+                                                    <small class="text-muted">@user.FirstName @user.LastName</small>
+                                                }
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        @if (user.AssignedRoles.Any())
+                                        {
+                                            <div class="d-flex flex-wrap gap-1">
+                                                @foreach (var role in user.AssignedRoles)
+                                                {
+                                                    <span class="badge bg-primary">@role</span>
+                                                }
+                                            </div>
+                                        }
+                                        else
+                                        {
+                                            <span class="text-muted">No roles</span>
+                                        }
+                                    </td>
+                                    <td>
+                                        <small class="text-muted">N/A</small>
+                                    </td>
+                                    <td>
+                                        @if (user.LockoutEnd.HasValue && user.LockoutEnd.Value > DateTimeOffset.UtcNow)
+                                        {
+                                            <span class="badge bg-danger">Locked</span>
+                                        }
+                                        else if (user.EmailConfirmed)
+                                        {
+                                            <span class="badge bg-success">Active</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge bg-warning">Pending</span>
+                                        }
+                                    </td>
+                                    <td class="text-end">
+                                        <div class="btn-group btn-group-sm">
+                                            <a asp-page="./Details" asp-route-id="@user.Id" 
+                                               class="btn btn-outline-primary" title="View Details">
+                                                <i class="bi bi-eye"></i>
+                                            </a>
+                                            <a asp-page="./Edit" asp-route-id="@user.Id" 
+                                               class="btn btn-outline-secondary" title="Edit User">
+                                                <i class="bi bi-pencil"></i>
+                                            </a>
+                                            <a asp-page="./Permissions" asp-route-id="@user.Id" 
+                                               class="btn btn-outline-info" title="Manage Permissions">
+                                                <i class="bi bi-shield-lock"></i>
+                                            </a>
+                                            <a asp-page="./Delete" asp-route-id="@user.Id" 
+                                               class="btn btn-outline-danger" title="Delete User">
+                                                <i class="bi bi-trash"></i>
+                                            </a>
+                                        </div>
+                                    </td>
+                                </tr>
+                                rowNumber++;
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Summary Stats -->
+        <div class="row g-3 mt-4">
+            <div class="col-md-3">
+                <div class="stat-mini-card">
+                    <i class="bi bi-people-fill text-primary"></i>
+                    <div>
+                        <div class="stat-mini-number">@Model.Users.Count()</div>
+                        <div class="stat-mini-label">Total Users</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stat-mini-card">
+                    <i class="bi bi-check-circle-fill text-success"></i>
+                    <div>
+                        <div class="stat-mini-number">@Model.Users.Count(u => u.EmailConfirmed)</div>
+                        <div class="stat-mini-label">Active Users</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stat-mini-card">
+                    <i class="bi bi-shield-fill-check text-info"></i>
+                    <div>
+                        <div class="stat-mini-number">@Model.Users.Count(u => u.AssignedRoles.Any())</div>
+                        <div class="stat-mini-label">With Roles</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stat-mini-card">
+                    <i class="bi bi-exclamation-triangle-fill text-warning"></i>
+                    <div>
+                        <div class="stat-mini-number">@Model.Users.Count(u => u.LockoutEnd.HasValue && u.LockoutEnd.Value > DateTimeOffset.UtcNow)</div>
+                        <div class="stat-mini-label">Locked</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+<style>
+    .user-avatar {
+        font-size: 2rem;
+        color: #6c757d;
+    }
+
+    .stat-mini-card {
+        background: white;
+        border-radius: 0.75rem;
+        padding: 1.25rem;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+    }
+
+    .stat-mini-card i {
+        font-size: 2rem;
+    }
+
+    .stat-mini-number {
+        font-size: 1.75rem;
+        font-weight: 700;
+        color: #212529;
+    }
+
+    .stat-mini-label {
+        font-size: 0.875rem;
+        color: #6c757d;
+    }
+
+    .table tbody tr {
+        transition: background-color 0.2s;
+    }
+
+    .table tbody tr:hover {
+        background-color: #f8f9fa;
+    }
+
+    .btn-group-sm .btn {
+        padding: 0.375rem 0.75rem;
+    }
+</style>
+    <div class="alert alert-info">@Model.StatusMessage</div>
+}

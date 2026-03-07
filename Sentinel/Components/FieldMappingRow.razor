@@ -1,0 +1,174 @@
+@using Sentinel.Models
+@using Sentinel.Models.Reporting
+
+<div class="mapping-row">
+    <div class="row g-2">
+        <!-- Source Type -->
+        <div class="col-md-2">
+            <label class="form-label small">Source Type</label>
+            <select class="form-select form-select-sm" value="@Mapping.SourceType" @onchange="OnSourceTypeChanged">
+                <option value="">-- Type --</option>
+                <option value="Column">Column</option>
+                <option value="Context">Context</option>
+                <option value="Primary">Primary</option>
+                <option value="RelatedEntity">RelatedEntity ?</option>
+                <option value="Constant">Constant</option>
+            </select>
+        </div>
+
+        <!-- Source (Smart Input) -->
+        <div class="col-md-4">
+            <label class="form-label small">Source</label>
+            <SourceInput 
+                SourceType="@Mapping.SourceType"
+                SourceValue="@Mapping.Source"
+                MatrixColumns="@MatrixColumns"
+                Config="@Config"
+                CurrentEntityOrder="@CurrentEntityOrder"
+                TargetFieldMetadata="@GetTargetFieldMetadata()"
+                OnSourceChanged="OnSourceChanged" />
+        </div>
+
+        <!-- Target Field -->
+        <div class="col-md-4">
+            <label class="form-label small">Target Field</label>
+            <select class="form-select form-select-sm @GetTargetFieldCssClass()" value="@Mapping.TargetFieldPath" @onchange="OnTargetFieldChanged">
+                <option value="">-- Select Field --</option>
+                @foreach (var field in EntityFields)
+                {
+                    @* Disable "Id" field - primary keys are auto-generated *@
+                    if (field.FieldPath.Equals("Id", StringComparison.OrdinalIgnoreCase))
+                    {
+                        <option value="@field.FieldPath" disabled>@field.DisplayName ? (Primary Key - Auto-Generated)</option>
+                    }
+                    else
+                    {
+                        <option value="@field.FieldPath">@field.DisplayName</option>
+                    }
+                }
+            </select>
+            @if (IsInvalidIdMapping())
+            {
+                <div class="invalid-feedback d-block">
+                    ? Cannot map to "Id" - primary keys are auto-generated. Use SourceCaseId or ExposedCaseId instead.
+                </div>
+            }
+        </div>
+
+        <!-- Required & Remove -->
+        <div class="col-md-1">
+            <label class="form-label small">Required</label>
+            <input type="checkbox" class="form-check-input" checked="@Mapping.Required" 
+                   @onchange="OnRequiredChanged" />
+        </div>
+        <div class="col-md-1">
+            <label class="form-label small">&nbsp;</label>
+            <button type="button" class="btn btn-sm btn-danger w-100" @onclick="OnRemove">
+                <i class="bi bi-x"></i>
+            </button>
+        </div>
+    </div>
+</div>
+
+@code {
+[Parameter]
+public RelatedEntityMapping Mapping { get; set; } = new();
+
+[Parameter]
+public int Index { get; set; }
+
+[Parameter]
+public List<string> MatrixColumns { get; set; } = new();
+
+[Parameter]
+public List<ReportFieldMetadata> EntityFields { get; set; } = new();
+
+[Parameter]
+public CollectionMappingConfig? Config { get; set; }
+
+[Parameter]
+public int CurrentEntityOrder { get; set; }
+
+[Parameter]
+public EventCallback OnMappingChanged { get; set; }
+
+[Parameter]
+public EventCallback OnRemove { get; set; }
+
+private int previousEntityFieldsCount = 0;
+private int previousMatrixColumnsCount = 0;
+
+protected override void OnParametersSet()
+{
+    // Force re-render when EntityFields or MatrixColumns loads
+    bool needsRefresh = false;
+        
+    if (EntityFields.Count != previousEntityFieldsCount)
+    {
+        previousEntityFieldsCount = EntityFields.Count;
+        needsRefresh = true;
+    }
+        
+    if (MatrixColumns.Count != previousMatrixColumnsCount)
+    {
+        previousMatrixColumnsCount = MatrixColumns.Count;
+        needsRefresh = true;
+    }
+        
+    if (needsRefresh)
+    {
+        StateHasChanged();
+    }
+}
+
+private Task OnSourceTypeChanged(ChangeEventArgs e)
+    {
+        Mapping.SourceType = e.Value?.ToString() ?? "";
+        Mapping.Source = "";  // Reset source when type changes
+        return OnMappingChanged.InvokeAsync();
+    }
+
+    private Task OnSourceChanged(string newSource)
+    {
+        Mapping.Source = newSource;
+        return OnMappingChanged.InvokeAsync();
+    }
+
+    private Task OnTargetFieldChanged(ChangeEventArgs e)
+    {
+        Mapping.TargetFieldPath = e.Value?.ToString() ?? "";
+        return OnMappingChanged.InvokeAsync();
+    }
+
+    private Task OnRequiredChanged(ChangeEventArgs e)
+    {
+        Mapping.Required = (bool)(e.Value ?? false);
+        return OnMappingChanged.InvokeAsync();
+    }
+    
+    private ReportFieldMetadata? GetTargetFieldMetadata()
+    {
+        if (string.IsNullOrEmpty(Mapping.TargetFieldPath))
+            return null;
+            
+        return EntityFields.FirstOrDefault(f => f.FieldPath == Mapping.TargetFieldPath);
+    }
+    
+    private bool IsInvalidIdMapping()
+    {
+        // Check if user selected "Id" as target field (invalid)
+        var normalizedPath = Mapping.TargetFieldPath;
+        if (normalizedPath.Contains('.'))
+        {
+            normalizedPath = normalizedPath.Split('.').Last();
+        }
+        
+        return normalizedPath.Equals("Id", StringComparison.OrdinalIgnoreCase);
+    }
+    
+    private string GetTargetFieldCssClass()
+    {
+        return IsInvalidIdMapping() ? "is-invalid" : "";
+    }
+}
+

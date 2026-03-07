@@ -1,0 +1,979 @@
+@page
+@using Sentinel.Models.Lookups
+@model Sentinel.Pages.Settings.Diseases.EditModel
+
+@{
+    ViewData["Title"] = "Edit Disease";
+}
+@functions {
+    public string GetCspNonce()
+    {
+        if (HttpContext?.Items?.TryGetValue("csp-nonce", out var nonce) == true && nonce is string nonceStr)
+        {
+            return nonceStr;
+        }
+        return string.Empty;
+    }
+}
+
+<nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a asp-page="/Index">Home</a></li>
+        <li class="breadcrumb-item"><a asp-page="/Settings/Index">Settings</a></li>
+        <li class="breadcrumb-item"><a asp-page="./Index">Diseases</a></li>
+        <li class="breadcrumb-item active" aria-current="page">@Model.Disease.Name</li>
+    </ol>
+</nav>
+
+<h2><i class="bi bi-pencil me-2"></i>Edit Disease</h2>
+<hr />
+
+<ul class="nav nav-tabs mb-4" id="diseaseEditTabs" role="tablist">
+    <li class="nav-item" role="presentation">
+        <button class="nav-link active" id="basic-tab" data-bs-toggle="tab" data-bs-target="#basic" type="button" role="tab">
+            <i class="bi bi-info-circle me-1"></i>Basic Information
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="symptoms-tab" data-bs-toggle="tab" data-bs-target="#symptoms" type="button" role="tab">
+            <i class="bi bi-heart-pulse me-1"></i>Symptoms
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="customfields-tab" data-bs-toggle="tab" data-bs-target="#customfields" type="button" role="tab">
+            <i class="bi bi-ui-checks me-1"></i>Custom Fields
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="exposure-tab" data-bs-toggle="tab" data-bs-target="#exposure" type="button" role="tab">
+            <i class="bi bi-geo-alt me-1"></i>Exposure Tracking
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="review-tab" data-bs-toggle="tab" data-bs-target="#review" type="button" role="tab">
+            <i class="bi bi-inbox me-1"></i>Data Review
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="tasks-tab" data-bs-toggle="tab" data-bs-target="#tasks" type="button" role="tab">
+            <i class="bi bi-list-check me-1"></i>Tasks & Surveys
+        </button>
+    </li>
+</ul>
+
+<div class="tab-content" id="diseaseEditTabContent">
+    <div class="tab-pane fade show active" id="basic" role="tabpanel">
+        <div class="row">
+            <div class="col-md-8">
+                <form method="post" asp-page-handler="SaveBasic">
+                    <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
+                    <input type="hidden" asp-for="Disease.Id" />
+
+                    <div class="mb-3">
+                        <label asp-for="Disease.Name" class="form-label"></label>
+                        <input asp-for="Disease.Name" class="form-control" />
+                        <span asp-validation-for="Disease.Name" class="text-danger"></span>
+                        <small class="form-text text-muted">Display name (e.g., "Salmonella Typhimurium 9")</small>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label asp-for="Disease.Code" class="form-label"></label>
+                                <input asp-for="Disease.Code" class="form-control" />
+                                <span asp-validation-for="Disease.Code" class="text-danger"></span>
+                                <small class="form-text text-muted">Short code for UI (e.g., "ST9")</small>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label asp-for="Disease.ExportCode" class="form-label"></label>
+                                <input asp-for="Disease.ExportCode" class="form-control" />
+                                <span asp-validation-for="Disease.ExportCode" class="text-danger"></span>
+                                <small class="form-text text-muted">Official reporting code (e.g., "A02.1")</small>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="Disease.DiseaseCategoryId" class="form-label">Category</label>
+                        <select asp-for="Disease.DiseaseCategoryId" class="form-select" asp-items="ViewBag.CategoryId">
+                            <option value="">-- No Category --</option>
+                        </select>
+                        <span asp-validation-for="Disease.DiseaseCategoryId" class="text-danger"></span>
+                        <small class="form-text text-muted">Optional: Group disease into a category for reporting</small>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="Disease.Description" class="form-label"></label>
+                        <textarea asp-for="Disease.Description" class="form-control" rows="3"></textarea>
+                        <span asp-validation-for="Disease.Description" class="text-danger"></span>
+
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="Disease.ParentDiseaseId" class="form-label"></label>
+                        <select asp-for="Disease.ParentDiseaseId" class="form-select" asp-items="Model.ParentDiseases">
+                            <option value="">-- Root Level Disease --</option>
+                        </select>
+                        <span asp-validation-for="Disease.ParentDiseaseId" class="text-danger"></span>
+                        <small class="form-text text-muted">Leave blank for a top-level disease, or select a parent to create a sub-type</small>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="Disease.DisplayOrder" class="form-label"></label>
+                        <input asp-for="Disease.DisplayOrder" class="form-control" type="number" />
+                        <span asp-validation-for="Disease.DisplayOrder" class="text-danger"></span>
+                        <small class="form-text text-muted">Lower numbers appear first</small>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="Disease.AccessLevel" class="form-label"></label>
+                        <select asp-for="Disease.AccessLevel" class="form-select" asp-items="Html.GetEnumSelectList<DiseaseAccessLevel>()">
+                        </select>
+                        <span asp-validation-for="Disease.AccessLevel" class="text-danger"></span>
+                        <div class="alert alert-warning mt-2">
+                            <small>
+                                <i class="bi bi-exclamation-triangle me-1"></i>
+                                <strong>Public:</strong> All users can access cases for this disease.<br />
+                                <strong>Restricted:</strong> Only users with explicit role or user access can view/edit cases for this disease.
+                                <a asp-page="/Settings/DiseaseAccess/Index" class="alert-link">Manage access here</a>.
+                            </small>
+                        </div>
+                    </div>
+
+                    <div class="mb-3 form-check">
+                        <input asp-for="Disease.IsActive" class="form-check-input" type="checkbox" />
+                        <label asp-for="Disease.IsActive" class="form-check-label"></label>
+                    </div>
+
+                    <div class="mt-3">
+                        <button type="submit" name="action" value="save" class="btn btn-primary">
+                            <i class="bi bi-check-circle me-1"></i>Save
+                        </button>
+                        <button type="submit" name="action" value="saveAndAddChild" class="btn btn-success ms-2">
+                            <i class="bi bi-plus-circle me-1"></i>Save & Add Child
+                        </button>
+                        <a asp-page="Index" class="btn btn-outline-secondary ms-2">
+                            <i class="bi bi-arrow-left me-1"></i>Back to List
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="tab-pane fade" id="customfields" role="tabpanel">
+        <div class="row">
+            <div class="col-lg-10">
+                <form method="post" asp-page-handler="SaveCustomFields">
+                    <input type="hidden" asp-for="Disease.Id" />
+                    
+                    <div class="alert alert-info">
+                        <i class="bi bi-info-circle me-2"></i>
+                        Select which custom fields should appear on cases for this disease. Fields marked with inheritance will also appear on child diseases.
+                    </div>
+
+                    @if (!Model.AvailableCustomFields.Any())
+                    {
+                        <div class="alert alert-warning">
+                            <i class="bi bi-exclamation-triangle me-2"></i>
+                            No custom fields available for cases. <a asp-page="/Settings/CustomFields/Create" class="alert-link">Create a custom field</a> and enable "Show on Case Forms".
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="card">
+                            <div class="card-header bg-light">
+                                <strong>Available Custom Fields</strong>
+                            </div>
+                            <div class="card-body">
+                                @foreach (var field in Model.AvailableCustomFields.OrderBy(f => f.Category).ThenBy(f => f.DisplayOrder))
+                                {
+                                    var isLinked = Model.LinkedFieldIds.Contains(field.Id);
+                                    var inheritFlag = Model.InheritedFieldIds.Contains(field.Id);
+                                    var fieldKey = $"field_{field.Id}";
+                                    var inheritKey = $"inherit_{field.Id}";
+
+                                    <div class="row align-items-center mb-3 pb-3 border-bottom">
+                                        <div class="col-md-6">
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="checkbox" 
+                                                       name="@fieldKey" value="true" 
+                                                       id="@fieldKey" 
+                                                       checked="@isLinked" />
+                                                <label class="form-check-label" for="@fieldKey">
+                                                    <strong>@field.Label</strong>
+                                                    <br />
+                                                    <small class="text-muted">
+                                                        @field.Category | @field.FieldType
+                                                        @if (field.IsRequired)
+                                                        {
+                                                            <span class="badge bg-danger ms-1">Required</span>
+                                                        }
+                                                    </small>
+                                                </label>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="form-check form-switch">
+                                                <input class="form-check-input" type="checkbox" 
+                                                       name="@inheritKey" value="true" 
+                                                       id="@inheritKey"
+                                                       checked="@inheritFlag" />
+                                                <label class="form-check-label" for="@inheritKey">
+                                                    <i class="bi bi-diagram-3 me-1"></i>Inherit to child diseases
+                                                </label>
+                                            </div>
+                                        </div>
+                                    </div>
+                                }
+                            </div>
+                        </div>
+
+                        <div class="mt-3">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-check-circle me-1"></i>Save Custom Fields
+                            </button>
+                            <a asp-page="Index" class="btn btn-outline-secondary ms-2">
+                                <i class="bi bi-arrow-left me-1"></i>Back to List
+                            </a>
+                        </div>
+                    }
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Exposure Tracking Tab -->
+    <div class="tab-pane fade" id="exposure" role="tabpanel">
+        <div class="row">
+            <div class="col-lg-10">
+                <form method="post" asp-page-handler="SaveExposureTracking">
+                    <input type="hidden" asp-for="Disease.Id" />
+                    <input type="hidden" asp-for="Disease.Name" />
+                    <input type="hidden" asp-for="Disease.Code" />
+                    <input type="hidden" asp-for="Disease.ExportCode" />
+                    
+                    <div class="alert alert-info">
+                        <i class="bi bi-info-circle me-2"></i>
+                        Configure how exposure data should be collected and tracked for this disease. This determines the workflow when creating cases.
+                    </div>
+
+                    <div class="card mb-3">
+                        <div class="card-header bg-light">
+                            <strong>Exposure Tracking Mode</strong>
+                        </div>
+                        <div class="card-body">
+                            <div class="mb-3">
+                                <label asp-for="Disease.ExposureTrackingMode" class="form-label"></label>
+                                <select asp-for="Disease.ExposureTrackingMode" class="form-select" asp-items="Html.GetEnumSelectList<Sentinel.Models.ExposureTrackingMode>()">
+                                </select>
+                                <span asp-validation-for="Disease.ExposureTrackingMode" class="text-danger"></span>
+                                
+                                <div class="alert alert-secondary mt-2 small">
+                                    <strong>Mode Descriptions:</strong>
+                                    <ul class="mb-0">
+                                        <li><strong>Optional:</strong> Exposure data is optional; no prompts shown</li>
+                                        <li><strong>Locally Acquired:</strong> Prompts for local exposure; soft reminder if missing</li>
+                                        <li><strong>Local - Specific Region:</strong> Requires specific location/region; hard validation</li>
+                                        <li><strong>Overseas Acquired:</strong> Requires country selection; emphasizes travel history</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card mb-3">
+                        <div class="card-header bg-light">
+                            <strong>Behavior Options</strong>
+                        </div>
+                        <div class="card-body">
+                            <div class="mb-3 form-check form-switch">
+                                <input asp-for="Disease.DefaultToResidentialAddress" class="form-check-input" type="checkbox" />
+                                <label asp-for="Disease.DefaultToResidentialAddress" class="form-check-label"></label>
+                                <br />
+                                <small class="text-muted">Automatically pre-populate exposure location with patient's residential address when creating a case</small>
+                            </div>
+
+                            <div class="mb-3 form-check form-switch">
+                                <input asp-for="Disease.AlwaysPromptForLocation" class="form-check-input" type="checkbox" />
+                                <label asp-for="Disease.AlwaysPromptForLocation" class="form-check-label"></label>
+                                <br />
+                                <small class="text-muted">Show exposure section even when tracking mode is Optional</small>
+                            </div>
+
+                            <div class="mb-3 form-check form-switch">
+                                <input asp-for="Disease.SyncWithPatientAddressUpdates" class="form-check-input" type="checkbox" />
+                                <label asp-for="Disease.SyncWithPatientAddressUpdates" class="form-check-label"></label>
+                                <br />
+                                <small class="text-muted">Offer to update exposure locations when patient's residential address changes</small>
+                            </div>
+
+                            <div class="mb-3 form-check form-switch">
+                                <input asp-for="Disease.RequireGeographicCoordinates" class="form-check-input" type="checkbox" />
+                                <label asp-for="Disease.RequireGeographicCoordinates" class="form-check-label"></label>
+                                <br />
+                                <small class="text-muted">Require latitude/longitude for exposure locations (enforces geocoding)</small>
+                            </div>
+
+                            <div class="mb-3 form-check form-switch">
+                                <input asp-for="Disease.AllowDomesticAcquisition" class="form-check-input" type="checkbox" />
+                                <label asp-for="Disease.AllowDomesticAcquisition" class="form-check-label"></label>
+                                <br />
+                                <small class="text-muted">Allow cases to be marked as domestically acquired (uncheck for travel-only diseases)</small>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card mb-3">
+                        <div class="card-header bg-light">
+                            <strong>Data Completeness</strong>
+                        </div>
+                        <div class="card-body">
+                            <div class="mb-3">
+                                <label asp-for="Disease.ExposureDataGracePeriodDays" class="form-label"></label>
+                                <input asp-for="Disease.ExposureDataGracePeriodDays" class="form-control" type="number" min="0" max="365" />
+                                <span asp-validation-for="Disease.ExposureDataGracePeriodDays" class="text-danger"></span>
+                                <small class="form-text text-muted">Number of days after notification during which incomplete exposure data shows as a warning (leave blank for no grace period)</small>
+                            </div>
+
+                            <div class="mb-3">
+                                <label asp-for="Disease.ExposureGuidanceText" class="form-label"></label>
+                                <textarea asp-for="Disease.ExposureGuidanceText" class="form-control" rows="4" maxlength="1000"></textarea>
+                                <span asp-validation-for="Disease.ExposureGuidanceText" class="text-danger"></span>
+                                <small class="form-text text-muted">Guidance text shown to users when entering exposure data (e.g., "Focus on places visited 10-14 days before symptom onset")</small>
+                            </div>
+
+                            <div class="mb-3">
+                                <label asp-for="Disease.RequiredLocationTypeIds" class="form-label"></label>
+                                <input asp-for="Disease.RequiredLocationTypeIds" class="form-control" placeholder="e.g., 1,3,5 (comma-separated location type IDs)" />
+                                <span asp-validation-for="Disease.RequiredLocationTypeIds" class="text-danger"></span>
+                                <small class="form-text text-muted">Optional: Comma-separated list of location type IDs that are required for this disease</small>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mt-3">
+                        <button type="submit" class="btn btn-primary" formaction="?handler=SaveExposureTracking" formmethod="post">
+                            <i class="bi bi-check-circle me-1"></i>Save Exposure Settings
+                        </button>
+                        <a asp-page="Index" class="btn btn-outline-secondary ms-2">
+                            <i class="bi bi-arrow-left me-1"></i>Back to List
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Data Review Settings Tab -->
+    <div class="tab-pane fade" id="review" role="tabpanel">
+        <div class="row">
+            <div class="col-lg-10">
+                <form method="post" asp-page-handler="SaveReviewSettings">
+                    <input type="hidden" asp-for="Disease.Id" />
+                    <input type="hidden" asp-for="Disease.Name" />
+                    <input type="hidden" asp-for="Disease.Code" />
+                    <input type="hidden" asp-for="Disease.ExportCode" />
+                    
+                    <div class="alert alert-info">
+                        <i class="bi bi-info-circle me-2"></i>
+                        Configure which data changes should automatically appear in the Data Review Inbox for manual verification. 
+                        This helps ensure data quality by flagging important changes for review.
+                    </div>
+
+                    @if (Model.Disease.ParentDiseaseId.HasValue)
+                    {
+                        <div class="alert alert-warning">
+                            <i class="bi bi-diagram-3 me-2"></i>
+                            <strong>Child Disease</strong>: This disease inherits settings from its parent disease. 
+                            You can override specific settings below, or leave them at default to inherit from the parent.
+                        </div>
+                    }
+
+                    <div class="card mb-3">
+                        <div class="card-header bg-light">
+                            <strong>Automatic Review Triggers</strong>
+                        </div>
+                        <div class="card-body">
+                            <p class="small text-muted mb-3">
+                                Select which events should automatically queue items for review in the Data Review Inbox.
+                            </p>
+
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3 form-check form-switch">
+                                        <input asp-for="Disease.ReviewAutoQueueLabResults" class="form-check-input" type="checkbox" />
+                                        <label asp-for="Disease.ReviewAutoQueueLabResults" class="form-check-label">
+                                            <strong>Auto-review Lab Results</strong>
+                                        </label>
+                                        <br />
+                                        <small class="text-muted">Queue new lab results for manual verification</small>
+                                    </div>
+
+                                    <div class="mb-3 form-check form-switch">
+                                        <input asp-for="Disease.ReviewAutoQueueExposures" class="form-check-input" type="checkbox" />
+                                        <label asp-for="Disease.ReviewAutoQueueExposures" class="form-check-label">
+                                            <strong>Auto-review Exposures</strong>
+                                        </label>
+                                        <br />
+                                        <small class="text-muted">Queue new exposure records for review</small>
+                                    </div>
+
+                                    <div class="mb-3 form-check form-switch">
+                                        <input asp-for="Disease.ReviewAutoQueueContacts" class="form-check-input" type="checkbox" />
+                                        <label asp-for="Disease.ReviewAutoQueueContacts" class="form-check-label">
+                                            <strong>Auto-review Contacts</strong>
+                                        </label>
+                                        <br />
+                                        <small class="text-muted">Queue new contact records for review</small>
+                                    </div>
+                                </div>
+
+                                <div class="col-md-6">
+                                    <div class="mb-3 form-check form-switch">
+                                        <input asp-for="Disease.ReviewAutoQueueConfirmationChanges" class="form-check-input" type="checkbox" />
+                                        <label asp-for="Disease.ReviewAutoQueueConfirmationChanges" class="form-check-label">
+                                            <strong>Auto-review Confirmation Status Changes</strong>
+                                        </label>
+                                        <br />
+                                        <small class="text-muted">Queue when confirmation status changes (e.g., Probable ? Confirmed)</small>
+                                    </div>
+
+                                    <div class="mb-3 form-check form-switch">
+                                        <input asp-for="Disease.ReviewAutoQueueDiseaseChanges" class="form-check-input" type="checkbox" />
+                                        <label asp-for="Disease.ReviewAutoQueueDiseaseChanges" class="form-check-label">
+                                            <strong>Auto-review Disease Reclassifications</strong>
+                                        </label>
+                                        <br />
+                                        <small class="text-muted">Queue when disease type changes (e.g., Salmonella ? Salmonella Typhimurium)</small>
+                                    </div>
+
+                                    <div class="mb-3 form-check form-switch">
+                                        <input asp-for="Disease.ReviewAutoQueueClinicalNotifications" class="form-check-input" type="checkbox" />
+                                        <label asp-for="Disease.ReviewAutoQueueClinicalNotifications" class="form-check-label">
+                                            <strong>Auto-review Clinical Notifications</strong>
+                                        </label>
+                                        <br />
+                                        <small class="text-muted">Queue when clinical notification date is recorded</small>
+                                    </div>
+
+                                    <div class="mb-3 form-check form-switch">
+                                        <input asp-for="Disease.ReviewAutoQueueNewCases" class="form-check-input" type="checkbox" />
+                                        <label asp-for="Disease.ReviewAutoQueueNewCases" class="form-check-label">
+                                            <strong>Auto-review New Cases</strong>
+                                        </label>
+                                        <br />
+                                        <small class="text-muted">Queue newly created cases for review</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card mb-3">
+                        <div class="card-header bg-light">
+                            <strong>Review Behavior Settings</strong>
+                        </div>
+                        <div class="card-body">
+                            <div class="mb-3">
+                                <label asp-for="Disease.ReviewDefaultPriority" class="form-label">
+                                    Default Review Priority
+                                </label>
+                                <select asp-for="Disease.ReviewDefaultPriority" class="form-select">
+                                    <option value="0">Low</option>
+                                    <option value="1">Medium</option>
+                                    <option value="2">High</option>
+                                    <option value="3">Urgent</option>
+                                </select>
+                                <span asp-validation-for="Disease.ReviewDefaultPriority" class="text-danger"></span>
+                                <small class="form-text text-muted">
+                                    Default priority level for review items. Higher priority items appear first in the review inbox.
+                                </small>
+                            </div>
+
+                            <div class="mb-3">
+                                <label asp-for="Disease.ReviewGroupingWindowHours" class="form-label">
+                                    Grouping Window (Hours)
+                                </label>
+                                <input asp-for="Disease.ReviewGroupingWindowHours" class="form-control" type="number" min="1" max="168" />
+                                <span asp-validation-for="Disease.ReviewGroupingWindowHours" class="text-danger"></span>
+                                <small class="form-text text-muted">
+                                    Similar changes occurring within this time window will be grouped together in the review inbox. 
+                                    For example, if 5 cases are reclassified to the same disease within 6 hours, they'll appear as 1 grouped item.
+                                    Range: 1-168 hours (1 week).
+                                </small>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card mb-3 bg-light">
+                        <div class="card-body">
+                            <h6 class="card-title"><i class="bi bi-lightbulb me-2"></i>How Data Review Works</h6>
+                            <ul class="small mb-0">
+                                <li>When enabled triggers occur, items automatically appear in the <strong>Data Review Inbox</strong></li>
+                                <li>Reviewers can <strong>confirm</strong>, <strong>dismiss</strong>, or <strong>create follow-up tasks</strong></li>
+                                <li>Full context (patient, case, related data) is shown to make informed decisions</li>
+                                <li>Similar changes are automatically grouped to reduce review workload</li>
+                                <li>All reviews are audited with user ID, timestamp, and notes</li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <div class="mt-3">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-check-circle me-1"></i>Save Review Settings
+                        </button>
+                        <a asp-page="Index" class="btn btn-outline-secondary ms-2">
+                            <i class="bi bi-arrow-left me-1"></i>Back to List
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Symptoms Tab -->
+    <div class="tab-pane fade" id="symptoms" role="tabpanel">
+        <div class="row">
+            <div class="col-12">
+                <div class="alert alert-info">
+                    <i class="bi bi-info-circle me-2"></i>
+                    Select the symptoms commonly associated with this disease. These will be shown first when recording symptoms for cases.
+                </div>
+
+                <form method="post" asp-page-handler="SaveSymptoms" asp-route-id="@Model.Disease.Id">
+                    @if (!Model.AllSymptoms.Any())
+                    {
+                        <div class="alert alert-warning">
+                            <i class="bi bi-exclamation-triangle me-2"></i>
+                            No symptoms have been configured. Please <a asp-page="/Settings/Lookups/Symptoms">add symptoms</a> first.
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="card mb-3">
+                            <div class="card-body">
+                                <div class="table-responsive">
+                                    <table class="table table-hover mb-0">
+                                        <thead class="table-light">
+                                            <tr>
+                                                <th style="width: 50px;">
+                                                    <input type="checkbox" class="form-check-input" id="selectAllSymptoms" />
+                                                </th>
+                                                <th>Symptom</th>
+                                                <th>Code</th>
+                                                <th style="width: 150px;">Common Symptom</th>
+                                                <th style="width: 150px;">Display Order</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            @foreach (var symptom in Model.AllSymptoms)
+                                            {
+                                                var association = Model.DiseaseSymptoms.FirstOrDefault(ds => ds.SymptomId == symptom.Id);
+                                                var isSelected = association != null;
+                                                var isCommon = association?.IsCommon ?? true;
+                                                var sortOrder = association?.SortOrder ?? symptom.SortOrder;
+
+                                                <tr class="symptom-row @(isSelected ? "table-active" : "")">
+                                                    <td>
+                                                        <input type="checkbox" 
+                                                               class="form-check-input symptom-checkbox-tab" 
+                                                               name="symptom_@symptom.Id" 
+                                                               value="true"
+                                                               checked="@isSelected"
+                                                               data-symptom-id="@symptom.Id" />
+                                                    </td>
+                                                    <td>
+                                                        <strong>@symptom.Name</strong>
+                                                        @if (!string.IsNullOrEmpty(symptom.Description))
+                                                        {
+                                                            <br/>
+                                                            <small class="text-muted">@symptom.Description</small>
+                                                        }
+                                                    </td>
+                                                    <td>
+                                                        @if (!string.IsNullOrEmpty(symptom.Code))
+                                                        {
+                                                            <code>@symptom.Code</code>
+                                                        }
+                                                        else
+                                                        {
+                                                            <span class="text-muted">-</span>
+                                                        }
+                                                    </td>
+                                                    <td>
+                                                        <select class="form-select form-select-sm symptom-detail" 
+                                                                name="symptom_common_@symptom.Id"
+                                                                disabled="@(!isSelected)">
+                                                            <option value="true" selected="@isCommon">Yes</option>
+                                                            <option value="false" selected="@(!isCommon)">No</option>
+                                                        </select>
+                                                    </td>
+                                                    <td>
+                                                        <input type="number" 
+                                                               class="form-control form-control-sm symptom-detail" 
+                                                               name="symptom_order_@symptom.Id"
+                                                               value="@sortOrder"
+                                                               min="0"
+                                                               disabled="@(!isSelected)" />
+                                                    </td>
+                                                </tr>
+                                            }
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+
+                        @if (Model.ChildDiseases.Any())
+                        {
+                            <div class="card mb-3 border-info">
+                                <div class="card-header bg-info text-white">
+                                    <i class="bi bi-diagram-3 me-2"></i>Apply to Child Diseases
+                                </div>
+                                <div class="card-body">
+                                    <div class="form-check form-switch mb-3">
+                                        <input class="form-check-input" type="checkbox" name="applyToChildren" value="true" id="applyToChildren" />
+                                        <label class="form-check-label" for="applyToChildren">
+                                            <strong>Apply these symptoms to all child diseases</strong>
+                                        </label>
+                                    </div>
+                                    <div class="alert alert-warning small mb-0">
+                                        <i class="bi bi-exclamation-triangle me-1"></i>
+                                        <strong>Warning:</strong> This will replace all existing symptom associations in the following child diseases:
+                                        <ul class="mb-0 mt-2">
+                                            @foreach (var child in Model.ChildDiseases)
+                                            {
+                                                <li>@child.Name</li>
+                                            }
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+                        }
+
+                        <div class="alert alert-secondary">
+                            <strong>Tips:</strong>
+                            <ul class="mb-0">
+                                <li><strong>Common Symptom:</strong> Mark as "Yes" for typical symptoms, "No" for rare/atypical symptoms</li>
+                                <li><strong>Display Order:</strong> Lower numbers appear first in the symptom list (0 = first)</li>
+                                <li><strong>Apply to Children:</strong> Propagates the symptom profile to all sub-diseases in the hierarchy</li>
+                            </ul>
+                        </div>
+
+                        <div class="d-flex gap-2 mt-3">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-save me-1"></i>Save Symptoms
+                            </button>
+                            <a asp-page="./Index" class="btn btn-secondary">
+                                <i class="bi bi-x-circle me-1"></i>Cancel
+                            </a>
+                        </div>
+                    }
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tasks & Surveys Tab -->
+    <div class="tab-pane fade" id="tasks" role="tabpanel">
+        <div class="row">
+            <div class="col-md-12">
+                <div class="alert alert-info">
+                    <i class="bi bi-info-circle me-2"></i>
+                    <strong>Task Template Management:</strong> Assign task templates to this disease and configure when they should automatically create tasks.
+                </div>
+
+                <!-- Add New Task Template -->
+                <div class="card mb-4 border-success">
+                    <div class="card-header bg-success text-white">
+                        <i class="bi bi-plus-circle me-2"></i><strong>Assign New Task Template</strong>
+                    </div>
+                    <div class="card-body">
+                        <form method="post" asp-page-handler="AddTaskTemplate" asp-route-id="@Model.Disease.Id">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label">Select Task Template<span class="text-danger">*</span></label>
+                                        <select name="newTaskTemplateId" class="form-select" required>
+                                            <option value="">-- Select a Task Template --</option>
+                                            @foreach (var template in Model.AllTaskTemplates)
+                                            {
+                                                var isAlreadyAssigned = Model.DiseaseTaskTemplates.Any(d => d.TaskTemplateId == template.Id);
+                                                if (!isAlreadyAssigned)
+                                                {
+                                                    <option value="@template.Id">@template.Name (@template.TaskType?.Name)</option>
+                                                }
+                                            }
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">Auto-create this task when:</label>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" name="newAutoCreateCase" value="true" id="newAutoCreateCase">
+                                        <label class="form-check-label" for="newAutoCreateCase">
+                                            A new <strong>case</strong> is created
+                                        </label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" name="newAutoCreateContact" value="true" id="newAutoCreateContact">
+                                        <label class="form-check-label" for="newAutoCreateContact">
+                                            A new <strong>contact</strong> is created
+                                        </label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" name="newAutoCreateLab" value="true" id="newAutoCreateLab">
+                                        <label class="form-check-label" for="newAutoCreateLab">
+                                            A <strong>lab result</strong> is confirmed
+                                        </label>
+                                    </div>
+                                    <div class="form-check mt-2">
+                                        <input class="form-check-input" type="checkbox" name="newApplyToChildren" value="true" id="newApplyToChildren">
+                                        <label class="form-check-label" for="newApplyToChildren">
+                                            <i class="bi bi-diagram-3 me-1"></i>Apply to child diseases
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                            <button type="submit" class="btn btn-success mt-2">
+                                <i class="bi bi-plus-circle me-1"></i>Assign Task Template
+                            </button>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- Existing Task Assignments -->
+                @if (!Model.DiseaseTaskTemplates.Any())
+                {
+                    <div class="alert alert-warning">
+                        <i class="bi bi-exclamation-triangle me-2"></i>
+                        <strong>No tasks configured for this disease.</strong> 
+                        Use the form above to assign task templates.
+                    </div>
+                }
+                else
+                {
+                    <h5 class="mb-3"><i class="bi bi-list-check me-2"></i>Assigned Task Templates (@Model.DiseaseTaskTemplates.Count)</h5>
+                    
+                    <div class="accordion" id="taskAssignmentsAccordion">
+                        @foreach (var dtt in Model.DiseaseTaskTemplates.OrderBy(d => d.TaskTemplate?.Name))
+                        {
+                            var accordionId = $"taskAssignment{dtt.Id}";
+                            var hasSurvey = dtt.TaskTemplate?.SurveyTemplateId.HasValue == true || 
+                                           !string.IsNullOrWhiteSpace(dtt.TaskTemplate?.SurveyDefinitionJson);
+                            
+                            <div class="accordion-item mb-2">
+                                <h2 class="accordion-header" id="heading@(dtt.Id)">
+                                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#@accordionId">
+                                        <div class="d-flex align-items-center w-100">
+                                            <div class="flex-grow-1">
+                                                <strong>@dtt.TaskTemplate?.Name</strong>
+                                                <span class="badge bg-secondary ms-2">@dtt.TaskTemplate?.TaskType?.Name</span>
+                                                
+                                                @if (dtt.AutoCreateOnCaseCreation)
+                                                {
+                                                    <span class="badge bg-primary ms-1" title="Auto-creates on case creation">
+                                                        <i class="bi bi-file-medical"></i> Case
+                                                    </span>
+                                                }
+                                                @if (dtt.AutoCreateOnContactCreation)
+                                                {
+                                                    <span class="badge bg-info ms-1" title="Auto-creates on contact creation">
+                                                        <i class="bi bi-people"></i> Contact
+                                                    </span>
+                                                }
+                                                @if (dtt.AutoCreateOnLabConfirmation)
+                                                {
+                                                    <span class="badge bg-success ms-1" title="Auto-creates on lab confirmation">
+                                                        <i class="bi bi-clipboard-check"></i> Lab
+                                                    </span>
+                                                }
+                                                @if (dtt.IsInherited)
+                                                {
+                                                    <span class="badge bg-warning ms-1" title="Inherited from parent disease">
+                                                        <i class="bi bi-diagram-3"></i> Inherited
+                                                    </span>
+                                                }
+                                                @if (hasSurvey)
+                                                {
+                                                    <span class="badge bg-success ms-1">
+                                                        <i class="bi bi-clipboard-data"></i> Has Survey
+                                                    </span>
+                                                }
+                                            </div>
+                                        </div>
+                                    </button>
+                                </h2>
+                                <div id="@accordionId" class="accordion-collapse collapse" data-bs-parent="#taskAssignmentsAccordion">
+                                    <div class="accordion-body">
+                                        <!-- Auto-Create Settings -->
+                                        <div class="card mb-3">
+                                            <div class="card-header bg-light">
+                                                <strong><i class="bi bi-gear me-2"></i>Auto-Creation Settings</strong>
+                                            </div>
+                                            <div class="card-body">
+                                                <form method="post" asp-page-handler="UpdateTaskAssignment" asp-route-id="@Model.Disease.Id" asp-route-taskTemplateId="@dtt.TaskTemplateId">
+                                                    <p class="text-muted small mb-3">
+                                                        Configure when this task should be automatically created:
+                                                    </p>
+                                                    
+                                                    <div class="row">
+                                                        <div class="col-md-4">
+                                                            <div class="form-check form-switch">
+                                                                <input class="form-check-input" type="checkbox" 
+                                                                       name="autoCreateCase_@dtt.TaskTemplateId" 
+                                                                       value="true"
+                                                                       id="autoCreateCase_@dtt.Id" 
+                                                                       checked="@dtt.AutoCreateOnCaseCreation">
+                                                                <label class="form-check-label" for="autoCreateCase_@dtt.Id">
+                                                                    <i class="bi bi-file-medical me-1"></i><strong>On Case Creation</strong>
+                                                                    <br /><small class="text-muted">Create when a new case is added</small>
+                                                                </label>
+                                                            </div>
+                                                        </div>
+                                                        <div class="col-md-4">
+                                                            <div class="form-check form-switch">
+                                                                <input class="form-check-input" type="checkbox" 
+                                                                       name="autoCreateContact_@dtt.TaskTemplateId" 
+                                                                       value="true"
+                                                                       id="autoCreateContact_@dtt.Id" 
+                                                                       checked="@dtt.AutoCreateOnContactCreation">
+                                                                <label class="form-check-label" for="autoCreateContact_@dtt.Id">
+                                                                    <i class="bi bi-people me-1"></i><strong>On Contact Creation</strong>
+                                                                    <br /><small class="text-muted">Create when a new contact is added</small>
+                                                                </label>
+                                                            </div>
+                                                        </div>
+                                                        <div class="col-md-4">
+                                                            <div class="form-check form-switch">
+                                                                <input class="form-check-input" type="checkbox" 
+                                                                       name="autoCreateLab_@dtt.TaskTemplateId" 
+                                                                       value="true"
+                                                                       id="autoCreateLab_@dtt.Id" 
+                                                                       checked="@dtt.AutoCreateOnLabConfirmation">
+                                                                <label class="form-check-label" for="autoCreateLab_@dtt.Id">
+                                                                    <i class="bi bi-clipboard-check me-1"></i><strong>On Lab Confirmation</strong>
+                                                                    <br /><small class="text-muted">Create when a lab result is confirmed</small>
+                                                                </label>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    
+                                                    <div class="mt-3">
+                                                        <button type="submit" class="btn btn-primary">
+                                                            <i class="bi bi-check-circle me-1"></i>Save Settings
+                                                        </button>
+                                                        
+                                                        @if (!dtt.IsInherited)
+                                                        {
+                                                            <button type="button" class="btn btn-danger ms-2" 
+                                                                    onclick="if(confirm('Remove this task template from the disease?')) { document.getElementById('removeForm_@dtt.Id').submit(); }">
+                                                                <i class="bi bi-trash me-1"></i>Remove
+                                                            </button>
+                                                        }
+                                                    </div>
+                                                </form>
+                                                
+                                                @if (!dtt.IsInherited)
+                                                {
+                                                    <form id="removeForm_@dtt.Id" method="post" asp-page-handler="RemoveTaskTemplate" 
+                                                          asp-route-id="@Model.Disease.Id" asp-route-taskTemplateId="@dtt.TaskTemplateId" 
+                                                          style="display:none;">
+                                                    </form>
+                                                }
+                                            </div>
+                                        </div>
+
+                                        <!-- Survey Mappings (if survey exists) -->
+                                        @if (hasSurvey)
+                                        {
+                                            <div class="card">
+                                                <div class="card-header bg-light">
+                                                    <strong><i class="bi bi-clipboard-data me-2"></i>Survey Field Mappings</strong>
+                                                </div>
+                                                <div class="card-body">
+                                                    <div class="alert alert-info small mb-3">
+                                                        <i class="bi bi-info-circle me-2"></i>
+                                                        Configure how survey responses map to database fields.
+                                                        Disease-level mappings override task-level defaults.
+                                                    </div>
+
+                                                    <component type="typeof(Sentinel.Components.SurveyMappingEditor)" 
+                                                               render-mode="ServerPrerendered"
+                                                               param-ConfigurationType="Sentinel.Models.MappingConfigurationType.Disease"
+                                                               param-ConfigurationId="Model.Disease.Id"
+                                                               param-SurveyTemplateId="dtt.TaskTemplate.SurveyTemplateId" />
+                                                </div>
+                                            </div>
+                                        }
+                                        else
+                                        {
+                                            <div class="alert alert-secondary">
+                                                <i class="bi bi-info-circle me-2"></i>
+                                                This task template does not have a survey configured.
+                                            </div>
+                                        }
+                                    </div>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+    <script>
+        $(document).ready(function() {
+            // Select all symptoms checkbox
+            $('#selectAllSymptoms').on('change', function() {
+                $('.symptom-checkbox-tab').prop('checked', $(this).is(':checked'));
+                $('.symptom-checkbox-tab').trigger('change');
+            });
+
+            // Symptom checkbox handling
+            $('.symptom-checkbox-tab').on('change', function() {
+                var row = $(this).closest('tr');
+                var symptomId = $(this).data('symptom-id');
+                var isChecked = $(this).is(':checked');
+
+                // Enable/disable detail fields
+                row.find('.symptom-detail').prop('disabled', !isChecked);
+
+                // Toggle row highlight
+                if (isChecked) {
+                    row.addClass('table-active');
+                } else {
+                    row.removeClass('table-active');
+                }
+            });
+
+            // Persist active tab
+            var activeTab = localStorage.getItem('diseaseEditActiveTab');
+            if (activeTab) {
+                var tab = new bootstrap.Tab(document.querySelector('#' + activeTab));
+                tab.show();
+            }
+
+            // Save active tab to localStorage
+            $('button[data-bs-toggle="tab"]').on('shown.bs.tab', function (e) {
+                localStorage.setItem('diseaseEditActiveTab', e.target.id);
+            });
+
+            // Clear mappings button
+            $('.clear-mappings-btn').on('click', function() {
+                if (confirm('Are you sure you want to clear the input and output mappings for this task?')) {
+                    var accordionBody = $(this).closest('.accordion-body');
+                    accordionBody.find('textarea[name="inputMappingJson"]').val('');
+                    accordionBody.find('textarea[name="outputMappingJson"]').val('');
+                }
+            });
+        });
+    </script>
+}

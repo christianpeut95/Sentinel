@@ -1,0 +1,217 @@
+@page "{id:int?}"
+@model Sentinel.Pages.Settings.Jurisdictions.DeleteModel
+@{
+    ViewData["Title"] = "Delete Jurisdiction";
+}
+
+<nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a asp-page="/Index">Home</a></li>
+        <li class="breadcrumb-item"><a asp-page="/Settings/Index">Settings</a></li>
+        <li class="breadcrumb-item"><a asp-page="./Index">Jurisdictions</a></li>
+        <li class="breadcrumb-item active" aria-current="page">Delete: @Model.Jurisdiction.Name</li>
+    </ol>
+</nav>
+
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="mb-1 text-danger">
+                <i class="bi bi-trash me-2"></i>Delete Jurisdiction
+            </h2>
+            <p class="text-muted mb-0">Permanently remove this jurisdiction from the system</p>
+        </div>
+        <a asp-page="./Index" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left me-1"></i>Back to List
+        </a>
+    </div>
+
+    <div class="row">
+        <div class="col-md-8">
+            <div class="card border-danger">
+                <div class="card-header bg-danger text-white">
+                    <h5 class="mb-0">
+                        <i class="bi bi-exclamation-triangle me-2"></i>Confirm Deletion
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <h4 class="mb-3">@Model.Jurisdiction.Name</h4>
+
+                    <dl class="row">
+                        <dt class="col-sm-3">Jurisdiction Type</dt>
+                        <dd class="col-sm-9">
+                            @if (Model.Jurisdiction.JurisdictionType != null)
+                            {
+                                <span class="badge bg-primary">Field @Model.Jurisdiction.JurisdictionType.FieldNumber</span>
+                                <span class="ms-2">@Model.Jurisdiction.JurisdictionType.Name</span>
+                            }
+                        </dd>
+
+                        <dt class="col-sm-3">Code</dt>
+                        <dd class="col-sm-9">
+                            @if (!string.IsNullOrEmpty(Model.Jurisdiction.Code))
+                            {
+                                <code>@Model.Jurisdiction.Code</code>
+                            }
+                            else
+                            {
+                                <span class="text-muted">-</span>
+                            }
+                        </dd>
+
+                        <dt class="col-sm-3">Parent</dt>
+                        <dd class="col-sm-9">
+                            @if (Model.Jurisdiction.ParentJurisdiction != null)
+                            {
+                                @Model.Jurisdiction.ParentJurisdiction.Name
+                            }
+                            else
+                            {
+                                <span class="text-muted">None (Top Level)</span>
+                            }
+                        </dd>
+
+                        <dt class="col-sm-3">Has Boundary</dt>
+                        <dd class="col-sm-9">
+                            @if (!string.IsNullOrEmpty(Model.Jurisdiction.BoundaryData))
+                            {
+                                <i class="bi bi-check-circle text-success"></i>
+                                <span>Yes</span>
+                            }
+                            else
+                            {
+                                <i class="bi bi-x-circle text-muted"></i>
+                                <span class="text-muted">No</span>
+                            }
+                        </dd>
+
+                        <dt class="col-sm-3">Status</dt>
+                        <dd class="col-sm-9">
+                            @if (Model.Jurisdiction.IsActive)
+                            {
+                                <span class="badge bg-success">Active</span>
+                            }
+                            else
+                            {
+                                <span class="badge bg-secondary">Inactive</span>
+                            }
+                        </dd>
+                    </dl>
+
+                    <hr class="my-4" />
+
+                    <h5 class="mb-3">Usage Check</h5>
+                    <div class="alert alert-info">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <strong><i class="bi bi-person me-2"></i>Patients:</strong>
+                                <span class="badge @(Model.PatientCount > 0 ? "bg-warning" : "bg-success") ms-2">
+                                    @Model.PatientCount
+                                </span>
+                            </div>
+                            <div class="col-md-6">
+                                <strong><i class="bi bi-file-medical me-2"></i>Cases:</strong>
+                                <span class="badge @(Model.CaseCount > 0 ? "bg-warning" : "bg-success") ms-2">
+                                    @Model.CaseCount
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+
+                    @if (!Model.CanDelete)
+                    {
+                        <div class="alert alert-danger" role="alert">
+                            <h6 class="alert-heading">
+                                <i class="bi bi-exclamation-triangle me-2"></i>Cannot Delete
+                            </h6>
+                            <p class="mb-0">
+                                This jurisdiction is currently assigned to <strong>@Model.PatientCount patient(s)</strong> 
+                                and <strong>@Model.CaseCount case(s)</strong>. 
+                                You must reassign or remove these records before deletion.
+                            </p>
+                            <hr />
+                            <p class="mb-0">
+                                <strong>Alternative:</strong> Consider <a asp-page="./Edit" asp-route-id="@Model.Jurisdiction.Id">deactivating</a> 
+                                this jurisdiction instead to preserve historical data.
+                            </p>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="alert alert-warning" role="alert">
+                            <h6 class="alert-heading">
+                                <i class="bi bi-exclamation-triangle me-2"></i>Warning
+                            </h6>
+                            <p class="mb-0">
+                                This action <strong>cannot be undone</strong>. The jurisdiction will be permanently removed from the system.
+                            </p>
+                        </div>
+
+                        <form method="post">
+                            <div class="d-flex gap-2">
+                                <button type="submit" class="btn btn-danger">
+                                    <i class="bi bi-trash me-1"></i>Yes, Delete Permanently
+                                </button>
+                                <a asp-page="./Index" class="btn btn-outline-secondary">
+                                    Cancel
+                                </a>
+                            </div>
+                        </form>
+                    }
+
+                    @if (!Model.CanDelete)
+                    {
+                        <div class="mt-3">
+                            <a asp-page="./Index" class="btn btn-outline-secondary">
+                                <i class="bi bi-arrow-left me-1"></i>Back to List
+                            </a>
+                            <a asp-page="./Edit" asp-route-id="@Model.Jurisdiction.Id" class="btn btn-outline-primary">
+                                <i class="bi bi-pencil me-1"></i>Edit Instead
+                            </a>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-body">
+                    <h6 class="card-title">
+                        <i class="bi bi-info-circle me-2"></i>Deletion Guidelines
+                    </h6>
+                    <ul class="mb-0 small">
+                        <li class="mb-2">
+                            Jurisdictions with assignments cannot be deleted
+                        </li>
+                        <li class="mb-2">
+                            Consider deactivating instead to preserve historical data
+                        </li>
+                        <li>
+                            Boundary data will also be permanently removed
+                        </li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="card mt-3 bg-light">
+                <div class="card-body">
+                    <h6 class="card-title">
+                        <i class="bi bi-lightbulb me-2"></i>Alternative: Deactivate
+                    </h6>
+                    <p class="small mb-2">
+                        Instead of deleting, you can deactivate this jurisdiction to:
+                    </p>
+                    <ul class="small mb-0">
+                        <li>Hide it from new form entries</li>
+                        <li>Preserve existing patient/case data</li>
+                        <li>Reactivate later if needed</li>
+                    </ul>
+                    <a asp-page="./Edit" asp-route-id="@Model.Jurisdiction.Id" class="btn btn-sm btn-outline-primary mt-2 w-100">
+                        Deactivate Instead
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

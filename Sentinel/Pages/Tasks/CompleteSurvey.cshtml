@@ -1,0 +1,425 @@
+@page "{id:guid}"
+@model Sentinel.Pages.Tasks.CompleteSurveyModel
+
+@{
+    ViewData["Title"] = "Complete Survey";
+}
+
+<style nonce="@GetCspNonce()">
+/* Pinned Header Bar */
+.pinned-header {
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+    background: white;
+    border-bottom: 1px solid #e2e8f0;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    padding: 0.75rem 1.5rem;
+    margin: 0;
+}
+
+.pinned-header-content {
+    max-width: 1400px;
+    margin: 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1.5rem;
+    flex-wrap: wrap;
+}
+
+.header-info {
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+    flex: 1;
+    min-width: 0;
+}
+
+.header-patient {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.header-patient-name {
+    font-size: 1rem;
+    font-weight: 600;
+    color: #1a202c;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.header-patient-details {
+    font-size: 0.75rem;
+    color: #718096;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.header-divider {
+    width: 1px;
+    height: 2.5rem;
+    background: #e2e8f0;
+    flex-shrink: 0;
+}
+
+.header-case {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.header-case-id {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: #2d3748;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.header-case-details {
+    font-size: 0.75rem;
+    color: #718096;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.header-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex-shrink: 0;
+}
+
+.header-btn {
+    padding: 0.5rem 1rem;
+    font-size: 0.813rem;
+    font-weight: 500;
+    border-radius: 8px;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    white-space: nowrap;
+    transition: all 0.2s;
+    border: none;
+    cursor: pointer;
+}
+
+.header-btn-outline {
+    background: white;
+    color: #4a5568;
+    border: 1px solid #cbd5e0;
+}
+
+.header-btn-outline:hover {
+    background: #f7fafc;
+    border-color: #a0aec0;
+    color: #2d3748;
+}
+
+.header-btn-danger {
+    background: white;
+    color: #dc3545;
+    border: 1px solid #dc3545;
+}
+
+.header-btn-danger:hover {
+    background: #dc3545;
+    color: white;
+}
+
+.header-btn-primary {
+    background: #4299e1;
+    color: white;
+}
+
+.header-btn-primary:hover:not(:disabled) {
+    background: #3182ce;
+}
+
+.header-btn-primary:disabled {
+    background: #cbd5e0;
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+
+.header-badge {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.688rem;
+    font-weight: 600;
+    border-radius: 4px;
+}
+
+/* Survey Container */
+.survey-container {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 2rem;
+}
+
+/* SurveyJS theme override */
+#surveyContainer .sv-root-modern {
+    --primary: #4299e1;
+    --primary-light: #bee3f8;
+}
+</style>
+
+<form method="post">
+    @Html.AntiForgeryToken()
+</form>
+
+<!-- Pinned Header Bar -->
+<div class="pinned-header">
+    <div class="pinned-header-content">
+        <div class="header-info">
+            <div class="header-patient">
+                <div class="header-patient-name">
+                    <i class="bi bi-person-fill me-1"></i>
+                    @Model.Task.Case.Patient?.GivenName @Model.Task.Case.Patient?.FamilyName
+                </div>
+                <div class="header-patient-details">
+                    @if (Model.Task.Case.Patient?.DateOfBirth != null)
+                    {
+                        var age = DateTime.Today.Year - Model.Task.Case.Patient.DateOfBirth.Value.Year;
+                        if (Model.Task.Case.Patient.DateOfBirth.Value > DateTime.Today.AddYears(-age)) age--;
+                        <span>@Model.Task.Case.Patient.DateOfBirth.Value.ToString("dd/MM/yyyy") (@age yrs)</span>
+                    }
+                    @if (Model.Task.Case.Patient?.SexAtBirth != null)
+                    {
+                        <span>• @Model.Task.Case.Patient.SexAtBirth.Name</span>
+                    }
+                    @if (Model.Task.Case.Patient?.Gender != null)
+                    {
+                        <span>• Gender: @Model.Task.Case.Patient.Gender.Name</span>
+                    }
+                    @if (!string.IsNullOrEmpty(Model.Task.Case.Patient?.FriendlyId))
+                    {
+                        <span>• ID: @Model.Task.Case.Patient.FriendlyId</span>
+                    }
+                </div>
+                <div class="header-patient-details">
+                    @if (Model.Task.Case.Patient?.AtsiStatus != null)
+                    {
+                        <span><i class="bi bi-flag me-1"></i>@Model.Task.Case.Patient.AtsiStatus.Name</span>
+                    }
+                    @if (Model.Task.Case.Patient?.LanguageSpokenAtHome != null)
+                    {
+                        <span>• Language: @Model.Task.Case.Patient.LanguageSpokenAtHome.Name</span>
+                    }
+                    @if (Model.Task.Case.Patient?.Occupation != null)
+                    {
+                        <span>• @Model.Task.Case.Patient.Occupation.Name</span>
+                    }
+                    @if (!string.IsNullOrEmpty(Model.Task.Case.Patient?.City))
+                    {
+                        <span>• @Model.Task.Case.Patient.City</span>
+                    }
+                </div>
+            </div>
+
+            <div class="header-divider"></div>
+
+            <div class="header-case">
+                <div class="header-case-id">
+                    <i class="bi bi-file-medical me-1"></i>
+                    Case @Model.Task.Case.FriendlyId
+                </div>
+                <div class="header-case-details">
+                    <span>@Model.Task.Case.Disease?.Name</span>
+                    @if (Model.Task.Case.ConfirmationStatus != null)
+                    {
+                        var statusClass = Model.Task.Case.ConfirmationStatus.Name?.ToLower() switch
+                        {
+                            "confirmed" => "bg-danger",
+                            "probable" => "bg-warning text-dark",
+                            "suspect" => "bg-info",
+                            _ => "bg-secondary"
+                        };
+                        <span class="header-badge @statusClass">@Model.Task.Case.ConfirmationStatus.Name</span>
+                    }
+                    @if (Model.Task.Case.DateOfNotification != null)
+                    {
+                        <span>• Notified: @Model.Task.Case.DateOfNotification.Value.ToString("dd/MM/yyyy")</span>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <div class="header-actions">
+            <a href="/Dashboard/MyTasks" class="header-btn header-btn-danger" title="Discard changes and exit">
+                <i class="bi bi-x-circle"></i>
+                Discard
+            </a>
+            <a href="/Patients/Details?id=@Model.Task.Case.PatientId" class="header-btn header-btn-outline" target="_blank" title="Open Patient">
+                <i class="bi bi-person"></i>
+                Patient
+            </a>
+            <a href="/Cases/Details?id=@Model.Task.Case.Id" class="header-btn header-btn-outline" target="_blank" title="Open Case">
+                <i class="bi bi-file-medical"></i>
+                Case
+            </a>
+            <button type="button" class="header-btn header-btn-primary" id="completeSurveyBtnTop" disabled>
+                <i class="bi bi-check-circle"></i>
+                Complete
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Survey Container -->
+<div class="survey-container">
+    <div id="surveyContainer"></div>
+</div>
+
+@section Scripts {
+<script nonce="@GetCspNonce()">
+    (function() {
+        try {            const taskId = '@Model.Task.Id';
+                
+            // Output JSON directly as JavaScript objects (not strings)
+            const surveyJson = @Html.Raw(Model.SurveyDefinitionJson ?? "{}");
+            const prePopulatedData = @Html.Raw(Model.PrePopulatedDataJson ?? "{}");            // Validate we have valid objects
+            if (!surveyJson || typeof surveyJson !== 'object') {                alert('Error loading survey definition. Please contact support.');
+                return;
+            }
+                
+                // Check if Survey is available
+                if (typeof Survey === 'undefined') {                    alert('Survey system not initialized. Please refresh the page.');
+                    return;
+                }                // Create survey
+                const survey = new Survey.Model(surveyJson);
+                
+                // Set pre-populated data
+                survey.data = prePopulatedData;
+                
+                // Configure survey
+                survey.showCompletedPage = false;
+                survey.showProgressBar = "top";
+                survey.progressBarType = "pages";                // Enable complete button only when survey is valid
+                const completeBtn = document.getElementById('completeSurveyBtnTop');
+                survey.onValueChanged.add(function(sender) {
+                    const isComplete = !sender.hasErrors(true, true);
+                    completeBtn.disabled = !isComplete;
+                });
+
+                // Initial validation check
+                const isInitiallyComplete = !survey.hasErrors(true, true);
+                completeBtn.disabled = !isInitiallyComplete;                // Render survey - pass DOM element, not string
+                const container = document.getElementById('surveyContainer');
+                if (!container) {                    alert('Survey container not found. Please contact support.');
+                    return;
+                }
+                
+                survey.render(container);                // Handle survey completion function
+                async function handleSurveyCompletion() {                    // Validate all questions
+                    if (survey.hasErrors(true, true)) {
+                        alert('Please complete all required fields before submitting.');
+                        return;
+                    }
+
+                    // Disable button and show loading
+                    const btn = document.getElementById('completeSurveyBtnTop');
+                    btn.disabled = true;
+                    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Saving...';
+
+                    try {
+                        const token = document.querySelector('input[name="__RequestVerificationToken"]')?.value;
+                        if (!token) {
+                            throw new Error('Anti-forgery token not found');
+                        }
+
+                        const response = await fetch(`/Tasks/CompleteSurvey/${taskId}`, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'RequestVerificationToken': token
+                            },
+                            body: JSON.stringify(survey.data)
+                        });
+
+                        if (!response.ok) {
+                            const errorText = await response.text();                            throw new Error(`Server returned ${response.status}: ${response.statusText}`);
+                        }
+
+                        const result = await response.json();
+
+                        if (result.success) {
+                            // Check if it's a warning (saved but needs review)
+                            if (result.warning) {
+                                // Show warning message
+                                const warningDiv = document.createElement('div');
+                                warningDiv.className = 'alert alert-warning alert-dismissible fade show';
+                                warningDiv.style.margin = '1rem 0';
+                                warningDiv.innerHTML = `
+                                    <i class="bi bi-exclamation-triangle me-2"></i>
+                                    <strong>Survey Saved with Warnings:</strong> ${result.message || 'Survey saved but requires manual review.'}
+                                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                                `;
+                                document.querySelector('.survey-container').insertBefore(warningDiv, document.getElementById('surveyContainer'));
+
+                                // Redirect to Data Inbox after a short delay
+                                setTimeout(function() {
+                                    window.location.href = result.redirectUrl || '/DataInbox/Index';
+                                }, 2000);
+                            } else {
+                                // Show success message
+                                const successDiv = document.createElement('div');
+                                successDiv.className = 'alert alert-success alert-dismissible fade show';
+                                successDiv.style.margin = '1rem 0';
+                                successDiv.innerHTML = `
+                                    <i class="bi bi-check-circle me-2"></i>Survey completed successfully!
+                                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                                `;
+                                document.querySelector('.survey-container').insertBefore(successDiv, document.getElementById('surveyContainer'));
+
+                                // Redirect after a short delay
+                                setTimeout(function() {
+                                    window.location.href = '/Dashboard/MyTasks?message=Survey+completed+successfully';
+                                }, 1500);
+                            }
+                        } else {
+                            throw new Error(result.error || 'Failed to save survey');
+                        }
+                    } catch (error) {                        // Show error message
+                        const errorDiv = document.createElement('div');
+                        errorDiv.className = 'alert alert-danger alert-dismissible fade show';
+                        errorDiv.style.margin = '1rem 0';
+                        errorDiv.innerHTML = `
+                            <i class="bi bi-exclamation-triangle me-2"></i>
+                            <strong>Error:</strong> ${error.message || 'An error occurred while saving the survey. Please try again.'}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                        `;
+                        document.querySelector('.survey-container').insertBefore(errorDiv, document.getElementById('surveyContainer'));
+                        
+                        // Re-enable button
+                        const btn = document.getElementById('completeSurveyBtnTop');
+                        btn.disabled = false;
+                        btn.innerHTML = '<i class="bi bi-check-circle"></i>Complete';
+                    }
+                }
+
+                // Attach event listener
+                document.getElementById('completeSurveyBtnTop').addEventListener('click', handleSurveyCompletion);
+            } catch (error) {                alert('Failed to load survey. Please check the console for details.');
+            }
+        })();
+    </script>
+}
+
+@functions {
+    public string GetCspNonce()
+    {
+        if (HttpContext?.Items?.TryGetValue("csp-nonce", out var nonce) == true && nonce is string nonceStr)
+        {
+            return nonceStr;
+        }
+        return string.Empty;
+    }
+}

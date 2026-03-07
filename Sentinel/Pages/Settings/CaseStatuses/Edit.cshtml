@@ -1,0 +1,67 @@
+@page
+@model Sentinel.Pages.Settings.CaseStatuses.EditModel
+
+@{
+    ViewData["Title"] = "Edit Case Status";
+}
+
+<nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a asp-page="/Index">Home</a></li>
+        <li class="breadcrumb-item"><a asp-page="/Settings/Index">Settings</a></li>
+        <li class="breadcrumb-item"><a asp-page="./Index">Case Status</a></li>
+        <li class="breadcrumb-item active" aria-current="page">Edit</li>
+    </ol>
+</nav>
+
+<h2><i class="bi bi-pencil me-2"></i>Edit Case Status</h2>
+<hr />
+
+<div class="row">
+    <div class="col-md-6">
+        <form method="post">
+            <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
+            <input type="hidden" asp-for="CaseStatus.Id" />
+
+            <div class="mb-3">
+                <label asp-for="CaseStatus.Name" class="form-label"></label>
+                <input asp-for="CaseStatus.Name" class="form-control" />
+                <span asp-validation-for="CaseStatus.Name" class="text-danger"></span>
+            </div>
+
+            <div class="mb-3">
+                <label asp-for="CaseStatus.Description" class="form-label"></label>
+                <textarea asp-for="CaseStatus.Description" class="form-control" rows="3"></textarea>
+                <span asp-validation-for="CaseStatus.Description" class="text-danger"></span>
+            </div>
+
+            <div class="mb-3">
+                <label asp-for="CaseStatus.DisplayOrder" class="form-label"></label>
+                <input asp-for="CaseStatus.DisplayOrder" class="form-control" type="number" />
+                <span asp-validation-for="CaseStatus.DisplayOrder" class="text-danger"></span>
+                <small class="form-text text-muted">Optional. Lower numbers appear first in dropdowns. Leave blank for alphabetical order.</small>
+            </div>
+
+            <div class="mb-3">
+                <label asp-for="CaseStatus.ApplicableTo" class="form-label"></label>
+                <select asp-for="CaseStatus.ApplicableTo" class="form-select" asp-items="Html.GetEnumSelectList<Sentinel.Models.Lookups.CaseTypeApplicability>()"></select>
+                <span asp-validation-for="CaseStatus.ApplicableTo" class="text-danger"></span>
+                <small class="form-text text-muted">Controls which forms this status appears in. "Both" means it can be used for Cases or Contacts.</small>
+            </div>
+
+            <div class="mb-3 form-check">
+                <input asp-for="CaseStatus.IsActive" class="form-check-input" type="checkbox" />
+                <label asp-for="CaseStatus.IsActive" class="form-check-label"></label>
+            </div>
+
+            <div class="mt-3">
+                <button type="submit" class="btn btn-primary"><i class="bi bi-check-circle me-1"></i>Save</button>
+                <a asp-page="./Index" class="btn btn-outline-secondary ms-2"><i class="bi bi-arrow-left me-1"></i>Back to List</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+    @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+}

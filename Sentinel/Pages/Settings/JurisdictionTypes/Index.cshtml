@@ -1,0 +1,120 @@
+@page
+@model Sentinel.Pages.Settings.JurisdictionTypes.IndexModel
+@{
+    ViewData["Title"] = "Jurisdiction Types Configuration";
+}
+
+<nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a asp-page="/Index">Home</a></li>
+        <li class="breadcrumb-item"><a asp-page="/Settings/Index">Settings</a></li>
+        <li class="breadcrumb-item active" aria-current="page">Jurisdiction Types</li>
+    </ol>
+</nav>
+
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="mb-1">
+                <i class="bi bi-map me-2"></i>Jurisdiction Types Configuration
+            </h2>
+            <p class="text-muted mb-0">Configure the 5 jurisdiction field names and settings</p>
+        </div>
+        <a asp-page="/Settings/Index" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left me-1"></i>Back to Settings
+        </a>
+    </div>
+
+    <div class="alert alert-info" role="alert">
+        <i class="bi bi-info-circle me-2"></i>
+        <strong>About Jurisdiction Types:</strong> Each field can be customized to represent different geographic classifications 
+        (e.g., Local Health District, Local Government Area, Statistical Area). Configure the names that match your organizational needs.
+    </div>
+
+    <div class="card">
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th style="width: 10%;">Field</th>
+                            <th style="width: 25%;">Display Name</th>
+                            <th style="width: 15%;">Code</th>
+                            <th style="width: 30%;">Description</th>
+                            <th style="width: 10%;" class="text-center">Status</th>
+                            <th style="width: 10%;" class="text-center">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var type in Model.JurisdictionTypes)
+                        {
+                            <tr>
+                                <td>
+                                    <span class="badge bg-primary">Field @type.FieldNumber</span>
+                                </td>
+                                <td>
+                                    <strong>@type.Name</strong>
+                                </td>
+                                <td>
+                                    @if (!string.IsNullOrEmpty(type.Code))
+                                    {
+                                        <code>@type.Code</code>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted">-</span>
+                                    }
+                                </td>
+                                <td>
+                                    @if (!string.IsNullOrEmpty(type.Description))
+                                    {
+                                        <small class="text-muted">@type.Description</small>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted">-</span>
+                                    }
+                                </td>
+                                <td class="text-center">
+                                    @if (type.IsActive)
+                                    {
+                                        <span class="badge bg-success">
+                                            <i class="bi bi-check-circle me-1"></i>Active
+                                        </span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge bg-secondary">
+                                            <i class="bi bi-x-circle me-1"></i>Inactive
+                                        </span>
+                                    }
+                                </td>
+                                <td class="text-center">
+                                    <a asp-page="./Edit" asp-route-id="@type.FieldNumber" class="btn btn-sm btn-outline-primary">
+                                        <i class="bi bi-pencil me-1"></i>Configure
+                                    </a>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="mt-3">
+        <div class="card bg-light">
+            <div class="card-body">
+                <h6 class="card-title">
+                    <i class="bi bi-lightbulb me-2"></i>Usage Tips
+                </h6>
+                <ul class="mb-0">
+                    <li><strong>Activate only what you need:</strong> Set fields to "Active" only if you use them in your jurisdiction.</li>
+                    <li><strong>Name them clearly:</strong> Use names that your staff will understand (e.g., "Local Health District", "LGA").</li>
+                    <li><strong>Short codes:</strong> Optional abbreviations for export and reporting (e.g., "LHD", "LGA").</li>
+                    <li><strong>Display order:</strong> Controls the sequence fields appear in forms (lower numbers first).</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>

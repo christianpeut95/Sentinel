@@ -1,0 +1,169 @@
+@page
+@model Sentinel.Pages.Settings.Occupations.IndexModel
+
+@{
+    ViewData["Title"] = "Occupations";
+    Layout = "~/Pages/Shared/_Layout.cshtml";
+}
+
+<nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a asp-page="/Index">Home</a></li>
+        <li class="breadcrumb-item"><a asp-page="/Settings/Index">Settings</a></li>
+        <li class="breadcrumb-item active" aria-current="page">Occupations</li>
+    </ol>
+</nav>
+
+<h1>Occupations</h1>
+
+<div class="mb-3">
+    <a asp-page="Create" class="btn btn-primary">
+        <i class="bi bi-plus-circle me-1"></i>Create New
+    </a>
+    <a asp-page="Upload" class="btn btn-success">
+        <i class="bi bi-upload me-1"></i>Upload Excel File
+    </a>
+</div>
+
+<form method="get" class="mb-3">
+    <div class="row">
+        <div class="col-md-6">
+            <input type="text" class="form-control" name="SearchTerm" placeholder="Search by code or name..." value="@Model.SearchTerm" />
+        </div>
+        <div class="col-md-4">
+            <select class="form-control" name="MajorGroupFilter">
+                <option value="">All Major Groups</option>
+                <option value="1" selected="@(Model.MajorGroupFilter == "1")">1 - Managers</option>
+                <option value="2" selected="@(Model.MajorGroupFilter == "2")">2 - Professionals</option>
+                <option value="3" selected="@(Model.MajorGroupFilter == "3")">3 - Technicians and Trades Workers</option>
+                <option value="4" selected="@(Model.MajorGroupFilter == "4")">4 - Community and Personal Service Workers</option>
+                <option value="5" selected="@(Model.MajorGroupFilter == "5")">5 - Clerical and Administrative Workers</option>
+                <option value="6" selected="@(Model.MajorGroupFilter == "6")">6 - Sales Workers</option>
+                <option value="7" selected="@(Model.MajorGroupFilter == "7")">7 - Machinery Operators and Drivers</option>
+                <option value="8" selected="@(Model.MajorGroupFilter == "8")">8 - Labourers</option>
+            </select>
+        </div>
+        <div class="col-md-2">
+            <button type="submit" class="btn btn-secondary w-100">Filter</button>
+        </div>
+    </div>
+</form>
+
+@if (Model.Occupation.Any())
+{
+    <div class="alert alert-info">
+        <i class="bi bi-info-circle me-2"></i>
+        Showing @Model.Occupation.Count occupations (Page @Model.PageIndex of @Model.TotalPages, Total: @Model.TotalCount records)
+    </div>
+
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>
+                    @Html.DisplayNameFor(model => model.Occupation[0].Code)
+                </th>
+                <th>
+                    @Html.DisplayNameFor(model => model.Occupation[0].Name)
+                </th>
+                <th>
+                    @Html.DisplayNameFor(model => model.Occupation[0].MajorGroupName)
+                </th>
+                <th>
+                    @Html.DisplayNameFor(model => model.Occupation[0].MinorGroupName)
+                </th>
+                <th>
+                    @Html.DisplayNameFor(model => model.Occupation[0].IsActive)
+                </th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+    @foreach (var item in Model.Occupation) {
+            <tr>
+                <td>
+                    @Html.DisplayFor(modelItem => item.Code)
+                </td>
+                <td>
+                    @Html.DisplayFor(modelItem => item.Name)
+                </td>
+                <td>
+                    @Html.DisplayFor(modelItem => item.MajorGroupName)
+                </td>
+                <td>
+                    @Html.DisplayFor(modelItem => item.MinorGroupName)
+                </td>
+                <td>
+                    @Html.DisplayFor(modelItem => item.IsActive)
+                </td>
+                <td>
+                    <a asp-page="./Edit" asp-route-id="@item.Id">Edit</a> |
+                    <a asp-page="./Details" asp-route-id="@item.Id">Details</a> |
+                    <a asp-page="./Delete" asp-route-id="@item.Id">Delete</a>
+                </td>
+            </tr>
+    }
+        </tbody>
+    </table>
+
+    <nav aria-label="Occupation pagination">
+        <ul class="pagination justify-content-center">
+            <li class="page-item @(Model.HasPreviousPage ? "" : "disabled")">
+                <a class="page-link" 
+                   asp-page="./Index" 
+                   asp-route-pageindex="1"
+                   asp-route-searchterm="@Model.SearchTerm"
+                   asp-route-majorgroupfilter="@Model.MajorGroupFilter">
+                    <i class="bi bi-chevron-double-left"></i> First
+                </a>
+            </li>
+            <li class="page-item @(Model.HasPreviousPage ? "" : "disabled")">
+                <a class="page-link" 
+                   asp-page="./Index" 
+                   asp-route-pageindex="@(Model.PageIndex - 1)"
+                   asp-route-searchterm="@Model.SearchTerm"
+                   asp-route-majorgroupfilter="@Model.MajorGroupFilter">
+                    <i class="bi bi-chevron-left"></i> Previous
+                </a>
+            </li>
+            
+            @for (int i = Math.Max(1, Model.PageIndex - 2); i <= Math.Min(Model.TotalPages, Model.PageIndex + 2); i++)
+            {
+                <li class="page-item @(i == Model.PageIndex ? "active" : "")">
+                    <a class="page-link" 
+                       asp-page="./Index" 
+                       asp-route-pageindex="@i"
+                       asp-route-searchterm="@Model.SearchTerm"
+                       asp-route-majorgroupfilter="@Model.MajorGroupFilter">
+                        @i
+                    </a>
+                </li>
+            }
+
+            <li class="page-item @(Model.HasNextPage ? "" : "disabled")">
+                <a class="page-link" 
+                   asp-page="./Index" 
+                   asp-route-pageindex="@(Model.PageIndex + 1)"
+                   asp-route-searchterm="@Model.SearchTerm"
+                   asp-route-majorgroupfilter="@Model.MajorGroupFilter">
+                    Next <i class="bi bi-chevron-right"></i>
+                </a>
+            </li>
+            <li class="page-item @(Model.HasNextPage ? "" : "disabled")">
+                <a class="page-link" 
+                   asp-page="./Index" 
+                   asp-route-pageindex="@Model.TotalPages"
+                   asp-route-searchterm="@Model.SearchTerm"
+                   asp-route-majorgroupfilter="@Model.MajorGroupFilter">
+                    Last <i class="bi bi-chevron-double-right"></i>
+                </a>
+            </li>
+        </ul>
+    </nav>
+}
+else
+{
+    <div class="alert alert-warning">
+        <i class="bi bi-exclamation-triangle me-2"></i>
+        No occupations found. @(string.IsNullOrWhiteSpace(Model.SearchTerm) && string.IsNullOrWhiteSpace(Model.MajorGroupFilter) ? "Add occupations to get started." : "Try adjusting your search criteria.")
+    </div>
+}

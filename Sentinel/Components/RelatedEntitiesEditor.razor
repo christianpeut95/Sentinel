@@ -1,0 +1,77 @@
+@using Sentinel.Models
+@using Sentinel.Models.Reporting
+
+<div class="mb-3">
+    <button type="button" class="btn btn-sm btn-success me-2" @onclick="@(() => AddRelatedEntity("Case"))">
+        <i class="bi bi-plus-circle"></i> Add Case Entity
+    </button>
+    <button type="button" class="btn btn-sm btn-info me-2" @onclick="@(() => AddRelatedEntity("ExposureEvent"))">
+        <i class="bi bi-plus-circle"></i> Add ExposureEvent Entity
+    </button>
+    <button type="button" class="btn btn-sm btn-secondary" @onclick="@(() => AddRelatedEntity(""))">
+        <i class="bi bi-plus-circle"></i> Add Custom Entity
+    </button>
+</div>
+
+@if (Config?.RelatedEntities?.Count > 0)
+{
+    <div>
+        @foreach (var (entity, index) in Config.RelatedEntities.OrderBy(e => e.CreationOrder).Select((e, i) => (e, i)))
+        {
+            <RelatedEntityCard 
+                Entity="@entity"
+                Index="@index"
+                MatrixColumns="@MatrixColumns"
+                Config="@Config"
+                OnEntityChanged="OnConfigChanged"
+                OnRemove="() => RemoveRelatedEntity(index)" />
+        }
+    </div>
+}
+else
+{
+    <div class="alert alert-info">
+        <i class="bi bi-info-circle"></i>
+        No related entities configured. Click a button above to add Case or ExposureEvent entities that will be created for each matrix row.
+    </div>
+}
+
+@code {
+    [Parameter]
+    public CollectionMappingConfig? Config { get; set; }
+
+    [Parameter]
+    public List<string> MatrixColumns { get; set; } = new();
+
+    [Parameter]
+    public List<ReportFieldMetadata> TargetFields { get; set; } = new();
+
+    [Parameter]
+    public EventCallback OnConfigChanged { get; set; }
+
+    private void AddRelatedEntity(string entityType)
+    {
+        if (Config?.RelatedEntities == null) return;
+
+        var order = Config.RelatedEntities.Count + 1;
+        
+        Config.RelatedEntities.Add(new RelatedEntityConfig
+        {
+            EntityType = entityType,
+            CreationOrder = order,
+            RequiresPrimaryEntity = true,
+            Mappings = new List<RelatedEntityMapping>()
+        });
+
+        OnConfigChanged.InvokeAsync();
+    }
+
+    private void RemoveRelatedEntity(int index)
+    {
+        if (Config?.RelatedEntities != null && index < Config.RelatedEntities.Count)
+        {
+            Config.RelatedEntities.RemoveAt(index);
+            OnConfigChanged.InvokeAsync();
+        }
+    }
+}

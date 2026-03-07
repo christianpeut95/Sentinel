@@ -1,0 +1,186 @@
+@page
+@using Sentinel.Models
+@model Sentinel.Pages.Settings.CustomFields.EditModel
+
+@{
+    ViewData["Title"] = "Edit Custom Field";
+}
+
+<div class="container-fluid">
+    <nav aria-label="breadcrumb" class="mb-3">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a asp-page="/Index">Home</a></li>
+            <li class="breadcrumb-item"><a asp-page="/Settings/Index">Settings</a></li>
+            <li class="breadcrumb-item"><a asp-page="./Index">Custom Fields</a></li>
+            <li class="breadcrumb-item active" aria-current="page">Edit</li>
+        </ol>
+    </nav>
+
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0"><i class="bi bi-pencil me-2"></i>Edit Custom Field</h4>
+                </div>
+                <div class="card-body">
+                    <form method="post">
+                        <div asp-validation-summary="ModelOnly" class="alert alert-danger" role="alert"></div>
+                        <input type="hidden" asp-for="Input.Id" />
+
+                        <h5 class="border-bottom pb-2 mb-3">Basic Information</h5>
+
+                        <div class="row g-3 mb-3">
+                            <div class="col-md-6">
+                                <label asp-for="Input.Name" class="form-label">Field Name (Internal) *</label>
+                                <input asp-for="Input.Name" class="form-control" readonly />
+                                <small class="form-text text-muted">Name cannot be changed after creation</small>
+                            </div>
+
+                            <div class="col-md-6">
+                                <label asp-for="Input.Label" class="form-label">Display Label *</label>
+                                <input asp-for="Input.Label" class="form-control" />
+                                <span asp-validation-for="Input.Label" class="text-danger"></span>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label asp-for="Input.Category" class="form-label">Category *</label>
+                            <input asp-for="Input.Category" class="form-control" list="existingCategories" />
+                            <datalist id="existingCategories">
+                                @foreach (var cat in Model.ExistingCategories)
+                                {
+                                    <option value="@cat">@cat</option>
+                                }
+                            </datalist>
+                            <span asp-validation-for="Input.Category" class="text-danger"></span>
+                        </div>
+
+                        <h5 class="border-bottom pb-2 mb-3 mt-4">Field Type & Configuration</h5>
+
+                        <div class="mb-3">
+                            <label asp-for="Input.FieldType" class="form-label">Field Type *</label>
+                            <select asp-for="Input.FieldType" asp-items="Model.FieldTypeOptions" class="form-select" id="fieldTypeSelect" disabled>
+                            </select>
+                            <input type="hidden" asp-for="Input.FieldType" />
+                            <small class="form-text text-muted">Field type cannot be changed after creation</small>
+                        </div>
+
+                        @if (Model.Input.FieldType == CustomFieldType.Dropdown)
+                        {
+                            <div class="card bg-light mb-3">
+                                <div class="card-body">
+                                    <h6><i class="bi bi-list-ul me-2"></i>Dropdown Configuration</h6>
+                                    <div class="mb-3">
+                                        <label asp-for="Input.LookupTableId" class="form-label">Lookup Table</label>
+                                        <select asp-for="Input.LookupTableId" asp-items="Model.LookupTableOptions" class="form-select">
+                                            <option value="">-- Select Lookup Table --</option>
+                                        </select>
+                                        <span asp-validation-for="Input.LookupTableId" class="text-danger"></span>
+                                    </div>
+                                </div>
+                            </div>
+                        }
+
+                        <h5 class="border-bottom pb-2 mb-3 mt-4">Field Options</h5>
+
+                        <div class="row g-3 mb-3">
+                            <div class="col-md-3">
+                                <div class="form-check form-switch">
+                                    <input asp-for="Input.IsRequired" class="form-check-input" />
+                                    <label asp-for="Input.IsRequired" class="form-check-label">
+                                        Required Field
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="form-check form-switch">
+                                    <input asp-for="Input.IsSearchable" class="form-check-input" />
+                                    <label asp-for="Input.IsSearchable" class="form-check-label">
+                                        Searchable
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="form-check form-switch">
+                                    <input asp-for="Input.ShowOnList" class="form-check-input" />
+                                    <label asp-for="Input.ShowOnList" class="form-check-label">
+                                        Show on List
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="form-check form-switch">
+                                    <input asp-for="Input.IsActive" class="form-check-input" />
+                                    <label asp-for="Input.IsActive" class="form-check-label">
+                                        Active
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row g-3 mb-3">
+                            <div class="col-md-6">
+                                <div class="form-check form-switch">
+                                    <input asp-for="Input.ShowOnPatientForm" class="form-check-input" />
+                                    <label asp-for="Input.ShowOnPatientForm" class="form-check-label">
+                                        <i class="bi bi-person-fill me-1"></i>Show on Patient Forms
+                                    </label>
+                                    <small class="form-text text-muted d-block">Display this field when creating/editing patients</small>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-check form-switch">
+                                    <input asp-for="Input.ShowOnCaseForm" class="form-check-input" />
+                                    <label asp-for="Input.ShowOnCaseForm" class="form-check-label">
+                                        <i class="bi bi-file-medical-fill me-1"></i>Show on Case Forms
+                                    </label>
+                                    <small class="form-text text-muted d-block">Available to link to diseases for case forms</small>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+
+                            <label asp-for="Input.DisplayOrder" class="form-label">Display Order</label>
+                            <input asp-for="Input.DisplayOrder" class="form-control" type="number" />
+                            <span asp-validation-for="Input.DisplayOrder" class="text-danger"></span>
+                        </div>
+
+                        <hr class="my-4">
+
+                        <div class="d-flex gap-2">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-check-lg me-2"></i>Save Changes
+                            </button>
+                            <a asp-page="./Index" class="btn btn-outline-secondary">
+                                <i class="bi bi-x-lg me-2"></i>Cancel
+                            </a>
+                            <a asp-page="./Delete" asp-route-id="@Model.Input.Id" class="btn btn-outline-danger ms-auto">
+                                <i class="bi bi-trash me-2"></i>Delete Field
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4">
+            <div class="card shadow-sm">
+                <div class="card-header bg-warning text-dark">
+                    <h5 class="mb-0"><i class="bi bi-exclamation-triangle me-2"></i>Important</h5>
+                </div>
+                <div class="card-body">
+                    <ul class="mb-0">
+                        <li class="mb-2">Field name and type cannot be changed</li>
+                        <li class="mb-2">Deactivating a field hides it from forms</li>
+                        <li class="mb-0">Existing data is preserved when deactivated</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

@@ -1,0 +1,546 @@
+@page
+@model Sentinel.Pages.Locations.IndexModel
+
+@{
+    ViewData["Title"] = "Locations";
+}
+@functions {
+    public string GetCspNonce()
+    {
+        if (HttpContext?.Items?.TryGetValue("csp-nonce", out var nonce) == true && nonce is string nonceStr)
+        {
+            return nonceStr;
+        }
+        return string.Empty;
+    }
+}
+
+<style>
+    /* Locations Page - Green/Emerald Theme */
+    .page-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1rem;
+    }
+
+    .page-title {
+        font-size: 24px;
+        font-weight: 600;
+        color: #2d3748;
+        display: flex;
+        align-items: center;
+        gap: 0.4rem;
+    }
+
+    .page-title i {
+        color: #10b981; /* Emerald icon for Locations */
+        font-size: 26px;
+    }
+
+    .page-subtitle {
+        font-size: 13px;
+        color: #718096;
+        font-weight: 400;
+        margin-top: 0.15rem;
+    }
+
+    .btn-hero {
+        background: #10b981; /* Emerald for Locations */
+        color: white;
+        font-weight: 600;
+        border: none;
+        padding: 0.5rem 1rem;
+        border-radius: 8px;
+        transition: all 0.2s;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 14px;
+    }
+
+    .btn-hero:hover {
+        background: #059669;
+        transform: translateY(-1px);
+        box-shadow: 0 3px 10px rgba(16, 185, 129, 0.3);
+        color: white;
+    }
+
+    .btn-secondary-hero {
+        background: white;
+        color: #10b981;
+        font-weight: 600;
+        border: 1px solid #6ee7b7;
+        padding: 0.5rem 1rem;
+        border-radius: 8px;
+        transition: all 0.2s;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 14px;
+    }
+
+    .btn-secondary-hero:hover {
+        background: #f0fdf4;
+        border-color: #10b981;
+        color: #10b981;
+        box-shadow: 0 2px 6px rgba(16, 185, 129, 0.15);
+    }
+
+    /* Stats Bar */
+    .stats-bar {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+        gap: 0.75rem;
+        margin-bottom: 1rem;
+    }
+
+    .stat-item {
+        background: white;
+        border-radius: 8px;
+        padding: 0.75rem 1rem;
+        border-left: 3px solid #10b981;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+        border-top: 1px solid rgba(0, 0, 0, 0.06);
+        border-right: 1px solid rgba(0, 0, 0, 0.06);
+        border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+    }
+
+    .stat-value {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: #10b981;
+        margin-bottom: 0.1rem;
+        line-height: 1;
+    }
+
+    .stat-label {
+        font-size: 0.8rem;
+        color: #718096;
+        font-weight: 500;
+    }
+
+    /* Table Card */
+    .table-card {
+        background: white;
+        border-radius: 10px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+        border: 1px solid rgba(0, 0, 0, 0.06);
+        overflow: hidden;
+    }
+
+    .table-card-header {
+        padding: 0.75rem 1rem;
+        border-bottom: 1px solid #e2e8f0;
+        background: linear-gradient(to right, #f0fdf4, white);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .table-card-title {
+        margin: 0;
+        font-size: 1rem;
+        font-weight: 600;
+        color: #2d3748;
+        display: flex;
+        align-items: center;
+        gap: 0.4rem;
+    }
+
+    .table-card-title i {
+        color: #10b981;
+    }
+
+    /* Apple-style Table */
+    .apple-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 13px;
+    }
+
+    .apple-table thead {
+        background: #f0fdf4;
+    }
+
+    .apple-table th {
+        padding: 0.5rem 0.75rem;
+        text-align: left;
+        font-weight: 600;
+        font-size: 11px;
+        color: #065f46;
+        border-bottom: 1px solid #6ee7b7;
+        text-transform: uppercase;
+        letter-spacing: 0.3px;
+    }
+
+    .apple-table td {
+        padding: 0.6rem 0.75rem;
+        border-bottom: 1px solid #e2e8f0;
+        vertical-align: middle;
+    }
+
+    .apple-table tbody tr {
+        transition: background 0.15s;
+    }
+
+    .apple-table tbody tr:hover {
+        background: #f0fdf4;
+    }
+
+    .apple-table tbody tr:last-child td {
+        border-bottom: none;
+    }
+
+    /* Quick Search */
+    .quick-search-wrapper {
+        position: relative;
+        max-width: 400px;
+    }
+
+    .quick-search-input {
+        padding-left: 2.5rem;
+        border-radius: 20px;
+        border: 1px solid #e2e8f0;
+        transition: all 0.2s;
+    }
+
+    .quick-search-input:focus {
+        border-color: #10b981;
+        box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
+    }
+
+    .quick-search-icon {
+        position: absolute;
+        left: 0.75rem;
+        top: 50%;
+        transform: translateY(-50%);
+        color: #10b981;
+        pointer-events: none;
+    }
+</style>
+
+<nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a asp-page="/Index">Home</a></li>
+        <li class="breadcrumb-item active" aria-current="page">Locations</li>
+    </ol>
+</nav>
+
+<div class="page-header">
+    <div>
+        <div class="page-title">
+            <i class="bi bi-geo-alt-fill"></i>
+            Locations
+        </div>
+        <div class="page-subtitle">@Model.Locations.Count location(s) found
+            @if (Model.PendingGeocodeCount > 0)
+            {
+                <span class="ms-2">
+                    <span class="badge bg-warning text-dark">@Model.PendingGeocodeCount pending geocoding</span>
+                </span>
+            }
+        </div>
+    </div>
+    <div class="d-flex gap-2">
+        @if (Model.PendingGeocodeCount > 0)
+        {
+            <form method="post" asp-page-handler="GeocodeAll" class="d-inline">
+                <button type="submit" class="btn-secondary-hero">
+                    <i class="bi bi-geo"></i>Geocode All
+                </button>
+            </form>
+        }
+        <a asp-page="./Create" class="btn-hero">
+            <i class="bi bi-plus-circle"></i>
+            Add Location
+        </a>
+    </div>
+</div>
+
+<!-- Quick Search Bar -->
+<div class="quick-search-wrapper mb-3">
+    <i class="bi bi-search quick-search-icon"></i>
+    <input type="text" 
+           class="form-control quick-search-input" 
+           id="quickSearchLocations" 
+           placeholder="Quick search locations..."
+           onkeyup="quickFilterLocations()" />
+</div>
+
+@if (TempData["SuccessMessage"] != null)
+{
+    <div class="alert alert-success alert-dismissible fade show" role="alert">
+        <i class="bi bi-check-circle me-2"></i>@TempData["SuccessMessage"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+}
+
+@if (TempData["ErrorMessage"] != null)
+{
+    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+        <i class="bi bi-exclamation-triangle me-2"></i>@TempData["ErrorMessage"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+}
+
+<!-- Advanced Filters -->
+<div class="table-card mb-3">
+    <div class="table-card-header">
+        <div class="table-card-title">
+            <i class="bi bi-funnel"></i>
+            Advanced Filters
+        </div>
+    </div>
+    <div class="card-body">
+        <form method="get">
+            <div class="row g-3">
+                <div class="col-md-4">
+                    <label for="searchTerm" class="form-label">Search</label>
+                    <input type="text" class="form-control" id="searchTerm" name="searchTerm" value="@Model.SearchTerm" placeholder="Search by name or address..." />
+                </div>
+                <div class="col-md-3">
+                    <label for="locationTypeId" class="form-label">Location Type</label>
+                    <select class="form-select" id="locationTypeId" name="locationTypeId">
+                        <option value="">All Types</option>
+                        @foreach (var type in Model.LocationTypes)
+                        {
+                            <option value="@type.Id" selected="@(Model.LocationTypeId == type.Id)">@type.Name</option>
+                        }
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label for="geocodingStatus" class="form-label">Geocoding</label>
+                    <select class="form-select" id="geocodingStatus" name="geocodingStatus">
+                        <option value="">All</option>
+                        <option value="Success" selected="@(Model.GeocodingStatus == "Success")">Success</option>
+                        <option value="Failed" selected="@(Model.GeocodingStatus == "Failed")">Failed</option>
+                        <option value="Pending" selected="@(Model.GeocodingStatus == "Pending")">Pending</option>
+                    </select>
+                </div>
+                <div class="col-md-3 d-flex align-items-end gap-2">
+                    <button type="submit" class="btn-hero">
+                        <i class="bi bi-search"></i>Search
+                    </button>
+                    <a asp-page="./Index" class="btn-secondary-hero">
+                        <i class="bi bi-x-circle"></i>Clear
+                    </a>
+                </div>
+            </div>
+
+            <div class="row g-3 mt-2">
+                <div class="col-md-12">
+                    <div class="form-check form-check-inline">
+                        <input class="form-check-input" type="checkbox" id="highRiskOnly" name="highRiskOnly" value="true" checked="@Model.HighRiskOnly" />
+                        <label class="form-check-label" for="highRiskOnly">
+                            <i class="bi bi-exclamation-triangle text-warning me-1"></i>High Risk Only
+                        </label>
+                    </div>
+                    <div class="form-check form-check-inline">
+                        <input class="form-check-input" type="checkbox" id="activeOnly" name="activeOnly" value="true" checked="@Model.ActiveOnly" />
+                        <label class="form-check-label" for="activeOnly">
+                            Active Only
+                        </label>
+                    </div>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Locations Table -->
+<div class="table-card">
+    <div class="table-card-header">
+        <div class="table-card-title">
+            <i class="bi bi-list-ul"></i>
+            All Locations
+        </div>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="apple-table" id="locationsTable">
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Type</th>
+                        <th>Address</th>
+                        <th>Geocoding</th>
+                        <th>Organization</th>
+                        <th>Events</th>
+                        <th>Exposures</th>
+                        <th>Status</th>
+                        <th class="text-end">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+@foreach (var location in Model.Locations)
+{
+                    <tr class="location-row">
+                        <td>
+                            <strong>@location.Name</strong>
+                            @if (location.IsHighRisk)
+                            {
+                                <span class="ms-1">
+                                    <i class="bi bi-exclamation-triangle text-warning" title="High Risk Location"></i>
+                                </span>
+                            }
+                        </td>
+                        <td>
+                            @if (location.LocationType != null)
+                            {
+                                <span class="badge" style="background: #6ee7b7; color: #065f46;">@location.LocationType.Name</span>
+                            }
+                            else
+                            {
+                                <span class="text-muted">-</span>
+                            }
+                        </td>
+                        <td>
+                            @if (!string.IsNullOrEmpty(location.Address))
+                            {
+                                <small class="text-muted">@location.Address</small>
+                            }
+                            else
+                            {
+                                <span class="text-muted">-</span>
+                            }
+                        </td>
+                        <td>
+                            @if (location.Latitude.HasValue && location.Longitude.HasValue)
+                            {
+                                <span class="badge bg-success" title="@location.Latitude, @location.Longitude">
+                                    <i class="bi bi-check-circle me-1"></i>Success
+                                </span>
+                            }
+                            else if (location.GeocodingStatus == "Failed")
+                            {
+                                <span class="badge bg-danger">
+                                    <i class="bi bi-x-circle me-1"></i>Failed
+                                </span>
+                            }
+                            else if (location.GeocodingStatus == "Pending")
+                            {
+                                <span class="badge bg-warning text-dark">
+                                    <i class="bi bi-hourglass-split me-1"></i>Pending
+                                </span>
+                            }
+                            else
+                            {
+                                <span class="text-muted">-</span>
+                            }
+                        </td>
+                        <td>
+                            @if (location.Organization != null)
+                            {
+                                <small>@location.Organization.Name</small>
+                            }
+                            else
+                            {
+                                <span class="text-muted">-</span>
+                            }
+                        </td>
+                        <td>
+                            @if (Model.EventCounts.ContainsKey(location.Id) && Model.EventCounts[location.Id] > 0)
+                            {
+                                <span class="badge bg-info">@Model.EventCounts[location.Id]</span>
+                            }
+                            else
+                            {
+                                <span class="text-muted">0</span>
+                            }
+                        </td>
+                        <td>
+                            @if (Model.ExposureCounts.ContainsKey(location.Id) && Model.ExposureCounts[location.Id] > 0)
+                            {
+                                <span class="badge bg-info">@Model.ExposureCounts[location.Id]</span>
+                            }
+                            else
+                            {
+                                <span class="text-muted">0</span>
+                            }
+                        </td>
+                        <td>
+                            @if (location.IsActive)
+                            {
+                                <span class="badge bg-success">Active</span>
+                            }
+                            else
+                            {
+                                <span class="badge bg-secondary">Inactive</span>
+                            }
+                        </td>
+                        <td class="text-end">
+                            <div class="btn-group btn-group-sm" role="group">
+                                <a asp-page="./Details" asp-route-id="@location.Id" class="btn btn-outline-primary" title="View Details">
+                                    <i class="bi bi-eye"></i>
+                                </a>
+                                <a asp-page="./Edit" asp-route-id="@location.Id" class="btn btn-outline-secondary" title="Edit">
+                                    <i class="bi bi-pencil"></i>
+                                </a>
+                                @if (!Model.EventCounts.ContainsKey(location.Id) && !Model.ExposureCounts.ContainsKey(location.Id))
+                                {
+                                    <button type="button" class="btn btn-outline-danger" onclick="confirmDelete('@location.Id', '@location.Name')" title="Delete">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                }
+                            </div>
+                        </td>
+                    </tr>
+}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+@if (!Model.Locations.Any())
+{
+    <div class="alert alert-info mt-3">
+        <i class="bi bi-info-circle me-2"></i>No locations found. <a asp-page="./Create" class="alert-link">Create your first location</a>.
+    </div>
+}
+
+<form method="post" asp-page-handler="Delete" id="deleteForm">
+    <input type="hidden" name="id" id="deleteId" />
+</form>
+
+@section Scripts {
+<script>
+    function confirmDelete(id, name) {
+        if (confirm(`Are you sure you want to delete "${name}"?\n\nThis action cannot be undone.`)) {
+            document.getElementById('deleteId').value = id;
+            document.getElementById('deleteForm').submit();
+        }
+    }
+
+    // Quick Filter Function for Locations
+    function quickFilterLocations() {
+        const searchText = document.getElementById('quickSearchLocations').value.toLowerCase();
+        const rows = document.querySelectorAll('.location-row');
+        let visibleCount = 0;
+
+        rows.forEach(row => {
+            const text = row.textContent.toLowerCase();
+            if (text.includes(searchText)) {
+                row.style.display = '';
+                visibleCount++;
+            } else {
+                row.style.display = 'none';
+            }
+        });
+
+        // Update count
+        const subtitle = document.querySelector('.page-subtitle');
+        if (subtitle) {
+            if (searchText) {
+                subtitle.textContent = `${visibleCount} of @Model.Locations.Count location(s) shown`;
+            } else {
+                const pendingNote = @Model.PendingGeocodeCount > 0 ? ` (@Model.PendingGeocodeCount pending geocoding)` : '';
+                subtitle.textContent = `@Model.Locations.Count location(s) found${pendingNote}`;
+            }
+        }
+    }
+</script>
+}

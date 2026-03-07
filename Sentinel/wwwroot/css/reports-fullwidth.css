@@ -1,0 +1,118 @@
+/* 
+ * Full-Width Reports Styling
+ * Makes Reports pages use 100% of available screen width
+ */
+
+/* Override any max-width constraints on Reports pages */
+body.reports-page .container-fluid {
+    max-width: 100% !important;
+    width: 100% !important;
+    padding-left: 0.5rem !important;
+    padding-right: 0.5rem !important;
+}
+
+/* Full-width cards */
+body.reports-page .card {
+    width: 100%;
+}
+
+/* Ensure pivot tables use full width */
+body.reports-page #pivotContainer,
+body.reports-page #tableContainer,
+body.reports-page .wdr-container {
+    width: 100% !important;
+    max-width: 100% !important;
+}
+
+/* Adjust column gaps for better space usage */
+body.reports-page .row.g-3 {
+    --bs-gutter-x: 1rem;
+}
+
+/* Make selected fields area wider */
+body.reports-page #selectedFields {
+    min-height: 200px;
+}
+
+/* Responsive: On large screens, reduce left panel width to give more space to main content */
+@media (min-width: 1400px) {
+    body.reports-page .col-xl-3 {
+        flex: 0 0 20% !important;
+        max-width: 20% !important;
+    }
+    
+    body.reports-page .col-xl-9 {
+        flex: 0 0 80% !important;
+        max-width: 80% !important;
+    }
+}
+
+@media (min-width: 1920px) {
+    body.reports-page .col-xl-3 {
+        flex: 0 0 15% !important;
+        max-width: 15% !important;
+    }
+    
+    body.reports-page .col-xl-9 {
+        flex: 0 0 85% !important;
+        max-width: 85% !important;
+    }
+}
+
+/* Remove unnecessary padding on large screens */
+@media (min-width: 1600px) {
+    body.reports-page .py-4 {
+        padding-top: 1rem !important;
+        padding-bottom: 1rem !important;
+    }
+}
+
+/* WebDataRocks specific full-width fixes */
+body.reports-page .wdr-toolbar-wrapper,
+body.reports-page .wdr-sheet,
+body.reports-page .wdr-grid-layout {
+    width: 100% !important;
+    max-width: 100% !important;
+}
+
+/* Table previews use full width */
+body.reports-page .table-responsive {
+    width: 100%;
+    overflow-x: auto;
+}
+
+body.reports-page .table {
+    width: 100%;
+    max-width: 100%;
+}
+
+/* Filter sections */
+body.reports-page .filter-item,
+body.reports-page .filter-group {
+    width: 100%;
+}
+
+/* Make buttons and controls not cause horizontal overflow */
+body.reports-page .btn-group {
+    flex-wrap: wrap;
+}
+
+/* Adjust field list for better use of vertical space on large screens */
+@media (min-height: 900px) {
+    body.reports-page .fields-scroll-container {
+        max-height: calc(100vh - 250px);
+    }
+}
+
+/* Ensure no artificial max-width on containers */
+body.reports-page .row {
+    width: 100%;
+}
+
+body.reports-page .col-12,
+body.reports-page .col-md-12,
+body.reports-page .col-lg-12,
+body.reports-page .col-xl-12 {
+    width: 100% !important;
+    max-width: 100% !important;
+}

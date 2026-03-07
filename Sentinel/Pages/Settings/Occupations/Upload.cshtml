@@ -1,0 +1,183 @@
+@page
+@model Sentinel.Pages.Settings.Occupations.UploadModel
+
+@{
+    ViewData["Title"] = "Upload ANZSCO Occupations";
+    Layout = "~/Pages/Shared/_Layout.cshtml";
+}
+
+<nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a asp-page="/Index">Home</a></li>
+        <li class="breadcrumb-item"><a asp-page="/Settings/Index">Settings</a></li>
+        <li class="breadcrumb-item"><a asp-page="/Settings/Occupations/Index">Occupations</a></li>
+        <li class="breadcrumb-item active" aria-current="page">Upload</li>
+    </ol>
+</nav>
+
+<h1>Upload ANZSCO Occupations</h1>
+
+<div class="alert alert-info mb-4">
+    <h5 class="alert-heading"><i class="bi bi-info-circle me-2"></i>About this feature</h5>
+    <p>This page allows you to bulk-import ANZSCO occupation classifications from an Excel file.</p>
+    <hr />
+    <p class="mb-0">
+        <strong>Download the official classification:</strong><br />
+        <a href="https://www.abs.gov.au/statistics/classifications/anzsco-australian-and-new-zealand-standard-classification-occupations/2022/anzsco%202022%20structure%20062023.xlsx" 
+           target="_blank" 
+           class="alert-link">
+            <i class="bi bi-file-earmark-excel me-1"></i>ANZSCO 2022 Structure (ABS)
+        </a>
+    </p>
+</div>
+
+@if (TempData["SuccessMessage"] != null)
+{
+    <div class="alert alert-success alert-dismissible fade show" role="alert">
+        <i class="bi bi-check-circle me-2"></i>@TempData["SuccessMessage"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+}
+
+@if (TempData["ErrorMessage"] != null)
+{
+    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+        <i class="bi bi-exclamation-triangle me-2"></i>@TempData["ErrorMessage"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+}
+
+@if (Model.ImportResult != null)
+{
+    <div class="card mb-4 border-@(Model.ImportResult.Success ? "success" : "danger")">
+        <div class="card-header bg-@(Model.ImportResult.Success ? "success" : "danger") text-white">
+            <h5 class="mb-0">
+                <i class="bi bi-@(Model.ImportResult.Success ? "check-circle" : "exclamation-triangle") me-2"></i>
+                Import @(Model.ImportResult.Success ? "Completed" : "Failed")
+            </h5>
+        </div>
+        <div class="card-body">
+            <dl class="row mb-0">
+                <dt class="col-sm-3">Records Imported:</dt>
+                <dd class="col-sm-9"><span class="badge bg-success">@Model.ImportResult.RecordsImported</span></dd>
+                
+                <dt class="col-sm-3">Records Skipped:</dt>
+                <dd class="col-sm-9"><span class="badge bg-secondary">@Model.ImportResult.RecordsSkipped</span></dd>
+            </dl>
+
+            @if (Model.ImportResult.Errors.Any())
+            {
+                <hr />
+                <h6 class="text-danger">Errors:</h6>
+                <ul class="mb-0">
+                    @foreach (var error in Model.ImportResult.Errors)
+                    {
+                        <li>@error</li>
+                    }
+                </ul>
+            }
+
+            @if (Model.ImportResult.Warnings.Any())
+            {
+                <hr />
+                <h6 class="text-warning">Warnings:</h6>
+                <div style="max-height: 300px; overflow-y: auto;">
+                    <ul class="mb-0">
+                        @foreach (var warning in Model.ImportResult.Warnings)
+                        {
+                            <li><small>@warning</small></li>
+                        }
+                    </ul>
+                </div>
+            }
+        </div>
+    </div>
+}
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="card shadow-sm">
+            <div class="card-header bg-light fw-semibold">
+                <i class="bi bi-upload me-2"></i>Upload File
+            </div>
+            <div class="card-body">
+                <form method="post" enctype="multipart/form-data">
+                    <div asp-validation-summary="ModelOnly" class="alert alert-danger" role="alert"></div>
+
+                    <div class="mb-3">
+                        <label for="UploadFile" class="form-label">
+                            Select Excel File (.xlsx)
+                        </label>
+                        <input type="file" 
+                               class="form-control" 
+                               id="UploadFile" 
+                               name="UploadFile" 
+                               accept=".xlsx"
+                               required />
+                        <span asp-validation-for="UploadFile" class="text-danger"></span>
+                        <div class="form-text">
+                            Maximum file size: 10MB
+                        </div>
+                    </div>
+
+                    <div class="alert alert-warning">
+                        <i class="bi bi-exclamation-triangle me-2"></i>
+                        <strong>Note:</strong> The import will skip any occupation codes that already exist in the database.
+                    </div>
+
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-upload me-1"></i>Upload and Import
+                        </button>
+                        <a asp-page="./Index" class="btn btn-secondary">
+                            <i class="bi bi-arrow-left me-1"></i>Back to List
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <div class="card shadow-sm mt-4">
+            <div class="card-header bg-light fw-semibold">
+                <i class="bi bi-info-circle me-2"></i>Expected File Format
+            </div>
+            <div class="card-body">
+                <p>The ABS Excel file uses an <strong>indented hierarchy layout</strong>:</p>
+                <ul>
+                    <li><strong>Column A:</strong> Major Group codes (e.g., "1")</li>
+                    <li><strong>Column B:</strong> Sub-Major Group codes (e.g., "11")</li>
+                    <li><strong>Column C:</strong> Minor Group codes (e.g., "111")</li>
+                    <li><strong>Column D:</strong> Unit Group codes (e.g., "1111")</li>
+                    <li><strong>Column E:</strong> Occupation codes (e.g., "111111")</li>
+                    <li><strong>Next column:</strong> Name for that code</li>
+                </ul>
+                <p class="mb-1"><strong>Example structure:</strong></p>
+                <pre class="bg-light p-2"><code>1    Managers
+     11   Chief Executives, General Managers...
+          111  Chief Executives and Managing Directors
+               1111 Chief Executives and Managing Directors
+                    111111 Chief Executive or Managing Director</code></pre>
+                <p class="mb-0">Each row contains one code-name pair. The indentation (which column the code appears in) determines the hierarchy level. The parser maintains context as it reads down the rows.</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <div class="card shadow-sm bg-light">
+            <div class="card-body">
+                <h5 class="card-title"><i class="bi bi-lightbulb me-2"></i>Tips</h5>
+                <ul class="small mb-0">
+                    <li>Download the official ANZSCO file from the ABS website using the link above</li>
+                    <li>The file should be in .xlsx format (Excel 2007+)</li>
+                    <li>Existing occupation codes will be skipped to prevent duplicates</li>
+                    <li>The import process automatically builds the hierarchical relationships</li>
+                    <li>After import, you can manage occupations individually using the Edit/Delete functions</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+}

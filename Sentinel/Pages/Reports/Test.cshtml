@@ -1,0 +1,48 @@
+@page
+@model Sentinel.Pages.Reports.TestModel
+@{
+    ViewData["Title"] = "Test Report Data Service";
+}
+
+<div class="container py-4">
+    <h2>Test Report Data Service</h2>
+
+    @if (Model.ErrorMessage != null)
+    {
+        <div class="alert alert-danger">
+            <h4>Error</h4>
+            <pre>@Model.ErrorMessage</pre>
+        </div>
+    }
+    else if (Model.ReportData != null)
+    {
+        <div class="alert alert-success">
+            <strong>Success!</strong> Loaded @Model.ReportData.Count rows
+        </div>
+
+        <table class="table table-striped">
+            <thead>
+                <tr>
+                    @if (Model.ReportData.Any())
+                    {
+                        @foreach (var key in Model.ReportData.First().Keys)
+                        {
+                            <th>@key</th>
+                        }
+                    }
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var row in Model.ReportData)
+                {
+                    <tr>
+                        @foreach (var value in row.Values)
+                        {
+                            <td>@value</td>
+                        }
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+</div>

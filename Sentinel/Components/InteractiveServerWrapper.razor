@@ -1,0 +1,11 @@
+@using Microsoft.AspNetCore.Components.Web
+
+@* This wraps a component to make it interactive *@
+<div>
+    @ChildContent
+</div>
+
+@code {
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+}

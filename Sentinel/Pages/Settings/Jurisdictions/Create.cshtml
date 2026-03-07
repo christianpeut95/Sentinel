@@ -1,0 +1,274 @@
+@page
+@model Sentinel.Pages.Settings.Jurisdictions.CreateModel
+@{
+    ViewData["Title"] = "Create Jurisdiction";
+}
+
+<nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a asp-page="/Index">Home</a></li>
+        <li class="breadcrumb-item"><a asp-page="/Settings/Index">Settings</a></li>
+        <li class="breadcrumb-item"><a asp-page="./Index">Jurisdictions</a></li>
+        <li class="breadcrumb-item active" aria-current="page">Create</li>
+    </ol>
+</nav>
+
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="mb-1">
+                <i class="bi bi-plus-circle me-2"></i>Create Jurisdiction
+            </h2>
+            <p class="text-muted mb-0">Add a new jurisdiction value to the system</p>
+        </div>
+        <a asp-page="./Index" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left me-1"></i>Back to List
+        </a>
+    </div>
+
+    <div class="row">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-body">
+                    <form method="post" enctype="multipart/form-data">
+                        <div class="mb-3">
+                            <label asp-for="Input.JurisdictionTypeId" class="form-label"></label>
+                            <select asp-for="Input.JurisdictionTypeId" asp-items="Model.JurisdictionTypes" class="form-select">
+                                <option value="">-- Select Jurisdiction Type --</option>
+                            </select>
+                            <span asp-validation-for="Input.JurisdictionTypeId" class="text-danger"></span>
+                            <small class="form-text text-muted">
+                                Which of the 5 jurisdiction fields does this belong to? 
+                                <a asp-page="/Settings/JurisdictionTypes/Index" target="_blank">Configure types</a>
+                            </small>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-8">
+                                <div class="mb-3">
+                                    <label asp-for="Input.Name" class="form-label"></label>
+                                    <input asp-for="Input.Name" class="form-control" placeholder="e.g., Western Sydney LHD, City of Sydney" />
+                                    <span asp-validation-for="Input.Name" class="text-danger"></span>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label asp-for="Input.Code" class="form-label"></label>
+                                    <input asp-for="Input.Code" class="form-control" placeholder="e.g., WSLHD, SYD" />
+                                    <span asp-validation-for="Input.Code" class="text-danger"></span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label asp-for="Input.Description" class="form-label"></label>
+                            <textarea asp-for="Input.Description" class="form-control" rows="2" 
+                                      placeholder="Optional description of this jurisdiction"></textarea>
+                            <span asp-validation-for="Input.Description" class="text-danger"></span>
+                        </div>
+
+                        <div class="mb-3">
+                            <label asp-for="Input.ParentJurisdictionId" class="form-label"></label>
+                            <select asp-for="Input.ParentJurisdictionId" asp-items="Model.ParentJurisdictions" class="form-select">
+                                <option value="">-- No Parent (Top Level) --</option>
+                            </select>
+                            <span asp-validation-for="Input.ParentJurisdictionId" class="text-danger"></span>
+                            <small class="form-text text-muted">Optional: Create hierarchical relationships between jurisdictions.</small>
+                        </div>
+
+                        <div class="mb-3">
+                            <label asp-for="Input.BoundaryData" class="form-label"></label>
+                            <textarea asp-for="Input.BoundaryData" class="form-control font-monospace" rows="6" 
+                                      placeholder='Paste GeoJSON polygon here, e.g.:&#10;{"type":"Polygon","coordinates":[[[151.1,-33.8],[151.2,-33.8],...]]}'></textarea>
+                            <span asp-validation-for="Input.BoundaryData" class="text-danger"></span>
+                            <small class="form-text text-muted">
+                                Optional: Paste GeoJSON polygon data OR upload a shapefile below.
+                            </small>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="ShapefileUpload" class="form-label">
+                                <i class="bi bi-upload me-1"></i>Upload Shapefile (Alternative to GeoJSON)
+                            </label>
+                            <input type="file" 
+                                   id="ShapefileUpload" 
+                                   name="ShapefileUpload" 
+                                   class="form-control" 
+                                   accept=".shp,.zip" />
+                            <small class="form-text text-muted">
+                                <strong>Supported formats:</strong> .shp file or .zip containing shapefile components (.shp, .shx, .dbf)
+                                <br/>
+                                Shapefile upload will override any manually entered GeoJSON.
+                            </small>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label asp-for="Input.DisplayOrder" class="form-label"></label>
+                                    <input asp-for="Input.DisplayOrder" type="number" class="form-control" min="0" value="0" />
+                                    <span asp-validation-for="Input.DisplayOrder" class="text-danger"></span>
+                                    <small class="form-text text-muted">Controls sort order in dropdowns (lower = first).</small>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label d-block">Status</label>
+                                    <div class="form-check form-switch">
+                                        <input asp-for="Input.IsActive" class="form-check-input" type="checkbox" role="switch" checked />
+                                        <label asp-for="Input.IsActive" class="form-check-label">
+                                            Active (visible in forms)
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+
+                        </div>
+
+                        <hr class="my-4"/>
+                        <h6 class="text-muted mb-3"><i class="bi bi-people-fill me-2"></i>Population Data (Optional)</h6>
+                        
+                        <div class="row">
+                            <div class="col-md-5">
+                                <div class="mb-3">
+                                    <label asp-for="Input.Population" class="form-label"></label>
+                                    <input asp-for="Input.Population" type="number" class="form-control" min="0" 
+                                           placeholder="e.g., 1000000" />
+                                    <span asp-validation-for="Input.Population" class="text-danger"></span>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="mb-3">
+                                    <label asp-for="Input.PopulationYear" class="form-label"></label>
+                                    <input asp-for="Input.PopulationYear" type="number" class="form-control" 
+                                           min="1900" max="2100" placeholder="e.g., 2024" />
+                                    <span asp-validation-for="Input.PopulationYear" class="text-danger"></span>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label asp-for="Input.PopulationSource" class="form-label"></label>
+                                    <input asp-for="Input.PopulationSource" class="form-control" maxlength="200"
+                                           placeholder="e.g., Census Bureau" />
+                                    <span asp-validation-for="Input.PopulationSource" class="text-danger"></span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="alert alert-info small">
+                            <i class="bi bi-info-circle me-1"></i>
+                            Population data can also be imported in bulk. See 
+                            <a asp-page="BulkPopulationUpload">Bulk Population Upload</a> for hundreds of jurisdictions.
+                        </div>
+
+                        <div class="d-flex gap-2 mt-4">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-check-circle me-1"></i>Create Jurisdiction
+                            </button>
+                            <a asp-page="./Index" class="btn btn-outline-secondary">
+                                Cancel
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card bg-light">
+                <div class="card-body">
+                    <h6 class="card-title">
+                        <i class="bi bi-lightbulb me-2"></i>Tips
+                    </h6>
+                    <ul class="mb-0 small">
+                        <li class="mb-2">
+                            <strong>Jurisdiction Type:</strong> Must be configured first in 
+                            <a asp-page="/Settings/JurisdictionTypes/Index">Jurisdiction Types</a>
+                        </li>
+                        <li class="mb-2">
+                            <strong>Hierarchies:</strong> Create parent-child relationships (e.g., NSW ? Western Sydney LHD)
+                        </li>
+                        <li class="mb-2">
+                            <strong>Boundary Data:</strong>
+                            <ul class="mt-1">
+                                <li>Option 1: Paste GeoJSON manually</li>
+                                <li>Option 2: Upload shapefile (.shp or .zip)</li>
+                                <li>Get data from data.gov.au, ABS, or your GIS team</li>
+                            </ul>
+                        </li>
+                        <li class="mb-2">
+                            <strong>Shapefiles:</strong> Must contain Polygon or MultiPolygon geometry. ZIP files should include .shp, .shx, and .dbf files.
+                        </li>
+                        <li>
+                            <strong>Active Status:</strong> Inactive jurisdictions are hidden but preserve existing assignments
+                        </li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="card mt-3">
+                <div class="card-body">
+                    <h6 class="card-title">
+                        <i class="bi bi-map me-2"></i>Shapefile Sources
+                    </h6>
+                    <p class="small mb-2">Australian boundary files:</p>
+                    <ul class="small mb-0">
+                        <li class="mb-1">
+                            <a href="https://www.abs.gov.au/statistics/standards/australian-statistical-geography-standard-asgs-edition-3/jul2021-jun2026/access-and-downloads/digital-boundary-files" target="_blank">
+                                ABS Statistical Areas
+                            </a>
+                        </li>
+                        <li class="mb-1">
+                            <a href="https://data.gov.au" target="_blank">
+                                data.gov.au - LGA Boundaries
+                            </a>
+                        </li>
+                        <li>NSW Health data portal</li>
+                    </ul>
+                </div>
+            </div>
+                            <a asp-page="/Settings/JurisdictionTypes/Index">Jurisdiction Types</a>
+                        </li>
+                        <li class="mb-2">
+                            <strong>Hierarchies:</strong> Create parent-child relationships (e.g., NSW ? Western Sydney LHD)
+                        </li>
+                        <li class="mb-2">
+                            <strong>GeoJSON:</strong> Get boundary data from data.gov.au, ABS, or your GIS team
+                        </li>
+                        <li>
+                            <strong>Active Status:</strong> Inactive jurisdictions are hidden but preserve existing assignments
+                        </li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="card mt-3">
+                <div class="card-body">
+                    <h6 class="card-title">
+                        <i class="bi bi-file-earmark-code me-2"></i>GeoJSON Example
+                    </h6>
+                    <pre class="mb-0 small bg-white p-2 rounded"><code>{
+  "type": "Polygon",
+  "coordinates": [
+    [
+      [151.1, -33.8],
+      [151.2, -33.8],
+      [151.2, -33.9],
+      [151.1, -33.9],
+      [151.1, -33.8]
+    ]
+  ]
+}</code></pre>
+                    <small class="text-muted d-block mt-2">
+                        Must be valid GeoJSON. Use 
+                        <a href="https://geojson.io" target="_blank">geojson.io</a> to create/validate.
+                    </small>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+}

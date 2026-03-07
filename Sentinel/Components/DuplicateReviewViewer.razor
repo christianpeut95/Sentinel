@@ -1,0 +1,494 @@
+@using Sentinel.Models
+@using Sentinel.Services
+@using Newtonsoft.Json
+@using Newtonsoft.Json.Linq
+@using Microsoft.AspNetCore.Components
+@inject ICollectionMappingService CollectionMappingService
+@inject NavigationManager Navigation
+
+<div class="duplicate-review-card">
+    @if (IsLoading)
+    {
+        <div class="text-center py-5">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <p class="text-muted mt-2">Loading duplicate comparison...</p>
+        </div>
+    }
+    else if (ReviewItem == null)
+    {
+        <div class="alert alert-warning">
+            <i class="bi bi-exclamation-triangle"></i>
+            No review item provided.
+        </div>
+    }
+    else
+    {
+        <!-- Header -->
+        <div class="review-header mb-4">
+            <div class="d-flex justify-content-between align-items-start">
+                <div>
+                    <h4 class="mb-1">
+                        <i class="bi bi-exclamation-diamond text-warning"></i>
+                        Potential Duplicate @EntityTypeDisplay
+                    </h4>
+                    <p class="text-muted mb-0">
+                        Review this potential duplicate and choose an action
+                    </p>
+                </div>
+                <div class="badge bg-warning text-dark fs-6">
+                    @PotentialMatches.Count match@(PotentialMatches.Count != 1 ? "es" : "") found
+                </div>
+            </div>
+        </div>
+
+        <!-- Proposed Data Panel -->
+        <div class="proposed-data-panel mb-4">
+            <div class="panel-header">
+                <h5 class="mb-0">
+                    <i class="bi bi-file-earmark-plus text-primary"></i>
+                    New Data from Survey
+                </h5>
+            </div>
+            <div class="panel-body">
+                @if (ProposedData.Any())
+                {
+                    <table class="table table-sm comparison-table">
+                        <tbody>
+                            @foreach (var field in ProposedData.OrderBy(f => f.Key))
+                            {
+                                <tr>
+                                    <td class="field-name">@FormatFieldName(field.Key)</td>
+                                    <td class="field-value">
+                                        <strong>@field.Value</strong>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                }
+                else
+                {
+                    <p class="text-muted">No proposed data available.</p>
+                }
+            </div>
+        </div>
+
+        <!-- Potential Matches -->
+        @if (PotentialMatches.Any())
+        {
+            <div class="matches-section mb-4">
+                <h5 class="mb-3">
+                    <i class="bi bi-search text-info"></i>
+                    Potential Matches in Database
+                </h5>
+
+                @foreach (var (match, index) in PotentialMatches.Select((m, i) => (m, i)))
+                {
+                    var isSelected = SelectedMatchId == match.ExistingEntityId;
+                    
+                    <div class="match-card @(isSelected ? "match-selected" : "") mb-3">
+                        <div class="match-header">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <h6 class="mb-1">
+                                        Match #@(index + 1)
+                                        <span class="badge @GetConfidenceBadgeClass(match.ConfidenceScore)">
+                                            @match.ConfidenceScore.ToString("P0") Confidence
+                                        </span>
+                                    </h6>
+                                    <small class="text-muted">Entity ID: @match.ExistingEntityId</small>
+                                </div>
+                                <div>
+                                    <button type="button" 
+                                            class="btn btn-sm btn-outline-primary"
+                                            @onclick="() => SelectMatch(match.ExistingEntityId)">
+                                        <i class="bi bi-@(isSelected ? "check-circle-fill" : "circle")"></i>
+                                        @(isSelected ? "Selected" : "Select This")
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="match-body">
+                            <div class="row">
+                                <!-- Matched Fields -->
+                                @if (match.MatchedFields?.Any() == true)
+                                {
+                                    <div class="col-md-6">
+                                        <h6 class="text-success">
+                                            <i class="bi bi-check-circle"></i> Matched Fields
+                                        </h6>
+                                        <table class="table table-sm">
+                                            <tbody>
+                                                @foreach (var field in match.MatchedFields)
+                                                {
+                                                    <tr>
+                                                        <td class="field-name">@FormatFieldName(field.Key)</td>
+                                                        <td class="field-value text-success">
+                                                            <i class="bi bi-check"></i> @field.Value
+                                                        </td>
+                                                    </tr>
+                                                }
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                }
+
+                                <!-- Conflicting Fields -->
+                                @if (match.ConflictingFields?.Any() == true)
+                                {
+                                    <div class="col-md-6">
+                                        <h6 class="text-warning">
+                                            <i class="bi bi-exclamation-triangle"></i> Different Fields
+                                        </h6>
+                                        <ul class="list-unstyled">
+                                            @foreach (var fieldName in match.ConflictingFields)
+                                            {
+                                                <li class="mb-1">
+                                                    <i class="bi bi-arrow-left-right text-warning"></i>
+                                                    <strong>@FormatFieldName(fieldName)</strong>
+                                                </li>
+                                            }
+                                        </ul>
+                                    </div>
+                                }
+                            </div>
+
+                            @if (match.ConfidenceScore >= 0.9)
+                            {
+                                <div class="alert alert-success alert-sm mt-2 mb-0">
+                                    <i class="bi bi-lightbulb"></i>
+                                    <strong>High Confidence:</strong> This is very likely the same entity. Consider linking.
+                                </div>
+                            }
+                            else if (match.ConfidenceScore >= 0.75)
+                            {
+                                <div class="alert alert-warning alert-sm mt-2 mb-0">
+                                    <i class="bi bi-info-circle"></i>
+                                    <strong>Medium Confidence:</strong> Review carefully before deciding.
+                                </div>
+                            }
+                            else
+                            {
+                                <div class="alert alert-secondary alert-sm mt-2 mb-0">
+                                    <i class="bi bi-question-circle"></i>
+                                    <strong>Low Confidence:</strong> May not be the same entity. Creating new might be safer.
+                                </div>
+                            }
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+
+        <!-- Decision Section -->
+        <div class="decision-section">
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <div class="decision-card decision-create">
+                        <div class="card-body">
+                            <h5 class="card-title">
+                                <i class="bi bi-plus-circle text-primary"></i>
+                                Create New @EntityTypeDisplay
+                            </h5>
+                            <p class="card-text text-muted">
+                                This is a different entity. Create a new record with the survey data.
+                            </p>
+                            <button type="button" 
+                                    class="btn btn-primary w-100"
+                                    @onclick="CreateNew"
+                                    disabled="@IsProcessing">
+                                @if (IsProcessing && !SelectedMatchId.HasValue)
+                                {
+                                    <span class="spinner-border spinner-border-sm me-2"></span>
+                                }
+                                <i class="bi bi-plus-lg"></i> Create New
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-md-6">
+                    <div class="decision-card decision-link">
+                        <div class="card-body">
+                            <h5 class="card-title">
+                                <i class="bi bi-link-45deg text-success"></i>
+                                Link to Existing
+                            </h5>
+                            <p class="card-text text-muted">
+                                This is the same entity. Link to the selected match above.
+                            </p>
+                            <button type="button" 
+                                    class="btn btn-success w-100"
+                                    @onclick="LinkExisting"
+                                    disabled="@(IsProcessing || !SelectedMatchId.HasValue)">
+                                @if (IsProcessing && SelectedMatchId.HasValue)
+                                {
+                                    <span class="spinner-border spinner-border-sm me-2"></span>
+                                }
+                                <i class="bi bi-link-45deg"></i> Link to Selected
+                            </button>
+                            @if (!SelectedMatchId.HasValue)
+                            {
+                                <small class="text-muted d-block mt-2">
+                                    <i class="bi bi-info-circle"></i> Select a match above first
+                                </small>
+                            }
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Reject Option -->
+            <div class="text-center mt-3">
+                <button type="button" 
+                        class="btn btn-outline-danger"
+                        @onclick="Reject"
+                        disabled="@IsProcessing">
+                    <i class="bi bi-x-circle"></i> Reject / Skip This Item
+                </button>
+            </div>
+        </div>
+
+        <!-- Notes Section -->
+        <div class="notes-section mt-4">
+            <label class="form-label">Review Notes (Optional)</label>
+            <textarea class="form-control" 
+                      rows="3" 
+                      @bind="ReviewNotes"
+                      placeholder="Add any notes about your decision..."></textarea>
+        </div>
+    }
+</div>
+
+<style>
+    .duplicate-review-card {
+        background: white;
+        border-radius: 12px;
+        padding: 2rem;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+
+    .review-header {
+        border-bottom: 2px solid #e2e8f0;
+        padding-bottom: 1rem;
+    }
+
+    .proposed-data-panel {
+        background: #f8fafc;
+        border: 2px solid #e2e8f0;
+        border-radius: 8px;
+        overflow: hidden;
+    }
+
+    .panel-header {
+        background: #e2e8f0;
+        padding: 0.75rem 1rem;
+        border-bottom: 2px solid #cbd5e1;
+    }
+
+    .panel-body {
+        padding: 1rem;
+    }
+
+    .comparison-table td {
+        border: none;
+        padding: 0.5rem;
+    }
+
+    .field-name {
+        font-weight: 500;
+        color: #64748b;
+        width: 40%;
+    }
+
+    .field-value {
+        color: #1e293b;
+    }
+
+    .match-card {
+        border: 2px solid #e2e8f0;
+        border-radius: 8px;
+        overflow: hidden;
+        transition: all 0.2s;
+    }
+
+    .match-card:hover {
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+
+    .match-selected {
+        border-color: #3b82f6;
+        background: #eff6ff;
+    }
+
+    .match-header {
+        background: #f8fafc;
+        padding: 1rem;
+        border-bottom: 1px solid #e2e8f0;
+    }
+
+    .match-body {
+        padding: 1rem;
+    }
+
+    .alert-sm {
+        padding: 0.5rem 0.75rem;
+        font-size: 0.875rem;
+    }
+
+    .decision-section {
+        border-top: 2px solid #e2e8f0;
+        padding-top: 1.5rem;
+        margin-top: 1.5rem;
+    }
+
+    .decision-card {
+        border: 2px solid #e2e8f0;
+        border-radius: 8px;
+        transition: all 0.2s;
+    }
+
+    .decision-card:hover {
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        transform: translateY(-2px);
+    }
+
+    .decision-create:hover {
+        border-color: #3b82f6;
+    }
+
+    .decision-link:hover {
+        border-color: #10b981;
+    }
+</style>
+
+@code {
+    [Parameter] public ReviewQueue? ReviewItem { get; set; }
+    [Parameter] public EventCallback<Guid?> OnApproved { get; set; }
+    [Parameter] public EventCallback OnRejected { get; set; }
+
+    private bool IsLoading { get; set; }
+    private bool IsProcessing { get; set; }
+    private string ReviewNotes { get; set; } = string.Empty;
+    private Guid? SelectedMatchId { get; set; }
+
+    private List<EntityMatch> PotentialMatches { get; set; } = new();
+    private Dictionary<string, object> ProposedData { get; set; } = new();
+    private string EntityTypeDisplay => ReviewItem?.EntityType?.Replace("Duplicate", "") ?? "Entity";
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (ReviewItem != null)
+        {
+            await LoadReviewData();
+        }
+    }
+
+    private async Task LoadReviewData()
+    {
+        IsLoading = true;
+        
+        try
+        {
+            // Parse potential matches
+            if (!string.IsNullOrEmpty(ReviewItem!.PotentialMatchesJson))
+            {
+                PotentialMatches = JsonConvert.DeserializeObject<List<EntityMatch>>(
+                    ReviewItem.PotentialMatchesJson
+                ) ?? new List<EntityMatch>();
+            }
+
+            // Parse proposed entity data
+            if (!string.IsNullOrEmpty(ReviewItem.ProposedEntityDataJson))
+            {
+                ProposedData = JsonConvert.DeserializeObject<Dictionary<string, object>>(
+                    ReviewItem.ProposedEntityDataJson
+                ) ?? new Dictionary<string, object>();
+            }
+
+            // Pre-select highest confidence match if > 90%
+            var topMatch = PotentialMatches.OrderByDescending(m => m.ConfidenceScore).FirstOrDefault();
+            if (topMatch != null && topMatch.ConfidenceScore >= 0.9)
+            {
+                SelectedMatchId = topMatch.ExistingEntityId;
+            }
+        }
+        finally
+        {
+            IsLoading = false;
+        }
+    }
+
+    private void SelectMatch(Guid matchId)
+    {
+        SelectedMatchId = SelectedMatchId == matchId ? null : matchId;
+    }
+
+    private async Task CreateNew()
+    {
+        IsProcessing = true;
+        
+        try
+        {
+            // Notify parent to approve with no selected entity (create new)
+            await OnApproved.InvokeAsync(null);
+        }
+        finally
+        {
+            IsProcessing = false;
+        }
+    }
+
+    private async Task LinkExisting()
+    {
+        if (!SelectedMatchId.HasValue)
+        {
+            return;
+        }
+
+        IsProcessing = true;
+        
+        try
+        {
+            // Notify parent to approve with selected entity ID (link)
+            await OnApproved.InvokeAsync(SelectedMatchId.Value);
+        }
+        finally
+        {
+            IsProcessing = false;
+        }
+    }
+
+    private async Task Reject()
+    {
+        IsProcessing = true;
+        
+        try
+        {
+            await OnRejected.InvokeAsync();
+        }
+        finally
+        {
+            IsProcessing = false;
+        }
+    }
+
+    private string FormatFieldName(string fieldPath)
+    {
+        // Convert "Patient.GivenName" to "Given Name"
+        var parts = fieldPath.Split('.');
+        var fieldName = parts.Length > 1 ? parts[1] : parts[0];
+        
+        // Add spaces before capital letters
+        return System.Text.RegularExpressions.Regex.Replace(fieldName, "([A-Z])", " $1").Trim();
+    }
+
+    private string GetConfidenceBadgeClass(double confidence)
+    {
+        if (confidence >= 0.9) return "bg-success";
+        if (confidence >= 0.75) return "bg-warning text-dark";
+        return "bg-secondary";
+    }
+}

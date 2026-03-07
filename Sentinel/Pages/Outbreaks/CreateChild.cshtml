@@ -1,0 +1,161 @@
+@page
+@model Sentinel.Pages.Outbreaks.CreateChildModel
+@{
+    ViewData["Title"] = "Create Sub-Investigation";
+}
+@functions {
+    public string GetCspNonce()
+    {
+        if (HttpContext?.Items?.TryGetValue("csp-nonce", out var nonce) == true && nonce is string nonceStr)
+        {
+            return nonceStr;
+        }
+        return string.Empty;
+    }
+}
+
+<nav aria-label="breadcrumb" class="mb-4">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a asp-page="/Index">Home</a></li>
+        <li class="breadcrumb-item"><a asp-page="Index">Outbreaks</a></li>
+        <li class="breadcrumb-item"><a asp-page="Details" asp-route-id="@Model.ParentId">@Model.ParentOutbreak.Name</a></li>
+        <li class="breadcrumb-item active">Create Sub-Investigation</li>
+    </ol>
+</nav>
+
+<div class="card mb-4" style="border-left: 4px solid #7c3aed;">
+    <div class="card-body">
+        <h2 class="mb-3"><i class="bi bi-plus-circle me-2"></i>Create Sub-Investigation</h2>
+        <div class="alert alert-info">
+            <i class="bi bi-info-circle me-2"></i>
+            <strong>Parent Outbreak:</strong> @Model.ParentOutbreak.Name<br/>
+            <small>This sub-investigation will be linked to the parent outbreak for coordinated management.</small>
+        </div>
+    </div>
+</div>
+
+@if (!string.IsNullOrEmpty(Model.ErrorMessage))
+{
+    <div class="alert alert-danger alert-dismissible fade show">
+        <i class="bi bi-exclamation-triangle me-2"></i>@Model.ErrorMessage
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+
+<div class="row">
+    <div class="col-lg-8">
+        <form method="post">
+            <input type="hidden" asp-for="ParentId" />
+            
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Sub-Investigation Details</h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label asp-for="Input.Name" class="form-label"></label>
+                        <input asp-for="Input.Name" class="form-control" placeholder="e.g., Sunshine Childcare Sub-Investigation" />
+                        <span asp-validation-for="Input.Name" class="text-danger"></span>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="Input.Description" class="form-label"></label>
+                        <textarea asp-for="Input.Description" class="form-control" rows="3"></textarea>
+                        <span asp-validation-for="Input.Description" class="text-danger"></span>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="Input.StartDate" class="form-label"></label>
+                        <input asp-for="Input.StartDate" class="form-control" type="date" />
+                        <span asp-validation-for="Input.StartDate" class="text-danger"></span>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="Input.LeadInvestigatorId" class="form-label"></label>
+                        <select asp-for="Input.LeadInvestigatorId" asp-items="Model.Users" class="form-select">
+                            <option value="">-- Select Lead Investigator --</option>
+                        </select>
+                        <small class="form-text text-muted">The person responsible for this sub-investigation</small>
+                    </div>
+
+                    <hr class="my-4"/>
+
+                    <h6 class="mb-3">Venue Assignment</h6>
+                    <p class="text-muted small">Assign this sub-investigation to a specific location or event</p>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label asp-for="Input.PrimaryLocationId" class="form-label">
+                                <i class="bi bi-geo-alt me-1"></i>Location
+                            </label>
+                            <select asp-for="Input.PrimaryLocationId" asp-items="Model.Locations" 
+                                    class="form-select" id="locationSelect">
+                                <option value="">-- Select Location --</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label asp-for="Input.PrimaryEventId" class="form-label">
+                                <i class="bi bi-calendar-event me-1"></i>Event
+                            </label>
+                            <select asp-for="Input.PrimaryEventId" asp-items="Model.Events" 
+                                    class="form-select" id="eventSelect">
+                                <option value="">-- Select Event --</option>
+                            </select>
+                        </div>
+                    </div>
+                    <small class="text-muted">?? Choose either a location OR an event, not both</small>
+                </div>
+                <div class="card-footer">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-plus-circle me-1"></i>Create Sub-Investigation
+                    </button>
+                    <a asp-page="Details" asp-route-id="@Model.ParentId" class="btn btn-secondary">Cancel</a>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <div class="col-lg-4">
+        <div class="card bg-light">
+            <div class="card-body">
+                <h6 class="card-title"><i class="bi bi-lightbulb me-2"></i>Sub-Investigation Tips</h6>
+                <ul class="small mb-0">
+                    <li>Each sub-investigation has its own lead investigator and team</li>
+                    <li>Assign to a specific venue (location or event)</li>
+                    <li>Sub-investigations inherit disease and confirmation status from parent</li>
+                    <li>Progress is tracked independently</li>
+                    <li>Parent outbreak shows aggregated statistics</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="card mt-3">
+            <div class="card-header bg-light">
+                <h6 class="mb-0">Parent Outbreak</h6>
+            </div>
+            <div class="card-body small">
+                <p><strong>Name:</strong> @Model.ParentOutbreak.Name</p>
+                <p><strong>Disease:</strong> @Model.ParentOutbreak.PrimaryDisease?.Name</p>
+                <p><strong>Status:</strong> @Model.ParentOutbreak.Status</p>
+                <p class="mb-0"><strong>Confirmation:</strong> @Model.ParentOutbreak.ConfirmationStatus?.Name</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+    <script>
+        // Ensure only one of location or event is selected
+        document.getElementById('locationSelect').addEventListener('change', function() {
+            if (this.value) {
+                document.getElementById('eventSelect').value = '';
+            }
+        });
+        document.getElementById('eventSelect').addEventListener('change', function() {
+            if (this.value) {
+                document.getElementById('locationSelect').value = '';
+            }
+        });
+    </script>
+}

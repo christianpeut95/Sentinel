@@ -1,0 +1,62 @@
+@using Microsoft.JSInterop
+@inject IJSRuntime JS
+
+<div id="@ContainerId" style="height: @Height; width: 100%;"></div>
+
+@code {
+    [Parameter]
+    public string ContainerId { get; set; } = $"wdr-{Guid.NewGuid():N}";
+
+    [Parameter]
+    public string Height { get; set; } = "600px";
+
+    [Parameter]
+    public EventCallback<string> OnReportComplete { get; set; }
+
+    private DotNetObjectReference<ReportViewer>? _objRef;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            _objRef = DotNetObjectReference.Create(this);
+            await JS.InvokeVoidAsync("webDataRocksHelper.initialize", ContainerId, _objRef);
+        }
+    }
+
+    public async Task LoadReportDataAsync(object reportData)
+    {
+        await JS.InvokeVoidAsync("webDataRocksHelper.loadData", ContainerId, reportData);
+    }
+
+    public async Task LoadReportConfigAsync(string reportConfig)
+    {
+        await JS.InvokeVoidAsync("webDataRocksHelper.loadReport", ContainerId, reportConfig);
+    }
+
+    public async Task<string> GetReportConfigAsync()
+    {
+        return await JS.InvokeAsync<string>("webDataRocksHelper.getReport", ContainerId);
+    }
+
+    public async Task ExportToExcelAsync()
+    {
+        await JS.InvokeVoidAsync("webDataRocksHelper.exportToExcel", ContainerId);
+    }
+
+    public async Task ExportToPdfAsync()
+    {
+        await JS.InvokeVoidAsync("webDataRocksHelper.exportToPdf", ContainerId);
+    }
+
+    [JSInvokable]
+    public async Task OnReportCompleteFromJS(string reportJson)
+    {
+        await OnReportComplete.InvokeAsync(reportJson);
+    }
+
+    public void Dispose()
+    {
+        _objRef?.Dispose();
+    }
+}

@@ -1,0 +1,733 @@
+@page
+@model Sentinel.Pages.Cases.IndexModel
+@using Sentinel.Models
+
+@{
+    ViewData["Title"] = "Cases";
+    Layout = "~/Pages/Shared/_Layout.cshtml";
+}
+@functions {
+    public string GetCspNonce()
+    {
+        if (HttpContext?.Items?.TryGetValue("csp-nonce", out var nonce) == true && nonce is string nonceStr)
+        {
+            return nonceStr;
+        }
+        return string.Empty;
+    }
+}
+
+<style>
+    /* Cases Page - Orange/Amber Theme - More Compact */
+    .page-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1rem;
+    }
+
+    .page-title {
+        font-size: 24px;
+        font-weight: 600;
+        color: #2d3748;
+        display: flex;
+        align-items: center;
+        gap: 0.4rem;
+    }
+
+    .page-title i {
+        color: #f59e0b; /* Orange icon for Cases */
+        font-size: 26px;
+    }
+
+    .page-subtitle {
+        font-size: 13px;
+        color: #718096;
+        font-weight: 400;
+        margin-top: 0.15rem;
+    }
+
+    .btn-hero {
+        background: #f59e0b; /* Orange for Cases */
+        color: white;
+        font-weight: 600;
+        border: none;
+        padding: 0.5rem 1rem;
+        border-radius: 8px;
+        transition: all 0.2s;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 14px;
+    }
+
+    .btn-hero:hover {
+        background: #d97706;
+        transform: translateY(-1px);
+        box-shadow: 0 3px 10px rgba(245, 158, 11, 0.3);
+        color: white;
+    }
+
+    .btn-secondary-hero {
+        background: white;
+        color: #f59e0b;
+        font-weight: 600;
+        border: 1px solid #fbbf24;
+        padding: 0.5rem 1rem;
+        border-radius: 8px;
+        transition: all 0.2s;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 14px;
+    }
+
+    .btn-secondary-hero:hover {
+        background: #fffbeb;
+        border-color: #f59e0b;
+        color: #f59e0b;
+        box-shadow: 0 2px 6px rgba(245, 158, 11, 0.15);
+    }
+
+    /* Stats Bar - Compact */
+    .stats-bar {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+        gap: 0.75rem;
+        margin-bottom: 1rem;
+    }
+
+    .stat-item {
+        background: white;
+        border-radius: 8px;
+        padding: 0.75rem 1rem;
+        border-left: 3px solid #f59e0b;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+        border-top: 1px solid rgba(0, 0, 0, 0.06);
+        border-right: 1px solid rgba(0, 0, 0, 0.06);
+        border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+    }
+
+    .stat-value {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: #f59e0b;
+        margin-bottom: 0.1rem;
+        line-height: 1;
+    }
+
+    .stat-label {
+        font-size: 0.8rem;
+        color: #718096;
+        font-weight: 500;
+    }
+
+    /* Table Card - Compact */
+    .table-card {
+        background: white;
+        border-radius: 10px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+        border: 1px solid rgba(0, 0, 0, 0.06);
+        overflow: hidden;
+    }
+
+    .table-card-header {
+        padding: 0.75rem 1rem;
+        border-bottom: 1px solid #e2e8f0;
+        background: linear-gradient(to right, #fffbeb, white);
+    }
+
+    .table-card-title {
+        margin: 0;
+        font-size: 1rem;
+        font-weight: 600;
+        color: #2d3748;
+        display: flex;
+        align-items: center;
+        gap: 0.4rem;
+    }
+
+    .table-card-title i {
+        color: #f59e0b;
+    }
+
+    /* Compact Table */
+    .apple-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 13px;
+    }
+
+    .apple-table thead {
+        background: #fffbeb;
+    }
+
+    .apple-table th {
+        padding: 0.5rem 0.75rem;
+        text-align: left;
+        font-weight: 600;
+        font-size: 11px;
+        color: #92400e;
+        border-bottom: 1px solid #fbbf24;
+        text-transform: uppercase;
+        letter-spacing: 0.3px;
+    }
+
+    .apple-table td {
+        padding: 0.6rem 0.75rem;
+        border-bottom: 1px solid #e2e8f0;
+        vertical-align: middle;
+    }
+
+    .apple-table tbody tr {
+        transition: background 0.15s;
+        cursor: pointer;
+    }
+
+    .apple-table tbody tr:hover {
+        background: #fffbeb;
+    }
+
+    .apple-table tbody tr:last-child td {
+        border-bottom: none;
+    }
+
+    /* Friendly ID Badge - Compact */
+    .friendly-id {
+        font-family: 'SF Mono', 'Monaco', 'Courier New', monospace;
+        font-weight: 600;
+        color: #f59e0b;
+        background: #fffbeb;
+        padding: 2px 6px;
+        border-radius: 4px;
+        font-size: 11px;
+        display: inline-block;
+        border: 1px solid #fbbf24;
+    }
+
+    /* Status Badge - Compact */
+    .case-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 2px 8px;
+        border-radius: 6px;
+        font-size: 11px;
+        font-weight: 500;
+    }
+
+    .case-badge.confirmed {
+        background: rgba(52, 199, 89, 0.1);
+        color: #22c55e;
+    }
+
+    .case-badge.probable {
+        background: rgba(245, 158, 11, 0.1);
+        color: #f59e0b;
+    }
+
+    .case-badge.suspected {
+        background: rgba(100, 116, 139, 0.1);
+        color: #64748b;
+    }
+
+    /* Action Buttons - Compact */
+    .btn-icon {
+        width: 26px;
+        height: 26px;
+        border-radius: 6px;
+        border: 1px solid #e2e8f0;
+        background: white;
+        color: #4a5568;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.15s;
+        text-decoration: none;
+        margin-right: 3px;
+        font-size: 12px;
+    }
+
+    .btn-icon:hover {
+        background: #fffbeb;
+        border-color: #fbbf24;
+        color: #f59e0b;
+        transform: translateY(-1px);
+    }
+
+    /* Empty State - Compact */
+    .empty-state {
+        background: white;
+        border-radius: 10px;
+        padding: 2rem 1.5rem;
+        text-align: center;
+        border: 1px solid rgba(0, 0, 0, 0.06);
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+    }
+
+    .empty-state i {
+        font-size: 2.5rem;
+        color: #fbbf24;
+        margin-bottom: 0.75rem;
+    }
+
+    .empty-state h3 {
+        font-size: 1.1rem;
+        font-weight: 600;
+        color: #2d3748;
+        margin-bottom: 0.4rem;
+    }
+
+    .empty-state p {
+        color: #718096;
+        margin-bottom: 1rem;
+        font-size: 14px;
+    }
+
+    /* Breadcrumb - Compact */
+    .breadcrumb {
+        background: transparent;
+        padding: 0;
+        margin-bottom: 1rem;
+        font-size: 13px;
+    }
+
+    .breadcrumb-item a {
+        color: #718096;
+        text-decoration: none;
+    }
+
+    .breadcrumb-item a:hover {
+        color: #2d3748;
+    }
+
+    .breadcrumb-item.active {
+        color: #f59e0b;
+        font-weight: 500;
+    }
+
+    /* Link Styling */
+    .case-link {
+        color: #2d3748;
+        text-decoration: none;
+        font-weight: 500;
+    }
+
+    .case-link:hover {
+        color: #f59e0b;
+        text-decoration: underline;
+    }
+
+    .patient-link {
+        color: #007AFF;
+        text-decoration: none;
+    }
+
+    .patient-link:hover {
+        text-decoration: underline;
+    }
+
+    /* Pagination - Compact */
+    .pagination-container {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0.75rem 1rem;
+        border-top: 1px solid #e2e8f0;
+        background: #fffbeb;
+    }
+
+    .pagination-info {
+        font-size: 12px;
+        color: #718096;
+    }
+
+    .pagination {
+        display: flex;
+        gap: 3px;
+        list-style: none;
+        margin: 0;
+        padding: 0;
+    }
+
+    .pagination .page-item {
+        margin: 0;
+    }
+
+    .pagination .page-link {
+        padding: 5px 10px;
+        border-radius: 6px;
+        border: 1px solid #fbbf24;
+        background: white;
+        color: #f59e0b;
+        text-decoration: none;
+        font-size: 12px;
+        font-weight: 500;
+        transition: all 0.15s;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 30px;
+    }
+
+    .pagination .page-link:hover {
+        background: #fffbeb;
+        border-color: #f59e0b;
+    }
+
+    .pagination .page-item.active .page-link {
+        background: #f59e0b;
+        color: white;
+        border-color: #f59e0b;
+    }
+
+    .pagination .page-item.disabled .page-link {
+        background: #f7fafc;
+        color: #cbd5e0;
+        border-color: #e2e8f0;
+        cursor: not-allowed;
+    }
+
+    /* Sortable Column Headers */
+    .sortable-header {
+        cursor: pointer;
+        user-select: none;
+        transition: color 0.15s;
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        text-decoration: none;
+        color: inherit;
+    }
+
+    .sortable-header:hover {
+        color: #f59e0b !important;
+    }
+
+    .sort-icon {
+        font-size: 10px;
+        color: #cbd5e0;
+        transition: color 0.15s;
+    }
+
+    .sortable-header:hover .sort-icon {
+        color: #f59e0b;
+    }
+
+    .sort-icon.active {
+        color: #f59e0b;
+    }
+
+    /* Responsive */
+    @@media (max-width: 768px) {
+        .page-header {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 0.75rem;
+        }
+
+        .stats-bar {
+            grid-template-columns: 1fr;
+        }
+
+        .pagination-container {
+            flex-direction: column;
+            gap: 0.75rem;
+            align-items: flex-start;
+        }
+    }
+</style>
+
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a asp-page="/Index">Home</a></li>
+        <li class="breadcrumb-item active" aria-current="page">Cases</li>
+    </ol>
+</nav>
+
+<div class="page-header">
+    <div>
+        <h1 class="page-title">
+            <i class="bi bi-virus"></i>
+            Cases
+        </h1>
+        <p class="page-subtitle">Active disease cases under investigation</p>
+    </div>
+    <div class="d-flex gap-2 flex-wrap">
+        <a asp-page="Search" class="btn-secondary-hero">
+            <i class="bi bi-search"></i>
+            Advanced Search
+        </a>
+        <a asp-page="CreateNew" class="btn-hero">
+            <i class="bi bi-plus-circle"></i>
+            Add New Case
+        </a>
+    </div>
+</div>
+
+<!-- Quick Search -->
+<div class="table-card" style="margin-bottom: 1rem;">
+    <div class="table-card-header">
+        <h2 class="table-card-title">
+            <i class="bi bi-funnel"></i>
+            Quick Search & Filters
+        </h2>
+    </div>
+    <div style="padding: 0.75rem 1rem;">
+        <form method="get" class="row g-2">
+            <div class="col-md-6">
+                <div class="input-group input-group-sm">
+                    <span class="input-group-text"><i class="bi bi-search"></i></span>
+                    <input type="text" class="form-control" name="SearchTerm" value="@Model.SearchTerm" 
+                           placeholder="Search by case ID, patient name, or disease..." />
+                </div>
+            </div>
+            <div class="col-md-4">
+                <select class="form-select form-select-sm" name="FilterBy">
+                    <option value="" selected="@(string.IsNullOrEmpty(Model.FilterBy))">All Cases</option>
+                    <option value="Recent" selected="@(Model.FilterBy == "Recent")">Recent (7 days)</option>
+                    <option value="Today" selected="@(Model.FilterBy == "Today")">Today</option>
+                    <option value="ThisMonth" selected="@(Model.FilterBy == "ThisMonth")">This Month</option>
+                    <option value="WithStatus" selected="@(Model.FilterBy == "WithStatus")">Has Status</option>
+                    <option value="NoStatus" selected="@(Model.FilterBy == "NoStatus")">No Status</option>
+                    <option value="WithDisease" selected="@(Model.FilterBy == "WithDisease")">Has Disease</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <button type="submit" class="btn btn-sm btn-primary w-100">Apply</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Stats Bar -->
+<div class="stats-bar">
+    <div class="stat-item">
+        <div class="stat-value">@Model.TotalCount</div>
+        <div class="stat-label">Total Cases</div>
+    </div>
+    <div class="stat-item">
+        <div class="stat-value">@Model.Cases.Count(c => c.DateOfOnset.HasValue && c.DateOfOnset.Value >= DateTime.Today.AddDays(-7))</div>
+        <div class="stat-label">This Week</div>
+    </div>
+    <div class="stat-item">
+        <div class="stat-value">@Model.Cases.Count(c => c.ConfirmationStatus?.Name?.Contains("Confirmed") == true)</div>
+        <div class="stat-label">Confirmed (Page)</div>
+    </div>
+    <div class="stat-item">
+        <div class="stat-value">@Model.Cases.Count(c => c.ConfirmationStatus?.Name?.Contains("Probable") == true)</div>
+        <div class="stat-label">Probable (Page)</div>
+    </div>
+</div>
+
+@if (Model.TotalCount == 0)
+{
+    <div class="empty-state">
+        <i class="bi bi-virus"></i>
+        <h3>No Cases Yet</h3>
+        <p>Create your first case to start tracking disease surveillance.</p>
+        <a asp-page="CreateNew" class="btn-hero">
+            <i class="bi bi-plus-circle"></i>
+            Create First Case
+        </a>
+    </div>
+}
+else
+{
+    <div class="table-card">
+        <div class="table-card-header">
+            <h2 class="table-card-title">
+                <i class="bi bi-list-ul"></i>
+                All Cases (@Model.TotalCount total, showing @Model.Cases.Count())
+            </h2>
+        </div>
+        <div class="table-responsive">
+            <table class="apple-table">
+                <thead>
+                    <tr>
+                        <th style="width: 90px;">
+                            <a href="@Model.GetSortUrl("CaseId")" class="sortable-header">
+                                Case ID
+                                <i class="bi @Model.GetSortIcon("CaseId") sort-icon @(Model.SortBy == "CaseId" ? "active" : "")"></i>
+                            </a>
+                        </th>
+                        <th>
+                            <a href="@Model.GetSortUrl("Patient")" class="sortable-header">
+                                Patient
+                                <i class="bi @Model.GetSortIcon("Patient") sort-icon @(Model.SortBy == "Patient" ? "active" : "")"></i>
+                            </a>
+                        </th>
+                        <th style="width: 120px;">Suburb</th>
+                        <th style="width: 50px;">Age</th>
+                        <th style="width: 70px;">Sex</th>
+                        <th>
+                            <a href="@Model.GetSortUrl("Disease")" class="sortable-header">
+                                Disease
+                                <i class="bi @Model.GetSortIcon("Disease") sort-icon @(Model.SortBy == "Disease" ? "active" : "")"></i>
+                            </a>
+                        </th>
+                        <th style="width: 100px;">
+                            <a href="@Model.GetSortUrl("DateOfOnset")" class="sortable-header">
+                                Onset Date
+                                <i class="bi @Model.GetSortIcon("DateOfOnset") sort-icon @(Model.SortBy == "DateOfOnset" ? "active" : "")"></i>
+                            </a>
+                        </th>
+                        <th style="width: 100px;">
+                            <a href="@Model.GetSortUrl("DateOfNotification")" class="sortable-header">
+                                Notif. Date
+                                <i class="bi @Model.GetSortIcon("DateOfNotification") sort-icon @(Model.SortBy == "DateOfNotification" ? "active" : "")"></i>
+                            </a>
+                        </th>
+                        <th style="width: 100px;">
+                            <a href="@Model.GetSortUrl("Status")" class="sortable-header">
+                                Status
+                                <i class="bi @Model.GetSortIcon("Status") sort-icon @(Model.SortBy == "Status" ? "active" : "")"></i>
+                            </a>
+                        </th>
+                        <th style="text-align: center; width: 70px;">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var item in Model.Cases)
+                    {
+                        <tr onclick="window.location.href='@Url.Page("./Details", new { id = item.Id })'">
+                            <td>
+                                <span class="friendly-id">@item.FriendlyId</span>
+                            </td>
+                            <td>
+                                @if (item.Patient != null)
+                                {
+                                    <a asp-page="/Patients/Details" asp-route-id="@item.PatientId" class="patient-link" onclick="event.stopPropagation()">
+                                        @(item.Patient.FamilyName ?? ""), @(item.Patient.GivenName ?? "")
+                                    </a>
+                                }
+                                else
+                                {
+                                    <span style="color: #94a3b8; font-style: italic;">No patient linked</span>
+                                }
+                            </td>
+                            <td>
+                                @if (!string.IsNullOrWhiteSpace(item.Patient?.City))
+                                {
+                                    @item.Patient.City
+                                }
+                                else
+                                {
+                                    <span style="color: #94a3b8; font-style: italic;">&mdash;</span>
+                                }
+                            </td>
+                            <td>
+                                @if (item.Patient?.DateOfBirth.HasValue == true)
+                                {
+                                    var age = DateTime.Now.Year - item.Patient.DateOfBirth.Value.Year;
+                                    if (DateTime.Now < item.Patient.DateOfBirth.Value.AddYears(age)) age--;
+                                    @age
+                                }
+                                else
+                                {
+                                    <span style="color: #94a3b8; font-style: italic;">&mdash;</span>
+                                }
+                            </td>
+                            <td>
+                                @if (item.Patient?.SexAtBirth != null)
+                                {
+                                    @item.Patient.SexAtBirth.Name
+                                }
+                                else
+                                {
+                                    <span style="color: #94a3b8; font-style: italic;">&mdash;</span>
+                                }
+                            </td>
+                            <td>
+                                @if (item.Disease != null && !string.IsNullOrWhiteSpace(item.Disease.Name))
+                                {
+                                    @item.Disease.Name
+                                }
+                                else
+                                {
+                                    <span style="color: #94a3b8; font-style: italic;">Not specified</span>
+                                }
+                            </td>
+                            <td>
+                                @if (item.DateOfOnset.HasValue)
+                                {
+                                    @item.DateOfOnset.Value.ToString("dd MMM yyyy")
+                                }
+                                else
+                                {
+                                    <span style="color: #94a3b8; font-style: italic;">&mdash;</span>
+                                }
+                            </td>
+                            <td>
+                                @if (item.DateOfNotification.HasValue)
+                                {
+                                    @item.DateOfNotification.Value.ToString("dd MMM yyyy")
+                                }
+                                else
+                                {
+                                    <span style="color: #94a3b8; font-style: italic;">&mdash;</span>
+                                }
+                            </td>
+                            <td>
+                                @{
+                                    var statusName = item.ConfirmationStatus?.Name ?? "Unknown";
+                                    var badgeClass = statusName.Contains("Confirmed") ? "confirmed" : 
+                                                   statusName.Contains("Probable") ? "probable" : "suspected";
+                                }
+                                <span class="case-badge @badgeClass">@statusName</span>
+                            </td>
+                            <td style="text-align: center;" onclick="event.stopPropagation()">
+                                <a asp-page="./Details" asp-route-id="@item.Id" class="btn-icon" title="View Details">
+                                    <i class="bi bi-eye"></i>
+                                </a>
+                                <a asp-page="./Edit" asp-route-id="@item.Id" class="btn-icon" title="Edit">
+                                    <i class="bi bi-pencil"></i>
+                                </a>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+        
+        <!-- Pagination -->
+        @if (Model.TotalPages > 1)
+        {
+            <div class="pagination-container">
+                <div class="pagination-info">
+                    Showing @((Model.CurrentPage - 1) * Model.PageSize + 1) - @(Math.Min(Model.CurrentPage * Model.PageSize, Model.TotalCount)) of @Model.TotalCount cases
+                </div>
+                <ul class="pagination">
+                    <li class="page-item @(Model.CurrentPage == 1 ? "disabled" : "")">
+                        <a class="page-link" href="?CurrentPage=1&SortBy=@Model.SortBy&SortOrder=@Model.SortOrder">
+                            <i class="bi bi-chevron-double-left"></i>
+                        </a>
+                    </li>
+                    <li class="page-item @(Model.CurrentPage == 1 ? "disabled" : "")">
+                        <a class="page-link" href="?CurrentPage=@(Model.CurrentPage - 1)&SortBy=@Model.SortBy&SortOrder=@Model.SortOrder">
+                            <i class="bi bi-chevron-left"></i>
+                        </a>
+                    </li>
+                    @for (int i = Math.Max(1, Model.CurrentPage - 2); i <= Math.Min(Model.TotalPages, Model.CurrentPage + 2); i++)
+                    {
+                        <li class="page-item @(i == Model.CurrentPage ? "active" : "")">
+                            <a class="page-link" href="?CurrentPage=@i&SortBy=@Model.SortBy&SortOrder=@Model.SortOrder">@i</a>
+                        </li>
+                    }
+                    <li class="page-item @(Model.CurrentPage == Model.TotalPages ? "disabled" : "")">
+                        <a class="page-link" href="?CurrentPage=@(Model.CurrentPage + 1)&SortBy=@Model.SortBy&SortOrder=@Model.SortOrder">
+                            <i class="bi bi-chevron-right"></i>
+                        </a>
+                    </li>
+                    <li class="page-item @(Model.CurrentPage == Model.TotalPages ? "disabled" : "")">
+                        <a class="page-link" href="?CurrentPage=@Model.TotalPages&SortBy=@Model.SortBy&SortOrder=@Model.SortOrder">
+                            <i class="bi bi-chevron-double-right"></i>
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        }
+    </div>
+}

@@ -1,0 +1,448 @@
+@page
+@model Sentinel.Pages.Cases.EditExposureModel
+@using Sentinel.Models
+@{
+    Layout = null;
+}
+@functions {
+    public string GetCspNonce()
+    {
+        if (HttpContext?.Items?.TryGetValue("csp-nonce", out var nonce) == true && nonce is string nonceStr)
+        {
+            return nonceStr;
+        }
+        return string.Empty;
+    }
+}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Edit Exposure - @Model.Case.FriendlyId</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" />
+    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+    <link href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css" rel="stylesheet" />
+    <style>
+        body {
+            background: #f8f9fa;
+            padding: 0.75rem;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            font-size: 0.875rem;
+        }
+        .container {
+            background: white;
+            border-radius: 8px;
+            padding: 1.5rem;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            max-height: calc(100vh - 1.5rem);
+            overflow-y: auto;
+        }
+        .header {
+            border-bottom: 2px solid #e9ecef;
+            padding-bottom: 1rem;
+            margin-bottom: 1rem;
+        }
+        h1 {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: #2d3748;
+            margin: 0;
+        }
+        .case-context {
+            background: #e3f2fd;
+            border-radius: 6px;
+            padding: 0.75rem;
+            margin-bottom: 1rem;
+            font-size: 0.85rem;
+        }
+        .form-label {
+            font-weight: 600;
+            margin-bottom: 0.25rem;
+        }
+        .required {
+            color: #dc3545;
+        }
+        .btn-toolbar {
+            margin-top: 1rem;
+            padding-top: 1rem;
+            border-top: 1px solid #e9ecef;
+            display: flex;
+            gap: 0.5rem;
+            justify-content: flex-end;
+        }
+        .type-specific {
+            background: #f7fafc;
+            border-radius: 6px;
+            padding: 1rem;
+            margin-top: 1rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1><i class="bi bi-diagram-3 me-2"></i>Edit Exposure</h1>
+            <small class="text-muted">Case: <strong>@Model.Case.FriendlyId</strong></small>
+        </div>
+
+        <div class="case-context">
+            <strong>Patient:</strong> @Model.Case.Patient?.GivenName @Model.Case.Patient?.FamilyName<br/>
+            @if (Model.Case.Disease != null)
+            {
+                <strong>Disease:</strong> @Model.Case.Disease.Name
+            }
+        </div>
+
+        <form method="post">
+            <input type="hidden" asp-for="Id" />
+            <input type="hidden" asp-for="CaseId" />
+            <input type="hidden" asp-for="Exposure.ExposedCaseId" />
+
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <label asp-for="Exposure.ExposureType" class="form-label">
+                        Exposure Type <span class="required">*</span>
+                    </label>
+                    <select asp-for="Exposure.ExposureType" class="form-select" id="exposureTypeSelect" required>
+                        <option value="">Select Type</option>
+                        <option value="@((int)ExposureType.Event)">Event</option>
+                        <option value="@((int)ExposureType.Location)">Location</option>
+                        <option value="@((int)ExposureType.Contact)">Contact</option>
+                        <option value="@((int)ExposureType.Travel)">Travel</option>
+                    </select>
+                    <span asp-validation-for="Exposure.ExposureType" class="text-danger"></span>
+                </div>
+
+                <div class="col-md-6">
+                    <label asp-for="Exposure.ExposureStatus" class="form-label">
+                        Status <span class="required">*</span>
+                    </label>
+                    <select asp-for="Exposure.ExposureStatus" class="form-select">
+                        <option value="@((int)ExposureStatus.PotentialExposure)">Potential Exposure</option>
+                        <option value="@((int)ExposureStatus.UnderInvestigation)">Under Investigation</option>
+                        <option value="@((int)ExposureStatus.ConfirmedExposure)">Confirmed Exposure</option>
+                        <option value="@((int)ExposureStatus.RuledOut)">Ruled Out</option>
+                    </select>
+                    <span asp-validation-for="Exposure.ExposureStatus" class="text-danger"></span>
+                </div>
+            </div>
+
+            <div class="row g-3 mt-2">
+                <div class="col-md-6">
+                    <label asp-for="Exposure.ExposureStartDate" class="form-label">
+                        Start Date/Time <span class="required">*</span>
+                    </label>
+                    <input asp-for="Exposure.ExposureStartDate" type="datetime-local" class="form-control" required />
+                    <span asp-validation-for="Exposure.ExposureStartDate" class="text-danger"></span>
+                </div>
+
+                <div class="col-md-6">
+                    <label asp-for="Exposure.ExposureEndDate" class="form-label">
+                        End Date/Time
+                    </label>
+                    <input asp-for="Exposure.ExposureEndDate" type="datetime-local" class="form-control" />
+                    <span asp-validation-for="Exposure.ExposureEndDate" class="text-danger"></span>
+                </div>
+            </div>
+
+            <!-- Type-Specific Fields -->
+            <div class="type-specific">
+                <div id="eventSection" style="display: none;">
+                    <label asp-for="Exposure.EventId" class="form-label">
+                        Event <span class="required">*</span>
+                    </label>
+                    <select asp-for="Exposure.EventId" class="form-select select2-event" id="eventSelect">
+                        <option value="">Type to search for event...</option>
+                    </select>
+                    <span asp-validation-for="Exposure.EventId" class="text-danger"></span>
+                </div>
+
+                <div id="locationSection" style="display: none;">
+                    <label asp-for="Exposure.LocationId" class="form-label">
+                        Location <span class="required">*</span>
+                    </label>
+                    <select asp-for="Exposure.LocationId" class="form-select select2-location" id="locationSelect">
+                        <option value="">Type to search for location...</option>
+                    </select>
+                    <span asp-validation-for="Exposure.LocationId" class="text-danger"></span>
+                </div>
+
+                <div id="contactSection" style="display: none;">
+                    <label asp-for="Exposure.SourceCaseId" class="form-label">
+                        Source Case <span class="required">*</span>
+                    </label>
+                    <select asp-for="Exposure.SourceCaseId" class="form-select select2-case" id="caseSelect">
+                        <option value="">Type to search for case...</option>
+                    </select>
+                    <span asp-validation-for="Exposure.SourceCaseId" class="text-danger"></span>
+                </div>
+
+                <div id="travelSection" style="display: none;">
+                    <label asp-for="Exposure.CountryCode" class="form-label">
+                        Country <span class="required">*</span>
+                    </label>
+                    <select asp-for="Exposure.CountryCode" class="form-select select2-country" id="countrySelect">
+                        <option value="">Type to search for country...</option>
+                    </select>
+                    <span asp-validation-for="Exposure.CountryCode" class="text-danger"></span>
+                </div>
+            </div>
+
+            <div class="mb-3 mt-3">
+                <label asp-for="Exposure.Description" class="form-label">Description</label>
+                <textarea asp-for="Exposure.Description" class="form-control" rows="3" placeholder="Additional details about this exposure..."></textarea>
+            </div>
+
+            <div class="mb-3">
+                <div class="form-check">
+                    <input asp-for="Exposure.IsReportingExposure" class="form-check-input" type="checkbox" />
+                    <label asp-for="Exposure.IsReportingExposure" class="form-check-label">
+                        Primary Reporting Exposure
+                    </label>
+                    <small class="form-text text-muted d-block">
+                        <i class="bi bi-info-circle me-1"></i>
+                        Check this if this is the main exposure that should be reported for this case. Only one exposure can be marked as primary.
+                    </small>
+                </div>
+            </div>
+
+            <div class="btn-toolbar">
+                <button type="button" class="btn btn-secondary" onclick="window.close()">
+                    <i class="bi bi-x-circle me-1"></i>Cancel
+                </button>
+                <button type="submit" class="btn btn-primary">
+                    <i class="bi bi-save me-1"></i>Save Changes
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+    <script>
+        $(document).ready(function() {
+            // Initialize Select2 for Events
+            $('.select2-event').select2({
+                theme: 'bootstrap-5',
+                placeholder: 'Type to search for event...',
+                allowClear: true,
+                minimumInputLength: 2,
+                ajax: {
+                    url: '/api/events/search',
+                    dataType: 'json',
+                    delay: 250,
+                    data: function(params) {
+                        return {
+                            term: params.term
+                        };
+                    },
+                    processResults: function(data) {
+                        return {
+                            results: data.map(function(item) {
+                                return {
+                                    id: item.id,
+                                    text: item.name + (item.location ? ' (' + item.location + ')' : '')
+                                };
+                            })
+                        };
+                    },
+                    cache: true
+                }
+            });
+
+            // Initialize Select2 for Locations
+            $('.select2-location').select2({
+                theme: 'bootstrap-5',
+                placeholder: 'Type to search for location...',
+                allowClear: true,
+                minimumInputLength: 2,
+                ajax: {
+                    url: '/api/locations/search',
+                    dataType: 'json',
+                    delay: 250,
+                    data: function(params) {
+                        return {
+                            term: params.term
+                        };
+                    },
+                    processResults: function(data) {
+                        return {
+                            results: data.map(function(item) {
+                                var text = item.name;
+                                if (item.address) {
+                                    text += ' (' + item.address + ')';
+                                }
+                                return {
+                                    id: item.id,
+                                    text: text
+                                };
+                            })
+                        };
+                    },
+                    cache: true
+                }
+            });
+
+            // Initialize Select2 for Cases
+            $('.select2-case').select2({
+                theme: 'bootstrap-5',
+                placeholder: 'Type to search for case...',
+                allowClear: true,
+                minimumInputLength: 2,
+                ajax: {
+                    url: '/api/cases/search',
+                    dataType: 'json',
+                    delay: 250,
+                    data: function(params) {
+                        return {
+                            term: params.term,
+                            excludeCaseId: '@Model.CaseId'
+                        };
+                    },
+                    processResults: function(data) {
+                        return {
+                            results: data.map(function(item) {
+                                return {
+                                    id: item.id,
+                                    text: item.friendlyId + ' - ' + item.patientName
+                                };
+                            })
+                        };
+                    },
+                    cache: true
+                }
+            });
+
+            // Initialize Select2 for Countries
+            $('.select2-country').select2({
+                theme: 'bootstrap-5',
+                placeholder: 'Type to search for country...',
+                allowClear: true,
+                minimumInputLength: 1,
+                ajax: {
+                    url: '/api/countries/search',
+                    dataType: 'json',
+                    delay: 250,
+                    data: function(params) {
+                        return {
+                            term: params.term
+                        };
+                    },
+                    processResults: function(data) {
+                        return {
+                            results: data.map(function(item) {
+                                return {
+                                    id: item.id,
+                                    text: item.text
+                                };
+                            })
+                        };
+                    },
+                    cache: true
+                }
+            });
+
+            // Pre-populate Select2 fields with existing values if they exist
+            @if (Model.Exposure.EventId.HasValue)
+            {
+                <text>
+                // Load current event name from API
+                $.get('/api/events/@Model.Exposure.EventId', function(event) {
+                    var displayText = event.name;
+                    if (event.location) {
+                        displayText += ' (' + event.location + ')';
+                    }
+                    var option = new Option(displayText, event.id, true, true);
+                    $('#eventSelect').html('').append(option).trigger('change');
+                }).fail(function() {
+                    var option = new Option('Event (ID: @Model.Exposure.EventId)', '@Model.Exposure.EventId', true, true);
+                    $('#eventSelect').html('').append(option).trigger('change');
+                });
+                </text>
+            }
+
+            @if (Model.Exposure.LocationId.HasValue)
+            {
+                <text>
+                // Load current location name from API
+                $.get('/api/locations/@Model.Exposure.LocationId', function(location) {
+                    var displayText = location.name;
+                    if (location.address) {
+                        displayText += ' (' + location.address + ')';
+                    }
+                    var option = new Option(displayText, location.id, true, true);
+                    $('#locationSelect').html('').append(option).trigger('change');
+                }).fail(function() {
+                    var option = new Option('Location (ID: @Model.Exposure.LocationId)', '@Model.Exposure.LocationId', true, true);
+                    $('#locationSelect').html('').append(option).trigger('change');
+                });
+                </text>
+            }
+
+            @if (Model.Exposure.SourceCaseId.HasValue)
+            {
+                <text>
+                // Load current case/contact name from API
+                $.get('/api/cases/@Model.Exposure.SourceCaseId', function(caseData) {
+                    var displayText = caseData.friendlyId + ' - ' + caseData.patientName;
+                    var option = new Option(displayText, caseData.id, true, true);
+                    $('#caseSelect').html('').append(option).trigger('change');
+                }).fail(function() {
+                    var option = new Option('Case (ID: @Model.Exposure.SourceCaseId)', '@Model.Exposure.SourceCaseId', true, true);
+                    $('#caseSelect').html('').append(option).trigger('change');
+                });
+                </text>
+            }
+
+            @if (!string.IsNullOrEmpty(Model.Exposure.CountryCode))
+            {
+                <text>
+                // Load country name via API
+                $.get('/api/countries/@Model.Exposure.CountryCode', function(country) {
+                    var option = new Option(country.text, country.id, true, true);
+                    $('#countrySelect').html('').append(option).trigger('change');
+                }).fail(function() {
+                    // If API fails, just show the code
+                    var option = new Option('@Model.Exposure.CountryCode', '@Model.Exposure.CountryCode', true, true);
+                    $('#countrySelect').html('').append(option).trigger('change');
+                });
+                </text>
+            }
+
+            // Show correct section based on exposure type
+            showCorrectSection();
+        });
+
+        // Show/hide type-specific sections
+        document.getElementById('exposureTypeSelect').addEventListener('change', showCorrectSection);
+
+        function showCorrectSection() {
+            const value = parseInt(document.getElementById('exposureTypeSelect').value);
+            
+            // Hide all sections
+            document.getElementById('eventSection').style.display = 'none';
+            document.getElementById('locationSection').style.display = 'none';
+            document.getElementById('contactSection').style.display = 'none';
+            document.getElementById('travelSection').style.display = 'none';
+            
+            // Show relevant section
+            if (value === @((int)ExposureType.Event)) {
+                document.getElementById('eventSection').style.display = 'block';
+            } else if (value === @((int)ExposureType.Location)) {
+                document.getElementById('locationSection').style.display = 'block';
+            } else if (value === @((int)ExposureType.Contact)) {
+                document.getElementById('contactSection').style.display = 'block';
+            } else if (value === @((int)ExposureType.Travel)) {
+                document.getElementById('travelSection').style.display = 'block';
+            }
+        }
+    </script>
+
+    @section Scripts {
+        @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+    }
+</body>
+</html>

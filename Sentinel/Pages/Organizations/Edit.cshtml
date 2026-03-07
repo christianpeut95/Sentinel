@@ -1,0 +1,171 @@
+@page
+@model Sentinel.Pages.Organizations.EditModel
+
+@{
+    ViewData["Title"] = "Edit Organization";
+    Layout = "~/Pages/Shared/_Layout.cshtml";
+}
+
+<nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a asp-page="/Index">Home</a></li>
+        <li class="breadcrumb-item"><a asp-page="./Index">Organizations</a></li>
+        <li class="breadcrumb-item active" aria-current="page">Edit</li>
+    </ol>
+</nav>
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2><i class="bi bi-pencil me-2"></i>Edit Organization</h2>
+</div>
+
+@if (TempData["SuccessMessage"] != null)
+{
+    <div class="alert alert-success alert-dismissible fade show" role="alert">
+        <i class="bi bi-check-circle me-2"></i>@TempData["SuccessMessage"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+}
+
+@if (TempData["ErrorMessage"] != null)
+{
+    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+        <i class="bi bi-exclamation-triangle me-2"></i>@TempData["ErrorMessage"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+}
+
+<form method="post">
+    <div asp-validation-summary="ModelOnly" class="alert alert-danger" role="alert"></div>
+    <input type="hidden" asp-for="Organization.Id" />
+    <input type="hidden" asp-for="Organization.FriendlyId" />
+    <input type="hidden" asp-for="Organization.CreatedAt" />
+
+    <div class="card shadow-sm mb-4">
+        <div class="card-header bg-light fw-semibold">
+            <i class="bi bi-building me-2"></i>Organization Information
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-8 mb-3">
+                    <label asp-for="Organization.Name" class="form-label">
+                        <span class="text-danger">*</span> @Html.DisplayNameFor(m => m.Organization.Name)
+                    </label>
+                    <input asp-for="Organization.Name" class="form-control" aria-required="true" />
+                    <span asp-validation-for="Organization.Name" class="text-danger small"></span>
+                </div>
+
+                <div class="col-md-4 mb-3">
+                    <label asp-for="Organization.OrganizationTypeId" class="form-label">
+                        @Html.DisplayNameFor(m => m.Organization.OrganizationTypeId)
+                    </label>
+                    <select asp-for="Organization.OrganizationTypeId" class="form-select" asp-items="ViewBag.OrganizationTypeId">
+                        <option value="">Select Type</option>
+                    </select>
+                    <span asp-validation-for="Organization.OrganizationTypeId" class="text-danger small"></span>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label asp-for="Organization.ExportCode" class="form-label">
+                        @Html.DisplayNameFor(m => m.Organization.ExportCode)
+                    </label>
+                    <input asp-for="Organization.ExportCode" class="form-control" />
+                    <span asp-validation-for="Organization.ExportCode" class="text-danger small"></span>
+                </div>
+
+                <div class="col-md-6 mb-3">
+                    <label class="form-label">Status</label>
+                    <div class="form-check form-switch">
+                        <input asp-for="Organization.IsActive" class="form-check-input" type="checkbox" role="switch" />
+                        <label asp-for="Organization.IsActive" class="form-check-label">
+                            @Html.DisplayNameFor(m => m.Organization.IsActive)
+                        </label>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card shadow-sm mb-4">
+        <div class="card-header bg-light fw-semibold">
+            <i class="bi bi-geo-alt me-2"></i>Address
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-12 mb-3">
+                    <label asp-for="Organization.Address" class="form-label">
+                        @Html.DisplayNameFor(m => m.Organization.Address)
+                    </label>
+                    <textarea asp-for="Organization.Address" class="form-control" rows="3"></textarea>
+                    <span asp-validation-for="Organization.Address" class="text-danger small"></span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card shadow-sm mb-4">
+        <div class="card-header bg-light fw-semibold">
+            <i class="bi bi-telephone me-2"></i>Contact Information
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label asp-for="Organization.ContactPerson" class="form-label">
+                        @Html.DisplayNameFor(m => m.Organization.ContactPerson)
+                    </label>
+                    <input asp-for="Organization.ContactPerson" class="form-control" />
+                    <span asp-validation-for="Organization.ContactPerson" class="text-danger small"></span>
+                </div>
+
+                <div class="col-md-6 mb-3">
+                    <label asp-for="Organization.Phone" class="form-label">
+                        @Html.DisplayNameFor(m => m.Organization.Phone)
+                    </label>
+                    <input asp-for="Organization.Phone" class="form-control" type="tel" />
+                    <span asp-validation-for="Organization.Phone" class="text-danger small"></span>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-md-12 mb-3">
+                    <label asp-for="Organization.Email" class="form-label">
+                        @Html.DisplayNameFor(m => m.Organization.Email)
+                    </label>
+                    <input asp-for="Organization.Email" class="form-control" type="email" />
+                    <span asp-validation-for="Organization.Email" class="text-danger small"></span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card shadow-sm mb-4">
+        <div class="card-header bg-light fw-semibold">
+            <i class="bi bi-file-text me-2"></i>Notes
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-12 mb-3">
+                    <label asp-for="Organization.Notes" class="form-label">
+                        @Html.DisplayNameFor(m => m.Organization.Notes)
+                    </label>
+                    <textarea asp-for="Organization.Notes" class="form-control" rows="4"></textarea>
+                    <span asp-validation-for="Organization.Notes" class="text-danger small"></span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="d-flex justify-content-between">
+        <a asp-page="./Index" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left me-1"></i>Cancel
+        </a>
+        <button type="submit" class="btn btn-primary">
+            <i class="bi bi-check-circle me-1"></i>Save Changes
+        </button>
+    </div>
+</form>
+
+@section Scripts {
+    @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+}

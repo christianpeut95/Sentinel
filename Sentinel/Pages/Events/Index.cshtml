@@ -1,0 +1,528 @@
+@page
+@model Sentinel.Pages.Events.IndexModel
+
+@{
+    ViewData["Title"] = "Events";
+}
+@functions {
+    public string GetCspNonce()
+    {
+        if (HttpContext?.Items?.TryGetValue("csp-nonce", out var nonce) == true && nonce is string nonceStr)
+        {
+            return nonceStr;
+        }
+        return string.Empty;
+    }
+}
+
+<style>
+    /* Events Page - Red/Rose Theme */
+    .page-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1rem;
+    }
+
+    .page-title {
+        font-size: 24px;
+        font-weight: 600;
+        color: #2d3748;
+        display: flex;
+        align-items: center;
+        gap: 0.4rem;
+    }
+
+    .page-title i {
+        color: #f43f5e; /* Rose icon for Events */
+        font-size: 26px;
+    }
+
+    .page-subtitle {
+        font-size: 13px;
+        color: #718096;
+        font-weight: 400;
+        margin-top: 0.15rem;
+    }
+
+    .btn-hero {
+        background: #f43f5e; /* Rose for Events */
+        color: white;
+        font-weight: 600;
+        border: none;
+        padding: 0.5rem 1rem;
+        border-radius: 8px;
+        transition: all 0.2s;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 14px;
+    }
+
+    .btn-hero:hover {
+        background: #e11d48;
+        transform: translateY(-1px);
+        box-shadow: 0 3px 10px rgba(244, 63, 94, 0.3);
+        color: white;
+    }
+
+    .btn-secondary-hero {
+        background: white;
+        color: #f43f5e;
+        font-weight: 600;
+        border: 1px solid #fda4af;
+        padding: 0.5rem 1rem;
+        border-radius: 8px;
+        transition: all 0.2s;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 14px;
+    }
+
+    .btn-secondary-hero:hover {
+        background: #fff1f2;
+        border-color: #f43f5e;
+        color: #f43f5e;
+        box-shadow: 0 2px 6px rgba(244, 63, 94, 0.15);
+    }
+
+    /* Stats Bar */
+    .stats-bar {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+        gap: 0.75rem;
+        margin-bottom: 1rem;
+    }
+
+    .stat-item {
+        background: white;
+        border-radius: 8px;
+        padding: 0.75rem 1rem;
+        border-left: 3px solid #f43f5e;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+        border-top: 1px solid rgba(0, 0, 0, 0.06);
+        border-right: 1px solid rgba(0, 0, 0, 0.06);
+        border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+    }
+
+    .stat-value {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: #f43f5e;
+        margin-bottom: 0.1rem;
+        line-height: 1;
+    }
+
+    .stat-label {
+        font-size: 0.8rem;
+        color: #718096;
+        font-weight: 500;
+    }
+
+    /* Table Card */
+    .table-card {
+        background: white;
+        border-radius: 10px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+        border: 1px solid rgba(0, 0, 0, 0.06);
+        overflow: hidden;
+    }
+
+    .table-card-header {
+        padding: 0.75rem 1rem;
+        border-bottom: 1px solid #e2e8f0;
+        background: linear-gradient(to right, #fff1f2, white);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .table-card-title {
+        margin: 0;
+        font-size: 1rem;
+        font-weight: 600;
+        color: #2d3748;
+        display: flex;
+        align-items: center;
+        gap: 0.4rem;
+    }
+
+    .table-card-title i {
+        color: #f43f5e;
+    }
+
+    /* Apple-style Table */
+    .apple-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 13px;
+    }
+
+    .apple-table thead {
+        background: #fff1f2;
+    }
+
+    .apple-table th {
+        padding: 0.5rem 0.75rem;
+        text-align: left;
+        font-weight: 600;
+        font-size: 11px;
+        color: #9f1239;
+        border-bottom: 1px solid #fda4af;
+        text-transform: uppercase;
+        letter-spacing: 0.3px;
+    }
+
+    .apple-table td {
+        padding: 0.6rem 0.75rem;
+        border-bottom: 1px solid #e2e8f0;
+        vertical-align: middle;
+    }
+
+    .apple-table tbody tr {
+        transition: background 0.15s;
+    }
+
+    .apple-table tbody tr:hover {
+        background: #fff1f2;
+    }
+
+    .apple-table tbody tr:last-child td {
+        border-bottom: none;
+    }
+
+    /* Quick Search */
+    .quick-search-wrapper {
+        position: relative;
+        max-width: 400px;
+    }
+
+    .quick-search-input {
+        padding-left: 2.5rem;
+        border-radius: 20px;
+        border: 1px solid #e2e8f0;
+        transition: all 0.2s;
+    }
+
+    .quick-search-input:focus {
+        border-color: #f43f5e;
+        box-shadow: 0 0 0 3px rgba(244, 63, 94, 0.1);
+    }
+
+    .quick-search-icon {
+        position: absolute;
+        left: 0.75rem;
+        top: 50%;
+        transform: translateY(-50%);
+        color: #f43f5e;
+        pointer-events: none;
+    }
+</style>
+
+<nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a asp-page="/Index">Home</a></li>
+        <li class="breadcrumb-item active" aria-current="page">Events</li>
+    </ol>
+</nav>
+
+<div class="page-header">
+    <div>
+        <div class="page-title">
+            <i class="bi bi-calendar-event"></i>
+            Events
+        </div>
+        <div class="page-subtitle">@Model.Events.Count event(s) found</div>
+    </div>
+    <div class="d-flex gap-2">
+        <a asp-page="./Create" class="btn-hero">
+            <i class="bi bi-plus-circle"></i>
+            Add Event
+        </a>
+    </div>
+</div>
+
+<!-- Quick Search Bar -->
+<div class="quick-search-wrapper mb-3">
+    <i class="bi bi-search quick-search-icon"></i>
+    <input type="text" 
+           class="form-control quick-search-input" 
+           id="quickSearchEvents" 
+           placeholder="Quick search events..."
+           onkeyup="quickFilterEvents()" />
+</div>
+
+@if (TempData["SuccessMessage"] != null)
+{
+    <div class="alert alert-success alert-dismissible fade show" role="alert">
+        <i class="bi bi-check-circle me-2"></i>@TempData["SuccessMessage"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+}
+
+@if (TempData["ErrorMessage"] != null)
+{
+    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+        <i class="bi bi-exclamation-triangle me-2"></i>@TempData["ErrorMessage"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+}
+
+<!-- Advanced Filters -->
+<div class="table-card mb-3">
+    <div class="table-card-header">
+        <div class="table-card-title">
+            <i class="bi bi-funnel"></i>
+            Advanced Filters
+        </div>
+    </div>
+    <div class="card-body">
+        <form method="get">
+            <div class="row g-3">
+                <div class="col-md-4">
+                    <label for="searchTerm" class="form-label">Search</label>
+                    <input type="text" class="form-control" id="searchTerm" name="searchTerm" value="@Model.SearchTerm" placeholder="Search by name or description..." />
+                </div>
+                <div class="col-md-3">
+                    <label for="eventTypeId" class="form-label">Event Type</label>
+                    <select class="form-select" id="eventTypeId" name="eventTypeId">
+                        <option value="">All Types</option>
+                        @foreach (var type in Model.EventTypes)
+                        {
+                            <option value="@type.Id" selected="@(Model.EventTypeId == type.Id)">@type.Name</option>
+                        }
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label for="locationId" class="form-label">Location</label>
+                    <select class="form-select" id="locationId" name="locationId">
+                        <option value="">All Locations</option>
+                        @foreach (var location in Model.Locations)
+                        {
+                            <option value="@location.Id" selected="@(Model.LocationId == location.Id)">@location.Name</option>
+                        }
+                    </select>
+                </div>
+                <div class="col-md-2 d-flex align-items-end">
+                    <button type="submit" class="btn-hero w-100">
+                        <i class="bi bi-search"></i>Search
+                    </button>
+                </div>
+            </div>
+
+            <div class="row g-3 mt-2">
+                <div class="col-md-3">
+                    <label for="startDate" class="form-label">Start Date From</label>
+                    <input type="date" class="form-control" id="startDate" name="startDate" value="@Model.StartDate?.ToString("yyyy-MM-dd")" />
+                </div>
+                <div class="col-md-3">
+                    <label for="endDate" class="form-label">Start Date To</label>
+                    <input type="date" class="form-control" id="endDate" name="endDate" value="@Model.EndDate?.ToString("yyyy-MM-dd")" />
+                </div>
+                <div class="col-md-3">
+                    <div class="form-check mt-4">
+                        <input class="form-check-input" type="checkbox" id="indoorOnly" name="indoorOnly" value="true" checked="@Model.IndoorOnly" />
+                        <label class="form-check-label" for="indoorOnly">
+                            Indoor Events Only
+                        </label>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="form-check mt-4">
+                        <input class="form-check-input" type="checkbox" id="activeOnly" name="activeOnly" value="true" checked="@Model.ActiveOnly" />
+                        <label class="form-check-label" for="activeOnly">
+                            Active Only
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row mt-3">
+                <div class="col-md-12">
+                    <a asp-page="./Index" class="btn-secondary-hero">
+                        <i class="bi bi-x-circle"></i>Clear Filters
+                    </a>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Events Table -->
+<div class="table-card">
+    <div class="table-card-header">
+        <div class="table-card-title">
+            <i class="bi bi-list-ul"></i>
+            All Events
+        </div>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="apple-table" id="eventsTable">
+                <thead>
+                    <tr>
+                        <th>Event Name</th>
+                        <th>Type</th>
+                        <th>Location</th>
+                        <th>Date & Time</th>
+                        <th>Attendees</th>
+                        <th>Indoor</th>
+                        <th>Exposures</th>
+                        <th>Attack Rate</th>
+                        <th>Status</th>
+                        <th class="text-end">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+@foreach (var evt in Model.Events)
+{
+                    <tr class="event-row">
+                        <td><strong>@evt.Name</strong></td>
+                        <td>
+                            @if (evt.EventType != null)
+                            {
+                                <span class="badge" style="background: #fda4af; color: #9f1239;">@evt.EventType.Name</span>
+                            }
+                            else
+                            {
+                                <span class="text-muted">-</span>
+                            }
+                        </td>
+                        <td>
+                            @if (evt.Location != null)
+                            {
+                                <a asp-page="/Locations/Details" asp-route-id="@evt.Location.Id" style="color: #10b981;">@evt.Location.Name</a>
+                            }
+                            else
+                            {
+                                <span class="text-muted">-</span>
+                            }
+                        </td>
+                        <td>
+                            <small>
+                                @evt.StartDateTime.ToLocalTime().ToString("g")
+                                @if (evt.EndDateTime.HasValue)
+                                {
+                                    <text><br/>to @evt.EndDateTime.Value.ToLocalTime().ToString("g")</text>
+                                }
+                            </small>
+                        </td>
+                        <td>@(evt.EstimatedAttendees?.ToString() ?? "-")</td>
+                        <td>
+                            @if (evt.IsIndoor == true)
+                            {
+                                <span class="badge bg-info">Indoor</span>
+                            }
+                            else
+                            {
+                                <span class="badge bg-success">Outdoor</span>
+                            }
+                        </td>
+                        <td>
+                            @if (Model.ExposureCounts.ContainsKey(evt.Id) && Model.ExposureCounts[evt.Id] > 0)
+                            {
+                                <span class="badge bg-warning text-dark">@Model.ExposureCounts[evt.Id]</span>
+                            }
+                            else
+                            {
+                                <span class="text-muted">0</span>
+                            }
+                        </td>
+                        <td>
+                            @if (evt.EstimatedAttendees.HasValue && evt.EstimatedAttendees > 0 && Model.ExposureCounts.ContainsKey(evt.Id))
+                            {
+                                var attackRate = (Model.ExposureCounts[evt.Id] / (double)evt.EstimatedAttendees.Value) * 100;
+                                <span class="badge bg-@(attackRate > 10 ? "danger" : attackRate > 5 ? "warning" : "secondary")">
+                                    @attackRate.ToString("F1")%
+                                </span>
+                            }
+                            else
+                            {
+                                <span class="text-muted">-</span>
+                            }
+                        </td>
+                        <td>
+                            @if (evt.IsActive)
+                            {
+                                <span class="badge bg-success">Active</span>
+                            }
+                            else
+                            {
+                                <span class="badge bg-secondary">Inactive</span>
+                            }
+                        </td>
+                        <td class="text-end">
+                            <div class="btn-group btn-group-sm" role="group">
+                                <a asp-page="./Details" asp-route-id="@evt.Id" class="btn btn-outline-primary" title="View Details">
+                                    <i class="bi bi-eye"></i>
+                                </a>
+                                <a asp-page="./Edit" asp-route-id="@evt.Id" class="btn btn-outline-secondary" title="Edit">
+                                    <i class="bi bi-pencil"></i>
+                                </a>
+                                @if (!Model.ExposureCounts.ContainsKey(evt.Id) || Model.ExposureCounts[evt.Id] == 0)
+                                {
+                                    <button type="button" class="btn btn-outline-danger" onclick="confirmDelete('@evt.Id', '@evt.Name')" title="Delete">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                }
+                            </div>
+                        </td>
+                    </tr>
+}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+@if (!Model.Events.Any())
+{
+    <div class="alert alert-info mt-3">
+        <i class="bi bi-info-circle me-2"></i>No events found. <a asp-page="./Create" class="alert-link">Create your first event</a>.
+    </div>
+}
+
+<form method="post" asp-page-handler="Delete" id="deleteForm">
+    <input type="hidden" name="id" id="deleteId" />
+</form>
+
+@section Scripts {
+<script>
+    function confirmDelete(id, name) {
+        if (confirm(`Are you sure you want to delete "${name}"?\n\nThis action cannot be undone.`)) {
+            document.getElementById('deleteId').value = id;
+            document.getElementById('deleteForm').submit();
+        }
+    }
+
+    // Quick Filter Function for Events
+    function quickFilterEvents() {
+        const searchText = document.getElementById('quickSearchEvents').value.toLowerCase();
+        const rows = document.querySelectorAll('.event-row');
+        let visibleCount = 0;
+
+        rows.forEach(row => {
+            const text = row.textContent.toLowerCase();
+            if (text.includes(searchText)) {
+                row.style.display = '';
+                visibleCount++;
+            } else {
+                row.style.display = 'none';
+            }
+        });
+
+        // Update count
+        const subtitle = document.querySelector('.page-subtitle');
+        if (subtitle) {
+            if (searchText) {
+                subtitle.textContent = `${visibleCount} of @Model.Events.Count event(s) shown`;
+            } else {
+                subtitle.textContent = '@Model.Events.Count event(s) found';
+            }
+        }
+    }
+</script>
+}

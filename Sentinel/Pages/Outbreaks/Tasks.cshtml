@@ -1,0 +1,310 @@
+@page "/Outbreaks/Tasks/{id:int}"
+@model Sentinel.Pages.Outbreaks.TasksModel
+@{
+    ViewData["Title"] = $"Tasks - {Model.Outbreak?.Name}";
+    ViewData["BodyClass"] = "outbreak-page";
+}
+
+<div class="container-fluid py-4">
+    <!-- Breadcrumb -->
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a asp-page="/Outbreaks/Index">Outbreaks</a></li>
+            <li class="breadcrumb-item"><a asp-page="/Outbreaks/Details" asp-route-id="@Model.Id">@Model.Outbreak?.Name</a></li>
+            <li class="breadcrumb-item active">Tasks</li>
+        </ol>
+    </nav>
+
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2>
+                <i class="bi bi-check2-square me-2"></i>
+                Task Dashboard
+            </h2>
+            <p class="text-muted mb-0">
+                @Model.Outbreak?.Name
+                @if (Model.Outbreak?.ChildOutbreaks.Any() == true)
+                {
+                    <small class="ms-2 text-info">
+                        <i class="bi bi-diagram-3 me-1"></i>
+                        Including @Model.Outbreak.ChildOutbreaks.Count child outbreak(s)
+                    </small>
+                }
+            </p>
+        </div>
+        <div>
+            <a asp-page="/Outbreaks/Details" asp-route-id="@Model.Id" class="btn btn-outline-secondary">
+                <i class="bi bi-arrow-left me-1"></i> Back to Outbreak
+            </a>
+        </div>
+    </div>
+
+    <!-- Task Summary Cards -->
+    @if (Model.TaskSummary != null)
+    {
+        <div class="row mb-4">
+            <div class="col-md-3">
+                <div class="card border-primary">
+                    <div class="card-body text-center">
+                        <h3 class="mb-0">@Model.TaskSummary.TotalTasks</h3>
+                        <small class="text-muted">Total Tasks</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card border-success">
+                    <div class="card-body text-center">
+                        <h3 class="text-success mb-0">@Model.TaskSummary.CompletedTasks</h3>
+                        <small class="text-muted">Completed (@Model.TaskSummary.CompletionPercentage%)</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card border-warning">
+                    <div class="card-body text-center">
+                        <h3 class="text-warning mb-0">@Model.TaskSummary.PendingTasks</h3>
+                        <small class="text-muted">Pending</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card border-danger">
+                    <div class="card-body text-center">
+                        <h3 class="text-danger mb-0">@Model.TaskSummary.OverdueTasks</h3>
+                        <small class="text-muted">Overdue</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Progress Bar -->
+        <div class="card mb-4">
+            <div class="card-body">
+                <div class="d-flex justify-content-between mb-2">
+                    <span class="fw-bold">Overall Progress</span>
+                    <span>@Model.TaskSummary.CompletionPercentage%</span>
+                </div>
+                <div class="progress" style="height: 25px;">
+                    <div class="progress-bar bg-success" 
+                         role="progressbar" 
+                         style="width: @Model.TaskSummary.CompletionPercentage%"
+                         aria-valuenow="@Model.TaskSummary.CompletionPercentage" 
+                         aria-valuemin="0" 
+                         aria-valuemax="100">
+                        @Model.TaskSummary.CompletedTasks / @Model.TaskSummary.TotalTasks
+                    </div>
+                </div>
+
+                @if (Model.TaskSummary.UnassignedTasksCount > 0)
+                {
+                    <div class="alert alert-warning mt-3 mb-0">
+                        <i class="bi bi-exclamation-triangle me-2"></i>
+                        <strong>@Model.TaskSummary.UnassignedTasksCount</strong> tasks are unassigned
+                    </div>
+                }
+            </div>
+        </div>
+    }
+
+    <!-- Filters -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="mb-0">
+                <i class="bi bi-funnel me-2"></i>
+                Filters
+            </h5>
+        </div>
+        <div class="card-body">
+            <form method="get">
+                <input type="hidden" name="id" value="@Model.Id" />
+                <div class="row g-3">
+                    <div class="col-md-3">
+                        <label class="form-label">Status</label>
+                        <select name="StatusFilter" class="form-select" onchange="this.form.submit()">
+                            <option value="">All Statuses</option>
+                            <option value="Pending" selected="@(Model.StatusFilter == "Pending")">Pending</option>
+                            <option value="InProgress" selected="@(Model.StatusFilter == "InProgress")">In Progress</option>
+                            <option value="Completed" selected="@(Model.StatusFilter == "Completed")">Completed</option>
+                            <option value="Cancelled" selected="@(Model.StatusFilter == "Cancelled")">Cancelled</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Assigned To</label>
+                        <select name="AssigneeFilter" class="form-select" asp-items="Model.AssigneeOptions" onchange="this.form.submit()"></select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Task Type</label>
+                        <select name="TypeFilter" class="form-select" asp-items="Model.TypeOptions" onchange="this.form.submit()"></select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label d-block">&nbsp;</label>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" name="ShowOverdueOnly" 
+                                   checked="@Model.ShowOverdueOnly" onchange="this.form.submit()" />
+                            <label class="form-check-label">
+                                Show Overdue Only
+                            </label>
+                        </div>
+                    </div>
+                </div>
+                @if (!string.IsNullOrEmpty(Model.StatusFilter) || !string.IsNullOrEmpty(Model.AssigneeFilter) || 
+                     !string.IsNullOrEmpty(Model.TypeFilter) || Model.ShowOverdueOnly)
+                {
+                    <div class="mt-3">
+                        <a asp-page="/Outbreaks/Tasks" asp-route-id="@Model.Id" class="btn btn-sm btn-outline-secondary">
+                            <i class="bi bi-x-circle me-1"></i> Clear Filters
+                        </a>
+                    </div>
+                }
+            </form>
+        </div>
+    </div>
+
+    <!-- Tasks Table -->
+    <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">
+                <i class="bi bi-list-task me-2"></i>
+                Tasks
+                <span class="badge bg-secondary">@Model.FilteredTasks.Count</span>
+            </h5>
+            <div>
+                <button type="button" class="btn btn-sm btn-success" onclick="exportToExcel()">
+                    <i class="bi bi-file-earmark-excel me-1"></i> Export to Excel
+                </button>
+            </div>
+        </div>
+        <div class="card-body p-0">
+            @if (Model.FilteredTasks.Any())
+            {
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0" id="tasksTable">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Case ID</th>
+                                <th>Patient</th>
+                                <th>Task</th>
+                                <th>Type</th>
+                                <th>Status</th>
+                                <th>Assigned To</th>
+                                <th>Due Date</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var task in Model.FilteredTasks)
+                            {
+                                <tr class="@(Model.IsOverdue(task) ? "table-danger" : "")">
+                                    <td>
+                                        <a asp-page="/Cases/Details" asp-route-id="@task.Case?.Id">
+                                            @task.Case?.FriendlyId
+                                        </a>
+                                    </td>
+                                    <td>
+                                        @if (task.Case?.Patient != null)
+                                        {
+                                            <text>@task.Case.Patient.GivenName @task.Case.Patient.FamilyName</text>
+                                        }
+                                    </td>
+                                    <td>
+                                        <strong>@task.Title</strong>
+                                        @if (!string.IsNullOrEmpty(task.Description))
+                                        {
+                                            <br/>
+                                            <small class="text-muted">@task.Description</small>
+                                        }
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-info">@task.TaskType?.Name</span>
+                                    </td>
+                                    <td>
+                                        <span class="badge @Model.GetStatusBadgeClass(task.Status)">
+                                            @task.Status
+                                        </span>
+                                        @if (Model.IsOverdue(task))
+                                        {
+                                            <br/>
+                                            <small class="text-danger">
+                                                <i class="bi bi-exclamation-triangle"></i> Overdue
+                                            </small>
+                                        }
+                                    </td>
+                                    <td>
+                                        @if (task.AssignedToUser != null)
+                                        {
+                                            <text>@(task.AssignedToUser.Email ?? task.AssignedToUser.UserName)</text>
+                                        }
+                                        else
+                                        {
+                                            <span class="text-muted">Unassigned</span>
+                                        }
+                                    </td>
+                                    <td>
+                                        @if (task.DueDate.HasValue)
+                                        {
+                                            <text>@task.DueDate.Value.ToString("yyyy-MM-dd")</text>
+                                        }
+                                        else
+                                        {
+                                            <span class="text-muted">No due date</span>
+                                        }
+                                    </td>
+                                    <td>
+                                        <a asp-page="/Cases/Tasks/Edit" asp-route-id="@task.Id" 
+                                           class="btn btn-sm btn-outline-primary" title="Edit Task">
+                                            <i class="bi bi-pencil"></i>
+                                        </a>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+            else
+            {
+                <div class="text-center py-5 text-muted">
+                    <i class="bi bi-inbox fs-1"></i>
+                    <p class="mt-3">No tasks found matching your filters</p>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script nonce="@GetCspNonce()">
+function exportToExcel() {
+    // Get table data
+    const table = document.getElementById('tasksTable');
+    const wb = XLSX.utils.table_to_book(table, { sheet: "Tasks" });
+    
+    // Generate filename with outbreak name and date
+    const outbreakName = '@Model.Outbreak?.Name'.replace(/[^a-z0-9]/gi, '_');
+    const date = new Date().toISOString().split('T')[0];
+    const filename = `Outbreak_Tasks_${outbreakName}_${date}.xlsx`;
+    
+    // Download
+    XLSX.writeFile(wb, filename);
+}
+</script>
+}
+
+<style>
+.table-danger {
+    background-color: #f8d7da !important;
+}
+</style>
+
+@functions {
+    public string GetCspNonce()
+    {
+        if (HttpContext?.Items?.TryGetValue("csp-nonce", out var nonce) == true && nonce is string nonceStr)
+        {
+            return nonceStr;
+        }
+        return string.Empty;
+    }
+}

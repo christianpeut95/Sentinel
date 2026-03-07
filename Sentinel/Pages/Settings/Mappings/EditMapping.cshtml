@@ -1,0 +1,498 @@
+@page
+@using Sentinel.Models
+@model Sentinel.Pages.Settings.Mappings.EditMappingModel
+@{
+    ViewData["Title"] = Model.MappingId.HasValue ? "Edit Mapping" : "Add Mapping";
+}
+@functions {
+    public string GetCspNonce()
+    {
+        if (HttpContext?.Items?.TryGetValue("csp-nonce", out var nonce) == true && nonce is string nonceStr)
+        {
+            return nonceStr;
+        }
+        return string.Empty;
+    }
+}
+
+<nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a asp-page="/Index">Home</a></li>
+        <li class="breadcrumb-item"><a asp-page="/Settings/Index">Settings</a></li>
+        <li class="breadcrumb-item active">@ViewData["Title"]</li>
+    </ol>
+</nav>
+
+<div class="row">
+    <div class="col-lg-8">
+        <div class="apple-card">
+            <div class="apple-card-header">
+                <h3>@ViewData["Title"]</h3>
+                <p class="text-muted">Configure how survey response maps to database field</p>
+            </div>
+            
+            <div class="apple-card-body">
+                @if (TempData["SuccessMessage"] != null)
+                {
+                    <div class="alert alert-success">
+                        <i class="bi bi-check-circle"></i> @TempData["SuccessMessage"]
+                    </div>
+                }
+                
+                @if (!ModelState.IsValid)
+                {
+                    <div class="alert alert-danger">
+                        <i class="bi bi-exclamation-triangle"></i>
+                        <ul class="mb-0">
+                            @foreach (var error in ModelState.Values.SelectMany(v => v.Errors))
+                            {
+                                <li>@error.ErrorMessage</li>
+                            }
+                        </ul>
+                    </div>
+                }
+
+                <div class="alert alert-secondary small mb-3">
+                    <strong>Debug Info:</strong>
+                    ConfigurationType=<code>@Model.ConfigurationType</code>,
+                    ConfigurationId=<code>@Model.ConfigurationId</code>,
+                    SurveyTemplateId=<code>@Model.SurveyTemplateId</code>
+                </div>
+
+                <form method="post">
+                    <input type="hidden" asp-for="ConfigurationType" />
+                    <input type="hidden" asp-for="ConfigurationId" />
+                    <input type="hidden" asp-for="SurveyTemplateId" />
+                    <input type="hidden" asp-for="MappingId" />
+                    <input type="hidden" asp-for="Mapping.Id" />
+                    <input type="hidden" asp-for="ReturnUrl" />
+
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label asp-for="Mapping.SurveyQuestionName" class="form-label">Survey Question *</label>
+                            <select asp-for="Mapping.SurveyQuestionName" class="form-select" asp-items="Model.SurveyQuestions">
+                                <option value="">Select a question...</option>
+                            </select>
+                            <span asp-validation-for="Mapping.SurveyQuestionName" class="text-danger"></span>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <label asp-for="Mapping.DisplayName" class="form-label">Display Name</label>
+                            <input asp-for="Mapping.DisplayName" class="form-control" />
+                            <span asp-validation-for="Mapping.DisplayName" class="text-danger"></span>
+                        </div>
+
+                        <div class="col-md-6" id="fieldCategoryGroup">
+                            <label asp-for="Mapping.FieldCategory" class="form-label">Field Category *</label>
+                            <select asp-for="Mapping.FieldCategory" class="form-select" id="fieldCategorySelect">
+                                <option value="">Select category...</option>
+                                @foreach (var cat in Enum.GetValues<MappingFieldCategory>())
+                                {
+                                    <option value="@cat" selected="@(cat == Model.Mapping.FieldCategory)">@cat</option>
+                                }
+                            </select>
+                            <span asp-validation-for="Mapping.FieldCategory" class="text-danger"></span>
+                            <small class="form-text text-muted">Changing category will reload page and update available fields</small>
+                        </div>
+
+                        <div class="col-md-6" id="targetFieldGroup">
+                            <label asp-for="Mapping.TargetFieldPath" class="form-label">Target Field *</label>
+                            <select asp-for="Mapping.TargetFieldPath" class="form-select" id="targetFieldSelect" asp-items="Model.AvailableFields">
+                                <option value="">Select a field...</option>
+                            </select>
+                            <span asp-validation-for="Mapping.TargetFieldPath" class="text-danger"></span>
+                            @if (!Model.AvailableFields.Any())
+                            {
+                                <small class="form-text text-warning">
+                                    <i class="bi bi-exclamation-triangle"></i> No fields available. Select a field category first.
+                                </small>
+                            }
+                            else
+                            {
+                                <small class="form-text text-muted">@Model.AvailableFields.Count() fields available</small>
+                            }
+                        </div>
+
+                        @if (Model.Mapping.FieldCategory == MappingFieldCategory.Symptom)
+                        {
+                            <div class="col-md-6">
+                                <label asp-for="Mapping.TargetSymptomId" class="form-label">Which Symptom? *</label>
+                                <select asp-for="Mapping.TargetSymptomId" class="form-select" asp-items="Model.AvailableSymptoms">
+                                    <option value="">Select a symptom...</option>
+                                </select>
+                                <span asp-validation-for="Mapping.TargetSymptomId" class="text-danger"></span>
+                                <small class="form-text text-muted">Specify which symptom this mapping applies to (e.g., Fever, Headache)</small>
+                            </div>
+                        }
+
+                        <div class="col-md-6">
+                            <label asp-for="Mapping.MappingAction" class="form-label">Mapping Action *</label>
+                            <select asp-for="Mapping.MappingAction" class="form-select">
+                                @foreach (var action in Enum.GetValues<MappingAction>())
+                                {
+                                    <option value="@action">@action</option>
+                                }
+                            </select>
+                            <span asp-validation-for="Mapping.MappingAction" class="text-danger"></span>
+                            <small class="form-text text-muted" id="actionDescription"></small>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label asp-for="Mapping.BusinessRule" class="form-label">Business Rule *</label>
+                            <select asp-for="Mapping.BusinessRule" class="form-select">
+                                @foreach (var rule in Enum.GetValues<MappingBusinessRule>())
+                                {
+                                    <option value="@rule">@rule</option>
+                                }
+                            </select>
+                            <span asp-validation-for="Mapping.BusinessRule" class="text-danger"></span>
+                            <small class="form-text text-muted" id="ruleDescription"></small>
+                        </div>
+
+                        <!-- TriggerReviewQueue only shown for AutoSave action (deprecated/hidden for QueueForReview/RequireApproval) -->
+                        <div class="col-md-12" id="triggerReviewGroup" style="display: none;">
+                            <div class="form-check form-switch">
+                                <input asp-for="Mapping.TriggerReviewQueue" class="form-check-input" type="checkbox" id="triggerReviewCheck" />
+                                <label asp-for="Mapping.TriggerReviewQueue" class="form-check-label">Trigger Review Queue</label>
+                            </div>
+                            <small class="form-text text-muted">Create a review item in addition to auto-saving (advanced option)</small>
+                        </div>
+
+                        <div class="col-md-6" id="reviewPriorityGroup" style="display: none;">
+                            <label asp-for="Mapping.ReviewPriority" class="form-label">Review Priority</label>
+                            <input asp-for="Mapping.ReviewPriority" class="form-control" type="number" min="1" max="5" />
+                            <small class="form-text text-muted">1 = Highest, 5 = Lowest</small>
+                        </div>
+
+                        <div class="col-md-6" id="groupingWindowGroup" style="display: none;">
+                            <label asp-for="Mapping.GroupingWindowHours" class="form-label">Grouping Window (Hours)</label>
+                            <input asp-for="Mapping.GroupingWindowHours" class="form-control" type="number" min="0" />
+                            <small class="form-text text-muted">Group similar changes within this time window</small>
+                        </div>
+
+                        <div class="col-md-12">
+                            <label asp-for="Mapping.Description" class="form-label">Description</label>
+                            <textarea asp-for="Mapping.Description" class="form-control" rows="3"></textarea>
+                        </div>
+
+                        <!-- ========================================= -->
+                        <!-- PHASE 5: COMPLEXITY SELECTOR              -->
+                        <!-- ========================================= -->
+                        <div class="col-md-12">
+                            <hr class="my-4" />
+                            <h5 class="mb-3">
+                                <i class="bi bi-layers"></i> Mapping Complexity
+                            </h5>
+                        </div>
+
+                        <div class="col-md-12">
+                            <label asp-for="Mapping.Complexity" class="form-label">Complexity Type *</label>
+                            <select asp-for="Mapping.Complexity" class="form-select" id="complexitySelect">
+                                <option value="1" selected="@(Model.Mapping.Complexity == MappingComplexity.Simple)">Simple</option>
+                                <option value="2" selected="@(Model.Mapping.Complexity == MappingComplexity.Collection)">Collection</option>
+                                @* RelatedEntity (3) and Conditional (4) not implemented yet - hide them *@
+                            </select>
+                            <span asp-validation-for="Mapping.Complexity" class="text-danger"></span>
+                            <small class="form-text text-muted" id="complexityDescription">
+                                <strong>Simple:</strong> Maps one survey question to one database field.<br>
+                                <strong>Collection:</strong> Maps matrix/dynamic questions to create multiple entities.
+                            </small>
+                        </div>
+
+                        <!-- Collection Mapping Configuration (shown when Complexity = Collection) -->
+                        <div class="col-md-12" id="collectionMappingSection" style="display: none;">
+                            <div class="alert alert-primary mt-3">
+                                <h6><i class="bi bi-info-circle"></i> Collection Mapping Configuration</h6>
+                                <p class="mb-2">
+                                    Collection mappings create multiple entities from matrix/dynamic questions.
+                                    Each row in the survey question will create database records.
+                                </p>
+                                <ol class="mb-0 ps-3 small">
+                                    <li>Save this mapping first (if creating new)</li>
+                                    <li>Click <strong>"Configure Collection Mapping"</strong> below</li>
+                                    <li>Set up entity mappings in the popup window</li>
+                                    <li>Configuration is saved automatically when you close popup</li>
+                                </ol>
+                            </div>
+                            
+                            <!-- Hidden field to store collection config JSON -->
+                            <input type="hidden" asp-for="Mapping.CollectionConfigJson" id="collectionConfigJson" />
+                            
+                            @if (string.IsNullOrEmpty(Model.Mapping.CollectionConfigJson))
+                            {
+                                <div class="alert alert-warning">
+                                    <i class="bi bi-exclamation-triangle"></i>
+                                    <strong>Not Configured Yet</strong><br>
+                                    <small>This mapping will not process any data until collection configuration is set.</small>
+                                </div>
+                            }
+                            else
+                            {
+                                <div class="alert alert-success">
+                                    <i class="bi bi-check-circle"></i>
+                                    <strong>Configuration Active</strong>
+                                    <button type="button" class="btn btn-link btn-sm p-0 ms-2" onclick="$('#configPreview').toggle()">
+                                        <i class="bi bi-eye"></i> View Configuration
+                                    </button>
+                                </div>
+                                <pre id="configPreview" class="bg-light p-2 rounded small" style="display:none; max-height: 200px; overflow-y: auto;">@Model.Mapping.CollectionConfigJson</pre>
+                            }
+                            
+                            <div class="mt-3">
+                                @if (Model.MappingId.HasValue && Model.MappingId.Value != Guid.Empty)
+                                {
+                                    <button type="button" class="btn btn-primary btn-sm" onclick="openCollectionEditor()">
+                                        <i class="bi bi-pencil"></i> Configure Collection Mapping
+                                    </button>
+                                    @if (!string.IsNullOrEmpty(Model.Mapping.CollectionConfigJson))
+                                    {
+                                        <button type="button" class="btn btn-outline-secondary btn-sm" onclick="clearCollectionConfig()">
+                                            <i class="bi bi-x-circle"></i> Clear Configuration
+                                        </button>
+                                    }
+                                }
+                                else
+                                {
+                                    <div class="alert alert-info">
+                                        <i class="bi bi-info-circle"></i>
+                                        <strong>Save Required:</strong> You must save this mapping first before you can configure collection settings.
+                                    </div>
+                                }
+                            </div>
+                        </div>
+
+                        <div class="col-md-12">
+                            <div class="form-check form-switch">
+                                <input asp-for="Mapping.IsActive" class="form-check-input" type="checkbox" />
+                                <label asp-for="Mapping.IsActive" class="form-check-label">Active</label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mt-4">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-save"></i> Save Mapping
+                        </button>
+                        <a href="@Model.ReturnUrl" class="btn btn-secondary">
+                            <i class="bi bi-x-circle"></i> Cancel
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-4">
+        <div class="card">
+            <div class="card-header">
+                <h6 class="mb-0"><i class="bi bi-info-circle"></i> Help</h6>
+            </div>
+            <div class="card-body">
+                <h6>Mapping Actions</h6>
+                <ul class="small">
+                    <li><strong>Auto Save:</strong> Save immediately to database when survey submitted</li>
+                    <li><strong>Queue for Review:</strong> Create review item for approval before saving (medium priority)</li>
+                    <li><strong>Require Approval:</strong> Create high-priority review item that must be approved</li>
+                    <li><strong>Skip:</strong> Ignore this field (store in survey JSON only)</li>
+                </ul>
+                <div class="alert alert-info alert-sm mt-2">
+                    <small>
+                        <i class="bi bi-lightbulb"></i> <strong>Tip:</strong> QueueForReview and RequireApproval automatically create review items - no need to check "Trigger Review Queue"
+                    </small>
+                </div>
+
+                <h6 class="mt-3">Business Rules</h6>
+                <ul class="small">
+                    <li><strong>AlwaysOverwrite:</strong> Replace value every time</li>
+                    <li><strong>OnlyIfNull:</strong> Only save if field is empty</li>
+                    <li><strong>TakeEarliest:</strong> Keep earlier date (for dates)</li>
+                    <li><strong>TakeLatest:</strong> Keep later date (for dates)</li>
+                    <li><strong>TakeHighest:</strong> Keep highest number</li>
+                    <li><strong>TakeLowest:</strong> Keep lowest number</li>
+                    <li><strong>Append:</strong> Add to existing value (for text)</li>
+                    <li><strong>RequireMatch:</strong> Only save if values match</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        $(document).ready(function() {
+            // Update descriptions and show/hide review options based on Mapping Action
+            function updateMappingActionUI() {
+                var action = $('#Mapping_MappingAction').val();
+                
+                // Update action description
+                var descriptions = {
+                    'AutoSave': 'Save immediately to database when survey is submitted',
+                    'QueueForReview': 'Create a review item for supervisor approval before saving',
+                    'RequireApproval': 'Create a high-priority review item that must be approved',
+                    'Skip': 'Do not process this field (store in survey JSON only)'
+                };
+                $('#actionDescription').text(descriptions[action] || '');
+
+                // Show/hide review settings based on action
+                if (action === 'QueueForReview' || action === 'RequireApproval') {
+                    // Action controls review - always show priority/grouping
+                    $('#triggerReviewGroup').hide();  // Hide redundant checkbox
+                    $('#reviewPriorityGroup, #groupingWindowGroup').show();
+                    
+                    // Set default priority based on action
+                    if (action === 'RequireApproval' && $('#Mapping_ReviewPriority').val() == '1') {
+                        $('#Mapping_ReviewPriority').val('1');  // High priority for RequireApproval
+                    } else if (action === 'QueueForReview' && $('#Mapping_ReviewPriority').val() == '1') {
+                        $('#Mapping_ReviewPriority').val('2');  // Medium priority for QueueForReview
+                    }
+                } else if (action === 'AutoSave') {
+                    // Show advanced option to also trigger review
+                    $('#triggerReviewGroup').show();
+                    
+                    // Show priority/grouping only if checkbox is checked
+                    if ($('#triggerReviewCheck').is(':checked')) {
+                        $('#reviewPriorityGroup, #groupingWindowGroup').show();
+                    } else {
+                        $('#reviewPriorityGroup, #groupingWindowGroup').hide();
+                    }
+                } else {
+                    // Skip action - hide all review options
+                    $('#triggerReviewGroup').hide();
+                    $('#reviewPriorityGroup, #groupingWindowGroup').hide();
+                }
+            }
+
+            // Update business rule descriptions
+            function updateBusinessRuleUI() {
+                var rule = $('#Mapping_BusinessRule').val();
+                var descriptions = {
+                    'AlwaysOverwrite': 'Always replace the existing value with survey data',
+                    'OnlyIfNull': 'Only save if the field is currently empty/null',
+                    'TakeEarliest': 'Keep the earliest date (oldest)',
+                    'TakeLatest': 'Keep the latest date (newest)',
+                    'TakeHighest': 'Keep the highest number',
+                    'TakeLowest': 'Keep the lowest number',
+                    'Append': 'Add to existing value (for text fields)',
+                    'RequireMatch': 'Only save if values match (validation)'
+                };
+                $('#ruleDescription').text(descriptions[rule] || '');
+            }
+
+            // Event listeners
+            $('#Mapping_MappingAction').on('change', updateMappingActionUI);
+            $('#Mapping_BusinessRule').on('change', updateBusinessRuleUI);
+            
+            $('#triggerReviewCheck').on('change', function() {
+                if ($(this).is(':checked')) {
+                    $('#reviewPriorityGroup, #groupingWindowGroup').show();
+                } else {
+                    $('#reviewPriorityGroup, #groupingWindowGroup').hide();
+                }
+            });
+
+            // Initialize on page load
+            updateMappingActionUI();
+            updateBusinessRuleUI();
+            updateComplexityUI();
+
+            // ========================================
+            // PHASE 5: COMPLEXITY UI HANDLERS
+            // ========================================
+            
+            function updateComplexityUI() {
+                var complexity = $('#complexitySelect').val();                // Show/hide collection mapping section
+                if (complexity === '2') { // Collection                    // HIDE fields not needed for collection mappings
+                    $('#fieldCategoryGroup').hide();
+                    $('#targetFieldGroup').hide();
+                    
+                    // Show collection section
+                    $('#collectionMappingSection').show();
+                    
+                    // Update description
+                    $('#complexityDescription').html(
+                        '<i class="bi bi-layers"></i> <strong>Collection Mapping:</strong> ' +
+                        'Configure how matrix/dynamic questions create multiple entities with intelligent duplicate detection.'
+                    );
+                } else { // Simple or other                    // SHOW normal fields for simple mappings
+                    $('#fieldCategoryGroup').show();
+                    $('#targetFieldGroup').show();
+                    
+                    // Hide collection section
+                    $('#collectionMappingSection').hide();
+                    
+                    // Update description
+                    var descriptions = {
+                        '1': '<i class="bi bi-check-square"></i> <strong>Simple Mapping:</strong> Standard one-to-one field mapping (survey question ? database field)'
+                    };
+                    $('#complexityDescription').html(descriptions[complexity] || descriptions['1']);
+                }
+                
+                // Disable unavailable complexities (if they somehow get selected)
+                if (complexity === '3' || complexity === '4') { // RelatedEntity or Conditional
+                    alert('This complexity type is not yet implemented. Please select Simple or Collection.');
+                    $('#complexitySelect').val('1'); // Reset to Simple
+                    updateComplexityUI();
+                }
+            }
+            
+            // Initialize complexity UI
+            updateComplexityUI();
+            $('#complexitySelect').on('change', updateComplexityUI);
+            
+            // Field category change - reload page with new category
+            $('#fieldCategorySelect').on('change', function() {
+                var category = $(this).val();
+                if (category) {
+                    var url = new URL(window.location.href);
+                    url.searchParams.set('fieldCategory', category);
+                    url.searchParams.delete('targetFieldPath');
+                    window.location.href = url.toString();
+                }
+            });
+
+            // If there's a selected category, make sure it's selected in dropdown
+            var currentCategory = '@Model.FieldCategory';
+            if (currentCategory) {
+                $('#fieldCategorySelect').val(currentCategory);
+            }
+        });
+        
+        // Collection Mapping Editor Functions (outside document.ready)
+        function openCollectionEditor() {
+            // Open Blazor page in popup/modal
+            var url = '/Settings/Mappings/ConfigureCollectionBlazor/' + 
+                      '@Model.MappingId';
+            
+            // Add query parameters
+            var params = new URLSearchParams();
+            params.append('returnUrl', window.location.pathname);
+            
+            @if (Model.SurveyTemplateId != null && Model.SurveyTemplateId != Guid.Empty)
+            {
+                <text>
+                params.append('surveyTemplateId', '@Model.SurveyTemplateId');
+                </text>
+            }
+            
+            url += '?' + params.toString();
+            
+            window.open(url, 'CollectionMappingConfig', 'width=1400,height=900,scrollbars=yes');
+        }
+        
+        function clearCollectionConfig() {
+            if (confirm('Are you sure you want to clear the collection mapping configuration?')) {
+                $('#collectionConfigJson').val('');
+                location.reload();
+            }
+        }
+        
+        
+        // Called by popup window when configuration is saved
+        function updateCollectionConfig(configJson) {
+            $('#collectionConfigJson').val(configJson);
+            alert('Collection mapping configuration updated. Remember to save the mapping.');
+            location.reload();
+        }
+    </script>
+}
+

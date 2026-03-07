@@ -1,0 +1,383 @@
+@page
+@model Sentinel.Pages.Cases.AddLabResultModel
+@{
+    Layout = null;
+    var caseData = Model.Case;
+}
+@functions {
+    public string GetCspNonce()
+    {
+        if (HttpContext?.Items?.TryGetValue("csp-nonce", out var nonce) == true && nonce is string nonceStr)
+        {
+            return nonceStr;
+        }
+        return string.Empty;
+    }
+}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Add Lab Result - @caseData.FriendlyId</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" />
+    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+    <link href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css" rel="stylesheet" />
+    <style>
+        body {
+            background: #f8f9fa;
+            padding: 0.75rem;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            font-size: 0.875rem;
+        }
+        .add-container {
+            background: white;
+            border-radius: 8px;
+            padding: 1rem;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            max-height: calc(100vh - 1.5rem);
+            overflow-y: auto;
+        }
+        .header {
+            border-bottom: 2px solid #e9ecef;
+            padding-bottom: 0.6rem;
+            margin-bottom: 0.75rem;
+            position: sticky;
+            top: 0;
+            background: white;
+            z-index: 10;
+        }
+        .header h1 {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: #2d3748;
+            margin-bottom: 0.25rem;
+        }
+        .case-context {
+            background: #e3f2fd;
+            border-radius: 6px;
+            padding: 0.6rem;
+            margin-bottom: 0.75rem;
+            font-size: 0.8rem;
+        }
+        .case-context .row > div {
+            margin-bottom: 0.25rem;
+        }
+        .form-label {
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: #4a5568;
+            margin-bottom: 0.25rem;
+        }
+        .form-label .required {
+            color: #dc3545;
+        }
+        .form-control, .form-select {
+            font-size: 0.85rem;
+            padding: 0.4rem 0.6rem;
+        }
+        .btn {
+            font-size: 0.8rem;
+            padding: 0.4rem 0.85rem;
+            border-radius: 6px;
+        }
+        .btn-toolbar {
+            margin-top: 0.75rem;
+            padding-top: 0.75rem;
+            border-top: 1px solid #e9ecef;
+            display: flex;
+            gap: 0.4rem;
+            justify-content: space-between;
+            position: sticky;
+            bottom: 0;
+            background: white;
+            z-index: 10;
+        }
+        .section-title {
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: #2d3748;
+            margin-bottom: 0.4rem;
+            margin-top: 0.75rem;
+            padding-bottom: 0.25rem;
+            border-bottom: 1px solid #e9ecef;
+        }
+        .section-title i {
+            color: #4299e1;
+            font-size: 0.9rem;
+            margin-right: 0.35rem;
+        }
+        .row {
+            margin-bottom: 0.5rem;
+        }
+        .form-text {
+            font-size: 0.7rem;
+        }
+        .select2-container {
+            font-size: 0.85rem;
+        }
+        .alert {
+            font-size: 0.8rem;
+            padding: 0.5rem;
+            margin-bottom: 0.5rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="add-container">
+        <div class="header">
+            <h1><i class="bi bi-clipboard-plus me-2"></i>Add Lab Result</h1>
+            <small class="text-muted">Case: <strong>@caseData.FriendlyId</strong></small>
+        </div>
+
+        <!-- Case Context -->
+        <div class="case-context">
+            <div class="row g-2">
+                <div class="col-md-4">
+                    <strong>Patient:</strong> @caseData.Patient?.GivenName @caseData.Patient?.FamilyName
+                </div>
+                <div class="col-md-4">
+                    <strong>DOB:</strong> @(caseData.Patient?.DateOfBirth?.ToString("dd MMM yyyy") ?? "Unknown")
+                </div>
+                <div class="col-md-4">
+                    <strong>Disease:</strong> @caseData.Disease?.Name
+                </div>
+            </div>
+        </div>
+
+        <form method="post" enctype="multipart/form-data">
+            <input type="hidden" name="caseId" value="@Model.CaseId" />
+
+            <!-- Test Information -->
+            <div class="section-title">
+                <i class="bi bi-clipboard2-pulse"></i>Test Information
+            </div>
+            <div class="row g-2">
+                <div class="col-md-6">
+                    <label asp-for="LabResult.TestedDiseaseId" class="form-label">
+                        Test For (Disease) <span class="required">*</span>
+                    </label>
+                    <select asp-for="LabResult.TestedDiseaseId" class="form-select select2-disease" required>
+                        <option value="">Select Disease</option>
+                        @if (caseData.Disease != null)
+                        {
+                            <option value="@caseData.DiseaseId" selected>@caseData.Disease.Name</option>
+                        }
+                    </select>
+                    <small class="form-text text-muted">Pre-filled with case disease</small>
+                </div>
+                <div class="col-md-6">
+                    <label asp-for="LabResult.TestTypeId" class="form-label">
+                        Test Type <span class="required">*</span>
+                    </label>
+                    <select asp-for="LabResult.TestTypeId" asp-items="Model.TestTypesList" class="form-select" required>
+                        <option value="">Select Test Type</option>
+                    </select>
+                </div>
+            </div>
+            <div class="row g-2">
+                <div class="col-md-6">
+                    <label asp-for="LabResult.SpecimenTypeId" class="form-label">
+                        Specimen Type <span class="required">*</span>
+                    </label>
+                    <select asp-for="LabResult.SpecimenTypeId" asp-items="Model.SpecimenTypesList" class="form-select" required>
+                        <option value="">Select Specimen Type</option>
+                    </select>
+                </div>
+                <div class="col-md-6">
+                    <label asp-for="LabResult.TestResultId" class="form-label">
+                        Test Result <span class="required">*</span>
+                    </label>
+                    <select asp-for="LabResult.TestResultId" class="form-select select2-result" required>
+                        <option value="">Select Test Type First</option>
+                    </select>
+                    <small class="form-text text-muted">Filtered by test type</small>
+                </div>
+            </div>
+
+            <!-- Dates -->
+            <div class="section-title">
+                <i class="bi bi-calendar-event"></i>Dates
+            </div>
+            <div class="row g-2">
+                <div class="col-md-6">
+                    <label asp-for="LabResult.SpecimenCollectionDate" class="form-label">
+                        Collection Date <span class="required">*</span>
+                    </label>
+                    <input asp-for="LabResult.SpecimenCollectionDate" type="date" class="form-control" required />
+                </div>
+                <div class="col-md-6">
+                    <label asp-for="LabResult.ResultDate" class="form-label">
+                        Result Date <span class="required">*</span>
+                    </label>
+                    <input asp-for="LabResult.ResultDate" type="date" class="form-control" required />
+                </div>
+            </div>
+
+            <!-- Organizations -->
+            <div class="section-title">
+                <i class="bi bi-building"></i>Organizations
+            </div>
+            <div class="row g-2">
+                <div class="col-md-6">
+                    <label asp-for="LabResult.LaboratoryId" class="form-label">Laboratory</label>
+                    <select asp-for="LabResult.LaboratoryId" class="form-select select2-org">
+                        <option value="">Select Laboratory</option>
+                    </select>
+                </div>
+                <div class="col-md-6">
+                    <label asp-for="LabResult.OrderingProviderId" class="form-label">Ordering Provider</label>
+                    <select asp-for="LabResult.OrderingProviderId" class="form-select select2-org">
+                        <option value="">Select Provider</option>
+                    </select>
+                </div>
+            </div>
+            <div class="row g-2">
+                <div class="col-md-12">
+                    <label asp-for="LabResult.AccessionNumber" class="form-label">Accession Number</label>
+                    <input asp-for="LabResult.AccessionNumber" class="form-control" placeholder="Lab reference number" />
+                </div>
+            </div>
+
+            <!-- Quantitative Results -->
+            <div class="section-title">
+                <i class="bi bi-graph-up"></i>Quantitative Results (Optional)
+            </div>
+            <div class="row g-2">
+                <div class="col-md-6">
+                    <label asp-for="LabResult.QuantitativeResult" class="form-label">Quantitative Result</label>
+                    <input asp-for="LabResult.QuantitativeResult" type="number" step="0.01" class="form-control" placeholder="e.g., 5.2" />
+                </div>
+                <div class="col-md-6">
+                    <label asp-for="LabResult.ResultUnitsId" class="form-label">Units</label>
+                    <select asp-for="LabResult.ResultUnitsId" asp-items="Model.ResultUnitsList" class="form-select">
+                        <option value="">Select Units</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Notes -->
+            <div class="section-title">
+                <i class="bi bi-chat-dots"></i>Additional Information
+            </div>
+            <div class="row g-2">
+                <div class="col-md-6">
+                    <label asp-for="LabResult.Notes" class="form-label">Internal Notes</label>
+                    <textarea asp-for="LabResult.Notes" class="form-control" rows="2" placeholder="Internal notes..."></textarea>
+                </div>
+                <div class="col-md-6">
+                    <label asp-for="LabResult.LabInterpretation" class="form-label">Lab Interpretation</label>
+                    <textarea asp-for="LabResult.LabInterpretation" class="form-control" rows="2" placeholder="Lab interpretation..."></textarea>
+                </div>
+            </div>
+            <div class="row g-2">
+                <div class="col-md-12">
+                    <div class="form-check">
+                        <input asp-for="LabResult.IsAmended" class="form-check-input" type="checkbox" />
+                        <label asp-for="LabResult.IsAmended" class="form-check-label">Amended Result</label>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Attachment -->
+            <div class="section-title">
+                <i class="bi bi-paperclip"></i>Attachment
+            </div>
+            <div class="row g-2">
+                <div class="col-md-12">
+                    <label asp-for="LabResultAttachment" class="form-label">Upload Lab Report</label>
+                    <input asp-for="LabResultAttachment" type="file" class="form-control" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.gif" />
+                    <small class="form-text text-muted">PDF, Word, or image files</small>
+                </div>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="btn-toolbar">
+                <div>
+                    <button type="button" class="btn btn-secondary" onclick="window.close()">
+                        <i class="bi bi-x-circle me-1"></i>Cancel
+                    </button>
+                </div>
+                <div>
+                    <button type="submit" class="btn btn-success">
+                        <i class="bi bi-save me-1"></i>Save Lab Result
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+    <script>
+        $(document).ready(function() {
+            // Initialize Select2 for Organizations
+            $('.select2-org').select2({
+                theme: 'bootstrap-5',
+                placeholder: 'Type to search...',
+                allowClear: true,
+                minimumInputLength: 2,
+                ajax: {
+                    url: '/Cases/Details?handler=SearchOrganizations',
+                    dataType: 'json',
+                    delay: 250,
+                    data: function(params) {
+                        return { term: params.term };
+                    },
+                    processResults: function(data) {
+                        return { results: data };
+                    }
+                }
+            });
+
+            // Initialize Select2 for Diseases
+            $('.select2-disease').select2({
+                theme: 'bootstrap-5',
+                placeholder: 'Type to search...',
+                allowClear: true,
+                minimumInputLength: 2,
+                ajax: {
+                    url: '/Cases/Details?handler=SearchDiseases',
+                    dataType: 'json',
+                    delay: 250,
+                    data: function(params) {
+                        return { term: params.term };
+                    },
+                    processResults: function(data) {
+                        return { results: data };
+                    }
+                }
+            });
+
+            // Initialize Select2 for Test Results
+            $('.select2-result').select2({
+                theme: 'bootstrap-5',
+                placeholder: 'Select test type first...',
+                allowClear: true,
+                ajax: {
+                    url: '/Cases/Details?handler=SearchTestResults',
+                    dataType: 'json',
+                    delay: 250,
+                    data: function(params) {
+                        var testTypeId = $('select[name="LabResult.TestTypeId"]').val();
+                        return {
+                            testTypeId: testTypeId,
+                            term: params.term
+                        };
+                    },
+                    processResults: function(data) {
+                        return { results: data };
+                    }
+                }
+            });
+
+            // Refresh test results when test type changes
+            $('select[name="LabResult.TestTypeId"]').on('change', function() {
+                $('.select2-result').val(null).trigger('change');
+            });
+        });
+    </script>
+</body>
+</html>

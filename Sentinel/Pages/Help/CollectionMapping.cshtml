@@ -1,0 +1,343 @@
+@page
+@model Sentinel.Pages.Help.CollectionMappingModel
+@{
+    ViewData["Title"] = "Collection Mapping Guide";
+}
+@functions {
+    public string GetCspNonce()
+    {
+        if (HttpContext?.Items?.TryGetValue("csp-nonce", out var nonce) == true && nonce is string nonceStr)
+        {
+            return nonceStr;
+        }
+        return string.Empty;
+    }
+}
+
+<div class="container-fluid py-4">
+    <nav aria-label="breadcrumb" class="mb-3">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a asp-page="/Index">Home</a></li>
+            <li class="breadcrumb-item"><a asp-page="/Help/Index">Help</a></li>
+            <li class="breadcrumb-item active">Collection Mapping</li>
+        </ol>
+    </nav>
+
+    <div class="row">
+        <div class="col-lg-9">
+            <!-- Introduction -->
+            <div class="card mb-4">
+                <div class="card-header bg-primary text-white">
+                    <h3 class="mb-0">
+                        <i class="bi bi-grid-3x3-gap"></i> Collection Mapping Guide
+                    </h3>
+                </div>
+                <div class="card-body">
+                    <p class="lead">
+                        Collection Mapping automates the creation of multiple related entities from survey matrix questions, 
+                        with intelligent duplicate detection to prevent data duplication.
+                    </p>
+                    
+                    <div class="alert alert-info">
+                        <strong><i class="bi bi-lightbulb"></i> Example:</strong>
+                        A survey asks "List all household contacts". Each row creates a Contact record, 
+                        but the system checks if that contact already exists first.
+                    </div>
+                </div>
+            </div>
+
+            <!-- How It Works -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h4 class="mb-0">How It Works</h4>
+                </div>
+                <div class="card-body">
+                    <ol class="workflow-steps">
+                        <li>
+                            <strong>User completes survey</strong> with matrix/dynamic question
+                            <br /><small class="text-muted">E.g., fills in 3 household contacts</small>
+                        </li>
+                        <li>
+                            <strong>System processes each row</strong>
+                            <br /><small class="text-muted">Maps columns to database fields using your configuration</small>
+                        </li>
+                        <li>
+                            <strong>Duplicate detection runs</strong> (if enabled)
+                            <br /><small class="text-muted">Compares against existing entities using match fields</small>
+                        </li>
+                        <li>
+                            <strong>Decision made:</strong>
+                            <ul>
+                                <li><strong>High confidence match (>90%):</strong> Queue for review</li>
+                                <li><strong>Medium confidence (75-90%):</strong> Queue for review</li>
+                                <li><strong>Low confidence (<75%):</strong> Create new entity or queue based on settings</li>
+                                <li><strong>No match:</strong> Create new entity</li>
+                            </ul>
+                        </li>
+                        <li>
+                            <strong>Entities created or queued</strong>
+                            <br /><small class="text-muted">Links to case automatically</small>
+                        </li>
+                    </ol>
+                </div>
+            </div>
+
+            <!-- Setup Guide -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h4 class="mb-0">Setup Guide</h4>
+                </div>
+                <div class="card-body">
+                    <h5>Step 1: Create Matrix Question in Survey</h5>
+                    <pre class="bg-light p-3 rounded">
+{
+  "name": "householdContacts",
+  "type": "matrixdynamic",
+  "title": "Household Contacts",
+  "columns": [
+    { "name": "firstName", "title": "First Name", "cellType": "text" },
+    { "name": "lastName", "title": "Last Name", "cellType": "text" },
+    { "name": "dob", "title": "Date of Birth", "cellType": "text", "inputType": "date" },
+    { "name": "phone", "title": "Phone", "cellType": "text" }
+  ]
+}</pre>
+
+                    <hr />
+
+                    <h5>Step 2: Create Survey Field Mapping</h5>
+                    <p>Settings ? Surveys ? Edit Survey ? Field Mappings ? Add Mapping</p>
+                    <ul>
+                        <li><strong>Survey Question:</strong> householdContacts</li>
+                        <li><strong>Complexity:</strong> Collection</li>
+                        <li><strong>Action:</strong> AutoSave</li>
+                        <li><strong>Business Rule:</strong> AlwaysOverwrite</li>
+                    </ul>
+
+                    <hr />
+
+                    <h5>Step 3: Configure Collection Mapping</h5>
+                    <p>Click "Configure Collection Mapping" button</p>
+                    
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <h6>Basic Settings:</h6>
+                            <ul>
+                                <li><strong>Matrix Question:</strong> householdContacts</li>
+                                <li><strong>Target Entity:</strong> Contact</li>
+                            </ul>
+                        </div>
+                        <div class="col-md-6">
+                            <h6>Column Mappings:</h6>
+                            <table class="table table-sm">
+                                <thead>
+                                    <tr>
+                                        <th>Column</th>
+                                        <th>Maps To</th>
+                                        <th>Required</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td>firstName</td>
+                                        <td>Patient.GivenName</td>
+                                        <td><i class="bi bi-check-circle text-success"></i></td>
+                                    </tr>
+                                    <tr>
+                                        <td>lastName</td>
+                                        <td>Patient.FamilyName</td>
+                                        <td><i class="bi bi-check-circle text-success"></i></td>
+                                    </tr>
+                                    <tr>
+                                        <td>dob</td>
+                                        <td>Patient.DateOfBirth</td>
+                                        <td><i class="bi bi-check-circle text-success"></i></td>
+                                    </tr>
+                                    <tr>
+                                        <td>phone</td>
+                                        <td>Patient.MobilePhone</td>
+                                        <td><i class="bi bi-check-circle text-success"></i></td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <hr />
+
+                    <h5>Step 4: Configure Duplicate Detection</h5>
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <h6>Match Fields:</h6>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" checked disabled />
+                                <label class="form-check-label">Patient.GivenName</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" checked disabled />
+                                <label class="form-check-label">Patient.FamilyName</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" checked disabled />
+                                <label class="form-check-label">Patient.DateOfBirth</label>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <h6>Settings:</h6>
+                            <p><strong>Confidence Threshold:</strong> 85%</p>
+                            <p><strong>Strategy:</strong> Exact Match</p>
+                            <p><strong>On Duplicate:</strong> Require Human Review</p>
+                        </div>
+                    </div>
+
+                    <hr />
+
+                    <h5>Step 5: Save & Test</h5>
+                    <ol>
+                        <li>Click "Save Configuration"</li>
+                        <li>Save the field mapping</li>
+                        <li>Submit a test survey</li>
+                        <li>Check Review Queue for any duplicates</li>
+                        <li>Verify entities created correctly</li>
+                    </ol>
+                </div>
+            </div>
+
+            <!-- Best Practices -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h4 class="mb-0">Best Practices</h4>
+                </div>
+                <div class="card-body">
+                    <h5>Choosing Match Fields</h5>
+                    <ul>
+                        <li><i class="bi bi-check-circle text-success"></i> <strong>DO</strong> use unique identifiers (name + DOB, email, phone number)</li>
+                        <li><i class="bi bi-check-circle text-success"></i> <strong>DO</strong> use 2-3 fields for matching (balance accuracy and coverage)</li>
+                        <li><i class="bi bi-x-circle text-danger"></i> <strong>DON'T</strong> use only first name (too many false positives)</li>
+                        <li><i class="bi bi-x-circle text-danger"></i> <strong>DON'T</strong> use fields that change frequently (address)</li>
+                    </ul>
+
+                    <h5>Setting Confidence Threshold</h5>
+                    <ul>
+                        <li><strong>90-100%:</strong> Very strict - good for critical data, may miss some duplicates</li>
+                        <li><strong>80-90%:</strong> Balanced - recommended for most cases</li>
+                        <li><strong>70-80%:</strong> Lenient - good for fuzzy matching, more false positives</li>
+                    </ul>
+
+                    <h5>Handling Review Queue</h5>
+                    <ul>
+                        <li>Review high-confidence matches first (>90%)</li>
+                        <li>If unsure, choose "Create New" - better to have duplicate than merge wrong entities</li>
+                        <li>Add notes to your decisions for audit trail</li>
+                        <li>Review daily to prevent backlog</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Troubleshooting -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h4 class="mb-0">Troubleshooting</h4>
+                </div>
+                <div class="card-body">
+                    <h6><i class="bi bi-x-circle text-danger"></i> No entities created</h6>
+                    <ul>
+                        <li>Check: Is mapping active?</li>
+                        <li>Check: Are required fields populated?</li>
+                        <li>Check: Are there validation errors in logs?</li>
+                    </ul>
+
+                    <h6><i class="bi bi-exclamation-triangle text-warning"></i> Too many false positive duplicates</h6>
+                    <ul>
+                        <li>Solution: Increase confidence threshold (85% ? 90%)</li>
+                        <li>Solution: Add more specific match fields</li>
+                    </ul>
+
+                    <h6><i class="bi bi-exclamation-triangle text-warning"></i> Missing actual duplicates</h6>
+                    <ul>
+                        <li>Solution: Decrease confidence threshold (85% ? 75%)</li>
+                        <li>Solution: Enable fuzzy matching (Phase 3 feature)</li>
+                    </ul>
+
+                    <h6><i class="bi bi-question-circle text-info"></i> Wrong entity type created</h6>
+                    <ul>
+                        <li>Check: Target Entity setting in collection mapping</li>
+                        <li>Check: Parent case FK properly set</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sidebar -->
+        <div class="col-lg-3">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Quick Links</h5>
+                </div>
+                <div class="list-group list-group-flush">
+                    <a asp-page="/Settings/Surveys/SurveyTemplates" class="list-group-item list-group-item-action">
+                        <i class="bi bi-gear"></i> Configure Mappings
+                    </a>
+                    <a asp-page="/ReviewQueue/Index" class="list-group-item list-group-item-action">
+                        <i class="bi bi-clipboard-check"></i> Review Queue
+                    </a>
+                    <a asp-page="/Help/SurveyDesign" class="list-group-item list-group-item-action">
+                        <i class="bi bi-question-circle"></i> Survey Design Help
+                    </a>
+                </div>
+            </div>
+
+            <div class="card mt-3">
+                <div class="card-body">
+                    <h6 class="card-title">Need Help?</h6>
+                    <p class="card-text small">
+                        Contact support or check the documentation for more information.
+                    </p>
+                    <a href="mailto:support@example.com" class="btn btn-sm btn-primary w-100">
+                        <i class="bi bi-envelope"></i> Contact Support
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .workflow-steps {
+        counter-reset: step-counter;
+        list-style: none;
+        padding-left: 0;
+    }
+
+    .workflow-steps > li {
+        counter-increment: step-counter;
+        position: relative;
+        padding-left: 3rem;
+        margin-bottom: 2rem;
+    }
+
+    .workflow-steps > li::before {
+        content: counter(step-counter);
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 2rem;
+        height: 2rem;
+        background: #3b82f6;
+        color: white;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 700;
+    }
+
+    .workflow-steps > li:not(:last-child)::after {
+        content: '';
+        position: absolute;
+        left: 1rem;
+        top: 2.5rem;
+        bottom: -2rem;
+        width: 2px;
+        background: #e2e8f0;
+    }
+</style>

@@ -1,0 +1,1047 @@
+@page
+@model Sentinel.Pages.Patients.CreateModel
+@using Sentinel.Services
+@using Sentinel.Models.Lookups
+@inject Microsoft.Extensions.Configuration.IConfiguration Configuration
+
+@{
+    ViewData["Title"] = "Create Patient";
+    Layout = "~/Pages/Shared/_Layout.cshtml";
+}
+
+<!-- Apple Page Header -->
+<div class="apple-page-header">
+    <div>
+        <nav class="apple-breadcrumb">
+            <a asp-page="/Index">Dashboard</a>
+            <span class="breadcrumb-separator">›</span>
+            <a asp-page="./Index">Patients</a>
+            <span class="breadcrumb-separator">›</span>
+            <span>New Patient</span>
+        </nav>
+        <h1 class="text-title-1" style="margin-top: 8px;">
+            <i class="bi bi-person-plus-fill me-2" style="color: var(--color-primary);"></i>New Patient
+        </h1>
+    </div>
+    <div class="apple-page-actions">
+        <a asp-page="./Index" class="btn-apple btn-apple-secondary">
+            <i class="bi bi-arrow-left"></i>
+            Back to Patients
+        </a>
+    </div>
+</div>
+
+<!-- Duplicate Warning Alert -->
+@if (Model.ShowDuplicateWarning && Model.PotentialDuplicates.Any())
+{
+    <div class="apple-card" style="background: rgba(255, 149, 0, 0.1); border: 1px solid var(--color-warning); margin-bottom: 24px;">
+        <div class="apple-card-header" style="background: rgba(255, 149, 0, 0.15); border-bottom: 1px solid var(--color-warning);">
+            <div style="display: flex; align-items: center; gap: 8px;">
+                <i class="bi bi-exclamation-triangle-fill" style="color: var(--color-warning); font-size: 20px;"></i>
+                <strong>Potential Duplicate Patients Found</strong>
+            </div>
+        </div>
+        <div class="apple-card-body">
+            <p class="text-callout" style="margin-bottom: 16px;">
+                We found <strong>@Model.PotentialDuplicates.Count</strong> existing patient(s) that may be similar to the one you're creating. Please review them before continuing.
+            </p>
+            
+            <div style="display: flex; flex-direction: column; gap: 12px; margin-bottom: 24px;">
+                @foreach (var duplicate in Model.PotentialDuplicates)
+                {
+                    var age = duplicate.Patient.DateOfBirth.HasValue 
+                        ? (int)Math.Floor((DateTime.UtcNow - duplicate.Patient.DateOfBirth.Value).TotalDays / 365.2425) 
+                        : (int?)null;
+                    <div class="apple-card" style="box-shadow: var(--shadow-small);">
+                        <div class="apple-card-body">
+                            <div style="display: flex; justify-content: space-between; align-items: start;">
+                                <div style="flex: 1;">
+                                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                                        <h3 class="text-title-3" style="margin: 0;">
+                                            @duplicate.Patient.GivenName @duplicate.Patient.FamilyName
+                                        </h3>
+                                        @if (age.HasValue)
+                                        {
+                                            <span class="status-badge normal">@age years</span>
+                                        }
+                                    </div>
+                                    <div class="text-subhead" style="color: var(--gray-2); margin-bottom: 8px;">
+                                        <strong>DOB:</strong> @(duplicate.Patient.DateOfBirth?.ToString("dd MMM yyyy") ?? "-")
+                                        | <strong>Sex:</strong> @(duplicate.Patient.SexAtBirth?.Name ?? "-")
+                                    </div>
+                                    @if (!string.IsNullOrWhiteSpace(duplicate.Patient.AddressLine) || !string.IsNullOrWhiteSpace(duplicate.Patient.City))
+                                    {
+                                        <div class="text-footnote" style="color: var(--gray-2);">
+                                            <i class="bi bi-geo-alt"></i>
+                                            @duplicate.Patient.AddressLine @duplicate.Patient.City @duplicate.Patient.State @duplicate.Patient.PostalCode
+                                        </div>
+                                    }
+                                    <div style="display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap;">
+                                        <span class="card-badge">Match Score: @duplicate.MatchScore</span>
+                                        @foreach (var reason in duplicate.MatchReasons)
+                                        {
+                                            <span class="status-badge warning">@reason</span>
+                                        }
+                                    </div>
+                                </div>
+                                <a asp-page="./Details" asp-route-id="@duplicate.Patient.Id" target="_blank" class="btn-apple btn-apple-primary">
+                                    <i class="bi bi-eye"></i> Review
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                }
+            </div>
+
+            <div style="display: flex; gap: 12px;">
+                <form method="post" class="d-inline">
+                    <input type="hidden" asp-for="ConfirmDuplicate" value="true" />
+                    @Html.AntiForgeryToken()
+                    @* Re-bind all Patient fields as hidden to preserve data *@
+                    <input type="hidden" asp-for="Patient.GivenName" />
+                    <input type="hidden" asp-for="Patient.FamilyName" />
+                    <input type="hidden" asp-for="Patient.DateOfBirth" />
+                    <input type="hidden" asp-for="Patient.SexAtBirthId" />
+                    <input type="hidden" asp-for="Patient.GenderId" />
+                    <input type="hidden" asp-for="Patient.CountryOfBirthId" />
+                    <input type="hidden" asp-for="Patient.LanguageSpokenAtHomeId" />
+                    <input type="hidden" asp-for="Patient.AncestryId" />
+                    <input type="hidden" asp-for="Patient.AtsiStatusId" />
+                    <input type="hidden" asp-for="Patient.OccupationId" />
+                    <input type="hidden" asp-for="Patient.AddressLine" />
+                    <input type="hidden" asp-for="Patient.City" />
+                    <input type="hidden" asp-for="Patient.State" />
+                    <input type="hidden" asp-for="Patient.PostalCode" />
+                    <input type="hidden" asp-for="Patient.Latitude" />
+                    <input type="hidden" asp-for="Patient.Longitude" />
+                    <button type="submit" class="btn-apple" style="background: var(--color-warning); color: white;">
+                        <i class="bi bi-check-circle"></i>Continue Anyway
+                    </button>
+                </form>
+                <button type="button" class="btn-apple btn-apple-secondary" onclick="window.location.reload();">
+                    <i class="bi bi-arrow-counterclockwise"></i>Go Back and Edit
+                </button>
+                <a asp-page="./Index" class="btn-apple btn-apple-secondary">
+                    <i class="bi bi-x-circle"></i>Cancel
+                </a>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- Status Messages -->
+@if (TempData["SuccessMessage"] != null)
+{
+    <div class="apple-card" style="background: rgba(52, 199, 89, 0.1); border: 1px solid var(--color-success); margin-bottom: 24px;">
+        <div class="apple-card-body" style="display: flex; align-items: center; gap: 12px;">
+            <i class="bi bi-check-circle-fill" style="color: var(--color-success); font-size: 24px;"></i>
+            <span class="text-callout">@TempData["SuccessMessage"]</span>
+        </div>
+    </div>
+}
+
+@if (TempData["ErrorMessage"] != null)
+{
+    <div class="apple-card" style="background: rgba(255, 59, 48, 0.1); border: 1px solid var(--color-danger); margin-bottom: 24px;">
+        <div class="apple-card-body" style="display: flex; align-items: center; gap: 12px;">
+            <i class="bi bi-exclamation-triangle-fill" style="color: var(--color-danger); font-size: 24px;"></i>
+            <span class="text-callout">@TempData["ErrorMessage"]</span>
+        </div>
+    </div>
+}
+
+@if (TempData["WarningMessage"] != null)
+{
+    <div class="apple-card" style="background: rgba(255, 149, 0, 0.1); border: 1px solid var(--color-warning); margin-bottom: 24px;">
+        <div class="apple-card-body" style="display: flex; align-items: center; gap: 12px;">
+            <i class="bi bi-exclamation-triangle-fill" style="color: var(--color-warning); font-size: 24px;"></i>
+            <span class="text-callout">@TempData["WarningMessage"]</span>
+        </div>
+    </div>
+}
+
+<form method="post">
+<div asp-validation-summary="ModelOnly" class="apple-card" style="background: rgba(255, 59, 48, 0.1); border: 1px solid var(--color-danger); margin-bottom: 24px;" role="alert"></div>
+
+@if (Model.Mode == "popup" && Model.ReturnContext == "exposure")
+{
+    <!-- Patient Search Section for Popup Mode -->
+    <div class="apple-card" style="margin-bottom: 24px; background: rgba(0, 122, 255, 0.05);">
+        <div class="apple-card-header" style="background: rgba(0, 122, 255, 0.1);">
+            <div style="display: flex; align-items: center; gap: 8px;">
+                <i class="bi bi-search" style="color: var(--color-primary);"></i>
+                <span>Search for Existing Patient First</span>
+            </div>
+        </div>
+        <div class="apple-card-body">
+            <p class="text-callout" style="margin-bottom: 16px; color: var(--color-secondary);">
+                <i class="bi bi-info-circle me-1"></i>
+                Before creating a new patient, search to see if they already exist in the system.
+            </p>
+            
+            <div class="apple-form-group">
+                <label class="apple-form-label">Search by Name or Patient ID</label>
+                <input type="text" id="patientSearchInput" class="apple-form-input" placeholder="Start typing name or ID..." />
+            </div>
+
+            <div id="patientSearchResults" style="display: none; margin-top: 16px;">
+                <div style="padding: 12px; background: white; border-radius: 8px; border: 1px solid var(--color-divider);">
+                    <p style="margin: 0 0 12px 0; font-weight: 600; color: var(--color-text);">Found Patients:</p>
+                    <div id="patientResultsList"></div>
+                </div>
+            </div>
+
+            <div id="patientSearchEmpty" style="display: none; margin-top: 16px;">
+                <div style="padding: 16px; background: rgba(52, 199, 89, 0.1); border-radius: 8px; border: 1px solid var(--color-success);">
+                    <p style="margin: 0; color: var(--color-success);">
+                        <i class="bi bi-check-circle me-1"></i>
+                        No existing patient found. You can create a new patient below.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div style="text-align: center; margin-bottom: 24px;">
+        <div style="display: inline-block; padding: 8px 16px; background: var(--color-divider); border-radius: 8px;">
+            <span class="text-callout" style="color: var(--color-secondary); font-weight: 600;">OR CREATE NEW PATIENT</span>
+        </div>
+    </div>
+}
+
+<!-- Demographics Section -->
+<div class="apple-card" style="margin-bottom: 24px;">
+    <div class="apple-card-header">
+        <div style="display: flex; align-items: center; gap: 8px;">
+            <i class="bi bi-person-fill" style="color: var(--color-primary);"></i>
+            <span>Demographics</span>
+        </div>
+    </div>
+    <div class="apple-card-body">
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px;">
+            <!-- Given Name -->
+            <div class="apple-form-group">
+                <label asp-for="Patient.GivenName" class="apple-form-label">
+                    <span style="color: var(--color-danger);">*</span> First Name
+                </label>
+                <input asp-for="Patient.GivenName" class="apple-form-input" placeholder="e.g., John" />
+                <span asp-validation-for="Patient.GivenName" class="text-footnote" style="color: var(--color-danger);"></span>
+            </div>
+
+            <!-- Family Name -->
+            <div class="apple-form-group">
+                <label asp-for="Patient.FamilyName" class="apple-form-label">
+                    <span style="color: var(--color-danger);">*</span> Last Name
+                </label>
+                <input asp-for="Patient.FamilyName" class="apple-form-input" placeholder="e.g., Smith" />
+                <span asp-validation-for="Patient.FamilyName" class="text-footnote" style="color: var(--color-danger);"></span>
+            </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-top: 16px;">
+            <!-- Date of Birth -->
+            <div class="apple-form-group">
+                <label asp-for="Patient.DateOfBirth" class="apple-form-label">Date of Birth</label>
+                <input asp-for="Patient.DateOfBirth" class="apple-form-input" type="date" />
+                <span asp-validation-for="Patient.DateOfBirth" class="text-footnote" style="color: var(--color-danger);"></span>
+            </div>
+
+            <!-- Sex at Birth -->
+            <div class="apple-form-group">
+                <label asp-for="Patient.SexAtBirthId" class="apple-form-label">Sex at Birth</label>
+                <select asp-for="Patient.SexAtBirthId" class="apple-form-select" asp-items="ViewBag.SexAtBirthId">
+                    <option value="">Select...</option>
+                </select>
+                <span asp-validation-for="Patient.SexAtBirthId" class="text-footnote" style="color: var(--color-danger);"></span>
+            </div>
+
+            <!-- Gender -->
+            <div class="apple-form-group">
+                <label asp-for="Patient.GenderId" class="apple-form-label">Gender</label>
+                <select asp-for="Patient.GenderId" class="apple-form-select" asp-items="ViewBag.GenderId">
+                    <option value="">Select...</option>
+                </select>
+                <span asp-validation-for="Patient.GenderId" class="text-footnote" style="color: var(--color-danger);"></span>
+            </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-top: 16px;">
+            <!-- Country of Birth -->
+            <div class="apple-form-group">
+                <label asp-for="Patient.CountryOfBirthId" class="apple-form-label">Country of Birth</label>
+                <select asp-for="Patient.CountryOfBirthId" class="apple-form-select" asp-items="ViewBag.CountryOfBirthId">
+                    <option value="">Select...</option>
+                </select>
+                <span asp-validation-for="Patient.CountryOfBirthId" class="text-footnote" style="color: var(--color-danger);"></span>
+            </div>
+
+            <!-- Language Spoken at Home -->
+            <div class="apple-form-group">
+                <label asp-for="Patient.LanguageSpokenAtHomeId" class="apple-form-label">Language at Home</label>
+                <select asp-for="Patient.LanguageSpokenAtHomeId" class="apple-form-select" asp-items="ViewBag.LanguageSpokenAtHomeId">
+                    <option value="">Select...</option>
+                </select>
+                <span asp-validation-for="Patient.LanguageSpokenAtHomeId" class="text-footnote" style="color: var(--color-danger);"></span>
+            </div>
+
+            <!-- Ancestry -->
+            <div class="apple-form-group">
+                <label asp-for="Patient.AncestryId" class="apple-form-label">Ancestry</label>
+                <select asp-for="Patient.AncestryId" class="apple-form-select" asp-items="ViewBag.AncestryId">
+                    <option value="">Select...</option>
+                </select>
+                <span asp-validation-for="Patient.AncestryId" class="text-footnote" style="color: var(--color-danger);"></span>
+            </div>
+        </div>
+
+        <!-- ATSI Status -->
+        <div class="apple-form-group" style="margin-top: 16px;">
+            <label asp-for="Patient.AtsiStatusId" class="apple-form-label">Aboriginal and Torres Strait Islander Status</label>
+            <select asp-for="Patient.AtsiStatusId" class="apple-form-select" asp-items="ViewBag.AtsiStatusId">
+                <option value="">Select...</option>
+            </select>
+            <span asp-validation-for="Patient.AtsiStatusId" class="text-footnote" style="color: var(--color-danger);"></span>
+        </div>
+
+        <!-- Occupation -->
+        <div class="apple-form-group" style="margin-top: 16px;">
+            <label asp-for="Patient.OccupationId" class="apple-form-label">Occupation</label>
+            <input type="text" 
+                   class="apple-form-input" 
+                   id="occupationSearch" 
+                   placeholder="Start typing to search..." 
+                   autocomplete="off" />
+            <input type="hidden" asp-for="Patient.OccupationId" id="occupationId" />
+            <span asp-validation-for="Patient.OccupationId" class="text-footnote" style="color: var(--color-danger);"></span>
+            <small class="text-footnote" style="color: var(--gray-2); display: block; margin-top: 4px;">
+                Search by name or ANZSCO code (e.g., "Chief Executive" or "111111")
+            </small>
+        </div>
+
+        <!-- Vital Status Section -->
+        <div style="margin-top: 24px; padding-top: 24px; border-top: 1px solid var(--gray-5);">
+            <h3 class="text-title2" style="margin-bottom: 16px;">
+                <i class="bi bi-heart-pulse-fill me-2"></i>Vital Status
+            </h3>
+
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px;">
+                <!-- Deceased -->
+                <div class="apple-form-group">
+                    <label asp-for="Patient.IsDeceased" class="apple-form-label">Deceased</label>
+                    <select asp-for="Patient.IsDeceased" class="apple-form-select" id="isDeceasedSelect">
+                        <option value="false">No</option>
+                        <option value="true">Yes</option>
+                    </select>
+                    <span asp-validation-for="Patient.IsDeceased" class="text-footnote" style="color: var(--color-danger);"></span>
+                </div>
+
+                <!-- Date of Death -->
+                <div class="apple-form-group" id="dateOfDeathField" style="display: none;">
+                    <label asp-for="Patient.DateOfDeath" class="apple-form-label">Date of Death</label>
+                    <input asp-for="Patient.DateOfDeath" class="apple-form-input" type="date" id="dateOfDeath" />
+                    <span asp-validation-for="Patient.DateOfDeath" class="text-footnote" style="color: var(--color-danger);"></span>
+                    <small class="text-footnote" style="color: var(--gray-2); display: block; margin-top: 4px;">
+                        Must be after date of birth
+                    </small>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+
+    <!-- Contact Information Section -->
+    <div class="apple-card" style="margin-bottom: 24px;">
+        <div class="apple-card-header">
+            <div style="display: flex; align-items: center; gap: 8px;">
+                <i class="bi bi-telephone-fill" style="color: var(--color-primary);"></i>
+                <span>Contact Information</span>
+            </div>
+        </div>
+        <div class="apple-card-body">
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 16px;">
+                <!-- Home Phone -->
+                <div class="apple-form-group">
+                    <label asp-for="Patient.HomePhone" class="apple-form-label">Home Phone</label>
+                    <input asp-for="Patient.HomePhone" class="apple-form-input" type="tel" placeholder="(02) 1234 5678" />
+                    <span asp-validation-for="Patient.HomePhone" class="text-footnote" style="color: var(--color-danger);"></span>
+                </div>
+
+                <!-- Mobile Phone -->
+                <div class="apple-form-group">
+                    <label asp-for="Patient.MobilePhone" class="apple-form-label">Mobile Phone</label>
+                    <input asp-for="Patient.MobilePhone" class="apple-form-input" type="tel" placeholder="0400 123 456" />
+                    <span asp-validation-for="Patient.MobilePhone" class="text-footnote" style="color: var(--color-danger);"></span>
+                </div>
+
+                <!-- Email Address -->
+                <div class="apple-form-group">
+                    <label asp-for="Patient.EmailAddress" class="apple-form-label">Email Address</label>
+                    <input asp-for="Patient.EmailAddress" class="apple-form-input" type="email" placeholder="patient@example.com" />
+                    <span asp-validation-for="Patient.EmailAddress" class="text-footnote" style="color: var(--color-danger);"></span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card shadow-sm mb-4">
+        <div class="card-header bg-primary text-white fw-semibold">
+            <i class="bi bi-search me-2"></i>Address Lookup
+        </div>
+        <div class="card-body">
+            <div class="alert alert-info mb-3">
+                <i class="bi bi-lightbulb me-2"></i>
+                <strong>Quick Start:</strong> Search for any business or address (e.g., "123 Main St", "Woolworths Adelaide"). 
+                Selecting a result will auto-fill all address fields and coordinates.
+            </div>
+            
+            <div class="position-relative">
+                <label class="form-label fw-bold">
+                    <i class="bi bi-geo-alt me-1"></i>Search for Address or Business
+                </label>
+                <input type="text" class="form-control form-control-lg" id="placeSearchInput" autocomplete="off"
+                       placeholder="Try '123 Main Street', 'Coles Adelaide', or 'Springfield Hospital'..." 
+                       aria-haspopup="listbox" aria-expanded="false" aria-controls="placeDropdown" />
+                <div class="dropdown-menu w-100" id="placeDropdown" role="listbox" style="max-height:300px;overflow:auto;" aria-label="Place suggestions"></div>
+                <small class="form-text text-muted">
+                    <i class="bi bi-info-circle me-1"></i>Search works for residential addresses and any business location
+                </small>
+            </div>
+        </div>
+    </div>
+
+    <div class="card shadow-sm mb-4">
+        <div class="card-header bg-light fw-semibold">
+            <i class="bi bi-geo-alt me-2"></i>Address Details
+        </div>
+        <div class="card-body">
+            <div class="mb-3">
+                <label asp-for="Patient.AddressLine" class="form-label">@Html.DisplayNameFor(m => m.Patient.AddressLine)</label>
+                <input asp-for="Patient.AddressLine" class="form-control" id="addressInput" autocomplete="off" 
+                       placeholder="Street address (auto-fills from search above)" />
+                <span asp-validation-for="Patient.AddressLine" class="text-danger small"></span>
+                <small class="form-text text-muted">Auto-fills when you search above, but you can edit it</small>
+            </div>
+
+            <div class="row">
+                <div class="col-md-4 mb-3">
+                    <label asp-for="Patient.City" class="form-label">@Html.DisplayNameFor(m => m.Patient.City)</label>
+                    <input asp-for="Patient.City" class="form-control" id="Patient_City" placeholder="City/Suburb" />
+                    <span asp-validation-for="Patient.City" class="text-danger small"></span>
+                </div>
+
+                <div class="col-md-4 mb-3">
+                    <label asp-for="Patient.State" class="form-label">State</label>
+                    <input asp-for="Patient.State" class="form-control" id="Patient_State" placeholder="State" />
+                    <span asp-validation-for="Patient.State" class="text-danger small"></span>
+                </div>
+
+                <div class="col-md-4 mb-3">
+                    <label asp-for="Patient.PostalCode" class="form-label">@Html.DisplayNameFor(m => m.Patient.PostalCode)</label>
+                    <input asp-for="Patient.PostalCode" class="form-control" id="Patient_PostalCode" placeholder="Postcode" />
+                    <span asp-validation-for="Patient.PostalCode" class="text-danger small"></span>
+                </div>
+            </div>
+
+            <input type="hidden" asp-for="Patient.Latitude" id="Patient_Latitude" />
+            <input type="hidden" asp-for="Patient.Longitude" id="Patient_Longitude" />
+        </div>
+    </div>
+
+    <!-- Jurisdictions Section -->
+    @if (Model.ActiveJurisdictionTypes.Any())
+    {
+        <div class="card shadow-sm mb-4">
+            <div class="card-header bg-light fw-semibold">
+                <i class="bi bi-pin-map me-2"></i>Geographic Jurisdictions
+            </div>
+            <div class="card-body">
+                <div class="alert alert-info alert-sm mb-3">
+                    <i class="bi bi-info-circle me-2"></i>
+                    Select the jurisdictions for this patient's residence. These can be auto-detected from the address above.
+                </div>
+                
+                <div class="row">
+                    @foreach (var jurisdictionType in Model.ActiveJurisdictionTypes.OrderBy(jt => jt.DisplayOrder))
+                    {
+                        var fieldNumber = jurisdictionType.FieldNumber;
+                        var searchFieldId = $"jurisdictionSearch{fieldNumber}";
+                        var hiddenFieldId = $"Jurisdiction{fieldNumber}Id";
+                        <div class="col-md-6 mb-3">
+                            <label for="@searchFieldId" class="form-label">
+                                @jurisdictionType.Name
+                                @if (!string.IsNullOrEmpty(jurisdictionType.Code))
+                                {
+                                    <small class="text-muted">(@jurisdictionType.Code)</small>
+                                }
+                            </label>
+                            <input type="text" 
+                                   class="form-control jurisdiction-autocomplete" 
+                                   id="@searchFieldId" 
+                                   placeholder="Start typing to search..."
+                                   data-field-number="@fieldNumber"
+                                   data-jurisdiction-type-id="@jurisdictionType.Id"
+                                   autocomplete="off" />
+                            <input type="hidden" 
+                                   name="Patient.@($"Jurisdiction{fieldNumber}Id")" 
+                                   id="@hiddenFieldId" />
+                            @if (!string.IsNullOrEmpty(jurisdictionType.Description))
+                            {
+                                <small class="form-text text-muted">@jurisdictionType.Description</small>
+                            }
+                        </div>
+                    }
+                </div>
+                
+                @if (Model.ActiveJurisdictionTypes.Count == 0)
+                {
+                    <div class="text-center text-muted py-3">
+                        <i class="bi bi-info-circle me-2"></i>
+                        No jurisdiction types configured. 
+                        <a asp-page="/Settings/JurisdictionTypes/Index" target="_blank">Configure jurisdiction types</a>
+                    </div>
+                }
+            </div>
+        </div>
+    }
+
+
+
+    @if (Model.CustomFields.Any())
+    {
+        @await Html.PartialAsync("_CustomFieldsForm", (Model.CustomFields, new Dictionary<int, string?>()))
+    }
+
+
+
+    <div class="d-flex gap-2">
+        <button type="submit" class="btn btn-primary">
+            <i class="bi bi-check-circle me-1"></i>Create Patient
+        </button>
+        <a asp-page="Index" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left me-1"></i>Back to List
+        </a>
+    </div>
+</form>
+
+@section Scripts {
+    @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+
+<script nonce="@GetCspNonce()">
+    (function () {
+        // Enhanced Google Places JS autocomplete for businesses and addresses
+        var apiKey = '@Configuration["Geocoding:ApiKey"]';
+        var defaultCountry = '@(Configuration["Geocoding:DefaultCountry"] ?? "AU")';
+        if (!apiKey) {
+            console.warn('Geocoding API key not configured. Address autocomplete disabled.');
+            return;
+        }
+        window.initPlaces = function () {
+            var placeInput = document.getElementById('placeSearchInput');
+            var placeDropdown = document.getElementById('placeDropdown');
+            var service = new google.maps.places.AutocompleteService();
+            var detailsService = new google.maps.places.PlacesService(document.createElement('div'));
+            var sessionToken = new google.maps.places.AutocompleteSessionToken();
+            var items = [];
+            var focused = -1
+            function debounce(fn, ms) { var t; return function () { var args = arguments; clearTimeout(t); t = setTimeout(function () { fn.apply(null, args); }, ms); }; }
+
+            function clearDropdown() {
+                placeDropdown.innerHTML = ''
+                placeDropdown.classList.remove('show')
+                placeInput.setAttribute('aria-expanded', 'false')
+                items = []
+                focused = -1
+            }
+
+            function buildItem(pred, idx) {
+                var btn = document.createElement('button')
+                btn.type = 'button'
+                btn.className = 'dropdown-item'
+                btn.setAttribute('role', 'option')
+                btn.dataset.index = String(idx)
+                var icon = document.createElement('i')
+                icon.className = 'bi bi-geo-alt-fill me-2 text-primary'
+                var text = document.createElement('span')
+                text.innerText = pred.description || ''
+                btn.appendChild(icon)
+                btn.appendChild(text)
+                btn.addEventListener('click', function () { selectItem(idx); })
+                return btn
+            }
+
+            function renderResults(preds) {
+                placeDropdown.innerHTML = ''
+                if (!preds || preds.length === 0) { clearDropdown(); return; }
+                preds.forEach(function (p, i) { placeDropdown.appendChild(buildItem(p, i)); })
+                placeDropdown.classList.add('show')
+                placeInput.setAttribute('aria-expanded', 'true')
+                items = Array.from(placeDropdown.querySelectorAll('[role="option"]'))
+                focused = -1
+                window.__lastPlaceResults = preds
+            }
+
+            function focusItem(i) {
+                if (focused >= 0 && items[focused]) items[focused].classList.remove('active')
+                focused = i
+                if (focused >= 0 && items[focused]) { items[focused].classList.add('active'); items[focused].scrollIntoView({ block: 'nearest' }); }
+            }
+
+            function selectItem(i) {
+                var sel = items[i]
+                if (!sel) return
+                var idx = Number(sel.dataset.index)
+                var pred = window.__lastPlaceResults && window.__lastPlaceResults[idx]
+                if (!pred) return
+                detailsService.getDetails({ 
+                    placeId: pred.place_id, 
+                    fields: ['name', 'formatted_address', 'address_components', 'geometry'], 
+                    sessionToken: sessionToken 
+                }, function (result, status) {
+                    if (status !== google.maps.places.PlacesServiceStatus.OK || !result) {                        return
+                    }                    var comps = {}
+                    (result.address_components || []).forEach(function (c) {
+                        (c.types || []).forEach(function (t) {
+                            if (!comps[t]) comps[t] = c.long_name
+                        })
+                    })
+                    var street = [comps['street_number'], comps['route']].filter(Boolean).join(' ')
+                    var city = comps['locality'] || comps['postal_town'] || comps['sublocality'] || comps['administrative_area_level_2'] || ''
+                    var state = comps['administrative_area_level_1'] || ''
+                    var postal = comps['postal_code'] || ''
+                    // Fill all address fields
+                    var addressInput = document.getElementById('addressInput')
+                    if (addressInput) addressInput.value = street || result.formatted_address || pred.description || ''
+                    var cityEl = document.getElementById('Patient_City')
+                    var stateEl = document.getElementById('Patient_State')
+                    var postalEl = document.getElementById('Patient_PostalCode')
+                    if (cityEl) cityEl.value = city
+                    if (stateEl) stateEl.value = state
+                    if (postalEl) postalEl.value = postal
+                    // Fill coordinates
+                    var latEl = document.getElementById('Patient_Latitude')
+                    var lonEl = document.getElementById('Patient_Longitude')
+                    if (latEl && lonEl && result.geometry && result.geometry.location) {
+                        latEl.value = result.geometry.location.lat()
+                        lonEl.value = result.geometry.location.lng();                        // Auto-detect jurisdictions
+                        detectJurisdictions(latEl.value, lonEl.value)
+                    }
+
+                    clearDropdown()
+                    placeInput.value = ''; // Clear search after selection
+                        
+                    // Show success message
+                    showSuccessMessage(result.name || 'Address')
+                    sessionToken = new google.maps.places.AutocompleteSessionToken()
+                })
+            }
+
+            function detectJurisdictions(lat, lon) {                fetch('/Patients/Create?handler=DetectJurisdictions', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]').value
+                    },
+                    body: JSON.stringify({ latitude: parseFloat(lat), longitude: parseFloat(lon) })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success && data.jurisdictions && data.jurisdictions.length > 0) {                        // Auto-populate jurisdiction fields (both hidden ID and visible text input)
+                        data.jurisdictions.forEach(function(j) {
+                            var searchFieldId = 'jurisdictionSearch' + j.fieldNumber
+                            var hiddenFieldId = 'Jurisdiction' + j.fieldNumber + 'Id'
+                            var searchEl = document.getElementById(searchFieldId)
+                            var hiddenEl = document.getElementById(hiddenFieldId)
+                            if (searchEl && hiddenEl) {
+                                searchEl.value = j.jurisdictionName
+                                hiddenEl.value = j.jurisdictionId
+                                searchEl.style.backgroundColor = '#d4edda'; // Light green highlight
+                                setTimeout(function() { searchEl.style.backgroundColor = ''; }, 2000);                            }
+                        })
+                        // Show success message
+                        var successMsg = document.createElement('div')
+                        successMsg.className = 'alert alert-success alert-dismissible fade show mt-2'
+                        successMsg.innerHTML = '<i class="bi bi-check-circle me-2"></i>Auto-detected ' + data.jurisdictions.length + ' jurisdiction(s) from address'
+                        document.querySelector('.card-header:has(i.bi-pin-map)')?.parentElement.querySelector('.card-body').prepend(successMsg)
+                        setTimeout(function() { successMsg.remove(); }, 5000)
+                    } else {                    }
+                })
+                .catch(error => {                })
+            }
+
+            function showSuccessMessage(placeName) {
+                if (document.getElementById('placeSuccess')) {
+                    document.getElementById('placeSuccess').remove()
+                }
+                var successDiv = document.createElement('div')
+                successDiv.id = 'placeSuccess'
+                successDiv.innerHTML = '<i class="bi bi-check-circle-fill"></i><strong>Selected:</strong> ' + placeName + ' - All address fields filled!'
+                placeInput.parentElement.appendChild(successDiv)
+                setTimeout(function() {
+                    successDiv.style.opacity = '0'
+                    successDiv.style.transition = 'opacity 0.5s'
+                    setTimeout(function() { if (successDiv.parentElement) successDiv.remove(); }, 500)
+                }, 3000)
+            }
+
+            function fetchSuggestions(q) {
+                if (!q) { clearDropdown(); return; }
+                    
+                var request = { 
+                    input: q, 
+                    sessionToken: sessionToken 
+                }
+                // Add country bias for localization
+                if (defaultCountry) {
+                    request.componentRestrictions = { country: defaultCountry };                }
+                    
+                service.getPlacePredictions(request, function (predictions, status) {
+                    if (status !== google.maps.places.PlacesServiceStatus.OK || !predictions) {                        clearDropdown()
+                        return
+                    }                    renderResults(predictions.slice(0, 8))
+                })
+            }
+
+            placeInput.addEventListener('input', debounce(function (e) { fetchSuggestions(e.target.value); }, 300))
+            placeInput.addEventListener('keydown', function (e) {
+                if (!placeDropdown.classList.contains('show')) return
+                if (e.key === 'ArrowDown') { e.preventDefault(); focusItem(Math.min(items.length - 1, focused + 1)); }
+                else if (e.key === 'ArrowUp') { e.preventDefault(); focusItem(Math.max(0, focused - 1)); }
+                else if (e.key === 'Enter') { e.preventDefault(); if (focused >= 0) selectItem(focused); }
+                else if (e.key === 'Escape') { clearDropdown(); }
+            })
+            document.addEventListener('click', function (ev) { if (!ev.target) return; if (ev.target === placeInput || placeDropdown.contains(ev.target)) return; clearDropdown(); })
+            placeInput.addEventListener('blur', function () { setTimeout(function () { if (document.activeElement && !placeDropdown.contains(document.activeElement)) clearDropdown(); }, 150); });        }
+        // Load the Google Maps JS with callback
+        var s = document.createElement('script')
+        s.src = 'https://maps.googleapis.com/maps/api/js?key=' + encodeURIComponent(apiKey) + '&libraries=places&callback=initPlaces'
+        s.async = true; s.defer = true; document.head.appendChild(s)
+    })()
+    // Occupation autocomplete
+    $(document).ready(function () {
+        if (typeof $.fn.autocomplete === 'undefined') {            return
+        }
+
+        var $searchInput = $('#occupationSearch')
+        var $hiddenInput = $('#occupationId')
+        // Load existing occupation name if editing
+        @if (Model.Patient?.OccupationId != null)
+        {
+            <text>
+            var existingOccupationId = @Model.Patient.OccupationId
+            var existingOccupationName = '@(Model.Patient.Occupation?.Name ?? "")'
+            if (existingOccupationName) {
+                $searchInput.val(existingOccupationName)
+            }
+            </text>
+        }
+
+        $searchInput.autocomplete({
+            source: function (request, response) {                $.ajax({
+                    url: '/Api/OccupationSearch',
+                    method: 'GET',
+                    data: { term: request.term },
+                    dataType: 'json',
+                    success: function (data) {                        if (!data || data.length === 0) {                        }
+                        response($.map(data, function (item) {
+                            return {
+                                label: item.label + ' (' + item.code + ')',
+                                value: item.label,
+                                id: item.id,
+                                code: item.code,
+                                majorGroup: item.majorGroup
+                            }
+                        }))
+                    },
+                    error: function (xhr, status, error) {                        response([])
+                    }
+                })
+            },
+            minLength: 2,
+            select: function (event, ui) {
+                $hiddenInput.val(ui.item.id)
+                $searchInput.val(ui.item.value)
+                return false
+            },
+            focus: function (event, ui) {
+                $searchInput.val(ui.item.value)
+                return false
+            }
+        }).autocomplete("instance")._renderItem = function (ul, item) {
+            return $("<li>")
+                .append("<div><strong>" + item.value + "</strong><br/><small class='text-muted'>" + item.code + (item.majorGroup ? " - " + item.majorGroup : "") + "</small></div>")
+                .appendTo(ul)
+        }
+        // Clear hidden field when search input is cleared
+            $searchInput.on('input', function () {
+                if ($(this).val() === '') {
+                    $hiddenInput.val('')
+                }
+            });        // Jurisdiction autocomplete initialization
+        $('.jurisdiction-autocomplete').each(function() {
+            var $searchInput = $(this)
+            var fieldNumber = $searchInput.data('field-number')
+            var jurisdictionTypeId = $searchInput.data('jurisdiction-type-id')
+            var $hiddenInput = $('#Jurisdiction' + fieldNumber + 'Id');            $searchInput.autocomplete({
+                source: function(request, response) {
+                    $.ajax({
+                        url: '/api/jurisdictions/search',
+                        type: 'GET',
+                        dataType: 'json',
+                        data: {
+                            term: request.term,
+                            typeId: jurisdictionTypeId
+                        },
+                        success: function(data) {                            response($.map(data, function(item) {
+                                return {
+                                    label: item.name + (item.code ? ' (' + item.code + ')' : ''),
+                                    value: item.name,
+                                    id: item.id
+                                }
+                            }))
+                        },
+                        error: function(xhr, status, error) {                            response([])
+                        }
+                    })
+                },
+                minLength: 2,
+                select: function(event, ui) {
+                    $hiddenInput.val(ui.item.id)
+                    $searchInput.val(ui.item.value);                    return false
+                },
+                focus: function(event, ui) {
+                    $searchInput.val(ui.item.value)
+                    return false
+                }
+            }).autocomplete("instance")._renderItem = function(ul, item) {
+                return $("<li>")
+                    .append("<div>" + item.label + "</div>")
+                    .appendTo(ul)
+            }
+            // Clear hidden field when search input is cleared
+            $searchInput.on('input', function() {
+                if ($(this).val() === '') {
+                    $hiddenInput.val('')
+                }
+            })
+        });            // Deceased field toggle
+            $('#isDeceasedSelect').on('change', function() {
+                var isDeceased = $(this).val() === 'true'
+                if (isDeceased) {
+                    $('#dateOfDeathField').slideDown()
+                } else {
+                    $('#dateOfDeathField').slideUp()
+                    $('#dateOfDeath').val('')
+                }
+            })
+            // Initialize deceased field display on page load
+            if ($('#isDeceasedSelect').val() === 'true') {
+                $('#dateOfDeathField').show()
+            }
+
+            // Date of death validation
+            $('#dateOfDeath').on('change', function() {
+                var dateOfBirth = $('#Patient_DateOfBirth').val()
+                var dateOfDeath = $(this).val()
+                if (dateOfBirth && dateOfDeath && dateOfDeath < dateOfBirth) {
+                    alert('Date of death cannot be before date of birth.')
+                    $(this).val('')
+                }
+            })
+        })
+    </script>
+    
+    <style nonce="@GetCspNonce()">
+        /* jQuery UI Autocomplete styling fix */
+        .ui-autocomplete {
+            position: absolute
+            top: 100%
+            left: 0
+            z-index: 1000
+            display: none
+            float: left
+            min-width: 160px
+            padding: 5px 0
+            margin: 2px 0 0
+            list-style: none
+            font-size: 14px
+            background-color: #ffffff
+            border: 1px solid #cccccc
+            border-radius: 4px
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.175)
+            background-clip: padding-box
+            max-height: 300px
+            overflow-y: auto
+        }
+
+        .ui-autocomplete .ui-menu-item {
+            padding: 0
+            margin: 0
+        }
+
+        .ui-autocomplete .ui-menu-item > div {
+            padding: 10px 15px
+            cursor: pointer
+            line-height: 1.42857143
+            color: #333333
+            border: none
+        }
+
+        .ui-autocomplete .ui-menu-item > div:hover,
+        .ui-autocomplete .ui-state-focus {
+            background-color: #f5f5f5
+            color: #262626
+        }
+
+        .ui-autocomplete .ui-menu-item > div strong {
+            font-weight: 600
+            color: #0d6efd
+        }
+
+        .ui-autocomplete .ui-menu-item .text-muted {
+            color: #6c757d
+            font-size: 0.875rem
+        }
+
+        .ui-helper-hidden-accessible {
+            position: absolute
+            clip: rect(1px 1px 1px 1px)
+            clip: rect(1px, 1px, 1px, 1px)
+        }
+    </style>
+
+    @if (Model.Mode == "popup" && Model.ReturnContext == "exposure")
+    {
+        <script nonce="@GetCspNonce()">
+            // Patient Search for Popup Mode            $(document).ready(function() {                var searchTimeout
+                var $searchInput = $('#patientSearchInput')
+                var $searchResults = $('#patientSearchResults')
+                var $searchEmpty = $('#patientSearchEmpty')
+                var $resultsList = $('#patientResultsList');                $searchInput.on('input', function() {
+                    .val())
+                    clearTimeout(searchTimeout)
+                    var term = $(this).val().trim()
+                    if (term.length < 2) {
+                        $searchResults.hide()
+                        $searchEmpty.hide()
+                        return
+                    }
+
+                    searchTimeout = setTimeout(function() {
+                        searchPatients(term)
+                    }, 300)
+                })
+                function searchPatients(term) {                    $.ajax({
+                        url: '/api/patients/search',
+                        method: 'GET',
+                        data: { query: term }, // Controller uses 'query' parameter
+                        success: function(data) {                            if (data && data.length > 0) {
+                                displayPatients(data)
+                                $searchResults.show()
+                                $searchEmpty.hide()
+                            } else {
+                                $searchResults.hide()
+                                $searchEmpty.show()
+                            }
+                        },
+                        error: function(xhr, status, error) {                            $searchResults.hide()
+                            $searchEmpty.hide()
+                        }
+                    })
+                }
+
+                function displayPatients(patients) {
+                    $resultsList.empty()
+                    patients.forEach(function(patient) {
+                        // Controller returns different format
+                        var dob = patient.dateOfBirth ? new Date(patient.dateOfBirth).toLocaleDateString() : 'Unknown'
+                        var age = calculateAge(patient.dateOfBirth)
+                        var $item = $('<div>')
+                            .css({
+                                padding: '12px',
+                                marginBottom: '8px',
+                                background: 'rgba(0, 122, 255, 0.05)',
+                                borderRadius: '6px',
+                                border: '1px solid var(--color-divider)',
+                                cursor: 'pointer',
+                                transition: 'all 0.2s'
+                            })
+                            .hover(
+                                function() { $(this).css('background', 'rgba(0, 122, 255, 0.1)'); },
+                                function() { $(this).css('background', 'rgba(0, 122, 255, 0.05)'); }
+                            )
+                            .html(`
+                                <div style="display: flex; justify-content: space-between; align-items: start;">
+                                    <div>
+                                        <strong style="font-size: 15px;">${patient.name}</strong>
+                                        <br/>
+                                        <small style="color: var(--color-secondary);">
+                                            ID: ${patient.friendlyId} | DOB: ${dob}${age ? ' (' + age + ')' : ''}
+                                        </small>
+                                    </div>
+                                    <button type="button" class="btn-apple btn-apple-primary" style="font-size: 13px;">
+                                        <i class="bi bi-link-45deg me-1"></i>Use This Patient
+                                    </button>
+                                </div>
+                            `)
+                            .on('click', function() {
+                                linkExistingPatient(patient.id, patient.name.split(' ')[0], patient.name.split(' ').slice(1).join(' '))
+                            })
+                        $resultsList.append($item)
+                    })
+                }
+
+                function calculateAge(dateOfBirth) {
+                    if (!dateOfBirth) return ''
+                    var today = new Date()
+                    var birthDate = new Date(dateOfBirth)
+                    var age = today.getFullYear() - birthDate.getFullYear()
+                    var m = today.getMonth() - birthDate.getMonth()
+                    if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
+                        age--
+                    }
+                    return age + ' years'
+                }
+
+                function linkExistingPatient(patientId, givenName, familyName) {
+                    if (!confirm(`Link existing patient: ${givenName} ${familyName}?`)) {
+                        return
+                    }                    // Post to the handler
+                    $.ajax({
+                        url: '?handler=LinkExistingPatient',
+                        method: 'POST',
+                        headers: {
+                            'RequestVerificationToken': $('input[name="__RequestVerificationToken"]').val()
+                        },
+                        data: { 
+                            patientId: patientId,
+                            diseaseId: '@Model.DiseaseId'
+                        },
+                        success: function(response) {                            // The response is HTML with script to close window and notify parent
+                            var tempDiv = document.createElement('div')
+                            tempDiv.innerHTML = response
+                            var scripts = tempDiv.getElementsByTagName('script')
+                            for (var i = 0; i < scripts.length; i++) {
+                                eval(scripts[i].innerHTML)
+                            }
+                        },
+                        error: function(xhr, status, error) {                            alert('Error linking patient: ' + xhr.responseText)
+                        }
+                    })
+                }
+            })
+        </script>
+    }
+}
+
+@functions {
+    public string GetCspNonce()
+    {
+        if (HttpContext?.Items?.TryGetValue("csp-nonce", out var nonce) == true && nonce is string nonceStr)
+        {
+            return nonceStr;
+        }
+        return string.Empty;
+    }
+}

@@ -1,0 +1,340 @@
+@page
+@model Sentinel.Pages.Cases.EditLabResultModel
+@{
+    Layout = null;
+    var labResult = Model.LabResult;
+    var caseId = Model.CaseId;
+}
+@functions {
+    public string GetCspNonce()
+    {
+        if (HttpContext?.Items?.TryGetValue("csp-nonce", out var nonce) == true && nonce is string nonceStr)
+        {
+            return nonceStr;
+        }
+        return string.Empty;
+    }
+}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Edit Lab Result - @labResult.FriendlyId</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" />
+    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+    <link href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css" rel="stylesheet" />
+    <style>
+        body {
+            background: #f8f9fa;
+            padding: 0.75rem;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            font-size: 0.875rem;
+        }
+        .edit-container {
+            background: white;
+            border-radius: 8px;
+            padding: 1rem;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+        .header {
+            border-bottom: 2px solid #e9ecef;
+            padding-bottom: 0.6rem;
+            margin-bottom: 0.75rem;
+        }
+        .header h1 {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: #2d3748;
+            margin-bottom: 0.25rem;
+        }
+        .form-label {
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: #4a5568;
+            margin-bottom: 0.25rem;
+        }
+        .form-control, .form-select {
+            font-size: 0.85rem;
+            padding: 0.4rem 0.6rem;
+        }
+        .btn {
+            font-size: 0.8rem;
+            padding: 0.4rem 0.85rem;
+            border-radius: 6px;
+        }
+        .btn-toolbar {
+            margin-top: 0.75rem;
+            padding-top: 0.75rem;
+            border-top: 1px solid #e9ecef;
+            display: flex;
+            gap: 0.4rem;
+            justify-content: space-between;
+        }
+        .section-title {
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: #2d3748;
+            margin-bottom: 0.4rem;
+            margin-top: 0.75rem;
+            padding-bottom: 0.25rem;
+            border-bottom: 1px solid #e9ecef;
+        }
+        .row {
+            margin-bottom: 0.5rem;
+        }
+        .select2-container {
+            font-size: 0.85rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="edit-container">
+        <div class="header">
+            <h1><i class="bi bi-pencil me-2"></i>Edit Lab Result</h1>
+            <small class="text-muted">Lab Result ID: <strong>@labResult.FriendlyId</strong></small>
+        </div>
+
+        <form method="post" enctype="multipart/form-data">
+            <input type="hidden" name="labResultId" value="@labResult.Id" />
+            <input type="hidden" name="caseId" value="@caseId" />
+
+            <!-- Organizations -->
+            <div class="section-title">
+                <i class="bi bi-building"></i> Organizations
+            </div>
+            <div class="row g-2">
+                <div class="col-md-6">
+                    <label asp-for="LabResult.LaboratoryId" class="form-label">Laboratory</label>
+                    <select asp-for="LabResult.LaboratoryId" class="form-select select2-org">
+                        <option value="">Select Laboratory</option>
+                        @if (labResult.Laboratory != null)
+                        {
+                            <option value="@labResult.LaboratoryId" selected>@labResult.Laboratory.Name</option>
+                        }
+                    </select>
+                </div>
+                <div class="col-md-6">
+                    <label asp-for="LabResult.OrderingProviderId" class="form-label">Ordering Provider</label>
+                    <select asp-for="LabResult.OrderingProviderId" class="form-select select2-org">
+                        <option value="">Select Provider</option>
+                        @if (labResult.OrderingProvider != null)
+                        {
+                            <option value="@labResult.OrderingProviderId" selected>@labResult.OrderingProvider.Name</option>
+                        }
+                    </select>
+                </div>
+            </div>
+            <div class="row g-2">
+                <div class="col-md-12">
+                    <label asp-for="LabResult.AccessionNumber" class="form-label">Accession Number</label>
+                    <input asp-for="LabResult.AccessionNumber" class="form-control" />
+                </div>
+            </div>
+
+            <!-- Specimen & Test -->
+            <div class="section-title">
+                <i class="bi bi-clipboard2-pulse"></i> Specimen & Test
+            </div>
+            <div class="row g-2">
+                <div class="col-md-6">
+                    <label asp-for="LabResult.SpecimenCollectionDate" class="form-label">Collection Date</label>
+                    <input asp-for="LabResult.SpecimenCollectionDate" type="date" class="form-control" />
+                </div>
+                <div class="col-md-6">
+                    <label asp-for="LabResult.SpecimenTypeId" class="form-label">Specimen Type</label>
+                    <select asp-for="LabResult.SpecimenTypeId" asp-items="Model.SpecimenTypesList" class="form-select">
+                        <option value="">Select Type</option>
+                    </select>
+                </div>
+            </div>
+            <div class="row g-2">
+                <div class="col-md-6">
+                    <label asp-for="LabResult.TestTypeId" class="form-label">Test Type</label>
+                    <select asp-for="LabResult.TestTypeId" asp-items="Model.TestTypesList" class="form-select">
+                        <option value="">Select Type</option>
+                    </select>
+                </div>
+                <div class="col-md-6">
+                    <label asp-for="LabResult.TestResultId" class="form-label">Test Result</label>
+                    <select asp-for="LabResult.TestResultId" class="form-select select2-result">
+                        <option value="">Select Test Type First</option>
+                        @if (labResult.TestResult != null)
+                        {
+                            <option value="@labResult.TestResultId" selected>@labResult.TestResult.Name</option>
+                        }
+                    </select>
+                </div>
+            </div>
+            <div class="row g-2">
+                <div class="col-md-12">
+                    <label asp-for="LabResult.TestedDiseaseId" class="form-label">Test For (Disease)</label>
+                    <select asp-for="LabResult.TestedDiseaseId" class="form-select select2-disease">
+                        <option value="">Select Disease</option>
+                        @if (labResult.TestedDisease != null)
+                        {
+                            <option value="@labResult.TestedDiseaseId" selected>@labResult.TestedDisease.Name</option>
+                        }
+                    </select>
+                </div>
+            </div>
+
+            <!-- Results -->
+            <div class="section-title">
+                <i class="bi bi-graph-up"></i> Results
+            </div>
+            <div class="row g-2">
+                <div class="col-md-4">
+                    <label asp-for="LabResult.ResultDate" class="form-label">Result Date</label>
+                    <input asp-for="LabResult.ResultDate" type="date" class="form-control" />
+                </div>
+                <div class="col-md-4">
+                    <label asp-for="LabResult.QuantitativeResult" class="form-label">Quantitative</label>
+                    <input asp-for="LabResult.QuantitativeResult" type="number" step="0.01" class="form-control" />
+                </div>
+                <div class="col-md-4">
+                    <label asp-for="LabResult.ResultUnitsId" class="form-label">Units</label>
+                    <select asp-for="LabResult.ResultUnitsId" asp-items="Model.ResultUnitsList" class="form-select">
+                        <option value="">Select Units</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Notes -->
+            <div class="section-title">
+                <i class="bi bi-chat-dots"></i> Notes
+            </div>
+            <div class="row g-2">
+                <div class="col-md-6">
+                    <label asp-for="LabResult.Notes" class="form-label">Internal Notes</label>
+                    <textarea asp-for="LabResult.Notes" class="form-control" rows="3"></textarea>
+                </div>
+                <div class="col-md-6">
+                    <label asp-for="LabResult.LabInterpretation" class="form-label">Lab Interpretation</label>
+                    <textarea asp-for="LabResult.LabInterpretation" class="form-control" rows="3"></textarea>
+                </div>
+            </div>
+            <div class="row g-2">
+                <div class="col-md-12">
+                    <div class="form-check">
+                        <input asp-for="LabResult.IsAmended" class="form-check-input" type="checkbox" />
+                        <label asp-for="LabResult.IsAmended" class="form-check-label">Amended Result</label>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Attachment -->
+            <div class="section-title">
+                <i class="bi bi-paperclip"></i> Attachment
+            </div>
+            <div class="row g-2">
+                <div class="col-md-12">
+                    @if (!string.IsNullOrEmpty(labResult.AttachmentPath))
+                    {
+                        <div class="alert alert-info p-2 mb-2">
+                            <small>
+                                <i class="bi bi-paperclip"></i> Current: 
+                                <a href="@labResult.AttachmentPath" target="_blank">@(labResult.AttachmentFileName ?? "Download")</a>
+                            </small>
+                        </div>
+                    }
+                    <label asp-for="LabResultAttachment" class="form-label">Upload New File (Optional)</label>
+                    <input asp-for="LabResultAttachment" type="file" class="form-control" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.gif" />
+                    <small class="text-muted">PDF, Word, or image files</small>
+                </div>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="btn-toolbar">
+                <div>
+                    <button type="button" class="btn btn-secondary" onclick="goBackToView()">
+                        <i class="bi bi-arrow-left me-1"></i>Cancel
+                    </button>
+                </div>
+                <div>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-save me-1"></i>Save Changes
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+    <script>
+        $(document).ready(function() {
+            // Initialize Select2 for Organizations
+            $('.select2-org').select2({
+                theme: 'bootstrap-5',
+                placeholder: 'Type to search...',
+                allowClear: true,
+                minimumInputLength: 2,
+                ajax: {
+                    url: '/Cases/Details?handler=SearchOrganizations',
+                    dataType: 'json',
+                    delay: 250,
+                    data: function(params) {
+                        return { term: params.term };
+                    },
+                    processResults: function(data) {
+                        return { results: data };
+                    }
+                }
+            });
+
+            // Initialize Select2 for Diseases
+            $('.select2-disease').select2({
+                theme: 'bootstrap-5',
+                placeholder: 'Type to search...',
+                allowClear: true,
+                minimumInputLength: 2,
+                ajax: {
+                    url: '/Cases/Details?handler=SearchDiseases',
+                    dataType: 'json',
+                    delay: 250,
+                    data: function(params) {
+                        return { term: params.term };
+                    },
+                    processResults: function(data) {
+                        return { results: data };
+                    }
+                }
+            });
+
+            // Initialize Select2 for Test Results
+            $('.select2-result').select2({
+                theme: 'bootstrap-5',
+                placeholder: 'Select test type first...',
+                allowClear: true,
+                ajax: {
+                    url: '/Cases/Details?handler=SearchTestResults',
+                    dataType: 'json',
+                    delay: 250,
+                    data: function(params) {
+                        var testTypeId = $('select[name="LabResult.TestTypeId"]').val();
+                        return {
+                            testTypeId: testTypeId,
+                            term: params.term
+                        };
+                    },
+                    processResults: function(data) {
+                        return { results: data };
+                    }
+                }
+            });
+
+            // Refresh test results when test type changes
+            $('select[name="LabResult.TestTypeId"]').on('change', function() {
+                $('.select2-result').val(null).trigger('change');
+            });
+        });
+
+        function goBackToView() {
+            window.location.href = '/Cases/ViewLabResult?labResultId=@labResult.Id&caseId=@caseId';
+        }
+    </script>
+</body>
+</html>

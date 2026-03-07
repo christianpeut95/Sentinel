@@ -1,0 +1,228 @@
+@page
+@using Sentinel.Models.Lookups
+@model Sentinel.Pages.Settings.DiseaseAccess.ManageRolesModel
+
+@{
+    ViewData["Title"] = "Manage Role Access";
+}
+
+<nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a asp-page="/Index">Home</a></li>
+        <li class="breadcrumb-item"><a asp-page="/Settings/Index">Settings</a></li>
+        <li class="breadcrumb-item"><a asp-page="./Index">Disease Access Control</a></li>
+        <li class="breadcrumb-item active" aria-current="page">Manage Role Access</li>
+    </ol>
+</nav>
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2><i class="bi bi-people-fill me-2"></i>Manage Role Access to Diseases</h2>
+</div>
+
+@if (TempData["SuccessMessage"] != null)
+{
+    <div class="alert alert-success alert-dismissible fade show" role="alert">
+        <i class="bi bi-check-circle me-2"></i>@TempData["SuccessMessage"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+}
+
+@if (TempData["ErrorMessage"] != null)
+{
+    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+        <i class="bi bi-exclamation-triangle me-2"></i>@TempData["ErrorMessage"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+}
+
+<div class="row">
+    <div class="col-lg-4 mb-4">
+        <div class="card shadow-sm">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0"><i class="bi bi-virus me-2"></i>Select Disease</h5>
+            </div>
+            <div class="card-body">
+                @if (!Model.RestrictedDiseases.Any())
+                {
+                    <div class="alert alert-warning">
+                        <i class="bi bi-exclamation-triangle me-2"></i>
+                        No restricted diseases found. <a asp-page="/Settings/Diseases/Index" class="alert-link">Mark a disease as restricted</a> to manage role access.
+                    </div>
+                }
+                else
+                {
+                    <div class="list-group">
+                        @foreach (var node in Model.RestrictedDiseases)
+                        {
+                            @await Html.PartialAsync("_DiseaseHierarchyNode", node)
+                        }
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-8">
+        @if (Model.SelectedDisease != null)
+        {
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0"><i class="bi bi-plus-circle me-2"></i>Grant Role Access</h5>
+                </div>
+                <div class="card-body">
+                    <form method="post" asp-page-handler="Grant">
+                        <input type="hidden" asp-for="SelectedDiseaseId" value="@Model.SelectedDiseaseId" />
+                        
+                        <div class="alert alert-info">
+                            <strong>Selected Disease:</strong> @Model.SelectedDisease.Name
+                            @if (Model.SelectedDisease.DiseaseCategory != null)
+                            {
+                                <span class="ms-2">(@Model.SelectedDisease.DiseaseCategory.Name)</span>
+                            }
+                            @if (Model.SelectedDiseaseHasChildren)
+                            {
+                                <br />
+                                <small class="text-muted">
+                                    <i class="bi bi-diagram-3 me-1"></i>This disease has child diseases
+                                </small>
+                            }
+                        </div>
+
+                        <div class="mb-3">
+                            <label asp-for="SelectedRoleId" class="form-label">Role</label>
+                            <select asp-for="SelectedRoleId" class="form-select">
+                                <option value="">-- Select a Role --</option>
+                                @foreach (var role in Model.Roles)
+                                {
+                                    var hasDirectAccess = Model.RoleGrants.Any(g => g.RoleId == role.Id && !g.IsInherited);
+                                    var hasInheritedAccess = Model.RoleGrants.Any(g => g.RoleId == role.Id && g.IsInherited);
+                                    <option value="@role.Id" disabled="@(hasDirectAccess || hasInheritedAccess)">
+                                        @role.Name 
+                                        @if (hasInheritedAccess)
+                                        {
+                                            <text>(Inherited from parent)</text>
+                                        }
+                                        else if (hasDirectAccess)
+                                        {
+                                            <text>(Already has access)</text>
+                                        }
+                                    </option>
+                                }
+                            </select>
+                        </div>
+
+                        @if (Model.SelectedDiseaseHasChildren)
+                        {
+                            <div class="mb-3 form-check">
+                                <input asp-for="ApplyToChildren" class="form-check-input" type="checkbox" />
+                                <label asp-for="ApplyToChildren" class="form-check-label">
+                                    Apply to all child diseases
+                                </label>
+                                <div class="form-text">
+                                    <i class="bi bi-info-circle me-1"></i>
+                                    If checked, this permission will automatically apply to all current and future child diseases. 
+                                    Child diseases cannot have separate role permissions when inherited.
+                                </div>
+                            </div>
+                        }
+
+                        <button type="submit" class="btn btn-success">
+                            <i class="bi bi-check-circle me-1"></i>Grant Access
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+            <div class="card shadow-sm">
+                <div class="card-header bg-warning text-dark">
+                    <h5 class="mb-0"><i class="bi bi-list-check me-2"></i>Current Role Access Grants</h5>
+                </div>
+                <div class="card-body">
+                    @if (!Model.RoleGrants.Any())
+                    {
+                        <p class="text-muted mb-0">No roles have been granted access to this disease yet.</p>
+                    }
+                    else
+                    {
+                        <div class="table-responsive">
+                            <table class="table table-hover mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Role</th>
+                                        <th>Granted At</th>
+                                        <th>Granted By</th>
+                                        <th>Type</th>
+                                        <th class="text-end">Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var grant in Model.RoleGrants)
+                                    {
+                                        <tr class="@(grant.IsInherited ? "table-info" : "")">
+                                            <td><strong>@grant.RoleName</strong></td>
+                                            <td>@grant.GrantedAt.ToLocalTime().ToString("MMM dd, yyyy hh:mm tt")</td>
+                                            <td>@grant.GrantedByUserName</td>
+                                            <td>
+                                                @if (grant.IsInherited)
+                                                {
+                                                    <span class="badge bg-info">
+                                                        <i class="bi bi-arrow-down-circle"></i> Inherited
+                                                    </span>
+                                                    @if (!string.IsNullOrEmpty(grant.InheritedFromDiseaseName))
+                                                    {
+                                                        <br /><small class="text-muted">from @grant.InheritedFromDiseaseName</small>
+                                                    }
+                                                }
+                                                else
+                                                {
+                                                    <span class="badge bg-success">
+                                                        <i class="bi bi-check-circle"></i> Direct
+                                                    </span>
+                                                    @if (grant.ApplyToChildren)
+                                                    {
+                                                        <br /><span class="badge bg-primary">
+                                                            <i class="bi bi-diagram-3"></i> + Children
+                                                        </span>
+                                                    }
+                                                }
+                                            </td>
+                                            <td class="text-end">
+                                                @if (!grant.IsInherited)
+                                                {
+                                                    <form method="post" asp-page-handler="Revoke" class="d-inline">
+                                                        <input type="hidden" asp-for="SelectedDiseaseId" value="@Model.SelectedDiseaseId" />
+                                                        <input type="hidden" name="roleId" value="@grant.RoleId" />
+                                                        <button type="submit" class="btn btn-sm btn-danger" 
+                                                                onclick="return confirm('Are you sure you want to revoke access for this role? @(grant.ApplyToChildren ? "This will also revoke access from all child diseases." : "")');">
+                                                            <i class="bi bi-x-circle"></i> Revoke
+                                                        </button>
+                                                    </form>
+                                                }
+                                                else
+                                                {
+                                                    <span class="text-muted"><i class="bi bi-lock"></i> Inherited</span>
+                                                }
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                </div>
+            </div>
+        }
+        else
+        {
+            <div class="alert alert-info">
+                <i class="bi bi-arrow-left me-2"></i>Select a restricted disease from the list on the left to manage role access.
+            </div>
+        }
+    </div>
+</div>
+
+<div class="mt-3">
+    <a asp-page="./Index" class="btn btn-outline-secondary">
+        <i class="bi bi-arrow-left me-1"></i>Back to Disease Access
+    </a>
+</div>

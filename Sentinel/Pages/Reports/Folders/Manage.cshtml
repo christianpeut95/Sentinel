@@ -1,0 +1,258 @@
+@page
+@using Sentinel.Models.Reporting
+@model Sentinel.Pages.Reports.Folders.ManageModel
+@{
+    ViewData["Title"] = $"Manage Folder: {Model.Folder.Name}";
+}
+
+<div class="container-fluid py-4">
+    <div class="row mb-4">
+        <div class="col-12">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="/Reports">Reports</a></li>
+                    <li class="breadcrumb-item"><a href="/Reports?folderId=@Model.Folder.Id">@Model.Folder.Name</a></li>
+                    <li class="breadcrumb-item active">Manage Sharing</li>
+                </ol>
+            </nav>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="card shadow-sm mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="bi @(Model.Folder.Icon ?? "bi-folder") me-2"></i>
+                        @Model.Folder.Name
+                    </h5>
+                    @if (!string.IsNullOrEmpty(Model.Folder.Description))
+                    {
+                        <p class="text-muted mb-0 small">@Model.Folder.Description</p>
+                    }
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <p><strong>Access Type:</strong> @Model.Folder.AccessType</p>
+                            <p><strong>Reports:</strong> @Model.Folder.Reports.Count</p>
+                        </div>
+                        <div class="col-md-6">
+                            <p><strong>Created:</strong> @Model.Folder.CreatedAt.ToString("MMM dd, yyyy")</p>
+                            @if (Model.Folder.ModifiedAt.HasValue)
+                            {
+                                <p><strong>Modified:</strong> @Model.Folder.ModifiedAt.Value.ToString("MMM dd, yyyy")</p>
+                            }
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card shadow-sm">
+                <div class="card-header">
+                    <h5 class="mb-0">Current Shares</h5>
+                </div>
+                <div class="card-body">
+                    @if (Model.Shares.Any())
+                    {
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>Shared With</th>
+                                        <th>Type</th>
+                                        <th>Permission</th>
+                                        <th>Shared On</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var share in Model.Shares)
+                                    {
+                                        <tr>
+                                            <td>
+                                                @if (share.TargetType == ShareTargetType.User)
+                                                {
+                                                    <i class="bi bi-person me-2"></i>
+                                                    <span>@(share.User?.Email ?? "Unknown User")</span>
+                                                }
+                                                else
+                                                {
+                                                    <i class="bi bi-people me-2"></i>
+                                                    <span>@(share.Group?.Name ?? "Unknown Group")</span>
+                                                }
+                                            </td>
+                                            <td>
+                                                <span class="badge @(share.TargetType == ShareTargetType.User ? "bg-primary" : "bg-info")">
+                                                    @share.TargetType
+                                                </span>
+                                            </td>
+                                            <td>
+                                                <span class="badge bg-secondary">@share.PermissionLevel</span>
+                                            </td>
+                                            <td>@share.SharedAt.ToString("MMM dd, yyyy")</td>
+                                            <td>
+                                                <form method="post" asp-page-handler="RemoveShare" class="d-inline">
+                                                    <input type="hidden" name="shareId" value="@share.Id" />
+                                                    <input type="hidden" name="folderId" value="@Model.Folder.Id" />
+                                                    <button type="submit" class="btn btn-sm btn-outline-danger"
+                                                            onclick="return confirm('Remove this share?')">
+                                                        <i class="bi bi-trash"></i>
+                                                    </button>
+                                                </form>
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                    else
+                    {
+                        <p class="text-muted text-center py-4">
+                            <i class="bi bi-share fs-1 d-block mb-2"></i>
+                            This folder is not currently shared with anyone
+                        </p>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4">
+            <div class="card shadow-sm">
+                <div class="card-header">
+                    <h5 class="mb-0">Add Share</h5>
+                </div>
+                <div class="card-body">
+                    @if (!Model.AvailableUsers.Any() && !Model.AvailableGroups.Any())
+                    {
+                        <div class="alert alert-info">
+                            <i class="bi bi-info-circle me-2"></i>
+                            <strong>No users or groups available</strong>
+                            <p class="mb-0 small mt-2">
+                                There are no other users or permission groups in the system to share with.
+                            </p>
+                        </div>
+                    }
+                    else
+                    {
+                        <form method="post" asp-page-handler="AddShare">
+                            <input type="hidden" asp-for="FolderId" />
+                            
+                            <div class="mb-3">
+                                <label class="form-label">Share With</label>
+                                @if (Model.AvailableUsers.Any() && Model.AvailableGroups.Any())
+                                {
+                                    <ul class="nav nav-tabs mb-3" role="tablist">
+                                        <li class="nav-item" role="presentation">
+                                            <button class="nav-link active" id="user-tab" data-bs-toggle="tab" 
+                                                    data-bs-target="#user-pane" type="button" role="tab">
+                                                <i class="bi bi-person me-1"></i> User
+                                            </button>
+                                        </li>
+                                        <li class="nav-item" role="presentation">
+                                            <button class="nav-link" id="group-tab" data-bs-toggle="tab" 
+                                                    data-bs-target="#group-pane" type="button" role="tab">
+                                                <i class="bi bi-people me-1"></i> Group
+                                            </button>
+                                        </li>
+                                    </ul>
+                                    <div class="tab-content">
+                                        <div class="tab-pane fade show active" id="user-pane" role="tabpanel">
+                                            <select class="form-select" asp-for="ShareWithUserId">
+                                                <option value="">Select a user...</option>
+                                                @foreach (var user in Model.AvailableUsers)
+                                                {
+                                                    <option value="@user.Id">@user.Email</option>
+                                                }
+                                            </select>
+                                        </div>
+                                        <div class="tab-pane fade" id="group-pane" role="tabpanel">
+                                            <select class="form-select" asp-for="ShareWithGroupId">
+                                                <option value="">Select a group...</option>
+                                                @foreach (var group in Model.AvailableGroups)
+                                                {
+                                                    <option value="@group.Id">@group.Name</option>
+                                                }
+                                            </select>
+                                        </div>
+                                    </div>
+                                }
+                                else if (Model.AvailableUsers.Any())
+                                {
+                                    <select class="form-select" asp-for="ShareWithUserId">
+                                        <option value="">Select a user...</option>
+                                        @foreach (var user in Model.AvailableUsers)
+                                        {
+                                            <option value="@user.Id">@user.Email</option>
+                                        }
+                                    </select>
+                                }
+                                else if (Model.AvailableGroups.Any())
+                                {
+                                    <select class="form-select" asp-for="ShareWithGroupId">
+                                        <option value="">Select a permission group...</option>
+                                        @foreach (var group in Model.AvailableGroups)
+                                        {
+                                            <option value="@group.Id">@group.Name</option>
+                                        }
+                                    </select>
+                                }
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label">Permission Level</label>
+                                <select class="form-select" asp-for="PermissionLevel">
+                                    <option value="0">View - Can view and run reports</option>
+                                    <option value="1">Edit - Can modify reports</option>
+                                    <option value="2">Manage - Full control</option>
+                                </select>
+                            </div>
+
+                            <button type="submit" class="btn btn-primary w-100">
+                                <i class="bi bi-share me-2"></i> Add Share
+                            </button>
+                        </form>
+                    }
+
+                    <hr class="my-4" />
+
+                    <div class="alert alert-info">
+                        <h6 class="alert-heading">About Sharing</h6>
+                        <ul class="small mb-0">
+                            <li><strong>Users:</strong> Individual users in the system</li>
+                            <li><strong>Groups:</strong> Permission groups for team collaboration</li>
+                            <li><strong>View:</strong> Can view and run reports</li>
+                            <li><strong>Edit:</strong> Can modify reports</li>
+                            <li><strong>Manage:</strong> Can manage folder settings</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script nonce="@GetCspNonce()">
+        // Switch between user and group tabs
+        document.getElementById('user-tab').addEventListener('click', function() {
+            document.getElementById('ShareWithGroupId').value = '';
+        });
+        
+        document.getElementById('group-tab').addEventListener('click', function() {
+            document.getElementById('ShareWithUserId').value = '';
+        });
+    </script>
+}
+
+@functions {
+    public string GetCspNonce()
+    {
+        if (HttpContext?.Items?.TryGetValue("csp-nonce", out var nonce) == true && nonce is string nonceStr)
+        {
+            return nonceStr;
+        }
+        return string.Empty;
+    }
+}

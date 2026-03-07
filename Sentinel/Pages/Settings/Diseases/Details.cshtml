@@ -1,0 +1,114 @@
+@page
+@model Sentinel.Pages.Settings.Diseases.DetailsModel
+
+@{
+    ViewData["Title"] = "Disease Details";
+}
+
+<nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a asp-page="/Index">Home</a></li>
+        <li class="breadcrumb-item"><a asp-page="/Settings/Index">Settings</a></li>
+        <li class="breadcrumb-item"><a asp-page="./Index">Diseases</a></li>
+        <li class="breadcrumb-item active" aria-current="page">@Model.Disease.Name</li>
+    </ol>
+</nav>
+
+<h2><i class="bi bi-info-circle me-2"></i>Disease Details</h2>
+<hr />
+
+<div class="card shadow-sm">
+    <div class="card-body">
+        <dl class="row">
+            <dt class="col-sm-3">Name</dt>
+            <dd class="col-sm-9">@Model.Disease.Name</dd>
+
+            <dt class="col-sm-3">Code</dt>
+            <dd class="col-sm-9"><code>@Model.Disease.Code</code></dd>
+
+            <dt class="col-sm-3">Export Code</dt>
+            <dd class="col-sm-9"><code>@Model.Disease.ExportCode</code></dd>
+
+            <dt class="col-sm-3">Description</dt>
+            <dd class="col-sm-9">@(Model.Disease.Description ?? "-")</dd>
+
+            <dt class="col-sm-3">Parent Disease</dt>
+            <dd class="col-sm-9">
+                @if (Model.Disease.ParentDisease != null)
+                {
+                    <text>@Model.Disease.ParentDisease.Name</text>
+                }
+                else
+                {
+                    <text>Root Level</text>
+                }
+            </dd>
+
+            <dt class="col-sm-3">Hierarchy Level</dt>
+            <dd class="col-sm-9">Level @Model.Disease.Level</dd>
+
+            <dt class="col-sm-3">Display Order</dt>
+            <dd class="col-sm-9">@Model.Disease.DisplayOrder</dd>
+
+            <dt class="col-sm-3">Status</dt>
+            <dd class="col-sm-9">
+                @if (Model.Disease.IsActive)
+                {
+                    <span class="badge bg-success"><i class="bi bi-check-circle"></i> Active</span>
+                }
+                else
+                {
+                    <span class="badge bg-secondary"><i class="bi bi-x-circle"></i> Inactive</span>
+                }
+            </dd>
+
+            <dt class="col-sm-3">Created</dt>
+            <dd class="col-sm-9">@Model.Disease.CreatedAt.ToString("g")</dd>
+
+            @if (Model.Disease.ModifiedAt.HasValue)
+            {
+                <dt class="col-sm-3">Last Modified</dt>
+                <dd class="col-sm-9">@Model.Disease.ModifiedAt.Value.ToString("g")</dd>
+            }
+        </dl>
+
+        @if (Model.SubDiseases.Any())
+        {
+            <hr />
+            <h5><i class="bi bi-diagram-3 me-2"></i>Sub-Types (@Model.SubDiseases.Count)</h5>
+            <ul class="list-group">
+                @foreach (var sub in Model.SubDiseases)
+                {
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        @sub.Name
+                        <span class="badge bg-primary rounded-pill">@sub.Code</span>
+                    </li>
+                }
+            </ul>
+        }
+
+        @if (Model.CaseCount > 0)
+        {
+            <hr />
+            <div class="alert alert-info">
+                <i class="bi bi-info-circle me-2"></i>
+                This disease has <strong>@Model.CaseCount</strong> associated case(s).
+            </div>
+        }
+
+        <div class="mt-3">
+            <a asp-page="./Create" asp-route-parentId="@Model.Disease.Id" class="btn btn-success">
+                <i class="bi bi-plus-circle me-1"></i>Add Child Disease
+            </a>
+            <a asp-page="./Edit" asp-route-id="@Model.Disease.Id" class="btn btn-primary ms-2">
+                <i class="bi bi-pencil me-1"></i>Edit
+            </a>
+            <a asp-page="./Delete" asp-route-id="@Model.Disease.Id" class="btn btn-danger ms-2">
+                <i class="bi bi-trash me-1"></i>Delete
+            </a>
+            <a asp-page="./Index" class="btn btn-outline-secondary ms-2">
+                <i class="bi bi-arrow-left me-1"></i>Back to List
+            </a>
+        </div>
+    </div>
+</div>

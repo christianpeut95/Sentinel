@@ -1,0 +1,154 @@
+@page "{id:int?}"
+@model Sentinel.Pages.Settings.JurisdictionTypes.EditModel
+@{
+    ViewData["Title"] = "Configure Jurisdiction Type";
+}
+
+<nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a asp-page="/Index">Home</a></li>
+        <li class="breadcrumb-item"><a asp-page="/Settings/Index">Settings</a></li>
+        <li class="breadcrumb-item"><a asp-page="./Index">Jurisdiction Types</a></li>
+        <li class="breadcrumb-item active" aria-current="page">Field @Model.Input.FieldNumber</li>
+    </ol>
+</nav>
+
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="mb-1">
+                <i class="bi bi-pencil me-2"></i>Configure Jurisdiction Field @Model.Input.FieldNumber
+            </h2>
+            <p class="text-muted mb-0">Customize the name and settings for this jurisdiction field</p>
+        </div>
+        <a asp-page="./Index" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left me-1"></i>Back to List
+        </a>
+    </div>
+
+    @if (TempData["SuccessMessage"] != null)
+    {
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            <i class="bi bi-check-circle me-2"></i>@TempData["SuccessMessage"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    }
+
+    <div class="row">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-body">
+                    <form method="post">
+                        <input type="hidden" asp-for="Input.Id" />
+                        <input type="hidden" asp-for="Input.FieldNumber" />
+
+                        <div class="mb-3">
+                            <label class="form-label">Field Number</label>
+                            <div>
+                                <span class="badge bg-primary fs-6">Field @Model.Input.FieldNumber</span>
+                                <small class="text-muted ms-2">
+                                    This field maps to <code>Patient.Jurisdiction@(Model.Input.FieldNumber)Id</code> and <code>Case.Jurisdiction@(Model.Input.FieldNumber)Id</code>
+                                </small>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label asp-for="Input.Name" class="form-label"></label>
+                            <input asp-for="Input.Name" class="form-control" placeholder="e.g., Local Health District, Local Government Area" />
+                            <span asp-validation-for="Input.Name" class="text-danger"></span>
+                            <small class="form-text text-muted">This name will appear as the label in patient and case forms.</small>
+                        </div>
+
+                        <div class="mb-3">
+                            <label asp-for="Input.Code" class="form-label"></label>
+                            <input asp-for="Input.Code" class="form-control" placeholder="e.g., LHD, LGA, SA2" />
+                            <span asp-validation-for="Input.Code" class="text-danger"></span>
+                            <small class="form-text text-muted">Optional abbreviation for exports and reports.</small>
+                        </div>
+
+                        <div class="mb-3">
+                            <label asp-for="Input.Description" class="form-label"></label>
+                            <textarea asp-for="Input.Description" class="form-control" rows="3" 
+                                      placeholder="e.g., Geographic health administrative regions defined by NSW Health"></textarea>
+                            <span asp-validation-for="Input.Description" class="text-danger"></span>
+                            <small class="form-text text-muted">Optional description to help users understand this jurisdiction type.</small>
+                        </div>
+
+                        <div class="mb-3">
+                            <label asp-for="Input.DisplayOrder" class="form-label"></label>
+                            <input asp-for="Input.DisplayOrder" type="number" class="form-control" min="1" max="100" />
+                            <span asp-validation-for="Input.DisplayOrder" class="text-danger"></span>
+                            <small class="form-text text-muted">Controls the order this field appears in forms (lower numbers appear first).</small>
+                        </div>
+
+                        <div class="mb-4">
+                            <div class="form-check form-switch">
+                                <input asp-for="Input.IsActive" class="form-check-input" type="checkbox" role="switch" />
+                                <label asp-for="Input.IsActive" class="form-check-label">
+                                    Show this field in patient and case forms
+                                </label>
+                            </div>
+                            <small class="form-text text-muted">
+                                When active, this jurisdiction field will be displayed in all relevant forms. 
+                                Inactive fields are hidden but data is preserved.
+                            </small>
+                        </div>
+
+                        <div class="d-flex gap-2">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-check-circle me-1"></i>Save Configuration
+                            </button>
+                            <a asp-page="./Index" class="btn btn-outline-secondary">
+                                Cancel
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card bg-light">
+                <div class="card-body">
+                    <h6 class="card-title">
+                        <i class="bi bi-lightbulb me-2"></i>Configuration Tips
+                    </h6>
+                    <ul class="mb-0 small">
+                        <li class="mb-2">
+                            <strong>Display Name:</strong> Use clear, recognizable names that your staff understand. 
+                            Examples: "Local Health District", "LGA", "Statistical Area 2".
+                        </li>
+                        <li class="mb-2">
+                            <strong>Short Code:</strong> Use standard abbreviations if they exist (LHD, LGA, SA2, SA3, SA4).
+                        </li>
+                        <li class="mb-2">
+                            <strong>Display Order:</strong> Order fields logically, typically from largest to smallest geographic area.
+                        </li>
+                        <li>
+                            <strong>Active Status:</strong> Only activate fields you actively use. Hidden fields don't clutter forms.
+                        </li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="card mt-3">
+                <div class="card-body">
+                    <h6 class="card-title">
+                        <i class="bi bi-info-circle me-2"></i>Next Steps
+                    </h6>
+                    <p class="small mb-2">After configuring jurisdiction types:</p>
+                    <ol class="small mb-0">
+                        <li>Go to <a asp-page="/Settings/Jurisdictions/Index">Manage Jurisdictions</a></li>
+                        <li>Add the actual jurisdiction values</li>
+                        <li>Optionally upload boundary shapefiles</li>
+                        <li>Test by creating/editing patients and cases</li>
+                    </ol>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+}

@@ -1,0 +1,383 @@
+@using Sentinel.Models
+@using Sentinel.Models.Reporting
+@using Sentinel.Services
+@using Microsoft.JSInterop
+@inject ISurveyMappingService MappingService
+@inject IJSRuntime JS
+@inject NavigationManager Navigation
+
+<div class="apple-card">
+    <div class="apple-card-header">
+        <h3>Survey Field Mappings</h3>
+        <p class="text-muted">Configure how survey responses map to database fields</p>
+    </div>
+    
+    <div class="apple-card-body">
+        @if (!string.IsNullOrEmpty(ErrorMessage))
+        {
+            <div class="alert alert-danger alert-dismissible fade show">
+                <i class="bi bi-exclamation-triangle"></i>
+                <strong>Error:</strong> @ErrorMessage
+                <button type="button" class="btn-close" @onclick="() => ErrorMessage = null"></button>
+            </div>
+        }
+        
+        @if (IsLoading)
+        {
+            <div class="text-center py-4">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+            </div>
+        }
+        else
+        {
+            <div class="row mb-3">
+                <div class="col-md-12">
+                    <div class="alert alert-info small mb-2">
+                        <i class="bi bi-info-circle"></i>
+                        <strong>Tip:</strong> After adding or editing mappings in the popup window, click the <strong>Refresh</strong> button to see your changes.
+                        <br />
+                        <small class="text-muted">
+                            Querying: ConfigurationType=<strong>@ConfigurationType</strong>, 
+                            ConfigurationId=<strong>@ConfigurationId</strong>, 
+                            Found=<strong>@Mappings.Count</strong> mapping(s)
+                        </small>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row mb-3">
+                <div class="col-md-6">
+                    <a href="@GetSuggestMappingsUrl()" class="btn btn-sm btn-outline-primary">
+                        <i class="bi bi-lightbulb"></i> Suggest Mappings
+                        @if (PendingSuggestions > 0)
+                        {
+                            <span class="badge bg-warning text-dark ms-1">@PendingSuggestions pending</span>
+                        }
+                    </a>
+                    <button class="btn btn-sm btn-outline-secondary ms-2" @onclick="ShowCopyDialog">
+                        <i class="bi bi-files"></i> Copy from Another
+                    </button>
+                    <button class="btn btn-sm btn-outline-secondary ms-2" @onclick="RefreshMappings">
+                        <i class="bi bi-arrow-clockwise"></i> Refresh
+                    </button>
+                </div>
+                <div class="col-md-6 text-end">
+                    <a href="/Settings/Mappings/EditMapping?configurationType=@ConfigurationType&configurationId=@ConfigurationId&surveyTemplateId=@SurveyTemplateId&returnUrl=@Uri.EscapeDataString(Navigation.Uri)" 
+                       target="_blank" 
+                       class="btn btn-sm btn-primary">
+                        <i class="bi bi-plus-circle"></i> Add Mapping
+                    </a>
+                </div>
+            </div>
+
+            @if (Mappings.Any())
+            {
+                <div class="table-responsive">
+                    <table class="table table-sm apple-table">
+                        <thead>
+                            <tr>
+                                <th style="width: 25px;"></th>
+                                <th>Survey Question</th>
+                                <th>Target Field</th>
+                                <th>Action</th>
+                                <th>Business Rule</th>
+                                <th>Review</th>
+                                <th>Priority</th>
+                                <th style="width: 100px;">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var mapping in Mappings.OrderBy(m => m.DisplayOrder))
+                            {
+                                <tr class="@(mapping.IsActive ? "" : "text-muted opacity-50")">
+                                    <td>
+                                        <i class="bi bi-grip-vertical text-muted" style="cursor: move;"></i>
+                                    </td>
+                                    <td>
+                                        <strong>@(mapping.DisplayName ?? mapping.SurveyQuestionName)</strong>
+                                        <br />
+                                        <small class="text-muted">@mapping.SurveyQuestionName</small>
+                                    </td>
+                                    <td>
+                                        <code class="small">@mapping.TargetFieldPath</code>
+                                        <br />
+                                        <span class="badge bg-secondary badge-sm">@mapping.FieldCategory</span>
+                                        @if (mapping.FieldCategory == MappingFieldCategory.Symptom && mapping.TargetSymptom != null)
+                                        {
+                                            <br />
+                                            <small class="text-info">
+                                                <i class="bi bi-arrow-right-short"></i> @mapping.TargetSymptom.Name
+                                            </small>
+                                        }
+                                    </td>
+                                    <td>
+                                        <span class="badge @GetActionBadgeClass(mapping.MappingAction)">
+                                            @GetActionIcon(mapping.MappingAction) @mapping.MappingAction
+                                        </span>
+                                        @if (GetOverrideSource(mapping) is string source)
+                                        {
+                                            <br />
+                                            <small class="text-muted">@source</small>
+                                        }
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-light text-dark border">
+                                            @mapping.BusinessRule
+                                        </span>
+                                    </td>
+                                    <td class="text-center">
+                                        @if (mapping.TriggerReviewQueue)
+                                        {
+                                            <i class="bi bi-check-circle-fill text-success" title="Triggers review queue"></i>
+                                        }
+                                        else
+                                        {
+                                            <i class="bi bi-circle text-muted" title="Does not trigger review"></i>
+                                        }
+                                    </td>
+                                    <td>
+                                        @if (mapping.TriggerReviewQueue)
+                                        {
+                                            <span class="badge bg-info">P@mapping.ReviewPriority</span>
+                                        }
+                                    </td>
+                                    <td>
+                                        <div class="btn-group btn-group-sm">
+                                            <a href="/Settings/Mappings/EditMapping?configurationType=@ConfigurationType&configurationId=@ConfigurationId&surveyTemplateId=@SurveyTemplateId&mappingId=@mapping.Id&fieldCategory=@mapping.FieldCategory&returnUrl=@Uri.EscapeDataString(Navigation.Uri)" 
+                                               target="_blank" 
+                                               class="btn btn-outline-primary">
+                                                <i class="bi bi-pencil"></i>
+                                            </a>
+                                            <a href="/Settings/Mappings/DeleteMapping?id=@mapping.Id&returnUrl=@Uri.EscapeDataString(Navigation.Uri)" 
+                                               class="btn btn-outline-danger"
+                                               onclick="return confirm('Delete this mapping?');">
+                                                <i class="bi bi-trash"></i>
+                                            </a>
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="alert alert-info mt-3">
+                    <i class="bi bi-info-circle"></i>
+                    <strong>Summary:</strong>
+                    @Mappings.Count(m => m.MappingAction == MappingAction.AutoSave && m.IsActive) auto-save,
+                    @Mappings.Count(m => m.MappingAction == MappingAction.QueueForReview && m.IsActive) queue for review,
+                    @Mappings.Count(m => m.MappingAction == MappingAction.RequireApproval && m.IsActive) require approval,
+                    @Mappings.Count(m => m.MappingAction == MappingAction.Skip && m.IsActive) skip
+                </div>
+            }
+            else
+            {
+                <div class="alert alert-warning">
+                    <i class="bi bi-exclamation-triangle"></i>
+                    No mappings configured. Click "Suggest Mappings" to auto-generate based on field names,
+                    or "Add Mapping" to create manually.
+                </div>
+            }
+        }
+    </div>
+</div>
+
+@code {
+[Parameter] public MappingConfigurationType ConfigurationType { get; set; }
+[Parameter] public Guid ConfigurationId { get; set; }
+[Parameter] public Guid? SurveyTemplateId { get; set; }
+
+private bool IsLoading = true;
+private List<SurveyFieldMapping> Mappings = new();
+private int PendingSuggestions = 0;
+private string? ErrorMessage = null;
+private bool HasRendered = false;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        await LoadMappingsAsync();
+        IsLoading = false;
+    }
+    
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            HasRendered = true;
+        }
+    }
+
+    private async Task LoadMappingsAsync()
+    {
+        try
+        {
+            ErrorMessage = null; // Clear previous errors
+            var allMappings = await MappingService.GetMappingsByTypeAsync(ConfigurationType, ConfigurationId);
+            
+            // Only show active mappings in the main list
+            // Inactive suggestions should be reviewed on the Suggest Mappings page
+            Mappings = allMappings.Where(m => m.IsActive).ToList();
+            PendingSuggestions = allMappings.Count(m => !m.IsActive);
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = $"Error loading mappings: {ex.Message}";
+        }
+    }
+
+    private async Task RefreshMappings()
+    {
+        IsLoading = true;
+        StateHasChanged();
+        await LoadMappingsAsync();
+        IsLoading = false;
+        StateHasChanged();
+    }
+
+    private string GetAddMappingUrl()
+    {
+        return $"/Settings/Mappings/EditMapping" +
+               $"?configurationType={ConfigurationType}" +
+               $"&configurationId={ConfigurationId}" +
+               $"&surveyTemplateId={SurveyTemplateId}" +
+               $"&returnUrl={Uri.EscapeDataString(Navigation.Uri)}";
+    }
+
+    private string GetSuggestMappingsUrl()
+    {
+        return $"/Settings/Mappings/SuggestMappings" +
+               $"?configurationType={ConfigurationType}" +
+               $"&configurationId={ConfigurationId}" +
+               $"&surveyTemplateId={SurveyTemplateId}" +
+               $"&returnUrl={Uri.EscapeDataString(Navigation.Uri)}";
+    }
+
+    private string GetEditMappingUrl(SurveyFieldMapping mapping)
+    {
+        return $"/Settings/Mappings/EditMapping" +
+               $"?configurationType={ConfigurationType}" +
+               $"&configurationId={ConfigurationId}" +
+               $"&surveyTemplateId={SurveyTemplateId}" +
+               $"&mappingId={mapping.Id}" +
+               $"&fieldCategory={mapping.FieldCategory}" +
+               $"&returnUrl={Uri.EscapeDataString(Navigation.Uri)}";
+    }
+
+    private async Task AddNewMapping()
+    {
+        // Open in new window
+        var url = $"/Settings/Mappings/EditMapping" +
+                  $"?configurationType={ConfigurationType}" +
+                  $"&configurationId={ConfigurationId}" +
+                  $"&surveyTemplateId={SurveyTemplateId}" +
+                  $"&returnUrl={Uri.EscapeDataString(Navigation.Uri)}";
+        
+        await JS.InvokeVoidAsync("open", url, "_blank");
+    }
+
+    private async Task EditMapping(SurveyFieldMapping mapping)
+    {
+        // Open in new window
+        var url = $"/Settings/Mappings/EditMapping" +
+                  $"?configurationType={ConfigurationType}" +
+                  $"&configurationId={ConfigurationId}" +
+                  $"&surveyTemplateId={SurveyTemplateId}" +
+                  $"&mappingId={mapping.Id}" +
+                  $"&fieldCategory={mapping.FieldCategory}" +
+                  $"&returnUrl={Uri.EscapeDataString(Navigation.Uri)}";
+        
+        await JS.InvokeVoidAsync("open", url, "_blank");
+    }
+
+
+    private async Task DeleteMapping(SurveyFieldMapping mapping)
+    {
+        if (!HasRendered) return; // Can't show confirmation during prerender
+        
+        if (!await JS.InvokeAsync<bool>("confirm", $"Delete mapping for '{mapping.DisplayName}'?"))
+            return;
+
+        try
+        {
+            ErrorMessage = null;
+            await MappingService.DeleteMappingAsync(mapping.Id);
+            await LoadMappingsAsync();
+            
+            if (HasRendered)
+            {
+                await JS.InvokeVoidAsync("showToast", "success", "Mapping deleted");
+            }
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = $"Error deleting mapping: {ex.Message}";
+        }
+    }
+
+    private async Task LoadSuggestedMappings()
+    {
+        if (!SurveyTemplateId.HasValue)
+        {
+            ErrorMessage = "No survey template selected";
+            return;
+        }
+
+        try
+        {
+            ErrorMessage = null;
+            await MappingService.SuggestMappingsAsync(
+                SurveyTemplateId.Value,
+                ConfigurationType,
+                ConfigurationId,
+                diseaseId: null
+            );
+            
+            await LoadMappingsAsync();
+            
+            if (HasRendered)
+            {
+                await JS.InvokeVoidAsync("showToast", "success", "Suggested mappings generated");
+            }
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = $"Error generating suggestions: {ex.Message}";
+        }
+    }
+
+    private void ShowCopyDialog()
+    {
+        ErrorMessage = "Copy feature coming soon";
+    }
+
+    private string? GetOverrideSource(SurveyFieldMapping mapping)
+    {
+        if (mapping.ConfigurationType == MappingConfigurationType.Survey)
+            return null; 
+        
+        if (mapping.ConfigurationType == MappingConfigurationType.Task)
+            return "Task Override";
+        
+        return "Disease Default";
+    }
+
+    private string GetActionBadgeClass(MappingAction action) => action switch
+    {
+        MappingAction.AutoSave => "bg-success",
+        MappingAction.QueueForReview => "bg-warning",
+        MappingAction.RequireApproval => "bg-danger",
+        MappingAction.Skip => "bg-secondary",
+        _ => "bg-light text-dark"
+    };
+
+    private string GetActionIcon(MappingAction action) => action switch
+    {
+        MappingAction.AutoSave => "?",
+        MappingAction.QueueForReview => "?",
+        MappingAction.RequireApproval => "??",
+        MappingAction.Skip => "?",
+        _ => "?"
+    };
+}

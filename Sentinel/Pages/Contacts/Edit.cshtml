@@ -1,0 +1,459 @@
+@page
+@model Sentinel.Pages.Contacts.EditModel
+@using Sentinel.Models
+
+@{
+    ViewData["Title"] = "Edit Contact";
+    Layout = "~/Pages/Shared/_Layout.cshtml";
+}
+@functions {
+    public string GetCspNonce()
+    {
+        if (HttpContext?.Items?.TryGetValue("csp-nonce", out var nonce) == true && nonce is string nonceStr)
+        {
+            return nonceStr;
+        }
+        return string.Empty;
+    }
+}
+
+<style>
+    /* Modern Apple Aesthetic - Matching Case Edit Page */
+    .contact-edit-container {
+        max-width: 1600px;
+        margin: 0 auto;
+    }
+
+    /* Header Section */
+    .contact-header {
+        background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+        border-radius: 16px;
+        padding: 2rem;
+        margin-bottom: 1.5rem;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+        border: 1px solid rgba(0, 0, 0, 0.06);
+    }
+
+    .contact-header h1 {
+        font-size: 2rem;
+        font-weight: 600;
+        color: #2d3748;
+        margin-bottom: 0.5rem;
+        letter-spacing: -0.5px;
+    }
+
+    .contact-header .subtitle {
+        color: #718096;
+        font-size: 1rem;
+        margin-bottom: 0;
+    }
+
+    /* Quick Action Buttons */
+    .quick-actions {
+        display: flex;
+        gap: 0.75rem;
+        flex-wrap: wrap;
+        margin-top: 1rem;
+    }
+
+    .quick-action-btn {
+        background: white;
+        border: 1px solid #cbd5e0;
+        border-radius: 10px;
+        padding: 0.5rem 1rem;
+        font-size: 0.875rem;
+        font-weight: 600;
+        color: #2d3748;
+        transition: all 0.2s;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        text-decoration: none;
+    }
+
+    .quick-action-btn:hover {
+        background: #f7fafc;
+        border-color: #2d3748;
+        transform: translateY(-1px);
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+        color: #1a202c;
+    }
+
+    /* Compact Card Design */
+    .info-card {
+        background: white;
+        border-radius: 12px;
+        padding: 1.25rem;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+        border: 1px solid rgba(0, 0, 0, 0.06);
+        margin-bottom: 1rem;
+        height: 100%;
+    }
+
+    .info-card:hover {
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+        transform: translateY(-1px);
+        transition: all 0.2s ease;
+    }
+
+    .info-card-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1rem;
+        padding-bottom: 0.75rem;
+        border-bottom: 1px solid #e2e8f0;
+    }
+
+    .info-card-title {
+        font-size: 1rem;
+        font-weight: 600;
+        color: #2d3748;
+        margin: 0;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .info-card-title i {
+        color: #4a5568;
+    }
+
+    /* Alerts */
+    .alert {
+        border-radius: 10px;
+        border: none;
+        padding: 0.75rem 1rem;
+        font-size: 0.875rem;
+        margin-bottom: 1rem;
+    }
+
+    /* Breadcrumb */
+    .breadcrumb {
+        background: transparent;
+        padding: 0;
+        margin-bottom: 1rem;
+        font-size: 0.875rem;
+    }
+
+    .breadcrumb-item + .breadcrumb-item::before {
+        color: #cbd5e0;
+    }
+
+    .breadcrumb-item a {
+        color: #4a5568;
+        text-decoration: none;
+    }
+
+    .breadcrumb-item a:hover {
+        color: #2d3748;
+    }
+
+    .breadcrumb-item.active {
+        color: #718096;
+    }
+
+    /* Responsive Grid */
+    .contact-grid {
+        display: grid;
+        grid-template-columns: 2fr 1fr;
+        gap: 1rem;
+        margin-bottom: 1rem;
+    }
+
+    @@media (max-width: 992px) {
+        .contact-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+
+<nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a asp-page="/Index">Home</a></li>
+        <li class="breadcrumb-item"><a asp-page="./Index">Contacts</a></li>
+        <li class="breadcrumb-item"><a asp-page="./Details" asp-route-id="@Model.Case.Id">@Model.Case.FriendlyId</a></li>
+        <li class="breadcrumb-item active" aria-current="page">Edit</li>
+    </ol>
+</nav>
+
+@if (TempData["ErrorMessage"] != null)
+{
+    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+        <i class="bi bi-exclamation-triangle-fill me-2"></i>@TempData["ErrorMessage"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+}
+
+@if (TempData["SuccessMessage"] != null)
+{
+    <div class="alert alert-success alert-dismissible fade show" role="alert">
+        <i class="bi bi-check-circle-fill me-2"></i>@TempData["SuccessMessage"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+}
+
+<div class="contact-edit-container">
+    <!-- Header Section -->
+    <div class="contact-header">
+        <div class="d-flex justify-content-between align-items-start">
+            <div>
+                <h1>
+                    <i class="bi bi-pencil-square"></i>
+                    Edit Contact @Model.Case.FriendlyId
+                </h1>
+                @if (Model.Case.Patient != null)
+                {
+                    <p class="subtitle mb-0">
+                        <strong>@Model.Case.Patient.GivenName @Model.Case.Patient.FamilyName</strong>
+                        @if (Model.Case.Disease != null)
+                        {
+                            <span class="mx-2">•</span>
+                            <span>@Model.Case.Disease.Name</span>
+                        }
+                    </p>
+                }
+            </div>
+            <div class="text-end">
+                <a asp-page="./Details" asp-route-id="@Model.Case.Id" class="quick-action-btn">
+                    <i class="bi bi-arrow-left"></i> Back to Details
+                </a>
+            </div>
+        </div>
+
+        <!-- Quick Actions -->
+        <div class="quick-actions">
+            @if (Model.Case.Patient != null)
+            {
+                <a asp-page="/Patients/Details" asp-route-id="@Model.Case.PatientId" class="quick-action-btn">
+                    <i class="bi bi-person"></i> View Patient
+                </a>
+            }
+            <a asp-page="./Index" class="quick-action-btn">
+                <i class="bi bi-list-ul"></i> All Contacts
+            </a>
+        </div>
+    </div>
+
+    <form method="post">
+        <div asp-validation-summary="ModelOnly" class="alert alert-danger mb-3" role="alert"></div>
+        <input type="hidden" asp-for="Case.Id" />
+        <input type="hidden" asp-for="Case.FriendlyId" />
+        <input type="hidden" asp-for="Case.Type" />
+
+        <!-- Main Grid: Contact Information + Actions -->
+        <div class="contact-grid">
+            <!-- Column 1: Contact Information -->
+            <div class="info-card">
+                <div class="info-card-header">
+                    <h3 class="info-card-title">
+                        <i class="bi bi-clipboard-data"></i>
+                        Contact Information
+                    </h3>
+                </div>
+                <div>
+                    <div class="mb-3">
+                        <label asp-for="Case.PatientId" class="form-label fw-bold">
+                            Patient
+                            <i class="bi bi-info-circle text-info" 
+                               data-bs-toggle="tooltip" 
+                               title="Patient cannot be changed after contact creation"></i>
+                        </label>
+                        <select asp-for="Case.PatientId" class="form-select" asp-items="ViewBag.PatientId" disabled>
+                            <option value="">-- Select Patient --</option>
+                        </select>
+                        <span asp-validation-for="Case.PatientId" class="text-danger"></span>
+                        <small class="form-text text-muted">
+                            <i class="bi bi-lock"></i> Patient assignment is locked after creation
+                        </small>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="Case.DiseaseId" class="form-label fw-bold">Disease</label>
+                        <select asp-for="Case.DiseaseId" class="form-select disease-select" asp-items="ViewBag.DiseaseId">
+                            <option value="">-- Select Disease --</option>
+                        </select>
+                        <span asp-validation-for="Case.DiseaseId" class="text-danger"></span>
+                        <small class="form-text text-muted">Type to search for a disease</small>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="Case.ConfirmationStatusId" class="form-label fw-bold">Contact Status</label>
+                        <select asp-for="Case.ConfirmationStatusId" class="form-select" asp-items="ViewBag.ConfirmationStatusId">
+                            <option value="">-- Select Status --</option>
+                        </select>
+                        <span asp-validation-for="Case.ConfirmationStatusId" class="text-danger"></span>
+                    </div>
+
+                    <hr class="my-4" />
+                    
+                    <h5 class="mb-3"><i class="bi bi-calendar-event me-2"></i>Important Dates</h5>
+
+                    <div class="mb-3">
+                        <label asp-for="Case.DateOfOnset" class="form-label fw-bold">Date of Onset</label>
+                        <input asp-for="Case.DateOfOnset" class="form-control" type="date" />
+                        <span asp-validation-for="Case.DateOfOnset" class="text-danger"></span>
+                        <small class="form-text text-muted">Date when symptoms first appeared</small>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="Case.DateOfNotification" class="form-label fw-bold">Date of Notification</label>
+                        <input asp-for="Case.DateOfNotification" class="form-control" type="date" />
+                        <span asp-validation-for="Case.DateOfNotification" class="text-danger"></span>
+                        <small class="form-text text-muted">Date when contact was reported</small>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Column 2: Actions & Info -->
+            <div>
+                <!-- Primary Actions Card -->
+                <div class="info-card mb-3">
+                    <div class="info-card-header">
+                        <h3 class="info-card-title">
+                            <i class="bi bi-floppy"></i>
+                            Actions
+                        </h3>
+                    </div>
+                    <div>
+                        <button type="submit" class="btn btn-primary w-100 mb-2">
+                            <i class="bi bi-save me-2"></i>Save Changes
+                        </button>
+                        <a asp-page="./Details" asp-route-id="@Model.Case.Id" class="btn btn-secondary w-100 mb-3">
+                            <i class="bi bi-x-circle me-2"></i>Cancel
+                        </a>
+                        
+                        <hr class="my-3" />
+                        
+                        <!-- Delete Button -->
+                        <button type="button" class="btn btn-outline-danger w-100" onclick="confirmDelete()">
+                            <i class="bi bi-trash me-2"></i>Delete Contact
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Quick Info Card -->
+                <div class="info-card" style="background: #f0f9ff;">
+                    <div class="info-card-header">
+                        <h3 class="info-card-title">
+                            <i class="bi bi-info-circle"></i>
+                            Quick Info
+                        </h3>
+                    </div>
+                    <div>
+                        <ul class="small mb-0" style="list-style: none; padding-left: 0;">
+                            <li class="mb-2"><i class="bi bi-hash text-muted me-1"></i><strong>ID:</strong> @Model.Case.FriendlyId</li>
+                            <li class="mb-2"><i class="bi bi-shield-check text-muted me-1"></i>Changes are logged for audit</li>
+                            <li><i class="bi bi-person-lock text-muted me-1"></i>Patient cannot be reassigned</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Patient Information Section (Full Width) -->
+        @if (Model.Case.Patient != null)
+        {
+            <div class="info-card">
+                <div class="info-card-header">
+                    <h3 class="info-card-title">
+                        <i class="bi bi-person-badge"></i>
+                        Patient Information (Read-Only)
+                    </h3>
+                </div>
+                <div>
+                    <div class="alert alert-info mb-3 small">
+                        <i class="bi bi-info-circle me-2"></i>
+                        Patient cannot be changed after contact creation. <a asp-page="/Patients/Details" asp-route-id="@Model.Case.PatientId" class="alert-link">View patient details <i class="bi bi-box-arrow-up-right"></i></a>
+                    </div>
+
+                    <div class="row g-3">
+                        <div class="col-md-2">
+                            <label class="form-label fw-bold text-muted small">Patient ID</label>
+                            <div class="fw-bold">@Model.Case.Patient.FriendlyId</div>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label fw-bold text-muted small">Full Name</label>
+                            <div class="fw-bold">@Model.Case.Patient.GivenName @Model.Case.Patient.FamilyName</div>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label fw-bold text-muted small">Date of Birth</label>
+                            <div>
+                                @if (Model.Case.Patient.DateOfBirth.HasValue)
+                                {
+                                    var age = DateTime.Now.Year - Model.Case.Patient.DateOfBirth.Value.Year;
+                                    <span>@Model.Case.Patient.DateOfBirth.Value.ToString("dd MMM yyyy") <small class="text-muted">(@age yrs)</small></span>
+                                }
+                                else
+                                {
+                                    <span class="text-muted">-</span>
+                                }
+                            </div>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label fw-bold text-muted small">Gender</label>
+                            <div>@(Model.Case.Patient.Gender?.Name ?? "-")</div>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label fw-bold text-muted small">Contact</label>
+                            <div>
+                                @if (!string.IsNullOrWhiteSpace(Model.Case.Patient.MobilePhone))
+                                {
+                                    <a href="tel:@Model.Case.Patient.MobilePhone" class="me-2">
+                                        <i class="bi bi-phone"></i> @Model.Case.Patient.MobilePhone
+                                    </a>
+                                }
+                                @if (!string.IsNullOrWhiteSpace(Model.Case.Patient.EmailAddress))
+                                {
+                                    <a href="mailto:@Model.Case.Patient.EmailAddress">
+                                        <i class="bi bi-envelope"></i>
+                                    </a>
+                                }
+                                @if (string.IsNullOrWhiteSpace(Model.Case.Patient.MobilePhone) && string.IsNullOrWhiteSpace(Model.Case.Patient.EmailAddress))
+                                {
+                                    <span class="text-muted">-</span>
+                                }
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+    </form>
+</div>
+
+@section Scripts {
+    @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css" />
+    
+    <script>
+        $(document).ready(function() {
+            // Initialize Select2 on disease dropdown
+            $('.disease-select').select2({
+                theme: 'bootstrap-5',
+                placeholder: '-- Select or search for a disease --',
+                allowClear: true,
+                width: '100%'
+            });
+
+            // Initialize tooltips
+            var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+            var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+                return new bootstrap.Tooltip(tooltipTriggerEl);
+            });
+        });
+
+        // Delete confirmation function
+        function confirmDelete() {
+            const contactId = '@Model.Case.FriendlyId';
+            const patientName = '@(Model.Case.Patient?.GivenName) @(Model.Case.Patient?.FamilyName)';
+            
+            if (confirm(`Are you sure you want to delete contact ${contactId}${patientName ? ' for ' + patientName : ''}?\n\nThis action cannot be undone. All associated data (tasks, exposures, etc.) will also be deleted.`)) {
+                // Redirect to delete page
+                window.location.href = '/Contacts/Delete?id=@Model.Case.Id';
+            }
+        }
+    </script>
+}

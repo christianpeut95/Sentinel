@@ -1,0 +1,1273 @@
+@page
+@model Sentinel.Pages.DataInbox.IndexModel
+@using Sentinel.Services
+@{
+    ViewData["Title"] = "Data Review Inbox";
+    Layout = "~/Pages/Shared/_Layout.cshtml";
+}
+@functions {
+    public string GetCspNonce()
+    {
+        if (HttpContext?.Items?.TryGetValue("csp-nonce", out var nonce) == true && nonce is string nonceStr)
+        {
+            return nonceStr;
+        }
+        return string.Empty;
+    }
+}
+
+<style>
+    /* Refined color palette - softer, more sophisticated */
+    
+    /* Entity type color coding - subtle left accent with minimal gradient */
+    .entity-lab { 
+        border-left: 3px solid #f59e0b; 
+        background: linear-gradient(to right, rgba(251, 191, 36, 0.06) 0%, transparent 50%);
+    }
+    .entity-exposure { 
+        border-left: 3px solid #06b6d4; 
+        background: linear-gradient(to right, rgba(6, 182, 212, 0.06) 0%, transparent 50%);
+    }
+    .entity-contact { 
+        border-left: 3px solid #8b5cf6; 
+        background: linear-gradient(to right, rgba(139, 92, 246, 0.06) 0%, transparent 50%);
+    }
+    .entity-new-case { 
+        border-left: 3px solid #3b82f6; 
+        background: linear-gradient(to right, rgba(59, 130, 246, 0.06) 0%, transparent 50%);
+    }
+    .entity-case-change { 
+        border-left: 3px solid #f43f5e; 
+        background: linear-gradient(to right, rgba(244, 63, 94, 0.06) 0%, transparent 50%);
+    }
+    .entity-notification { 
+        border-left: 3px solid #10b981; 
+        background: linear-gradient(to right, rgba(16, 185, 129, 0.06) 0%, transparent 50%);
+    }
+    
+    /* Hover states - subtle and smooth */
+    .review-item {
+        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        border-radius: 0;
+    }
+    
+    .review-item:hover { 
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
+        transform: translateX(1px);
+        background-color: #fafafa !important;
+    }
+    
+    .hover-bg-light:hover { 
+        background-color: #f8f9fa !important; 
+        cursor: pointer; 
+    }
+    
+    /* Priority badges - refined colors */
+    .badge.bg-danger { 
+        background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%) !important;
+        border: none;
+        box-shadow: 0 1px 2px rgba(220, 38, 38, 0.2);
+    }
+    
+    .badge.bg-warning { 
+        background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%) !important;
+        color: #78350f !important;
+        border: none;
+        box-shadow: 0 1px 2px rgba(245, 158, 11, 0.2);
+    }
+    
+    /* Entity type badges - VIBRANT COLORS with gradients! */
+    .entity-badge-lab { 
+        background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+        color: white;
+        border: none;
+        box-shadow: 0 2px 6px rgba(245, 158, 11, 0.4);
+        font-weight: 600;
+        text-shadow: 0 1px 2px rgba(0,0,0,0.15);
+        transition: all 0.2s ease;
+    }
+    .entity-badge-lab:hover { transform: translateY(-1px); box-shadow: 0 4px 8px rgba(245, 158, 11, 0.5); }
+    
+    .entity-badge-exposure { 
+        background: linear-gradient(135deg, #06b6d4 0%, #0891b2 100%);
+        color: white;
+        border: none;
+        box-shadow: 0 2px 6px rgba(6, 182, 212, 0.4);
+        font-weight: 600;
+        text-shadow: 0 1px 2px rgba(0,0,0,0.15);
+        transition: all 0.2s ease;
+    }
+    .entity-badge-exposure:hover { transform: translateY(-1px); box-shadow: 0 4px 8px rgba(6, 182, 212, 0.5); }
+    
+    .entity-badge-contact { 
+        background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+        color: white;
+        border: none;
+        box-shadow: 0 2px 6px rgba(139, 92, 246, 0.4);
+        font-weight: 600;
+        text-shadow: 0 1px 2px rgba(0,0,0,0.15);
+        transition: all 0.2s ease;
+    }
+    .entity-badge-contact:hover { transform: translateY(-1px); box-shadow: 0 4px 8px rgba(139, 92, 246, 0.5); }
+    
+    .entity-badge-new-case { 
+        background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+        color: white;
+        border: none;
+        box-shadow: 0 2px 6px rgba(59, 130, 246, 0.4);
+        font-weight: 600;
+        text-shadow: 0 1px 2px rgba(0,0,0,0.15);
+        transition: all 0.2s ease;
+    }
+    .entity-badge-new-case:hover { transform: translateY(-1px); box-shadow: 0 4px 8px rgba(59, 130, 246, 0.5); }
+    
+    .entity-badge-case { 
+        background: linear-gradient(135deg, #f43f5e 0%, #e11d48 100%);
+        color: white;
+        border: none;
+        box-shadow: 0 2px 6px rgba(244, 63, 94, 0.4);
+        font-weight: 600;
+        text-shadow: 0 1px 2px rgba(0,0,0,0.15);
+        transition: all 0.2s ease;
+    }
+    .entity-badge-case:hover { transform: translateY(-1px); box-shadow: 0 4px 8px rgba(244, 63, 94, 0.5); }
+    
+    .entity-badge-notification { 
+        background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+        color: white;
+        border: none;
+        box-shadow: 0 2px 6px rgba(16, 185, 129, 0.4);
+        font-weight: 600;
+        text-shadow: 0 1px 2px rgba(0,0,0,0.15);
+        transition: all 0.2s ease;
+    }
+    .entity-badge-notification:hover { transform: translateY(-1px); box-shadow: 0 4px 8px rgba(16, 185, 129, 0.5); }
+    
+    /* Completed items styling - more subtle */
+    .completed-section { 
+        background: #fafafa;
+        border-top: 1px solid #e5e7eb;
+    }
+    
+    .completed-item { 
+        background: linear-gradient(to right, rgba(243, 244, 246, 0.5) 0%, transparent 50%);
+        opacity: 0.75;
+    }
+    
+    /* Group badge - refined purple/indigo */
+    .group-badge { 
+        background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+        color: white;
+        font-weight: 600;
+        box-shadow: 0 1px 3px rgba(99, 102, 241, 0.3);
+        border-radius: 6px;
+        padding: 0.35rem 0.6rem;
+    }
+    
+    .group-expand-icon { 
+        transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        display: inline-block;
+        font-size: 0.7rem;
+        line-height: 1;
+        font-style: normal;
+    }
+    
+    .group-expanded-items { 
+        background: #fafafa;
+        box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.03);
+        border-top: 1px solid #e5e7eb;
+    }
+    
+    .group-expanded-items .d-flex {
+        transition: background-color 0.15s ease;
+    }
+    
+    /* Card refinements */
+    .card {
+        border: 1px solid #e5e7eb;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+    }
+    
+    /* List group refinements */
+    .list-group-item {
+        border-color: #f3f4f6;
+    }
+    
+    /* Badge refinements - general */
+    .badge {
+        font-weight: 500;
+        padding: 0.35rem 0.65rem;
+        border-radius: 6px;
+        letter-spacing: 0.01em;
+    }
+    
+    /* Patient demographics styling */
+    .patient-demographics {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        flex-wrap: wrap;
+    }
+    
+    .patient-info-item {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.25rem;
+        color: #6b7280;
+        font-size: 0.875rem;
+    }
+    
+    .patient-info-item i {
+        opacity: 0.7;
+    }
+    
+    /* Review item hover improvements */
+    .review-item:hover .patient-info-item {
+        color: #374151;
+    }
+    
+    /* Card improvements */
+    .card {
+        border-radius: 10px;
+        border: 1px solid #e5e7eb;
+    }
+    
+    .card-header {
+        background: #f9fafb;
+        border-bottom: 1px solid #e5e7eb;
+    }
+    
+    /* Button improvements */
+    .btn {
+        border-radius: 6px;
+        font-weight: 500;
+        transition: all 0.2s ease;
+    }
+    
+    .btn-primary {
+        background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+        border: none;
+    }
+    
+    .btn-primary:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+    }
+    
+    /* Shadows */
+    .shadow-sm {
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08) !important;
+    }
+</style>
+
+<nav aria-label="breadcrumb" class="mb-4">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a asp-page="/Index">Home</a></li>
+        <li class="breadcrumb-item active" aria-current="page">Data Review Inbox</li>
+    </ol>
+</nav>
+
+<!-- Modern Page Header -->
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h2 class="mb-1">
+            <i class="bi bi-inbox me-2 text-primary"></i>Data Review Inbox
+        </h2>
+        @if (Model.PendingCount > 0)
+        {
+            <p class="text-muted mb-0">
+                <span class="badge bg-warning bg-opacity-75 text-dark px-3 py-2">
+                    <i class="bi bi-exclamation-circle me-1"></i>
+                    @Model.PendingCount @(Model.PendingCount == 1 ? "item" : "items") awaiting review
+                </span>
+            </p>
+        }
+        else
+        {
+            <p class="text-muted mb-0">
+                <i class="bi bi-check-circle text-success me-1"></i>
+                All caught up!
+            </p>
+        }
+    </div>
+</div>
+
+@if (TempData["SuccessMessage"] != null)
+{
+    <div class="alert alert-success alert-dismissible fade show" role="alert">
+        <i class="bi bi-check-circle me-2"></i>@TempData["SuccessMessage"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+
+@if (TempData["ErrorMessage"] != null)
+{
+    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+        <i class="bi bi-exclamation-triangle me-2"></i>@TempData["ErrorMessage"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+
+<!-- Filters Card - Modern Design -->
+<div class="card mb-3 border-0 shadow-sm">
+    <div class="card-header bg-light border-bottom">
+        <h6 class="mb-0 text-muted">
+            <i class="bi bi-funnel me-2"></i>Filter Reviews
+        </h6>
+    </div>
+    <div class="card-body">
+        <form method="get" id="filterForm">
+            <div class="row g-3">
+                <div class="col-md-3">
+                    <label class="form-label">Entity Type</label>
+                    <select name="EntityType" class="form-select" asp-for="EntityType" onchange="this.form.submit()">
+                        @foreach (var type in Model.EntityTypes)
+                        {
+                            <option value="@type.Value">
+                                @type.Text
+                            </option>
+                        }
+                    </select>
+                </div>
+
+                <div class="col-md-3">
+                    <label class="form-label">Disease</label>
+                    <select name="DiseaseIds" class="form-select" multiple size="1" id="diseaseFilter">
+                        <option value="">All Diseases</option>
+                        @foreach (var disease in Model.Diseases)
+                        {
+                            var isSelected = Model.DiseaseIds?.Contains(disease.Id) == true;
+                            <option value="@disease.Id" selected="@isSelected">
+                                @disease.Name
+                            </option>
+                        }
+                    </select>
+                </div>
+
+                <div class="col-md-3">
+                    <label class="form-label">Time Range</label>
+                    <select name="TimeRange" class="form-select" asp-for="TimeRange" onchange="this.form.submit()">
+                        <option value="24h">Past 24 hours</option>
+                        <option value="48h">Past 48 hours</option>
+                        <option value="7d">Past 7 days</option>
+                        <option value="30d">Past 30 days</option>
+                        <option value="all">All time</option>
+                    </select>
+                </div>
+
+                <div class="col-md-3">
+                    <label class="form-label">Status</label>
+                    <div class="btn-group w-100" role="group">
+                        <input type="radio" class="btn-check" name="Status" id="statusPending" value="Pending" 
+                               @(Model.Status == "Pending" ? "checked" : "") onchange="this.form.submit()">
+                        <label class="btn btn-outline-primary" for="statusPending">
+                            <i class="bi bi-hourglass-split"></i> Pending
+                        </label>
+
+                        <input type="radio" class="btn-check" name="Status" id="statusAll" value="" 
+                               @(string.IsNullOrEmpty(Model.Status) ? "checked" : "") onchange="this.form.submit()">
+                        <label class="btn btn-outline-primary" for="statusAll">
+                            <i class="bi bi-list"></i> All
+                        </label>
+                    </div>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Review Items List - Modern Design -->
+<div class="card border-0 shadow-sm">
+    <div class="card-header bg-white border-bottom">
+        <div class="d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">
+                <i class="bi bi-inbox me-2 text-primary"></i>Review Queue
+                @if (Model.PendingCount > 0)
+                {
+                    <span class="badge bg-primary ms-2">@Model.PendingCount pending</span>
+                }
+            </h5>
+            @if (Model.ReviewQueue.Items.Any())
+            {
+                <span class="text-muted small">
+                    <i class="bi bi-info-circle me-1"></i>
+                    Showing @Model.ReviewQueue.Items.Count(i => i.ReviewStatus == "Pending") of @Model.ReviewQueue.TotalCount total
+                </span>
+            }
+        </div>
+    </div>
+    <div class="card-body p-0">
+        @if (!Model.ReviewQueue.Items.Any())
+        {
+            <div class="text-center py-5 text-muted">
+                <i class="bi bi-inbox display-1 opacity-25"></i>
+                <p class="mt-3 fw-medium">No items to review</p>
+                <p class="small">All caught up! ??</p>
+            </div>
+        }
+        else
+        {
+            <!-- Pending Reviews -->
+            <div class="list-group list-group-flush" id="reviewItemsContainer">
+                @foreach (var item in Model.ReviewQueue.Items.Where(i => i.ReviewStatus == "Pending"))
+                {
+                    var entityClass = GetEntityClass(item.EntityType);
+                    var badgeClass = GetEntityBadgeClass(item.EntityType);
+                    var isVisuallyGrouped = item.VisualGroupCount > 1;
+                    
+                    <div class="list-group-item list-group-item-action review-item p-0 @entityClass" data-review-id="@item.Id" data-visual-group="@item.VisualGroupId">
+                        <!-- Single Line Row -->
+                        <div class="d-flex align-items-center p-3 review-row" style="cursor: pointer;" 
+                             onclick="@(isVisuallyGrouped ? $"toggleVisualGroup('{item.VisualGroupId}')" : $"toggleReviewPreview({item.Id})")">
+                            <div class="flex-shrink-0 me-3">
+                                @if (isVisuallyGrouped)
+                                {
+                                    <span class="badge group-badge position-relative d-flex align-items-center" style="min-width: 35px; gap: 4px;" title="@item.VisualGroupCount changes to this case">
+                                        <span>@item.VisualGroupCount</span>
+                                        <span class="group-expand-icon">&#9660;</span>
+                                    </span>
+                                }
+                                else
+                                {
+                                    <i class="bi bi-@GetEntityIcon(item.EntityType)" style="font-size: 1.2rem; color: @GetEntityColor(item.EntityType);"></i>
+                                }
+                            </div>
+                            
+                            
+                            
+                            <div class="flex-grow-1" style="min-width: 0;">
+                                <!-- Top Row: Case ID, Entity Badge, Disease, Time & Priority -->
+                                <div class="d-flex align-items-center gap-3 mb-2">
+                                    <!-- Case ID -->
+                                    @if (!string.IsNullOrEmpty(item.CaseFriendlyId))
+                                    {
+                                        <span class="text-primary fw-semibold" style="min-width: 100px;">
+                                            <i class="bi bi-file-medical me-1"></i>@item.CaseFriendlyId
+                                        </span>
+                                    }
+                                    
+                                    <!-- Entity Type Badge -->
+                                    <span class="badge @badgeClass" style="min-width: 90px;">
+                                        @if (isVisuallyGrouped)
+                                        {
+                                            @:Multiple Changes
+                                        }
+                                        else
+                                        {
+                                            @GetEntityLabel(item.EntityType)
+                                        }
+                                    </span>
+                                    
+                                    
+                                    <!-- Disease - VIBRANT RED -->
+                                    @if (!string.IsNullOrEmpty(item.DiseaseName))
+                                    {
+                                        <span class="badge" style="min-width: 100px; background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%); color: white; border: none; box-shadow: 0 2px 6px rgba(220, 38, 38, 0.4); font-weight: 600; text-shadow: 0 1px 2px rgba(0,0,0,0.15);">
+                                            <i class="bi bi-virus me-1"></i>@item.DiseaseName
+                                        </span>
+                                    }
+                                    
+                                    <!-- Change Type Badge -->
+                                    @if (item.ChangeType == "PendingCreation")
+                                    {
+                                        <span class="badge bg-info bg-opacity-25 text-info">
+                                            <i class="bi bi-person-plus-fill me-1"></i>New Contact
+                                        </span>
+                                    }
+                                    else if (item.ChangeType == "PotentialDuplicate")
+                                    {
+                                        <span class="badge bg-warning bg-opacity-25 text-warning">
+                                            <i class="bi bi-exclamation-triangle-fill me-1"></i>Duplicate?
+                                        </span>
+                                    }
+                                    
+                                    <!-- Spacer -->
+                                    <span class="flex-grow-1"></span>
+                                    
+                                    <!-- Time -->
+                                    <small class="text-muted text-nowrap">
+                                        <i class="bi bi-clock me-1"></i>@GetRelativeTime(item.CreatedDate)
+                                    </small>
+                                    
+                                    <!-- Priority Badge -->
+                                    @if (item.Priority >= 2)
+                                    {
+                                        <span class="badge @(item.Priority == 3 ? "bg-danger" : "bg-warning text-dark")">
+                                            @(item.Priority == 3 ? "?? Urgent" : "? High")
+                                        </span>
+                                    }
+                                </div>
+                                
+                                <!-- Bottom Row: FULL Patient Demographics -->
+                                @if (!string.IsNullOrEmpty(item.PatientName))
+                                {
+                                    <div class="d-flex align-items-center gap-3 flex-wrap small">
+                                        <!-- Name + ID -->
+                                        <div class="d-flex flex-column" style="min-width: 140px;">
+                                            <span class="fw-semibold text-dark">
+                                                <i class="bi bi-person-fill me-1 text-primary"></i>@item.PatientName
+                                            </span>
+                                            @if (!string.IsNullOrEmpty(item.PatientFriendlyId))
+                                            {
+                                                <span class="text-muted" style="font-size: 0.8rem;">@item.PatientFriendlyId</span>
+                                            }
+                                        </div>
+                                        
+                                        <!-- Age/DOB + Sex -->
+                                        @if (item.PatientAge.HasValue || item.PatientDateOfBirth.HasValue)
+                                        {
+                                            <span class="text-muted">
+                                                <i class="bi bi-calendar3 me-1"></i>
+                                                @if (item.PatientAge.HasValue)
+                                                {
+                                                    <strong>@item.PatientAge</strong><text> y/o</text>
+                                                }
+                                                @if (item.PatientDateOfBirth.HasValue)
+                                                {
+                                                    <text> (@item.PatientDateOfBirth.Value.ToString("dd/MM/yyyy"))</text>
+                                                }
+                                            </span>
+                                        }
+                                        
+                                        @if (!string.IsNullOrEmpty(item.PatientSexAtBirth))
+                                        {
+                                            <span class="text-muted">
+                                                <i class="bi bi-gender-ambiguous me-1"></i>@item.PatientSexAtBirth
+                                            </span>
+                                        }
+                                        else if (!string.IsNullOrEmpty(item.PatientGender))
+                                        {
+                                            <span class="text-muted">
+                                                <i class="bi bi-gender-ambiguous me-1"></i>@item.PatientGender
+                                            </span>
+                                        }
+                                        
+                                        <!-- Contact Info -->
+                                        @if (!string.IsNullOrEmpty(item.PatientPhone))
+                                        {
+                                            <span class="text-muted">
+                                                <i class="bi bi-telephone-fill me-1"></i>@item.PatientPhone
+                                            </span>
+                                        }
+                                        
+                                        @if (!string.IsNullOrEmpty(item.PatientEmail))
+                                        {
+                                            <span class="text-muted text-truncate" style="max-width: 180px;" title="@item.PatientEmail">
+                                                <i class="bi bi-envelope-fill me-1"></i>@item.PatientEmail
+                                            </span>
+                                        }
+                                        
+                                        <!-- Address -->
+                                        @{
+                                            var addressParts = new List<string>();
+                                            if (!string.IsNullOrEmpty(item.PatientAddressLine)) addressParts.Add(item.PatientAddressLine);
+                                            if (!string.IsNullOrEmpty(item.PatientCity)) addressParts.Add(item.PatientCity);
+                                            if (!string.IsNullOrEmpty(item.PatientState)) addressParts.Add(item.PatientState);
+                                            if (!string.IsNullOrEmpty(item.PatientPostalCode)) addressParts.Add(item.PatientPostalCode);
+                                            
+                                            var fullAddress = string.Join(", ", addressParts);
+                                        }
+                                        
+                                        @if (!string.IsNullOrEmpty(fullAddress))
+                                        {
+                                            <span class="text-muted text-truncate" style="max-width: 250px;" title="@fullAddress">
+                                                <i class="bi bi-geo-alt-fill me-1"></i>@fullAddress
+                                            </span>
+                                        }
+                                    </div>
+                                }
+                                
+                                <!-- Change Summary -->
+                                <div class="mt-2">
+                                    <span class="text-muted small">
+                                        @GetChangeSummary(item)
+                                    </span>
+                                </div>
+                            </div>
+                            
+                            <!-- Actions -->
+                            <div class="flex-shrink-0 ms-3">
+                                @if (!isVisuallyGrouped)
+                                {
+                                    <div class="btn-group btn-group-sm" onclick="event.stopPropagation();">
+                                        <a href="/DataInbox/Review?id=@item.Id" class="btn btn-primary" title="Review & Resolve">
+                                            <i class="bi bi-eye me-1"></i> Review
+                                        </a>
+                                    </div>
+                                }
+                                else
+                                {
+                                    <button class="btn btn-sm btn-outline-secondary" onclick="event.stopPropagation(); toggleVisualGroup('@item.VisualGroupId');">
+                                        <i class="bi bi-chevron-down me-1"></i> Expand
+                                    </button>
+                                }
+                            </div>
+                        </div>
+                        
+                        <!-- Expandable Group Members (for visual groups) -->
+                        @if (isVisuallyGrouped && item.VisualGroupMembers.Any())
+                        {
+                            <div class="visual-group-members" id="group-@item.VisualGroupId" style="display: none;">
+                                <div class="p-2 bg-white border-bottom">
+                                    <small class="text-muted">
+                                        <i class="bi bi-info-circle me-2"></i>
+                                        <strong>@item.VisualGroupCount changes</strong> to case @item.CaseFriendlyId within @TimeSpan.FromHours(6).TotalHours hours. Review each independently:
+                                    </small>
+                                </div>
+                                @foreach (var member in item.VisualGroupMembers.OrderBy(m => m.CreatedDate))
+                                {
+                                    var memberBadgeClass = GetEntityBadgeClass(member.EntityType);
+                                    <div class="d-flex align-items-center p-3 border-bottom bg-light hover-bg-light">
+                                        <div class="flex-shrink-0 me-3" style="width: 40px; text-align: center;">
+                                            <i class="bi bi-@GetEntityIcon(member.EntityType)" style="color: @GetEntityColor(member.EntityType); font-size: 1.1rem;"></i>
+                                        </div>
+                                        
+                                        <div class="flex-grow-1 d-flex align-items-center gap-3">
+                                            <span class="badge @memberBadgeClass" style="min-width: 120px;">
+                                                @if (!string.IsNullOrEmpty(member.TriggerField))
+                                                {
+                                                    var fieldLabel = member.TriggerField == "ConfirmationStatusId" ? "Status" :
+                                                                   member.TriggerField == "DiseaseId" ? "Disease" : member.TriggerField;
+                                                    @:@fieldLabel Changed
+                                                }
+                                                else
+                                                {
+                                                    @GetEntityLabel(member.EntityType)
+                                                }
+                                            </span>
+                                            
+                                            <span class="flex-grow-1 text-muted">
+                                                @member.ChangeSummary
+                                            </span>
+                                            
+                                            <small class="text-muted text-nowrap">
+                                                @GetRelativeTime(member.CreatedDate)
+                                            </small>
+                                        </div>
+                                        
+                                        <div class="flex-shrink-0 ms-3">
+                                            <div class="btn-group btn-group-sm">
+                                                @if (member.ChangeType == "PotentialDuplicate")
+                                                {
+                                                    @* Duplicate detection - must go to detail page *@
+                                                    <a href="/DataInbox/Review?id=@member.Id" class="btn btn-sm btn-warning" title="Review Duplicate">
+                                                        <i class="bi bi-exclamation-triangle"></i>
+                                                    </a>
+                                                }
+                                                else if (member.ChangeType == "PendingCreation")
+                                                {
+                                                    @* Always-review new patient - can quick approve *@
+                                                    <button type="button" class="btn btn-sm btn-success" 
+                                                            title="Approve New Patient" 
+                                                            onclick="quickResolveAlwaysReview(@member.Id, event)">
+                                                        <i class="bi bi-check-lg"></i>
+                                                    </button>
+                                                }
+                                                else
+                                                {
+                                                    @* Simple confirmation cases *@
+                                                    <form method="post" asp-page-handler="Confirm" asp-route-id="@member.Id" class="d-inline">
+                                                        <button type="submit" class="btn btn-sm btn-success" title="Confirm">
+                                                            <i class="bi bi-check-lg"></i>
+                                                        </button>
+                                                    </form>
+                                                }
+                                                <a href="/DataInbox/Review?id=@member.Id" class="btn btn-sm btn-outline-primary" title="View Details">
+                                                    <i class="bi bi-eye"></i>
+                                                </a>
+                                            </div>
+                                        </div>
+                                    </div>
+                                }
+                            </div>
+                        }
+                        
+                        <!-- Expandable Preview (Hidden by default) for non-grouped items -->
+                        @if (!isVisuallyGrouped)
+                        {
+                            <div class="review-preview collapse border-top bg-light" id="preview-@item.Id">
+                                <div class="p-3 small">
+                                    <div class="row g-2">
+                                        <div class="col-md-6">
+                                            <strong>Type:</strong> @item.EntityType (@item.ChangeType)
+                                        </div>
+                                        <div class="col-md-6">
+                                            <strong>Created:</strong> @item.CreatedDate.ToLocalTime().ToString("g")
+                                        </div>
+                                        @if (!string.IsNullOrEmpty(item.TriggerField))
+                                        {
+                                            <div class="col-12">
+                                                <strong>Field Changed:</strong> @item.TriggerField
+                                            </div>
+                                        }
+                                    </div>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                }
+            </div>
+        }
+            
+        @* Completed Reviews - Clean & Modern *@
+        @{
+            var completedItems = Model.ReviewQueue.Items.Where(i => i.ReviewStatus != "Pending").ToList();
+        }
+        @if (completedItems.Any())
+        {
+            <div class="border-top completed-section">
+                <div class="px-4 py-3 bg-light">
+                    <h6 class="mb-0 text-success">
+                        <i class="bi bi-check-circle me-2"></i>Recently Completed
+                        <span class="badge bg-success bg-opacity-25 text-success ms-2">@completedItems.Count</span>
+                    </h6>
+                </div>
+                <div class="list-group list-group-flush">
+                    @foreach (var item in completedItems.Take(10))
+                    {
+                        <div class="list-group-item completed-item py-3">
+                            <div class="d-flex align-items-center gap-3">
+                                <i class="bi bi-@GetEntityIcon(item.EntityType)" style="font-size: 1.1rem; color: @GetEntityColor(item.EntityType); opacity: 0.5;"></i>
+                                
+                                <!-- Case ID -->
+                                @if (!string.IsNullOrEmpty(item.CaseFriendlyId))
+                                {
+                                    <span class="text-muted fw-medium" style="min-width: 100px;">
+                                        @item.CaseFriendlyId
+                                    </span>
+                                }
+                                
+                                <!-- Entity Badge -->
+                                <span class="badge bg-light text-dark border" style="min-width: 90px;">
+                                    @GetEntityLabel(item.EntityType)
+                                </span>
+                                
+                                <!-- Patient Info with Demographics -->
+                                @if (!string.IsNullOrEmpty(item.PatientName))
+                                {
+                                    <div class="d-flex flex-column" style="min-width: 150px;">
+                                        <span class="text-muted small">@item.PatientName</span>
+                                        @if (!string.IsNullOrEmpty(item.PatientFriendlyId))
+                                        {
+                                            <small class="text-muted opacity-75">@item.PatientFriendlyId</small>
+                                        }
+                                    </div>
+                                    
+                                    @if (item.PatientAge.HasValue || !string.IsNullOrEmpty(item.PatientGender))
+                                    {
+                                        <span class="text-muted small">
+                                            @if (item.PatientAge.HasValue)
+                                            {
+                                                @item.PatientAge <text>y/o</text>
+                                            }
+                                            @if (!string.IsNullOrEmpty(item.PatientGender))
+                                            {
+                                                @if (item.PatientAge.HasValue) { <text>, </text> }
+                                                @item.PatientGender
+                                            }
+                                        </span>
+                                    }
+                                }
+                                
+                                <!-- Change Summary -->
+                                <span class="text-muted flex-grow-1 small">@GetChangeSummary(item)</span>
+                                
+                                <!-- Completion Info -->
+                                <small class="text-success text-nowrap">
+                                    <i class="bi bi-check-circle me-1"></i>
+                                    @GetRelativeTime(item.CreatedDate)
+                                </small>
+                            </div>
+                        </div>
+                    }
+                </div>
+            </div>
+        }
+        
+        @if (Model.ReviewQueue.HasMore)
+        {
+            <div class="text-center p-3 border-top" id="loadMoreContainer">
+                <button class="btn btn-outline-primary" id="loadMoreBtn">
+                    <i class="bi bi-arrow-down-circle"></i> Load More
+                </button>
+                <div class="spinner-border text-primary d-none" id="loadingSpinner" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+            </div>
+        }
+    </div>
+</div>
+
+@section Scripts {
+<script>
+    function toggleReviewPreview(reviewId) {
+        const preview = document.getElementById('preview-' + reviewId);
+        if (preview) {
+            $(preview).collapse('toggle');
+        }
+    }
+
+    function toggleVisualGroup(groupId) {
+        const groupContainer = document.querySelector(`[data-visual-group="${groupId}"]`);
+        if (!groupContainer) {            return;
+        }
+        
+        const expandedSection = groupContainer.querySelector('.visual-group-members');
+        const icon = groupContainer.querySelector('.group-expand-icon');
+        
+        if (!expandedSection) {            return;
+        }
+        
+        if ($(expandedSection).is(':visible')) {
+            // Collapse
+            $(expandedSection).slideUp(300);
+            if (icon) {
+                icon.innerHTML = '&#9660;'; // Down arrow (?)
+            }
+        } else {
+            // Expand
+            $(expandedSection).slideDown(300);
+            if (icon) {
+                icon.innerHTML = '&#9650;'; // Up arrow (?)
+            }
+        }
+    }
+
+    async function confirmReview(reviewId, event) {
+        event.stopPropagation();
+            
+        if (!confirm('Confirm this review?')) {
+            return;
+        }
+
+        try {
+            const response = await fetch(`/DataInbox/Index?handler=QuickConfirm&id=${reviewId}`, {
+                method: 'POST',
+                headers: {
+                    'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]').value
+                }
+            });
+
+            if (response.ok) {
+                // Remove the item from the UI
+                const itemElement = document.querySelector(`[data-review-id="${reviewId}"]`) || 
+                                   event.target.closest('.d-flex');
+                if (itemElement) {
+                    $(itemElement).fadeOut(300, function() {
+                        itemElement.remove();
+                    });
+                }
+                    
+                // Show success message
+                const toast = document.createElement('div');
+                toast.className = 'alert alert-success position-fixed top-0 end-0 m-3';
+                toast.style.zIndex = '9999';
+                toast.innerHTML = '<i class="bi bi-check-circle"></i> Review confirmed';
+                document.body.appendChild(toast);
+                setTimeout(() => toast.remove(), 3000);
+            } else {
+                alert('Failed to confirm review');
+            }
+        } catch (error) {            alert('Failed to confirm review');
+        }
+    }
+
+    async function quickResolveAlwaysReview(reviewId, event) {
+        event.stopPropagation();
+        
+        if (!confirm('? Approve this new patient?\n\nThis will:\n• Create the patient record\n• Process related entities (contacts, exposures, etc.)\n• Mark the review as complete')) {
+            return;
+        }
+
+        // Disable the button and show spinner
+        const button = event.target.closest('button');
+        const originalHtml = button.innerHTML;
+        button.disabled = true;
+        button.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+
+        try {
+            const formData = new FormData();
+            formData.append('__RequestVerificationToken', document.querySelector('input[name="__RequestVerificationToken"]').value);
+
+            const response = await fetch(`/DataInbox/Index?handler=QuickResolveAlwaysReview&id=${reviewId}`, {
+                method: 'POST',
+                body: formData
+            });
+
+            if (response.ok) {
+                // Remove the item from the UI
+                const itemElement = event.target.closest('.d-flex');
+                if (itemElement) {
+                    $(itemElement).fadeOut(300, function() {
+                        itemElement.remove();
+                        
+                        // Also check if we need to collapse parent group
+                        const groupContainer = itemElement.closest('[data-visual-group]');
+                        if (groupContainer) {
+                            const remainingItems = groupContainer.querySelectorAll('.visual-group-members .d-flex').length;
+                            if (remainingItems <= 1) {
+                                groupContainer.remove();
+                            }
+                        }
+                    });
+                }
+                
+                // Show success message
+                showToast('success', '? Patient created and entities processed successfully!');
+            } else {
+                const errorText = await response.text();
+                alert('Failed to approve review: ' + errorText);
+                button.disabled = false;
+                button.innerHTML = originalHtml;
+            }
+        } catch (error) {            alert('Failed to approve review: ' + error.message);
+            button.disabled = false;
+            button.innerHTML = originalHtml;
+        }
+    }
+
+    function showToast(type, message) {
+        const toast = document.createElement('div');
+        const bgColor = type === 'success' ? 'alert-success' : 'alert-danger';
+        toast.className = `alert ${bgColor} position-fixed top-0 end-0 m-3`;
+        toast.style.zIndex = '9999';
+        toast.innerHTML = `<i class="bi bi-${type === 'success' ? 'check' : 'exclamation'}-circle me-2"></i>${message}`;
+        document.body.appendChild(toast);
+        setTimeout(() => {
+            $(toast).fadeOut(300, function() {
+                toast.remove();
+            });
+        }, 3000);
+    }
+
+    function getEntityIcon(entityType) {
+        const icons = {
+            'LabResult': 'flask',
+            'Exposure': 'geo-alt',
+            'Contact': 'people',
+            'NewCase': 'file-medical',
+            'CaseChange': 'pencil-square',
+            'ClinicalNotification': 'clipboard-pulse'
+        };
+        return icons[entityType] || 'circle';
+    }
+
+    function getEntityColor(entityType) {
+        const colors = {
+            'LabResult': '#d97706',
+            'Exposure': '#0891b2',
+            'Contact': '#7c3aed',
+            'NewCase': '#2563eb',
+            'CaseChange': '#dc2626',
+            'ClinicalNotification': '#059669'
+        };
+        return colors[entityType] || '#6b7280';
+    }
+
+    let currentSkip = 50;
+    let isLoading = false;
+
+    $(document).ready(function() {
+            // Initialize Select2 for disease filter
+            $('#diseaseFilter').select2({
+                theme: 'bootstrap-5',
+                placeholder: 'Select diseases...',
+                allowClear: true,
+                width: '100%'
+            }).on('change', function() {
+                $('#filterForm').submit();
+            });
+
+            // Infinite scroll
+            $(window).scroll(function() {
+                if ($(window).scrollTop() + $(window).height() > $(document).height() - 100) {
+                    loadMoreItems();
+                }
+            });
+
+            // Load more button
+            $('#loadMoreBtn').click(function() {
+                loadMoreItems();
+            });
+        });
+
+        function loadMoreItems() {
+            if (isLoading || !$('#loadMoreContainer').length) return;
+
+            isLoading = true;
+            $('#loadMoreBtn').addClass('d-none');
+            $('#loadingSpinner').removeClass('d-none');
+
+            $.ajax({
+                url: '/api/review-queue/list',
+                method: 'GET',
+                data: {
+                    entityType: '@Model.EntityType',
+                    diseaseIds: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.DiseaseIds ?? new List<Guid>())),
+                    timeRange: '@Model.TimeRange',
+                    status: '@Model.Status',
+                    skip: currentSkip,
+                    take: 50
+                },
+                success: function(data) {
+                    if (data.items && data.items.length > 0) {
+                        appendItems(data.items);
+                        currentSkip += data.items.length;
+
+                        if (!data.hasMore) {
+                            $('#loadMoreContainer').remove();
+                        }
+                    } else {
+                        $('#loadMoreContainer').remove();
+                    }
+                },
+                error: function() {
+                    alert('Failed to load more items');
+                },
+                complete: function() {
+                    isLoading = false;
+                    $('#loadMoreBtn').removeClass('d-none');
+                    $('#loadingSpinner').addClass('d-none');
+                }
+            });
+        }
+
+        function appendItems(items) {
+            // This would append new items to the list
+            // Implementation depends on API structure        }
+    </script>
+}
+
+@functions {
+    string GetEntityIcon(string entityType)
+    {
+        return entityType switch
+        {
+            "LabResult" => "flask",
+            "Exposure" => "geo-alt",
+            "Contact" => "people",
+            "NewCase" => "file-medical",
+            "CaseChange" => "pencil-square",
+            "ClinicalNotification" => "clipboard-pulse",
+            _ => "circle"
+        };
+    }
+
+    string GetEntityLabel(string entityType)
+    {
+        return entityType switch
+        {
+            "LabResult" => "Lab Result",
+            "Exposure" => "Exposure",
+            "Contact" => "Contact",
+            "NewCase" => "New Case",
+            "CaseChange" => "Case Change",
+            "ClinicalNotification" => "Clinical Notification",
+            _ => entityType
+        };
+    }
+
+    string GetEntityClass(string entityType)
+    {
+        return entityType switch
+        {
+            "LabResult" => "entity-lab",
+            "Exposure" => "entity-exposure",
+            "Contact" => "entity-contact",
+            "NewCase" => "entity-new-case",
+            "CaseChange" => "entity-case-change",
+            "ClinicalNotification" => "entity-notification",
+            _ => ""
+        };
+    }
+
+    string GetEntityBadgeClass(string entityType)
+    {
+        return entityType switch
+        {
+            "LabResult" => "entity-badge-lab",
+            "Exposure" => "entity-badge-exposure",
+            "Contact" => "entity-badge-contact",
+            "NewCase" => "entity-badge-new-case",
+            "CaseChange" => "entity-badge-case",
+            "ClinicalNotification" => "entity-badge-notification",
+            _ => "bg-light text-dark border"
+        };
+    }
+
+    string GetEntityColor(string entityType)
+    {
+        return entityType switch
+        {
+            "LabResult" => "#f59e0b",
+            "Exposure" => "#06b6d4",
+            "Contact" => "#8b5cf6",
+            "NewCase" => "#3b82f6",
+            "CaseChange" => "#f43f5e",
+            "ClinicalNotification" => "#10b981",
+            _ => "#6b7280"
+        };
+    }
+
+string GetChangeSummary(ReviewQueueItem item)
+{
+    // Check if this is a CaseActivity group
+    if (item.GroupCount > 1 && item.GroupKey?.StartsWith("CaseActivity|") == true)
+    {
+        return $"?? {item.GroupCount} changes to this case";
+    }
+        
+    // Handle CaseChange with detailed old/new values
+    if (item.EntityType == "CaseChange" && !string.IsNullOrEmpty(item.TriggerField))
+    {
+        try
+        {
+            if (!string.IsNullOrEmpty(item.ChangeSnapshot))
+            {
+                var snapshot = System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, System.Text.Json.JsonElement>>(item.ChangeSnapshot);
+                if (snapshot != null)
+                {
+                    // Try to get display names first, fallback to IDs
+                    var oldVal = "";
+                    var newVal = "";
+                        
+                    if (snapshot.ContainsKey("oldValueDisplay") && snapshot["oldValueDisplay"].ValueKind != System.Text.Json.JsonValueKind.Null)
+                    {
+                        oldVal = snapshot["oldValueDisplay"].GetString() ?? "";
+                    }
+                    else if (snapshot.ContainsKey("oldValue") && snapshot["oldValue"].ValueKind != System.Text.Json.JsonValueKind.Null)
+                    {
+                        oldVal = snapshot["oldValue"].ToString();
+                    }
+                        
+                    if (snapshot.ContainsKey("newValueDisplay") && snapshot["newValueDisplay"].ValueKind != System.Text.Json.JsonValueKind.Null)
+                    {
+                        newVal = snapshot["newValueDisplay"].GetString() ?? "";
+                    }
+                    else if (snapshot.ContainsKey("newValue") && snapshot["newValue"].ValueKind != System.Text.Json.JsonValueKind.Null)
+                    {
+                        newVal = snapshot["newValue"].ToString();
+                    }
+                        
+                    // Create human-friendly description
+                    var fieldDisplay = GetFieldDisplayName(item.TriggerField);
+                    
+                    if (!string.IsNullOrEmpty(oldVal) && !string.IsNullOrEmpty(newVal))
+                    {
+                        // Handle different field types with appropriate language
+                        if (item.TriggerField.Contains("Status"))
+                        {
+                            return $"?? Change {fieldDisplay} from \"{oldVal}\" to \"{newVal}\"";
+                        }
+                        else if (item.TriggerField.Contains("Date"))
+                        {
+                            return $"?? Update {fieldDisplay} from {oldVal} to {newVal}";
+                        }
+                        else
+                        {
+                            return $"?? Update {fieldDisplay}: \"{oldVal}\" ? \"{newVal}\"";
+                        }
+                    }
+                    else if (!string.IsNullOrEmpty(newVal))
+                    {
+                        return $"? Set {fieldDisplay} to \"{newVal}\"";
+                    }
+                    else if (!string.IsNullOrEmpty(oldVal))
+                    {
+                        return $"??? Clear {fieldDisplay} (was \"{oldVal}\")";
+                    }
+                }
+            }
+            return $"?? Update {GetFieldDisplayName(item.TriggerField)}";
+        }
+        catch
+        {
+            return $"?? {item.TriggerField} changed";
+        }
+    }
+    
+    // Enhanced descriptions for other entity types
+    return item.ChangeType switch
+    {
+        "New" when item.EntityType == "NewCase" => "?? New case from survey submission",
+        "New" when item.EntityType == "Contact" => "?? New contact person identified",
+        "New" when item.EntityType == "Exposure" => "?? New exposure event recorded",
+        "New" when item.EntityType == "LabResult" => "?? New laboratory result received",
+        "New" when item.EntityType == "ClinicalNotification" => "?? New clinical notification",
+        "New" => $"? New {item.EntityType} added",
+        "Updated" => $"?? {item.EntityType} information updated",
+        "FieldChanged" => "?? Field value changed",
+        "DuplicateDetected" => "?? Potential duplicate found - review needed",
+        "MergeRequest" => "?? Merge request pending approval",
+        _ => item.ChangeType
+    };
+}
+
+    string GetFieldDisplayName(string fieldName)
+    {
+        return fieldName switch
+        {
+            // Case fields
+            "ConfirmationStatusId" => "Confirmation Status",
+            "DiseaseId" => "Disease",
+            "ClinicalNotificationDate" => "Clinical Notification Date",
+            "OnsetDate" => "Symptom Onset Date",
+            "DiagnosisDate" => "Diagnosis Date",
+            "HospitalizedDate" => "Hospitalization Date",
+            "DischargeDate" => "Discharge Date",
+            "OutcomeDate" => "Outcome Date",
+            "DeathDate" => "Date of Death",
+            "Outcome" => "Case Outcome",
+            "OutbreakId" => "Outbreak",
+            "TransmissionMode" => "Transmission Mode",
+            "RiskFactors" => "Risk Factors",
+            "ClinicalNotes" => "Clinical Notes",
+            "EpiNotes" => "Epidemiology Notes",
+            
+            // Patient fields
+            "GivenName" => "First Name",
+            "FamilyName" => "Last Name",
+            "DateOfBirth" => "Date of Birth",
+            "Gender" => "Gender",
+            "PhoneNumber" => "Phone Number",
+            "EmailAddress" => "Email Address",
+            "StreetAddress" => "Street Address",
+            "City" => "City",
+            "PostalCode" => "Postal Code",
+            "Province" => "Province/State",
+            "Country" => "Country",
+            
+            // Exposure fields
+            "ExposureDate" => "Date of Exposure",
+            "ExposureLocation" => "Exposure Location",
+            "ExposureType" => "Type of Exposure",
+            "ExposureSource" => "Exposure Source",
+            
+            // Lab fields
+            "SpecimenCollectionDate" => "Specimen Collection Date",
+            "ResultDate" => "Result Date",
+            "TestResult" => "Test Result",
+            "TestType" => "Test Type",
+            
+            // Default - convert CamelCase to Title Case
+            _ => System.Text.RegularExpressions.Regex.Replace(fieldName, "(\\B[A-Z])", " $1")
+        };
+    }
+
+    string GetRelativeTime(DateTime dateTime)
+    {
+        var now = DateTime.UtcNow;
+        var diff = now - dateTime;
+
+        if (diff.TotalMinutes < 1)
+            return "Just now";
+        if (diff.TotalMinutes < 60)
+            return $"{(int)diff.TotalMinutes} min ago";
+        if (diff.TotalHours < 24)
+            return $"{(int)diff.TotalHours}h ago";
+        if (diff.TotalDays < 7)
+            return $"{(int)diff.TotalDays}d ago";
+        
+        return dateTime.ToLocalTime().ToString("MMM d");
+    }
+}

@@ -1,0 +1,722 @@
+@page
+@model Sentinel.Pages.Cases.Exposures.EditModel
+
+@{
+    ViewData["Title"] = "Edit Exposure";
+}
+@functions {
+    public string GetCspNonce()
+    {
+        if (HttpContext?.Items?.TryGetValue("csp-nonce", out var nonce) == true && nonce is string nonceStr)
+        {
+            return nonceStr;
+        }
+        return string.Empty;
+    }
+}
+
+<nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a asp-page="/Index">Home</a></li>
+        <li class="breadcrumb-item"><a asp-page="/Cases/Index">Cases</a></li>
+        <li class="breadcrumb-item"><a asp-page="/Cases/Details" asp-route-id="@Model.CaseId">Case @Model.CaseFriendlyId</a></li>
+        <li class="breadcrumb-item active" aria-current="page">Edit Exposure</li>
+    </ol>
+</nav>
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2><i class="bi bi-pencil me-2"></i>Edit Exposure</h2>
+</div>
+
+@if (TempData["ErrorMessage"] != null)
+{
+    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+        <i class="bi bi-exclamation-triangle me-2"></i>@TempData["ErrorMessage"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+}
+
+<form method="post">
+    <div asp-validation-summary="ModelOnly" class="alert alert-danger" role="alert"></div>
+    <input type="hidden" asp-for="Exposure.Id" />
+    <input type="hidden" asp-for="Exposure.ExposedCaseId" />
+    <input type="hidden" asp-for="Exposure.CreatedDate" />
+    <input type="hidden" asp-for="Exposure.CreatedByUserId" />
+    <input type="hidden" asp-for="Exposure.StatusChangedDate" />
+    <input type="hidden" asp-for="Exposure.StatusChangedByUserId" />
+
+    <div class="card shadow-sm mb-4">
+        <div class="card-header bg-light fw-semibold">
+            <i class="bi bi-info-circle me-2"></i>Exposure Type
+        </div>
+        <div class="card-body">
+            <div class="alert alert-info">
+                <i class="bi bi-lightbulb me-2"></i>
+                <strong>Select the type of exposure:</strong> The form will adapt to show relevant fields based on your selection.
+            </div>
+
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label asp-for="Exposure.ExposureType" class="form-label">
+                        <span class="text-danger">*</span> Exposure Type
+                    </label>
+                    <select asp-for="Exposure.ExposureType" class="form-select" id="exposureTypeSelect" required>
+                        <option value="">-- Select Type --</option>
+                        <option value="1">Event (at a recorded event)</option>
+                        <option value="2">Location (at a specific place)</option>
+                        <option value="3">Contact (person-to-person)</option>
+                        <option value="4">Travel (international travel)</option>
+                        <option value="5">Locally Acquired (at patient's residence)</option>
+                    </select>
+                    <span asp-validation-for="Exposure.ExposureType" class="text-danger small"></span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Event-based Exposure Fields -->
+    <div class="card shadow-sm mb-4" id="eventFields" style="display: none;">
+        <div class="card-header bg-primary text-white fw-semibold">
+            <i class="bi bi-calendar-event me-2"></i>Event Details
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-12 mb-3">
+                    <label class="form-label">
+                        <span class="text-danger">*</span> Event
+                    </label>
+                    <input type="text" class="form-control" id="eventAutocomplete" placeholder="Start typing event name..." value="@(Model.Exposure.Event?.Name ?? "")" />
+                    <input type="hidden" asp-for="Exposure.EventId" id="eventIdHidden" />
+                    <span asp-validation-for="Exposure.EventId" class="text-danger small"></span>
+                    <small class="form-text text-muted">
+                        <i class="bi bi-info-circle me-1"></i>Don't see the event? <a asp-page="/Events/Create" target="_blank">Create a new event</a>
+                    </small>
+                    @if (Model.Exposure.Event != null)
+                    {
+                        <div id="selectedEventInfo" class="alert alert-info mt-2">
+                            <strong>Selected Event:</strong> <span id="selectedEventDisplay">@Model.Exposure.Event.Name</span><br/>
+                            <small>
+                                <strong>Date:</strong> <span id="selectedEventDate">@Model.Exposure.Event.StartDateTime.ToString("dd MMM yyyy")</span> | 
+                                <strong>Location:</strong> <span id="selectedEventLocation">@(Model.Exposure.Event.Location?.Name ?? "Not specified")</span>
+                            </small>
+                        </div>
+                    }
+                    else
+                    {
+                        <div id="selectedEventInfo" class="alert alert-info mt-2" style="display: none;">
+                            <strong>Selected Event:</strong> <span id="selectedEventDisplay"></span><br/>
+                            <small>
+                                <strong>Date:</strong> <span id="selectedEventDate"></span> | 
+                                <strong>Location:</strong> <span id="selectedEventLocation"></span>
+                            </small>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Location-based Exposure Fields -->
+    <div class="card shadow-sm mb-4" id="locationFields" style="display: none;">
+        <div class="card-header bg-info text-white fw-semibold">
+            <i class="bi bi-geo-alt me-2"></i>Location Details
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-12 mb-3">
+                    <label class="form-label">
+                        Location (from records)
+                    </label>
+                    <input type="text" class="form-control" id="locationAutocomplete" placeholder="Start typing location name..." value="@(Model.Exposure.Location?.Name ?? "")" />
+                    <input type="hidden" asp-for="Exposure.LocationId" id="locationIdHidden" />
+                    <small class="form-text text-muted">Select a recorded location, or enter address details below</small>
+                    @if (Model.Exposure.Location != null)
+                    {
+                        <div id="selectedLocationInfo" class="alert alert-info mt-2">
+                            <strong>Selected Location:</strong> <span id="selectedLocationDisplay">@Model.Exposure.Location.Name</span><br/>
+                            <small>
+                                <strong>Address:</strong> <span id="selectedLocationAddress">@(Model.Exposure.Location.Address ?? "Not specified")</span> | 
+                                <strong>Type:</strong> <span id="selectedLocationType">@(Model.Exposure.Location.LocationType?.Name ?? "Not specified")</span>
+                            </small>
+                        </div>
+                    }
+                    else
+                    {
+                        <div id="selectedLocationInfo" class="alert alert-info mt-2" style="display: none;">
+                            <strong>Selected Location:</strong> <span id="selectedLocationDisplay"></span><br/>
+                            <small>
+                                <strong>Address:</strong> <span id="selectedLocationAddress"></span> | 
+                                <strong>Type:</strong> <span id="selectedLocationType"></span>
+                            </small>
+                        </div>
+                    }
+                </div>
+            </div>
+
+            <h6 class="border-bottom pb-2 mb-3 mt-3"><i class="bi bi-house me-2"></i>Structured Address</h6>
+            
+            <div class="row">
+                <div class="col-md-12 mb-3">
+                    <label asp-for="Exposure.AddressLine" class="form-label">
+                        Street Address
+                    </label>
+                    <input asp-for="Exposure.AddressLine" class="form-control" placeholder="e.g., 45 Beach Road" maxlength="200" id="addressLineInput" />
+                    <span asp-validation-for="Exposure.AddressLine" class="text-danger small"></span>
+                    <small class="form-text text-muted">
+                        <i class="bi bi-info-circle me-1"></i>
+                        Structured address enables reporting by suburb/postcode
+                    </small>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label asp-for="Exposure.City" class="form-label">
+                        Suburb / City
+                    </label>
+                    <input asp-for="Exposure.City" class="form-control" placeholder="e.g., Cairns" maxlength="100" id="cityInput" />
+                    <span asp-validation-for="Exposure.City" class="text-danger small"></span>
+                </div>
+                <div class="col-md-3 mb-3">
+                    <label asp-for="Exposure.State" class="form-label">
+                        State / Region
+                    </label>
+                    <input asp-for="Exposure.State" class="form-control" placeholder="e.g., Queensland" maxlength="100" id="stateInput" />
+                    <span asp-validation-for="Exposure.State" class="text-danger small"></span>
+                </div>
+                <div class="col-md-3 mb-3">
+                    <label asp-for="Exposure.PostalCode" class="form-label">
+                        Postcode
+                    </label>
+                    <input asp-for="Exposure.PostalCode" class="form-control" placeholder="e.g., 4870" maxlength="20" id="postalCodeInput" />
+                    <span asp-validation-for="Exposure.PostalCode" class="text-danger small"></span>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-md-12 mb-3">
+                    <label asp-for="Exposure.Country" class="form-label">
+                        Country
+                    </label>
+                    <input asp-for="Exposure.Country" class="form-control" placeholder="e.g., Australia" maxlength="100" id="countryInput" />
+                    <span asp-validation-for="Exposure.Country" class="text-danger small"></span>
+                </div>
+            </div>
+
+            <h6 class="border-bottom pb-2 mb-3 mt-3"><i class="bi bi-pin-map me-2"></i>Geocoding</h6>
+
+            <div class="row">
+                <div class="col-md-5 mb-3">
+                    <label asp-for="Exposure.Latitude" class="form-label">
+                        Latitude
+                    </label>
+                    <input asp-for="Exposure.Latitude" class="form-control" placeholder="e.g., -16.9203" step="any" id="latitudeInput" readonly />
+                    <span asp-validation-for="Exposure.Latitude" class="text-danger small"></span>
+                </div>
+                <div class="col-md-5 mb-3">
+                    <label asp-for="Exposure.Longitude" class="form-label">
+                        Longitude
+                    </label>
+                    <input asp-for="Exposure.Longitude" class="form-control" placeholder="e.g., 145.7781" step="any" id="longitudeInput" readonly />
+                    <span asp-validation-for="Exposure.Longitude" class="text-danger small"></span>
+                </div>
+                <div class="col-md-2 mb-3">
+                    <label class="form-label">&nbsp;</label>
+                    <button type="button" class="btn btn-outline-primary w-100" id="geocodeButton">
+                        <i class="bi bi-compass me-1"></i>Geocode
+                    </button>
+                </div>
+            </div>
+
+            @if (Model.Exposure.Latitude.HasValue && Model.Exposure.Longitude.HasValue)
+            {
+                <div class="row">
+                    <div class="col-md-12">
+                        <div class="alert alert-success">
+                            <i class="bi bi-check-circle me-2"></i>
+                            <strong>Geocoded:</strong> @Model.Exposure.GeocodingAccuracy
+                            @if (Model.Exposure.GeocodedDate.HasValue)
+                            {
+                                <span class="text-muted"> on @Model.Exposure.GeocodedDate.Value.ToString("dd MMM yyyy")</span>
+                            }
+                        </div>
+                    </div>
+                </div>
+            }
+
+            <div class="row">
+                <div class="col-md-12 mb-3">
+                    <label asp-for="Exposure.FreeTextLocation" class="form-label">
+                        OR Free-text Location (Legacy)
+                    </label>
+                    <input asp-for="Exposure.FreeTextLocation" class="form-control" placeholder="e.g., Local supermarket, Friend's house" maxlength="500" />
+                    <span asp-validation-for="Exposure.FreeTextLocation" class="text-danger small"></span>
+                    <small class="form-text text-muted">Use structured address above for better reporting</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Contact-based Exposure Fields -->
+    <div class="card shadow-sm mb-4" id="contactFields" style="display: none;">
+        <div class="card-header bg-warning text-dark fw-semibold">
+            <i class="bi bi-people me-2"></i>Contact Details
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-12 mb-3">
+                    <label class="form-label">
+                        Source Case
+                    </label>
+                    <input type="text" class="form-control" id="caseAutocomplete" placeholder="Start typing case ID or patient name..." value="@(Model.Exposure.SourceCase != null ? Model.Exposure.SourceCase.FriendlyId + " - " + (Model.Exposure.SourceCase.Patient != null ? Model.Exposure.SourceCase.Patient.GivenName + " " + Model.Exposure.SourceCase.Patient.FamilyName : "") : "")" />
+                    <input type="hidden" asp-for="Exposure.SourceCaseId" id="sourceCaseIdHidden" />
+                    <span asp-validation-for="Exposure.SourceCaseId" class="text-danger small"></span>
+                    <small class="form-text text-muted">Link to another case if this is a known contact</small>
+                    @if (Model.Exposure.SourceCase != null)
+                    {
+                        <div id="selectedCaseInfo" class="alert alert-info mt-2">
+                            <strong>Selected Case:</strong> <span id="selectedCaseDisplay">@Model.Exposure.SourceCase.FriendlyId - @(Model.Exposure.SourceCase.Patient != null ? Model.Exposure.SourceCase.Patient.GivenName + " " + Model.Exposure.SourceCase.Patient.FamilyName : "Unknown")</span><br/>
+                            <small>
+                                <strong>Notification Date:</strong> <span id="selectedCaseNotification">@(Model.Exposure.SourceCase.DateOfNotification?.ToString("dd MMM yyyy") ?? "Not set")</span> | 
+                                <strong>Disease:</strong> <span id="selectedCaseDisease">@(Model.Exposure.SourceCase.Disease?.Name ?? "Not specified")</span>
+                            </small>
+                        </div>
+                    }
+                    else
+                    {
+                        <div id="selectedCaseInfo" class="alert alert-info mt-2" style="display: none;">
+                            <strong>Selected Case:</strong> <span id="selectedCaseDisplay"></span><br/>
+                            <small>
+                                <strong>Notification Date:</strong> <span id="selectedCaseNotification"></span> | 
+                                <strong>Disease:</strong> <span id="selectedCaseDisease"></span>
+                            </small>
+                        </div>
+                    }
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-md-12 mb-3">
+                    <label asp-for="Exposure.ContactClassificationId" class="form-label">
+                        <span class="text-danger">*</span> Contact Classification
+                    </label>
+                    <select asp-for="Exposure.ContactClassificationId" asp-items="Model.ContactClassificationsList" class="form-select">
+                        <option value="">-- Select Contact Type --</option>
+                    </select>
+                    <span asp-validation-for="Exposure.ContactClassificationId" class="text-danger small"></span>
+                    <small class="form-text text-muted">
+                        <i class="bi bi-info-circle me-1"></i>Select how this person was exposed to the case
+                    </small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Travel-based Exposure Fields -->
+    <div class="card shadow-sm mb-4" id="travelFields" style="display: none;">
+        <div class="card-header bg-success text-white fw-semibold">
+            <i class="bi bi-airplane me-2"></i>Travel Details
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-12 mb-3">
+                    <label asp-for="Exposure.CountryCode" class="form-label">
+                        <span class="text-danger">*</span> Country
+                    </label>
+                    <input asp-for="Exposure.CountryCode" class="form-control" id="countryAutocomplete" placeholder="Start typing country name..." />
+                    <span asp-validation-for="Exposure.CountryCode" class="text-danger small"></span>
+                    <small class="form-text text-muted">Type to search for a country</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Locally Acquired Exposure Fields -->
+    <div class="card shadow-sm mb-4" id="locallyAcquiredFields" style="display: none;">
+        <div class="card-header bg-primary text-white fw-semibold">
+            <i class="bi bi-house me-2"></i>Locally Acquired (Patient's Residence)
+        </div>
+        <div class="card-body">
+            <div class="alert alert-info">
+                <i class="bi bi-info-circle me-2"></i>
+                <strong>Patient's Residential Address:</strong> This exposure is recorded at the patient's home address.
+            </div>
+
+            <div id="patientAddressDisplay" class="mb-3">
+                <h6 class="border-bottom pb-2 mb-3">Address</h6>
+                <div class="row">
+                    <div class="col-md-12 mb-2">
+                        <strong>Street Address:</strong> @(Model.Exposure.AddressLine ?? "Not specified")
+                    </div>
+                    <div class="col-md-4 mb-2">
+                        <strong>Suburb/City:</strong> @(Model.Exposure.City ?? "Not specified")
+                    </div>
+                    <div class="col-md-4 mb-2">
+                        <strong>State:</strong> @(Model.Exposure.State ?? "Not specified")
+                    </div>
+                    <div class="col-md-4 mb-2">
+                        <strong>Postcode:</strong> @(Model.Exposure.PostalCode ?? "Not specified")
+                    </div>
+                    <div class="col-md-12 mb-2">
+                        <strong>Country:</strong> @(Model.Exposure.Country ?? "Not specified")
+                    </div>
+                </div>
+            </div>
+
+            <!-- Form fields for address (populated from existing data) -->
+            <input type="hidden" asp-for="Exposure.AddressLine" id="localAddressLine" />
+            <input type="hidden" asp-for="Exposure.City" id="localCity" />
+            <input type="hidden" asp-for="Exposure.State" id="localState" />
+            <input type="hidden" asp-for="Exposure.PostalCode" id="localPostalCode" />
+            <input type="hidden" asp-for="Exposure.Country" id="localCountry" />
+            <input type="hidden" asp-for="Exposure.Latitude" id="localLatitude" />
+            <input type="hidden" asp-for="Exposure.Longitude" id="localLongitude" />
+
+            <div class="form-check">
+                <input class="form-check-input" type="checkbox" id="overridePatientAddress" />
+                <label class="form-check-label" for="overridePatientAddress">
+                    Update address
+                </label>
+            </div>
+
+            <div id="overrideAddressFields" style="display: none;" class="mt-3">
+                <h6 class="border-bottom pb-2 mb-3">Updated Address</h6>
+                <div class="row">
+                    <div class="col-md-12 mb-3">
+                        <label class="form-label">Street Address</label>
+                        <input type="text" class="form-control" id="overrideAddressLine" value="@Model.Exposure.AddressLine" placeholder="e.g., 45 Beach Road" />
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">Suburb / City</label>
+                        <input type="text" class="form-control" id="overrideCity" value="@Model.Exposure.City" placeholder="e.g., Cairns" />
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <label class="form-label">State / Region</label>
+                        <input type="text" class="form-control" id="overrideState" value="@Model.Exposure.State" placeholder="e.g., Queensland" />
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <label class="form-label">Postcode</label>
+                        <input type="text" class="form-control" id="overridePostalCode" value="@Model.Exposure.PostalCode" placeholder="e.g., 4870" />
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-12 mb-3">
+                        <label class="form-label">Country</label>
+                        <input type="text" class="form-control" id="overrideCountry" value="@Model.Exposure.Country" placeholder="e.g., Australia" />
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Common Fields for All Types -->
+    <div class="card shadow-sm mb-4">
+        <div class="card-header bg-light fw-semibold">
+            <i class="bi bi-calendar-range me-2"></i>Exposure Dates & Status
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label asp-for="Exposure.ExposureStartDate" class="form-label">
+                        <span class="text-danger">*</span> Exposure Start Date/Time
+                    </label>
+                    <input asp-for="Exposure.ExposureStartDate" class="form-control" type="datetime-local" min="1900-01-01T00:00" required />
+                    <span asp-validation-for="Exposure.ExposureStartDate" class="text-danger small"></span>
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label asp-for="Exposure.ExposureEndDate" class="form-label">
+                        Exposure End Date/Time
+                    </label>
+                    <input asp-for="Exposure.ExposureEndDate" class="form-control" type="datetime-local" min="1900-01-01T00:00" />
+                    <span asp-validation-for="Exposure.ExposureEndDate" class="text-danger small"></span>
+                    <small class="form-text text-muted">Leave blank for single-point exposures</small>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label asp-for="Exposure.ExposureStatus" class="form-label">
+                        Investigation Status
+                    </label>
+                    <select asp-for="Exposure.ExposureStatus" class="form-select">
+                        <option value="0">Unknown</option>
+                        <option value="1">Potential Exposure</option>
+                        <option value="2">Under Investigation</option>
+                        <option value="3">Confirmed Exposure</option>
+                        <option value="4">Ruled Out</option>
+                    </select>
+                    <span asp-validation-for="Exposure.ExposureStatus" class="text-danger small"></span>
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label asp-for="Exposure.ConfidenceLevel" class="form-label">
+                        Confidence Level
+                    </label>
+                    <input asp-for="Exposure.ConfidenceLevel" class="form-control" placeholder="e.g., High, Medium, Low" maxlength="50" />
+                    <span asp-validation-for="Exposure.ConfidenceLevel" class="text-danger small"></span>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-md-12 mb-3">
+                    <div class="form-check form-switch">
+                        <input asp-for="Exposure.IsReportingExposure" class="form-check-input" type="checkbox" id="isReportingExposureCheck" />
+                        <label asp-for="Exposure.IsReportingExposure" class="form-check-label">
+                            <strong>Primary Reporting Exposure</strong>
+                        </label>
+                    </div>
+                    <small class="form-text text-muted">
+                        <i class="bi bi-info-circle me-1"></i>
+                        Mark this as the primary exposure to use for official reporting and statistics. Only one exposure per case should be marked as the reporting exposure.
+                    </small>
+                    @if (Model.HasOtherReportingExposure && !Model.Exposure.IsReportingExposure)
+                    {
+                        <div class="alert alert-warning mt-2">
+                            <i class="bi bi-exclamation-triangle me-2"></i>
+                            <strong>Note:</strong> Another exposure is already marked as the reporting exposure for this case. Checking this will unmark the other one.
+                        </div>
+                    }
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-md-12 mb-3">
+                    <label asp-for="Exposure.Description" class="form-label">
+                        Description
+                    </label>
+                    <textarea asp-for="Exposure.Description" class="form-control" rows="3" placeholder="Details about the exposure..." maxlength="2000"></textarea>
+                    <span asp-validation-for="Exposure.Description" class="text-danger small"></span>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-md-12 mb-3">
+                    <label asp-for="Exposure.InvestigationNotes" class="form-label">
+                        Investigation Notes
+                    </label>
+                    <textarea asp-for="Exposure.InvestigationNotes" class="form-control" rows="3" placeholder="Notes from investigation..." maxlength="2000"></textarea>
+                    <span asp-validation-for="Exposure.InvestigationNotes" class="text-danger small"></span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="d-flex justify-content-between">
+        <a asp-page="/Cases/Details" asp-route-id="@Model.CaseId" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left me-1"></i>Cancel
+        </a>
+        <button type="submit" class="btn btn-primary">
+            <i class="bi bi-check-circle me-1"></i>Update Exposure
+        </button>
+    </div>
+</form>
+
+@section Scripts {
+    @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+    
+    <script>
+        $(function() {            const exposureTypeSelect = document.getElementById('exposureTypeSelect');
+            const eventFields = document.getElementById('eventFields');
+            const locationFields = document.getElementById('locationFields');
+            const contactFields = document.getElementById('contactFields');
+            const travelFields = document.getElementById('travelFields');
+            const locallyAcquiredFields = document.getElementById('locallyAcquiredFields');
+
+            // Debug: Check if elements exist            if (!exposureTypeSelect) {                return;
+            }
+
+            function updateFieldVisibility() {
+                const selectedType = exposureTypeSelect.value;                eventFields.style.display = 'none';
+                locationFields.style.display = 'none';
+                contactFields.style.display = 'none';
+                travelFields.style.display = 'none';
+                locallyAcquiredFields.style.display = 'none';
+
+                switch(selectedType) {
+                    case '1':                        eventFields.style.display = 'block';
+                        break;
+                    case '2':                        locationFields.style.display = 'block';
+                        break;
+                    case '3':                        contactFields.style.display = 'block';
+                        break;
+                    case '4':                        travelFields.style.display = 'block';
+                        break;
+                    case '5':                        locallyAcquiredFields.style.display = 'block';
+                        break;
+                    default:                }
+            }
+
+            exposureTypeSelect.addEventListener('change', updateFieldVisibility);
+            updateFieldVisibility();
+
+            // Handle override checkbox for locally acquired
+            $('#overridePatientAddress').on('change', function() {
+                if ($(this).is(':checked')) {
+                    $('#overrideAddressFields').slideDown();
+                } else {
+                    $('#overrideAddressFields').slideUp();
+                }
+            });
+
+            // Update hidden fields when override fields change
+            $('#overrideAddressLine, #overrideCity, #overrideState, #overridePostalCode, #overrideCountry').on('input', function() {
+                if ($('#overridePatientAddress').is(':checked')) {
+                    $('#localAddressLine').val($('#overrideAddressLine').val());
+                    $('#localCity').val($('#overrideCity').val());
+                    $('#localState').val($('#overrideState').val());
+                    $('#localPostalCode').val($('#overridePostalCode').val());
+                    $('#localCountry').val($('#overrideCountry').val());
+                }
+            });
+
+            // Country Autocomplete
+            const countryInput = $("#countryAutocomplete");
+            if (countryInput.length) {
+                countryInput.autocomplete({
+                    source: function(request, response) {                        $.ajax({
+                            url: "/api/countries/search",
+                            data: { term: request.term },
+                            success: function(data) {                                response($.map(data, function(item) {
+                                    return { label: item.name, value: item.name, code: item.code };
+                                }));
+                            },
+                            error: function(err) {                                response([]);
+                            }
+                        });
+                    },
+                    minLength: 2,
+                    select: function(event, ui) {
+                        $('#Exposure_CountryCode').val(ui.item.code);                        return true;
+                    }
+                });
+            }
+
+            // Case Autocomplete
+            const caseInput = $("#caseAutocomplete");
+            if (caseInput.length) {
+                caseInput.autocomplete({
+                    source: function(request, response) {                        $.ajax({
+                            url: "/api/cases/search",
+                            data: { 
+                                term: request.term, 
+                                excludeCaseId: '@Model.CaseId', 
+                                diseaseId: '@(Model.Exposure.ExposedCase?.DiseaseId)' 
+                            },
+                            success: function(data) {                                response($.map(data, function(item) {
+                                    // Create label with disease info
+                                    var label = item.friendlyId + ' - ' + item.patientName;
+                                    if (item.disease) {
+                                        label += ' [' + item.disease + ']';
+                                    }
+                                    if (item.notificationDate) {
+                                        label += ' (' + item.notificationDate + ')';
+                                    }
+                                    
+                                    return { 
+                                        label: label, 
+                                        value: item.friendlyId + ' - ' + item.patientName, 
+                                        caseId: item.id, 
+                                        friendlyId: item.friendlyId, 
+                                        patientName: item.patientName, 
+                                        notificationDate: item.notificationDate, 
+                                        disease: item.disease 
+                                    };
+                                }));
+                                
+                                if (data.length === 0) {
+                                    response([{ label: 'No matching cases found', value: '', disabled: true }]);
+                                }
+                            },
+                            error: function(err) {                                response([]);
+                            }
+                        });
+                    },
+                    minLength: 2,
+                    select: function(event, ui) {
+                        // Prevent selection of disabled/placeholder items
+                        if (ui.item.disabled || !ui.item.caseId) {
+                            return false;
+                        }
+                        
+                        $('#sourceCaseIdHidden').val(ui.item.caseId);
+                        $('#selectedCaseDisplay').text(ui.item.friendlyId + ' - ' + ui.item.patientName);
+                        $('#selectedCaseNotification').text(ui.item.notificationDate || 'Not set');
+                        $('#selectedCaseDisease').text(ui.item.disease || 'Not specified');
+                        $('#selectedCaseInfo').show();                        return true;
+                    }
+                });
+            }
+
+            // Event Autocomplete
+            const eventInput = $("#eventAutocomplete");
+            if (eventInput.length) {
+                eventInput.autocomplete({
+                    source: function(request, response) {
+                        $.ajax({
+                            url: "/api/events/search",
+                            data: { term: request.term },
+                            success: function(data) {
+                                response($.map(data, function(item) {
+                                    var label = item.name;
+                                    if (item.startDate) label += ' (' + item.startDate + ')';
+                                    if (item.location) label += ' at ' + item.location;
+                                    return { label: label, value: item.name, eventId: item.id, name: item.name, startDate: item.startDate, location: item.location };
+                                }));
+                                if (data.length === 0) {
+                                    response([{ label: 'No matching events found', value: '', disabled: true }]);
+                                }
+                            },
+                            error: function(err) {                                response([]);
+                            }
+                        });
+                    },
+                    minLength: 2,
+                    select: function(event, ui) {
+                        if (ui.item.disabled || !ui.item.eventId) return false;
+                        $('#eventIdHidden').val(ui.item.eventId);
+                        $('#selectedEventDisplay').text(ui.item.name);
+                        $('#selectedEventDate').text(ui.item.startDate || 'Not set');
+                        $('#selectedEventLocation').text(ui.item.location || 'Not specified');
+                        $('#selectedEventInfo').show();
+                        return true;
+                    }
+                });
+            }
+
+            // Location Autocomplete
+            const locationInput = $("#locationAutocomplete");
+            if (locationInput.length) {
+                locationInput.autocomplete({
+                    source: function(request, response) {
+                        $.ajax({
+                            url: "/api/locations/search",
+                            data: { term: request.term },
+                            success: function(data) {
+                                response($.map(data, function(item) {
+                                    var label = item.name;
+                                    if (item.address) label += ' - ' + item.address;
+                                    if (item.locationType) label += ' [' + item.locationType + ']';
+                                    return { label: label, value: item.name, locationId: item.id, name: item.name, address: item.address, locationType: item.locationType };
+                                }));
+                                if (data.length === 0) {
+                                    response([{ label: 'No matching locations found', value: '', disabled: true }]);
+                                }
+                            },
+                            error: function(err) {                                response([]);
+                            }
+                        });
+                    },
+                    minLength: 2,
+                    select: function(event, ui) {
+                        if (ui.item.disabled || !ui.item.locationId) return false;
+                        $('#locationIdHidden').val(ui.item.locationId);
+                        $('#selectedLocationDisplay').text(ui.item.name);
+                        $('#selectedLocationAddress').text(ui.item.address || 'Not specified');
+                        $('#selectedLocationType').text(ui.item.locationType || 'Not specified');
+                        $('#selectedLocationInfo').show();
+                        return true;
+                    }
+                });
+            }        });
+    </script>
+}

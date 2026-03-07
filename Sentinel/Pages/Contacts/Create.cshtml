@@ -1,0 +1,114 @@
+@page
+@model Sentinel.Pages.Contacts.CreateModel
+@using Sentinel.Models
+
+@{
+    ViewData["Title"] = "Create Contact";
+    Layout = "~/Pages/Shared/_Layout.cshtml";
+}
+
+<nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a asp-page="/Index">Home</a></li>
+        <li class="breadcrumb-item"><a asp-page="./Index">Contacts</a></li>
+        <li class="breadcrumb-item active" aria-current="page">Create</li>
+    </ol>
+</nav>
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2><i class="bi bi-plus-circle me-2"></i>Create Contact</h2>
+</div>
+
+@if (TempData["ErrorMessage"] != null)
+{
+    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+        <i class="bi bi-exclamation-triangle-fill me-2"></i>@TempData["ErrorMessage"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+}
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-body">
+                <form method="post">
+                    <div asp-validation-summary="ModelOnly" class="alert alert-danger" role="alert"></div>
+                    
+                    <input type="hidden" asp-for="Case.Type" value="@CaseType.Contact" />
+                    
+                    <div class="mb-3">
+                        <label asp-for="Case.PatientId" class="form-label">Patient <span class="text-danger">*</span></label>
+                        <select asp-for="Case.PatientId" class="form-select" asp-items="ViewBag.PatientId" id="patientDropdown">
+                            <option value="">-- Select Patient --</option>
+                        </select>
+                        <span asp-validation-for="Case.PatientId" class="text-danger"></span>
+                        <small class="form-text text-muted">Select the patient for this contact</small>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="Case.DateOfOnset" class="form-label">Date of Onset</label>
+                        <input asp-for="Case.DateOfOnset" class="form-control" type="date" />
+                        <span asp-validation-for="Case.DateOfOnset" class="text-danger"></span>
+                        <small class="form-text text-muted">Date when symptoms first appeared (if applicable)</small>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="Case.DateOfNotification" class="form-label">Date of Notification</label>
+                        <input asp-for="Case.DateOfNotification" class="form-control" type="date" />
+                        <span asp-validation-for="Case.DateOfNotification" class="text-danger"></span>
+                        <small class="form-text text-muted">Date when the contact was identified</small>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="Case.ConfirmationStatusId" class="form-label">Status</label>
+                        <select asp-for="Case.ConfirmationStatusId" class="form-select" asp-items="ViewBag.ConfirmationStatusId">
+                            <option value="">-- Select Status --</option>
+                        </select>
+                        <span asp-validation-for="Case.ConfirmationStatusId" class="text-danger"></span>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="Case.DiseaseId" class="form-label">Disease</label>
+                        <select asp-for="Case.DiseaseId" class="form-select" asp-items="ViewBag.DiseaseId">
+                            <option value="">-- Select Disease --</option>
+                        </select>
+                        <span asp-validation-for="Case.DiseaseId" class="text-danger"></span>
+                        <small class="form-text text-muted">Disease associated with this contact</small>
+                    </div>
+
+                    <div class="d-flex justify-content-between mt-4">
+                        <a asp-page="./Index" class="btn btn-secondary">
+                            <i class="bi bi-arrow-left me-1"></i>Back to List
+                        </a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-save me-1"></i>Create Contact
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-info-circle me-2"></i>Quick Tips</h5>
+            </div>
+            <div class="card-body">
+                <p class="small mb-2"><strong>What is a Contact?</strong></p>
+                <p class="small">A contact is someone who may have been exposed to a case and is being monitored for disease development.</p>
+                
+                <p class="small mb-2 mt-3"><strong>After Creating:</strong></p>
+                <ul class="small">
+                    <li>Link contact to cases via exposure tracking</li>
+                    <li>Add tasks for follow-up</li>
+                    <li>Monitor for symptom development</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+}

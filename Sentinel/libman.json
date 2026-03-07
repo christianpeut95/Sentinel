@@ -1,0 +1,67 @@
+{
+  "version": "1.0",
+  "defaultProvider": "unpkg",
+  "libraries": [
+    {
+      "library": "jquery@3.7.1",
+      "destination": "wwwroot/lib/jquery/",
+      "files": [
+        "dist/jquery.min.js"
+      ]
+    },
+    {
+      "library": "jquery-ui@1.13.2",
+      "destination": "wwwroot/lib/jquery-ui/",
+      "files": [
+        "dist/jquery-ui.min.js",
+        "dist/themes/base/jquery-ui.min.css"
+      ]
+    },
+    {
+      "library": "select2@4.1.0-rc.0",
+      "destination": "wwwroot/lib/select2/",
+      "files": [
+        "dist/css/select2.min.css",
+        "dist/js/select2.min.js"
+      ]
+    },
+    {
+      "library": "survey-core@1.9.131",
+      "destination": "wwwroot/lib/survey-core/",
+      "files": [
+        "survey.core.min.js",
+        "defaultV2.min.css"
+      ]
+    },
+    {
+      "library": "survey-knockout-ui@1.9.131",
+      "destination": "wwwroot/lib/survey-knockout-ui/",
+      "files": [
+        "survey-knockout-ui.min.js"
+      ]
+    },
+    {
+      "library": "survey-creator-core@1.9.131",
+      "destination": "wwwroot/lib/survey-creator-core/",
+      "files": [
+        "survey-creator-core.min.js",
+        "survey-creator-core.i18n.min.js",
+        "survey-creator-core.min.css"
+      ]
+    },
+    {
+      "library": "survey-creator-knockout@1.9.131",
+      "destination": "wwwroot/lib/survey-creator-knockout/",
+      "files": [
+        "survey-creator-knockout.min.js"
+      ]
+    },
+    {
+      "library": "knockout@3.5.1",
+      "destination": "wwwroot/lib/knockout/",
+      "files": [
+        "build/output/knockout-latest.js"
+      ]
+    }
+  ]
+}

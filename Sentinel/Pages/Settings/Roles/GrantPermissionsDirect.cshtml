@@ -1,0 +1,116 @@
+@page
+@using Sentinel.Models
+@model Sentinel.Pages.Settings.Roles.GrantPermissionsDirectModel
+
+@{
+    ViewData["Title"] = $"Direct SQL Permission Manager - {Model.RoleName}";
+}
+
+<div class="container-fluid">
+    <div class="alert alert-warning">
+        <h4><i class="bi bi-exclamation-triangle me-2"></i>DIRECT SQL MODE</h4>
+        <p class="mb-0">This page bypasses Entity Framework and writes directly to the database using raw SQL. Use this as a workaround until the EF issue is resolved.</p>
+    </div>
+
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a asp-page="/Settings/Index">Settings</a></li>
+            <li class="breadcrumb-item"><a asp-page="./Index">Roles</a></li>
+            <li class="breadcrumb-item active">Direct SQL Permissions - @Model.RoleName</li>
+        </ol>
+    </nav>
+
+    @if (TempData["SuccessMessage"] != null)
+    {
+        <div class="alert alert-success alert-dismissible fade show">
+            <i class="bi bi-check-circle me-2"></i>@TempData["SuccessMessage"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
+
+    @if (TempData["ErrorMessage"] != null)
+    {
+        <div class="alert alert-danger alert-dismissible fade show">
+            <i class="bi bi-x-circle me-2"></i>@TempData["ErrorMessage"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
+
+    <h2>Grant Permissions - @Model.RoleName</h2>
+    <p class="text-muted">Currently granted: @Model.GrantedPermissionIds.Count / @Model.AllPermissions.Count permissions</p>
+
+    <div class="row mb-3">
+        <div class="col">
+            <h5>Quick Actions by Module:</h5>
+            @foreach (PermissionModule module in Enum.GetValues(typeof(PermissionModule)))
+            {
+                <form method="post" asp-page-handler="GrantAllModuleDirect" asp-route-roleId="@Model.RoleId" asp-route-module="@((int)module)" class="d-inline">
+                    <button type="submit" class="btn btn-sm btn-success mb-2">
+                        <i class="bi bi-plus-circle"></i> Grant All @module
+                    </button>
+                </form>
+            }
+        </div>
+    </div>
+
+    @foreach (var moduleGroup in Model.AllPermissions.GroupBy(p => p.Module).OrderBy(g => g.Key))
+    {
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">@moduleGroup.Key Module</h5>
+            </div>
+            <div class="card-body">
+                <table class="table table-sm">
+                    <thead>
+                        <tr>
+                            <th>Permission</th>
+                            <th>Description</th>
+                            <th>Status</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var permission in moduleGroup.OrderBy(p => p.Action))
+                        {
+                            var isGranted = Model.GrantedPermissionIds.Contains(permission.Id);
+                            <tr class="@(isGranted ? "table-success" : "")">
+                                <td><code>@permission.Name</code></td>
+                                <td>@permission.Description</td>
+                                <td>
+                                    @if (isGranted)
+                                    {
+                                        <span class="badge bg-success">? GRANTED</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge bg-secondary">Not Granted</span>
+                                    }
+                                </td>
+                                <td>
+                                    @if (isGranted)
+                                    {
+                                        <form method="post" asp-page-handler="RevokeDirect" asp-route-roleId="@Model.RoleId" asp-route-permissionId="@permission.Id" class="d-inline">
+                                            <button type="submit" class="btn btn-sm btn-danger">
+                                                <i class="bi bi-x-circle"></i> Revoke
+                                            </button>
+                                        </form>
+                                    }
+                                    else
+                                    {
+                                        <form method="post" asp-page-handler="GrantDirect" asp-route-roleId="@Model.RoleId" asp-route-permissionId="@permission.Id" class="d-inline">
+                                            <button type="submit" class="btn btn-sm btn-success">
+                                                <i class="bi bi-plus-circle"></i> Grant
+                                            </button>
+                                        </form>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    }
+
+    <a asp-page="./Index" class="btn btn-secondary">Back to Roles</a>
+</div>

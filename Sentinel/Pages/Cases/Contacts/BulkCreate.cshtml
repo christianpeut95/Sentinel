@@ -1,0 +1,564 @@
+@page "/Cases/{caseId:guid}/Contacts/BulkCreate"
+@model Sentinel.Pages.Cases.Contacts.BulkCreateModel
+@{
+    ViewData["Title"] = "Bulk Contact Creation";
+}
+@functions {
+    public string GetCspNonce()
+    {
+        if (HttpContext?.Items?.TryGetValue("csp-nonce", out var nonce) == true && nonce is string nonceStr)
+        {
+            return nonceStr;
+        }
+        return string.Empty;
+    }
+}
+
+<div class="container-fluid" style="max-width: 1400px;">
+    <!-- Breadcrumb -->
+    <nav aria-label="breadcrumb" class="mb-4">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a asp-page="/Index">Home</a></li>
+            <li class="breadcrumb-item"><a asp-page="/Cases/Index">Cases</a></li>
+            <li class="breadcrumb-item"><a asp-page="/Cases/Details" asp-route-id="@Model.CaseId">@Model.SourceCase?.FriendlyId</a></li>
+            <li class="breadcrumb-item active">Bulk Contact Creation</li>
+        </ol>
+    </nav>
+
+    <!-- Page Header -->
+    <div class="card mb-4" style="border-left: 4px solid #7c3aed;">
+        <div class="card-body">
+            <h1 class="h3 mb-3"><i class="bi bi-people-fill me-2"></i>Bulk Contact Creation</h1>
+            
+            <div class="row g-3">
+                <div class="col-md-4">
+                    <strong><i class="bi bi-virus me-2"></i>Source Case:</strong>
+                    <div>@Model.SourceCase?.FriendlyId - @Model.SourceCase?.Patient?.GivenName @Model.SourceCase?.Patient?.FamilyName</div>
+                </div>
+                
+                @if (Model.Location != null)
+                {
+                    <div class="col-md-4">
+                        <strong><i class="bi bi-geo-alt me-2"></i>Location:</strong>
+                        <div>@Model.Location.Name</div>
+                    </div>
+                }
+                
+                @if (Model.Event != null)
+                {
+                    <div class="col-md-4">
+                        <strong><i class="bi bi-calendar-event me-2"></i>Event:</strong>
+                        <div>@Model.Event.Name (@Model.Event.StartDateTime.ToString("dd MMM yyyy"))</div>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+
+    @if (!string.IsNullOrEmpty(Model.SuccessMessage))
+    {
+        <div class="alert alert-success alert-dismissible fade show">
+            <i class="bi bi-check-circle me-2"></i>@Model.SuccessMessage
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
+
+    @if (!string.IsNullOrEmpty(Model.ErrorMessage))
+    {
+        <div class="alert alert-danger alert-dismissible fade show">
+            <i class="bi bi-exclamation-triangle me-2"></i>@Model.ErrorMessage
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
+
+    @if (!Model.ShowReviewScreen)
+    {
+        <!-- Step 1: Import Contacts -->
+        <div class="row g-4">
+            <!-- CSV Import -->
+            <div class="col-lg-6">
+                <div class="card h-100">
+                    <div class="card-header bg-primary text-white">
+                        <h5 class="mb-0"><i class="bi bi-file-earmark-spreadsheet me-2"></i>Option 1: Import CSV File</h5>
+                    </div>
+                    <div class="card-body">
+                        <p>Upload a CSV file containing contact information. The file should include the following columns:</p>
+                        
+                        <ul class="small mb-3">
+                            <li><strong>FirstName</strong> (required)</li>
+                            <li><strong>LastName</strong> (required)</li>
+                            <li>DateOfBirth (format: DD/MM/YYYY or YYYY-MM-DD)</li>
+                            <li>Phone</li>
+                            <li>Email</li>
+                            <li>ParentGuardianName</li>
+                            <li>ParentGuardianPhone</li>
+                            <li>ExposureStatus (ConfirmedExposure, PotentialExposure, UnderInvestigation)</li>
+                            <li>ConfidenceLevel (High, Medium, Low)</li>
+                            <li>Notes</li>
+                        </ul>
+
+
+                        <form method="post" enctype="multipart/form-data" asp-page-handler="UploadCsv">
+                            <input type="hidden" asp-for="CaseId" />
+                            <input type="hidden" asp-for="LocationId" />
+                            <input type="hidden" asp-for="EventId" />
+                            <input type="hidden" asp-for="ExposureStartDate" />
+                            <input type="hidden" asp-for="ExposureEndDate" />
+                            
+                            <div class="mb-3">
+                                <label class="form-label">Select CSV File</label>
+                                <input type="file" class="form-control" name="csvFile" accept=".csv" required />
+                            </div>
+
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-upload me-2"></i>Upload and Review
+                            </button>
+                        </form>
+
+                        <hr class="my-3" />
+
+                        <div class="text-center">
+                            <a href="/sample-contact-import.csv" class="btn btn-sm btn-outline-secondary">
+                                <i class="bi bi-download me-2"></i>Download Sample CSV Template
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Manual Entry -->
+            <div class="col-lg-6">
+                <div class="card h-100">
+                    <div class="card-header bg-success text-white">
+                        <h5 class="mb-0"><i class="bi bi-plus-circle me-2"></i>Option 2: Manual Entry</h5>
+                    </div>
+                    <div class="card-body">
+                        <p>Add contacts one at a time using the standard contact creation workflow.</p>
+                        
+                        <div class="d-grid gap-2">
+                            <a asp-page="/Contacts/CreateNewContact" class="btn btn-success">
+                                <i class="bi bi-person-plus me-2"></i>Create Single Contact
+                            </a>
+                        </div>
+                        
+                        <hr class="my-3" />
+                        
+                        <div class="text-muted small">
+                            <p class="mb-2"><strong>Use CSV import when:</strong></p>
+                            <ul class="mb-0">
+                                <li>You have 10+ contacts</li>
+                                <li>Contact data is already in a spreadsheet</li>
+                                <li>Need to import quickly from another system</li>
+                            </ul>
+                            
+                            <p class="mb-2 mt-3"><strong>Use manual entry when:</strong></p>
+                            <ul class="mb-0">
+                                <li>Adding 1-5 contacts</li>
+                                <li>Need guided step-by-step workflow</li>
+                                <li>Want duplicate detection during entry</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+    else
+    {
+        <!-- Step 2: Review and Confirm -->
+        <form method="post" asp-page-handler="Confirm">
+            <input type="hidden" asp-for="CaseId" />
+            <input type="hidden" asp-for="LocationId" />
+            <input type="hidden" asp-for="EventId" />
+            <input type="hidden" asp-for="ExposureStartDate" />
+            <input type="hidden" asp-for="ExposureEndDate" />
+            <input type="hidden" asp-for="ShowReviewScreen" />
+
+            <!-- Summary Card -->
+            <div class="card mb-4">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0"><i class="bi bi-clipboard-check me-2"></i>Review Contacts Before Creating</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-md-2">
+                            <div class="text-center p-3 bg-light rounded">
+                                <h3 class="mb-0" id="totalCount">@Model.ContactList.Count</h3>
+                                <small class="text-muted">Total Imported</small>
+                            </div>
+                        </div>
+                        <div class="col-md-2">
+                            <div class="text-center p-3 bg-primary bg-opacity-10 rounded">
+                                <h3 class="mb-0 text-primary" id="includedCount">@Model.ContactList.Count(c => c.IncludeInImport)</h3>
+                                <small class="text-muted">Will Be Created</small>
+                            </div>
+                        </div>
+                        <div class="col-md-2">
+                            <div class="text-center p-3 bg-success bg-opacity-10 rounded">
+                                <h3 class="mb-0 text-success">@Model.ContactList.Count(c => !c.IsPotentialDuplicate && c.IncludeInImport)</h3>
+                                <small class="text-muted">New Contacts</small>
+                            </div>
+                        </div>
+                        <div class="col-md-2">
+                            <div class="text-center p-3 bg-warning bg-opacity-10 rounded">
+                                <h3 class="mb-0 text-warning">@Model.ContactList.Count(c => c.IsPotentialDuplicate)</h3>
+                                <small class="text-muted">Duplicates</small>
+                            </div>
+                        </div>
+                        <div class="col-md-2">
+                            <div class="text-center p-3 bg-secondary bg-opacity-10 rounded">
+                                <h3 class="mb-0 text-secondary" id="excludedCount">@Model.ContactList.Count(c => !c.IncludeInImport)</h3>
+                                <small class="text-muted">Excluded</small>
+                            </div>
+                        </div>
+                        <div class="col-md-2">
+                            <div class="d-grid gap-2">
+                                <button type="button" class="btn btn-outline-secondary btn-sm" onclick="applyClassificationToAll()">
+                                    <i class="bi bi-tags me-1"></i>Classify All
+                                </button>
+                                <button type="button" class="btn btn-outline-info btn-sm" onclick="applyStatusToAll()">
+                                    <i class="bi bi-shield-check me-1"></i>Status All
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+
+            <!-- Contact Review Table -->
+            <div class="card mb-4">
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle">
+                            <thead class="table-light">
+                                <tr>
+                                    <th style="width: 40px;">
+                                        <input type="checkbox" id="selectAll" onclick="toggleAllContacts(this)" checked title="Select/Deselect All" />
+                                    </th>
+                                    <th style="width: 40px;">#</th>
+                                    <th style="width: 180px;">Name</th>
+                                    <th style="width: 100px;">DOB</th>
+                                    <th style="width: 150px;">Contact Info</th>
+                                    <th style="width: 180px;">Classification</th>
+                                    <th style="width: 150px;">Exposure Status</th>
+                                    <th style="width: 100px;">Confidence</th>
+                                    <th style="width: 200px;">Notes</th>
+                                    <th style="width: 100px;">Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @for (int i = 0; i < Model.ContactList.Count; i++)
+                                {
+                                    var contact = Model.ContactList[i];
+                                    var rowClass = contact.IsPotentialDuplicate ? "table-warning" : "";
+                                    var excludedClass = !contact.IncludeInImport ? "table-secondary text-muted" : "";
+
+                                    <tr class="@rowClass @excludedClass" id="contact-row-@i">
+                                        <td>
+                                            <input type="checkbox" 
+                                                   asp-for="ContactList[i].IncludeInImport" 
+                                                   class="contact-include-checkbox"
+                                                   onchange="toggleContactRow(@i)" />
+                                        </td>
+                                        <td>
+                                            <input type="hidden" asp-for="ContactList[i].RowNumber" />
+                                            <input type="hidden" asp-for="ContactList[i].FirstName" />
+                                            <input type="hidden" asp-for="ContactList[i].LastName" />
+                                            <input type="hidden" asp-for="ContactList[i].DateOfBirth" />
+                                            <input type="hidden" asp-for="ContactList[i].ContactPhone" />
+                                            <input type="hidden" asp-for="ContactList[i].Email" />
+                                            <input type="hidden" asp-for="ContactList[i].ParentGuardianName" />
+                                            <input type="hidden" asp-for="ContactList[i].ParentGuardianPhone" />
+                                            <input type="hidden" asp-for="ContactList[i].ExposureStartDate" />
+                                            <input type="hidden" asp-for="ContactList[i].ExposureEndDate" />
+                                            <input type="hidden" asp-for="ContactList[i].IsPotentialDuplicate" />
+                                            @contact.RowNumber
+                                        </td>
+                                        <td>
+                                            <strong>@contact.FirstName @contact.LastName</strong>
+                                            @if (contact.IsPotentialDuplicate)
+                                            {
+                                                <br />
+                                                <small class="text-warning">
+                                                    <i class="bi bi-exclamation-triangle me-1"></i>Duplicate?
+                                                </small>
+                                                <button type="button" 
+                                                        class="btn btn-sm btn-link p-0" 
+                                                        data-bs-toggle="modal" 
+                                                        data-bs-target="#duplicateModal-@i"
+                                                        title="Review duplicates">
+                                                    <i class="bi bi-search"></i>
+                                                </button>
+                                            }
+                                        </td>
+                                        <td>
+                                            <small>@contact.DateOfBirth?.ToString("dd/MM/yyyy")</small>
+                                        </td>
+                                        <td>
+                                            @if (!string.IsNullOrEmpty(contact.ContactPhone))
+                                            {
+                                                <div><small><i class="bi bi-telephone me-1"></i>@contact.ContactPhone</small></div>
+                                            }
+                                            @if (!string.IsNullOrEmpty(contact.Email))
+                                            {
+                                                <div><small><i class="bi bi-envelope me-1"></i>@contact.Email</small></div>
+                                            }
+                                        </td>
+                                        <td>
+                                            <select asp-for="ContactList[i].ContactClassificationId" 
+                                                    asp-items="Model.ContactClassificationsList" 
+                                                    class="form-select form-select-sm">
+                                                <option value="">-- Select --</option>
+                                            </select>
+                                        </td>
+                                        <td>
+                                            <select asp-for="ContactList[i].ExposureStatus" 
+                                                    asp-items="Model.ExposureStatusList" 
+                                                    class="form-select form-select-sm">
+                                            </select>
+                                        </td>
+                                        <td>
+                                            <select asp-for="ContactList[i].ConfidenceLevel" 
+                                                    class="form-select form-select-sm">
+                                                <option value="">-- Select --</option>
+                                                <option value="High">High</option>
+                                                <option value="Medium">Medium</option>
+                                                <option value="Low">Low</option>
+                                            </select>
+                                        </td>
+                                        <td>
+                                            <textarea asp-for="ContactList[i].Notes" 
+                                                      class="form-control form-control-sm" 
+                                                      rows="2" 
+                                                      style="resize: vertical; font-size: 0.85rem;"></textarea>
+                                        </td>
+                                        <td>
+                                            @if (contact.IsPotentialDuplicate)
+                                            {
+                                                <span class="badge bg-warning">Duplicate?</span>
+                                            }
+                                            else
+                                            {
+                                                <span class="badge bg-success">New</span>
+                                                <input type="hidden" asp-for="ContactList[i].CreateAsNew" value="true" />
+                                            }
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+
+            <!-- Action Buttons -->
+            <div class="card">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <a asp-page="/Cases/Contacts/BulkCreate" 
+                           asp-route-caseId="@Model.CaseId" 
+                           asp-route-locationId="@Model.LocationId" 
+                           asp-route-eventId="@Model.EventId"
+                           class="btn btn-outline-secondary">
+                            <i class="bi bi-arrow-left me-2"></i>Cancel & Start Over
+                        </a>
+
+                        <button type="submit" class="btn btn-primary btn-lg" id="confirmButton">
+                            <i class="bi bi-check-circle me-2"></i>
+                            <span id="confirmText">Confirm & Create <span id="confirmCount">@Model.ContactList.Count(c => c.IncludeInImport)</span> Contacts</span>
+                        </button>
+
+                    </div>
+                </div>
+            </div>
+        </form>
+
+        <!-- Duplicate Review Modals -->
+        @for (int i = 0; i < Model.ContactList.Count; i++)
+        {
+            var contact = Model.ContactList[i];
+            if (contact.IsPotentialDuplicate && Model.DuplicateResults.Any())
+            {
+                var result = Model.DuplicateResults.FirstOrDefault(r => r.RowNumber == contact.RowNumber);
+                
+                <div class="modal fade" id="duplicateModal-@i" tabindex="-1">
+                    <div class="modal-dialog modal-lg">
+                        <div class="modal-content">
+                            <div class="modal-header bg-warning text-dark">
+                                <h5 class="modal-title">Duplicate Detection: @contact.FirstName @contact.LastName</h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                            </div>
+                            <div class="modal-body">
+                                <h6>Proposed Contact:</h6>
+                                <div class="card mb-3">
+                                    <div class="card-body">
+                                        <p><strong>Name:</strong> @contact.FirstName @contact.LastName</p>
+                                        <p><strong>DOB:</strong> @contact.DateOfBirth?.ToString("dd MMM yyyy")</p>
+                                        <p><strong>Phone:</strong> @contact.ContactPhone</p>
+                                        <p><strong>Email:</strong> @contact.Email</p>
+                                    </div>
+                                </div>
+
+                                @if (result?.PossibleMatches.Any() == true)
+                                {
+                                    <h6>Possible Matches Found:</h6>
+                                    @foreach (var match in result.PossibleMatches)
+                                    {
+                                        <div class="card mb-2">
+                                            <div class="card-body">
+                                                <p><strong>Patient ID:</strong> @match.FriendlyId</p>
+                                                <p><strong>Name:</strong> @match.GivenName @match.FamilyName</p>
+                                                <p><strong>DOB:</strong> @match.DateOfBirth?.ToString("dd MMM yyyy")</p>
+                                                <p><strong>Phone:</strong> @match.MobilePhone @match.HomePhone</p>
+                                                <p><strong>Email:</strong> @match.EmailAddress</p>
+                                                <button type="button" class="btn btn-sm btn-primary" onclick="linkToExisting(@i, '@match.Id')">
+                                                    <i class="bi bi-link me-1"></i>Link to This Patient
+                                                </button>
+                                            </div>
+                                        </div>
+                                    }
+                                }
+
+                                <hr />
+                                <button type="button" class="btn btn-success" onclick="createAsNew(@i)" data-bs-dismiss="modal">
+                                    <i class="bi bi-plus-circle me-1"></i>Create as New Patient
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            }
+        }
+    }
+</div>
+
+@section Scripts {
+    <script>
+        // Toggle all contacts
+        function toggleAllContacts(checkbox) {
+            const checkboxes = document.querySelectorAll('.contact-include-checkbox');
+            checkboxes.forEach(cb => {
+                cb.checked = checkbox.checked;
+                const index = cb.name.match(/\[(\d+)\]/)[1];
+                toggleContactRow(index);
+            });
+        }
+
+        // Toggle individual contact row
+        function toggleContactRow(index) {
+            const checkbox = document.querySelector(`input[name="ContactList[${index}].IncludeInImport"]`);
+            const row = document.getElementById(`contact-row-${index}`);
+            
+            if (checkbox.checked) {
+                row.classList.remove('table-secondary', 'text-muted');
+            } else {
+                row.classList.add('table-secondary', 'text-muted');
+            }
+            
+            updateCounts();
+        }
+
+        // Update summary counts
+        function updateCounts() {
+            const checkboxes = document.querySelectorAll('.contact-include-checkbox');
+            const includedCount = Array.from(checkboxes).filter(cb => cb.checked).length;
+            const excludedCount = checkboxes.length - includedCount;
+            
+            document.getElementById('includedCount').textContent = includedCount;
+            document.getElementById('excludedCount').textContent = excludedCount;
+            document.getElementById('confirmCount').textContent = includedCount;
+            
+            // Update button state
+            const confirmButton = document.getElementById('confirmButton');
+            if (includedCount === 0) {
+                confirmButton.disabled = true;
+                confirmButton.classList.add('btn-secondary');
+                confirmButton.classList.remove('btn-primary');
+            } else {
+                confirmButton.disabled = false;
+                confirmButton.classList.add('btn-primary');
+                confirmButton.classList.remove('btn-secondary');
+            }
+        }
+
+        // Apply classification to all included contacts
+        function applyClassificationToAll() {
+            const select = document.querySelector('select[name$=".ContactClassificationId"]');
+            if (!select) return;
+            
+            const classificationId = prompt("Select from dropdown or enter Classification ID:");
+            if (classificationId) {
+                document.querySelectorAll('select[name$=".ContactClassificationId"]').forEach(sel => {
+                    const index = sel.name.match(/\[(\d+)\]/)[1];
+                    const includeCheckbox = document.querySelector(`input[name="ContactList[${index}].IncludeInImport"]`);
+                    if (includeCheckbox && includeCheckbox.checked) {
+                        sel.value = classificationId;
+                    }
+                });
+            }
+        }
+
+        // Apply exposure status to all included contacts
+        function applyStatusToAll() {
+            const statusValue = prompt("Enter Exposure Status (ConfirmedExposure, PotentialExposure, UnderInvestigation):");
+            if (statusValue) {
+                document.querySelectorAll('select[name$=".ExposureStatus"]').forEach(sel => {
+                    const index = sel.name.match(/\[(\d+)\]/)[1];
+                    const includeCheckbox = document.querySelector(`input[name="ContactList[${index}].IncludeInImport"]`);
+                    if (includeCheckbox && includeCheckbox.checked) {
+                        sel.value = statusValue;
+                    }
+                });
+            }
+        }
+
+        function linkToExisting(index, patientId) {
+            const input = document.querySelector(`input[name="ContactList[${index}].LinkToExistingPatientId"]`);
+            if (!input) {
+                const form = document.querySelector('form');
+                const newInput = document.createElement('input');
+                newInput.type = 'hidden';
+                newInput.name = `ContactList[${index}].LinkToExistingPatientId`;
+                newInput.value = patientId;
+                form.appendChild(newInput);
+            } else {
+                input.value = patientId;
+            }
+            
+            // Update UI
+            const row = document.getElementById(`contact-row-${index}`);
+            row.classList.remove('table-warning');
+            row.classList.add('table-info');
+            const badge = row.querySelector('.badge');
+            if (badge) {
+                badge.textContent = 'Link';
+                badge.classList.remove('bg-warning');
+                badge.classList.add('bg-info');
+            }
+        }
+
+        function createAsNew(index) {
+            const input = document.querySelector(`input[name="ContactList[${index}].CreateAsNew"]`);
+            if (input) {
+                input.value = 'true';
+            }
+            
+            const row = document.getElementById(`contact-row-${index}`);
+            row.classList.remove('table-warning');
+            const badge = row.querySelector('.badge');
+            if (badge) {
+                badge.textContent = 'New';
+                badge.classList.remove('bg-warning');
+                badge.classList.add('bg-success');
+            }
+        }
+
+        // Initialize counts on page load
+        document.addEventListener('DOMContentLoaded', () => {
+            updateCounts();
+        });
+    </script>
+}
+

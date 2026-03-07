@@ -1,0 +1,39 @@
+@page
+@model Sentinel.Pages.Settings.Roles.IndexModel
+
+<h2>Roles</h2>
+<hr />
+
+<form method="post" class="mb-3">
+    <div class="input-group">
+        <input type="text" name="roleName" class="form-control" placeholder="New role name" />
+        <button class="btn btn-primary">Create</button>
+    </div>
+</form>
+
+@if (!Model.Roles.Any())
+{
+    <p>No roles.</p>
+}
+else
+{
+    <ul class="list-group">
+        @foreach (var r in Model.Roles)
+        {
+            <li class="list-group-item d-flex justify-content-between align-items-center">
+                <span>@r.Name</span>
+                <div>
+                    <a asp-page="./Permissions" asp-route-id="@r.Id" class="btn btn-sm btn-info me-2">
+                        <i class="bi bi-shield-lock"></i> Permissions
+                    </a>
+                    <form method="post" class="d-inline">
+                        <input type="hidden" name="deleteRole" value="@r.Name" />
+                        <button class="btn btn-sm btn-danger">
+                            <i class="bi bi-trash"></i> Delete
+                        </button>
+                    </form>
+                </div>
+            </li>
+        }
+    </ul>
+}

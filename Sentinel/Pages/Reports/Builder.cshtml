@@ -1,0 +1,1776 @@
+@page
+@model Sentinel.Pages.Reports.BuilderModel
+@{
+    ViewData["Title"] = Model.ReportId.HasValue ? "Edit Report" : "Report Builder";
+    ViewData["BodyClass"] = "reports-page";
+}
+@functions {
+    public string GetCspNonce()
+    {
+        if (HttpContext?.Items?.TryGetValue("csp-nonce", out var nonce) == true && nonce is string nonceStr)
+        {
+            return nonceStr;
+        }
+        return string.Empty;
+    }
+}
+
+@section Styles {
+    <link href="https://cdn.webdatarocks.com/latest/webdatarocks.css" rel="stylesheet" />
+    <link href="~/css/reports-fullwidth.css" rel="stylesheet" />
+}
+
+<div class="container-fluid py-4">
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <h2><i class="bi bi-graph-up me-2"></i>@ViewData["Title"]</h2>
+                <div>
+                    <button type="button" class="btn btn-outline-secondary me-2" id="btnPreview">
+                        <i class="bi bi-eye me-1"></i> Preview
+                    </button>
+                    <button type="button" class="btn btn-primary" id="btnSave">
+                        <i class="bi bi-save me-1"></i> Save Report
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-3">
+        <!-- Left Panel: Available Fields -->
+        <div class="col-xl-3 col-lg-4">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0"><i class="bi bi-list-columns me-2"></i>Available Fields</h5>
+                </div>
+                <div class="card-body p-0">
+                    <div class="p-3 border-bottom">
+                        <label class="form-label mb-1 small fw-bold">Entity Type:</label>
+                        <select class="form-select form-select-sm" id="entityTypeSelector">
+                            <optgroup label="Core Entities">
+                                <option value="Case" selected="@(Model.EntityType == "Case")">Cases</option>
+                                <option value="Contact" selected="@(Model.EntityType == "Contact")">Contacts</option>
+                                <option value="Outbreak" selected="@(Model.EntityType == "Outbreak")">Outbreaks</option>
+                                <option value="Patient" selected="@(Model.EntityType == "Patient")">Patients</option>
+                                <option value="Task" selected="@(Model.EntityType == "Task")">Tasks</option>
+                                <option value="Location" selected="@(Model.EntityType == "Location")">Locations</option>
+                                <option value="Event" selected="@(Model.EntityType == "Event")">Events</option>
+                            </optgroup>
+                            <optgroup label="?? Flattened Views (Multi-Row)">
+                                <option value="CaseContactTasksFlattened" selected="@(Model.EntityType == "CaseContactTasksFlattened")">?? Case Tasks + Transmission Chains</option>
+                                <option value="OutbreakTasksFlattened" selected="@(Model.EntityType == "OutbreakTasksFlattened")">?? Outbreak Tasks (Sub-Outbreaks)</option>
+                                <option value="CaseTimelineAll" selected="@(Model.EntityType == "CaseTimelineAll")">?? Case Timeline (All Events)</option>
+                                <option value="ContactTracingMindMapNodes" selected="@(Model.EntityType == "ContactTracingMindMapNodes")">?? Network Nodes (for graphs)</option>
+                                <option value="ContactTracingMindMapEdges" selected="@(Model.EntityType == "ContactTracingMindMapEdges")">?? Network Edges (for graphs)</option>
+                                <option value="ContactsListSimple" selected="@(Model.EntityType == "ContactsListSimple")">?? Contacts List (Simple)</option>
+                    </optgroup>
+                        </select>
+                        
+                        <!-- Load Default Fields Button -->
+                        <button type="button" class="btn btn-outline-primary btn-sm w-100 mt-2" id="btnLoadDefaults">
+                            <i class="bi bi-magic me-1"></i> Load Default Fields
+                        </button>
+                    </div>
+                    <div class="p-3 border-bottom">
+                        <input type="text" class="form-control form-control-sm" id="fieldSearch" placeholder="?? Search fields...">
+                    </div>
+                    <div id="fieldCategories" class="accordion accordion-flush" style="max-height: calc(100vh - 320px); overflow-y: auto;">
+                        @if (Model.AvailableFields != null)
+                        {
+                            @foreach (var category in Model.AvailableFields)
+                            {
+                                var categoryId = category.Key.Replace(" ", "");
+                                <div class="accordion-item">
+                                    <h2 class="accordion-header">
+                                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#@categoryId">
+                                            @category.Key
+                                            <span class="badge bg-secondary ms-auto me-2">@category.Value.Count</span>
+                                        </button>
+                                    </h2>
+                                    <div id="@categoryId" class="accordion-collapse collapse">
+                                        <div class="accordion-body p-0">
+                                            @foreach (var field in category.Value)
+                                            {
+                                                <div class="field-item p-2 border-bottom" 
+                                                     draggable="true"
+                                                     data-field-path="@field.FieldPath"
+                                                     data-display-name="@field.DisplayName"
+                                                     data-data-type="@field.DataType"
+                                                     data-is-custom="@field.IsCustomField.ToString().ToLower()"
+                                                     data-custom-id="@field.CustomFieldDefinitionId">
+                                                    <div class="d-flex align-items-start">
+                                                        <i class="bi bi-grip-vertical text-muted me-2"></i>
+                                                        <div class="flex-grow-1">
+                                                            <small class="d-block fw-bold">@field.DisplayName</small>
+                                                            <small class="text-muted">
+                                                                @field.DataType
+                                                                @if (field.IsCustomField)
+                                                                {
+                                                                    <span class="badge bg-success ms-1">Custom</span>
+                                                                }
+                                                            </small>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            }
+                                        </div>
+                                    </div>
+                                </div>
+                            }
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Panel: Report Configuration -->
+        <div class="col-xl-9 col-lg-8">
+            <!-- Report Settings -->
+            <div class="card shadow-sm mb-3">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="bi bi-gear me-2"></i>Report Settings</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Report Name <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="reportName" value="@Model.ReportDefinition?.Name" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Category</label>
+                            <select class="form-select" id="reportCategory">
+                                <option value="">Select category...</option>
+                                <option value="Epidemiological">Epidemiological</option>
+                                <option value="Laboratory">Laboratory</option>
+                                <option value="Outbreak">Outbreak</option>
+                                <option value="Surveillance">Surveillance</option>
+                                <option value="Custom">Custom</option>
+                            </select>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label">Description</label>
+                            <textarea class="form-control" id="reportDescription" rows="2">@Model.ReportDefinition?.Description</textarea>
+                        </div>
+                        <div class="col-12">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="reportPublic">
+                                <label class="form-check-label" for="reportPublic">Share this report with all users</label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Selected Fields -->
+            <div class="card shadow-sm mb-3">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="bi bi-check2-square me-2"></i>Selected Fields</h5>
+                </div>
+                <div class="card-body">
+                    <div id="selectedFields" class="list-group">
+                        <div class="text-center text-muted py-4">
+                            <i class="bi bi-arrow-left-circle fs-1"></i>
+                            <p class="mt-2">Drag fields from the left panel to add them to your report</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Filters -->
+            <div class="card shadow-sm mb-3">
+                <div class="card-header">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0"><i class="bi bi-funnel me-2"></i>Filters</h5>
+                        <div>
+                            <button type="button" class="btn btn-sm btn-outline-success me-2" id="btnAddGroup">
+                                <i class="bi bi-plus-square me-1"></i> Add Group
+                            </button>
+                            <button type="button" class="btn btn-sm btn-outline-primary" id="btnAddFilter">
+                                <i class="bi bi-plus-circle me-1"></i> Add Filter
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div id="filters" class="list-group">
+                        <div class="text-center text-muted py-4">
+                            <i class="bi bi-funnel fs-1"></i>
+                            <p class="mt-2">No filters added yet</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Collection Queries (Related Data) -->
+            <div class="card shadow-sm mb-3">
+                <div class="card-header bg-info text-white">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0"><i class="bi bi-diagram-3 me-2"></i>Collection Queries (Related Data)</h5>
+                        <button type="button" class="btn btn-sm btn-light" id="btnAddCollectionQuery">
+                            <i class="bi bi-plus-circle me-1"></i> Add Query
+                        </button>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-info small mb-3">
+                        <i class="bi bi-info-circle me-2"></i>
+                        <strong>Collection Queries let you filter or aggregate related data.</strong><br>
+                        Examples: "Has positive PCR result", "Number of exposures > 3", "Sum of lab values", etc.
+                    </div>
+                    <div id="collectionQueries" class="list-group">
+                        <div class="text-center text-muted py-4">
+                            <i class="bi bi-diagram-3 fs-1"></i>
+                            <p class="mt-2">No collection queries added yet</p>
+                            <small class="text-muted">Use collection queries to filter on related data like exposures, tasks, or lab results</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Preview -->
+            <div class="card shadow-sm">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="bi bi-table me-2"></i>Preview</h5>
+                </div>
+                <div class="card-body">
+                    <div id="previewContainer" style="min-height: 400px;">
+                        <div class="text-center text-muted py-5">
+                            <i class="bi bi-eye-slash fs-1"></i>
+                            <p class="mt-2">Click "Preview" to see your report</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+<script src="https://cdn.webdatarocks.com/latest/webdatarocks.js"></script>
+<script src="~/js/webdatarocks-helper.js"></script>
+
+<script>
+// Report Builder - Clean Version
+const ReportBuilder = {
+    selectedFields: [],
+    filters: [],
+    filterGroups: [],
+    nextFilterId: 1,
+    nextGroupId: 1,
+    
+    init() {        this.setupDragDrop();
+        this.setupEventListeners();
+        this.setupFieldSearch();
+        this.loadSavedReport();    },
+    
+    loadSavedReport() {
+        // Load saved fields if editing an existing report
+        @if (Model.ReportDefinition != null)
+        {
+            @:// Load saved fields
+            foreach (var field in Model.ReportDefinition.Fields.OrderBy(f => f.DisplayOrder))
+            {
+                @:this.selectedFields.push({
+                @:    fieldPath: '@field.FieldPath',
+                @:    displayName: '@field.DisplayName',
+                @:    dataType: '@field.DataType',
+                @:    isCustom: @field.IsCustomField.ToString().ToLower(),
+                @:    customId: @(field.CustomFieldDefinitionId?.ToString() ?? "null")
+                @:});
+            }
+            @:this.renderSelectedFields();
+            
+            @:// Load saved filters
+            var filterIndex = 0;
+            foreach (var filter in Model.ReportDefinition.Filters.OrderBy(f => f.DisplayOrder))
+            {
+                var filterGroupId = filter.GroupId?.ToString() ?? "null";
+                var filterValue = filter.Value?.Replace("'", "\\'") ?? "";
+                @:this.addFilter();
+                @:setTimeout(() => {
+                @:    const filterElements = document.querySelectorAll('#filters .list-group-item');
+                @:    const filterEl = filterElements[filterElements.length - 1];
+                @:    if (filterEl) {
+                @:        const fieldSelect = filterEl.querySelector('.filter-field');
+                @:        if (fieldSelect) fieldSelect.value = '@filter.FieldPath';
+                @:        fieldSelect?.dispatchEvent(new Event('change'));
+                @:        const operatorSelect = filterEl.querySelector('.filter-operator');
+                @:        if (operatorSelect) operatorSelect.value = '@filter.Operator';
+                @:        operatorSelect?.dispatchEvent(new Event('change'));
+                @:        const valueInput = filterEl.querySelector('.filter-value');
+                @:        if (valueInput) valueInput.value = '@Html.Raw(filterValue)';
+                if (filterGroupId != "null")
+                {
+                    @:        filterEl.dataset.groupId = '@filterGroupId';
+                }
+                @:    }
+                @:}, @((filterIndex + 1) * 100));
+                filterIndex++;
+            }
+        }
+        
+        // Load saved collection queries if editing an existing report
+        const collectionQueriesJson = '@Html.Raw(Model.CollectionQueriesJson ?? "")';
+        if (collectionQueriesJson) {
+            try {
+                const savedQueries = JSON.parse(collectionQueriesJson);                // Restore each collection query
+                savedQueries.forEach(query => {
+                    this.restoreCollectionQuery(query);
+                });
+            } catch (e) {            }
+        }
+    },
+    
+    async restoreCollectionQuery(query) {
+        // Add the query UI element
+        const queryId = this.collectionQueryNextId++;
+        const newQuery = {
+            id: queryId,
+            collectionName: query.collectionName,
+            operation: query.operation,
+            displayAsColumn: query.displayAsColumn,
+            columnName: query.columnName,
+            comparator: query.comparator,
+            value: query.value,
+            subFilters: [],
+            collectionSubFields: []
+        };
+        
+        this.collectionQueries.push(newQuery);
+        
+        // Add the query card to the DOM
+        const container = document.getElementById('collectionQueries');
+        if (container.children.length === 1 && container.children[0].querySelector('.text-center')) {
+            container.innerHTML = '';
+        }
+        
+        // Create the query card HTML
+        container.insertAdjacentHTML('beforeend', this.getCollectionQueryHtml(newQuery));
+        
+        // Fetch sub-fields for this collection
+        await this.updateCollectionFields(queryId);
+        
+        // Restore sub-filters after fields are loaded
+        if (query.subFilters && query.subFilters.length > 0) {
+            // Wait a bit for the fields to be available
+            setTimeout(() => {
+                query.subFilters.forEach(subFilter => {
+                    this.restoreCollectionSubFilter(queryId, subFilter);
+                });
+            }, 100);
+        }
+        
+        // Set the operation (this will show/hide comparator as needed)
+        document.getElementById(`operation-${queryId}`).value = query.operation;
+        this.updateCollectionOperator(queryId);
+        
+        // Restore display as column state
+        if (query.displayAsColumn) {
+            document.getElementById(`display-as-column-${queryId}`).checked = true;
+            document.getElementById(`column-name-${queryId}`).value = query.columnName || '';
+            this.toggleDisplayMode(queryId);
+        }
+        
+        // Restore comparator values if not display mode
+        if (!query.displayAsColumn && query.comparator) {
+            document.getElementById(`comparator-${queryId}`).value = query.comparator;
+            document.getElementById(`value-${queryId}`).value = query.value || '';
+        }
+    },
+    
+    restoreCollectionSubFilter(queryId, subFilter) {
+        const query = this.collectionQueries.find(q => q.id === queryId);
+        if (!query) return;
+        
+        const subFilterId = Date.now() + Math.random();
+        query.subFilters.push(subFilterId);
+        
+        const container = document.getElementById(`subfilters-${queryId}`);
+        if (!container) return;
+        
+        // Remove placeholder if exists
+        if (container.querySelector('.text-muted')) {
+            container.innerHTML = '';
+        }
+        
+        const fields = query.collectionSubFields;
+        const fieldOptions = fields.map(fieldName => {
+            const displayName = this.formatFieldName(fieldName);
+            const selected = fieldName === subFilter.field ? 'selected' : '';
+            return `<option value="${fieldName}" ${selected}>${displayName}</option>`;
+        }).join('');
+        
+        const operatorOptions = [
+            { value: 'Equals', label: 'Equals' },
+            { value: 'NotEquals', label: 'Not Equals' },
+            { value: 'Contains', label: 'Contains' },
+            { value: 'StartsWith', label: 'Starts With' },
+            { value: 'EndsWith', label: 'Ends With' },
+            { value: 'GreaterThan', label: 'Greater Than' },
+            { value: 'LessThan', label: 'Less Than' }
+        ].map(op => {
+            const selected = op.value === subFilter.operator ? 'selected' : '';
+            return `<option value="${op.value}" ${selected}>${op.label}</option>`;
+        }).join('');
+        
+        container.insertAdjacentHTML('beforeend', `
+            <div class="card mb-2" id="subfilter-${queryId}-${subFilterId}">
+                <div class="card-body p-2">
+                    <div class="row g-2 align-items-center">
+                        <div class="col-md-4">
+                            <select class="form-select form-select-sm subfilter-field">
+                                ${fieldOptions}
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <select class="form-select form-select-sm subfilter-operator">
+                                ${operatorOptions}
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <input type="text" class="form-control form-control-sm subfilter-value" 
+                                   placeholder="Value" value="${subFilter.value || ''}">
+                        </div>
+                        <div class="col-md-1">
+                            <button type="button" class="btn btn-sm btn-outline-danger" 
+                                    onclick="ReportBuilder.removeCollectionSubFilter(${queryId}, ${subFilterId})">
+                                <i class="bi bi-x"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `);
+    },
+    
+    
+    setupDragDrop() {
+        // Make available fields draggable
+        document.querySelectorAll('.field-item').forEach(item => {
+            item.addEventListener('dragstart', (e) => {
+                const fieldData = {
+                    fieldPath: item.dataset.fieldPath,
+                    displayName: item.dataset.displayName,
+                    dataType: item.dataset.dataType,
+                    isCustom: item.dataset.isCustom === 'true',
+                    customId: item.dataset.customId || null
+                };
+                e.dataTransfer.setData('application/json', JSON.stringify(fieldData));
+                e.dataTransfer.setData('drag-type', 'add-field');
+                e.dataTransfer.effectAllowed = 'copy';
+            });
+        });
+        
+        // Setup drop zone for adding fields
+        const dropZone = document.getElementById('selectedFields');
+        
+        dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            const dragType = e.dataTransfer.types.includes('drag-type') ? 'add-field' : 'reorder';
+            e.dataTransfer.dropEffect = dragType === 'add-field' ? 'copy' : 'move';
+        });
+        
+        dropZone.addEventListener('drop', (e) => {            // Check if this is an add-field operation (has JSON data)
+            const jsonData = e.dataTransfer.getData('application/json');
+            const dragType = e.dataTransfer.types.includes('drag-type') ? e.dataTransfer.getData('drag-type') : null;            // Only process if it's an add-field operation (not a reorder)
+            if (jsonData && dragType === 'add-field') {                e.preventDefault();
+                e.stopPropagation();
+                const fieldData = JSON.parse(jsonData);
+                this.addField(fieldData);
+            } else {            }
+        });
+    },
+    
+    setupEventListeners() {
+        document.getElementById('btnPreview').addEventListener('click', () => this.preview());
+        document.getElementById('btnSave').addEventListener('click', () => this.save());
+        document.getElementById('btnAddFilter').addEventListener('click', () => this.addFilter());
+        document.getElementById('btnAddGroup').addEventListener('click', () => this.addFilterGroup());
+        document.getElementById('btnAddCollectionQuery').addEventListener('click', () => this.addCollectionQuery());
+        document.getElementById('btnLoadDefaults').addEventListener('click', () => this.loadDefaultFields());
+        
+        // Entity type selector - prevent changes when editing existing report
+        document.getElementById('entityTypeSelector').addEventListener('change', (e) => {
+            const reportId = @(Model.ReportId?.ToString() ?? "null");
+            
+            if (reportId) {
+                // Editing existing report - warn user
+                if (!confirm('Changing the entity type will clear all fields, filters, and collection queries. Are you sure?')) {
+                    // Revert to original value
+                    e.target.value = '@Model.EntityType';
+                    return;
+                }
+            }
+            
+            // Reload page with new entity type
+            if (reportId) {
+                // Create new report with new entity type
+                window.location.href = '?entityType=' + e.target.value;
+            } else {
+                // Just reload with new entity type
+                window.location.href = '?entityType=' + e.target.value;
+            }
+        });
+    },
+    
+    setupFieldSearch() {
+        document.getElementById('fieldSearch').addEventListener('input', (e) => {
+            const search = e.target.value.toLowerCase();
+            document.querySelectorAll('.field-item').forEach(item => {
+                const text = item.textContent.toLowerCase();
+                item.style.display = text.includes(search) ? '' : 'none';
+            });
+        });
+    },
+    
+    addField(field) {        if (this.selectedFields.some(f => f.fieldPath === field.fieldPath)) {
+            alert('Field already added');
+            return;
+        }
+        
+        this.selectedFields.push(field);        this.renderSelectedFields();
+    },
+    
+    removeField(fieldPath) {
+        this.selectedFields = this.selectedFields.filter(f => f.fieldPath !== fieldPath);
+        this.renderSelectedFields();
+    },
+    
+    renderSelectedFields() {
+        const container = document.getElementById('selectedFields');
+        
+        if (this.selectedFields.length === 0) {
+            container.innerHTML = `
+                <div class="text-center text-muted py-4">
+                    <i class="bi bi-arrow-left-circle fs-1"></i>
+                    <p class="mt-2">Drag fields from the left panel to add them to your report</p>
+                </div>
+            `;
+            return;
+        }
+        
+        container.innerHTML = this.selectedFields.map((field, index) => `
+            <div class="list-group-item selected-field-item" draggable="true" data-index="${index}" data-field-path="${field.fieldPath}">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div class="d-flex align-items-center flex-grow-1">
+                        <i class="bi bi-grip-vertical text-muted me-2" style="cursor: move;"></i>
+                        <div>
+                            <strong>${field.displayName}</strong>
+                            ${field.isCustom ? '<span class="badge bg-success ms-2">Custom</span>' : ''}
+                            <br><small class="text-muted">${field.fieldPath} (${field.dataType})</small>
+                        </div>
+                    </div>
+                    <button class="btn btn-sm btn-outline-danger" onclick="ReportBuilder.removeField('${field.fieldPath}')">
+                        <i class="bi bi-x"></i>
+                    </button>
+                </div>
+            </div>
+        `).join('');
+        
+        // Setup reordering after rendering
+        this.setupFieldReordering();
+    },
+    
+    setupFieldReordering() {
+        const items = document.querySelectorAll('.selected-field-item');
+        let draggedItem = null;
+        let draggedIndex = null;
+        
+        items.forEach(item => {
+            item.addEventListener('dragstart', (e) => {
+                draggedItem = item;
+                draggedIndex = parseInt(item.dataset.index);
+                item.classList.add('dragging');
+                e.dataTransfer.effectAllowed = 'move';
+                e.dataTransfer.setData('drag-type', 'reorder');
+                e.dataTransfer.setData('text/plain', ''); // For compatibility
+            });
+            
+            item.addEventListener('dragend', (e) => {
+                item.classList.remove('dragging');
+                draggedItem = null;
+                draggedIndex = null;
+            });
+            
+            item.addEventListener('dragover', (e) => {
+                // Only handle reorder operations
+                if (draggedItem && draggedItem !== item) {
+                    e.preventDefault();
+                    e.dataTransfer.dropEffect = 'move';
+                    
+                    const container = item.parentElement;
+                    const mouseY = e.clientY;
+                    const itemRect = item.getBoundingClientRect();
+                    const itemMiddle = itemRect.top + itemRect.height / 2;
+                    
+                    if (mouseY < itemMiddle) {
+                        container.insertBefore(draggedItem, item);
+                    } else {
+                        container.insertBefore(draggedItem, item.nextSibling);
+                    }
+                }
+            });
+            
+            item.addEventListener('drop', (e) => {
+                // Only handle if this is a reorder operation
+                if (draggedItem) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    
+                    // Get current order from DOM
+                    const items = document.querySelectorAll('.selected-field-item');
+                    const newOrder = [];
+                    items.forEach(item => {
+                        const fieldPath = item.dataset.fieldPath;
+                        const field = this.selectedFields.find(f => f.fieldPath === fieldPath);
+                        if (field) newOrder.push(field);
+                    });
+                    
+                    this.selectedFields = newOrder;
+                }
+            });
+        });
+    },
+    
+    addFilter() {
+        const filterId = this.nextFilterId++;
+        const container = document.getElementById('filters');
+        
+        if (this.selectedFields.length === 0) {
+            alert('Please add fields first');
+            return;
+        }
+        
+        if (container.querySelector('.text-center')) {
+            container.innerHTML = '';
+        }
+        
+        const filterHtml = `
+            <div class="list-group-item" id="filter-${filterId}">
+                <div class="row g-2">
+                    <div class="col-md-4">
+                        <select class="form-select form-select-sm filter-field" data-filter-id="${filterId}">
+                            <option value="">Select field...</option>
+                            ${this.selectedFields.map(f => `<option value="${f.fieldPath}" data-type="${f.dataType}">${f.displayName}</option>`).join('')}
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <select class="form-select form-select-sm filter-operator" id="operator-${filterId}">
+                            <option value="Equals">Equals</option>
+                            <option value="Contains">Contains</option>
+                            <option value="GreaterThan">Greater Than</option>
+                            <option value="LessThan">Less Than</option>
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <input type="text" class="form-control form-control-sm filter-value" id="value-${filterId}" placeholder="Value">
+                    </div>
+                    <div class="col-md-1">
+                        <button class="btn btn-sm btn-outline-danger" onclick="ReportBuilder.removeFilter(${filterId})">
+                            <i class="bi bi-x"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        container.insertAdjacentHTML('beforeend', filterHtml);
+        
+        // Add smart filter event listener (does NOT affect drag-drop)
+        this.setupSmartFilter(filterId);
+    },
+    
+    setupSmartFilter(filterId) {
+        const fieldSelect = document.querySelector(`.filter-field[data-filter-id="${filterId}"]`);
+        const operatorSelect = document.getElementById(`operator-${filterId}`);
+        const valueInput = document.getElementById(`value-${filterId}`);
+        
+        if (!fieldSelect || !operatorSelect || !valueInput) return;
+        
+        fieldSelect.addEventListener('change', (e) => {
+            const selectedOption = e.target.options[e.target.selectedIndex];
+            const dataType = selectedOption.dataset.type || 'String';
+            
+            // Update operators based on data type
+            this.updateOperators(operatorSelect, dataType);
+            
+            // Update input type based on data type and operator
+            this.updateValueInput(valueInput, dataType, operatorSelect.value);
+        });
+        
+        // Also listen to operator changes to update input type
+        operatorSelect.addEventListener('change', (e) => {
+            const selectedOption = fieldSelect.options[fieldSelect.selectedIndex];
+            const dataType = selectedOption.dataset.type || 'String';
+            this.updateValueInput(valueInput, dataType, e.target.value);
+        });
+    },
+    
+    updateOperators(selectElement, dataType) {
+        const operatorsByType = {
+            'String': [
+                { value: 'Equals', label: 'Equals' },
+                { value: 'NotEquals', label: 'Not Equals' },
+                { value: 'Contains', label: 'Contains' },
+                { value: 'NotContains', label: 'Does Not Contain' },
+                { value: 'StartsWith', label: 'Starts With' },
+                { value: 'EndsWith', label: 'Ends With' },
+                { value: 'IsNull', label: 'Is Null' },
+                { value: 'IsNotNull', label: 'Is Not Null' },
+                { value: 'IsEmpty', label: 'Is Empty' },
+                { value: 'IsNotEmpty', label: 'Is Not Empty' }
+            ],
+            'Int32': [
+                { value: 'Equals', label: 'Equals' },
+                { value: 'NotEquals', label: 'Not Equals' },
+                { value: 'GreaterThan', label: 'Greater Than (>)' },
+                { value: 'LessThan', label: 'Less Than (<)' },
+                { value: 'GreaterThanOrEqual', label: 'Greater Than or Equal (=)' },
+                { value: 'LessThanOrEqual', label: 'Less Than or Equal (=)' },
+                { value: 'Between', label: 'Between' },
+                { value: 'IsNull', label: 'Is Null' },
+                { value: 'IsNotNull', label: 'Is Not Null' }
+            ],
+            'Decimal': [
+                { value: 'Equals', label: 'Equals' },
+                { value: 'NotEquals', label: 'Not Equals' },
+                { value: 'GreaterThan', label: 'Greater Than (>)' },
+                { value: 'LessThan', label: 'Less Than (<)' },
+                { value: 'GreaterThanOrEqual', label: 'Greater Than or Equal (=)' },
+                { value: 'LessThanOrEqual', label: 'Less Than or Equal (=)' },
+                { value: 'Between', label: 'Between' },
+                { value: 'IsNull', label: 'Is Null' },
+                { value: 'IsNotNull', label: 'Is Not Null' }
+            ],
+            'DateTime': [
+                { value: 'Equals', label: 'On Date' },
+                { value: 'NotEquals', label: 'Not On Date' },
+                { value: 'GreaterThan', label: 'After' },
+                { value: 'LessThan', label: 'Before' },
+                { value: 'GreaterThanOrEqual', label: 'On or After' },
+                { value: 'LessThanOrEqual', label: 'On or Before' },
+                { value: 'Between', label: 'Between Dates' },
+                { value: 'IsNull', label: 'Is Null' },
+                { value: 'IsNotNull', label: 'Is Not Null' },
+                { value: 'InLast', label: 'In Last X Days' },
+                { value: 'InNext', label: 'In Next X Days' }
+            ],
+            'Boolean': [
+                { value: 'Equals', label: 'Is' },
+                { value: 'IsNull', label: 'Is Null' },
+                { value: 'IsNotNull', label: 'Is Not Null' }
+            ]
+        };
+        
+        const normalizedType = dataType.includes('Int') || dataType.includes('Number') ? 'Int32' :
+                               dataType.includes('Decimal') || dataType.includes('Double') ? 'Decimal' :
+                               dataType.includes('Date') ? 'DateTime' :
+                               dataType.includes('Bool') ? 'Boolean' : 'String';
+        
+        const operators = operatorsByType[normalizedType] || operatorsByType['String'];
+        
+        selectElement.innerHTML = operators.map(op => 
+            `<option value="${op.value}">${op.label}</option>`
+        ).join('');
+    },
+    
+    updateValueInput(inputElement, dataType, operator) {
+        const parentCol = inputElement.closest('.col-md-4');
+        if (!parentCol) return;
+        
+        // Handle special operators that need multiple inputs or different input types
+        if (operator === 'Between') {
+            // Create two input fields for "Between"
+            const inputType = dataType.includes('Date') ? 'date' : 'number';
+            parentCol.innerHTML = `
+                <input type="${inputType}" class="form-control form-control-sm filter-value mb-1" 
+                       placeholder="From" style="width: 100%;">
+                <input type="${inputType}" class="form-control form-control-sm filter-value-end" 
+                       placeholder="To" style="width: 100%;">
+            `;
+            return;
+        }
+        
+        if (operator === 'InLast' || operator === 'InNext') {
+            // Create number input for days
+            parentCol.innerHTML = `
+                <input type="number" class="form-control form-control-sm filter-value" 
+                       placeholder="Number of days" min="1" style="width: 100%;">
+            `;
+            return;
+        }
+        
+        if (operator === 'IsNull' || operator === 'IsNotNull' || operator === 'IsEmpty' || operator === 'IsNotEmpty') {
+            // No input needed for these operators
+            parentCol.innerHTML = `
+                <input type="text" class="form-control form-control-sm filter-value" 
+                       placeholder="(no value needed)" disabled style="width: 100%;">
+            `;
+            return;
+        }
+        
+        // Standard single input
+        const normalizedType = dataType.includes('Date') ? 'date' :
+                               dataType.includes('Int') || dataType.includes('Number') ? 'number' :
+                               dataType.includes('Bool') ? 'checkbox' : 'text';
+        
+        if (normalizedType === 'checkbox') {
+            parentCol.innerHTML = `
+                <div class="form-check mt-2">
+                    <input type="checkbox" class="form-check-input filter-value" id="value-${inputElement.id}">
+                    <label class="form-check-label" for="value-${inputElement.id}">True</label>
+                </div>
+            `;
+        } else if (normalizedType === 'date') {
+            parentCol.innerHTML = `
+                <input type="date" class="form-control form-control-sm filter-value" 
+                       placeholder="Select date" style="width: 100%;">
+            `;
+        } else if (normalizedType === 'number') {
+            parentCol.innerHTML = `
+                <input type="number" class="form-control form-control-sm filter-value" 
+                       placeholder="Enter number" step="any" style="width: 100%;">
+            `;
+        } else {
+            parentCol.innerHTML = `
+                <input type="text" class="form-control form-control-sm filter-value" 
+                       placeholder="Enter value" style="width: 100%;">
+            `;
+        }
+    },
+    
+    removeFilter(filterId) {
+        document.getElementById(`filter-${filterId}`)?.remove();
+        const container = document.getElementById('filters');
+        if (container.children.length === 0) {
+            container.innerHTML = `
+                <div class="text-center text-muted py-4">
+                    <i class="bi bi-funnel fs-1"></i>
+                    <p class="mt-2">No filters added yet</p>
+                </div>
+            `;
+        }
+    },
+    
+    addFilterGroup() {
+        const groupId = this.nextGroupId++;
+        const groupHtml = `
+            <div class="filter-group mb-3 p-3 border border-primary rounded" id="group-${groupId}" data-group-id="${groupId}">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <div>
+                        <strong><i class="bi bi-parentheses"></i> Filter Group ${groupId}</strong>
+                    </div>
+                    <div class="btn-group btn-group-sm">
+                        <button class="btn btn-sm btn-outline-primary" onclick="ReportBuilder.addFilterToGroup(${groupId})">
+                            <i class="bi bi-plus"></i> Add Filter
+                        </button>
+                        <button class="btn btn-sm btn-outline-danger" onclick="ReportBuilder.removeGroup(${groupId})">
+                            <i class="bi bi-x"></i> Remove Group
+                        </button>
+                    </div>
+                </div>
+                <div class="group-filters" data-group-id="${groupId}">
+                    <div class="text-muted small py-2 text-center">
+                        <i class="bi bi-arrow-down-circle"></i> Add filters to this group
+                    </div>
+                </div>
+                <div class="mt-2">
+                    <div class="btn-group btn-group-sm" role="group">
+                        <input type="radio" class="btn-check" name="group-logic-${groupId}" id="group-and-${groupId}" value="AND" checked>
+                        <label class="btn btn-outline-primary" for="group-and-${groupId}">AND</label>
+                        <input type="radio" class="btn-check" name="group-logic-${groupId}" id="group-or-${groupId}" value="OR">
+                        <label class="btn btn-outline-primary" for="group-or-${groupId}">OR</label>
+                    </div>
+                    <small class="text-muted ms-2">with next group</small>
+                </div>
+            </div>
+        `;
+        
+        const container = document.getElementById('filters');
+        if (container.querySelector('.text-center.text-muted')) {
+            container.innerHTML = '';
+        }
+        container.insertAdjacentHTML('beforeend', groupHtml);
+        this.filterGroups.push({ id: groupId, filters: [] });
+    },
+    
+    addFilterToGroup(groupId) {
+        const filterId = this.nextFilterId++;
+        
+        if (this.selectedFields.length === 0) {
+            alert('Please add fields first');
+            return;
+        }
+        
+        const filterHtml = `
+            <div class="list-group-item mb-2" id="filter-${filterId}" data-filter-id="${filterId}" data-group-id="${groupId}">
+                <div class="row g-2">
+                    <div class="col-md-4">
+                        <select class="form-select form-select-sm filter-field" data-filter-id="${filterId}">
+                            <option value="">Select field...</option>
+                            ${this.selectedFields.map(f => `<option value="${f.fieldPath}" data-type="${f.dataType}">${f.displayName}</option>`).join('')}
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <select class="form-select form-select-sm filter-operator" id="operator-${filterId}">
+                            <option value="Equals">Equals</option>
+                            <option value="Contains">Contains</option>
+                            <option value="GreaterThan">Greater Than</option>
+                            <option value="LessThan">Less Than</option>
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <input type="text" class="form-control form-control-sm filter-value" id="value-${filterId}" placeholder="Value">
+                    </div>
+                    <div class="col-md-1">
+                        <button class="btn btn-sm btn-outline-danger" onclick="ReportBuilder.removeFilterFromGroup(${filterId}, ${groupId})">
+                            <i class="bi bi-x"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="mt-1">
+                    <div class="btn-group btn-group-sm" role="group">
+                        <input type="radio" class="btn-check" name="logic-${filterId}" id="and-${filterId}" value="AND" checked>
+                        <label class="btn btn-outline-secondary" for="and-${filterId}">AND</label>
+                        <input type="radio" class="btn-check" name="logic-${filterId}" id="or-${filterId}" value="OR">
+                        <label class="btn btn-outline-secondary" for="or-${filterId}">OR</label>
+                    </div>
+                    <small class="text-muted ms-2">with next filter in group</small>
+                </div>
+            </div>
+        `;
+        
+        const groupContainer = document.querySelector(`.group-filters[data-group-id="${groupId}"]`);
+        const placeholder = groupContainer.querySelector('.text-center');
+        if (placeholder) {
+            groupContainer.innerHTML = '';
+        }
+        groupContainer.insertAdjacentHTML('beforeend', filterHtml);
+        
+        const group = this.filterGroups.find(g => g.id === groupId);
+        if (group) {
+            group.filters.push(filterId);
+        }
+        
+        // Add smart filter event listener (same as regular filters)
+        this.setupSmartFilter(filterId);
+    },
+    
+    removeGroup(groupId) {
+        document.getElementById(`group-${groupId}`)?.remove();
+        this.filterGroups = this.filterGroups.filter(g => g.id !== groupId);
+        
+        const container = document.getElementById('filters');
+        if (container.children.length === 0) {
+            container.innerHTML = `
+                <div class="text-center text-muted py-4">
+                    <i class="bi bi-funnel fs-1"></i>
+                    <p class="mt-2">No filters added yet</p>
+                </div>
+            `;
+        }
+    },
+    
+    removeFilterFromGroup(filterId, groupId) {
+        document.getElementById(`filter-${filterId}`)?.remove();
+        
+        const group = this.filterGroups.find(g => g.id === groupId);
+        if (group) {
+            group.filters = group.filters.filter(f => f !== filterId);
+        }
+        
+        const groupContainer = document.querySelector(`.group-filters[data-group-id="${groupId}"]`);
+        if (groupContainer && groupContainer.children.length === 0) {
+            groupContainer.innerHTML = `
+                <div class="text-muted small py-2 text-center">
+                    <i class="bi bi-arrow-down-circle"></i> Add filters to this group
+                </div>
+            `;
+        }
+    },
+    
+    // ========== COLLECTION QUERIES (Related Data) ==========
+    
+    collectionQueries: [],
+    nextCollectionQueryId: 1,
+    
+    addCollectionQuery() {
+        const queryId = this.nextCollectionQueryId++;
+        const container = document.getElementById('collectionQueries');
+        
+        const placeholder = container.querySelector('.text-center');
+        if (placeholder) {
+            container.innerHTML = '';
+        }
+        
+        const entityType = document.getElementById('entityTypeSelector').value;
+        const collections = this.getAvailableCollections(entityType);
+        
+        if (collections.length === 0) {
+            alert('No related collections available for this entity type');
+            return;
+        }
+        
+        const queryHtml = `
+            <div class="list-group-item border-start border-info border-3" id="collection-query-${queryId}" data-query-id="${queryId}">
+                <div class="row g-2">
+                    <div class="col-12 d-flex justify-content-between align-items-center mb-2">
+                        <h6 class="mb-0 text-info"><i class="bi bi-diagram-3 me-2"></i>Related Data Query #${queryId}</h6>
+                        <button class="btn btn-sm btn-outline-danger" onclick="ReportBuilder.removeCollectionQuery(${queryId})">
+                            <i class="bi bi-x"></i>
+                        </button>
+                    </div>
+                    
+                    <div class="col-12 mb-2">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="display-as-column-${queryId}" onchange="ReportBuilder.toggleDisplayMode(${queryId})">
+                            <label class="form-check-label fw-bold text-success" for="display-as-column-${queryId}">
+                                <i class="bi bi-table me-1"></i> Display as Column (instead of filtering rows)
+                            </label>
+                        </div>
+                        <small class="text-muted ms-4">When checked, adds a column showing the result for each row. When unchecked, filters rows based on the condition.</small>
+                    </div>
+                    
+                    <div class="col-12" id="column-name-container-${queryId}" style="display:none;">
+                        <label class="form-label small fw-bold">Column Name:</label>
+                        <input type="text" class="form-control form-control-sm" id="column-name-${queryId}" placeholder="e.g., 'Has Positive PCR' or 'Exposure Count'">
+                    </div>
+                    
+                    <div class="col-md-4">
+                        <label class="form-label small fw-bold">Collection:</label>
+                        <select class="form-select form-select-sm collection-name" id="collection-${queryId}" onchange="ReportBuilder.updateCollectionFields(${queryId})">
+                            <option value="">Select collection...</option>
+                            ${collections.map(c => `<option value="${c.value}" data-type="${c.entityType}">${c.label}</option>`).join('')}
+                        </select>
+                    </div>
+                    
+                    <div class="col-md-4">
+                        <label class="form-label small fw-bold">Operation:</label>
+                        <select class="form-select form-select-sm collection-operation" id="operation-${queryId}" onchange="ReportBuilder.updateCollectionOperator(${queryId})">
+                            <option value="HasAny">Has Any (at least one)</option>
+                            <option value="HasAll">Has All (every one matches)</option>
+                            <option value="Count">Count (number of items)</option>
+                            <option value="Sum">Sum (total value)</option>
+                            <option value="Average">Average</option>
+                            <option value="Min">Minimum</option>
+                            <option value="Max">Maximum</option>
+                        </select>
+                    </div>
+                    
+                    <div class="col-md-4" id="operator-container-${queryId}">
+                        <!-- Operator will appear here for Count/Sum/etc -->
+                    </div>
+                    
+                    <div class="col-12">
+                        <div class="card card-body bg-light">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <label class="form-label small fw-bold mb-0">Sub-Filters (optional - filter which items to include):</label>
+                                <button type="button" class="btn btn-sm btn-outline-primary" onclick="ReportBuilder.addCollectionSubFilter(${queryId})">
+                                    <i class="bi bi-plus-circle me-1"></i> Add Sub-Filter
+                                </button>
+                            </div>
+                            <div id="subfilters-${queryId}" class="mt-2">
+                                <small class="text-muted">No sub-filters added</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        container.insertAdjacentHTML('beforeend', queryHtml);
+        this.collectionQueries.push({ id: queryId, subFilters: [], displayAsColumn: false });
+    },
+    
+    toggleDisplayMode(queryId) {
+        const checkbox = document.getElementById(`display-as-column-${queryId}`);
+        const columnNameContainer = document.getElementById(`column-name-container-${queryId}`);
+        const operatorContainer = document.getElementById(`operator-container-${queryId}`);
+        
+        const query = this.collectionQueries.find(q => q.id === queryId);
+        if (query) {
+            query.displayAsColumn = checkbox.checked;
+        }
+        
+        if (checkbox.checked) {
+            // Show column name input
+            columnNameContainer.style.display = 'block';
+            
+            // Clear comparator for display mode (we just want the value, not filtering)
+            operatorContainer.innerHTML = '';
+            operatorContainer.style.display = 'none';
+        } else {
+            // Hide column name input
+            columnNameContainer.style.display = 'none';
+            
+            // Show comparator for filter mode
+            operatorContainer.style.display = 'block';
+            this.updateCollectionOperator(queryId);
+        }
+    },
+    
+    getAvailableCollections(entityType) {
+        // Define available collections based on entity type
+        const collections = {
+            'Case': [
+                { value: 'ExposureEvents', label: 'Exposures', entityType: 'ExposureEvent' },
+                { value: 'Tasks', label: 'Tasks', entityType: 'Task' },
+                { value: 'LabResults', label: 'Lab Results', entityType: 'LabResult' },
+                { value: 'Symptoms', label: 'Symptoms', entityType: 'CaseSymptomTracking' },
+                { value: 'Contacts', label: 'Contacts', entityType: 'Contact' }
+            ],
+            'Contact': [
+                { value: 'Tasks', label: 'Tasks', entityType: 'Task' },
+                { value: 'LabResults', label: 'Lab Results', entityType: 'LabResult' }
+            ],
+            'Patient': [
+                { value: 'Cases', label: 'Cases', entityType: 'Case' },
+                { value: 'Contacts', label: 'Contacts (as Contact)', entityType: 'Contact' }
+            ],
+            'Outbreak': [
+                { value: 'OutbreakCases', label: 'Outbreak Cases', entityType: 'OutbreakCase' },
+                { value: 'Tasks', label: 'Tasks', entityType: 'Task' }
+            ]
+        };
+        
+        return collections[entityType] || [];
+    },
+    
+    async updateCollectionFields(queryId) {
+        const selectElement = document.getElementById(`collection-${queryId}`);
+        const selectedOption = selectElement.options[selectElement.selectedIndex];
+        const collectionName = selectElement.value;
+        
+        if (!collectionName) return;
+        
+        // Find the collection metadata from available fields
+        const entityType = document.getElementById('entityTypeSelector').value;
+        
+        try {
+            // Fetch fresh metadata for the entity to get collection sub-fields
+            const response = await fetch(`/api/reporting/fields/${entityType}/grouped`);
+            if (!response.ok) throw new Error('Failed to fetch field metadata');
+            
+            const fieldsByCategory = await response.json();
+            
+            // Find the collection field
+            let collectionMetadata = null;
+            for (const category in fieldsByCategory) {
+                const field = fieldsByCategory[category].find(f => f.fieldPath === collectionName && f.isCollection);
+                if (field) {
+                    collectionMetadata = field;
+                    break;
+                }
+            }
+            
+            // Store the sub-fields for this query
+            const query = this.collectionQueries.find(q => q.id === queryId);
+            if (query && collectionMetadata) {
+                query.collectionSubFields = collectionMetadata.collectionSubFields || [];
+                query.collectionEntityType = collectionMetadata.collectionElementType;            }
+        } catch (error) {        }
+        
+        // Update operator container based on operation type
+        this.updateCollectionOperator(queryId);
+    },
+    
+    updateCollectionOperator(queryId) {
+        const operationSelect = document.getElementById(`operation-${queryId}`);
+        const operation = operationSelect.value;
+        const container = document.getElementById(`operator-container-${queryId}`);
+        const displayAsColumnCheckbox = document.getElementById(`display-as-column-${queryId}`);
+        
+        // Don't show comparator if displaying as column
+        if (displayAsColumnCheckbox && displayAsColumnCheckbox.checked) {
+            container.innerHTML = '';
+            container.style.display = 'none';
+            return;
+        }
+        
+        // For Count/Sum/Average/Min/Max operations, show comparison operators
+        if (['Count', 'Sum', 'Average', 'Min', 'Max'].includes(operation)) {
+            container.style.display = 'block';
+            container.innerHTML = `
+                <label class="form-label small fw-bold">Compare:</label>
+                <div class="input-group input-group-sm">
+                    <select class="form-select collection-comparator" id="comparator-${queryId}">
+                        <option value="Equals">= (equals)</option>
+                        <option value="NotEquals">? (not equals)</option>
+                        <option value="GreaterThan">> (greater than)</option>
+                        <option value="LessThan">< (less than)</option>
+                        <option value="GreaterThanOrEqual">= (greater or equal)</option>
+                        <option value="LessThanOrEqual">= (less or equal)</option>
+                    </select>
+                    <input type="number" class="form-control collection-value" id="value-${queryId}" placeholder="Value">
+                </div>
+            `;
+        } else {
+            // For HasAny/HasAll, no additional operator needed
+            container.innerHTML = '';
+            container.style.display = 'none';
+        }
+    },
+    
+    addCollectionSubFilter(queryId) {
+        const container = document.getElementById(`subfilters-${queryId}`);
+        const collectionSelect = document.getElementById(`collection-${queryId}`);
+        
+        if (!collectionSelect.value) {
+            alert('Please select a collection first');
+            return;
+        }
+        
+        // Get the collection query to access stored sub-fields
+        const query = this.collectionQueries.find(q => q.id === queryId);
+        
+        if (!query || !query.collectionSubFields || query.collectionSubFields.length === 0) {
+            alert('No fields available for this collection type. Please select a collection first.');
+            return;
+        }
+        
+        const fields = query.collectionSubFields;
+        
+        // Clear placeholder text
+        const placeholder = container.querySelector('small');
+        if (placeholder) {
+            container.innerHTML = '';
+        }
+        
+        const subFilterId = Date.now();
+        
+        // Build field options with proper display names
+        const fieldOptions = fields.map(fieldName => {
+            // Format field name for display (e.g., TestResult.Name -> Test Result: Name)
+            const displayName = this.formatFieldName(fieldName);
+            return `<option value="${fieldName}">${displayName}</option>`;
+        }).join('');
+        
+        const subFilterHtml = `
+            <div class="mb-2 p-2 border rounded bg-white" id="subfilter-${queryId}-${subFilterId}">
+                <div class="row g-1">
+                    <div class="col-md-4">
+                        <select class="form-select form-select-sm subfilter-field" data-subfilter-id="${subFilterId}">
+                            <option value="">Select field...</option>
+                            ${fieldOptions}
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <select class="form-select form-select-sm subfilter-operator">
+                            <option value="Equals">Equals</option>
+                            <option value="NotEquals">Not Equals</option>
+                            <option value="Contains">Contains</option>
+                            <option value="StartsWith">Starts With</option>
+                            <option value="EndsWith">Ends With</option>
+                            <option value="GreaterThan">Greater Than</option>
+                            <option value="LessThan">Less Than</option>
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <input type="text" class="form-control form-control-sm subfilter-value" placeholder="Value">
+                    </div>
+                    <div class="col-md-1">
+                        <button class="btn btn-sm btn-outline-danger" onclick="ReportBuilder.removeCollectionSubFilter(${queryId}, ${subFilterId})">
+                            <i class="bi bi-x"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        container.insertAdjacentHTML('beforeend', subFilterHtml);
+        
+        // Track sub-filter
+        if (query) {
+            if (!query.subFilters) query.subFilters = [];
+            query.subFilters.push(subFilterId);
+        }
+    },
+    
+    formatFieldName(fieldPath) {
+        // Convert field path to readable name
+        // e.g., "TestResult.Name" -> "Test Result: Name"
+        // e.g., "SpecimenCollectionDate" -> "Specimen Collection Date"
+        
+        if (fieldPath.includes('.')) {
+            const parts = fieldPath.split('.');
+            return parts.map(part => this.splitPascalCase(part)).join(': ');
+        }
+        
+        return this.splitPascalCase(fieldPath);
+    },
+    
+    splitPascalCase(text) {
+        // Insert space before capital letters
+        return text.replace(/([a-z])([A-Z])/g, '$1 $2')
+                  .replace(/([A-Z])([A-Z][a-z])/g, '$1 $2');
+    },
+    
+    
+    removeCollectionQuery(queryId) {
+        document.getElementById(`collection-query-${queryId}`)?.remove();
+        this.collectionQueries = this.collectionQueries.filter(q => q.id !== queryId);
+        
+        const container = document.getElementById('collectionQueries');
+        if (container.children.length === 0) {
+            container.innerHTML = `
+                <div class="text-center text-muted py-4">
+                    <i class="bi bi-diagram-3 fs-1"></i>
+                    <p class="mt-2">No collection queries added yet</p>
+                    <small class="text-muted">Use collection queries to filter on related data like exposures, tasks, or lab results</small>
+                </div>
+            `;
+        }
+    },
+    
+    removeCollectionSubFilter(queryId, subFilterId) {
+        document.getElementById(`subfilter-${queryId}-${subFilterId}`)?.remove();
+        
+        const query = this.collectionQueries.find(q => q.id === queryId);
+        if (query) {
+            query.subFilters = query.subFilters.filter(f => f !== subFilterId);
+        }
+        
+        const container = document.getElementById(`subfilters-${queryId}`);
+        if (container.children.length === 0) {
+            container.innerHTML = '<small class="text-muted">No sub-filters added</small>';
+        }
+    },
+    
+    getCollectionQueries() {
+        const queryElements = document.querySelectorAll('[id^="collection-query-"]');
+        const queries = [];
+        
+        queryElements.forEach((el) => {
+            const queryId = parseInt(el.dataset.queryId);
+            const collectionName = document.getElementById(`collection-${queryId}`)?.value;
+            const operation = document.getElementById(`operation-${queryId}`)?.value;
+            const displayAsColumn = document.getElementById(`display-as-column-${queryId}`)?.checked || false;
+            const columnName = document.getElementById(`column-name-${queryId}`)?.value || '';
+            
+            if (!collectionName || !operation) return;
+            
+            const query = {
+                collectionName: collectionName,
+                operation: operation,
+                displayAsColumn: displayAsColumn,
+                columnName: columnName,
+                subFilters: []
+            };
+            
+            // Add comparator and value for aggregate operations (only when NOT displaying as column)
+            if (!displayAsColumn && ['Count', 'Sum', 'Average', 'Min', 'Max'].includes(operation)) {
+                query.comparator = document.getElementById(`comparator-${queryId}`)?.value || 'GreaterThan';
+                const valueInput = document.getElementById(`value-${queryId}`);
+                query.value = valueInput ? parseFloat(valueInput.value) || 0 : 0;
+            }
+            
+            // Get sub-filters
+            const subFilterElements = el.querySelectorAll('[id^="subfilter-"]');
+            subFilterElements.forEach((subEl) => {
+                const fieldSelect = subEl.querySelector('.subfilter-field');
+                const field = fieldSelect?.value;
+                const operator = subEl.querySelector('.subfilter-operator')?.value;
+                const value = subEl.querySelector('.subfilter-value')?.value;
+                
+                if (field && operator) {
+                    const selectedOption = fieldSelect.options[fieldSelect.selectedIndex];
+                    const dataType = selectedOption.dataset.type || 'String';
+                    
+                    query.subFilters.push({
+                        field: field,  // Changed from fieldPath to field to match C# DTO
+                        operator: operator,
+                        value: value || '',
+                        dataType: dataType
+                    });
+                }
+            });
+            
+            queries.push(query);
+        });
+        
+        return queries;
+    },
+    
+    // ========== END COLLECTION QUERIES ==========
+    
+    getFilters() {
+        const filterElements = document.querySelectorAll('#filters .list-group-item');
+        const filters = [];
+        
+        filterElements.forEach((el, i) => {
+            const fieldSelect = el.querySelector('.filter-field');
+            const field = fieldSelect?.value;
+            const operator = el.querySelector('.filter-operator')?.value;
+            
+            if (field && operator) {
+                const filterId = el.dataset.filterId;
+                const groupId = el.dataset.groupId ? parseInt(el.dataset.groupId) : null;
+                
+                // Get data type from selected option
+                const selectedOption = fieldSelect.options[fieldSelect.selectedIndex];
+                const dataType = selectedOption?.dataset.type || 'String';
+                const isCustomField = selectedOption?.dataset.iscustom === 'true';
+                const customFieldId = selectedOption?.dataset.customid ? parseInt(selectedOption.dataset.customid) : null;
+                
+                // Get value(s) based on operator
+                let value = '';
+                if (operator === 'Between') {
+                    const value1 = el.querySelector('.filter-value')?.value || '';
+                    const value2 = el.querySelector('.filter-value-end')?.value || '';
+                    value = `${value1}|${value2}`; // Format: "from|to"
+                } else if (operator === 'IsNull' || operator === 'IsNotNull' || operator === 'IsEmpty' || operator === 'IsNotEmpty') {
+                    value = ''; // No value needed
+                } else {
+                    value = el.querySelector('.filter-value')?.value || '';
+                }
+                
+                // Get logic operator (AND/OR with next filter in group)
+                const logicOperator = el.querySelector(`input[name="logic-${filterId}"]:checked`)?.value || 'AND';
+                
+                // Get group logic operator (AND/OR with next group)
+                let groupLogicOperator = 'AND';
+                if (groupId) {
+                    const groupElement = el.closest('.filter-group');
+                    groupLogicOperator = groupElement?.querySelector(`input[name="group-logic-${groupId}"]:checked`)?.value || 'AND';
+                }
+                
+                filters.push({
+                    fieldPath: field,
+                    operator: operator,
+                    value: value,
+                    dataType: dataType,
+                    displayOrder: i,
+                    isCustomField: isCustomField,
+                    customFieldDefinitionId: customFieldId,
+                    logicOperator: logicOperator,
+                    groupId: groupId,
+                    groupLogicOperator: groupLogicOperator
+                });
+            }
+        });
+        
+        return filters;
+    },
+    
+    async preview() {
+        if (this.selectedFields.length === 0) {
+            alert('Please select at least one field');
+            return;
+        }
+        
+        try {
+            const response = await fetch('/api/reports/preview', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    entityType: document.getElementById('entityTypeSelector').value,
+                    fields: this.selectedFields.map((f, i) => ({
+                        fieldPath: f.fieldPath,
+                        displayName: f.displayName,
+                        dataType: f.dataType,
+                        displayOrder: i,
+                        isCustomField: f.isCustom || false,
+                        customFieldDefinitionId: f.customId ? parseInt(f.customId) : null
+                    })),
+                    filters: this.getFilters(),
+                    collectionQueries: this.getCollectionQueries()
+                })
+            });
+            
+            if (!response.ok) {
+                throw new Error(`Server error: ${response.status}`);
+            }
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                this.renderPreview(result.data);
+            } else {
+                alert('Error: ' + result.error);
+            }
+        } catch (error) {            alert('Failed to preview report: ' + error.message);
+        }
+    },
+    
+    
+    renderPreview(data) {
+        const container = document.getElementById('previewContainer');
+        
+        if (!data || data.length === 0) {
+            container.innerHTML = `
+                <div class="text-center text-muted py-5">
+                    <i class="bi bi-inbox fs-1"></i>
+                    <p class="mt-2">No data to display</p>
+                </div>
+            `;
+            return;
+        }
+        
+        // Destroy existing pivot if any
+        if (window.pivotInstance) {
+            window.pivotInstance.dispose();
+            window.pivotInstance = null;
+        }
+        
+        // Clear container and add pivot div
+        container.innerHTML = '<div id="wdr-pivot"></div>';
+        
+        // Check if we have a saved pivot configuration to restore
+        const savedPivotConfig = '@Html.Raw(Model.ReportDefinition?.PivotConfiguration ?? "")';
+        let reportConfig;
+        
+        if (savedPivotConfig && savedPivotConfig.length > 0) {
+            try {
+                // Use saved configuration
+                reportConfig = JSON.parse(savedPivotConfig);
+                // Update data source with current data
+                reportConfig.dataSource = { data: data };            } catch (e) {                reportConfig = this.getDefaultPivotConfig(data);
+            }
+        } else {
+            // Use default configuration
+            reportConfig = this.getDefaultPivotConfig(data);
+        }
+        
+        // Initialize WebDataRocks pivot table
+        window.pivotInstance = new WebDataRocks({
+            container: "#wdr-pivot",
+            toolbar: true,
+            height: 600,
+            report: reportConfig,
+            customizeCell: function(cell, data) {
+                // Format dates
+                if (data.type === "value" && typeof data.value === "string" && /^\d{4}-\d{2}-\d{2}T/.test(data.value)) {
+                    cell.text = data.value.split('T')[0];
+                }
+            }
+        });    },
+    
+    getDefaultPivotConfig(data) {
+        // Default configuration for new reports
+        return {
+            dataSource: {
+                data: data
+            },
+            slice: {
+                // Start with flat table view - user can pivot as needed
+                rows: this.selectedFields.length > 0 ? [{ uniqueName: Object.keys(data[0])[0] }] : [],
+                columns: this.selectedFields.length > 1 ? [{ uniqueName: "Measures" }] : [],
+                measures: this.selectedFields.slice(1).map((f, i) => ({
+                    uniqueName: Object.keys(data[0])[i + 1],
+                    aggregation: "none"
+                }))
+            },
+            options: {
+                grid: {
+                    type: "flat",  // Start as flat table
+                    showTotals: false,
+                    showGrandTotals: "off"
+                },
+                configuratorActive: false,
+                showAggregationLabels: false
+            },
+            formats: [{
+                name: "",
+                thousandsSeparator: ",",
+                decimalSeparator: ".",
+                decimalPlaces: 2
+            }]
+        };
+    },
+    
+    formatCellValue(value) {
+        if (value === null || value === undefined) return '';
+        
+        // Check if value is a date string (ISO 8601 format)
+        if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}T/.test(value)) {
+            // Extract date portion directly without timezone conversion
+            return value.split('T')[0];
+        }
+        
+        return value;
+    },
+    
+    async loadDefaultFields() {
+        const entityType = document.getElementById('entityTypeSelector').value;
+        const btnLoadDefaults = document.getElementById('btnLoadDefaults');
+        
+        if (!entityType) {
+            alert('Please select an entity type first');
+            return;
+        }
+        
+        // Check if there are already fields selected
+        if (this.selectedFields.length > 0) {
+            if (!confirm('This will replace your current field selection. Continue?')) {
+                return;
+            }
+        }
+        
+        try {
+            // Disable button and show loading
+            btnLoadDefaults.disabled = true;
+            btnLoadDefaults.innerHTML = '<i class="bi bi-hourglass-split me-1"></i> Loading...';
+            
+            const response = await fetch('/Reports/Builder?handler=GetDefaultFields', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]').value
+                },
+                body: JSON.stringify({ entityType: entityType })
+            });
+            
+            const result = await response.json();
+            
+            if (result.success && result.fields) {
+                // Clear existing fields
+                this.selectedFields = [];
+                const selectedFieldsContainer = document.getElementById('selectedFields');
+                selectedFieldsContainer.innerHTML = '';
+                
+                // Add default fields
+                result.fields.forEach(field => {
+                    this.addField({
+                        fieldPath: field.fieldPath,
+                        displayName: field.displayName,
+                        dataType: field.dataType,
+                        isCustom: field.isCustomField,
+                        customId: field.customFieldDefinitionId
+                    });
+                });
+                
+                // Show success message
+                const successMsg = document.createElement('div');
+                successMsg.className = 'alert alert-success alert-dismissible fade show mt-2';
+                successMsg.innerHTML = `
+                    <i class="bi bi-check-circle me-2"></i>
+                    <strong>Loaded ${result.fields.length} default fields</strong>
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                `;
+                selectedFieldsContainer.insertAdjacentElement('beforebegin', successMsg);
+                
+                // Auto-dismiss after 3 seconds
+                setTimeout(() => {
+                    successMsg.remove();
+                }, 3000);
+                
+            } else {
+                alert('Failed to load default fields: ' + (result.error || 'Unknown error'));
+            }
+        } catch (error) {            alert('Failed to load default fields: ' + error.message);
+        } finally {
+            // Re-enable button
+            btnLoadDefaults.disabled = false;
+            btnLoadDefaults.innerHTML = '<i class="bi bi-magic me-1"></i> Load Default Fields';
+        }
+    },
+    
+    
+    async save() {
+        const name = document.getElementById('reportName').value;
+        if (!name) {
+            alert('Please enter a report name');
+            return;
+        }
+        
+        if (this.selectedFields.length === 0) {
+            alert('Please select at least one field');
+            return;
+        }
+        
+        try {
+            // Capture pivot configuration if pivot exists
+            let pivotConfig = null;
+            if (window.pivotInstance) {
+                try {
+                    const report = window.pivotInstance.getReport();
+                    pivotConfig = JSON.stringify(report);                } catch (e) {                }
+            }
+            
+            const response = await fetch('/api/reports/save', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    reportId: @(Model.ReportId?.ToString() ?? "null"),
+                    name: name,
+                    description: document.getElementById('reportDescription').value,
+                    entityType: document.getElementById('entityTypeSelector').value,
+                    category: document.getElementById('reportCategory').value,
+                    isPublic: document.getElementById('reportPublic').checked,
+                    pivotConfiguration: pivotConfig,
+                    fields: this.selectedFields.map((f, i) => ({
+                        fieldPath: f.fieldPath,
+                        displayName: f.displayName,
+                        dataType: f.dataType,
+                        displayOrder: i,
+                        isCustomField: f.isCustom || false,
+                        customFieldDefinitionId: f.customId ? parseInt(f.customId) : null
+                    })),
+                    filters: this.getFilters(),
+                    collectionQueries: this.getCollectionQueries()
+                })
+            });
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                alert('Report saved successfully!');
+                window.location.href = '/Reports/Index';
+            } else {
+                alert('Error saving report: ' + result.error);
+            }
+        } catch (error) {            alert('Failed to save report: ' + error.message);
+        }
+    }
+};
+
+// Initialize when DOM is ready
+document.addEventListener('DOMContentLoaded', () => {
+    ReportBuilder.init();
+});
+</script>
+
+<style>
+.field-item {
+    cursor: grab;
+    user-select: none;
+    transition: background-color 0.2s;
+}
+
+.field-item:hover {
+    background-color: #f8f9fa;
+}
+
+.field-item:active {
+    cursor: grabbing;
+}
+
+.selected-field-item {
+    cursor: move;
+    transition: all 0.2s;
+}
+
+.selected-field-item.dragging {
+    opacity: 0.5;
+    background-color: #e7f1ff;
+}
+
+.selected-field-item:hover {
+    background-color: #f8f9fa;
+}
+
+.filter-group {
+    background-color: #f8f9fa;
+    border-left: 4px solid #0d6efd !important;
+}
+
+.filter-group .group-filters {
+    min-height: 60px;
+}
+
+.filter-group .list-group-item {
+    background-color: white;
+}
+</style>
+}

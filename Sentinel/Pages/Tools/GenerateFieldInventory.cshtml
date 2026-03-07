@@ -1,0 +1,91 @@
+@page
+@model Sentinel.Pages.Tools.GenerateFieldInventoryModel
+@{
+    ViewData["Title"] = "Generate Field Inventory";
+}
+@functions {
+    public string GetCspNonce()
+    {
+        if (HttpContext?.Items?.TryGetValue("csp-nonce", out var nonce) == true && nonce is string nonceStr)
+        {
+            return nonceStr;
+        }
+        return string.Empty;
+    }
+}
+
+<div class="container-fluid py-4">
+    <div class="row">
+        <div class="col-lg-12">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0">
+                        <i class="bi bi-database me-2"></i>
+                        Field Inventory Generator
+                    </h4>
+                </div>
+                <div class="card-body">
+                    @if (Model.Inventory == null)
+                    {
+                        <div class="alert alert-info">
+                            <i class="bi bi-info-circle me-2"></i>
+                            This tool scans your database and generates a complete inventory of all fields.
+                            Use this to ensure the reporting system only exposes real fields.
+                        </div>
+
+                        <form method="post">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-play-circle me-2"></i>
+                                Generate Inventory
+                            </button>
+                        </form>
+                    }
+                    else
+                    {
+                        <div class="alert alert-success">
+                            <i class="bi bi-check-circle me-2"></i>
+                            Inventory generated successfully!
+                        </div>
+
+                        <div class="mb-3">
+                            <a asp-page="/Tools/GenerateFieldInventory" class="btn btn-secondary">
+                                <i class="bi bi-arrow-clockwise me-2"></i>
+                                Regenerate
+                            </a>
+                            <button type="button" class="btn btn-primary" onclick="downloadInventory()">
+                                <i class="bi bi-download me-2"></i>
+                                Download as Markdown
+                            </button>
+                        </div>
+
+                        <div class="card">
+                            <div class="card-header">
+                                <h5 class="mb-0">Generated Inventory</h5>
+                            </div>
+                            <div class="card-body">
+                                <pre style="max-height: 600px; overflow-y: auto; white-space: pre-wrap;">@Model.Inventory</pre>
+                            </div>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        function downloadInventory() {
+            var content = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.Inventory ?? ""));
+            var blob = new Blob([content], { type: 'text/markdown' });
+            var url = window.URL.createObjectURL(blob);
+            var a = document.createElement('a');
+            a.href = url;
+            a.download = 'REAL_FIELDS_INVENTORY.md';
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+        }
+    </script>
+}

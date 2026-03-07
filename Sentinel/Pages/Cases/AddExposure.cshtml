@@ -1,0 +1,481 @@
+@page
+@model Sentinel.Pages.Cases.AddExposureModel
+@using Sentinel.Models
+@{
+    Layout = null;
+}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Add Exposure - @Model.Case.FriendlyId</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" />
+    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+    <link href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css" rel="stylesheet" />
+    <style>
+        body {
+            background: #f8f9fa;
+            padding: 0.75rem;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            font-size: 0.875rem;
+        }
+        .container {
+            background: white;
+            border-radius: 8px;
+            padding: 1.5rem;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            max-height: calc(100vh - 1.5rem);
+            overflow-y: auto;
+        }
+        .header {
+            border-bottom: 2px solid #e9ecef;
+            padding-bottom: 1rem;
+            margin-bottom: 1rem;
+        }
+        h1 {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: #2d3748;
+            margin: 0;
+        }
+        .case-context {
+            background: #e3f2fd;
+            border-radius: 6px;
+            padding: 0.75rem;
+            margin-bottom: 1rem;
+            font-size: 0.85rem;
+        }
+        .form-label {
+            font-weight: 600;
+            margin-bottom: 0.25rem;
+        }
+        .required {
+            color: #dc3545;
+        }
+        .btn-toolbar {
+            margin-top: 1rem;
+            padding-top: 1rem;
+            border-top: 1px solid #e9ecef;
+            display: flex;
+            gap: 0.5rem;
+            justify-content: flex-end;
+        }
+        .type-specific {
+            background: #f7fafc;
+            border-radius: 6px;
+            padding: 1rem;
+            margin-top: 1rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1><i class="bi bi-diagram-3 me-2"></i>Add Exposure</h1>
+            <small class="text-muted">Case: <strong>@Model.Case.FriendlyId</strong></small>
+        </div>
+
+        <div class="case-context">
+            <strong>Patient:</strong> @Model.Case.Patient?.GivenName @Model.Case.Patient?.FamilyName<br/>
+            @if (Model.Case.Disease != null)
+            {
+                <strong>Disease:</strong> @Model.Case.Disease.Name
+            }
+        </div>
+
+        <form method="post">
+            <input type="hidden" asp-for="CaseId" />
+            <input type="hidden" asp-for="Exposure.ExposedCaseId" />
+
+            <!-- Exposure Direction (NEW!) -->
+            <div class="alert alert-info mb-3">
+                <label class="form-label fw-bold mb-2">
+                    <i class="bi bi-arrow-left-right me-1"></i>Exposure Direction <span class="required">*</span>
+                </label>
+                <div class="btn-group w-100" role="group">
+                    <input type="radio" class="btn-check" name="ExposureDirection" id="directionAcquisition" value="Acquisition" checked />
+                    <label class="btn btn-outline-primary" for="directionAcquisition">
+                        <i class="bi bi-arrow-down-circle me-1"></i>
+                        <strong>Acquisition</strong><br/>
+                        <small>This case WAS EXPOSED (got infected)</small>
+                    </label>
+                    
+                    <input type="radio" class="btn-check" name="ExposureDirection" id="directionTransmission" value="Transmission" />
+                    <label class="btn btn-outline-danger" for="directionTransmission">
+                        <i class="bi bi-arrow-up-circle me-1"></i>
+                        <strong>Transmission</strong><br/>
+                        <small>This case IS SOURCE (exposed others)</small>
+                    </label>
+                </div>
+                <small class="form-text text-muted d-block mt-2">
+                    <i class="bi bi-lightbulb me-1"></i>
+                    <strong>Acquisition:</strong> Use when tracking WHERE this patient got infected.<br/>
+                    <strong>Transmission:</strong> Use for contact tracing - tracking people THIS patient exposed at a location/event.
+                </small>
+            </div>
+
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <label asp-for="Exposure.ExposureType" class="form-label">
+                        Exposure Type <span class="required">*</span>
+                    </label>
+                    <select asp-for="Exposure.ExposureType" class="form-select" id="exposureTypeSelect" required>
+                        <option value="">Select Type</option>
+                        <option value="@((int)ExposureType.Event)">Event</option>
+                        <option value="@((int)ExposureType.Location)">Location</option>
+                        <option value="@((int)ExposureType.Contact)">Contact</option>
+                        <option value="@((int)ExposureType.Travel)">Travel</option>
+                    </select>
+                    <span asp-validation-for="Exposure.ExposureType" class="text-danger"></span>
+                </div>
+
+                <div class="col-md-6">
+                    <label asp-for="Exposure.ExposureStatus" class="form-label">
+                        Status <span class="required">*</span>
+                    </label>
+                    <select asp-for="Exposure.ExposureStatus" class="form-select">
+                        <option value="@((int)ExposureStatus.PotentialExposure)">Potential Exposure</option>
+                        <option value="@((int)ExposureStatus.UnderInvestigation)">Under Investigation</option>
+                        <option value="@((int)ExposureStatus.ConfirmedExposure)">Confirmed Exposure</option>
+                        <option value="@((int)ExposureStatus.RuledOut)">Ruled Out</option>
+                    </select>
+                    <span asp-validation-for="Exposure.ExposureStatus" class="text-danger"></span>
+                </div>
+            </div>
+
+            <div class="row g-3 mt-2">
+                <div class="col-md-6">
+                    <label asp-for="Exposure.ExposureStartDate" class="form-label">
+                        Start Date/Time <span class="required">*</span>
+                    </label>
+                    <input asp-for="Exposure.ExposureStartDate" type="datetime-local" class="form-control" required />
+                    <span asp-validation-for="Exposure.ExposureStartDate" class="text-danger"></span>
+                </div>
+
+                <div class="col-md-6">
+                    <label asp-for="Exposure.ExposureEndDate" class="form-label">
+                        End Date/Time
+                    </label>
+                    <input asp-for="Exposure.ExposureEndDate" type="datetime-local" class="form-control" />
+                    <span asp-validation-for="Exposure.ExposureEndDate" class="text-danger"></span>
+                </div>
+            </div>
+
+            <!-- Type-Specific Fields -->
+            <div class="type-specific">
+                <div id="eventSection" style="display: none;">
+                    <label asp-for="Exposure.EventId" class="form-label">
+                        Event <span class="required">*</span>
+                    </label>
+                    <select asp-for="Exposure.EventId" class="form-select select2-event" id="eventSelect">
+                        <option value="">Type to search for event...</option>
+                    </select>
+                    <span asp-validation-for="Exposure.EventId" class="text-danger"></span>
+                </div>
+
+                <div id="locationSection" style="display: none;">
+                    <label asp-for="Exposure.LocationId" class="form-label">
+                        Location <span class="required">*</span>
+                    </label>
+                    <select asp-for="Exposure.LocationId" class="form-select select2-location" id="locationSelect">
+                        <option value="">Type to search for location...</option>
+                    </select>
+                    <span asp-validation-for="Exposure.LocationId" class="text-danger"></span>
+                </div>
+
+                <div id="contactSection" style="display: none;">
+                    <label asp-for="Exposure.SourceCaseId" class="form-label">
+                        Source Case (Contact)
+                    </label>
+                    
+                    <!-- Toggle between Cases and Contacts -->
+                    <div class="btn-group btn-group-sm w-100 mb-2" role="group">
+                        <input type="radio" class="btn-check" name="contactTypeFilter" id="filterCases" value="1" checked />
+                        <label class="btn btn-outline-primary" for="filterCases">
+                            <i class="bi bi-file-medical me-1"></i>Cases (Type 1)
+                        </label>
+                        
+                        <input type="radio" class="btn-check" name="contactTypeFilter" id="filterContacts" value="2" />
+                        <label class="btn btn-outline-info" for="filterContacts">
+                            <i class="bi bi-people me-1"></i>Contacts (Type 2)
+                        </label>
+                    </div>
+                    
+                    <div class="input-group mb-2">
+                        <select asp-for="Exposure.SourceCaseId" class="form-select select2-case" id="caseSelect">
+                            <option value="">Type to search for case/contact...</option>
+                        </select>
+                        <button type="button" class="btn btn-outline-success" onclick="openCreateContact()" title="Create New Contact">
+                            <i class="bi bi-plus-circle me-1"></i>Create New Contact
+                        </button>
+                    </div>
+                    <span asp-validation-for="Exposure.SourceCaseId" class="text-danger"></span>
+                    <small class="form-text text-muted">Search existing contacts or create a new one</small>
+                </div>
+
+                <div id="travelSection" style="display: none;">
+                    <label asp-for="Exposure.CountryCode" class="form-label">
+                        Country <span class="required">*</span>
+                    </label>
+                    <select asp-for="Exposure.CountryCode" class="form-select select2-country" id="countrySelect">
+                        <option value="">Type to search for country...</option>
+                    </select>
+                    <span asp-validation-for="Exposure.CountryCode" class="text-danger"></span>
+                </div>
+            </div>
+
+            <div class="mb-3 mt-3">
+                <label asp-for="Exposure.Description" class="form-label">Description</label>
+                <textarea asp-for="Exposure.Description" class="form-control" rows="3" placeholder="Additional details about this exposure..."></textarea>
+            </div>
+
+            <div class="mb-3">
+                <div class="form-check">
+                    <input asp-for="Exposure.IsReportingExposure" class="form-check-input" type="checkbox" />
+                    <label asp-for="Exposure.IsReportingExposure" class="form-check-label">
+                        Primary Reporting Exposure
+                    </label>
+                    <small class="form-text text-muted d-block">
+                        <i class="bi bi-info-circle me-1"></i>
+                        Check this if this is the main exposure that should be reported for this case. Only one exposure can be marked as primary.
+                    </small>
+                </div>
+            </div>
+
+            <div class="btn-toolbar">
+                <button type="button" class="btn btn-secondary" onclick="window.close()">
+                    <i class="bi bi-x-circle me-1"></i>Cancel
+                </button>
+                <button type="submit" class="btn btn-primary">
+                    <i class="bi bi-save me-1"></i>Save Exposure
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+    <script>
+        $(document).ready(function() {
+            // Initialize Select2 for Events
+            $('.select2-event').select2({
+                theme: 'bootstrap-5',
+                placeholder: 'Type to search for event...',
+                allowClear: true,
+                minimumInputLength: 2,
+                ajax: {
+                    url: '/api/events/search',
+                    dataType: 'json',
+                    delay: 250,
+                    data: function(params) {
+                        return {
+                            term: params.term
+                        };
+                    },
+                    processResults: function(data) {
+                        return {
+                            results: data.map(function(item) {
+                                return {
+                                    id: item.id,
+                                    text: item.name + (item.location ? ' (' + item.location + ')' : '')
+                                };
+                            })
+                        };
+                    },
+                    cache: true
+                }
+            });
+
+            // Initialize Select2 for Locations
+            $('.select2-location').select2({
+                theme: 'bootstrap-5',
+                placeholder: 'Type to search for location...',
+                allowClear: true,
+                minimumInputLength: 2,
+                ajax: {
+                    url: '/api/locations/search',
+                    dataType: 'json',
+                    delay: 250,
+                    data: function(params) {
+                        return {
+                            term: params.term
+                        };
+                    },
+                    processResults: function(data) {
+                        return {
+                            results: data.map(function(item) {
+                                var text = item.name;
+                                if (item.address) {
+                                    text += ' (' + item.address + ')';
+                                }
+                                return {
+                                    id: item.id,
+                                    text: text
+                                };
+                            })
+                        };
+                    },
+                    cache: true
+                }
+            });
+
+            // Initialize Select2 for Cases (with contactType filter)
+            function initializeCaseSelect2() {
+                var contactType = document.querySelector('input[name="contactTypeFilter"]:checked')?.value || '1';
+                
+                // Destroy existing Select2 if it exists
+                if ($('.select2-case').hasClass('select2-hidden-accessible')) {
+                    $('.select2-case').select2('destroy');
+                }
+                
+                $('.select2-case').select2({
+                    theme: 'bootstrap-5',
+                    placeholder: contactType === '1' ? 'Type to search for case...' : 'Type to search for contact...',
+                    allowClear: true,
+                    minimumInputLength: 2,
+                    ajax: {
+                        url: '/api/cases/search',
+                        dataType: 'json',
+                        delay: 250,
+                        data: function(params) {
+                            return {
+                                term: params.term,
+                                excludeCaseId: '@Model.Case.Id',
+                                diseaseId: '@Model.Case.DiseaseId',
+                                contactType: parseInt(contactType)  // Pass the ContactType filter
+                            };
+                        },
+                        processResults: function(data) {
+                            return {
+                                results: data.map(function(item) {
+                                    var text = item.friendlyId + ' - ' + item.patientName;
+                                    if (item.onsetDate) {
+                                        text += ' (Onset: ' + item.onsetDate + ')';
+                                    }
+                                    if (item.status) {
+                                        text += ' - ' + item.status;
+                                    }
+                                    return {
+                                        id: item.id,
+                                        text: text
+                                    };
+                                })
+                            };
+                        },
+                        cache: false  // Don't cache since filter changes
+                    }
+                });
+            }
+            
+            // Initial initialization
+            initializeCaseSelect2();
+            
+            // Reinitialize when radio button changes
+            document.querySelectorAll('input[name="contactTypeFilter"]').forEach(function(radio) {
+                radio.addEventListener('change', function() {
+                    initializeCaseSelect2();
+                });
+            });
+
+            // Initialize Select2 for Countries
+            $('.select2-country').select2({
+                theme: 'bootstrap-5',
+                placeholder: 'Type to search for country...',
+                allowClear: true,
+                minimumInputLength: 1,
+                ajax: {
+                    url: '/api/countries/search',
+                    dataType: 'json',
+                    delay: 250,
+                    data: function(params) {
+                        return {
+                            term: params.term
+                        };
+                    },
+                processResults: function(data) {
+                    return {
+                        results: data.map(function(item) {
+                            return {
+                                id: item.id,
+                                text: item.text
+                            };
+                        })
+                    };
+                },
+                cache: true
+                }
+            });
+        });
+
+        // Show/hide type-specific sections
+        document.getElementById('exposureTypeSelect').addEventListener('change', function() {
+            const value = parseInt(this.value);
+            
+            // Hide all sections
+            document.getElementById('eventSection').style.display = 'none';
+            document.getElementById('locationSection').style.display = 'none';
+            document.getElementById('contactSection').style.display = 'none';
+            document.getElementById('travelSection').style.display = 'none';
+            
+            // Show relevant section
+            if (value === @((int)ExposureType.Event)) {
+                document.getElementById('eventSection').style.display = 'block';
+            } else if (value === @((int)ExposureType.Location)) {
+                document.getElementById('locationSection').style.display = 'block';
+            } else if (value === @((int)ExposureType.Contact)) {
+                document.getElementById('contactSection').style.display = 'block';
+            } else if (value === @((int)ExposureType.Travel)) {
+                document.getElementById('travelSection').style.display = 'block';
+            }
+        });
+        
+        // Trigger on page load if value is set
+        if (document.getElementById('exposureTypeSelect').value) {
+            document.getElementById('exposureTypeSelect').dispatchEvent(new Event('change'));
+        }
+
+        // Function to open Patient Create popup for creating new contacts
+        window.openCreateContact = function() {
+            var diseaseId = '@Model.Case.DiseaseId';
+            var width = 1200;
+            var height = 800;
+            var left = (screen.width - width) / 2;
+            var top = (screen.height - height) / 2;
+            
+            var popup = window.open(
+                '/Patients/Create?mode=popup&returnContext=exposure&diseaseId=' + diseaseId,
+                'CreateContact',
+                'width=' + width + ',height=' + height + ',left=' + left + ',top=' + top + ',resizable=yes,scrollbars=yes'
+            );
+            
+            if (popup) {
+                popup.focus();
+            } else {
+                alert('Please allow popups for this site to create contacts.');
+            }
+        };
+
+        // Callback when contact is created in popup
+        window.contactCreated = function(caseId, caseFriendlyId, patientName) {
+            // Create a new option and append to the select2
+            var newOption = new Option(caseFriendlyId + ' - ' + patientName, caseId, true, true);
+            $('#caseSelect').append(newOption).trigger('change');
+            
+            // Show success message
+            alert('Contact created successfully: ' + patientName);
+            
+            // Notify parent window if this is in an iframe
+            if (window.opener && window.opener !== window) {
+                window.opener.postMessage({ type: 'contactCreated', caseId: caseId }, '*');
+            }
+        };
+    </script>
+
+    @section Scripts {
+        @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+    }
+</body>
+</html>

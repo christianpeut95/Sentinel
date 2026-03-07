@@ -1,0 +1,170 @@
+@using Sentinel.Models
+@using Sentinel.Models.Reporting
+
+<div class="d-flex justify-content-between align-items-center mb-2">
+    <span>Column Mappings</span>
+    <button type="button" class="btn btn-sm btn-primary" @onclick="AddMapping">
+        <i class="bi bi-plus"></i> Add Mapping
+    </button>
+</div>
+
+@if (Config?.RowMappings?.Count > 0)
+{
+    <table class="table table-sm">
+        <thead>
+            <tr>
+                <th>Source Column</th>
+                <th>Target Field</th>
+                <th>Required</th>
+                <th>Default Value</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var (mapping, index) in Config.RowMappings.Select((m, i) => (m, i)))
+            {
+                <tr>
+                    <td>
+                        <select class="form-select form-select-sm" value="@mapping.SourceColumn" @onchange="@(e => OnSourceColumnChanged(e, index))">
+                            <option value="">-- Select Column --</option>
+                            @foreach (var col in MatrixColumns)
+                            {
+                                <option value="@col">@col</option>
+                            }
+                        </select>
+                    </td>
+                    <td>
+                        <select class="form-select form-select-sm" value="@mapping.TargetFieldPath" @onchange="@(e => OnTargetFieldPathChanged(e, index))">
+                            <option value="">-- Select Field --</option>
+                            @foreach (var field in TargetFields)
+                            {
+                                <option value="@field.FieldPath">@field.DisplayName (@field.DataType)</option>
+                            }
+                        </select>
+                    </td>
+                    <td>
+                        <input type="checkbox" class="form-check-input" checked="@mapping.Required" @onchange="@(e => OnRequiredChanged(e, index))" />
+                    </td>
+                    <td>
+                        <input type="text" class="form-control form-control-sm" value="@mapping.DefaultValue" @onchange="@(e => OnDefaultValueChanged(e, index))" />
+                    </td>
+                    <td>
+                        <button type="button" class="btn btn-sm btn-danger" @onclick="() => RemoveMapping(index)">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+else
+{
+    <p class="text-muted">No mappings configured. Click "Add Mapping" to start.</p>
+}
+
+@code {
+[Parameter]
+public CollectionMappingConfig? Config { get; set; }
+
+[Parameter]
+public List<string> MatrixColumns { get; set; } = new();
+
+[Parameter]
+public List<ReportFieldMetadata> TargetFields { get; set; } = new();
+
+[Parameter]
+public EventCallback OnMappingsChanged { get; set; }
+
+    private int previousMatrixColumnsCount = 0;
+    private int previousTargetFieldsCount = 0;
+
+    protected override void OnParametersSet()
+    {
+        // Force re-render when MatrixColumns or TargetFields loads
+        bool needsRefresh = false;
+        
+        if (MatrixColumns.Count != previousMatrixColumnsCount)
+        {
+            previousMatrixColumnsCount = MatrixColumns.Count;
+            needsRefresh = true;
+        }
+        
+        if (TargetFields.Count != previousTargetFieldsCount)
+        {
+            previousTargetFieldsCount = TargetFields.Count;
+            needsRefresh = true;
+        }
+        
+        if (needsRefresh)
+        {
+            StateHasChanged();
+        }
+    }
+
+private void AddMapping()
+    {
+        Config?.RowMappings?.Add(new CollectionColumnMapping
+        {
+            SourceColumn = "",
+            TargetFieldPath = "",
+            Required = false,
+            DefaultValue = ""
+        });
+        OnMappingsChanged.InvokeAsync();
+    }
+
+    private void UpdateMapping(int index, Action<CollectionColumnMapping> updateAction)
+    {
+        if (Config?.RowMappings != null && index < Config.RowMappings.Count)
+        {
+            updateAction(Config.RowMappings[index]);
+            OnMappingsChanged.InvokeAsync();
+        }
+    }
+
+    private void RemoveMapping(int index)
+    {
+        if (Config?.RowMappings != null && index < Config.RowMappings.Count)
+        {
+            Config.RowMappings.RemoveAt(index);
+            OnMappingsChanged.InvokeAsync();
+        }
+    }
+
+    private void OnSourceColumnChanged(ChangeEventArgs e, int index)
+    {
+        if (Config?.RowMappings != null && index < Config.RowMappings.Count)
+        {
+            Config.RowMappings[index].SourceColumn = e.Value?.ToString() ?? "";
+            OnMappingsChanged.InvokeAsync();
+        }
+    }
+
+    private void OnTargetFieldPathChanged(ChangeEventArgs e, int index)
+    {
+        if (Config?.RowMappings != null && index < Config.RowMappings.Count)
+        {
+            Config.RowMappings[index].TargetFieldPath = e.Value?.ToString() ?? "";
+            OnMappingsChanged.InvokeAsync();
+        }
+    }
+
+    private void OnRequiredChanged(ChangeEventArgs e, int index)
+    {
+        if (Config?.RowMappings != null && index < Config.RowMappings.Count)
+        {
+            Config.RowMappings[index].Required = (bool)(e.Value ?? false);
+            OnMappingsChanged.InvokeAsync();
+        }
+    }
+
+    private void OnDefaultValueChanged(ChangeEventArgs e, int index)
+    {
+        if (Config?.RowMappings != null && index < Config.RowMappings.Count)
+        {
+            Config.RowMappings[index].DefaultValue = e.Value?.ToString();
+            OnMappingsChanged.InvokeAsync();
+        }
+    }
+}

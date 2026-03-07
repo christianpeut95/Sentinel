@@ -1,0 +1,129 @@
+@page
+@using Sentinel.Models.Lookups
+@model Sentinel.Pages.Settings.Lookups.TaskTypesModel
+@{
+    ViewData["Title"] = "Task Types";
+}
+
+<nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a asp-page="/Index">Home</a></li>
+        <li class="breadcrumb-item"><a asp-page="/Settings/Index">Settings</a></li>
+        <li class="breadcrumb-item active" aria-current="page">Task Types</li>
+    </ol>
+</nav>
+
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>Task Types</h2>
+        <a asp-page="./CreateTaskType" class="btn btn-primary">
+            <i class="fas fa-plus"></i> Create Task Type
+        </a>
+    </div>
+
+    @if (TempData["SuccessMessage"] != null)
+    {
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            @TempData["SuccessMessage"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    }
+
+    <div class="card">
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Name</th>
+                            <th>Code</th>
+                            <th>Description</th>
+                            <th>Icon</th>
+                            <th>Color</th>
+                            <th>Display Order</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var taskType in Model.TaskTypes.OrderBy(t => t.DisplayOrder))
+                        {
+                            <tr>
+                                <td><strong>@taskType.Name</strong></td>
+                                <td><code>@taskType.Code</code></td>
+                                <td>@taskType.Description</td>
+                                <td>
+                                    <span class="badge @taskType.ColorClass">
+                                        <i class="@taskType.IconClass"></i>
+                                    </span>
+                                </td>
+                                <td><code>@taskType.ColorClass</code></td>
+                                <td>@taskType.DisplayOrder</td>
+                                <td>
+                                    @if (taskType.IsActive)
+                                    {
+                                        <span class="badge bg-success">Active</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge bg-secondary">Inactive</span>
+                                    }
+                                </td>
+                                <td>
+                                    <div class="btn-group btn-group-sm" role="group">
+                                        <a asp-page="./EditTaskType" asp-route-id="@taskType.Id" 
+                                           class="btn btn-outline-primary" title="Edit">
+                                            <i class="fas fa-edit"></i>
+                                        </a>
+                                        <button type="button" class="btn btn-outline-danger" 
+                                                data-bs-toggle="modal" 
+                                                data-bs-target="#deleteModal-@taskType.Id"
+                                                title="Delete">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </div>
+
+                                    <!-- Delete Confirmation Modal -->
+                                    <div class="modal fade" id="deleteModal-@taskType.Id" tabindex="-1">
+                                        <div class="modal-dialog">
+                                            <div class="modal-content">
+                                                <div class="modal-header">
+                                                    <h5 class="modal-title">Delete Task Type</h5>
+                                                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                                </div>
+                                                <div class="modal-body">
+                                                    <p>Are you sure you want to delete "<strong>@taskType.Name</strong>"?</p>
+                                                    @if (Model.TemplateCount.ContainsKey(taskType.Id) && Model.TemplateCount[taskType.Id] > 0)
+                                                    {
+                                                        <p class="text-warning">
+                                                            <i class="fas fa-exclamation-triangle"></i>
+                                                            <strong>Warning:</strong> This task type is currently used by @Model.TemplateCount[taskType.Id] template(s).
+                                                        </p>
+                                                    }
+                                                </div>
+                                                <div class="modal-footer">
+                                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                                                    <form method="post" asp-page-handler="Delete" asp-route-id="@taskType.Id" class="d-inline">
+                                                        <button type="submit" class="btn btn-danger">Delete</button>
+                                                    </form>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+
+            @if (!Model.TaskTypes.Any())
+            {
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle"></i> No task types found.
+                    <a asp-page="./CreateTaskType">Create your first task type</a>.
+                </div>
+            }
+        </div>
+    </div>
+</div>

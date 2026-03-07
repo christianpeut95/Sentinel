@@ -1,0 +1,186 @@
+@page
+@model Sentinel.Pages.Settings.LookupTables.DetailsModel
+
+@{
+    ViewData["Title"] = "Lookup Table Details";
+}
+
+<div class="container-fluid">
+    <nav aria-label="breadcrumb" class="mb-3">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a asp-page="/Index">Home</a></li>
+            <li class="breadcrumb-item"><a asp-page="/Settings/Index">Settings</a></li>
+            <li class="breadcrumb-item"><a asp-page="./Index">Lookup Tables</a></li>
+            <li class="breadcrumb-item active" aria-current="page">@Model.LookupTable.DisplayName</li>
+        </ol>
+    </nav>
+
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h2>
+            <i class="bi bi-list-ul me-2"></i>@Model.LookupTable.DisplayName
+            @if (!Model.LookupTable.IsActive)
+            {
+                <span class="badge bg-warning text-dark">Inactive</span>
+            }
+        </h2>
+        <div class="btn-group">
+            <a asp-page="./Edit" asp-route-id="@Model.LookupTable.Id" class="btn btn-primary">
+                <i class="bi bi-pencil me-2"></i>Edit
+            </a>
+            <a asp-page="./ManageValues" asp-route-id="@Model.LookupTable.Id" class="btn btn-info">
+                <i class="bi bi-list-check me-2"></i>Manage Values
+            </a>
+            <a asp-page="./Delete" asp-route-id="@Model.LookupTable.Id" class="btn btn-danger">
+                <i class="bi bi-trash me-2"></i>Delete
+            </a>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0">Basic Information</h5>
+                </div>
+                <div class="card-body">
+                    <dl class="row mb-0">
+                        <dt class="col-sm-3">Display Name:</dt>
+                        <dd class="col-sm-9">@Model.LookupTable.DisplayName</dd>
+
+                        <dt class="col-sm-3">Internal Name:</dt>
+                        <dd class="col-sm-9"><code>@Model.LookupTable.Name</code></dd>
+
+                        @if (!string.IsNullOrEmpty(Model.LookupTable.Description))
+                        {
+                            <dt class="col-sm-3">Description:</dt>
+                            <dd class="col-sm-9">@Model.LookupTable.Description</dd>
+                        }
+
+                        <dt class="col-sm-3">Status:</dt>
+                        <dd class="col-sm-9">
+                            @if (Model.LookupTable.IsActive)
+                            {
+                                <span class="badge bg-success">Active</span>
+                            }
+                            else
+                            {
+                                <span class="badge bg-secondary">Inactive</span>
+                            }
+                        </dd>
+
+                        <dt class="col-sm-3">Created:</dt>
+                        <dd class="col-sm-9">@Model.LookupTable.CreatedAt.ToString("dd MMM yyyy HH:mm")</dd>
+
+                        <dt class="col-sm-3">Total Values:</dt>
+                        <dd class="col-sm-9">
+                            <span class="badge bg-info">@Model.Values.Count</span>
+                        </dd>
+                    </dl>
+                </div>
+            </div>
+
+            <div class="card shadow-sm">
+                <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Values</h5>
+                    <a asp-page="./ManageValues" asp-route-id="@Model.LookupTable.Id" class="btn btn-sm btn-primary">
+                        <i class="bi bi-plus-lg me-1"></i>Add/Edit Values
+                    </a>
+                </div>
+                <div class="card-body">
+                    @if (!Model.Values.Any())
+                    {
+                        <div class="text-center py-4">
+                            <i class="bi bi-inbox" style="font-size: 3rem; color: #dee2e6;"></i>
+                            <p class="text-muted mt-2">No values defined yet.</p>
+                            <a asp-page="./ManageValues" asp-route-id="@Model.LookupTable.Id" class="btn btn-primary btn-sm">
+                                <i class="bi bi-plus-lg me-1"></i>Add Values
+                            </a>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>Order</th>
+                                        <th>Display Text</th>
+                                        <th>Internal Value</th>
+                                        <th>Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var value in Model.Values)
+                                    {
+                                        <tr>
+                                            <td>@value.DisplayOrder</td>
+                                            <td>@value.DisplayText</td>
+                                            <td><code>@value.Value</code></td>
+                                            <td>
+                                                @if (value.IsActive)
+                                                {
+                                                    <span class="badge bg-success">Active</span>
+                                                }
+                                                else
+                                                {
+                                                    <span class="badge bg-secondary">Inactive</span>
+                                                }
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4">
+            <div class="card shadow-sm mb-3">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0"><i class="bi bi-link-45deg me-2"></i>Usage</h5>
+                </div>
+                <div class="card-body">
+                    @if (Model.UsedByFieldsCount > 0)
+                    {
+                        <p>This lookup table is used by <strong>@Model.UsedByFieldsCount</strong> custom field(s):</p>
+                        <ul class="mb-0">
+                            @foreach (var field in Model.UsedByFields)
+                            {
+                                <li>@field</li>
+                            }
+                        </ul>
+                    }
+                    else
+                    {
+                        <p class="text-muted mb-0">This lookup table is not currently used by any custom fields.</p>
+                    }
+                </div>
+            </div>
+
+            <div class="card shadow-sm">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0"><i class="bi bi-info-circle me-2"></i>Actions</h5>
+                </div>
+                <div class="list-group list-group-flush">
+                    <a asp-page="./Edit" asp-route-id="@Model.LookupTable.Id" class="list-group-item list-group-item-action">
+                        <i class="bi bi-pencil me-2"></i>Edit Table Settings
+                    </a>
+                    <a asp-page="./ManageValues" asp-route-id="@Model.LookupTable.Id" class="list-group-item list-group-item-action">
+                        <i class="bi bi-list-check me-2"></i>Manage Values
+                    </a>
+                    <a asp-page="./Delete" asp-route-id="@Model.LookupTable.Id" class="list-group-item list-group-item-action text-danger">
+                        <i class="bi bi-trash me-2"></i>Delete Table
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="mt-3">
+        <a asp-page="./Index" class="btn btn-secondary">
+            <i class="bi bi-arrow-left me-2"></i>Back to List
+        </a>
+    </div>
+</div>

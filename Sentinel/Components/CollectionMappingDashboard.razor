@@ -1,0 +1,275 @@
+@using Sentinel.Models
+@using Microsoft.EntityFrameworkCore
+@inject Sentinel.Data.ApplicationDbContext DbContext
+
+@code {
+    private int PendingDuplicates { get; set; }
+    private int ReviewedThisWeek { get; set; }
+    private double ApprovalRate { get; set; }
+    private double AvgReviewTimeHours { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        var today = DateTime.Today;
+        var thisWeek = today.AddDays(-7);
+        
+        var reviewQueue = await DbContext.ReviewQueue.ToListAsync();
+        
+        PendingDuplicates = reviewQueue.Count(r => 
+            r.ReviewStatus == ReviewStatuses.Pending &&
+            (r.EntityType == ReviewEntityTypes.DuplicatePatient ||
+             r.EntityType == ReviewEntityTypes.DuplicateContact ||
+             r.EntityType == ReviewEntityTypes.DuplicateExposure));
+        
+        ReviewedThisWeek = reviewQueue.Count(r =>
+            r.ReviewStatus == ReviewStatuses.Reviewed &&
+            r.ReviewedDate >= thisWeek);
+        
+        ApprovalRate = reviewQueue.Any(r => r.ReviewStatus == ReviewStatuses.Reviewed)
+            ? (double)reviewQueue.Count(r => r.ReviewStatus == ReviewStatuses.Reviewed && r.ReviewAction == ReviewActions.Confirmed) 
+              / reviewQueue.Count(r => r.ReviewStatus == ReviewStatuses.Reviewed) * 100
+            : 0;
+        
+        AvgReviewTimeHours = reviewQueue
+            .Where(r => r.ReviewStatus == ReviewStatuses.Reviewed && r.ReviewedDate.HasValue)
+            .Select(r => (r.ReviewedDate!.Value - r.CreatedDate).TotalHours)
+            .DefaultIfEmpty(0)
+            .Average();
+    }
+}
+
+<div class="collection-mapping-dashboard">
+    <div class="dashboard-header mb-4">
+        <h4 class="mb-1">
+            <i class="bi bi-grid-3x3-gap text-primary"></i>
+            Collection Mapping Overview
+        </h4>
+        <p class="text-muted mb-0 small">
+            Automated entity creation and duplicate detection
+        </p>
+    </div>
+
+    <!-- Stats Row -->
+    <div class="row g-3 mb-4">
+        <!-- Pending Duplicate Reviews -->
+        <div class="col-md-3">
+            <div class="stat-card stat-pending">
+                <div class="stat-icon">
+                    <i class="bi bi-exclamation-triangle"></i>
+                </div>
+                <div class="stat-content">
+                    <div class="stat-value">@PendingDuplicates</div>
+                    <div class="stat-label">Pending Duplicates</div>
+                </div>
+                @if (PendingDuplicates > 0)
+                {
+                    <a asp-page="/ReviewQueue/Index" asp-route-entityType="DuplicatePatient" class="stat-action">
+                        Review Now <i class="bi bi-arrow-right"></i>
+                    </a>
+                }
+            </div>
+        </div>
+
+        <!-- Reviews This Week -->
+        <div class="col-md-3">
+            <div class="stat-card stat-success">
+                <div class="stat-icon">
+                    <i class="bi bi-check-circle"></i>
+                </div>
+                <div class="stat-content">
+                    <div class="stat-value">@ReviewedThisWeek</div>
+                    <div class="stat-label">Reviewed This Week</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Approval Rate -->
+        <div class="col-md-3">
+            <div class="stat-card stat-info">
+                <div class="stat-icon">
+                    <i class="bi bi-graph-up-arrow"></i>
+                </div>
+                <div class="stat-content">
+                    <div class="stat-value">@ApprovalRate.ToString("F0")%</div>
+                    <div class="stat-label">Approval Rate</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Avg Review Time -->
+        <div class="col-md-3">
+            <div class="stat-card stat-secondary">
+                <div class="stat-icon">
+                    <i class="bi bi-clock-history"></i>
+                </div>
+                <div class="stat-content">
+                    <div class="stat-value">@AvgReviewTimeHours.ToString("F1")h</div>
+                    <div class="stat-label">Avg Review Time</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="quick-actions-row">
+        <div class="row g-3">
+            <div class="col-md-6">
+                <div class="action-card">
+                    <div class="action-icon">
+                        <i class="bi bi-clipboard-check"></i>
+                    </div>
+                    <div class="action-content">
+                        <h6 class="action-title">Review Duplicates</h6>
+                        <p class="action-description">
+                            Review and approve potential duplicate entities detected by surveys
+                        </p>
+                    </div>
+                    <a asp-page="/ReviewQueue/Index" class="btn btn-primary btn-sm">
+                        <i class="bi bi-arrow-right-circle"></i> Go to Queue
+                    </a>
+                </div>
+            </div>
+
+            <div class="col-md-6">
+                <div class="action-card">
+                    <div class="action-icon">
+                        <i class="bi bi-gear"></i>
+                    </div>
+                    <div class="action-content">
+                        <h6 class="action-title">Configure Mappings</h6>
+                        <p class="action-description">
+                            Set up collection mappings for matrix questions and duplicate detection
+                        </p>
+                    </div>
+                    <a asp-page="/Settings/Surveys/SurveyTemplates" class="btn btn-outline-primary btn-sm">
+                        <i class="bi bi-arrow-right-circle"></i> Settings
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .collection-mapping-dashboard {
+        padding: 1.5rem;
+        background: white;
+        border-radius: 12px;
+        border: 2px solid #e2e8f0;
+    }
+
+    .dashboard-header {
+        border-bottom: 2px solid #e2e8f0;
+        padding-bottom: 1rem;
+    }
+
+    .stat-card {
+        background: white;
+        border-radius: 12px;
+        padding: 1.5rem;
+        border: 2px solid #e2e8f0;
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+        transition: all 0.2s;
+        height: 100%;
+    }
+
+    .stat-card:hover {
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        transform: translateY(-2px);
+    }
+
+    .stat-pending {
+        border-left: 4px solid #f59e0b;
+    }
+
+    .stat-success {
+        border-left: 4px solid #10b981;
+    }
+
+    .stat-info {
+        border-left: 4px solid #3b82f6;
+    }
+
+    .stat-secondary {
+        border-left: 4px solid #6b7280;
+    }
+
+    .stat-icon {
+        font-size: 2rem;
+        color: #64748b;
+    }
+
+    .stat-pending .stat-icon { color: #f59e0b; }
+    .stat-success .stat-icon { color: #10b981; }
+    .stat-info .stat-icon { color: #3b82f6; }
+
+    .stat-content {
+        flex-grow: 1;
+    }
+
+    .stat-value {
+        font-size: 2rem;
+        font-weight: 700;
+        color: #1e293b;
+    }
+
+    .stat-label {
+        font-size: 0.875rem;
+        color: #64748b;
+        font-weight: 500;
+    }
+
+    .stat-action {
+        font-size: 0.875rem;
+        color: #3b82f6;
+        text-decoration: none;
+        display: flex;
+        align-items: center;
+        gap: 0.25rem;
+        font-weight: 500;
+    }
+
+    .stat-action:hover {
+        color: #2563eb;
+    }
+
+    .action-card {
+        background: white;
+        border-radius: 12px;
+        padding: 1.5rem;
+        border: 2px solid #e2e8f0;
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        transition: all 0.2s;
+    }
+
+    .action-card:hover {
+        border-color: #3b82f6;
+        box-shadow: 0 2px 8px rgba(59, 130, 246, 0.15);
+    }
+
+    .action-icon {
+        font-size: 2.5rem;
+        color: #3b82f6;
+        flex-shrink: 0;
+    }
+
+    .action-content {
+        flex-grow: 1;
+    }
+
+    .action-title {
+        margin-bottom: 0.25rem;
+        color: #1e293b;
+        font-weight: 600;
+    }
+
+    .action-description {
+        margin-bottom: 0;
+        font-size: 0.875rem;
+        color: #64748b;
+    }
+</style>
