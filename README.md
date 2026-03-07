@@ -93,7 +93,7 @@ For geocoding reccomendation is to use a Google API set prefered provider to eit
 
 ## Current Status
 
-**?? Alpha Release - Active Development**
+**Alpha Release - Active Development**
 
 **Stable Features:**
 -  Patient and case management
@@ -165,5 +165,3 @@ Documentation available on [Sentinel Notion] (https://www.notion.so/Sentinel-31b
 
 ---
 
-
-**Built with ?? for public health**
