@@ -38,13 +38,17 @@ if (!string.IsNullOrEmpty(envGeocodingEmail))
 // Configure Kestrel to allow larger request bodies (for shapefile uploads)
 builder.Services.Configure<KestrelServerOptions>(options =>
 {
-    options.Limits.MaxRequestBodySize = 100_000_000; // 100MB
+    options.Limits.MaxRequestBodySize = 104_857_600; // 100MB
+    options.Limits.RequestHeadersTimeout = TimeSpan.FromMinutes(5);
 });
 
 // Configure Form options for multipart requests
 builder.Services.Configure<Microsoft.AspNetCore.Http.Features.FormOptions>(options =>
 {
-    options.MultipartBodyLengthLimit = 100_000_000; // 100MB
+    options.MultipartBodyLengthLimit = 104_857_600; // 100MB
+    options.ValueLengthLimit = 104_857_600;
+    options.MultipartHeadersLengthLimit = 16384;
+    options.BufferBodyLengthLimit = 104_857_600;
 });
 
 // Database
