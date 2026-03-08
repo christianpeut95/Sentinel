@@ -529,35 +529,44 @@
     @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
 
 <script nonce="@GetCspNonce()">
-    (function () {
-        // Enhanced Google Places JS autocomplete for businesses and addresses
-        var apiKey = '@Configuration["Geocoding:ApiKey"]';
-        var defaultCountry = '@(Configuration["Geocoding:DefaultCountry"] ?? "AU")';
-        if (!apiKey) {
-            console.warn('Geocoding API key not configured. Address autocomplete disabled.');
-            return;
+// Use centralized geocoding service for place search
+$(document).ready(function() {
+    var placeInput = document.getElementById('placeSearchInput');
+    var placeDropdown = document.getElementById('placeDropdown');
+        
+    if (!placeInput || !placeDropdown) {
+        return;
+    }
+        
+    // Only initialize if Google provider is configured
+    if (!SentinelGeocoding.shouldUseGoogleMaps()) {
+        console.log('Place search disabled - using', SentinelGeocoding.getConfig()?.provider || 'nominatim');
+        placeInput.placeholder = 'Place search requires Google Maps (currently using ' + (SentinelGeocoding.getConfig()?.provider || 'Nominatim') + ')';
+        placeInput.disabled = true;
+        return;
+    }
+        
+    SentinelGeocoding.loadGoogleMaps(function() {
+        var service = new google.maps.places.AutocompleteService();
+        var detailsService = new google.maps.places.PlacesService(document.createElement('div'));
+        var sessionToken = new google.maps.places.AutocompleteSessionToken();
+        var items = [];
+        var focused = -1;
+        var config = SentinelGeocoding.getConfig();
+            
+        function debounce(fn, ms) { var t; return function () { var args = arguments; clearTimeout(t); t = setTimeout(function () { fn.apply(null, args); }, ms); }; }
+
+        function clearDropdown() {
+            placeDropdown.innerHTML = '';
+            placeDropdown.classList.remove('show');
+            placeInput.setAttribute('aria-expanded', 'false');
+            items = [];
+            focused = -1;
         }
-        window.initPlaces = function () {
-            var placeInput = document.getElementById('placeSearchInput');
-            var placeDropdown = document.getElementById('placeDropdown');
-            var service = new google.maps.places.AutocompleteService();
-            var detailsService = new google.maps.places.PlacesService(document.createElement('div'));
-            var sessionToken = new google.maps.places.AutocompleteSessionToken();
-            var items = [];
-            var focused = -1
-            function debounce(fn, ms) { var t; return function () { var args = arguments; clearTimeout(t); t = setTimeout(function () { fn.apply(null, args); }, ms); }; }
 
-            function clearDropdown() {
-                placeDropdown.innerHTML = ''
-                placeDropdown.classList.remove('show')
-                placeInput.setAttribute('aria-expanded', 'false')
-                items = []
-                focused = -1
-            }
-
-            function buildItem(pred, idx) {
-                var btn = document.createElement('button')
-                btn.type = 'button'
+        function buildItem(pred, idx) {
+            var btn = document.createElement('button');
+            btn.type = 'button';
                 btn.className = 'dropdown-item'
                 btn.setAttribute('role', 'option')
                 btn.dataset.index = String(idx)
@@ -589,55 +598,84 @@
             }
 
             function selectItem(i) {
-                var sel = items[i]
-                if (!sel) return
-                var idx = Number(sel.dataset.index)
-                var pred = window.__lastPlaceResults && window.__lastPlaceResults[idx]
-                if (!pred) return
-                detailsService.getDetails({ 
-                    placeId: pred.place_id, 
-                    fields: ['name', 'formatted_address', 'address_components', 'geometry'], 
-                    sessionToken: sessionToken 
-                }, function (result, status) {
-                    if (status !== google.maps.places.PlacesServiceStatus.OK || !result) {                        return
-                    }                    var comps = {}
-                    (result.address_components || []).forEach(function (c) {
-                        (c.types || []).forEach(function (t) {
-                            if (!comps[t]) comps[t] = c.long_name
-                        })
-                    })
-                    var street = [comps['street_number'], comps['route']].filter(Boolean).join(' ')
-                    var city = comps['locality'] || comps['postal_town'] || comps['sublocality'] || comps['administrative_area_level_2'] || ''
-                    var state = comps['administrative_area_level_1'] || ''
-                    var postal = comps['postal_code'] || ''
-                    // Fill all address fields
-                    var addressInput = document.getElementById('addressInput')
-                    if (addressInput) addressInput.value = street || result.formatted_address || pred.description || ''
-                    var cityEl = document.getElementById('Patient_City')
-                    var stateEl = document.getElementById('Patient_State')
-                    var postalEl = document.getElementById('Patient_PostalCode')
-                    if (cityEl) cityEl.value = city
-                    if (stateEl) stateEl.value = state
-                    if (postalEl) postalEl.value = postal
-                    // Fill coordinates
-                    var latEl = document.getElementById('Patient_Latitude')
-                    var lonEl = document.getElementById('Patient_Longitude')
-                    if (latEl && lonEl && result.geometry && result.geometry.location) {
-                        latEl.value = result.geometry.location.lat()
-                        lonEl.value = result.geometry.location.lng();                        // Auto-detect jurisdictions
-                        detectJurisdictions(latEl.value, lonEl.value)
-                    }
-
-                    clearDropdown()
-                    placeInput.value = ''; // Clear search after selection
+                var sel = items[i];
+                if (!sel) return;
+                var idx = Number(sel.dataset.index);
+                var pred = window.__lastPlaceResults && window.__lastPlaceResults[idx];
+                if (!pred) {
+                    console.error('No prediction found for index:', idx);
+                    return;
+                }
+                
+                console.log('Fetching place details for:', pred.description, 'PlaceID:', pred.place_id);
+                
+                try {
+                    detailsService.getDetails({ 
+                        placeId: pred.place_id, 
+                        fields: ['name', 'formatted_address', 'address_components', 'geometry'], 
+                        sessionToken: sessionToken 
+                    }, function (result, status) {
+                        console.log('Place details response:', status, result);
                         
-                    // Show success message
-                    showSuccessMessage(result.name || 'Address')
-                    sessionToken = new google.maps.places.AutocompleteSessionToken()
-                })
+                        if (status !== google.maps.places.PlacesServiceStatus.OK || !result) {
+                            console.error('Place details error:', status);
+                            
+                            // Fallback: At least fill the address field with the prediction description
+                            var addressInput = document.getElementById('addressInput');
+                            if (addressInput && pred.description) {
+                                addressInput.value = pred.description;
+                                showWarningMessage('Address filled from search, but coordinates unavailable. Please verify address details.');
+                            } else {
+                                alert('Unable to get place details. Status: ' + status + '\n\nPlease check:\n1. Places API is enabled in Google Cloud Console\n2. Billing is set up\n3. API key has Places API permissions');
+                            }
+                            clearDropdown();
+                            return;
+                        }
+                        var comps = {};
+                        (result.address_components || []).forEach(function (c) {
+                            (c.types || []).forEach(function (t) {
+                                if (!comps[t]) comps[t] = c.long_name;
+                            });
+                        });
+                        var street = [comps['street_number'], comps['route']].filter(Boolean).join(' ');
+                        var city = comps['locality'] || comps['postal_town'] || comps['sublocality'] || comps['administrative_area_level_2'] || '';
+                        var state = comps['administrative_area_level_1'] || '';
+                        var postal = comps['postal_code'] || '';
+                        // Fill all address fields
+                        var addressInput = document.getElementById('addressInput');
+                        if (addressInput) addressInput.value = street || result.formatted_address || pred.description || '';
+                        var cityEl = document.getElementById('Patient_City');
+                        var stateEl = document.getElementById('Patient_State');
+                        var postalEl = document.getElementById('Patient_PostalCode');
+                        if (cityEl) cityEl.value = city;
+                        if (stateEl) stateEl.value = state;
+                        if (postalEl) postalEl.value = postal;
+                        // Fill coordinates
+                        var latEl = document.getElementById('Patient_Latitude');
+                        var lonEl = document.getElementById('Patient_Longitude');
+                        if (latEl && lonEl && result.geometry && result.geometry.location) {
+                            latEl.value = result.geometry.location.lat();
+                            lonEl.value = result.geometry.location.lng();
+                            // Auto-detect jurisdictions
+                            detectJurisdictions(latEl.value, lonEl.value);
+                        }
+
+                        clearDropdown();
+                        placeInput.value = ''; // Clear search after selection
+                            
+                        // Show success message
+                        showSuccessMessage(result.name || 'Address');
+                        sessionToken = new google.maps.places.AutocompleteSessionToken();
+                    });
+                } catch (error) {
+                    console.error('Error calling getDetails:', error);
+                    alert('Error fetching place details: ' + error.message);
+                    clearDropdown();
+                }
             }
 
-            function detectJurisdictions(lat, lon) {                fetch('/Patients/Create?handler=DetectJurisdictions', {
+            function detectJurisdictions(lat, lon) {
+                fetch('/Patients/Create?handler=DetectJurisdictions', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -647,42 +685,63 @@
                 })
                 .then(response => response.json())
                 .then(data => {
-                    if (data.success && data.jurisdictions && data.jurisdictions.length > 0) {                        // Auto-populate jurisdiction fields (both hidden ID and visible text input)
+                    if (data.success && data.jurisdictions && data.jurisdictions.length > 0) {
+                        // Auto-populate jurisdiction fields (both hidden ID and visible text input)
                         data.jurisdictions.forEach(function(j) {
-                            var searchFieldId = 'jurisdictionSearch' + j.fieldNumber
-                            var hiddenFieldId = 'Jurisdiction' + j.fieldNumber + 'Id'
-                            var searchEl = document.getElementById(searchFieldId)
-                            var hiddenEl = document.getElementById(hiddenFieldId)
+                            var searchFieldId = 'jurisdictionSearch' + j.fieldNumber;
+                            var hiddenFieldId = 'Jurisdiction' + j.fieldNumber + 'Id';
+                            var searchEl = document.getElementById(searchFieldId);
+                            var hiddenEl = document.getElementById(hiddenFieldId);
                             if (searchEl && hiddenEl) {
-                                searchEl.value = j.jurisdictionName
-                                hiddenEl.value = j.jurisdictionId
+                                searchEl.value = j.jurisdictionName;
+                                hiddenEl.value = j.jurisdictionId;
                                 searchEl.style.backgroundColor = '#d4edda'; // Light green highlight
-                                setTimeout(function() { searchEl.style.backgroundColor = ''; }, 2000);                            }
-                        })
+                                setTimeout(function() { searchEl.style.backgroundColor = ''; }, 2000);
+                            }
+                        });
                         // Show success message
-                        var successMsg = document.createElement('div')
-                        successMsg.className = 'alert alert-success alert-dismissible fade show mt-2'
-                        successMsg.innerHTML = '<i class="bi bi-check-circle me-2"></i>Auto-detected ' + data.jurisdictions.length + ' jurisdiction(s) from address'
-                        document.querySelector('.card-header:has(i.bi-pin-map)')?.parentElement.querySelector('.card-body').prepend(successMsg)
-                        setTimeout(function() { successMsg.remove(); }, 5000)
-                    } else {                    }
+                        var successMsg = document.createElement('div');
+                        successMsg.className = 'alert alert-success alert-dismissible fade show mt-2';
+                        successMsg.innerHTML = '<i class="bi bi-check-circle me-2"></i>Auto-detected ' + data.jurisdictions.length + ' jurisdiction(s) from address';
+                        document.querySelector('.card-header:has(i.bi-pin-map)')?.parentElement.querySelector('.card-body').prepend(successMsg);
+                        setTimeout(function() { successMsg.remove(); }, 5000);
+                    }
                 })
-                .catch(error => {                })
+                .catch(error => {
+                    console.error('Error detecting jurisdictions:', error);
+                });
             }
 
             function showSuccessMessage(placeName) {
                 if (document.getElementById('placeSuccess')) {
-                    document.getElementById('placeSuccess').remove()
+                    document.getElementById('placeSuccess').remove();
                 }
-                var successDiv = document.createElement('div')
-                successDiv.id = 'placeSuccess'
-                successDiv.innerHTML = '<i class="bi bi-check-circle-fill"></i><strong>Selected:</strong> ' + placeName + ' - All address fields filled!'
-                placeInput.parentElement.appendChild(successDiv)
+                var successDiv = document.createElement('div');
+                successDiv.id = 'placeSuccess';
+                successDiv.className = 'alert alert-success alert-dismissible fade show mt-2';
+                successDiv.innerHTML = '<i class="bi bi-check-circle-fill me-2"></i><strong>Selected:</strong> ' + placeName + ' - All address fields filled!';
+                placeInput.parentElement.appendChild(successDiv);
                 setTimeout(function() {
-                    successDiv.style.opacity = '0'
-                    successDiv.style.transition = 'opacity 0.5s'
-                    setTimeout(function() { if (successDiv.parentElement) successDiv.remove(); }, 500)
-                }, 3000)
+                    successDiv.style.opacity = '0';
+                    successDiv.style.transition = 'opacity 0.5s';
+                    setTimeout(function() { if (successDiv.parentElement) successDiv.remove(); }, 500);
+                }, 3000);
+            }
+            
+            function showWarningMessage(message) {
+                if (document.getElementById('placeWarning')) {
+                    document.getElementById('placeWarning').remove();
+                }
+                var warningDiv = document.createElement('div');
+                warningDiv.id = 'placeWarning';
+                warningDiv.className = 'alert alert-warning alert-dismissible fade show mt-2';
+                warningDiv.innerHTML = '<i class="bi bi-exclamation-triangle-fill me-2"></i>' + message;
+                placeInput.parentElement.appendChild(warningDiv);
+                setTimeout(function() {
+                    warningDiv.style.opacity = '0';
+                    warningDiv.style.transition = 'opacity 0.5s';
+                    setTimeout(function() { if (warningDiv.parentElement) warningDiv.remove(); }, 500);
+                }, 5000);
             }
 
             function fetchSuggestions(q) {
@@ -693,34 +752,48 @@
                     sessionToken: sessionToken 
                 }
                 // Add country bias for localization
-                if (defaultCountry) {
-                    request.componentRestrictions = { country: defaultCountry };                }
+                if (config.defaultCountry) {
+                    request.componentRestrictions = { country: config.defaultCountry };
+                }
                     
                 service.getPlacePredictions(request, function (predictions, status) {
-                    if (status !== google.maps.places.PlacesServiceStatus.OK || !predictions) {                        clearDropdown()
-                        return
-                    }                    renderResults(predictions.slice(0, 8))
-                })
+                    if (status !== google.maps.places.PlacesServiceStatus.OK || !predictions) {
+                        clearDropdown();
+                        return;
+                    }
+                    renderResults(predictions.slice(0, 8));
+                });
             }
 
-            placeInput.addEventListener('input', debounce(function (e) { fetchSuggestions(e.target.value); }, 300))
+            placeInput.addEventListener('input', debounce(function (e) { fetchSuggestions(e.target.value); }, 300));
             placeInput.addEventListener('keydown', function (e) {
-                if (!placeDropdown.classList.contains('show')) return
+                if (!placeDropdown.classList.contains('show')) return;
                 if (e.key === 'ArrowDown') { e.preventDefault(); focusItem(Math.min(items.length - 1, focused + 1)); }
                 else if (e.key === 'ArrowUp') { e.preventDefault(); focusItem(Math.max(0, focused - 1)); }
                 else if (e.key === 'Enter') { e.preventDefault(); if (focused >= 0) selectItem(focused); }
                 else if (e.key === 'Escape') { clearDropdown(); }
-            })
-            document.addEventListener('click', function (ev) { if (!ev.target) return; if (ev.target === placeInput || placeDropdown.contains(ev.target)) return; clearDropdown(); })
-            placeInput.addEventListener('blur', function () { setTimeout(function () { if (document.activeElement && !placeDropdown.contains(document.activeElement)) clearDropdown(); }, 150); });        }
-        // Load the Google Maps JS with callback
-        var s = document.createElement('script')
-        s.src = 'https://maps.googleapis.com/maps/api/js?key=' + encodeURIComponent(apiKey) + '&libraries=places&callback=initPlaces'
-        s.async = true; s.defer = true; document.head.appendChild(s)
-    })()
+            });
+            document.addEventListener('click', function (ev) { 
+                if (!ev.target) return; 
+                if (ev.target === placeInput || placeDropdown.contains(ev.target)) return; 
+                clearDropdown(); 
+            });
+            placeInput.addEventListener('blur', function () { 
+                setTimeout(function () { 
+                    if (document.activeElement && !placeDropdown.contains(document.activeElement)) clearDropdown(); 
+                }, 150); 
+            });
+            
+            console.log('Place search initialized with Google Maps');
+        });
+    });
+</script>
+
+<script nonce="@GetCspNonce()">
     // Occupation autocomplete
     $(document).ready(function () {
-        if (typeof $.fn.autocomplete === 'undefined') {            return
+        if (typeof $.fn.autocomplete === 'undefined') {
+            return;
         }
 
         var $searchInput = $('#occupationSearch')
