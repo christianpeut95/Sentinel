@@ -572,9 +572,29 @@ namespace Sentinel.Services
                 ? dateOfOnset.AddDays(_random.Next(0, 4))
                 : (DateTime?)null;
 
-            var confirmationStatus = cache.CaseStatuses.Any()
-                ? cache.CaseStatuses[_random.Next(cache.CaseStatuses.Count)]
-                : null;
+            // Weighted confirmation status: 90% Confirmed, 5% Probable, 5% Others
+            CaseStatus? confirmationStatus = null;
+            if (cache.CaseStatuses.Any())
+            {
+                var roll = _random.Next(0, 100);
+                if (roll < 90)
+                {
+                    // 90% - Try to get "Confirmed" status
+                    confirmationStatus = cache.CaseStatuses.FirstOrDefault(cs => cs.Name.Contains("Confirmed", StringComparison.OrdinalIgnoreCase))
+                                      ?? cache.CaseStatuses.FirstOrDefault(cs => cs.Name.Contains("Confirm", StringComparison.OrdinalIgnoreCase));
+                }
+                else if (roll < 95)
+                {
+                    // 5% - Try to get "Probable" status
+                    confirmationStatus = cache.CaseStatuses.FirstOrDefault(cs => cs.Name.Contains("Probable", StringComparison.OrdinalIgnoreCase));
+                }
+                
+                // If we didn't find a specific status, or for the remaining 5%, pick any random status
+                if (confirmationStatus == null && cache.CaseStatuses.Any())
+                {
+                    confirmationStatus = cache.CaseStatuses[_random.Next(cache.CaseStatuses.Count)];
+                }
+            }
 
             var hospitalized = (YesNoUnknown)_random.Next(0, 3);
 
