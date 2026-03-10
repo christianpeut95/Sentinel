@@ -95,7 +95,7 @@ namespace Sentinel.Services
             var lookupValues = await _context.CaseCustomFieldLookups
                 .Include(cf => cf.LookupValue)
                 .Where(cf => cf.CaseId == caseId)
-                .ToDictionaryAsync(cf => cf.FieldDefinitionId, cf => (object)cf.LookupValueId);
+                .ToDictionaryAsync(cf => cf.FieldDefinitionId, cf => (object)(cf.LookupValue?.DisplayText ?? ""));
 
             foreach (var kvp in stringValues) values[kvp.Key] = kvp.Value;
             foreach (var kvp in numberValues) values[kvp.Key] = kvp.Value;
