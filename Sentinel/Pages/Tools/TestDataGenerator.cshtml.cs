@@ -47,6 +47,9 @@ namespace Sentinel.Pages.Tools
         [BindProperty]
         public bool UseSeasonalPatterns { get; set; } = true;
 
+        [BindProperty]
+        public string DeleteConfirmationCode { get; set; } = "";
+
         public TestDataGenerationResult? Result { get; set; }
         public TestDataGenerationResult? CaseResult { get; set; }
 
@@ -198,6 +201,26 @@ namespace Sentinel.Pages.Tools
             }
 
             return await OnPostGenerateCasesAsync();
+        }
+
+        public async Task<IActionResult> OnPostDeleteAllDataAsync()
+        {
+            var result = await _testDataGenerator.DeleteAllTestDataAsync(
+                DeleteConfirmationCode,
+                (message) => System.Diagnostics.Debug.WriteLine(message)
+            );
+
+            if (result.HasErrors)
+            {
+                TempData["ErrorMessage"] = string.Join("<br/>", result.Errors);
+            }
+            else
+            {
+                TempData["SuccessMessage"] = $"? Successfully deleted {result.TotalDeleted:N0} records in {result.Duration.TotalSeconds:F1}s";
+            }
+
+            await LoadSystemStatisticsAsync();
+            return Page();
         }
     }
 }
