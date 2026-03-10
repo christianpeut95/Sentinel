@@ -444,6 +444,19 @@ namespace Sentinel.Services
                                 .Count(e => e.State == EntityState.Added);
                         }
 
+                        // Generate custom field values
+                        if (options.IncludeCustomFields && _random.Next(0, 100) < options.CustomFieldProbabilityPercent)
+                        {
+                            await GenerateCustomFieldValuesForCaseAsync(caseEntity.Id, disease.Id);
+                            result.CustomFieldsCreated += _context.ChangeTracker.Entries()
+                                .Count(e => (e.State == EntityState.Added) &&
+                                           (e.Entity is CaseCustomFieldString ||
+                                            e.Entity is CaseCustomFieldNumber ||
+                                            e.Entity is CaseCustomFieldDate ||
+                                            e.Entity is CaseCustomFieldBoolean ||
+                                            e.Entity is CaseCustomFieldLookup));
+                        }
+
                         // Save and clear every BATCH_SIZE cases
                         if (casesInCurrentBatch >= BATCH_SIZE)
                         {
@@ -1157,15 +1170,18 @@ namespace Sentinel.Services
     public class CaseGenerationOptions
     {
         public bool IncludeLabResults { get; set; } = true;
-        public int LabResultsPerCaseMin { get; set; } = 0;
-        public int LabResultsPerCaseMax { get; set; } = 2;
-        public int LabResultProbabilityPercent { get; set; } = 60;
+        public int LabResultsPerCaseMin { get; set; } = 1;
+        public int LabResultsPerCaseMax { get; set; } = 3;
+        public int LabResultProbabilityPercent { get; set; } = 80; // 80% of cases get lab results
 
         public bool IncludeSymptoms { get; set; } = true;
-        public int SymptomProbabilityPercent { get; set; } = 70;
+        public int SymptomProbabilityPercent { get; set; } = 85; // 85% of cases get symptoms
 
         public bool IncludeNotes { get; set; } = true;
-        public int CaseNoteProbabilityPercent { get; set; } = 60;
+        public int CaseNoteProbabilityPercent { get; set; } = 70; // 70% of cases get notes
+
+        public bool IncludeCustomFields { get; set; } = true;
+        public int CustomFieldProbabilityPercent { get; set; } = 75; // 75% of cases get custom fields
 
         public bool UseSeasonalPatterns { get; set; } = true;
     }

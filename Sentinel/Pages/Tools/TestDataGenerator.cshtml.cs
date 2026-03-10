@@ -154,6 +154,7 @@ namespace Sentinel.Pages.Tools
                     IncludeLabResults = IncludeLabResults,
                     IncludeSymptoms = true,
                     IncludeNotes = true,
+                    IncludeCustomFields = IncludeCustomFields,
                     UseSeasonalPatterns = UseSeasonalPatterns
                 },
                 null);
