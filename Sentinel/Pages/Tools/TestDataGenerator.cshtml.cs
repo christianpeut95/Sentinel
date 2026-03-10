@@ -146,9 +146,13 @@ namespace Sentinel.Pages.Tools
                 EndYear,
                 CasesPerYear,
                 diseaseIds,
-                IncludeCustomFields,
-                IncludeLabResults,
-                UseSeasonalPatterns,
+                new CaseGenerationOptions
+                {
+                    IncludeLabResults = IncludeLabResults,
+                    IncludeSymptoms = true,
+                    IncludeNotes = true,
+                    UseSeasonalPatterns = UseSeasonalPatterns
+                },
                 null);
 
             CaseResult.EndTime = DateTime.UtcNow;
