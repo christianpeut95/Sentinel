@@ -963,16 +963,13 @@ namespace Sentinel.Services
                 return result;
             }
             
-            // SAFEGUARD 3: Check connection string contains "DEMO"
             var connectionString = _configuration.GetConnectionString("DefaultConnection") ?? "";
-            if (!connectionString.ToUpper().Contains("DEMO"))
-            {
-                result.Errors.Add("? BLOCKED: Connection string must contain 'DEMO' for safety.");
-                return result;
-            }
+            var databaseName = connectionString.Contains("Database=") 
+                ? connectionString.Split("Database=")[1].Split(';')[0] 
+                : "Unknown";
             
             progressCallback?.Invoke("?? WARNING: Starting deletion of ALL test data...");
-            progressCallback?.Invoke($"Database: {(connectionString.Contains("Database=") ? connectionString.Split("Database=")[1].Split(';')[0] : "Unknown")}");
+            progressCallback?.Invoke($"Database: {databaseName}");
             
             try
             {

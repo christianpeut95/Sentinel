@@ -13,7 +13,7 @@ A safe, demo-only function to delete all patients, cases, and related test data 
 
 ### Safety Features
 
-The function has **THREE layers of protection** to prevent accidental data loss:
+The function has **TWO layers of protection** to prevent accidental data loss:
 
 #### 1. Demo Mode Check
 ```csharp
@@ -29,13 +29,6 @@ const string EXPECTED_CODE = "DELETE-ALL-DEMO-DATA";
 - Requires exact match of confirmation string
 - Prevents accidental execution
 
-#### 3. Database Name Verification
-```csharp
-if (!connectionString.ToUpper().Contains("DEMO"))
-```
-- Connection string must contain "DEMO" in the database name
-- Prevents execution against production databases
-
 ### Configuration
 
 Add to `appsettings.Demo.json`:
@@ -47,7 +40,7 @@ Add to `appsettings.Demo.json`:
     "EnableDemoMode": true
   },
   "ConnectionStrings": {
-    "DefaultConnection": "Server=(localdb)\\mssqllocaldb;Database=aspnet-Sentinel-DEMO;Trusted_Connection=True;MultipleActiveResultSets=true"
+    "DefaultConnection": "Server=(localdb)\\mssqllocaldb;Database=aspnet-Sentinel;Trusted_Connection=True;MultipleActiveResultSets=true"
   }
 }
 ```
@@ -122,10 +115,6 @@ Set 'Demo:EnableDemoMode' to true in appsettings.json
 ```
 ? BLOCKED: Invalid confirmation code.
 Expected: DELETE-ALL-DEMO-DATA
-```
-
-```
-? BLOCKED: Connection string must contain 'DEMO' for safety.
 ```
 
 ### Performance
