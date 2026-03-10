@@ -484,68 +484,64 @@ namespace Sentinel.Services
 
             var cache = new LookupDataCache();
 
-            // Load all lookups in PARALLEL with AsNoTracking for performance
-            await Task.WhenAll(
-                Task.Run(async () => cache.SpecimenTypes = await _context.SpecimenTypes
-                    .AsNoTracking()
-                    .Where(st => st.IsActive)
-                    .ToListAsync()),
+            // Load all lookups SEQUENTIALLY with AsNoTracking for performance
+            // (DbContext is NOT thread-safe, cannot use Task.WhenAll with same context)
+            cache.SpecimenTypes = await _context.SpecimenTypes
+                .AsNoTracking()
+                .Where(st => st.IsActive)
+                .ToListAsync();
 
-                Task.Run(async () => cache.TestTypes = await _context.TestTypes
-                    .AsNoTracking()
-                    .Where(tt => tt.IsActive)
-                    .ToListAsync()),
+            cache.TestTypes = await _context.TestTypes
+                .AsNoTracking()
+                .Where(tt => tt.IsActive)
+                .ToListAsync();
 
-                Task.Run(async () => cache.TestResults = await _context.TestResults
-                    .AsNoTracking()
-                    .Where(tr => tr.IsActive)
-                    .ToListAsync()),
+            cache.TestResults = await _context.TestResults
+                .AsNoTracking()
+                .Where(tr => tr.IsActive)
+                .ToListAsync();
 
-                Task.Run(async () => cache.ResultUnits = await _context.ResultUnits
-                    .AsNoTracking()
-                    .ToListAsync()),
+            cache.ResultUnits = await _context.ResultUnits
+                .AsNoTracking()
+                .ToListAsync();
 
-                Task.Run(async () => cache.Laboratories = await _context.Organizations
-                    .AsNoTracking()
-                    .Include(o => o.OrganizationType)
-                    .Where(o => o.IsActive && o.OrganizationType!.Name.Contains("Lab"))
-                    .ToListAsync()),
+            cache.Laboratories = await _context.Organizations
+                .AsNoTracking()
+                .Include(o => o.OrganizationType)
+                .Where(o => o.IsActive && o.OrganizationType!.Name.Contains("Lab"))
+                .ToListAsync();
 
-                Task.Run(async () => cache.Providers = await _context.Organizations
-                    .AsNoTracking()
-                    .Include(o => o.OrganizationType)
-                    .Where(o => o.IsActive && o.OrganizationType!.Name.Contains("Provider"))
-                    .ToListAsync()),
+            cache.Providers = await _context.Organizations
+                .AsNoTracking()
+                .Include(o => o.OrganizationType)
+                .Where(o => o.IsActive && o.OrganizationType!.Name.Contains("Provider"))
+                .ToListAsync();
 
-                Task.Run(async () => cache.CaseStatuses = await _context.CaseStatuses
-                    .AsNoTracking()
-                    .Where(cs => cs.IsActive)
-                    .ToListAsync()),
+            cache.CaseStatuses = await _context.CaseStatuses
+                .AsNoTracking()
+                .Where(cs => cs.IsActive)
+                .ToListAsync();
 
-                Task.Run(async () => cache.ContactClassifications = await _context.ContactClassifications
-                    .AsNoTracking()
-                    .Where(cc => cc.IsActive)
-                    .ToListAsync()),
+            cache.ContactClassifications = await _context.ContactClassifications
+                .AsNoTracking()
+                .Where(cc => cc.IsActive)
+                .ToListAsync();
 
-                Task.Run(async () => cache.Jurisdictions = await _context.Jurisdictions
-                    .AsNoTracking()
-                    .Where(j => j.IsActive)
-                    .ToListAsync()),
+            cache.Jurisdictions = await _context.Jurisdictions
+                .AsNoTracking()
+                .Where(j => j.IsActive)
+                .ToListAsync();
 
-                // Load disease symptoms for ALL selected diseases at once
-                Task.Run(async () =>
-                {
-                    var symptoms = await _context.DiseaseSymptoms
-                        .AsNoTracking()
-                        .Where(ds => diseaseIds.Contains(ds.DiseaseId) && !ds.IsDeleted)
-                        .Include(ds => ds.Symptom)
-                        .ToListAsync();
+            // Load disease symptoms for ALL selected diseases at once
+            var symptoms = await _context.DiseaseSymptoms
+                .AsNoTracking()
+                .Where(ds => diseaseIds.Contains(ds.DiseaseId) && !ds.IsDeleted)
+                .Include(ds => ds.Symptom)
+                .ToListAsync();
 
-                    cache.DiseaseSymptoms = symptoms
-                        .GroupBy(ds => ds.DiseaseId)
-                        .ToDictionary(g => g.Key, g => g.ToList());
-                })
-            );
+            cache.DiseaseSymptoms = symptoms
+                .GroupBy(ds => ds.DiseaseId)
+                .ToDictionary(g => g.Key, g => g.ToList());
 
             _cachedLookups = cache;
             return cache;
