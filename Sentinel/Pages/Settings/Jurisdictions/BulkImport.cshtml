@@ -94,6 +94,7 @@
 
                         <form method="post" asp-page-handler="Import">
                             <input type="hidden" asp-for="JurisdictionTypeId" value="@TempData.Peek("JurisdictionTypeId")" />
+                            <input type="hidden" asp-for="UploadId" value="@TempData.Peek("UploadId")" />
 
                             <div class="mb-3">
                                 <label asp-for="NameFieldMapping" class="form-label">

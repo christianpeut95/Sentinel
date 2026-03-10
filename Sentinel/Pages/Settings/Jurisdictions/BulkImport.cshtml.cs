@@ -36,6 +36,9 @@ namespace Sentinel.Pages.Settings.Jurisdictions
 
         [BindProperty]
         public string? CodeFieldMapping { get; set; }
+        
+        [BindProperty]
+        public string? UploadId { get; set; }
 
         public SelectList JurisdictionTypes { get; set; } = default!;
         public List<string> AttributeNames { get; set; } = new();
@@ -61,22 +64,30 @@ namespace Sentinel.Pages.Settings.Jurisdictions
         {
             await LoadJurisdictionTypes();
             
-            // Restore state from cache if available
-            var cacheKey = GetCacheKey();
-            if (_cache.TryGetValue(cacheKey, out List<StoredFeature>? cachedFeatures) && cachedFeatures != null)
+            // Restore state from cache if available using stable upload ID
+            var uploadId = TempData.Peek("UploadId")?.ToString();
+            if (!string.IsNullOrEmpty(uploadId))
             {
-                var attributeNames = cachedFeatures.First().Attributes.Keys.ToList();
-                AttributeNames = attributeNames;
-                TempData["FeatureCount"] = cachedFeatures.Count;
-                TempData["JurisdictionTypeId"] = TempData.Peek("JurisdictionTypeId");
+                var cacheKey = GetCacheKey(uploadId);
+                if (_cache.TryGetValue(cacheKey, out List<StoredFeature>? cachedFeatures) && cachedFeatures != null)
+                {
+                    var attributeNames = cachedFeatures.First().Attributes.Keys.ToList();
+                    AttributeNames = attributeNames;
+                    UploadId = uploadId;
+                    TempData["FeatureCount"] = cachedFeatures.Count;
+                    TempData["JurisdictionTypeId"] = TempData.Peek("JurisdictionTypeId");
+                }
             }
             
             return Page();
         }
 
-        private string GetCacheKey()
+        private string GetCacheKey(string? uploadId = null)
         {
-            return $"BulkImport_{HttpContext.Session.Id}";
+            // Use stable GUID-based key instead of unstable Session.Id
+            // This fixes Azure session expiration issues
+            var keyId = uploadId ?? UploadId ?? TempData.Peek("UploadId")?.ToString() ?? Guid.NewGuid().ToString();
+            return $"BulkImport_{keyId}";
         }
 
         public async Task<IActionResult> OnPostAnalyzeAsync()
@@ -124,9 +135,13 @@ namespace Sentinel.Pages.Settings.Jurisdictions
                     GeoJson = f.geoJson
                 }).ToList();
 
-                var cacheKey = GetCacheKey();
+                // Generate stable upload ID for Azure compatibility
+                var uploadId = Guid.NewGuid().ToString();
+                var cacheKey = GetCacheKey(uploadId);
                 _cache.Set(cacheKey, storedFeatures, TimeSpan.FromMinutes(30));
 
+                // Store upload ID for retrieval on import
+                TempData["UploadId"] = uploadId;
                 TempData["FeatureCount"] = features.Count;
                 TempData["JurisdictionTypeId"] = JurisdictionTypeId;
 
@@ -153,11 +168,20 @@ namespace Sentinel.Pages.Settings.Jurisdictions
 
         public async Task<IActionResult> OnPostImportAsync()
         {
-            // Retrieve stored features from memory cache
-            var cacheKey = GetCacheKey();
+            // Retrieve upload ID from TempData or form
+            var uploadId = UploadId ?? TempData.Peek("UploadId")?.ToString();
+            
+            if (string.IsNullOrEmpty(uploadId))
+            {
+                TempData["ErrorMessage"] = "Upload session expired. Please re-upload and analyze the shapefile.";
+                return RedirectToPage();
+            }
+            
+            // Retrieve stored features from memory cache using stable key
+            var cacheKey = GetCacheKey(uploadId);
             if (!_cache.TryGetValue(cacheKey, out List<StoredFeature>? storedFeatures) || storedFeatures == null || !storedFeatures.Any())
             {
-                TempData["ErrorMessage"] = "Session expired. Please re-upload and analyze the shapefile.";
+                TempData["ErrorMessage"] = "Shapefile data expired. Please re-upload and analyze the shapefile.";
                 return RedirectToPage();
             }
 

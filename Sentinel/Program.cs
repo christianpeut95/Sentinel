@@ -63,8 +63,14 @@ builder.Services.AddDbContext<ApplicationDbContext>((serviceProvider, options) =
     // Get the interceptor from DI
     var caseInterceptor = serviceProvider.GetRequiredService<CaseCreationInterceptor>();
     
+    // Get command timeout from configuration (default 30 seconds, increase for large bulk imports)
+    var commandTimeout = builder.Configuration.GetValue<int?>("Database:CommandTimeoutSeconds") ?? 30;
+    
     options.UseSqlServer(connectionString, sqlOptions =>
     {
+        // Set command timeout for long-running operations (bulk imports, etc.)
+        sqlOptions.CommandTimeout(commandTimeout);
+        
         // Retry on transient failures (connection issues, timeouts)
         sqlOptions.EnableRetryOnFailure(
             maxRetryCount: 5,
