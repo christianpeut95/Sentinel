@@ -327,7 +327,6 @@ public class ReportBuilderApiController : ControllerBase
     }
 
     [HttpGet("collection-metadata/{entityType}")]
-    [Authorize(Policy = "Permission.Reports.View")]
     public IActionResult GetCollectionMetadata(string entityType)
     {
         try
