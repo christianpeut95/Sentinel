@@ -269,6 +269,7 @@ builder.Services.AddScoped<Sentinel.Services.IJurisdictionService, Sentinel.Serv
 builder.Services.AddScoped<Sentinel.Services.Reporting.IReportFieldMetadataService, Sentinel.Services.Reporting.ReportFieldMetadataService>();
 builder.Services.AddScoped<Sentinel.Services.Reporting.IReportDataService, Sentinel.Services.Reporting.ReportDataService>();
 builder.Services.AddScoped<Sentinel.Services.Reporting.IReportFolderService, Sentinel.Services.Reporting.ReportFolderService>();
+builder.Services.AddScoped<Sentinel.Services.Reporting.ICollectionMetadataService, Sentinel.Services.Reporting.CollectionMetadataService>();
 builder.Services.AddScoped<Sentinel.Services.IDataReviewService, Sentinel.Services.DataReviewService>();
 builder.Services.AddScoped<Sentinel.Services.ISurveyMappingService, Sentinel.Services.SurveyMappingService>();
 builder.Services.AddScoped<Sentinel.Services.ICollectionMappingService, Sentinel.Services.CollectionMappingService>();

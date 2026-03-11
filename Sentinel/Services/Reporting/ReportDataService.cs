@@ -2569,29 +2569,289 @@ public class ReportDataService : IReportDataService
 
     private async Task<object?> SumAsync(object entityId, CollectionQueryDto query, string entityType)
     {
-        // TODO: Implement sum logic
-        Console.WriteLine($"[CollectionColumns] Sum not implemented yet");
-        return null;
+        if (string.IsNullOrEmpty(query.AggregateField))
+        {
+            Console.WriteLine($"[CollectionColumns] Sum requires AggregateField");
+            return null;
+        }
+
+        try
+        {
+            switch (entityType)
+            {
+                case "Case":
+                case "Contact":
+                    return await SumCaseCollectionAsync(entityId, query);
+                default:
+                    return null;
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[CollectionColumns] Error calculating sum: {ex.Message}");
+            return null;
+        }
     }
 
     private async Task<object?> AverageAsync(object entityId, CollectionQueryDto query, string entityType)
     {
-        // TODO: Implement average logic
-        Console.WriteLine($"[CollectionColumns] Average not implemented yet");
-        return null;
+        if (string.IsNullOrEmpty(query.AggregateField))
+        {
+            Console.WriteLine($"[CollectionColumns] Average requires AggregateField");
+            return null;
+        }
+
+        try
+        {
+            switch (entityType)
+            {
+                case "Case":
+                case "Contact":
+                    return await AverageCaseCollectionAsync(entityId, query);
+                default:
+                    return null;
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[CollectionColumns] Error calculating average: {ex.Message}");
+            return null;
+        }
     }
 
     private async Task<object?> MinAsync(object entityId, CollectionQueryDto query, string entityType)
     {
-        // TODO: Implement min logic
-        Console.WriteLine($"[CollectionColumns] Min not implemented yet");
-        return null;
+        if (string.IsNullOrEmpty(query.AggregateField))
+        {
+            Console.WriteLine($"[CollectionColumns] Min requires AggregateField");
+            return null;
+        }
+
+        try
+        {
+            switch (entityType)
+            {
+                case "Case":
+                case "Contact":
+                    return await MinCaseCollectionAsync(entityId, query);
+                case "Patient":
+                    return await MinPatientCollectionAsync(entityId, query);
+                default:
+                    return null;
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[CollectionColumns] Error calculating min: {ex.Message}");
+            return null;
+        }
     }
 
     private async Task<object?> MaxAsync(object entityId, CollectionQueryDto query, string entityType)
     {
-        // TODO: Implement max logic
-        Console.WriteLine($"[CollectionColumns] Max not implemented yet");
+        if (string.IsNullOrEmpty(query.AggregateField))
+        {
+            Console.WriteLine($"[CollectionColumns] Max requires AggregateField");
+            return null;
+        }
+
+        try
+        {
+            switch (entityType)
+            {
+                case "Case":
+                case "Contact":
+                    return await MaxCaseCollectionAsync(entityId, query);
+                case "Patient":
+                    return await MaxPatientCollectionAsync(entityId, query);
+                default:
+                    return null;
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[CollectionColumns] Error calculating max: {ex.Message}");
+            return null;
+        }
+    }
+
+    // Aggregate implementations for Case collections
+    private async Task<object?> SumCaseCollectionAsync(object entityId, CollectionQueryDto query)
+    {
+        if (!(entityId is Guid caseGuid)) return null;
+
+        switch (query.CollectionName)
+        {
+            case "LabResults":
+                if (query.AggregateField == "QuantitativeResult")
+                {
+                    var labQuery = _context.LabResults.Where(lr => lr.CaseId == caseGuid);
+                    return await labQuery.SumAsync(lr => lr.QuantitativeResult);
+                }
+                break;
+        }
+
+        return null;
+    }
+
+    private async Task<object?> AverageCaseCollectionAsync(object entityId, CollectionQueryDto query)
+    {
+        if (!(entityId is Guid caseGuid)) return null;
+
+        switch (query.CollectionName)
+        {
+            case "LabResults":
+                if (query.AggregateField == "QuantitativeResult")
+                {
+                    var labQuery = _context.LabResults.Where(lr => lr.CaseId == caseGuid && lr.QuantitativeResult.HasValue);
+                    
+                    if (!await labQuery.AnyAsync()) return null;
+                    
+                    return await labQuery.AverageAsync(lr => lr.QuantitativeResult!.Value);
+                }
+                break;
+        }
+
+        return null;
+    }
+
+    private async Task<object?> MinCaseCollectionAsync(object entityId, CollectionQueryDto query)
+    {
+        if (!(entityId is Guid caseGuid)) return null;
+
+        switch (query.CollectionName)
+        {
+            case "LabResults":
+                var labQuery = _context.LabResults.Where(lr => lr.CaseId == caseGuid);
+
+                if (!await labQuery.AnyAsync()) return null;
+
+                return query.AggregateField switch
+                {
+                    "SpecimenCollectionDate" => await labQuery.Where(lr => lr.SpecimenCollectionDate.HasValue).MinAsync(lr => lr.SpecimenCollectionDate),
+                    "ResultDate" => await labQuery.Where(lr => lr.ResultDate.HasValue).MinAsync(lr => lr.ResultDate),
+                    "QuantitativeResult" => await labQuery.Where(lr => lr.QuantitativeResult.HasValue).MinAsync(lr => lr.QuantitativeResult),
+                    _ => null
+                };
+
+            case "ExposureEvents":
+                var expQuery = _context.ExposureEvents.Where(e => e.ExposedCaseId == caseGuid);
+
+                if (!await expQuery.AnyAsync()) return null;
+
+                return query.AggregateField switch
+                {
+                    "ExposureStartDate" => await expQuery.MinAsync(e => e.ExposureStartDate),
+                    "ExposureEndDate" => await expQuery.Where(e => e.ExposureEndDate.HasValue).MinAsync(e => e.ExposureEndDate),
+                    _ => null
+                };
+
+            case "CaseTasks":
+                var taskQuery = _context.CaseTasks.Where(t => t.CaseId == caseGuid);
+
+                if (!await taskQuery.AnyAsync()) return null;
+
+                return query.AggregateField switch
+                {
+                    "DueDate" => await taskQuery.Where(t => t.DueDate.HasValue).MinAsync(t => t.DueDate),
+                    "CreatedAt" => await taskQuery.MinAsync(t => t.CreatedAt),
+                    "CompletedAt" => await taskQuery.Where(t => t.CompletedAt.HasValue).MinAsync(t => t.CompletedAt),
+                    _ => null
+                };
+        }
+
+        return null;
+    }
+
+    private async Task<object?> MaxCaseCollectionAsync(object entityId, CollectionQueryDto query)
+    {
+        if (!(entityId is Guid caseGuid)) return null;
+
+        switch (query.CollectionName)
+        {
+            case "LabResults":
+                var labQuery = _context.LabResults.Where(lr => lr.CaseId == caseGuid);
+
+                if (!await labQuery.AnyAsync()) return null;
+
+                return query.AggregateField switch
+                {
+                    "SpecimenCollectionDate" => await labQuery.Where(lr => lr.SpecimenCollectionDate.HasValue).MaxAsync(lr => lr.SpecimenCollectionDate),
+                    "ResultDate" => await labQuery.Where(lr => lr.ResultDate.HasValue).MaxAsync(lr => lr.ResultDate),
+                    "QuantitativeResult" => await labQuery.Where(lr => lr.QuantitativeResult.HasValue).MaxAsync(lr => lr.QuantitativeResult),
+                    _ => null
+                };
+
+            case "ExposureEvents":
+                var expQuery = _context.ExposureEvents.Where(e => e.ExposedCaseId == caseGuid);
+
+                if (!await expQuery.AnyAsync()) return null;
+
+                return query.AggregateField switch
+                {
+                    "ExposureStartDate" => await expQuery.MaxAsync(e => e.ExposureStartDate),
+                    "ExposureEndDate" => await expQuery.Where(e => e.ExposureEndDate.HasValue).MaxAsync(e => e.ExposureEndDate),
+                    _ => null
+                };
+
+            case "CaseTasks":
+                var taskQuery = _context.CaseTasks.Where(t => t.CaseId == caseGuid);
+
+                if (!await taskQuery.AnyAsync()) return null;
+
+                return query.AggregateField switch
+                {
+                    "DueDate" => await taskQuery.Where(t => t.DueDate.HasValue).MaxAsync(t => t.DueDate),
+                    "CreatedAt" => await taskQuery.MaxAsync(t => t.CreatedAt),
+                    "CompletedAt" => await taskQuery.Where(t => t.CompletedAt.HasValue).MaxAsync(t => t.CompletedAt),
+                    _ => null
+                };
+        }
+
+        return null;
+    }
+
+    private async Task<object?> MinPatientCollectionAsync(object entityId, CollectionQueryDto query)
+    {
+        if (!(entityId is Guid patientGuid)) return null;
+
+        switch (query.CollectionName)
+        {
+            case "Cases":
+                var caseQuery = _context.Cases.Where(c => c.PatientId == patientGuid);
+
+                if (!await caseQuery.AnyAsync()) return null;
+
+                return query.AggregateField switch
+                {
+                    "DateOfOnset" => await caseQuery.Where(c => c.DateOfOnset.HasValue).MinAsync(c => c.DateOfOnset),
+                    "DateOfNotification" => await caseQuery.Where(c => c.DateOfNotification.HasValue).MinAsync(c => c.DateOfNotification),
+                    _ => null
+                };
+        }
+
+        return null;
+    }
+
+    private async Task<object?> MaxPatientCollectionAsync(object entityId, CollectionQueryDto query)
+    {
+        if (!(entityId is Guid patientGuid)) return null;
+
+        switch (query.CollectionName)
+        {
+            case "Cases":
+                var caseQuery = _context.Cases.Where(c => c.PatientId == patientGuid);
+
+                if (!await caseQuery.AnyAsync()) return null;
+
+                return query.AggregateField switch
+                {
+                    "DateOfOnset" => await caseQuery.Where(c => c.DateOfOnset.HasValue).MaxAsync(c => c.DateOfOnset),
+                    "DateOfNotification" => await caseQuery.Where(c => c.DateOfNotification.HasValue).MaxAsync(c => c.DateOfNotification),
+                    _ => null
+                };
+        }
+
         return null;
     }
 

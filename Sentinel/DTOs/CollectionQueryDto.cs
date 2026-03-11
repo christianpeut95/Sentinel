@@ -17,6 +17,12 @@ public class CollectionQueryDto
     public string Operation { get; set; } = string.Empty;
 
     /// <summary>
+    /// Field to aggregate for Sum, Average, Min, Max operations
+    /// Example: "SpecimenCollectionDate" for min/max date, "QuantitativeResult" for sum/average
+    /// </summary>
+    public string? AggregateField { get; set; }
+
+    /// <summary>
     /// Display as column instead of filtering rows
     /// </summary>
     public bool DisplayAsColumn { get; set; }
