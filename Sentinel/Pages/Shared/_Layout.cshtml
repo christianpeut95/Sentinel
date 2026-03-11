@@ -839,11 +839,36 @@
     
     <script>
         // Register custom date functions for SurveyJS
-        if (typeof Survey !== 'undefined') {
+        if (typeof Survey !== 'undefined' && Survey.FunctionFactory && Survey.FunctionFactory.Instance) {
+            console.log('Registering SurveyJS custom functions...');
+            
             // today() - returns current date as YYYY-MM-DD
             Survey.FunctionFactory.Instance.register("today", function() {
                 const today = new Date();
                 return today.toISOString().split('T')[0];
+            });
+
+            // currentDate() - alias for today()
+            Survey.FunctionFactory.Instance.register("currentDate", function() {
+                const today = new Date();
+                return today.toISOString().split('T')[0];
+            });
+
+            // age(birthDate) - calculate age from birth date
+            Survey.FunctionFactory.Instance.register("age", function(params) {
+                if (params.length < 1 || !params[0]) return null;
+                const birthDate = new Date(params[0]);
+                if (isNaN(birthDate.getTime())) return null;
+                
+                const today = new Date();
+                let age = today.getFullYear() - birthDate.getFullYear();
+                const monthDiff = today.getMonth() - birthDate.getMonth();
+                
+                if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+                    age--;
+                }
+                
+                return age;
             });
 
             // addDays(date, days) - add days to a date
@@ -855,6 +880,8 @@
                 if (!dateStr || isNaN(daysToAdd)) return null;
                 
                 const date = new Date(dateStr);
+                if (isNaN(date.getTime())) return null;
+                
                 date.setDate(date.getDate() + daysToAdd);
                 return date.toISOString().split('T')[0];
             });
@@ -869,10 +896,17 @@
                 
                 const date1 = new Date(date1Str);
                 const date2 = new Date(date2Str);
+                
+                if (isNaN(date1.getTime()) || isNaN(date2.getTime())) return null;
+                
                 const diffTime = Math.abs(date2 - date1);
                 const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
                 return diffDays;
             });
+            
+            console.log('SurveyJS custom functions registered successfully');
+        } else {
+            console.warn('SurveyJS not loaded - custom functions not registered');
         }
     </script>
 

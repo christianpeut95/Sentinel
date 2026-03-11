@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Survey API Endpoint</title>
+</head>
+<body>
+    <h1>Survey API Endpoint Test</h1>
+    <button onclick="testEndpoint()">Test API Endpoint</button>
+    <pre id="result"></pre>
+
+    <script>
+        async function testEndpoint() {
+            const taskId = 'TEST-GUID-HERE'; // Replace with actual task ID
+            const testData = {
+                question1: '2024-01-15'
+            };
+
+            const resultDiv = document.getElementById('result');
+            resultDiv.textContent = 'Testing...';
+
+            try {
+                console.log('Testing API endpoint:', `/api/surveys/complete/${taskId}`);
+                
+                const response = await fetch(`/api/surveys/complete/${taskId}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(testData)
+                });
+
+                console.log('Response status:', response.status);
+                console.log('Response headers:', [...response.headers]);
+
+                const contentType = response.headers.get('content-type');
+                let responseData;
+
+                if (contentType && contentType.includes('application/json')) {
+                    responseData = await response.json();
+                } else {
+                    responseData = await response.text();
+                }
+
+                resultDiv.textContent = JSON.stringify({
+                    status: response.status,
+                    statusText: response.statusText,
+                    contentType: contentType,
+                    data: responseData
+                }, null, 2);
+
+            } catch (error) {
+                resultDiv.textContent = `Error: ${error.message}\n${error.stack}`;
+                console.error('Test failed:', error);
+            }
+        }
+    </script>
+</body>
+</html>

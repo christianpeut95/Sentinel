@@ -101,6 +101,9 @@ namespace Sentinel.Pages.Tasks
             return Page();
         }
 
+        // Note: This handler is deprecated in favor of the API endpoint at /api/surveys/complete/{taskId}
+        // Keeping it for backward compatibility only
+        [IgnoreAntiforgeryToken]
         public async Task<IActionResult> OnPostAsync(Guid id, [FromBody] Dictionary<string, object> responses)
         {
             try

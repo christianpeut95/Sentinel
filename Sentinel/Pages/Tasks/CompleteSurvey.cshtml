@@ -293,16 +293,63 @@
                 // Check if Survey is available
                 if (typeof Survey === 'undefined') {                    alert('Survey system not initialized. Please refresh the page.');
                     return;
-                }                // Create survey
+                }
+                
+                // Verify custom functions are registered
+                if (Survey.FunctionFactory && Survey.FunctionFactory.Instance) {
+                    console.log('SurveyJS FunctionFactory is available');
+                    console.log('Registered functions:', Survey.FunctionFactory.Instance.getAll());
+                } else {
+                    console.warn('SurveyJS FunctionFactory is not available');
+                }
+                
+                // Create survey
                 const survey = new Survey.Model(surveyJson);
                 
-                // Set pre-populated data
-                survey.data = prePopulatedData;
-                
-                // Configure survey
+                // Configure survey BEFORE setting data
                 survey.showCompletedPage = false;
                 survey.showProgressBar = "top";
-                survey.progressBarType = "pages";                // Enable complete button only when survey is valid
+                survey.progressBarType = "pages";
+                
+                // DEBUG: Log survey structure
+                console.log('=== SURVEY EXPRESSION DEBUG ===');
+                console.log('Pre-populated data to apply:', prePopulatedData);
+                survey.pages.forEach((page, pageIndex) => {
+                    console.log(`Page ${pageIndex + 1}: ${page.name}`);
+                    page.questions.forEach((q) => {
+                        console.log(`  Q: ${q.name} (${q.getType()})`);
+                        if (q.defaultValueExpression) {
+                            console.log(`    defaultValueExpression: "${q.defaultValueExpression}"`);
+                        }
+                        if (q.setValueExpression) {
+                            console.log(`    setValueExpression: "${q.setValueExpression}"`);
+                        }
+                    });
+                });
+                console.log('=== END DEBUG ===');
+                
+                // Render survey FIRST (before setting data)
+                // This allows defaultValueExpression to run
+                const container = document.getElementById('surveyContainer');
+                if (!container) {
+                    alert('Survey container not found. Please contact support.');
+                    return;
+                }
+                
+                survey.render(container);
+                
+                // NOW set pre-populated data AFTER rendering
+                // This preserves any values set by defaultValueExpression that aren't in prePopulatedData
+                if (prePopulatedData && Object.keys(prePopulatedData).length > 0) {
+                    console.log('Applying pre-populated data...');
+                    Object.keys(prePopulatedData).forEach(key => {
+                        survey.setValue(key, prePopulatedData[key]);
+                    });
+                }
+                
+                console.log('Survey data after initialization:', survey.data);
+                
+                // Enable complete button only when survey is valid
                 const completeBtn = document.getElementById('completeSurveyBtnTop');
                 survey.onValueChanged.add(function(sender) {
                     const isComplete = !sender.hasErrors(true, true);
@@ -311,13 +358,9 @@
 
                 // Initial validation check
                 const isInitiallyComplete = !survey.hasErrors(true, true);
-                completeBtn.disabled = !isInitiallyComplete;                // Render survey - pass DOM element, not string
-                const container = document.getElementById('surveyContainer');
-                if (!container) {                    alert('Survey container not found. Please contact support.');
-                    return;
-                }
+                completeBtn.disabled = !isInitiallyComplete;
                 
-                survey.render(container);                // Handle survey completion function
+                // Handle survey completion function
                 async function handleSurveyCompletion() {                    // Validate all questions
                     if (survey.hasErrors(true, true)) {
                         alert('Please complete all required fields before submitting.');
@@ -330,22 +373,40 @@
                     btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Saving...';
 
                     try {
-                        const token = document.querySelector('input[name="__RequestVerificationToken"]')?.value;
-                        if (!token) {
-                            throw new Error('Anti-forgery token not found');
-                        }
-
-                        const response = await fetch(`/Tasks/CompleteSurvey/${taskId}`, {
+                        console.log('========================================');
+                        console.log('SURVEY SUBMISSION DEBUG INFO');
+                        console.log('========================================');
+                        console.log('Task ID:', taskId);
+                        console.log('Survey data:', survey.data);
+                        console.log('API URL:', `/api/surveys/complete/${taskId}`);
+                        console.log('========================================');
+                        
+                        const response = await fetch(`/api/surveys/complete/${taskId}`, {
                             method: 'POST',
                             headers: {
-                                'Content-Type': 'application/json',
-                                'RequestVerificationToken': token
+                                'Content-Type': 'application/json'
                             },
                             body: JSON.stringify(survey.data)
                         });
+                        
+                        console.log('Response received:');
+                        console.log('  Status:', response.status);
+                        console.log('  Status Text:', response.statusText);
+                        console.log('  Content-Type:', response.headers.get('content-type'));
+                        console.log('  URL:', response.url);
 
                         if (!response.ok) {
-                            const errorText = await response.text();                            throw new Error(`Server returned ${response.status}: ${response.statusText}`);
+                            const errorText = await response.text();
+                            console.error('Server error response:', errorText);
+                            throw new Error(`Server returned ${response.status}: ${response.statusText}`);
+                        }
+
+                        // Check if response is JSON
+                        const contentType = response.headers.get('content-type');
+                        if (!contentType || !contentType.includes('application/json')) {
+                            const textResponse = await response.text();
+                            console.error('Non-JSON response received:', textResponse);
+                            throw new Error('Server returned an invalid response. Please check if you are still logged in.');
                         }
 
                         const result = await response.json();
