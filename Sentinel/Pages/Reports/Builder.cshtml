@@ -1246,7 +1246,8 @@ const ReportBuilder = {
         // Clear existing options
         aggregateFieldSelect.innerHTML = '<option value="">Select field...</option>';
         
-        if (!metadata || !metadata.AggregatableFields) {
+        // Use camelCase property names (aggregatableFields) - API returns camelCase JSON
+        if (!metadata || !metadata.aggregatableFields) {
             console.log('No metadata or aggregatable fields available');
             aggregateFieldContainer.style.display = 'none';
             return;
@@ -1255,27 +1256,27 @@ const ReportBuilder = {
         // Show aggregate field selector for Min/Max/Sum/Average
         if (['Min', 'Max', 'Sum', 'Average'].includes(operation)) {
             // Populate options based on operation and field metadata
-            const aggregatableFields = metadata.AggregatableFields;
+            const aggregatableFields = metadata.aggregatableFields;
             let hasOptions = false;
             
             console.log('Aggregatable fields:', aggregatableFields);
             
             for (const [fieldName, fieldInfo] of Object.entries(aggregatableFields)) {
-                // Check if this operation is allowed for this field
-                if (fieldInfo.AllowedOperations && fieldInfo.AllowedOperations.includes(operation)) {
+                // Check if this operation is allowed for this field (camelCase: allowedOperations)
+                if (fieldInfo.allowedOperations && fieldInfo.allowedOperations.includes(operation)) {
                     const option = document.createElement('option');
                     option.value = fieldName;
-                    option.textContent = fieldInfo.Label;
-                    option.dataset.type = fieldInfo.DataType;
+                    option.textContent = fieldInfo.label;  // camelCase
+                    option.dataset.type = fieldInfo.dataType;  // camelCase
                     aggregateFieldSelect.appendChild(option);
                     hasOptions = true;
-                    console.log(`Added field option: ${fieldName} - ${fieldInfo.Label}`);
+                    console.log(`? Added field option: ${fieldName} - ${fieldInfo.label}`);
                 }
             }
             
             if (hasOptions) {
                 aggregateFieldContainer.style.display = 'block';
-                console.log('? Showing aggregate field container');
+                console.log('?? SUCCESS! Showing aggregate field container with options!');
             } else {
                 aggregateFieldContainer.style.display = 'none';
                 console.warn('?? No valid fields for this operation');
