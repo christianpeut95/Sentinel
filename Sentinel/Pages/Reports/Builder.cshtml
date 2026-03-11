@@ -1058,6 +1058,14 @@ const ReportBuilder = {
                         </select>
                     </div>
                     
+                    <div class="col-md-4" id="aggregate-field-container-${queryId}" style="display:none;">
+                        <label class="form-label small fw-bold">Aggregate Field:</label>
+                        <select class="form-select form-select-sm" id="aggregate-field-${queryId}">
+                            <option value="">Select field...</option>
+                        </select>
+                        <small class="text-muted">Field to aggregate (min/max/sum/average)</small>
+                    </div>
+                    
                     <div class="col-md-4" id="operator-container-${queryId}">
                         <!-- Operator will appear here for Count/Sum/etc -->
                     </div>
@@ -1087,6 +1095,7 @@ const ReportBuilder = {
         const checkbox = document.getElementById(`display-as-column-${queryId}`);
         const columnNameContainer = document.getElementById(`column-name-container-${queryId}`);
         const operatorContainer = document.getElementById(`operator-container-${queryId}`);
+        const aggregateFieldContainer = document.getElementById(`aggregate-field-container-${queryId}`);
         
         const query = this.collectionQueries.find(q => q.id === queryId);
         if (query) {
@@ -1100,6 +1109,13 @@ const ReportBuilder = {
             // Clear comparator for display mode (we just want the value, not filtering)
             operatorContainer.innerHTML = '';
             operatorContainer.style.display = 'none';
+            
+            // Keep aggregate field visible if applicable
+            const operationSelect = document.getElementById(`operation-${queryId}`);
+            const operation = operationSelect.value;
+            if (['Min', 'Max', 'Sum', 'Average'].includes(operation)) {
+                this.updateAggregateFieldOptions(queryId);
+            }
         } else {
             // Hide column name input
             columnNameContainer.style.display = 'none';
@@ -1139,40 +1155,104 @@ const ReportBuilder = {
     
     async updateCollectionFields(queryId) {
         const selectElement = document.getElementById(`collection-${queryId}`);
-        const selectedOption = selectElement.options[selectElement.selectedIndex];
         const collectionName = selectElement.value;
         
         if (!collectionName) return;
         
-        // Find the collection metadata from available fields
         const entityType = document.getElementById('entityTypeSelector').value;
         
         try {
-            // Fetch fresh metadata for the entity to get collection sub-fields
-            const response = await fetch(`/api/reporting/fields/${entityType}/grouped`);
-            if (!response.ok) throw new Error('Failed to fetch field metadata');
+            // Fetch collection metadata to get aggregatable fields
+            const response = await fetch(`/api/reports/collection-metadata/${entityType}`);
+            if (!response.ok) throw new Error('Failed to fetch collection metadata');
             
-            const fieldsByCategory = await response.json();
+            const data = await response.json();
             
-            // Find the collection field
-            let collectionMetadata = null;
-            for (const category in fieldsByCategory) {
-                const field = fieldsByCategory[category].find(f => f.fieldPath === collectionName && f.isCollection);
-                if (field) {
-                    collectionMetadata = field;
-                    break;
+            if (data.success && data.collections) {
+                // Store metadata for this collection
+                const query = this.collectionQueries.find(q => q.id === queryId);
+                if (query) {
+                    query.collectionMetadata = data.collections[collectionName];
+                }
+                
+                // Update aggregate field options based on current operation
+                this.updateAggregateFieldOptions(queryId);
+            }
+            
+            // Also fetch sub-fields for filtering
+            const fieldResponse = await fetch(`/api/reporting/fields/${entityType}/grouped`);
+            if (fieldResponse.ok) {
+                const fieldsByCategory = await fieldResponse.json();
+                
+                let collectionMetadata = null;
+                for (const category in fieldsByCategory) {
+                    const field = fieldsByCategory[category].find(f => f.fieldPath === collectionName && f.isCollection);
+                    if (field) {
+                        collectionMetadata = field;
+                        break;
+                    }
+                }
+                
+                const query = this.collectionQueries.find(q => q.id === queryId);
+                if (query && collectionMetadata) {
+                    query.collectionSubFields = collectionMetadata.collectionSubFields || [];
+                    query.collectionEntityType = collectionMetadata.collectionElementType;
+                }
+            }
+        } catch (error) {
+            console.error('Error fetching collection metadata:', error);
+        }
+        
+        // Update UI based on operation
+        this.updateCollectionOperator(queryId);
+    },
+    
+    updateAggregateFieldOptions(queryId) {
+        const aggregateFieldContainer = document.getElementById(`aggregate-field-container-${queryId}`);
+        const aggregateFieldSelect = document.getElementById(`aggregate-field-${queryId}`);
+        const operationSelect = document.getElementById(`operation-${queryId}`);
+        const operation = operationSelect.value;
+        
+        if (!aggregateFieldSelect) return;
+        
+        // Get stored metadata
+        const query = this.collectionQueries.find(q => q.id === queryId);
+        const metadata = query?.collectionMetadata;
+        
+        // Clear existing options
+        aggregateFieldSelect.innerHTML = '<option value="">Select field...</option>';
+        
+        if (!metadata || !metadata.AggregatableFields) {
+            aggregateFieldContainer.style.display = 'none';
+            return;
+        }
+        
+        // Show aggregate field selector for Min/Max/Sum/Average
+        if (['Min', 'Max', 'Sum', 'Average'].includes(operation)) {
+            // Populate options based on operation and field metadata
+            const aggregatableFields = metadata.AggregatableFields;
+            let hasOptions = false;
+            
+            for (const [fieldName, fieldInfo] of Object.entries(aggregatableFields)) {
+                // Check if this operation is allowed for this field
+                if (fieldInfo.AllowedOperations && fieldInfo.AllowedOperations.includes(operation)) {
+                    const option = document.createElement('option');
+                    option.value = fieldName;
+                    option.textContent = fieldInfo.Label;
+                    option.dataset.type = fieldInfo.DataType;
+                    aggregateFieldSelect.appendChild(option);
+                    hasOptions = true;
                 }
             }
             
-            // Store the sub-fields for this query
-            const query = this.collectionQueries.find(q => q.id === queryId);
-            if (query && collectionMetadata) {
-                query.collectionSubFields = collectionMetadata.collectionSubFields || [];
-                query.collectionEntityType = collectionMetadata.collectionElementType;            }
-        } catch (error) {        }
-        
-        // Update operator container based on operation type
-        this.updateCollectionOperator(queryId);
+            if (hasOptions) {
+                aggregateFieldContainer.style.display = 'block';
+            } else {
+                aggregateFieldContainer.style.display = 'none';
+            }
+        } else {
+            aggregateFieldContainer.style.display = 'none';
+        }
     },
     
     updateCollectionOperator(queryId) {
@@ -1180,11 +1260,17 @@ const ReportBuilder = {
         const operation = operationSelect.value;
         const container = document.getElementById(`operator-container-${queryId}`);
         const displayAsColumnCheckbox = document.getElementById(`display-as-column-${queryId}`);
+        const aggregateFieldContainer = document.getElementById(`aggregate-field-container-${queryId}`);
+        
+        // Update aggregate field options based on operation
+        this.updateAggregateFieldOptions(queryId);
         
         // Don't show comparator if displaying as column
         if (displayAsColumnCheckbox && displayAsColumnCheckbox.checked) {
             container.innerHTML = '';
             container.style.display = 'none';
+            
+            // But still show aggregate field if needed
             return;
         }
         
@@ -1199,8 +1285,8 @@ const ReportBuilder = {
                         <option value="NotEquals">? (not equals)</option>
                         <option value="GreaterThan">> (greater than)</option>
                         <option value="LessThan">< (less than)</option>
-                        <option value="GreaterThanOrEqual">= (greater or equal)</option>
-                        <option value="LessThanOrEqual">= (less or equal)</option>
+                        <option value="GreaterThanOrEqual">? (greater or equal)</option>
+                        <option value="LessThanOrEqual">? (less or equal)</option>
                     </select>
                     <input type="number" class="form-control collection-value" id="value-${queryId}" placeholder="Value">
                 </div>
@@ -1347,12 +1433,14 @@ const ReportBuilder = {
             const operation = document.getElementById(`operation-${queryId}`)?.value;
             const displayAsColumn = document.getElementById(`display-as-column-${queryId}`)?.checked || false;
             const columnName = document.getElementById(`column-name-${queryId}`)?.value || '';
+            const aggregateField = document.getElementById(`aggregate-field-${queryId}`)?.value || null;
             
             if (!collectionName || !operation) return;
             
             const query = {
                 collectionName: collectionName,
                 operation: operation,
+                aggregateField: aggregateField, // NEW: Include aggregate field
                 displayAsColumn: displayAsColumn,
                 columnName: columnName,
                 subFilters: []
