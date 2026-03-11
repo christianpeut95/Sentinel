@@ -80,7 +80,7 @@ namespace Sentinel.Pages.Settings.Diseases
                     return Page();
                 }
 
-                if (await _context.Diseases.AnyAsync(d => d.Code == Disease.Code && d.Id != Disease.Id))
+                if (await _context.Diseases.AsNoTracking().AnyAsync(d => d.Code == Disease.Code && d.Id != Disease.Id))
                 {
                     ModelState.AddModelError("Disease.Code", "A disease with this code already exists.");
                     await LoadParentDiseases(Disease.Id);
