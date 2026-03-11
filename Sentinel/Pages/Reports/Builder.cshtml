@@ -57,14 +57,14 @@
                                 <option value="Location" selected="@(Model.EntityType == "Location")">Locations</option>
                                 <option value="Event" selected="@(Model.EntityType == "Event")">Events</option>
                             </optgroup>
-                            <optgroup label="?? Flattened Views (Multi-Row)">
-                                <option value="CaseContactTasksFlattened" selected="@(Model.EntityType == "CaseContactTasksFlattened")">?? Case Tasks + Transmission Chains</option>
-                                <option value="OutbreakTasksFlattened" selected="@(Model.EntityType == "OutbreakTasksFlattened")">?? Outbreak Tasks (Sub-Outbreaks)</option>
-                                <option value="CaseTimelineAll" selected="@(Model.EntityType == "CaseTimelineAll")">?? Case Timeline (All Events)</option>
-                                <option value="ContactTracingMindMapNodes" selected="@(Model.EntityType == "ContactTracingMindMapNodes")">?? Network Nodes (for graphs)</option>
-                                <option value="ContactTracingMindMapEdges" selected="@(Model.EntityType == "ContactTracingMindMapEdges")">?? Network Edges (for graphs)</option>
-                                <option value="ContactsListSimple" selected="@(Model.EntityType == "ContactsListSimple")">?? Contacts List (Simple)</option>
-                    </optgroup>
+                            <optgroup label="Flattened Views">
+                                <option value="CaseContactTasksFlattened" selected="@(Model.EntityType == "CaseContactTasksFlattened")">Case Tasks + Transmission Chains</option>
+                                <option value="OutbreakTasksFlattened" selected="@(Model.EntityType == "OutbreakTasksFlattened")">Outbreak Tasks</option>
+                                <option value="CaseTimelineAll" selected="@(Model.EntityType == "CaseTimelineAll")">Case Timeline</option>
+                                <option value="ContactTracingMindMapNodes" selected="@(Model.EntityType == "ContactTracingMindMapNodes")">Network Nodes</option>
+                                <option value="ContactTracingMindMapEdges" selected="@(Model.EntityType == "ContactTracingMindMapEdges")">Network Edges</option>
+                                <option value="ContactsListSimple" selected="@(Model.EntityType == "ContactsListSimple")">Contacts List</option>
+                            </optgroup>
                         </select>
                         
                         <!-- Load Default Fields Button -->

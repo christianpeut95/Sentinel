@@ -595,6 +595,20 @@ using (var scope = app.Services.CreateScope())
             await dbContext.Database.MigrateAsync();
             
             logger.LogInformation("Database migrations applied successfully");
+            
+            // Ensure reporting views are correctly created (idempotent - safe to run multiple times)
+            logger.LogInformation("Verifying reporting views...");
+            try
+            {
+                await EnsureReportingViewsExistAsync(dbContext, logger);
+                logger.LogInformation("Reporting views verified successfully");
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Failed to create/verify reporting views. Report Builder may not function correctly.");
+                // Don't throw - allow app to start even if views fail
+            }
+            
             break; // Success - exit retry loop
         }
         catch (Exception ex) when (retry < maxRetries - 1)
@@ -653,6 +667,49 @@ app.MapGet("/health", async (ApplicationDbContext dbContext) =>
         }, statusCode: 503);
     }
 }).AllowAnonymous();
+
+// Helper method to ensure reporting views exist and are correct
+static async Task EnsureReportingViewsExistAsync(ApplicationDbContext dbContext, ILogger logger)
+{
+    var scriptPath = Path.Combine(AppContext.BaseDirectory, "Scripts", "RecreateReportingViews.sql");
+    
+    if (!File.Exists(scriptPath))
+    {
+        logger.LogWarning("RecreateReportingViews.sql not found at {Path}. Skipping view recreation.", scriptPath);
+        return;
+    }
+    
+    var viewCreationSql = await File.ReadAllTextAsync(scriptPath);
+    logger.LogInformation("Loaded view recreation script from {Path}", scriptPath);
+    
+    // Split by GO statements and execute each batch separately
+    var batches = viewCreationSql.Split(new[] { "\r\nGO\r\n", "\nGO\n", "\r\nGO", "\nGO" }, StringSplitOptions.RemoveEmptyEntries);
+    logger.LogInformation("Split into {Count} SQL batches", batches.Length);
+    
+    int executedBatches = 0;
+    foreach (var batch in batches)
+    {
+        var trimmedBatch = batch.Trim();
+        if (!string.IsNullOrWhiteSpace(trimmedBatch) && 
+            !trimmedBatch.StartsWith("--") && 
+            !trimmedBatch.StartsWith("PRINT"))
+        {
+            try
+            {
+                await dbContext.Database.ExecuteSqlRawAsync(trimmedBatch);
+                executedBatches++;
+                logger.LogDebug("Executed batch {Number}: {Preview}...", executedBatches, trimmedBatch.Substring(0, Math.Min(50, trimmedBatch.Length)));
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Failed to execute SQL batch {Number}: {Batch}", executedBatches + 1, trimmedBatch.Substring(0, Math.Min(200, trimmedBatch.Length)));
+                throw;
+            }
+        }
+    }
+    
+    logger.LogInformation("Successfully executed {Count} SQL batches to recreate reporting views", executedBatches);
+}
 
 app.Run();
 

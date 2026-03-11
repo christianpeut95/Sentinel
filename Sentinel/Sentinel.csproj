@@ -42,4 +42,8 @@
     <Folder Include="Sentinel\Pages\Admin\" />
   </ItemGroup>
 
+  <ItemGroup>
+    <None Include="Scripts\**\*.sql" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
 </Project>
