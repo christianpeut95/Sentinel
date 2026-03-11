@@ -1090,6 +1090,11 @@ const ReportBuilder = {
         
         container.insertAdjacentHTML('beforeend', queryHtml);
         this.collectionQueries.push({ id: queryId, subFilters: [], displayAsColumn: false });
+        
+        // Wait a tick for DOM to fully render before accessing elements
+        setTimeout(() => {
+            console.log(`Collection query ${queryId} DOM elements should now be ready`);
+        }, 0);
     },
     
     toggleDisplayMode(queryId) {
@@ -1282,7 +1287,15 @@ const ReportBuilder = {
         const container = document.getElementById(`operator-container-${queryId}`);
         const displayAsColumnCheckbox = document.getElementById(`display-as-column-${queryId}`);
         
-        console.log(`updateCollectionOperator for query ${queryId}, operation: ${operation}`);
+        console.log(`updateCollectionOperator for query ${queryId}, operation: "${operation}"`);
+        
+        // Check if aggregate field container exists before trying to use it
+        const aggregateFieldContainer = document.getElementById(`aggregate-field-container-${queryId}`);
+        if (!aggregateFieldContainer && ['Min', 'Max', 'Sum', 'Average'].includes(operation)) {
+            console.warn(`?? Aggregate field container not found yet, retrying in 100ms...`);
+            setTimeout(() => this.updateCollectionOperator(queryId), 100);
+            return;
+        }
         
         // Update aggregate field options based on operation
         this.updateAggregateFieldOptions(queryId);
