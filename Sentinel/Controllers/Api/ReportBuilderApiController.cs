@@ -17,15 +17,18 @@ public class ReportBuilderApiController : ControllerBase
 {
     private readonly IReportFieldMetadataService _fieldMetadataService;
     private readonly IReportDataService _reportDataService;
+    private readonly ICollectionMetadataService _collectionMetadataService;
     private readonly ApplicationDbContext _context;
 
     public ReportBuilderApiController(
         IReportFieldMetadataService fieldMetadataService,
         IReportDataService reportDataService,
+        ICollectionMetadataService collectionMetadataService,
         ApplicationDbContext context)
     {
         _fieldMetadataService = fieldMetadataService;
         _reportDataService = reportDataService;
+        _collectionMetadataService = collectionMetadataService;
         _context = context;
     }
 
@@ -312,6 +315,24 @@ public class ReportBuilderApiController : ControllerBase
             await _context.SaveChangesAsync();
 
             return Ok(new { success = true });
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new
+            {
+                success = false,
+                error = ex.Message
+            });
+        }
+    }
+
+    [HttpGet("collection-metadata/{entityType}")]
+    public IActionResult GetCollectionMetadata(string entityType)
+    {
+        try
+        {
+            var metadata = _collectionMetadataService.GetCollectionMetadata(entityType);
+            return Ok(new { success = true, collections = metadata });
         }
         catch (Exception ex)
         {
