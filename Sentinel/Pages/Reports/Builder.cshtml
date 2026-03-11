@@ -1168,11 +1168,11 @@ const ReportBuilder = {
         const entityType = document.getElementById('entityTypeSelector').value;
         
         try {
-            // Show loading indicator
-            const aggregateFieldContainer = document.getElementById(`aggregate-field-container-${queryId}`);
-            if (aggregateFieldContainer) {
-                aggregateFieldContainer.innerHTML = '<small class="text-muted">Loading fields...</small>';
-                aggregateFieldContainer.style.display = 'block';
+            // Show loading indicator WITHOUT destroying the select element
+            const aggregateFieldSelect = document.getElementById(`aggregate-field-${queryId}`);
+            if (aggregateFieldSelect) {
+                aggregateFieldSelect.disabled = true;
+                aggregateFieldSelect.innerHTML = '<option value="">Loading...</option>';
             }
             
             // Fetch collection metadata to get aggregatable fields
@@ -1186,8 +1186,13 @@ const ReportBuilder = {
                 const query = this.collectionQueries.find(q => q.id === queryId);
                 if (query) {
                     query.collectionMetadata = data.collections[collectionName];
-                    console.log(`Loaded metadata for ${collectionName}:`, query.collectionMetadata);
+                    console.log(`? Loaded metadata for ${collectionName}:`, query.collectionMetadata);
                 }
+            }
+            
+            // Re-enable select
+            if (aggregateFieldSelect) {
+                aggregateFieldSelect.disabled = false;
             }
             
             // Also fetch sub-fields for filtering
@@ -1215,7 +1220,7 @@ const ReportBuilder = {
             await this.updateCollectionOperator(queryId);
             
         } catch (error) {
-            console.error('Error fetching collection metadata:', error);
+            console.error('? Error fetching collection metadata:', error);
             alert('Failed to load collection metadata. Please try again.');
         }
     },
