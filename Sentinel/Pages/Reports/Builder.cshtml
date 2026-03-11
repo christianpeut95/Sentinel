@@ -1048,6 +1048,7 @@ const ReportBuilder = {
                     <div class="col-md-4">
                         <label class="form-label small fw-bold">Operation:</label>
                         <select class="form-select form-select-sm collection-operation" id="operation-${queryId}" onchange="ReportBuilder.updateCollectionOperator(${queryId})">
+                            <option value="">Select operation...</option>
                             <option value="HasAny">Has Any (at least one)</option>
                             <option value="HasAll">Has All (every one matches)</option>
                             <option value="Count">Count (number of items)</option>
@@ -1218,12 +1219,13 @@ const ReportBuilder = {
         const aggregateFieldContainer = document.getElementById(`aggregate-field-container-${queryId}`);
         const aggregateFieldSelect = document.getElementById(`aggregate-field-${queryId}`);
         const operationSelect = document.getElementById(`operation-${queryId}`);
-        const operation = operationSelect?.value;
         
-        if (!aggregateFieldSelect || !aggregateFieldContainer) {
-            console.warn('Aggregate field elements not found for query', queryId);
+        if (!aggregateFieldContainer || !aggregateFieldSelect) {
+            console.warn(`Aggregate field elements not found for query ${queryId} - this is normal if called before DOM is ready`);
             return;
         }
+        
+        const operation = operationSelect?.value;
         
         // Get stored metadata
         const query = this.collectionQueries.find(q => q.id === queryId);
@@ -1263,15 +1265,14 @@ const ReportBuilder = {
             
             if (hasOptions) {
                 aggregateFieldContainer.style.display = 'block';
-                console.log('Showing aggregate field container');
+                console.log('? Showing aggregate field container');
             } else {
                 aggregateFieldContainer.style.display = 'none';
-                aggregateFieldContainer.innerHTML = '<small class="text-warning">No fields available for this operation</small>';
-                console.log('No valid fields for this operation');
+                console.warn('?? No valid fields for this operation');
             }
         } else {
             aggregateFieldContainer.style.display = 'none';
-            console.log('Operation does not require aggregate field');
+            console.log(`Operation "${operation}" does not require aggregate field`);
         }
     },
     
