@@ -3379,6 +3379,9 @@ namespace Sentinel.Migrations
                     b.Property<string>("PivotConfiguration")
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<string>("ChartConfiguration")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<int>("RunCount")
                         .HasColumnType("int");
 

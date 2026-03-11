@@ -35,6 +35,11 @@ public class ReportDefinition
     public string? PivotConfiguration { get; set; }
 
     /// <summary>
+    /// JSON configuration for line chart (title, axis labels, grouping, etc.)
+    /// </summary>
+    public string? ChartConfiguration { get; set; }
+
+    /// <summary>
     /// JSON configuration for collection queries (related data queries)
     /// Stores queries like "Has Positive PCR?", "Exposure Count", etc.
     /// </summary>

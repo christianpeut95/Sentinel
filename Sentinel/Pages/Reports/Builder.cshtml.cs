@@ -117,6 +117,7 @@ public class BuilderModel : PageModel
             reportDef.Category = request.Category;
             reportDef.IsPublic = request.IsPublic;
             reportDef.PivotConfiguration = request.PivotConfiguration;
+            reportDef.ChartConfiguration = request.ChartConfiguration;
             reportDef.ModifiedAt = DateTime.UtcNow;
 
             // Save collection queries as JSON
@@ -442,6 +443,7 @@ public class SaveReportRequest
     public string? Category { get; set; }
     public bool IsPublic { get; set; }
     public string? PivotConfiguration { get; set; }
+    public string? ChartConfiguration { get; set; }
     public List<ReportFieldDto> Fields { get; set; } = new();
     public List<ReportFilterDto> Filters { get; set; } = new();
     public List<CollectionQueryDto> CollectionQueries { get; set; } = new();
