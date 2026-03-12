@@ -13,7 +13,11 @@ namespace Sentinel.Services
         private readonly IJurisdictionService _jurisdictionService;
         private readonly IConfiguration _configuration;
         private readonly IPatientIdGeneratorService _patientIdGenerator;
+        private readonly ICaseIdGeneratorService _caseIdGenerator;
         private readonly Random _random = new Random();
+        
+        // Service-level lookup cache to avoid reloading on every call
+        private LookupDataCache? _cachedLookups;
 
         // 70 Australian first names
         private static readonly string[] FirstNames = 
@@ -76,13 +80,15 @@ namespace Sentinel.Services
             IGeocodingService geocodingService,
             IJurisdictionService jurisdictionService,
             IConfiguration configuration,
-            IPatientIdGeneratorService patientIdGenerator)
+            IPatientIdGeneratorService patientIdGenerator,
+            ICaseIdGeneratorService caseIdGenerator)
         {
             _context = context;
             _geocodingService = geocodingService;
             _jurisdictionService = jurisdictionService;
             _configuration = configuration;
             _patientIdGenerator = patientIdGenerator;
+            _caseIdGenerator = caseIdGenerator;
         }
 
         public async Task<TestDataGenerationResult> GeneratePatientsAsync(
@@ -307,24 +313,56 @@ namespace Sentinel.Services
             
             return list[_random.Next(list.Count)];
         }
+        
+        // Memory management helpers
+        private void ClearContextMemory()
+        {
+            _context.ChangeTracker.Clear();
+            GC.Collect();
+            GC.WaitForPendingFinalizers();
+        }
+        
+        // Streaming patient enumerator to avoid loading all patients into memory
+        private async IAsyncEnumerable<Patient> StreamPatientsAsync(int count)
+        {
+            const int batchSize = 100;
+            int skip = 0;
+            
+            while (skip < count)
+            {
+                var batch = await _context.Patients
+                    .AsNoTracking()
+                    .OrderBy(p => p.Id)
+                    .Skip(skip)
+                    .Take(Math.Min(batchSize, count - skip))
+                    .ToListAsync();
+                
+                foreach (var patient in batch)
+                {
+                    yield return patient;
+                }
+                
+                skip += batch.Count;
+                if (batch.Count < batchSize) break;
+            }
+        }
 
         public async Task<TestDataGenerationResult> GenerateCasesAsync(
             int startYear,
             int endYear,
             int casesPerYear,
             List<Guid>? diseaseIds = null,
-            bool includeCustomFields = true,
-            bool includeLabResults = false,
-            bool useSeasonalPatterns = true,
+            CaseGenerationOptions? options = null,
             Action<string>? progressCallback = null)
         {
+            options ??= new CaseGenerationOptions();
             var result = new TestDataGenerationResult();
 
             progressCallback?.Invoke("Loading diseases and lookup data...");
 
             var diseases = diseaseIds != null && diseaseIds.Any()
-                ? await _context.Diseases.Where(d => diseaseIds.Contains(d.Id) && d.IsActive).ToListAsync()
-                : await _context.Diseases.Where(d => d.IsActive).ToListAsync();
+                ? await _context.Diseases.AsNoTracking().Where(d => diseaseIds.Contains(d.Id) && d.IsActive).ToListAsync()
+                : await _context.Diseases.AsNoTracking().Where(d => d.IsActive).ToListAsync();
 
             if (!diseases.Any())
             {
@@ -332,21 +370,27 @@ namespace Sentinel.Services
                 return result;
             }
 
-            var caseStatuses = await _context.CaseStatuses.Where(cs => cs.IsActive).ToListAsync();
-            var hospitals = await _context.Organizations.Where(o => o.IsActive).Take(10).ToListAsync();
-            var patients = await _context.Patients.OrderBy(p => Guid.NewGuid()).Take(casesPerYear * (endYear - startYear + 1)).ToListAsync();
-            var jurisdictions = await _context.Jurisdictions.Where(j => j.IsActive).ToListAsync();
-
-            if (!patients.Any())
-            {
-                result.Errors.Add("No patients found. Please generate patients first.");
-                return result;
-            }
+            // PRE-LOAD ALL LOOKUPS ONCE (huge performance boost)
+            var lookupCache = await LoadAllLookupsOnceAsync(diseases.Select(d => d.Id).ToList());
 
             progressCallback?.Invoke($"Generating cases from {startYear} to {endYear}...");
 
-            int patientIndex = 0;
-            int totalYears = endYear - startYear + 1;
+            int totalCasesNeeded = casesPerYear * (endYear - startYear + 1);
+
+            // Check if we have enough patients
+            var patientCount = await _context.Patients.CountAsync();
+            if (patientCount < totalCasesNeeded)
+            {
+                result.Errors.Add($"Not enough patients. Need {totalCasesNeeded}, have {patientCount}. Generate more patients first.");
+                return result;
+            }
+
+            // STREAM patients instead of loading all at once
+            var patientStream = StreamPatientsAsync(totalCasesNeeded);
+            var patientEnumerator = patientStream.GetAsyncEnumerator();
+
+            const int BATCH_SIZE = 20; // Process 20 cases at a time
+            int casesInCurrentBatch = 0;
 
             for (int year = startYear; year <= endYear; year++)
             {
@@ -354,39 +398,73 @@ namespace Sentinel.Services
                 {
                     try
                     {
-                        if (patientIndex >= patients.Count)
+                        // Get next patient from stream
+                        if (!await patientEnumerator.MoveNextAsync())
                         {
-                            result.Errors.Add($"Not enough patients available. Generated {result.CasesCreated} cases.");
+                            result.Errors.Add($"Ran out of patients at year {year}, case {i}");
                             await _context.SaveChangesAsync();
                             return result;
                         }
 
-                        var patient = patients[patientIndex++];
+                        var patient = patientEnumerator.Current;
                         var disease = GetRandom(diseases.ToArray());
-                        var dateOfOnset = GenerateRandomDateInYear(year, disease, useSeasonalPatterns);
+                        var dateOfOnset = GenerateRandomDateInYear(year, disease, options.UseSeasonalPatterns);
 
-                        var caseEntity = await GenerateSingleCaseAsync(
-                            patient,
-                            disease,
-                            dateOfOnset,
-                            caseStatuses,
-                            hospitals,
-                            jurisdictions);
-
+                        // Generate case and related records using CACHED lookups
+                        var caseEntity = GenerateSingleCaseFromCache(patient, disease, dateOfOnset, lookupCache);
                         _context.Cases.Add(caseEntity);
                         result.CasesCreated++;
+                        casesInCurrentBatch++;
 
-                        if (includeLabResults && _random.Next(0, 100) < 60)
+                        // Generate lab results from cache
+                        if (options.IncludeLabResults && _random.Next(0, 100) < options.LabResultProbabilityPercent)
                         {
-                            var labResult = await GenerateLabResultForCaseAsync(caseEntity, dateOfOnset);
-                            _context.LabResults.Add(labResult);
-                            result.LabResultsCreated++;
+                            int labCount = _random.Next(options.LabResultsPerCaseMin, options.LabResultsPerCaseMax + 1);
+                            for (int l = 0; l < labCount; l++)
+                            {
+                                var labResult = GenerateLabResultFromCache(caseEntity, dateOfOnset, disease, lookupCache);
+                                _context.LabResults.Add(labResult);
+                                result.LabResultsCreated++;
+                            }
                         }
 
-                        if ((result.CasesCreated) % 50 == 0)
+                        // Generate symptoms from cache
+                        if (options.IncludeSymptoms && _random.Next(0, 100) < options.SymptomProbabilityPercent)
+                        {
+                            GenerateSymptomsFromCache(caseEntity.Id, disease.Id, dateOfOnset, lookupCache);
+                            result.SymptomsCreated += _context.ChangeTracker.Entries<CaseSymptom>()
+                                .Count(e => e.State == EntityState.Added);
+                        }
+
+                        // Generate notes
+                        if (options.IncludeNotes && _random.Next(0, 100) < options.CaseNoteProbabilityPercent)
+                        {
+                            GenerateNotesForCase(caseEntity.Id, patient.Id);
+                            result.NotesCreated += _context.ChangeTracker.Entries<Note>()
+                                .Count(e => e.State == EntityState.Added);
+                        }
+
+                        // Generate custom field values
+                        if (options.IncludeCustomFields && _random.Next(0, 100) < options.CustomFieldProbabilityPercent)
+                        {
+                            await GenerateCustomFieldValuesForCaseAsync(caseEntity.Id, disease.Id);
+                            result.CustomFieldsCreated += _context.ChangeTracker.Entries()
+                                .Count(e => (e.State == EntityState.Added) &&
+                                           (e.Entity is CaseCustomFieldString ||
+                                            e.Entity is CaseCustomFieldNumber ||
+                                            e.Entity is CaseCustomFieldDate ||
+                                            e.Entity is CaseCustomFieldBoolean ||
+                                            e.Entity is CaseCustomFieldLookup));
+                        }
+
+                        // Save and clear every BATCH_SIZE cases
+                        if (casesInCurrentBatch >= BATCH_SIZE)
                         {
                             await _context.SaveChangesAsync();
-                            progressCallback?.Invoke($"Created {result.CasesCreated} cases ({year})...");
+                            ClearContextMemory(); // CRITICAL: Release memory
+                            casesInCurrentBatch = 0;
+
+                            progressCallback?.Invoke($"Created {result.CasesCreated}/{totalCasesNeeded} cases ({year})...");
                         }
                     }
                     catch (Exception ex)
@@ -395,41 +473,285 @@ namespace Sentinel.Services
                     }
                 }
 
-                await _context.SaveChangesAsync();
+                // Save any remaining cases in batch
+                if (casesInCurrentBatch > 0)
+                {
+                    await _context.SaveChangesAsync();
+                    ClearContextMemory();
+                    casesInCurrentBatch = 0;
+                }
+
                 progressCallback?.Invoke($"? Completed {year}: {casesPerYear} cases");
             }
 
-            if (includeCustomFields)
-            {
-                progressCallback?.Invoke("Generating custom field values...");
-                var allCases = await _context.Cases
-                    .Where(c => c.DateOfOnset.HasValue &&
-                                c.DateOfOnset.Value.Year >= startYear &&
-                                c.DateOfOnset.Value.Year <= endYear &&
-                                c.DiseaseId.HasValue)
-                    .ToListAsync();
+            await patientEnumerator.DisposeAsync();
 
-                foreach (var caseEntity in allCases)
-                {
-                    try
-                    {
-                        await GenerateCustomFieldValuesForCaseAsync(caseEntity.Id, caseEntity.DiseaseId!.Value);
-                        result.CustomFieldsCreated++;
-                    }
-                    catch (Exception ex)
-                    {
-                        result.Errors.Add($"Custom fields for {caseEntity.FriendlyId}: {ex.Message}");
-                    }
-                }
-
-                await _context.SaveChangesAsync();
-                progressCallback?.Invoke($"? Generated custom fields for {result.CustomFieldsCreated} cases");
-            }
-
-            progressCallback?.Invoke($"? Successfully created {result.CasesCreated} cases across {totalYears} years");
+            progressCallback?.Invoke($"? Successfully created {result.CasesCreated} cases across {endYear - startYear + 1} years");
             return result;
         }
 
+        // Load all lookups once and cache them (called once per generation session)
+        private async Task<LookupDataCache> LoadAllLookupsOnceAsync(List<Guid> diseaseIds)
+        {
+            if (_cachedLookups != null) return _cachedLookups;
+
+            var cache = new LookupDataCache();
+
+            // Load all lookups SEQUENTIALLY with AsNoTracking for performance
+            // (DbContext is NOT thread-safe, cannot use Task.WhenAll with same context)
+            cache.SpecimenTypes = await _context.SpecimenTypes
+                .AsNoTracking()
+                .Where(st => st.IsActive)
+                .ToListAsync();
+
+            cache.TestTypes = await _context.TestTypes
+                .AsNoTracking()
+                .Where(tt => tt.IsActive)
+                .ToListAsync();
+
+            cache.TestResults = await _context.TestResults
+                .AsNoTracking()
+                .Where(tr => tr.IsActive)
+                .ToListAsync();
+
+            cache.ResultUnits = await _context.ResultUnits
+                .AsNoTracking()
+                .ToListAsync();
+
+            cache.Laboratories = await _context.Organizations
+                .AsNoTracking()
+                .Include(o => o.OrganizationType)
+                .Where(o => o.IsActive && o.OrganizationType!.Name.Contains("Lab"))
+                .ToListAsync();
+
+            cache.Providers = await _context.Organizations
+                .AsNoTracking()
+                .Include(o => o.OrganizationType)
+                .Where(o => o.IsActive && o.OrganizationType!.Name.Contains("Provider"))
+                .ToListAsync();
+
+            cache.CaseStatuses = await _context.CaseStatuses
+                .AsNoTracking()
+                .Where(cs => cs.IsActive)
+                .ToListAsync();
+
+            cache.ContactClassifications = await _context.ContactClassifications
+                .AsNoTracking()
+                .Where(cc => cc.IsActive)
+                .ToListAsync();
+
+            cache.Jurisdictions = await _context.Jurisdictions
+                .AsNoTracking()
+                .Where(j => j.IsActive)
+                .ToListAsync();
+
+            // Load disease symptoms for ALL selected diseases at once
+            var symptoms = await _context.DiseaseSymptoms
+                .AsNoTracking()
+                .Where(ds => diseaseIds.Contains(ds.DiseaseId) && !ds.IsDeleted)
+                .Include(ds => ds.Symptom)
+                .ToListAsync();
+
+            cache.DiseaseSymptoms = symptoms
+                .GroupBy(ds => ds.DiseaseId)
+                .ToDictionary(g => g.Key, g => g.ToList());
+
+            _cachedLookups = cache;
+            return cache;
+        }
+
+        // Generate case using cached lookups (NO database queries)
+        private Case GenerateSingleCaseFromCache(
+            Patient patient,
+            Disease disease,
+            DateTime dateOfOnset,
+            LookupDataCache cache)
+        {
+            var dateOfNotification = dateOfOnset.AddDays(_random.Next(1, 8));
+            var clinicalNotificationDate = _random.Next(0, 100) < 40
+                ? dateOfOnset.AddDays(_random.Next(0, 4))
+                : (DateTime?)null;
+
+            // Weighted confirmation status: 90% Confirmed, 5% Probable, 5% Others
+            CaseStatus? confirmationStatus = null;
+            if (cache.CaseStatuses.Any())
+            {
+                var roll = _random.Next(0, 100);
+                if (roll < 90)
+                {
+                    // 90% - Try to get "Confirmed" status
+                    confirmationStatus = cache.CaseStatuses.FirstOrDefault(cs => cs.Name.Contains("Confirmed", StringComparison.OrdinalIgnoreCase))
+                                      ?? cache.CaseStatuses.FirstOrDefault(cs => cs.Name.Contains("Confirm", StringComparison.OrdinalIgnoreCase));
+                }
+                else if (roll < 95)
+                {
+                    // 5% - Try to get "Probable" status
+                    confirmationStatus = cache.CaseStatuses.FirstOrDefault(cs => cs.Name.Contains("Probable", StringComparison.OrdinalIgnoreCase));
+                }
+                
+                // If we didn't find a specific status, or for the remaining 5%, pick any random status
+                if (confirmationStatus == null && cache.CaseStatuses.Any())
+                {
+                    confirmationStatus = cache.CaseStatuses[_random.Next(cache.CaseStatuses.Count)];
+                }
+            }
+
+            var hospitalized = (YesNoUnknown)_random.Next(0, 3);
+
+            return new Case
+            {
+                // FriendlyId will be generated by DbContext on save
+                PatientId = patient.Id,
+                DiseaseId = disease.Id,
+                Type = CaseType.Case,
+                DateOfOnset = dateOfOnset,
+                DateOfNotification = dateOfNotification,
+                ClinicalNotificationDate = clinicalNotificationDate,
+                ClinicalNotifierOrganisation = clinicalNotificationDate.HasValue ? "Test Hospital" : null,
+                ConfirmationStatusId = confirmationStatus?.Id,
+                Hospitalised = hospitalized,
+                Jurisdiction1Id = patient.Jurisdiction1Id,
+                Jurisdiction2Id = patient.Jurisdiction2Id,
+                Jurisdiction3Id = patient.Jurisdiction3Id,
+                Jurisdiction4Id = patient.Jurisdiction4Id,
+                Jurisdiction5Id = patient.Jurisdiction5Id
+            };
+        }
+
+        // Generate lab result using cached lookups (NO database queries)
+        private LabResult GenerateLabResultFromCache(
+            Case caseEntity,
+            DateTime dateOfOnset,
+            Disease disease,
+            LookupDataCache cache)
+        {
+            var specimenDate = dateOfOnset.AddDays(_random.Next(-2, 5));
+            var receivedDate = specimenDate.AddDays(_random.Next(0, 3));
+            var resultDate = receivedDate.AddDays(_random.Next(1, 7));
+
+            // Prefer Positive/Detected results (80% chance) for testing purposes
+            TestResult? testResult = null;
+            if (cache.TestResults.Any())
+            {
+                if (_random.Next(0, 100) < 80)
+                {
+                    testResult = cache.TestResults
+                        .FirstOrDefault(tr => tr.Name.Contains("Positive") || tr.Name.Contains("Detected"))
+                        ?? cache.TestResults[_random.Next(cache.TestResults.Count)];
+                }
+                else
+                {
+                    testResult = cache.TestResults[_random.Next(cache.TestResults.Count)];
+                }
+            }
+
+            // Quantitative result (40% chance)
+            decimal? quantResult = null;
+            int? unitsId = null;
+            if (_random.Next(0, 100) < 40 && cache.ResultUnits.Any())
+            {
+                quantResult = (decimal)(_random.NextDouble() * 100);
+                unitsId = cache.ResultUnits[_random.Next(cache.ResultUnits.Count)].Id;
+            }
+
+            return new LabResult
+            {
+                CaseId = caseEntity.Id,
+                LaboratoryId = cache.Laboratories.Any() ? cache.Laboratories[_random.Next(cache.Laboratories.Count)].Id : null,
+                OrderingProviderId = cache.Providers.Any() ? cache.Providers[_random.Next(cache.Providers.Count)].Id : null,
+                AccessionNumber = $"ACC-{_random.Next(100000, 999999)}",
+                SpecimenCollectionDate = specimenDate,
+                SpecimenTypeId = cache.SpecimenTypes.Any() ? cache.SpecimenTypes[_random.Next(cache.SpecimenTypes.Count)].Id : null,
+                TestTypeId = cache.TestTypes.Any() ? cache.TestTypes[_random.Next(cache.TestTypes.Count)].Id : null,
+                TestedDiseaseId = disease.Id,
+                TestResultId = testResult?.Id,
+                ResultDate = resultDate,
+                QuantitativeResult = quantResult,
+                ResultUnitsId = unitsId,
+                Notes = _random.Next(0, 100) < 30 ? "Auto-generated test lab result" : null
+            };
+        }
+
+        // Generate symptoms using cached lookups (NO database queries)
+        private void GenerateSymptomsFromCache(
+            Guid caseId,
+            Guid diseaseId,
+            DateTime dateOfOnset,
+            LookupDataCache cache)
+        {
+            // Get from pre-loaded cache
+            if (!cache.DiseaseSymptoms.TryGetValue(diseaseId, out var diseaseSymptoms) || !diseaseSymptoms.Any())
+                return;
+
+            var commonSymptoms = diseaseSymptoms.Where(ds => ds.IsCommon).ToList();
+            var otherSymptoms = diseaseSymptoms.Where(ds => !ds.IsCommon).ToList();
+
+            var symptomsToAdd = new List<DiseaseSymptom>();
+
+            // Add 1-3 common symptoms (80% chance)
+            if (commonSymptoms.Any())
+            {
+                var count = _random.Next(1, Math.Min(4, commonSymptoms.Count + 1));
+                symptomsToAdd.AddRange(commonSymptoms.OrderBy(x => Guid.NewGuid()).Take(count));
+            }
+
+            // Add 0-2 other symptoms (40% chance)
+            if (otherSymptoms.Any() && _random.Next(0, 100) < 40)
+            {
+                var count = _random.Next(0, Math.Min(3, otherSymptoms.Count + 1));
+                symptomsToAdd.AddRange(otherSymptoms.OrderBy(x => Guid.NewGuid()).Take(count));
+            }
+
+            foreach (var ds in symptomsToAdd.Distinct())
+            {
+                var onsetDate = dateOfOnset.AddDays(_random.Next(-3, 3));
+
+                _context.CaseSymptoms.Add(new CaseSymptom
+                {
+                    CaseId = caseId,
+                    SymptomId = ds.SymptomId,
+                    OnsetDate = onsetDate,
+                    Severity = GetRandomSeverity(),
+                    Notes = _random.Next(0, 100) < 20 ? "Test symptom note" : null
+                });
+            }
+        }
+        
+        private string GetRandomSeverity()
+        {
+            var severities = new[] { "Mild", "Moderate", "Severe" };
+            return severities[_random.Next(severities.Length)];
+        }
+
+        // Generate notes for case (NO database queries)
+        private void GenerateNotesForCase(Guid caseId, Guid patientId)
+        {
+            var noteCount = _random.Next(0, 4); // 0-3 notes
+
+            var templates = new[]
+            {
+                "Initial contact made via phone",
+                "Patient reported symptoms consistent with case definition",
+                "Follow-up call scheduled",
+                "Laboratory results reviewed",
+                "Patient advised on isolation requirements",
+                "Contact tracing completed"
+            };
+
+            for (int i = 0; i < noteCount; i++)
+            {
+                _context.Notes.Add(new Note
+                {
+                    CaseId = caseId,
+                    PatientId = patientId,
+                    Type = NoteType.Note,
+                    Content = templates[_random.Next(templates.Length)],
+                    CreatedAt = DateTime.UtcNow.AddDays(-_random.Next(0, 30))
+                });
+            }
+        }
+
+        // OLD METHOD - DEPRECATED - Keep for backwards compatibility but not used
         private async Task<Case> GenerateSingleCaseAsync(
             Patient patient,
             Disease disease,
@@ -554,12 +876,8 @@ namespace Sentinel.Services
             var receivedDate = specimenDate.AddDays(_random.Next(0, 3));
             var testedDate = receivedDate.AddDays(_random.Next(0, 5));
 
-            var nextSequence = await _context.LabResults.CountAsync() + 1;
-            var friendlyId = $"LAB-{DateTime.UtcNow.Year}-{nextSequence:D5}";
-
             return new LabResult
             {
-                FriendlyId = friendlyId,
                 CaseId = caseEntity.Id,
                 SpecimenCollectionDate = specimenDate,
                 ResultDate = testedDate,
@@ -645,6 +963,247 @@ namespace Sentinel.Services
                 }
             }
         }
+        
+        /// <summary>
+        /// DEMO ONLY: Deletes all test data (patients, cases, and related records) from the database.
+        /// This method has multiple safeguards and only works in Demo mode.
+        /// </summary>
+        public async Task<TestDataDeletionResult> DeleteAllTestDataAsync(
+            string confirmationCode,
+            Action<string>? progressCallback = null)
+        {
+            var result = new TestDataDeletionResult();
+            
+            // SAFEGUARD 1: Check if we're in Demo mode
+            var isDemoMode = _configuration.GetValue<bool>("Demo:EnableDemoMode");
+            if (!isDemoMode)
+            {
+                result.Errors.Add("? BLOCKED: This function is only available in Demo mode.");
+                result.Errors.Add("Set 'Demo:EnableDemoMode' to true in appsettings.json");
+                return result;
+            }
+            
+            // SAFEGUARD 2: Require confirmation code
+            const string EXPECTED_CODE = "DELETE-ALL-DEMO-DATA";
+            if (confirmationCode != EXPECTED_CODE)
+            {
+                result.Errors.Add($"? BLOCKED: Invalid confirmation code.");
+                result.Errors.Add($"Expected: {EXPECTED_CODE}");
+                return result;
+            }
+            
+            var connectionString = _configuration.GetConnectionString("DefaultConnection") ?? "";
+            var databaseName = connectionString.Contains("Database=") 
+                ? connectionString.Split("Database=")[1].Split(';')[0] 
+                : "Unknown";
+            
+            progressCallback?.Invoke("?? WARNING: Starting deletion of ALL test data...");
+            progressCallback?.Invoke($"Database: {databaseName}");
+            
+            try
+            {
+                // Delete in reverse dependency order to avoid foreign key violations
+                
+                progressCallback?.Invoke("Deleting review queue entries...");
+                var reviewQueueCount = await _context.ReviewQueue.IgnoreQueryFilters().CountAsync();
+                if (reviewQueueCount > 0)
+                {
+                    _context.ReviewQueue.RemoveRange(await _context.ReviewQueue.IgnoreQueryFilters().ToListAsync());
+                    await _context.SaveChangesAsync();
+                    result.ReviewQueueEntriesDeleted = reviewQueueCount;
+                }
+                
+                progressCallback?.Invoke("Deleting case tasks...");
+                var tasksCount = await _context.CaseTasks.CountAsync();
+                if (tasksCount > 0)
+                {
+                    _context.CaseTasks.RemoveRange(await _context.CaseTasks.ToListAsync());
+                    await _context.SaveChangesAsync();
+                    result.TasksDeleted = tasksCount;
+                }
+                
+                progressCallback?.Invoke("Deleting exposure events...");
+                var exposuresCount = await _context.ExposureEvents.IgnoreQueryFilters().CountAsync();
+                if (exposuresCount > 0)
+                {
+                    _context.ExposureEvents.RemoveRange(await _context.ExposureEvents.IgnoreQueryFilters().ToListAsync());
+                    await _context.SaveChangesAsync();
+                    result.ExposuresDeleted = exposuresCount;
+                }
+                
+                progressCallback?.Invoke("Deleting case symptoms...");
+                var symptomsCount = await _context.CaseSymptoms.IgnoreQueryFilters().CountAsync();
+                if (symptomsCount > 0)
+                {
+                    _context.CaseSymptoms.RemoveRange(await _context.CaseSymptoms.IgnoreQueryFilters().ToListAsync());
+                    await _context.SaveChangesAsync();
+                    result.SymptomsDeleted = symptomsCount;
+                }
+                
+                progressCallback?.Invoke("Deleting notes...");
+                var notesCount = await _context.Notes.IgnoreQueryFilters().CountAsync();
+                if (notesCount > 0)
+                {
+                    _context.Notes.RemoveRange(await _context.Notes.IgnoreQueryFilters().ToListAsync());
+                    await _context.SaveChangesAsync();
+                    result.NotesDeleted = notesCount;
+                }
+                
+                progressCallback?.Invoke("Deleting case custom fields...");
+                var caseStringsCount = await _context.CaseCustomFieldStrings.CountAsync();
+                var caseNumbersCount = await _context.CaseCustomFieldNumbers.CountAsync();
+                var caseDatesCount = await _context.CaseCustomFieldDates.CountAsync();
+                var caseBooleansCount = await _context.CaseCustomFieldBooleans.CountAsync();
+                var caseLookupsCount = await _context.CaseCustomFieldLookups.CountAsync();
+                
+                if (caseStringsCount > 0) _context.CaseCustomFieldStrings.RemoveRange(await _context.CaseCustomFieldStrings.ToListAsync());
+                if (caseNumbersCount > 0) _context.CaseCustomFieldNumbers.RemoveRange(await _context.CaseCustomFieldNumbers.ToListAsync());
+                if (caseDatesCount > 0) _context.CaseCustomFieldDates.RemoveRange(await _context.CaseCustomFieldDates.ToListAsync());
+                if (caseBooleansCount > 0) _context.CaseCustomFieldBooleans.RemoveRange(await _context.CaseCustomFieldBooleans.ToListAsync());
+                if (caseLookupsCount > 0) _context.CaseCustomFieldLookups.RemoveRange(await _context.CaseCustomFieldLookups.ToListAsync());
+                
+                await _context.SaveChangesAsync();
+                result.CaseCustomFieldsDeleted = caseStringsCount + caseNumbersCount + caseDatesCount + caseBooleansCount + caseLookupsCount;
+                
+                progressCallback?.Invoke("Deleting lab results...");
+                var labResultsCount = await _context.LabResults.IgnoreQueryFilters().CountAsync();
+                if (labResultsCount > 0)
+                {
+                    _context.LabResults.RemoveRange(await _context.LabResults.IgnoreQueryFilters().ToListAsync());
+                    await _context.SaveChangesAsync();
+                    result.LabResultsDeleted = labResultsCount;
+                }
+                
+                progressCallback?.Invoke("Deleting outbreak cases...");
+                var outbreakCasesCount = await _context.OutbreakCases.CountAsync();
+                if (outbreakCasesCount > 0)
+                {
+                    _context.OutbreakCases.RemoveRange(await _context.OutbreakCases.ToListAsync());
+                    await _context.SaveChangesAsync();
+                }
+                
+                progressCallback?.Invoke("Deleting cases...");
+                var casesCount = await _context.Cases.IgnoreQueryFilters().CountAsync();
+                if (casesCount > 0)
+                {
+                    _context.Cases.RemoveRange(await _context.Cases.IgnoreQueryFilters().ToListAsync());
+                    await _context.SaveChangesAsync();
+                    result.CasesDeleted = casesCount;
+                }
+                
+                progressCallback?.Invoke("Deleting patient custom fields...");
+                var patientStringsCount = await _context.PatientCustomFieldStrings.CountAsync();
+                var patientNumbersCount = await _context.PatientCustomFieldNumbers.CountAsync();
+                var patientDatesCount = await _context.PatientCustomFieldDates.CountAsync();
+                var patientBooleansCount = await _context.PatientCustomFieldBooleans.CountAsync();
+                var patientLookupsCount = await _context.PatientCustomFieldLookups.CountAsync();
+                
+                if (patientStringsCount > 0) _context.PatientCustomFieldStrings.RemoveRange(await _context.PatientCustomFieldStrings.ToListAsync());
+                if (patientNumbersCount > 0) _context.PatientCustomFieldNumbers.RemoveRange(await _context.PatientCustomFieldNumbers.ToListAsync());
+                if (patientDatesCount > 0) _context.PatientCustomFieldDates.RemoveRange(await _context.PatientCustomFieldDates.ToListAsync());
+                if (patientBooleansCount > 0) _context.PatientCustomFieldBooleans.RemoveRange(await _context.PatientCustomFieldBooleans.ToListAsync());
+                if (patientLookupsCount > 0) _context.PatientCustomFieldLookups.RemoveRange(await _context.PatientCustomFieldLookups.ToListAsync());
+                
+                await _context.SaveChangesAsync();
+                result.PatientCustomFieldsDeleted = patientStringsCount + patientNumbersCount + patientDatesCount + patientBooleansCount + patientLookupsCount;
+                
+                progressCallback?.Invoke("Deleting patients...");
+                var patientsCount = await _context.Patients.IgnoreQueryFilters().CountAsync();
+                if (patientsCount > 0)
+                {
+                    _context.Patients.RemoveRange(await _context.Patients.IgnoreQueryFilters().ToListAsync());
+                    await _context.SaveChangesAsync();
+                    result.PatientsDeleted = patientsCount;
+                }
+                
+                progressCallback?.Invoke("Clearing audit logs for deleted entities...");
+                var auditLogsCount = await _context.AuditLogs
+                    .Where(a => a.EntityType == "Patient" || a.EntityType == "Case" || a.EntityType == "LabResult")
+                    .CountAsync();
+                if (auditLogsCount > 0)
+                {
+                    var auditLogs = await _context.AuditLogs
+                        .Where(a => a.EntityType == "Patient" || a.EntityType == "Case" || a.EntityType == "LabResult")
+                        .ToListAsync();
+                    _context.AuditLogs.RemoveRange(auditLogs);
+                    await _context.SaveChangesAsync();
+                    result.AuditLogsDeleted = auditLogsCount;
+                }
+                
+                // Clear cache
+                _cachedLookups = null;
+                ClearContextMemory();
+                
+                result.EndTime = DateTime.UtcNow;
+                progressCallback?.Invoke("");
+                progressCallback?.Invoke("? ============================================");
+                progressCallback?.Invoke($"? DELETION COMPLETE in {result.Duration.TotalSeconds:F1}s");
+                progressCallback?.Invoke("? ============================================");
+                progressCallback?.Invoke($"   Patients deleted:           {result.PatientsDeleted:N0}");
+                progressCallback?.Invoke($"   Cases deleted:              {result.CasesDeleted:N0}");
+                progressCallback?.Invoke($"   Lab results deleted:        {result.LabResultsDeleted:N0}");
+                progressCallback?.Invoke($"   Symptoms deleted:           {result.SymptomsDeleted:N0}");
+                progressCallback?.Invoke($"   Notes deleted:              {result.NotesDeleted:N0}");
+                progressCallback?.Invoke($"   Exposures deleted:          {result.ExposuresDeleted:N0}");
+                progressCallback?.Invoke($"   Tasks deleted:              {result.TasksDeleted:N0}");
+                progressCallback?.Invoke($"   Patient custom fields:      {result.PatientCustomFieldsDeleted:N0}");
+                progressCallback?.Invoke($"   Case custom fields:         {result.CaseCustomFieldsDeleted:N0}");
+                progressCallback?.Invoke($"   Review queue entries:       {result.ReviewQueueEntriesDeleted:N0}");
+                progressCallback?.Invoke($"   Audit logs cleaned:         {result.AuditLogsDeleted:N0}");
+                progressCallback?.Invoke("? ============================================");
+                
+                return result;
+            }
+            catch (Exception ex)
+            {
+                result.Errors.Add($"? Error during deletion: {ex.Message}");
+                if (ex.InnerException != null)
+                {
+                    result.Errors.Add($"Inner exception: {ex.InnerException.Message}");
+                }
+                return result;
+            }
+        }
+    }
+
+    // Lookup data cache to avoid repeated database queries
+    internal class LookupDataCache
+    {
+        // Lab Result Lookups
+        public List<SpecimenType> SpecimenTypes { get; set; } = new();
+        public List<TestType> TestTypes { get; set; } = new();
+        public List<TestResult> TestResults { get; set; } = new();
+        public List<ResultUnits> ResultUnits { get; set; } = new();
+        public List<Organization> Laboratories { get; set; } = new();
+        public List<Organization> Providers { get; set; } = new();
+
+        // Case Lookups
+        public List<CaseStatus> CaseStatuses { get; set; } = new();
+        public List<Jurisdiction> Jurisdictions { get; set; } = new();
+        public List<ContactClassification> ContactClassifications { get; set; } = new();
+
+        // Disease-specific (keyed by DiseaseId)
+        public Dictionary<Guid, List<DiseaseSymptom>> DiseaseSymptoms { get; set; } = new();
+    }
+
+    // Options for case generation
+    public class CaseGenerationOptions
+    {
+        public bool IncludeLabResults { get; set; } = true;
+        public int LabResultsPerCaseMin { get; set; } = 1;
+        public int LabResultsPerCaseMax { get; set; } = 3;
+        public int LabResultProbabilityPercent { get; set; } = 80; // 80% of cases get lab results
+
+        public bool IncludeSymptoms { get; set; } = true;
+        public int SymptomProbabilityPercent { get; set; } = 85; // 85% of cases get symptoms
+
+        public bool IncludeNotes { get; set; } = true;
+        public int CaseNoteProbabilityPercent { get; set; } = 70; // 70% of cases get notes
+
+        public bool IncludeCustomFields { get; set; } = true;
+        public int CustomFieldProbabilityPercent { get; set; } = 75; // 75% of cases get custom fields
+
+        public bool UseSeasonalPatterns { get; set; } = true;
     }
 
     public class TestDataGenerationResult
@@ -653,6 +1212,9 @@ namespace Sentinel.Services
         public int CasesCreated { get; set; }
         public int LabResultsCreated { get; set; }
         public int CustomFieldsCreated { get; set; }
+        public int SymptomsCreated { get; set; }
+        public int NotesCreated { get; set; }
+        public int ExposuresCreated { get; set; }
         public List<string> Errors { get; set; } = new();
         public DateTime StartTime { get; set; } = DateTime.UtcNow;
         public DateTime? EndTime { get; set; }
@@ -662,5 +1224,36 @@ namespace Sentinel.Services
             : DateTime.UtcNow - StartTime;
 
         public bool HasErrors => Errors.Any();
+    }
+    
+    // Result class for deletion operations
+    public class TestDataDeletionResult
+    {
+        public int PatientsDeleted { get; set; }
+        public int CasesDeleted { get; set; }
+        public int LabResultsDeleted { get; set; }
+        public int SymptomsDeleted { get; set; }
+        public int NotesDeleted { get; set; }
+        public int ExposuresDeleted { get; set; }
+        public int TasksDeleted { get; set; }
+        public int PatientCustomFieldsDeleted { get; set; }
+        public int CaseCustomFieldsDeleted { get; set; }
+        public int ReviewQueueEntriesDeleted { get; set; }
+        public int AuditLogsDeleted { get; set; }
+        public List<string> Errors { get; set; } = new();
+        public DateTime StartTime { get; set; } = DateTime.UtcNow;
+        public DateTime? EndTime { get; set; }
+
+        public TimeSpan Duration => EndTime.HasValue 
+            ? EndTime.Value - StartTime 
+            : DateTime.UtcNow - StartTime;
+
+        public bool HasErrors => Errors.Any();
+        
+        public int TotalDeleted => PatientsDeleted + CasesDeleted + LabResultsDeleted + 
+                                   SymptomsDeleted + NotesDeleted + ExposuresDeleted + 
+                                   TasksDeleted + PatientCustomFieldsDeleted + 
+                                   CaseCustomFieldsDeleted + ReviewQueueEntriesDeleted + 
+                                   AuditLogsDeleted;
     }
 }

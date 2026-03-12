@@ -38,13 +38,17 @@ if (!string.IsNullOrEmpty(envGeocodingEmail))
 // Configure Kestrel to allow larger request bodies (for shapefile uploads)
 builder.Services.Configure<KestrelServerOptions>(options =>
 {
-    options.Limits.MaxRequestBodySize = 100_000_000; // 100MB
+    options.Limits.MaxRequestBodySize = 104_857_600; // 100MB
+    options.Limits.RequestHeadersTimeout = TimeSpan.FromMinutes(5);
 });
 
 // Configure Form options for multipart requests
 builder.Services.Configure<Microsoft.AspNetCore.Http.Features.FormOptions>(options =>
 {
-    options.MultipartBodyLengthLimit = 100_000_000; // 100MB
+    options.MultipartBodyLengthLimit = 104_857_600; // 100MB
+    options.ValueLengthLimit = 104_857_600;
+    options.MultipartHeadersLengthLimit = 16384;
+    options.BufferBodyLengthLimit = 104_857_600;
 });
 
 // Database
@@ -592,6 +596,20 @@ using (var scope = app.Services.CreateScope())
             await dbContext.Database.MigrateAsync();
             
             logger.LogInformation("Database migrations applied successfully");
+            
+            // Ensure reporting views are correctly created (idempotent - safe to run multiple times)
+            logger.LogInformation("Verifying reporting views...");
+            try
+            {
+                await EnsureReportingViewsExistAsync(dbContext, logger);
+                logger.LogInformation("Reporting views verified successfully");
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Failed to create/verify reporting views. Report Builder may not function correctly.");
+                // Don't throw - allow app to start even if views fail
+            }
+            
             break; // Success - exit retry loop
         }
         catch (Exception ex) when (retry < maxRetries - 1)
@@ -612,6 +630,14 @@ using (var scope = app.Services.CreateScope())
     await Sentinel.Services.PermissionSeedService.SeedAsync(scope.ServiceProvider);
     await Sentinel.Services.LookupDataSeedService.SeedAsync(scope.ServiceProvider);
     logger.LogInformation("Data seeding complete");
+    
+    // Seed demo users and roles (only for demo environment)
+    if (app.Environment.EnvironmentName.Equals("Demo", StringComparison.OrdinalIgnoreCase) || 
+        app.Configuration.GetValue<bool>("Demo:EnableDemoUsers"))
+    {
+        logger.LogInformation("?? Demo environment detected - seeding demo users and roles...");
+        await Sentinel.Services.DemoUserSeedService.SeedAsync(scope.ServiceProvider);
+    }
 }
 
 // Health check endpoint for Docker and monitoring
@@ -642,6 +668,49 @@ app.MapGet("/health", async (ApplicationDbContext dbContext) =>
         }, statusCode: 503);
     }
 }).AllowAnonymous();
+
+// Helper method to ensure reporting views exist and are correct
+static async Task EnsureReportingViewsExistAsync(ApplicationDbContext dbContext, ILogger logger)
+{
+    var scriptPath = Path.Combine(AppContext.BaseDirectory, "Scripts", "RecreateReportingViews.sql");
+    
+    if (!File.Exists(scriptPath))
+    {
+        logger.LogWarning("RecreateReportingViews.sql not found at {Path}. Skipping view recreation.", scriptPath);
+        return;
+    }
+    
+    var viewCreationSql = await File.ReadAllTextAsync(scriptPath);
+    logger.LogInformation("Loaded view recreation script from {Path}", scriptPath);
+    
+    // Split by GO statements and execute each batch separately
+    var batches = viewCreationSql.Split(new[] { "\r\nGO\r\n", "\nGO\n", "\r\nGO", "\nGO" }, StringSplitOptions.RemoveEmptyEntries);
+    logger.LogInformation("Split into {Count} SQL batches", batches.Length);
+    
+    int executedBatches = 0;
+    foreach (var batch in batches)
+    {
+        var trimmedBatch = batch.Trim();
+        if (!string.IsNullOrWhiteSpace(trimmedBatch) && 
+            !trimmedBatch.StartsWith("--") && 
+            !trimmedBatch.StartsWith("PRINT"))
+        {
+            try
+            {
+                await dbContext.Database.ExecuteSqlRawAsync(trimmedBatch);
+                executedBatches++;
+                logger.LogDebug("Executed batch {Number}: {Preview}...", executedBatches, trimmedBatch.Substring(0, Math.Min(50, trimmedBatch.Length)));
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Failed to execute SQL batch {Number}: {Batch}", executedBatches + 1, trimmedBatch.Substring(0, Math.Min(200, trimmedBatch.Length)));
+                throw;
+            }
+        }
+    }
+    
+    logger.LogInformation("Successfully executed {Count} SQL batches to recreate reporting views", executedBatches);
+}
 
 app.Run();
 

@@ -1,10 +1,12 @@
 @page
 @model LoginModel
 @using Sentinel.Constants
+@inject Microsoft.Extensions.Configuration.IConfiguration Configuration
 
 @{
     ViewData["Title"] = "Sign In";
     Layout = null;
+    var isDemoMode = Configuration.GetValue<bool>("Demo:EnableDemoUsers");
 }
 
 <!DOCTYPE html>
@@ -253,7 +255,13 @@
     </style>
 </head>
 <body>
-    <div class="login-container">
+    @if (isDemoMode)
+    {
+        <div style="position: fixed; top: 0; left: 0; right: 0; background: linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%); color: white; padding: 12px; text-align: center; z-index: 10000; box-shadow: 0 4px 12px rgba(0,0,0,0.15); font-weight: 600;">
+            <i class="bi bi-exclamation-triangle-fill me-2"></i>DEMO ENVIRONMENT - Test accounts available below
+        </div>
+    }
+    <div class="login-container" style="@(isDemoMode ? "margin-top: 50px;" : "")">
         <div class="login-card">
             <div class="login-left">
                 <div class="logo-circle">
@@ -269,6 +277,69 @@
 
             <div class="login-right">
                 <h2 class="form-title">Sign In</h2>
+                
+                
+                @if (isDemoMode)
+                {
+                    <div class="alert alert-info" style="margin-bottom: 24px;">
+                        <div class="d-flex align-items-center mb-3">
+                            <i class="bi bi-info-circle me-2" style="font-size: 1.25rem;"></i>
+                            <strong style="font-size: 1rem;">Quick Demo Login</strong>
+                        </div>
+                        <p style="margin-bottom: 16px; font-size: 0.875rem; color: #4a5568;">Click a button below to login as a demo user:</p>
+                        
+                        <div class="d-grid gap-2">
+                            <form method="post" asp-page-handler="DemoLogin" asp-route-returnUrl="@Model.ReturnUrl" style="margin: 0;">
+                                <input type="hidden" name="email" value="manager@sentinel-demo.com" />
+                                <input type="hidden" name="password" value="Demo123!@@#Manager" />
+                                <button type="submit" class="btn btn-outline-primary btn-sm w-100 text-start">
+                                    <i class="bi bi-person-badge me-2"></i><strong>Emma</strong> - Surveillance Manager
+                                    <small class="d-block text-muted" style="font-size: 0.75rem; margin-top: 2px;">Full system access</small>
+                                </button>
+                            </form>
+                            
+                            <form method="post" asp-page-handler="DemoLogin" asp-route-returnUrl="@Model.ReturnUrl" style="margin: 0;">
+                                <input type="hidden" name="email" value="officer@sentinel-demo.com" />
+                                <input type="hidden" name="password" value="Demo123!@@#Officer" />
+                                <button type="submit" class="btn btn-outline-primary btn-sm w-100 text-start">
+                                    <i class="bi bi-person-badge me-2"></i><strong>Isabella</strong> - Surveillance Officer
+                                    <small class="d-block text-muted" style="font-size: 0.75rem; margin-top: 2px;">Operational access (no settings)</small>
+                                </button>
+                            </form>
+                            
+                            <form method="post" asp-page-handler="DemoLogin" asp-route-returnUrl="@Model.ReturnUrl" style="margin: 0;">
+                                <input type="hidden" name="email" value="tracer@sentinel-demo.com" />
+                                <input type="hidden" name="password" value="Demo123!@@#Tracer" />
+                                <button type="submit" class="btn btn-outline-primary btn-sm w-100 text-start">
+                                    <i class="bi bi-person-check me-2"></i><strong>Emma Rodriguez</strong> - Contact Tracer
+                                    <small class="d-block text-muted" style="font-size: 0.75rem; margin-top: 2px;">Interview queue & surveys</small>
+                                </button>
+                            </form>
+                            
+                            <form method="post" asp-page-handler="DemoLogin" asp-route-returnUrl="@Model.ReturnUrl" style="margin: 0;">
+                                <input type="hidden" name="email" value="supervisor@sentinel-demo.com" />
+                                <input type="hidden" name="password" value="Demo123!@@#Supervisor" />
+                                <button type="submit" class="btn btn-outline-primary btn-sm w-100 text-start">
+                                    <i class="bi bi-person-gear me-2"></i><strong>James Wilson</strong> - Contact Tracing Supervisor
+                                    <small class="d-block text-muted" style="font-size: 0.75rem; margin-top: 2px;">Task reassignment & management</small>
+                                </button>
+                            </form>
+                            
+                            <form method="post" asp-page-handler="DemoLogin" asp-route-returnUrl="@Model.ReturnUrl" style="margin: 0;">
+                                <input type="hidden" name="email" value="stiofficer@sentinel-demo.com" />
+                                <input type="hidden" name="password" value="Demo123!@@#STI" />
+                                <button type="submit" class="btn btn-outline-primary btn-sm w-100 text-start">
+                                    <i class="bi bi-shield-check me-2"></i><strong>Megge</strong> - STI/BBV Officer
+                                    <small class="d-block text-muted" style="font-size: 0.75rem; margin-top: 2px;">STI/BBV surveillance</small>
+                                </button>
+                            </form>
+                        </div>
+                        
+                        <div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid #e2e8f0; font-size: 0.75rem; color: #718096;">
+                            Or login manually below with your own credentials
+                        </div>
+                    </div>
+                }
                 
                 <form id="account" method="post">
                     @if (!ModelState.IsValid || Model.ExternalLogins?.Count > 0)

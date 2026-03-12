@@ -356,71 +356,64 @@ public class BuilderModel : PageModel
                 new() { FieldPath = "IsIndoor", DisplayName = "Indoor", DataType = "Boolean", DisplayOrder = 7 }
             },
 
-            // Flattened Views
+            // Flattened Views - Match actual SQL view columns
             "CaseContactTasksFlattened" => new List<ReportFieldDto>
             {
                 new() { FieldPath = "CaseNumber", DisplayName = "Case Number", DataType = "String", DisplayOrder = 1 },
-                new() { FieldPath = "PatientName", DisplayName = "Patient Name", DataType = "String", DisplayOrder = 2 },
-                new() { FieldPath = "GenerationNumber", DisplayName = "Generation", DataType = "Int", DisplayOrder = 3 },
-                new() { FieldPath = "TransmittedByCase", DisplayName = "Transmitted By (Index Case)", DataType = "String", DisplayOrder = 4 },
-                new() { FieldPath = "ExposureType", DisplayName = "Exposure Type", DataType = "String", DisplayOrder = 5 },
-                new() { FieldPath = "TaskTitle", DisplayName = "Task", DataType = "String", DisplayOrder = 6 },
-                new() { FieldPath = "TaskStatus", DisplayName = "Status", DataType = "String", DisplayOrder = 7 },
-                new() { FieldPath = "TaskDueDate", DisplayName = "Due Date", DataType = "DateTime", DisplayOrder = 8 },
-                new() { FieldPath = "AssignedToName", DisplayName = "Assigned To", DataType = "String", DisplayOrder = 9 }
+                new() { FieldPath = "CaseType", DisplayName = "Type", DataType = "String", DisplayOrder = 2 },
+                new() { FieldPath = "PatientName", DisplayName = "Patient Name", DataType = "String", DisplayOrder = 3 },
+                new() { FieldPath = "DateOfOnset", DisplayName = "Date of Onset", DataType = "DateTime", DisplayOrder = 4 },
+                new() { FieldPath = "DiseaseName", DisplayName = "Disease", DataType = "String", DisplayOrder = 5 },
+                new() { FieldPath = "CaseStatus", DisplayName = "Status", DataType = "String", DisplayOrder = 6 },
+                new() { FieldPath = "TaskTitle", DisplayName = "Task", DataType = "String", DisplayOrder = 7 },
+                new() { FieldPath = "TaskStatus", DisplayName = "Task Status", DataType = "String", DisplayOrder = 8 },
+                new() { FieldPath = "TaskDueDate", DisplayName = "Due Date", DataType = "DateTime", DisplayOrder = 9 }
             },
 
             "OutbreakTasksFlattened" => new List<ReportFieldDto>
             {
                 new() { FieldPath = "OutbreakName", DisplayName = "Outbreak", DataType = "String", DisplayOrder = 1 },
-                new() { FieldPath = "OutbreakLevel", DisplayName = "Level", DataType = "Int", DisplayOrder = 2 },
+                new() { FieldPath = "DiseaseName", DisplayName = "Disease", DataType = "String", DisplayOrder = 2 },
                 new() { FieldPath = "CaseNumber", DisplayName = "Case Number", DataType = "String", DisplayOrder = 3 },
                 new() { FieldPath = "PatientName", DisplayName = "Patient", DataType = "String", DisplayOrder = 4 },
                 new() { FieldPath = "TaskTitle", DisplayName = "Task", DataType = "String", DisplayOrder = 5 },
                 new() { FieldPath = "TaskStatus", DisplayName = "Status", DataType = "String", DisplayOrder = 6 },
-                new() { FieldPath = "TaskDueDate", DisplayName = "Due Date", DataType = "DateTime", DisplayOrder = 7 }
+                new() { FieldPath = "DueDate", DisplayName = "Due Date", DataType = "DateTime", DisplayOrder = 7 }
             },
 
             "CaseTimelineAll" => new List<ReportFieldDto>
             {
-                new() { FieldPath = "CaseNumber", DisplayName = "Case Number", DataType = "String", DisplayOrder = 1 },
-                new() { FieldPath = "PatientName", DisplayName = "Patient", DataType = "String", DisplayOrder = 2 },
-                new() { FieldPath = "EventType", DisplayName = "Event Type", DataType = "String", DisplayOrder = 3 },
-                new() { FieldPath = "EventDate", DisplayName = "Date", DataType = "DateTime", DisplayOrder = 4 },
-                new() { FieldPath = "EventDescription", DisplayName = "Description", DataType = "String", DisplayOrder = 5 },
-                new() { FieldPath = "EventUser", DisplayName = "User", DataType = "String", DisplayOrder = 6 }
+                new() { FieldPath = "EventType", DisplayName = "Event Type", DataType = "String", DisplayOrder = 1 },
+                new() { FieldPath = "EventDate", DisplayName = "Date", DataType = "DateTime", DisplayOrder = 2 },
+                new() { FieldPath = "EventDescription", DisplayName = "Description", DataType = "String", DisplayOrder = 3 },
+                new() { FieldPath = "ActorName", DisplayName = "Actor", DataType = "String", DisplayOrder = 4 }
             },
 
             "ContactTracingMindMapNodes" => new List<ReportFieldDto>
             {
                 new() { FieldPath = "NodeLabel", DisplayName = "Case Number", DataType = "String", DisplayOrder = 1 },
-                new() { FieldPath = "NodeName", DisplayName = "Name", DataType = "String", DisplayOrder = 2 },
-                new() { FieldPath = "NodeType", DisplayName = "Type", DataType = "String", DisplayOrder = 3 },
-                new() { FieldPath = "DiseaseName", DisplayName = "Disease", DataType = "String", DisplayOrder = 4 },
-                new() { FieldPath = "OutgoingTransmissions", DisplayName = "Outgoing", DataType = "Int", DisplayOrder = 5 },
-                new() { FieldPath = "IncomingExposures", DisplayName = "Incoming", DataType = "Int", DisplayOrder = 6 },
-                new() { FieldPath = "FollowUpStatus", DisplayName = "Follow-up Status", DataType = "String", DisplayOrder = 7 }
+                new() { FieldPath = "PersonName", DisplayName = "Name", DataType = "String", DisplayOrder = 2 },
+                new() { FieldPath = "DiseaseName", DisplayName = "Disease", DataType = "String", DisplayOrder = 3 },
+                new() { FieldPath = "CaseStatus", DisplayName = "Status", DataType = "String", DisplayOrder = 4 },
+                new() { FieldPath = "DateOfOnset", DisplayName = "Date of Onset", DataType = "DateTime", DisplayOrder = 5 }
             },
 
             "ContactTracingMindMapEdges" => new List<ReportFieldDto>
             {
-                new() { FieldPath = "SourceLabel", DisplayName = "Source Case", DataType = "String", DisplayOrder = 1 },
-                new() { FieldPath = "TargetLabel", DisplayName = "Target Case", DataType = "String", DisplayOrder = 2 },
-                new() { FieldPath = "ExposureType", DisplayName = "Exposure Type", DataType = "String", DisplayOrder = 3 },
-                new() { FieldPath = "ExposureStatus", DisplayName = "Status", DataType = "String", DisplayOrder = 4 },
-                new() { FieldPath = "EdgeLabel", DisplayName = "Label", DataType = "String", DisplayOrder = 5 },
-                new() { FieldPath = "ContactClassification", DisplayName = "Classification", DataType = "String", DisplayOrder = 6 }
+                new() { FieldPath = "EdgeType", DisplayName = "Type", DataType = "String", DisplayOrder = 1 },
+                new() { FieldPath = "ExposureDate", DisplayName = "Exposure Date", DataType = "DateTime", DisplayOrder = 2 },
+                new() { FieldPath = "ConfidenceLevel", DisplayName = "Confidence", DataType = "String", DisplayOrder = 3 }
             },
 
             "ContactsListSimple" => new List<ReportFieldDto>
             {
                 new() { FieldPath = "ContactNumber", DisplayName = "Contact Number", DataType = "String", DisplayOrder = 1 },
                 new() { FieldPath = "ContactName", DisplayName = "Name", DataType = "String", DisplayOrder = 2 },
-                new() { FieldPath = "ExposedByCase", DisplayName = "Exposed By", DataType = "String", DisplayOrder = 3 },
-                new() { FieldPath = "ExposureType", DisplayName = "Exposure Type", DataType = "String", DisplayOrder = 4 },
-                new() { FieldPath = "ContactDisease", DisplayName = "Disease", DataType = "String", DisplayOrder = 5 },
-                new() { FieldPath = "TotalTasks", DisplayName = "Total Tasks", DataType = "Int", DisplayOrder = 6 },
-                new() { FieldPath = "FollowUpStatus", DisplayName = "Follow-up", DataType = "String", DisplayOrder = 7 }
+                new() { FieldPath = "DateIdentified", DisplayName = "Date Identified", DataType = "DateTime", DisplayOrder = 3 },
+                new() { FieldPath = "DiseaseName", DisplayName = "Disease", DataType = "String", DisplayOrder = 4 },
+                new() { FieldPath = "ContactMobile", DisplayName = "Mobile", DataType = "String", DisplayOrder = 5 },
+                new() { FieldPath = "ContactSuburb", DisplayName = "Suburb", DataType = "String", DisplayOrder = 6 },
+                new() { FieldPath = "TotalTasks", DisplayName = "Total Tasks", DataType = "Int", DisplayOrder = 7 }
             },
 
             _ => new List<ReportFieldDto>() // Empty for unknown types

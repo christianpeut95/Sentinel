@@ -1,4 +1,6 @@
-﻿<Project Sdk="Microsoft.NET.Sdk.Web">
+﻿
+
+<Project Sdk="Microsoft.NET.Sdk.Web">
 
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
@@ -6,6 +8,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <UserSecretsId>aspnet-Sentinel-a57ac8ba-ccc6-4d7a-b380-485d37f1148d</UserSecretsId>
     <RootNamespace>Sentinel</RootNamespace>
+    <IsTransformWebConfigDisabled>true</IsTransformWebConfigDisabled>
   </PropertyGroup>
 
   <ItemGroup>
@@ -36,6 +39,11 @@
   <ItemGroup>
     <Folder Include="Events\Handlers\" />
     <Folder Include="Pages\ReviewQueue\" />
+    <Folder Include="Sentinel\Pages\Admin\" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="Scripts\**\*.sql" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>

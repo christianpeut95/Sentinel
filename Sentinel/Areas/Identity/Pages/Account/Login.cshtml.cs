@@ -14,12 +14,14 @@ namespace Sentinel.Areas.Identity.Pages.Account
         private readonly SignInManager<ApplicationUser> _signInManager;
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly ILogger<LoginModel> _logger;
+        private readonly IConfiguration _configuration;
 
-        public LoginModel(SignInManager<ApplicationUser> signInManager, UserManager<ApplicationUser> userManager, ILogger<LoginModel> logger)
+        public LoginModel(SignInManager<ApplicationUser> signInManager, UserManager<ApplicationUser> userManager, ILogger<LoginModel> logger, IConfiguration configuration)
         {
             _signInManager = signInManager;
             _userManager = userManager;
             _logger = logger;
+            _configuration = configuration;
         }
 
         [BindProperty]
@@ -31,6 +33,8 @@ namespace Sentinel.Areas.Identity.Pages.Account
 
         [TempData]
         public string ErrorMessage { get; set; }
+        
+        public bool IsDemoMode => _configuration.GetValue<bool>("Demo:EnableDemoUsers");
 
         public class InputModel
         {
@@ -116,6 +120,33 @@ namespace Sentinel.Areas.Identity.Pages.Account
             }
 
             return Page();
+        }
+        
+        public async Task<IActionResult> OnPostDemoLoginAsync(string email, string password, string returnUrl = null)
+        {
+            returnUrl ??= Url.Content("~/");
+            
+            var user = await _userManager.FindByEmailAsync(email);
+            if (user == null)
+            {
+                _logger.LogWarning($"Demo login failed: User {email} not found");
+                ModelState.AddModelError(string.Empty, "Demo user not found. Make sure demo seeding completed.");
+                return Page();
+            }
+            
+            var result = await _signInManager.PasswordSignInAsync(user.UserName!, password, isPersistent: false, lockoutOnFailure: false);
+            
+            if (result.Succeeded)
+            {
+                _logger.LogInformation($"Demo user {email} logged in successfully.");
+                return LocalRedirect(returnUrl);
+            }
+            else
+            {
+                _logger.LogWarning($"Demo login failed for {email}");
+                ModelState.AddModelError(string.Empty, "Demo login failed. Check server logs.");
+                return Page();
+            }
         }
     }
 }
