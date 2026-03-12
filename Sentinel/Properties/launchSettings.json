@@ -18,15 +18,6 @@
       "environmentVariables": {
         "ASPNETCORE_ENVIRONMENT": "Development"
       }
-    },
-    "Demo": {
-      "commandName": "Project",
-      "dotnetRunMessages": true,
-      "launchBrowser": true,
-      "applicationUrl": "https://localhost:7219;http://localhost:5261",
-      "environmentVariables": {
-        "ASPNETCORE_ENVIRONMENT": "Demo"
-      }
     }
   }
 }
