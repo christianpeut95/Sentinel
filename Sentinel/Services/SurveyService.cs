@@ -56,6 +56,7 @@ namespace Sentinel.Services
             string? surveyJson = null;
             string? defaultInputMappings = null;
             string? defaultOutputMappings = null;
+            var result = new SurveyDefinitionWithData();
 
             // 1. Check if TaskTemplate uses Survey Library
             if (task.TaskTemplate?.SurveyTemplateId != null)
@@ -102,6 +103,9 @@ namespace Sentinel.Services
                     _logger.LogInformation("Using Survey Library template {TemplateId} (Version {VersionNumber}) for Task {TaskId}", 
                         surveyTemplate.Id, surveyTemplate.VersionNumber, taskId);
 
+                    result.SurveyName = surveyTemplate.Name;
+                    result.SurveyVersionNumber = surveyTemplate.VersionNumber;
+
                     // Update usage tracking on the version being used
                     var templateToUpdate = await _context.SurveyTemplates.FindAsync(surveyTemplate.Id);
                     if (templateToUpdate != null)
@@ -124,10 +128,7 @@ namespace Sentinel.Services
                     task.TaskTemplateId, taskId);
             }
 
-            var result = new SurveyDefinitionWithData
-            {
-                HasSurvey = !string.IsNullOrEmpty(surveyJson)
-            };
+            result.HasSurvey = !string.IsNullOrEmpty(surveyJson);
 
             if (!result.HasSurvey)
                 return result;

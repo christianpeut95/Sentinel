@@ -248,6 +248,10 @@
                     {
                         <span>• Notified: @Model.Task.Case.DateOfNotification.Value.ToString("dd/MM/yyyy")</span>
                     }
+                    @if (!string.IsNullOrEmpty(Model.SurveyName))
+                    {
+                        <span>• Survey: @Model.SurveyName v@(Model.SurveyVersionNumber)</span>
+                    }
                 </div>
             </div>
         </div>

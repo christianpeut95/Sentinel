@@ -10,6 +10,9 @@ using System.Threading.RateLimiting;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Set demo mode flag from configuration (drives version display, demo UI, etc.)
+Sentinel.Constants.AppVersion.IsDemoMode = builder.Configuration.GetValue<bool>("Demo:EnableDemoMode");
+
 // Environment variable overrides for sensitive configuration
 // Priority: Environment Variables > appsettings.json
 // This allows secrets to be injected at runtime without storing in config files
@@ -630,6 +633,9 @@ using (var scope = app.Services.CreateScope())
     await Sentinel.Services.PermissionSeedService.SeedAsync(scope.ServiceProvider);
     await Sentinel.Services.LookupDataSeedService.SeedAsync(scope.ServiceProvider);
     logger.LogInformation("Data seeding complete");
+
+    // Conditionally seed demo users (only when Demo:EnableDemoUsers is true)
+    await Sentinel.Services.DemoUserSeedService.SeedAsync(scope.ServiceProvider);
 }
 
 // Health check endpoint for Docker and monitoring

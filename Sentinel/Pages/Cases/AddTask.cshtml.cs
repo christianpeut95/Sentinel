@@ -193,12 +193,18 @@ namespace Sentinel.Pages.Cases
                 await _context.TaskTypes.OrderBy(t => t.Name).ToListAsync(),
                 "Id", "Name");
 
+            // Show active versions but store the family root ID
+            // so the link survives when new versions are published
+            var activeSurveys = await _context.SurveyTemplates
+                .Where(st => st.IsActive && st.VersionStatus == SurveyVersionStatus.Active)
+                .OrderBy(st => st.Name)
+                .Select(st => new { Id = st.ParentSurveyTemplateId ?? st.Id, st.Name, st.VersionNumber })
+                .ToListAsync();
+
             SurveyTemplatesList = new SelectList(
-                await _context.SurveyTemplates
-                    .Where(st => st.IsActive && st.VersionStatus == SurveyVersionStatus.Active)
-                    .OrderBy(st => st.Name)
-                    .ToListAsync(),
-                "Id", "Name");
+                activeSurveys.Select(s => new { s.Id, DisplayName = $"{s.Name} (v{s.VersionNumber})" }),
+                "Id",
+                "DisplayName");
         }
     }
 }

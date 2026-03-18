@@ -1045,15 +1045,15 @@ namespace Sentinel.Pages.Cases
             // Group by survey family and get the LATEST version of each
             var uniqueSurveys = allActiveSurveys
                 .GroupBy(st => st.ParentSurveyTemplateId ?? st.Id)
-                .Select(g => g.OrderByDescending(s => s.VersionNumber).First()) // Get LATEST version
-                .OrderBy(st => st.Category)
-                .ThenBy(st => st.Name)
-                .Select(st => new
+                .Select(g => new { RootId = g.Key, Latest = g.OrderByDescending(s => s.VersionNumber).First() })
+                .OrderBy(x => x.Latest.Category)
+                .ThenBy(x => x.Latest.Name)
+                .Select(x => new
                 {
-                    st.Id,
-                    DisplayName = st.Category != null 
-                        ? $"{st.Name} ({st.Category}) v{st.VersionNumber}" 
-                        : $"{st.Name} v{st.VersionNumber}"
+                    Id = x.RootId,
+                    DisplayName = x.Latest.Category != null 
+                        ? $"{x.Latest.Name} ({x.Latest.Category}) v{x.Latest.VersionNumber}" 
+                        : $"{x.Latest.Name} v{x.Latest.VersionNumber}"
                 })
                 .ToList();
 

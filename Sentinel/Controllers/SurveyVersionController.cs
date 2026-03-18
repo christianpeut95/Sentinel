@@ -36,8 +36,9 @@ namespace Sentinel.Controllers
                     return BadRequest("Cannot create a version from an unsaved survey. Please save the survey first.");
                 }
                 
-                // Get the survey to version from
+                // Get the survey to version from (include diseases to copy them)
                 var sourceSurvey = await _context.SurveyTemplates
+                    .Include(st => st.ApplicableDiseases)
                     .FirstOrDefaultAsync(st => st.Id == request.ParentSurveyId);
 
                 if (sourceSurvey == null)
@@ -78,6 +79,7 @@ namespace Sentinel.Controllers
                     SurveyDefinitionJson = request.SurveyDefinitionJson,
                     DefaultInputMappingJson = request.InputMappingJson,
                     DefaultOutputMappingJson = request.OutputMappingJson,
+                    IsSystemTemplate = sourceSurvey.IsSystemTemplate,
                     CreatedAt = DateTime.UtcNow,
                     CreatedBy = User.Identity?.Name,
                     IsActive = true
@@ -100,6 +102,17 @@ namespace Sentinel.Controllers
                 }
 
                 _context.SurveyTemplates.Add(newVersion);
+
+                // Copy disease associations from the source survey
+                foreach (var disease in sourceSurvey.ApplicableDiseases)
+                {
+                    _context.SurveyTemplateDiseases.Add(new SurveyTemplateDisease
+                    {
+                        SurveyTemplateId = newVersion.Id,
+                        DiseaseId = disease.DiseaseId
+                    });
+                }
+
                 await _context.SaveChangesAsync();
 
                 _logger.LogInformation(

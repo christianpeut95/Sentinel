@@ -30,6 +30,8 @@ namespace Sentinel.Pages.Tasks
         public CaseTask Task { get; set; } = null!;
         public string? SurveyDefinitionJson { get; set; }
         public string PrePopulatedDataJson { get; set; } = "{}";
+        public string? SurveyName { get; set; }
+        public string? SurveyVersionNumber { get; set; }
 
         public async Task<IActionResult> OnGetAsync(Guid id)
         {
@@ -86,6 +88,8 @@ namespace Sentinel.Pages.Tasks
 
             SurveyDefinitionJson = surveyData.SurveyDefinitionJson;
             PrePopulatedDataJson = JsonSerializer.Serialize(surveyData.PrePopulatedData);
+            SurveyName = surveyData.SurveyName;
+            SurveyVersionNumber = surveyData.SurveyVersionNumber;
 
             // Automatically set task to InProgress when survey is opened
             if (Task.Status == CaseTaskStatus.Pending || Task.Status == CaseTaskStatus.WaitingForPatient)

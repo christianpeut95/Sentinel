@@ -105,12 +105,18 @@ namespace Sentinel.Pages.Settings.Lookups
 
         private async Task LoadSurveyTemplates()
         {
-            var surveyTemplates = await _context.SurveyTemplates
+            // Show active versions in dropdown but store the family root ID
+            // so the link survives when new versions are published
+            var activeSurveys = await _context.SurveyTemplates
                 .Where(st => st.IsActive && st.VersionStatus == SurveyVersionStatus.Active)
                 .OrderBy(st => st.Name)
+                .Select(st => new { Id = st.ParentSurveyTemplateId ?? st.Id, st.Name, st.VersionNumber })
                 .ToListAsync();
 
-            SurveyTemplates = new SelectList(surveyTemplates, "Id", "Name");
+            SurveyTemplates = new SelectList(
+                activeSurveys.Select(s => new { s.Id, DisplayName = $"{s.Name} (v{s.VersionNumber})" }),
+                "Id",
+                "DisplayName");
         }
 
         private bool TaskTemplateExists(Guid id)

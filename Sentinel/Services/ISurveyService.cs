@@ -17,6 +17,8 @@ namespace Sentinel.Services
         public string? SurveyDefinitionJson { get; set; }
         public Dictionary<string, object> PrePopulatedData { get; set; } = new();
         public bool HasSurvey { get; set; }
+        public string? SurveyName { get; set; }
+        public string? SurveyVersionNumber { get; set; }
     }
 
     public interface ISurveyService
