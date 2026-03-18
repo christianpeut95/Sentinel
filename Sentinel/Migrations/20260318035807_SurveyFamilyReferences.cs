@@ -57,11 +57,32 @@ namespace Sentinel.Migrations
                 principalTable: "SurveyTemplates",
                 principalColumn: "Id",
                 onDelete: ReferentialAction.SetNull);
+
+            // Add mapping columns to DiseaseTaskTemplates
+            migrationBuilder.AddColumn<string>(
+                name: "InputMappingJson",
+                table: "DiseaseTaskTemplates",
+                type: "nvarchar(max)",
+                nullable: true);
+
+            migrationBuilder.AddColumn<string>(
+                name: "OutputMappingJson",
+                table: "DiseaseTaskTemplates",
+                type: "nvarchar(max)",
+                nullable: true);
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
+            migrationBuilder.DropColumn(
+                name: "InputMappingJson",
+                table: "DiseaseTaskTemplates");
+
+            migrationBuilder.DropColumn(
+                name: "OutputMappingJson",
+                table: "DiseaseTaskTemplates");
+
             migrationBuilder.DropForeignKey(
                 name: "FK_TaskTemplates_SurveyTemplates_SurveyTemplateId",
                 table: "TaskTemplates");
