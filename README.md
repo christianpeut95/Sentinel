@@ -12,7 +12,7 @@
 
 A publicly hosted demo is available at:
 
-**http://sentinel-demo.ddns.net**
+**http://sentinel-demo.ddns.net** or **http://134.199.174.97
 
 > Demo credentials are pre-loaded. See the [Demo Mode](#demo-mode) section for login details.
 
@@ -32,7 +32,48 @@ The project is currently in alpha release and is intended primarily for experime
 
 ## Screenshots
 
-> Screenshots coming soon. The live demo is available at http://sentinel-demo.ddns.net
+<table>
+  <tr>
+    <td align="center" width="50%">
+      <img src="https://github.com/user-attachments/assets/bf61e9a7-4e81-477d-96bc-26bbdc399661" alt="Dashboard" width="100%" />
+      <br/><sub><b>Dashboard</b></sub>
+    </td>
+    <td align="center" width="50%">
+      <img src="https://github.com/user-attachments/assets/791483f9-8225-4d12-8bd1-bd0e84c691b7" alt="Case" width="100%" />
+      <br/><sub><b>Case Management</b></sub>
+    </td>
+  </tr>
+  <tr>
+    <td align="center" width="50%">
+      <img src="https://github.com/user-attachments/assets/79358351-12d5-4b7a-a740-a6157f4797a2" alt="Custom Fields" width="100%" />
+      <br/><sub><b>Custom Fields</b></sub>
+    </td>
+    <td align="center" width="50%">
+      <img src="https://github.com/user-attachments/assets/bfdc1a12-77a7-4cd2-b59b-22785e63f4d7" alt="Survey Field Mappings" width="100%" />
+      <br/><sub><b>Survey Field Mappings</b></sub>
+    </td>
+  </tr>
+  <tr>
+    <td align="center" width="50%">
+      <img src="https://github.com/user-attachments/assets/b1c40eb6-8ed0-4c04-bb8c-beaab8bd2941" alt="Review Queue" width="100%" />
+      <br/><sub><b>Review Queue</b></sub>
+    </td>
+    <td align="center" width="50%">
+      <img src="https://github.com/user-attachments/assets/8e5f5031-5772-458f-b247-ba52438adefd" alt="Report Builder" width="100%" />
+      <br/><sub><b>Report Builder</b></sub>
+    </td>
+  </tr>
+  <tr>
+    <td align="center" width="50%">
+      <img src="https://github.com/user-attachments/assets/24557495-ff35-47b5-b7b6-ff58853765e8" alt="Outbreak" width="100%" />
+      <br/><sub><b>Outbreak Investigation</b></sub>
+    </td>
+    <td align="center" width="50%">
+      <img src="https://github.com/user-attachments/assets/2f8db7c9-a3f6-4956-9f5f-0633e0c031f3" alt="Demo Login" width="100%" />
+      <br/><sub><b>Demo Login</b></sub>
+    </td>
+  </tr>
+</table>
 
 ---
 
@@ -192,31 +233,6 @@ Demo__EnableDemoMode=true
 Demo__ShowDemoBanner=true
 ```
 
-### What Each Variable Does
-
-**`EnableDemoUsers`**
-- On startup, seeds five demo accounts with pre-set passwords if they do not already exist
-- Replaces the standard login form with one-click login buttons for each demo account
-- Has no effect on standard installs (accounts are never created unless this is `true`)
-
-**`EnableDemoMode`**
-- Appends `(Demo)` to the version string shown in the sidebar, login page and About page
-- Unlocks the **Test Data Generator** tool (`/Tools/TestDataGenerator`) for generating synthetic patients, cases and contacts
-
-**`ShowDemoBanner`**
-- Renders a prominent orange/red banner fixed to the top of every page with the text **"DEMO ENVIRONMENT"**
-- Useful when sharing a demo link publicly so evaluators are aware they are on a non-production instance
-
-### Demo Accounts
-
-| Name | Email | Password | Role |
-|---|---|---|---|
-| Emma Thompson | manager@sentinel-demo.com | `Demo123!@#Manager` | Surveillance Manager |
-| Isabella Chen | officer@sentinel-demo.com | `Demo123!@#Officer` | Surveillance Officer |
-| Emma Rodriguez | tracer@sentinel-demo.com | `Demo123!@#Tracer` | Contact Tracer |
-| James Wilson | supervisor@sentinel-demo.com | `Demo123!@#Supervisor` | Surveillance Manager |
-| Megge Taylor | stiofficer@sentinel-demo.com | `Demo123!@#STI` | Surveillance Officer |
-
 > Demo users are only created when `Demo:EnableDemoUsers` is `true`. They are not created on standard installs.
 
 ---
@@ -329,5 +345,3 @@ You are free to use, modify and distribute this software for any purpose, includ
 Built on top of excellent open-source work: ASP.NET Core, Entity Framework Core, SurveyJS, AG Grid, WebDataRocks, Bootstrap.
 
 ---
-
-*Built with love for public health*
