@@ -550,7 +550,8 @@ public class CollectionMappingService : ICollectionMappingService
                 matches,  // Can be empty if no duplicates found
                 context.CaseId,
                 config,
-                context.TaskId
+                context.TaskId,
+                sourceRow: row
             );
             
             result.ItemsRequiringReview++;
@@ -680,9 +681,11 @@ public class CollectionMappingService : ICollectionMappingService
                 return;
             }
         }
-        else if (!matches.Any() || config.OnDuplicateFound == DuplicateHandling.CreateNew)
+        else if (!isReprocessing && (!matches.Any() || config.OnDuplicateFound == DuplicateHandling.CreateNew))
         {
-            // Create primary entity
+            // Create primary entity (ONLY during initial submission, not reprocessing)
+            _logger.LogInformation("? INITIAL SUBMISSION: Creating new patient (no duplicates or CreateNew strategy)");
+            
             primaryEntity = await CreateEntityFromDataAsync(
                 config.TargetEntityType,
                 entityData,
@@ -754,11 +757,23 @@ public class CollectionMappingService : ICollectionMappingService
                 return; // Don't create related entities if primary save failed
             }
             
+            
             result.EntitiesCreated.Add(primaryEntity);
         }
-        else // SkipAndLink
+        else if (isReprocessing)
         {
-            // Use existing entity
+            // ?? REPROCESSING ERROR: Patient should already exist but wasn't handled properly
+            var errorMsg = $"REPROCESSING ERROR: Patient should exist but PatientId is invalid or missing. " +
+                          $"PatientId={context.PatientId}, PatientAlreadyExists={patientAlreadyExists}";
+            _logger.LogError(errorMsg);
+            result.Errors.Add(errorMsg);
+            return; // Don't create duplicate patient or related entities
+        }
+        else // SkipAndLink (during initial submission)
+        {
+            // Use existing entity (duplicate found, link to first match)
+            _logger.LogInformation("? Linking to existing {EntityType} (duplicate found)", config.TargetEntityType);
+            
             primaryEntity = new CreatedEntityInfo
             {
                 EntityType = config.TargetEntityType,
@@ -1139,7 +1154,8 @@ public class CollectionMappingService : ICollectionMappingService
                 entityData,
                 matches,
                 contextCaseId,
-                config
+                config,
+                sourceRow: row
             );
             
             result.ItemsRequiringReview++;
@@ -1592,7 +1608,8 @@ public class CollectionMappingService : ICollectionMappingService
         List<EntityMatch> matches,
         Guid contextCaseId,
         CollectionMappingConfig config,
-        Guid? taskId = null)
+        Guid? taskId = null,
+        JObject? sourceRow = null)
     {
         // ? FIX: Determine EntityType and ChangeType based on whether duplicates found
         var entityType = matches.Any() 
@@ -1617,13 +1634,13 @@ public class CollectionMappingService : ICollectionMappingService
             CreatedDate = DateTime.UtcNow,
             PotentialMatchesJson = JsonConvert.SerializeObject(matches),
             ProposedEntityDataJson = JsonConvert.SerializeObject(entityData),
-            // ? FIX: Only store SurveyResponseId if it's valid (not empty)
-            // During reprocessing, we use Task.SurveyResponseJson anyway
+            // Store the specific row alongside metadata so reprocessing only re-runs this exact row
             CollectionSourceDataJson = JsonConvert.SerializeObject(new
             {
                 SurveyResponseId = surveyResponseId != Guid.Empty ? surveyResponseId : (Guid?)null,
                 QuestionName = questionName,
-                TargetEntityType = config.TargetEntityType
+                TargetEntityType = config.TargetEntityType,
+                RowData = sourceRow?.ToString(Newtonsoft.Json.Formatting.None)
             })
         };
         

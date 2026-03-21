@@ -40,8 +40,13 @@
             </div>
 
             <!-- Release Date -->
-            <p style="color: #9ca3af; font-size: 0.875rem; margin-bottom: 3rem;">
+            <p style="color: #9ca3af; font-size: 0.875rem; margin-bottom: 0.5rem;">
                 Released: @Model.ReleaseDate
+            </p>
+            
+            <!-- Build Date -->
+            <p style="color: #9ca3af; font-size: 0.875rem; margin-bottom: 3rem;">
+                Built: @Model.BuildDate
             </p>
 
             <hr class="my-4" />
@@ -59,6 +64,10 @@
                             <tr>
                                 <td class="text-muted">Release Date:</td>
                                 <td><strong>@Model.ReleaseDate</strong></td>
+                            </tr>
+                            <tr>
+                                <td class="text-muted">Build Date:</td>
+                                <td><strong>@Model.BuildDate</strong></td>
                             </tr>
                             <tr>
                                 <td class="text-muted">Framework:</td>

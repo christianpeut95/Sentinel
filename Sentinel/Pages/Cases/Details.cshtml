@@ -1696,22 +1696,27 @@
                     <i class="bi bi-arrow-up-circle"></i>
                     Transmissions (@Model.Transmissions.Count)
                 </h3>
-                <div class="d-flex gap-2">
+                <div class="d-flex gap-1">
                     <a asp-page="/Outbreaks/CreateFromExposure"
                        asp-route-caseId="@Model.Case.Id"
                        class="btn btn-sm btn-outline-danger"
-                       title="Create Contact Tracing Event to manage multiple contacts"
-                       style="white-space: nowrap;">
-                        <i class="bi bi-diagram-3"></i> Create Contact Tracing Event
+                       title="Create Contact Tracing Event">
+                        <i class="bi bi-diagram-3"></i>
+                    </a>
+                    <a asp-page="/Cases/Contacts/BulkCreate"
+                       asp-route-caseId="@Model.Case.Id"
+                       class="btn btn-sm btn-outline-primary"
+                       title="Bulk Add Contacts">
+                        <i class="bi bi-people-fill"></i>
                     </a>
                     @if (Model.Transmissions.Count > 5)
                     {
-                        <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#viewAllTransmissionsModal">
-                            <i class="bi bi-list-ul"></i> View All
+                        <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#viewAllTransmissionsModal" title="View All">
+                            <i class="bi bi-list-ul"></i>
                         </button>
                     }
-                    <button type="button" class="info-card-action" onclick="openAddExposure()">
-                        <i class="bi bi-plus-circle"></i> Add
+                    <button type="button" class="btn btn-sm btn-outline-success" onclick="openAddExposure()" title="Add Exposure">
+                        <i class="bi bi-plus-circle"></i>
                     </button>
                 </div>
             </div>
@@ -1857,6 +1862,19 @@
                                     }
                                 </td>
                                 <td class="text-end">
+                                    @if (exposure.ExposureType == Sentinel.Models.ExposureType.Location || exposure.ExposureType == Sentinel.Models.ExposureType.Event)
+                                    {
+                                        <a asp-page="/Cases/Contacts/BulkCreate"
+                                           asp-route-caseId="@Model.Case.Id"
+                                           asp-route-locationId="@exposure.LocationId"
+                                           asp-route-eventId="@exposure.EventId"
+                                           asp-route-exposureStartDate="@exposure.ExposureStartDate.ToString("o")"
+                                           asp-route-exposureEndDate="@exposure.ExposureEndDate?.ToString("o")"
+                                           class="btn btn-sm btn-link p-0 text-info me-1"
+                                           title="Bulk Add Contacts for this exposure">
+                                            <i class="bi bi-people-fill"></i>
+                                        </a>
+                                    }
                                     <button type="button" class="btn btn-sm btn-link p-0 text-primary" onclick="openEditExposure('@exposure.Id')" title="Edit Exposure">
                                         <i class="bi bi-pencil"></i>
                                     </button>

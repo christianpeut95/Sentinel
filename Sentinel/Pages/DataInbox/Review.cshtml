@@ -891,7 +891,7 @@
         }
 
         <!-- Patient Context (Enhanced) -->
-        @if (Model.ReviewDetail.Patient != null)
+        @if (Model.ReviewDetail.Patient != null && Model.ReviewDetail.Patient.Id != Guid.Empty)
         {
             <div class="card mb-3 context-card">
                 <div class="card-header bg-light">
@@ -1818,20 +1818,20 @@
             
             if (proposedData != null)
             {
-                patient.GivenName = proposedData.GetValueOrDefault("Patient.GivenName")?.ToString() ?? "";
-                patient.FamilyName = proposedData.GetValueOrDefault("Patient.FamilyName")?.ToString() ?? "";
+                patient.GivenName = proposedData.GetValueOrDefault("GivenName")?.ToString() ?? "";
+                patient.FamilyName = proposedData.GetValueOrDefault("FamilyName")?.ToString() ?? "";
                 
-                var dobStr = proposedData.GetValueOrDefault("Patient.DateOfBirth")?.ToString();
+                var dobStr = proposedData.GetValueOrDefault("DateOfBirth")?.ToString();
                 if (!string.IsNullOrEmpty(dobStr) && DateTime.TryParse(dobStr, out var dob))
                 {
                     patient.DateOfBirth = dob;
                 }
                 
-                patient.MobilePhone = proposedData.GetValueOrDefault("Patient.MobilePhone")?.ToString();
-                patient.EmailAddress = proposedData.GetValueOrDefault("Patient.EmailAddress")?.ToString();
-                patient.Address = proposedData.GetValueOrDefault("Patient.AddressLine")?.ToString();
-                patient.City = proposedData.GetValueOrDefault("Patient.City")?.ToString();
-                patient.State = proposedData.GetValueOrDefault("Patient.State")?.ToString();
+                patient.MobilePhone = proposedData.GetValueOrDefault("MobilePhone")?.ToString();
+                patient.EmailAddress = proposedData.GetValueOrDefault("EmailAddress")?.ToString();
+                patient.Address = proposedData.GetValueOrDefault("AddressLine")?.ToString();
+                patient.City = proposedData.GetValueOrDefault("City")?.ToString();
+                patient.State = proposedData.GetValueOrDefault("State")?.ToString();
             }
         }
         catch (Exception ex)

@@ -381,15 +381,15 @@ public class IndexModel : PageModel
             var patient = new Patient
             {
                 Id = Guid.NewGuid(),
-                GivenName = GetValueFromDict(proposedData, "Patient.GivenName") ?? "",
-                FamilyName = GetValueFromDict(proposedData, "Patient.FamilyName") ?? "",
-                DateOfBirth = GetDateFromDict(proposedData, "Patient.DateOfBirth"),
-                MobilePhone = GetValueFromDict(proposedData, "Patient.MobilePhone"),
-                EmailAddress = GetValueFromDict(proposedData, "Patient.EmailAddress"),
-                AddressLine = GetValueFromDict(proposedData, "Patient.StreetAddress"),
-                City = GetValueFromDict(proposedData, "Patient.City"),
-                State = GetValueFromDict(proposedData, "Patient.Province"),
-                PostalCode = GetValueFromDict(proposedData, "Patient.PostalCode"),
+                GivenName = GetValueFromDict(proposedData, "GivenName") ?? "",
+                FamilyName = GetValueFromDict(proposedData, "FamilyName") ?? "",
+                DateOfBirth = GetDateFromDict(proposedData, "DateOfBirth"),
+                MobilePhone = GetValueFromDict(proposedData, "MobilePhone"),
+                EmailAddress = GetValueFromDict(proposedData, "EmailAddress"),
+                AddressLine = GetValueFromDict(proposedData, "AddressLine"),
+                City = GetValueFromDict(proposedData, "City"),
+                State = GetValueFromDict(proposedData, "State"),
+                PostalCode = GetValueFromDict(proposedData, "PostalCode"),
                 CreatedAt = DateTime.UtcNow,
                 CreatedByUserId = User.Identity?.Name
             };
@@ -510,38 +510,37 @@ public class IndexModel : PageModel
                 return;
             }
 
-            // Get the row data from the survey response
-            var task = reviewQueue.Task;
-            if (string.IsNullOrEmpty(task.SurveyResponseJson))
-            {
-                return;
-            }
-
-            var surveyData = JsonSerializer.Deserialize<Dictionary<string, object>>(task.SurveyResponseJson);
-            if (surveyData == null || !surveyData.ContainsKey(questionName))
-            {
-                return;
-            }
-
-            var rowDataElement = surveyData[questionName] as JsonElement?;
-            if (rowDataElement == null)
-            {
-                return;
-            }
-
             JArray rowData;
             
-            // Handle both Object (single row) and Array (multiple rows) formats
-            if (rowDataElement.Value.ValueKind == JsonValueKind.Array)
+            // ? CRITICAL FIX: Check if specific row was stored in CollectionSourceDataJson
+            if (sourceData.ContainsKey("RowData") && sourceData["RowData"] != null)
             {
-                rowData = JArray.Parse(rowDataElement.Value.GetRawText());
-            }
-            else if (rowDataElement.Value.ValueKind == JsonValueKind.Object)
-            {
-                var singleRow = JObject.Parse(rowDataElement.Value.GetRawText());
-                rowData = new JArray { singleRow };
+                var rowDataElement = sourceData["RowData"] as JsonElement?;
+                if (rowDataElement.HasValue && rowDataElement.Value.ValueKind == JsonValueKind.String)
+                {
+                    var rowJson = rowDataElement.Value.GetString();
+                    if (!string.IsNullOrEmpty(rowJson))
+                    {
+                        var singleRow = JObject.Parse(rowJson);
+                        rowData = new JArray { singleRow };
+                    }
+                    else
+                    {
+                        rowData = GetAllRowsFromSurveyResponse(reviewQueue.Task, questionName);
+                    }
+                }
+                else
+                {
+                    rowData = GetAllRowsFromSurveyResponse(reviewQueue.Task, questionName);
+                }
             }
             else
+            {
+                // Legacy: No RowData - use all rows
+                rowData = GetAllRowsFromSurveyResponse(reviewQueue.Task, questionName);
+            }
+            
+            if (rowData == null || rowData.Count == 0)
             {
                 return;
             }
@@ -549,10 +548,10 @@ public class IndexModel : PageModel
             // Build context with resolved patient
             var context = new SurveySubmissionContext
             {
-                CaseId = task.CaseId,
+                CaseId = reviewQueue.Task.CaseId,
                 PatientId = resolvedPatientId,
-                TaskId = task.Id,
-                DiseaseId = task.Case?.DiseaseId ?? Guid.Empty,
+                TaskId = reviewQueue.Task.Id,
+                DiseaseId = reviewQueue.Task.Case?.DiseaseId ?? Guid.Empty,
                 JurisdictionId = null,
                 SubmittedBy = User.Identity?.Name,
                 SubmittedDate = DateTime.UtcNow,
@@ -561,7 +560,7 @@ public class IndexModel : PageModel
                     ["ResolvedFromDuplicate"] = true,
                     ["PatientAlreadyExists"] = patientAlreadyExists,
                     ["OriginalReviewId"] = reviewQueue.Id,
-                    ["Jurisdiction1Id"] = task.Case?.Jurisdiction1Id ?? 0
+                    ["Jurisdiction1Id"] = reviewQueue.Task.Case?.Jurisdiction1Id ?? 0
                 }
             };
 
@@ -582,6 +581,32 @@ public class IndexModel : PageModel
             System.Diagnostics.Debug.WriteLine($"Error reprocessing collection mappings: {ex.Message}");
             throw;
         }
+    }
+    
+    private JArray? GetAllRowsFromSurveyResponse(CaseTask task, string questionName)
+    {
+        if (string.IsNullOrEmpty(task.SurveyResponseJson))
+            return null;
+
+        var surveyData = JsonSerializer.Deserialize<Dictionary<string, object>>(task.SurveyResponseJson);
+        if (surveyData == null || !surveyData.ContainsKey(questionName))
+            return null;
+
+        var rowDataElement = surveyData[questionName] as JsonElement?;
+        if (rowDataElement == null)
+            return null;
+
+        if (rowDataElement.Value.ValueKind == JsonValueKind.Array)
+        {
+            return JArray.Parse(rowDataElement.Value.GetRawText());
+        }
+        else if (rowDataElement.Value.ValueKind == JsonValueKind.Object)
+        {
+            var singleRow = JObject.Parse(rowDataElement.Value.GetRawText());
+            return new JArray { singleRow };
+        }
+        
+        return null;
     }
 
     private string GetChangeSummaryForJson(Sentinel.Models.ReviewQueue item)

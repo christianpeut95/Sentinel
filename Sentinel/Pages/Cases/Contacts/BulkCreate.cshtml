@@ -51,6 +51,16 @@
                         <div>@Model.Event.Name (@Model.Event.StartDateTime.ToString("dd MMM yyyy"))</div>
                     </div>
                 }
+
+                @if (Model.OutbreakId.HasValue)
+                {
+                    var selectedOutbreak = Model.OutbreaksList?
+                        .FirstOrDefault(x => x.Value == Model.OutbreakId.Value.ToString());
+                    <div class="col-md-4">
+                        <strong><i class="bi bi-exclamation-triangle me-2 text-danger"></i>Outbreak:</strong>
+                        <div class="text-danger fw-bold">@(selectedOutbreak?.Text ?? $"Outbreak #{Model.OutbreakId}")</div>
+                    </div>
+                }
             </div>
         </div>
     </div>
@@ -74,6 +84,35 @@
     @if (!Model.ShowReviewScreen)
     {
         <!-- Step 1: Import Contacts -->
+
+        <!-- Outbreak / Contact Tracing Event Linking -->
+        <div class="card mb-4 border-warning">
+            <div class="card-header bg-warning bg-opacity-10">
+                <h5 class="mb-0"><i class="bi bi-diagram-3 me-2 text-warning"></i>Link to Outbreak <span class="badge bg-secondary fw-normal fs-6 ms-1">Optional</span></h5>
+            </div>
+            <div class="card-body">
+                <p class="text-muted mb-3">Optionally link all created contacts to an active outbreak investigation. This will add each contact to the outbreak's case list and log a timeline event.</p>
+                <form method="get" class="row g-3 align-items-end">
+                    <input type="hidden" name="caseId" value="@Model.CaseId" />
+                    <input type="hidden" name="locationId" value="@Model.LocationId" />
+                    <input type="hidden" name="eventId" value="@Model.EventId" />
+                    <input type="hidden" name="exposureStartDate" value="@Model.ExposureStartDate?.ToString("o")" />
+                    <input type="hidden" name="exposureEndDate" value="@Model.ExposureEndDate?.ToString("o")" />
+                    <div class="col-md-8">
+                        <label class="form-label fw-semibold">Active Outbreak</label>
+                        <select name="outbreakId" class="form-select" asp-items="Model.OutbreaksList">
+                            <option value="">— None (contacts will not be linked to an outbreak) —</option>
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <button type="submit" class="btn btn-outline-warning w-100">
+                            <i class="bi bi-check2 me-1"></i>Apply Selection
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
         <div class="row g-4">
             <!-- CSV Import -->
             <div class="col-lg-6">
@@ -104,6 +143,7 @@
                             <input type="hidden" asp-for="EventId" />
                             <input type="hidden" asp-for="ExposureStartDate" />
                             <input type="hidden" asp-for="ExposureEndDate" />
+                            <input type="hidden" asp-for="OutbreakId" />
                             
                             <div class="mb-3">
                                 <label class="form-label">Select CSV File</label>
@@ -172,6 +212,7 @@
             <input type="hidden" asp-for="EventId" />
             <input type="hidden" asp-for="ExposureStartDate" />
             <input type="hidden" asp-for="ExposureEndDate" />
+            <input type="hidden" asp-for="OutbreakId" />
             <input type="hidden" asp-for="ShowReviewScreen" />
 
             <!-- Summary Card -->

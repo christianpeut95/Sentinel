@@ -32,36 +32,32 @@
             </div>
             
             <div class="apple-card-body">
+                @* Consolidated Messages - Only show one at a time, priority order *@
                 @if (TempData["SuccessMessage"] != null)
                 {
-                    <div class="alert alert-success">
+                    <div class="alert alert-success alert-dismissible fade show">
                         <i class="bi bi-check-circle"></i> @TempData["SuccessMessage"]
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
                     </div>
                 }
-                
-                @if (!ModelState.IsValid)
+                else if (!ModelState.IsValid)
                 {
-                    <div class="alert alert-danger">
+                    <div class="alert alert-danger alert-dismissible fade show">
                         <i class="bi bi-exclamation-triangle"></i>
-                        <ul class="mb-0">
+                        <strong>Validation Error:</strong>
+                        <ul class="mb-0 mt-1">
                             @foreach (var error in ModelState.Values.SelectMany(v => v.Errors))
                             {
                                 <li>@error.ErrorMessage</li>
                             }
                         </ul>
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
                     </div>
                 }
 
-                <div class="alert alert-secondary small mb-3">
-                    <strong>Debug Info:</strong>
-                    ConfigurationType=<code>@Model.ConfigurationType</code>,
-                    ConfigurationId=<code>@Model.ConfigurationId</code>,
-                    SurveyTemplateId=<code>@Model.SurveyTemplateId</code>
-                </div>
-
-                <form method="post">
+                <form method="post" id="mappingForm">
                     <input type="hidden" asp-for="ConfigurationType" />
-                    <input type="hidden" asp-for="ConfigurationId" />
+                    <input type="hidden" asp-for="ConfigurationId" id="configurationIdInput" />
                     <input type="hidden" asp-for="SurveyTemplateId" />
                     <input type="hidden" asp-for="MappingId" />
                     <input type="hidden" asp-for="Mapping.Id" />
@@ -201,62 +197,69 @@
 
                         <!-- Collection Mapping Configuration (shown when Complexity = Collection) -->
                         <div class="col-md-12" id="collectionMappingSection" style="display: none;">
-                            <div class="alert alert-primary mt-3">
-                                <h6><i class="bi bi-info-circle"></i> Collection Mapping Configuration</h6>
-                                <p class="mb-2">
-                                    Collection mappings create multiple entities from matrix/dynamic questions.
-                                    Each row in the survey question will create database records.
-                                </p>
-                                <ol class="mb-0 ps-3 small">
-                                    <li>Save this mapping first (if creating new)</li>
-                                    <li>Click <strong>"Configure Collection Mapping"</strong> below</li>
-                                    <li>Set up entity mappings in the popup window</li>
-                                    <li>Configuration is saved automatically when you close popup</li>
-                                </ol>
-                            </div>
-                            
                             <!-- Hidden field to store collection config JSON -->
                             <input type="hidden" asp-for="Mapping.CollectionConfigJson" id="collectionConfigJson" />
                             
-                            @if (string.IsNullOrEmpty(Model.Mapping.CollectionConfigJson))
-                            {
-                                <div class="alert alert-warning">
-                                    <i class="bi bi-exclamation-triangle"></i>
-                                    <strong>Not Configured Yet</strong><br>
-                                    <small>This mapping will not process any data until collection configuration is set.</small>
-                                </div>
-                            }
-                            else
-                            {
-                                <div class="alert alert-success">
-                                    <i class="bi bi-check-circle"></i>
-                                    <strong>Configuration Active</strong>
-                                    <button type="button" class="btn btn-link btn-sm p-0 ms-2" onclick="$('#configPreview').toggle()">
-                                        <i class="bi bi-eye"></i> View Configuration
-                                    </button>
-                                </div>
-                                <pre id="configPreview" class="bg-light p-2 rounded small" style="display:none; max-height: 200px; overflow-y: auto;">@Model.Mapping.CollectionConfigJson</pre>
+                            @{
+                                var hasConfig = !string.IsNullOrEmpty(Model.Mapping.CollectionConfigJson);
+                                var configClass = hasConfig ? "alert-success" : "alert-light border";
+                                var configIcon = hasConfig ? "check-circle" : "info-circle";
                             }
                             
-                            <div class="mt-3">
-                                @if (Model.MappingId.HasValue && Model.MappingId.Value != Guid.Empty)
-                                {
-                                    <button type="button" class="btn btn-primary btn-sm" onclick="openCollectionEditor()">
-                                        <i class="bi bi-pencil"></i> Configure Collection Mapping
-                                    </button>
-                                    @if (!string.IsNullOrEmpty(Model.Mapping.CollectionConfigJson))
-                                    {
-                                        <button type="button" class="btn btn-outline-secondary btn-sm" onclick="clearCollectionConfig()">
-                                            <i class="bi bi-x-circle"></i> Clear Configuration
-                                        </button>
-                                    }
-                                }
-                                else
-                                {
-                                    <div class="alert alert-info">
-                                        <i class="bi bi-info-circle"></i>
-                                        <strong>Save Required:</strong> You must save this mapping first before you can configure collection settings.
+                            <div class="alert @configClass mt-3">
+                                <div class="row align-items-center">
+                                    <div class="col-md-8">
+                                        <h6 class="mb-1">
+                                            <i class="bi bi-@configIcon"></i> 
+                                            @if (hasConfig)
+                                            {
+                                                <span>Collection Mapping Configured ?</span>
+                                            }
+                                            else
+                                            {
+                                                <span>Collection Mapping Setup</span>
+                                            }
+                                        </h6>
+                                        <small class="text-muted">
+                                            @if (hasConfig)
+                                            {
+                                                <span>Configuration is active and ready to process survey data</span>
+                                                <button type="button" class="btn btn-link btn-sm p-0 ms-2" onclick="$('#configPreview').toggle()">
+                                                    <i class="bi bi-eye"></i> View JSON
+                                                </button>
+                                            }
+                                            else
+                                            {
+                                                <span>Save this mapping first, then click Configure to set up entity mappings</span>
+                                            }
+                                        </small>
                                     </div>
+                                    <div class="col-md-4 text-end">
+                                        @if (Model.MappingId.HasValue && Model.MappingId.Value != Guid.Empty)
+                                        {
+                                            <button type="button" class="btn btn-@(hasConfig ? "outline-primary" : "primary") btn-sm" onclick="openCollectionEditor()">
+                                                <i class="bi bi-@(hasConfig ? "pencil" : "plus-circle")"></i> 
+                                                @(hasConfig ? "Edit Config" : "Configure")
+                                            </button>
+                                            @if (hasConfig)
+                                            {
+                                                <button type="button" class="btn btn-outline-danger btn-sm ms-1" onclick="clearCollectionConfig()" title="Clear configuration">
+                                                    <i class="bi bi-x-circle"></i>
+                                                </button>
+                                            }
+                                        }
+                                        else
+                                        {
+                                            <small class="text-muted">
+                                                <i class="bi bi-info-circle"></i> Save mapping first
+                                            </small>
+                                        }
+                                    </div>
+                                </div>
+                                
+                                @if (hasConfig)
+                                {
+                                    <pre id="configPreview" class="bg-light p-2 rounded small mt-2 mb-0" style="display:none; max-height: 200px; overflow-y: auto;">@Model.Mapping.CollectionConfigJson</pre>
                                 }
                             </div>
                         </div>
@@ -439,13 +442,20 @@
             updateComplexityUI();
             $('#complexitySelect').on('change', updateComplexityUI);
             
-            // Field category change - reload page with new category
+            // Field category change - reload page with new category (preserve question selection)
             $('#fieldCategorySelect').on('change', function() {
                 var category = $(this).val();
                 if (category) {
                     var url = new URL(window.location.href);
                     url.searchParams.set('fieldCategory', category);
                     url.searchParams.delete('targetFieldPath');
+                    
+                    // Preserve the survey question selection
+                    var selectedQuestion = $('#Mapping_SurveyQuestionName').val();
+                    if (selectedQuestion) {
+                        url.searchParams.set('questionName', selectedQuestion);
+                    }
+                    
                     window.location.href = url.toString();
                 }
             });
@@ -455,6 +465,14 @@
             if (currentCategory) {
                 $('#fieldCategorySelect').val(currentCategory);
             }
+            
+            // Restore survey question selection from URL if present
+            var urlParams = new URLSearchParams(window.location.search);
+            var questionName = urlParams.get('questionName');
+            if (questionName) {
+                $('#Mapping_SurveyQuestionName').val(questionName);
+            }
+
         });
         
         // Collection Mapping Editor Functions (outside document.ready)

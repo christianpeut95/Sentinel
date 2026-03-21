@@ -39,6 +39,9 @@ namespace Sentinel.Pages.Settings.Mappings
         [BindProperty(SupportsGet = true)]
         public string? FieldCategory { get; set; }
 
+        [BindProperty(SupportsGet = true)]
+        public string? QuestionName { get; set; }
+
         [BindProperty]
         public SurveyFieldMapping Mapping { get; set; } = new();
 
@@ -81,11 +84,12 @@ namespace Sentinel.Pages.Settings.Mappings
                     Priority = (int)ConfigurationType,
                     MappingAction = MappingAction.AutoSave,
                     BusinessRule = MappingBusinessRule.AlwaysOverwrite,
-                    FieldCategory = selectedCategory, // Use the selected category
+                    FieldCategory = selectedCategory,
                     TargetFieldType = MappingFieldType.StandardField,
                     IsActive = true,
                     ReviewPriority = 1,
-                    GroupingWindowHours = 6
+                    GroupingWindowHours = 6,
+                    SurveyQuestionName = QuestionName ?? string.Empty // Pre-select from URL
                 };
 
                 // Update FieldCategory to match
@@ -233,4 +237,5 @@ namespace Sentinel.Pages.Settings.Mappings
             };
         }
     }
+
 }

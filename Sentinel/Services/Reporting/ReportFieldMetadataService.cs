@@ -27,7 +27,7 @@ public class ReportFieldMetadataService : IReportFieldMetadataService
         _context = context;
     }
 
-    public async Task<List<ReportFieldMetadata>> GetFieldsForEntityAsync(string entityType)
+    public async Task<List<ReportFieldMetadata>> GetFieldsForEntityAsync(string entityType, bool excludeNavigationFields = false)
     {
         // Check cache first
         if (_fieldCache.ContainsKey(entityType) && DateTime.UtcNow < _cacheExpiry)
@@ -38,7 +38,7 @@ public class ReportFieldMetadataService : IReportFieldMetadataService
         var fields = new List<ReportFieldMetadata>();
 
         // Get regular fields from database schema
-        var regularFields = GetRegularFieldsFromSchema(entityType);
+        var regularFields = GetRegularFieldsFromSchema(entityType, excludeNavigationFields);
         fields.AddRange(regularFields);
 
         // Get custom fields
@@ -66,8 +66,9 @@ public class ReportFieldMetadataService : IReportFieldMetadataService
     {
         var customFields = new List<ReportFieldMetadata>();
 
-        // Query active custom field definitions
+        // Query active custom field definitions with AsNoTracking for thread-safe concurrent reads
         var definitions = await _context.CustomFieldDefinitions
+            .AsNoTracking()
             .Where(cfd => cfd.IsActive)
             .ToListAsync();
 
@@ -149,7 +150,7 @@ public class ReportFieldMetadataService : IReportFieldMetadataService
 
     #region Private Helper Methods
 
-    private List<ReportFieldMetadata> GetRegularFieldsFromSchema(string entityType)
+    private List<ReportFieldMetadata> GetRegularFieldsFromSchema(string entityType, bool excludeNavigationFields)
     {
         var fields = new List<ReportFieldMetadata>();
 
@@ -163,8 +164,12 @@ public class ReportFieldMetadataService : IReportFieldMetadataService
         // Get all properties from the entity
         foreach (var property in entityTypeObj.GetProperties())
         {
-            // Skip shadow properties ONLY (keep foreign keys - they're important for mappings)
+            // Skip shadow properties
             if (property.IsShadowProperty())
+                continue;
+
+            // Skip blacklisted fields (security/system fields)
+            if (IsBlacklistedField(property.Name))
                 continue;
 
             var clrType = property.ClrType;
@@ -195,11 +200,21 @@ public class ReportFieldMetadataService : IReportFieldMetadataService
             fields.Add(field);
         }
 
-        // Add navigation properties
+        // Skip navigation properties if requested (for survey mappings - only map to direct entity fields)
+        if (excludeNavigationFields)
+        {
+            return fields;
+        }
+
+        // Add navigation properties (for reports/queries only)
         foreach (var navigation in entityTypeObj.GetNavigations())
         {
             // Skip collections (we only want single-valued navigations)
             if (navigation.IsCollection)
+                continue;
+
+            // Block all User entity navigations (security - surveys should never update user accounts)
+            if (IsUserNavigation(navigation.Name) || navigation.TargetEntityType.ClrType.Name == "ApplicationUser")
                 continue;
 
             var targetType = navigation.TargetEntityType;
@@ -213,29 +228,11 @@ public class ReportFieldMetadataService : IReportFieldMetadataService
                     targetProp.IsPrimaryKey())
                     continue;
 
-                // Dynamically include properties based on characteristics
-                // EXCLUDE properties that shouldn't be in reports
-                var excludedPropertyTypes = new[]
-                {
-                    typeof(ICollection<>),  // Collections (handled separately)
-                    typeof(byte[])          // Binary data
-                };
-                
-                var excludedPropertyNames = new[]
-                {
-                    "Id",                   // Primary keys
-                    "CreatedAt", "CreatedDate", "CreatedByUserId", "CreatedByUser",  // Audit fields
-                    "LastModified", "LastModifiedByUserId", "LastModifiedByUser",     // Audit fields
-                    "IsDeleted", "DeletedAt", "DeletedByUserId",                      // Soft delete fields
-                    "Latitude", "Longitude",                                          // Coordinates (too technical)
-                    "PathIds", "Level"                                                // Hierarchy fields (internal)
-                };
-                
-                // Skip if property name is in exclusion list
-                if (excludedPropertyNames.Contains(targetProp.Name))
+                // Skip blacklisted fields
+                if (IsBlacklistedField(targetProp.Name))
                     continue;
-                
-                // Skip if property type is excluded
+
+                // Skip binary data types
                 var propType = targetProp.ClrType;
                 var isCollection = propType.IsGenericType && 
                                  propType.GetGenericTypeDefinition() == typeof(ICollection<>);
@@ -243,8 +240,6 @@ public class ReportFieldMetadataService : IReportFieldMetadataService
                 
                 if (isCollection || isByteArray)
                     continue;
-                
-                // INCLUDE all other simple value properties dynamically
 
                 var field = new ReportFieldMetadata
                 {
@@ -378,8 +373,14 @@ public class ReportFieldMetadataService : IReportFieldMetadataService
             return displayAttr.Name;
         }
 
-        // Convert PascalCase to space-separated
-        return SplitPascalCase(property.Name);
+        var name = property.Name;
+
+        // For FK fields ending in "Id", strip the suffix for a cleaner display name
+        // e.g. "CountryOfBirthId" ? "Country Of Birth", "NationalityId" ? "Nationality"
+        if (name.EndsWith("Id") && name.Length > 2)
+            name = name[..^2];
+
+        return SplitPascalCase(name);
     }
 
     private string GetDisplayName(IReadOnlyNavigationBase navigation)
@@ -602,6 +603,137 @@ public class ReportFieldMetadataService : IReportFieldMetadataService
         }
         
         return values;
+    }
+
+    /// <summary>
+    /// Blacklist of field names that should never be exposed in field mappings or reports.
+    /// Includes security-sensitive fields, internal system fields, and audit metadata.
+    /// </summary>
+    private static bool IsBlacklistedField(string fieldName)
+    {
+        var blacklist = new[]
+        {
+            // Security & Authentication (Identity/AspNetUsers)
+            "PasswordHash",
+            "SecurityStamp",
+            "ConcurrencyStamp",
+            "NormalizedUserName",
+            "NormalizedEmail",
+            "TwoFactorEnabled",
+            "LockoutEnabled",
+            "LockoutEnd",
+            "AccessFailedCount",
+            
+            // Audit & Tracking (system-managed)
+            "CreatedAt",
+            "CreatedDate",
+            "CreatedBy",
+            "ModifiedAt",
+            "ModifiedDate",
+            "LastModified",
+            "ModifiedBy",
+            "UpdatedAt",
+            
+            // Soft Delete (system-managed)
+            "IsDeleted",
+            "DeletedAt",
+            "DeletedDate",
+            "DeletedBy",
+            
+            // Navigation/Hierarchy (internal structure)
+            "ParentId",
+            "PathIds",
+            "Level",
+            "LeftIndex",
+            "RightIndex",
+            
+            // Technical/Geospatial (too low-level for mapping)
+            "Latitude",
+            "Longitude",
+            "GeographyPoint",
+            
+            // Versioning/Concurrency (system-managed)
+            "RowVersion",
+            "Version",
+            "Timestamp",
+            
+            // JSON Storage Fields (use typed fields instead)
+            "SurveyResponseJson",
+            "SurveyDefinitionJson",
+            "CollectionConfigJson",
+            "InputMappingJson",
+            "OutputMappingJson",
+            "DefaultInputMappingJson",
+            "DefaultOutputMappingJson",
+            "CollectionSourceDataJson",
+            "ProposedEntityDataJson",
+            "PotentialMatchesJson",
+            "ChangeSnapshot",
+            "MatchingRulesJson",
+            
+            // System/Administrative Fields (read-only)
+            "IsActive",
+            "Active",
+            "IsSystemTemplate",
+            "DisplayOrder",
+            "SortOrder",
+            "UsageCount",
+            "LastUsedAt",
+            
+            // Internal IDs - Note: Id is already filtered via IsPrimaryKey() in schema introspection
+            // NOT listed here so it remains available in relatedEntityFields for source selection
+        };
+
+        // Block every field that is a reference to a user account by ID.
+        // Catches both audit fields (CreatedByUserId) and assignment fields
+        // (AssignedToUserId, ReviewedByUserId, CompletedByUserId, etc.) regardless of prefix.
+        if (fieldName.EndsWith("UserId", StringComparison.OrdinalIgnoreCase) && fieldName.Length > 6)
+            return true;
+
+        // Block structural/administrative FK fields that should never appear in any mapping UI.
+        // NOTE: PatientId and CaseId are NOT blocked here — collection mappings need them to
+        // link newly created entities to their parent. They are filtered out separately in
+        // SurveyMappingService for the survey field-mapping context.
+        var blockedForeignKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            "OutbreakId",
+            "JurisdictionId",
+            "TaskTemplateId",
+            "SurveyTemplateId",
+            "ParentCaseId",
+            "ConfigurationId",
+        };
+
+        if (blockedForeignKeys.Contains(fieldName))
+            return true;
+
+        return blacklist.Contains(fieldName, StringComparer.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// Check if a navigation property points to a User entity.
+    /// Blocks all user-related navigations to prevent survey mappings from updating user accounts.
+    /// </summary>
+    private static bool IsUserNavigation(string navigationName)
+    {
+        var userNavigations = new[]
+        {
+            "User",
+            "CreatedByUser",
+            "ModifiedByUser",
+            "LastModifiedByUser",
+            "AssignedToUser",
+            "CompletedByUser",
+            "DeletedByUser",
+            "GrantedByUser",
+            "SharedByUser",
+            "ReviewedByUser",
+            "AttemptedByUser",
+            "PublishedByUser",
+            "LeadInvestigator"
+        };
+
+        return userNavigations.Contains(navigationName, StringComparer.OrdinalIgnoreCase);
     }
 
     #endregion

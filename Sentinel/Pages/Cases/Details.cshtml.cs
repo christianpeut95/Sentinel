@@ -165,12 +165,14 @@ namespace Sentinel.Pages.Cases
                 .ToListAsync();
 
             // Load ACQUISITIONS - Where THIS case was exposed (upstream)
+            // Exclude records where SourceCaseId == id (placeholder transmissions where
+            // ExposedCaseId was temporarily set to the same case to satisfy the required constraint)
             Acquisitions = await _context.ExposureEvents
                 .Include(e => e.Event).ThenInclude(e => e!.Location)
                 .Include(e => e.Location)
                 .Include(e => e.SourceCase).ThenInclude(c => c!.Patient)
                 .Include(e => e.ContactClassification)
-                .Where(e => e.ExposedCaseId == id)
+                .Where(e => e.ExposedCaseId == id && e.SourceCaseId != id)
                 .Where(e => e.SourceCaseId == null || 
                            (e.SourceCase != null && e.SourceCase.Patient != null))
                 .OrderByDescending(e => e.ExposureStartDate)

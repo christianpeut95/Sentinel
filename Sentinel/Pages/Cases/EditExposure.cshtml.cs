@@ -35,8 +35,11 @@ namespace Sentinel.Pages.Cases
                 return NotFound();
             }
 
+            // Check both ExposedCaseId (acquisition) and SourceCaseId (transmission)
+            // to support editing exposures from either direction
             Exposure = await _context.ExposureEvents
-                .FirstOrDefaultAsync(e => e.Id == Id && e.ExposedCaseId == CaseId);
+                .FirstOrDefaultAsync(e => e.Id == Id && 
+                    (e.ExposedCaseId == CaseId || e.SourceCaseId == CaseId));
 
             if (Exposure == null)
             {
@@ -67,8 +70,10 @@ namespace Sentinel.Pages.Cases
                 return Page();
             }
 
+            // Check both ExposedCaseId (acquisition) and SourceCaseId (transmission)
             var existingExposure = await _context.ExposureEvents
-                .FirstOrDefaultAsync(e => e.Id == Id && e.ExposedCaseId == CaseId);
+                .FirstOrDefaultAsync(e => e.Id == Id && 
+                    (e.ExposedCaseId == CaseId || e.SourceCaseId == CaseId));
 
             if (existingExposure == null)
             {

@@ -974,6 +974,36 @@
                     accordionBody.find('textarea[name="outputMappingJson"]').val('');
                 }
             });
+
+            // Persist accordion state across refreshes
+            const accordionStorageKey = 'diseaseEdit_expandedAccordions_@Model.Disease.Id';
+            
+            // Restore expanded accordions on page load
+            const expandedAccordions = JSON.parse(sessionStorage.getItem(accordionStorageKey) || '[]');
+            expandedAccordions.forEach(id => {
+                const accordion = document.getElementById(id);
+                if (accordion) {
+                    const bsCollapse = new bootstrap.Collapse(accordion, { toggle: false });
+                    bsCollapse.show();
+                }
+            });
+
+            // Track accordion state changes
+            document.querySelectorAll('.accordion-collapse').forEach(element => {
+                element.addEventListener('shown.bs.collapse', function() {
+                    const expanded = JSON.parse(sessionStorage.getItem(accordionStorageKey) || '[]');
+                    if (!expanded.includes(this.id)) {
+                        expanded.push(this.id);
+                        sessionStorage.setItem(accordionStorageKey, JSON.stringify(expanded));
+                    }
+                });
+
+                element.addEventListener('hidden.bs.collapse', function() {
+                    const expanded = JSON.parse(sessionStorage.getItem(accordionStorageKey) || '[]');
+                    const filtered = expanded.filter(id => id !== this.id);
+                    sessionStorage.setItem(accordionStorageKey, JSON.stringify(filtered));
+                });
+            });
         });
     </script>
 }

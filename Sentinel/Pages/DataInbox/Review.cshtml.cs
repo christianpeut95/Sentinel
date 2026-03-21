@@ -408,15 +408,15 @@ public class ReviewModel : PageModel
             var patient = new Patient
             {
                 Id = Guid.NewGuid(),
-                GivenName = GetValueFromDict(proposedData, "Patient.GivenName") ?? "",
-                FamilyName = GetValueFromDict(proposedData, "Patient.FamilyName") ?? "",
-                DateOfBirth = GetDateFromDict(proposedData, "Patient.DateOfBirth"),
-                MobilePhone = GetValueFromDict(proposedData, "Patient.MobilePhone"),
-                EmailAddress = GetValueFromDict(proposedData, "Patient.EmailAddress"),
-                AddressLine = GetValueFromDict(proposedData, "Patient.StreetAddress"),
-                City = GetValueFromDict(proposedData, "Patient.City"),
-                State = GetValueFromDict(proposedData, "Patient.Province"),
-                PostalCode = GetValueFromDict(proposedData, "Patient.PostalCode"),
+                GivenName = GetValueFromDict(proposedData, "GivenName") ?? "",
+                FamilyName = GetValueFromDict(proposedData, "FamilyName") ?? "",
+                DateOfBirth = GetDateFromDict(proposedData, "DateOfBirth"),
+                MobilePhone = GetValueFromDict(proposedData, "MobilePhone"),
+                EmailAddress = GetValueFromDict(proposedData, "EmailAddress"),
+                AddressLine = GetValueFromDict(proposedData, "AddressLine"),
+                City = GetValueFromDict(proposedData, "City"),
+                State = GetValueFromDict(proposedData, "State"),
+                PostalCode = GetValueFromDict(proposedData, "PostalCode"),
                 CreatedAt = DateTime.UtcNow,
                 CreatedByUserId = User.Identity?.Name
             };
@@ -614,55 +614,45 @@ public class ReviewModel : PageModel
             _logger.LogInformation("? Config parsed: TargetEntity={Target}, RelatedEntities={Count}", 
                 config.TargetEntityType, config.RelatedEntities?.Count ?? 0);
 
-            // Get the row data from the survey response
-            var task = reviewQueue.Task;
-            if (string.IsNullOrEmpty(task.SurveyResponseJson))
-            {
-                _logger.LogWarning("? Task {TaskId} has no survey response JSON", task.Id);
-                return;
-            }
-            
-            _logger.LogInformation("? Task has SurveyResponseJson ({Length} chars)", task.SurveyResponseJson.Length);
-
-            var surveyData = JsonSerializer.Deserialize<Dictionary<string, object>>(task.SurveyResponseJson);
-            if (surveyData == null || !surveyData.ContainsKey(questionName))
-            {
-                var keys = surveyData?.Keys != null ? string.Join(", ", surveyData.Keys) : "none";
-                _logger.LogWarning("? Survey data does not contain question {QuestionName}. Keys: {Keys}", 
-                    questionName, keys);
-                return;
-            }
-            
-            _logger.LogInformation("? Survey data contains question {QuestionName}", questionName);
-
-            var rowDataElement = surveyData[questionName] as JsonElement?;
-            if (rowDataElement == null)
-            {
-                _logger.LogWarning("? Question {QuestionName} data is null", questionName);
-                return;
-            }
-
             JArray rowData;
             
-            // ? FIX: Handle both Object (single row) and Array (multiple rows) formats
-            if (rowDataElement.Value.ValueKind == JsonValueKind.Array)
+            // ? CRITICAL FIX: Check if specific row was stored in CollectionSourceDataJson
+            // This prevents reprocessing ALL rows when only ONE was queued for review
+            if (sourceData.ContainsKey("RowData") && sourceData["RowData"] != null)
             {
-                // Multiple rows - already an array
-                rowData = JArray.Parse(rowDataElement.Value.GetRawText());
-                _logger.LogInformation("? Parsed {RowCount} rows from array data", rowData.Count);
-            }
-            else if (rowDataElement.Value.ValueKind == JsonValueKind.Object)
-            {
-                // Single row - wrap in array
-                var singleRow = JObject.Parse(rowDataElement.Value.GetRawText());
-                rowData = new JArray { singleRow };
-                _logger.LogInformation("? Parsed 1 row from object data (wrapped in array)");
+                var rowDataElement = sourceData["RowData"] as JsonElement?;
+                if (rowDataElement.HasValue && rowDataElement.Value.ValueKind == JsonValueKind.String)
+                {
+                    var rowJson = rowDataElement.Value.GetString();
+                    if (!string.IsNullOrEmpty(rowJson))
+                    {
+                        _logger.LogInformation("?? Using SPECIFIC row from CollectionSourceDataJson (prevents duplicate processing)");
+                        var singleRow = JObject.Parse(rowJson);
+                        rowData = new JArray { singleRow };
+                        _logger.LogInformation("? Loaded 1 specific row from stored RowData");
+                    }
+                    else
+                    {
+                        _logger.LogWarning("RowData field exists but is empty - falling back to full survey data");
+                        rowData = await GetAllRowsFromSurveyResponseAsync(reviewQueue.Task, questionName);
+                    }
+                }
+                else
+                {
+                    _logger.LogWarning("RowData field exists but wrong type - falling back to full survey data");
+                    rowData = await GetAllRowsFromSurveyResponseAsync(reviewQueue.Task, questionName);
+                }
             }
             else
             {
-                var elementType = rowDataElement.Value.ValueKind.ToString();
-                _logger.LogWarning("? Question {QuestionName} data is unexpected type: {Type}", 
-                    questionName, elementType);
+                // Legacy path: No RowData stored - use all rows from survey (old review items)
+                _logger.LogWarning("?? No RowData in CollectionSourceDataJson - using ALL survey rows (may cause duplicates!)");
+                rowData = await GetAllRowsFromSurveyResponseAsync(reviewQueue.Task, questionName);
+            }
+            
+            if (rowData == null || rowData.Count == 0)
+            {
+                _logger.LogWarning("No row data available for reprocessing");
                 return;
             }
 
@@ -677,10 +667,10 @@ public class ReviewModel : PageModel
             // For always-review, patient was ALREADY created in the handler, so treat as existing
             var context = new SurveySubmissionContext
             {
-                CaseId = task.CaseId,
+                CaseId = reviewQueue.Task.CaseId,
                 PatientId = resolvedPatientId,
-                TaskId = task.Id,
-                DiseaseId = task.Case?.DiseaseId ?? Guid.Empty,
+                TaskId = reviewQueue.Task.Id,
+                DiseaseId = reviewQueue.Task.Case?.DiseaseId ?? Guid.Empty,
                 JurisdictionId = null,
                 SubmittedBy = User.Identity?.Name,
                 SubmittedDate = DateTime.UtcNow,
@@ -689,7 +679,7 @@ public class ReviewModel : PageModel
                     ["ResolvedFromDuplicate"] = hadDuplicates || isPendingCreation,
                     ["PatientAlreadyExists"] = patientAlreadyExists,  // ? Use parameter!
                     ["OriginalReviewId"] = reviewQueue.Id,
-                    ["Jurisdiction1Id"] = task.Case?.Jurisdiction1Id ?? 0
+                    ["Jurisdiction1Id"] = reviewQueue.Task.Case?.Jurisdiction1Id ?? 0
                 }
             };
             
@@ -748,6 +738,60 @@ public class ReviewModel : PageModel
         {
             _logger.LogError(ex, "Error reprocessing collection mappings");
             throw;
+        }
+    }
+    
+    /// <summary>
+    /// Helper to extract all rows from survey response (fallback for legacy review items)
+    /// </summary>
+    private async Task<JArray?> GetAllRowsFromSurveyResponseAsync(CaseTask task, string questionName)
+    {
+        if (string.IsNullOrEmpty(task.SurveyResponseJson))
+        {
+            _logger.LogWarning("? Task {TaskId} has no survey response JSON", task.Id);
+            return null;
+        }
+        
+        _logger.LogInformation("? Task has SurveyResponseJson ({Length} chars)", task.SurveyResponseJson.Length);
+
+        var surveyData = JsonSerializer.Deserialize<Dictionary<string, object>>(task.SurveyResponseJson);
+        if (surveyData == null || !surveyData.ContainsKey(questionName))
+        {
+            var keys = surveyData?.Keys != null ? string.Join(", ", surveyData.Keys) : "none";
+            _logger.LogWarning("? Survey data does not contain question {QuestionName}. Keys: {Keys}", 
+                questionName, keys);
+            return null;
+        }
+        
+        _logger.LogInformation("? Survey data contains question {QuestionName}", questionName);
+
+        var rowDataElement = surveyData[questionName] as JsonElement?;
+        if (rowDataElement == null)
+        {
+            _logger.LogWarning("? Question {QuestionName} data is null", questionName);
+            return null;
+        }
+
+        // ? Handle both Object (single row) and Array (multiple rows) formats
+        if (rowDataElement.Value.ValueKind == JsonValueKind.Array)
+        {
+            var rows = JArray.Parse(rowDataElement.Value.GetRawText());
+            _logger.LogInformation("? Parsed {RowCount} rows from array data", rows.Count);
+            return rows;
+        }
+        else if (rowDataElement.Value.ValueKind == JsonValueKind.Object)
+        {
+            var singleRow = JObject.Parse(rowDataElement.Value.GetRawText());
+            var rows = new JArray { singleRow };
+            _logger.LogInformation("? Parsed 1 row from object data (wrapped in array)");
+            return rows;
+        }
+        else
+        {
+            var elementType = rowDataElement.Value.ValueKind.ToString();
+            _logger.LogWarning("? Question {QuestionName} data is unexpected type: {Type}", 
+                questionName, elementType);
+            return null;
         }
     }
 }

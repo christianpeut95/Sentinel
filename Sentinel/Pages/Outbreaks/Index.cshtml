@@ -659,6 +659,12 @@ else
                                 <a asp-page="./Edit" asp-route-id="@outbreak.Id" class="btn-icon" title="Edit">
                                     <i class="bi bi-pencil"></i>
                                 </a>
+                                <form method="post" asp-page-handler="Delete" asp-route-id="@outbreak.Id" class="d-inline"
+                                      onsubmit="return confirm('Delete outbreak &quot;@outbreak.Name&quot;? This cannot be undone.')">
+                                    <button type="submit" class="btn-icon text-danger" title="Delete">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </form>
                             </td>
                         </tr>
                     }

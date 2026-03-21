@@ -419,169 +419,163 @@
 </script>
 
 <script nonce="@GetCspNonce()">
-    (function () {
-        // Enhanced Google Places JS autocomplete for businesses and addresses
-        var apiKey = '@Configuration["Geocoding:ApiKey"]'
-        var defaultCountry = '@(Configuration["Geocoding:DefaultCountry"] ?? "AU")'
-        if (!apiKey) {
-            . Address autocomplete disabled.')
-            return
-        }        window.initPlaces = function () {
-            var placeInput = document.getElementById('placeSearchInput')
-            var placeDropdown = document.getElementById('placeDropdown')
-            var service = new google.maps.places.AutocompleteService()
-            var detailsService = new google.maps.places.PlacesService(document.createElement('div'))
-            var sessionToken = new google.maps.places.AutocompleteSessionToken()
-            var items = []
-            var focused = -1
+    // Use centralized geocoding service for place search
+    $(document).ready(function() {
+        var placeInput = document.getElementById('placeSearchInput');
+        var placeDropdown = document.getElementById('placeDropdown');
+
+        if (!placeInput || !placeDropdown) {
+            return;
+        }
+
+        // Only initialize if Google provider is configured
+        if (!SentinelGeocoding.shouldUseGoogleMaps()) {
+            placeInput.placeholder = 'Place search requires Google Maps (currently using ' + (SentinelGeocoding.getConfig()?.provider || 'Nominatim') + ')';
+            placeInput.disabled = true;
+            return;
+        }
+
+        SentinelGeocoding.loadGoogleMaps(function() {
+            var service = new google.maps.places.AutocompleteService();
+            var detailsService = new google.maps.places.PlacesService(document.createElement('div'));
+            var sessionToken = new google.maps.places.AutocompleteSessionToken();
+            var items = [];
+            var focused = -1;
+            var config = SentinelGeocoding.getConfig();
+
             function debounce(fn, ms) { var t; return function () { var args = arguments; clearTimeout(t); t = setTimeout(function () { fn.apply(null, args); }, ms); }; }
 
             function clearDropdown() {
-                placeDropdown.innerHTML = ''
-                placeDropdown.classList.remove('show')
-                placeInput.setAttribute('aria-expanded', 'false')
-                items = []
-                focused = -1
+                placeDropdown.innerHTML = '';
+                placeDropdown.classList.remove('show');
+                placeInput.setAttribute('aria-expanded', 'false');
+                items = [];
+                focused = -1;
             }
 
             function buildItem(pred, idx) {
-                var btn = document.createElement('button')
-                btn.type = 'button'
-                btn.className = 'dropdown-item'
-                btn.setAttribute('role', 'option')
-                btn.dataset.index = String(idx)
-                var icon = document.createElement('i')
-                icon.className = 'bi bi-geo-alt-fill me-2 text-primary'
-                var text = document.createElement('span')
-                text.innerText = pred.description || ''
-                btn.appendChild(icon)
-                btn.appendChild(text)
-                btn.addEventListener('click', function () { selectItem(idx); })
-                return btn
+                var btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = 'dropdown-item';
+                btn.setAttribute('role', 'option');
+                btn.dataset.index = String(idx);
+                var icon = document.createElement('i');
+                icon.className = 'bi bi-geo-alt-fill me-2 text-primary';
+                var text = document.createElement('span');
+                text.innerText = pred.description || '';
+                btn.appendChild(icon);
+                btn.appendChild(text);
+                btn.addEventListener('click', function () { selectItem(idx); });
+                return btn;
             }
 
             function renderResults(preds) {
-                placeDropdown.innerHTML = ''
+                placeDropdown.innerHTML = '';
                 if (!preds || preds.length === 0) { clearDropdown(); return; }
-                preds.forEach(function (p, i) { placeDropdown.appendChild(buildItem(p, i)); })
-                placeDropdown.classList.add('show')
-                placeInput.setAttribute('aria-expanded', 'true')
-                items = Array.from(placeDropdown.querySelectorAll('[role="option"]'))
-                focused = -1
-                window.__lastPlaceResults = preds
+                preds.forEach(function (p, i) { placeDropdown.appendChild(buildItem(p, i)); });
+                placeDropdown.classList.add('show');
+                placeInput.setAttribute('aria-expanded', 'true');
+                items = Array.from(placeDropdown.querySelectorAll('[role="option"]'));
+                focused = -1;
+                window.__lastPlaceResults = preds;
             }
 
             function focusItem(i) {
-                if (focused >= 0 && items[focused]) items[focused].classList.remove('active')
-                focused = i
+                if (focused >= 0 && items[focused]) items[focused].classList.remove('active');
+                focused = i;
                 if (focused >= 0 && items[focused]) { items[focused].classList.add('active'); items[focused].scrollIntoView({ block: 'nearest' }); }
             }
 
             function selectItem(i) {
-                var sel = items[i]
-                if (!sel) return
-                var idx = Number(sel.dataset.index)
-                var pred = window.__lastPlaceResults && window.__lastPlaceResults[idx]
-                if (!pred) return
-                detailsService.getDetails({ 
-                    placeId: pred.place_id, 
-                    fields: ['name', 'formatted_address', 'address_components', 'geometry'], 
-                    sessionToken: sessionToken 
+                var sel = items[i];
+                if (!sel) return;
+                var idx = Number(sel.dataset.index);
+                var pred = window.__lastPlaceResults && window.__lastPlaceResults[idx];
+                if (!pred) return;
+                detailsService.getDetails({
+                    placeId: pred.place_id,
+                    fields: ['name', 'formatted_address', 'address_components', 'geometry'],
+                    sessionToken: sessionToken
                 }, function (result, status) {
-                    if (status !== google.maps.places.PlacesServiceStatus.OK || !result) {                        return
-                    }                    // Mark that this change is from autocomplete
+                    if (status !== google.maps.places.PlacesServiceStatus.OK || !result) { return; }
+
                     if (window.markAddressFromAutocomplete) {
-                        window.markAddressFromAutocomplete()
+                        window.markAddressFromAutocomplete();
                     }
 
-                    var comps = {}
+                    var comps = {};
                     (result.address_components || []).forEach(function (c) {
-                        (c.types || []).forEach(function (t) {
-                            if (!comps[t]) comps[t] = c.long_name
-                        })
-                    })
-                    var street = [comps['street_number'], comps['route']].filter(Boolean).join(' ')
-                    var city = comps['locality'] || comps['postal_town'] || comps['sublocality'] || comps['administrative_area_level_2'] || ''
-                    var state = comps['administrative_area_level_1'] || ''
-                    var postal = comps['postal_code'] || ''
-                    // Fill all address fields
-                    var addressInput = document.getElementById('addressInput')
-                    if (addressInput) addressInput.value = street || result.formatted_address || pred.description || ''
-                    var cityEl = document.getElementById('Patient_City')
-                    var stateEl = document.getElementById('Patient_State')
-                    var postalEl = document.getElementById('Patient_PostalCode')
-                    if (cityEl) cityEl.value = city
-                    if (stateEl) stateEl.value = state
-                    if (postalEl) postalEl.value = postal
-                    // Fill coordinates
-                    var latEl = document.getElementById('Patient_Latitude')
-                    var lonEl = document.getElementById('Patient_Longitude')
+                        (c.types || []).forEach(function (t) { if (!comps[t]) comps[t] = c.long_name; });
+                    });
+                    var street = [comps['street_number'], comps['route']].filter(Boolean).join(' ');
+                    var city = comps['locality'] || comps['postal_town'] || comps['sublocality'] || comps['administrative_area_level_2'] || '';
+                    var state = comps['administrative_area_level_1'] || '';
+                    var postal = comps['postal_code'] || '';
+
+                    var addressInput = document.getElementById('addressInput');
+                    if (addressInput) addressInput.value = street || result.formatted_address || pred.description || '';
+                    var cityEl = document.getElementById('Patient_City');
+                    var stateEl = document.getElementById('Patient_State');
+                    var postalEl = document.getElementById('Patient_PostalCode');
+                    if (cityEl) cityEl.value = city;
+                    if (stateEl) stateEl.value = state;
+                    if (postalEl) postalEl.value = postal;
+
+                    var latEl = document.getElementById('Patient_Latitude');
+                    var lonEl = document.getElementById('Patient_Longitude');
                     if (latEl && lonEl && result.geometry && result.geometry.location) {
-                        latEl.value = result.geometry.location.lat()
-                        lonEl.value = result.geometry.location.lng();                    }
+                        latEl.value = result.geometry.location.lat();
+                        lonEl.value = result.geometry.location.lng();
+                    }
 
-                    // Update original values so badge doesn't show
                     document.querySelectorAll('.address-field').forEach(function(field) {
-                        field.setAttribute('data-original-value', field.value)
-                    })
-                    clearDropdown()
-                    placeInput.value = ''; // Clear search after selection
-                    
-                    // Show success message
-                    showSuccessMessage(result.name || 'Address')
-                    sessionToken = new google.maps.places.AutocompleteSessionToken()
-                })
-            }
-
-            function showSuccessMessage(placeName) {
-                if (document.getElementById('placeSuccess')) {
-                    document.getElementById('placeSuccess').remove()
-                }
-                var successDiv = document.createElement('div')
-                successDiv.id = 'placeSuccess'
-                successDiv.className = 'alert alert-success mt-3'
-                successDiv.innerHTML = '<i class="bi bi-check-circle me-2"></i><strong>Selected:</strong> ' + placeName + ' - All address fields filled!'
-                placeInput.parentElement.appendChild(successDiv)
-                setTimeout(function() {
-                    successDiv.style.opacity = '0'
-                    successDiv.style.transition = 'opacity 0.5s'
-                    setTimeout(function() { if (successDiv.parentElement) successDiv.remove(); }, 500)
-                }, 3000)
+                        field.setAttribute('data-original-value', field.value);
+                    });
+                    clearDropdown();
+                    placeInput.value = '';
+                    if (document.getElementById('placeSuccess')) document.getElementById('placeSuccess').remove();
+                    var successDiv = document.createElement('div');
+                    successDiv.id = 'placeSuccess';
+                    successDiv.className = 'alert alert-success mt-3';
+                    successDiv.innerHTML = '<i class="bi bi-check-circle me-2"></i><strong>Selected:</strong> ' + (result.name || 'Address') + ' - All address fields filled!';
+                    placeInput.parentElement.appendChild(successDiv);
+                    setTimeout(function() {
+                        successDiv.style.opacity = '0'; successDiv.style.transition = 'opacity 0.5s';
+                        setTimeout(function() { if (successDiv.parentElement) successDiv.remove(); }, 500);
+                    }, 3000);
+                    sessionToken = new google.maps.places.AutocompleteSessionToken();
+                });
             }
 
             function fetchSuggestions(q) {
                 if (!q) { clearDropdown(); return; }
-                
-                var request = { 
-                    input: q, 
-                    sessionToken: sessionToken 
+                var request = { input: q, sessionToken: sessionToken };
+                if (config && config.defaultCountry) {
+                    request.componentRestrictions = { country: config.defaultCountry };
                 }
-                // Add country bias for localization
-                if (defaultCountry) {
-                    request.componentRestrictions = { country: defaultCountry };                }
-                
                 service.getPlacePredictions(request, function (predictions, status) {
-                    if (status !== google.maps.places.PlacesServiceStatus.OK || !predictions) {                        clearDropdown()
-                        return
-                    }                    renderResults(predictions.slice(0, 8))
-                })
+                    if (status !== google.maps.places.PlacesServiceStatus.OK || !predictions) { clearDropdown(); return; }
+                    renderResults(predictions.slice(0, 8));
+                });
             }
 
-            placeInput.addEventListener('input', debounce(function (e) { fetchSuggestions(e.target.value); }, 300))
+            placeInput.addEventListener('input', debounce(function (e) { fetchSuggestions(e.target.value); }, 300));
             placeInput.addEventListener('keydown', function (e) {
-                if (!placeDropdown.classList.contains('show')) return
+                if (!placeDropdown.classList.contains('show')) return;
                 if (e.key === 'ArrowDown') { e.preventDefault(); focusItem(Math.min(items.length - 1, focused + 1)); }
                 else if (e.key === 'ArrowUp') { e.preventDefault(); focusItem(Math.max(0, focused - 1)); }
                 else if (e.key === 'Enter') { e.preventDefault(); if (focused >= 0) selectItem(focused); }
                 else if (e.key === 'Escape') { clearDropdown(); }
-            })
-            document.addEventListener('click', function (ev) { if (!ev.target) return; if (ev.target === placeInput || placeDropdown.contains(ev.target)) return; clearDropdown(); })
-            placeInput.addEventListener('blur', function () { setTimeout(function () { if (document.activeElement && !placeDropdown.contains(document.activeElement)) clearDropdown(); }, 150); });        }
-        // Load the Google Maps JS with callback
-        var s = document.createElement('script')
-        s.src = 'https://maps.googleapis.com/maps/api/js?key=' + encodeURIComponent(apiKey) + '&libraries=places&callback=initPlaces'
-        s.async = true; s.defer = true; document.head.appendChild(s)
-    })()
+            });
+            document.addEventListener('click', function (ev) {
+                if (!ev.target || ev.target === placeInput || placeDropdown.contains(ev.target)) return;
+                clearDropdown();
+            });
+            placeInput.addEventListener('blur', function () {
+                setTimeout(function () { if (!placeDropdown.contains(document.activeElement)) clearDropdown(); }, 150);
+            });
+        });
+    });
 </script>
 
 <script nonce="@GetCspNonce()">

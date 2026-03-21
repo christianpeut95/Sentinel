@@ -26,6 +26,28 @@
     {
         <div class="alert alert-danger alert-dismissible">
             <i class="bi bi-exclamation-triangle"></i> @errorMessage
+            
+            @if (canFixSurveyLink && availableSurveys.Any())
+            {
+                <hr />
+                <strong>Available Surveys:</strong>
+                <div class="mt-2">
+                    <select class="form-select" @bind="selectedFixSurveyId">
+                        <option value="">-- Select Survey to Link --</option>
+                        @foreach (var survey in availableSurveys)
+                        {
+                            <option value="@survey.Id">@survey.Name v@survey.VersionNumber (@survey.VersionStatus)</option>
+                        }
+                    </select>
+                    <button type="button" class="btn btn-primary btn-sm mt-2" @onclick="FixSurveyLink" disabled="@(string.IsNullOrEmpty(selectedFixSurveyId) || isFixing)">
+                        @if (isFixing)
+                        {
+                            <span class="spinner-border spinner-border-sm me-1"></span>
+                        }
+                        <i class="bi bi-tools me-1"></i> Fix Survey Link
+                    </button>
+                </div>
+            }
             <button type="button" class="btn-close" @onclick="() => errorMessage = null"></button>
         </div>
     }
@@ -162,9 +184,13 @@ public string? ReturnUrl { get; set; }
     
     private bool isLoading = true;
     private bool isSaving = false;
+    private bool isFixing = false;
     private bool enableDuplicates = false;
+    private bool canFixSurveyLink = false;
     private string? errorMessage;
     private string? successMessage;
+    private string? selectedFixSurveyId;
+    private List<SurveyTemplate> availableSurveys = new();
 
     protected override async Task OnInitializedAsync()
     {
@@ -186,10 +212,10 @@ public string? ReturnUrl { get; set; }
                 // Load survey template from mapping
                 if (mapping.ConfigurationType == MappingConfigurationType.Survey && mapping.ConfigurationId != Guid.Empty)
                 {
-                    Logger.LogCritical("?? Loading SurveyTemplate with ID: {SurveyTemplateId}", mapping.ConfigurationId);
+                    Logger.LogInformation("Loading SurveyTemplate with ID: {SurveyTemplateId} for mapping {MappingId}", 
+                        mapping.ConfigurationId, mapping.Id);
                     
-                    surveyTemplate = await Context.SurveyTemplates
-                        .FirstOrDefaultAsync(st => st.Id == mapping.ConfigurationId);
+                    surveyTemplate = await ResolveActiveSurveyTemplateAsync(mapping.ConfigurationId);
                     
                     if (surveyTemplate == null)
                     {
@@ -275,11 +301,10 @@ public string? ReturnUrl { get; set; }
                 }
             }
 
-            // If survey template ID provided directly (for new mappings), use that
+            // If survey template ID provided directly (for new mappings), resolve to active version
             if (SurveyTemplateId.HasValue && surveyTemplate == null)
             {
-                surveyTemplate = await Context.SurveyTemplates
-                    .FirstOrDefaultAsync(st => st.Id == SurveyTemplateId.Value);
+                surveyTemplate = await ResolveActiveSurveyTemplateAsync(SurveyTemplateId.Value);
             }
 
             // Initialize empty config if null
@@ -300,7 +325,26 @@ public string? ReturnUrl { get; set; }
 
             if (surveyTemplate == null)
             {
-                errorMessage = "Survey template not found. Collection mappings require a survey template.";
+                errorMessage = "? Survey template not found. This mapping is linked to a survey that no longer exists or has been deleted.";
+                Logger.LogError("Mapping {MappingId} points to non-existent survey {SurveyId}", 
+                    mapping?.Id, mapping?.ConfigurationId);
+                
+                // Enable fix option and load available surveys
+                canFixSurveyLink = true;
+                availableSurveys = await Context.SurveyTemplates
+                    .Where(st => st.IsActive && 
+                                 st.SurveyDefinitionJson != null && 
+                                 st.SurveyDefinitionJson.Length > 100)
+                    .OrderBy(st => st.Name)
+                    .ThenByDescending(st => st.VersionNumber)
+                    .Select(st => new SurveyTemplate 
+                    { 
+                        Id = st.Id, 
+                        Name = st.Name, 
+                        VersionNumber = st.VersionNumber,
+                        VersionStatus = st.VersionStatus
+                    })
+                    .ToListAsync();
             }
             else if (string.IsNullOrEmpty(surveyTemplate.SurveyDefinitionJson))
             {
@@ -319,6 +363,49 @@ public string? ReturnUrl { get; set; }
         {
             isLoading = false;
         }
+    }
+
+    private async Task<SurveyTemplate?> ResolveActiveSurveyTemplateAsync(Guid surveyTemplateId)
+    {
+        var original = await Context.SurveyTemplates
+            .AsNoTracking()
+            .FirstOrDefaultAsync(st => st.Id == surveyTemplateId);
+
+        if (original == null) return null;
+
+        var rootParentId = original.ParentSurveyTemplateId ?? original.Id;
+
+        // Find the active version in this family - BUT require non-null JSON
+        var active = await Context.SurveyTemplates
+            .AsNoTracking()
+            .Where(st => (st.Id == rootParentId || st.ParentSurveyTemplateId == rootParentId))
+            .Where(st => st.VersionStatus == SurveyVersionStatus.Active 
+                      && st.SurveyDefinitionJson != null 
+                      && st.SurveyDefinitionJson.Length > 50)
+            .FirstOrDefaultAsync();
+
+        // Fallback: if no active version with JSON, get latest published with JSON
+        if (active == null || string.IsNullOrEmpty(active.SurveyDefinitionJson))
+        {
+            Logger.LogWarning("No active version with valid JSON found, searching for latest published...");
+            active = await Context.SurveyTemplates
+                .AsNoTracking()
+                .Where(st => (st.Id == rootParentId || st.ParentSurveyTemplateId == rootParentId))
+                .Where(st => st.PublishedAt != null 
+                          && st.SurveyDefinitionJson != null 
+                          && st.SurveyDefinitionJson.Length > 50)
+                .OrderByDescending(st => st.PublishedAt)
+                .ThenByDescending(st => st.VersionNumber)
+                .FirstOrDefaultAsync();
+        }
+
+        Logger.LogInformation("Resolved survey {OriginalId} to version {ActiveId} (v{Version}), HasJSON={HasJSON}", 
+            surveyTemplateId, 
+            active?.Id ?? original.Id, 
+            active?.VersionNumber ?? original.VersionNumber,
+            !string.IsNullOrEmpty(active?.SurveyDefinitionJson ?? original.SurveyDefinitionJson));
+
+        return active ?? original;
     }
 
     private async Task OnQuestionSelected(string questionName)
@@ -368,34 +455,10 @@ public string? ReturnUrl { get; set; }
                 {
                     if (page.TryGetProperty("elements", out var elements))
                     {
-                        foreach (var element in elements.EnumerateArray())
+                        if (FindAndLoadMatrixColumns(elements, questionName))
                         {
-                            if (element.TryGetProperty("name", out var name) && 
-                                name.GetString() == questionName)
-                            {
-                                Logger.LogCritical("? FOUND question '{QuestionName}'!", questionName);
-                                
-                                if (element.TryGetProperty("columns", out var columns))
-                                {
-                                    Logger.LogCritical("? Found 'columns' property with {Count} columns", columns.GetArrayLength());
-                                    
-                                    foreach (var col in columns.EnumerateArray())
-                                    {
-                                        var colName = col.TryGetProperty("name", out var n) ? n.GetString() : col.GetString();
-                                        if (!string.IsNullOrEmpty(colName))
-                                        {
-                                            matrixColumns.Add(colName);
-                                            Logger.LogCritical("   - Added column: '{ColumnName}'", colName);
-                                        }
-                                    }
-                                    
-                                    Logger.LogCritical("? TOTAL MATRIX COLUMNS LOADED: {Count}", matrixColumns.Count);
-                                }
-                                else
-                                {
-                                    Logger.LogCritical("? Question found but NO 'columns' property!");
-                                }
-                            }
+                            Logger.LogCritical("? TOTAL MATRIX COLUMNS LOADED: {Count}", matrixColumns.Count);
+                            return;
                         }
                     }
                 }
@@ -418,6 +481,56 @@ public string? ReturnUrl { get; set; }
         {
             Logger.LogError(ex, "?? Error loading matrix columns");
         }
+    }
+
+    private bool FindAndLoadMatrixColumns(System.Text.Json.JsonElement elements, string questionName)
+    {
+        foreach (var element in elements.EnumerateArray())
+        {
+            if (element.TryGetProperty("name", out var name) && name.GetString() == questionName)
+            {
+                Logger.LogCritical("? FOUND question '{QuestionName}'!", questionName);
+                
+                var questionType = element.TryGetProperty("type", out var t) ? t.GetString() : null;
+                Logger.LogCritical("? Question type: {Type}", questionType);
+                
+                if (element.TryGetProperty("columns", out var columns))
+                {
+                    Logger.LogCritical("? Found 'columns' property with {Count} columns", columns.GetArrayLength());
+                    
+                    foreach (var col in columns.EnumerateArray())
+                    {
+                        var colName = col.TryGetProperty("name", out var n) ? n.GetString() : col.GetString();
+                        if (!string.IsNullOrEmpty(colName))
+                        {
+                            matrixColumns.Add(colName);
+                            Logger.LogCritical("   - Added column: '{ColumnName}'", colName);
+                        }
+                    }
+                }
+                else
+                {
+                    Logger.LogCritical("? Question found but NO 'columns' property! Type={Type}", questionType);
+                }
+                
+                return true;
+            }
+            
+            // Recurse into panels
+            if (element.TryGetProperty("type", out var type) && type.GetString() == "panel")
+            {
+                if (element.TryGetProperty("elements", out var panelElements))
+                {
+                    Logger.LogCritical("? Searching inside panel...");
+                    if (FindAndLoadMatrixColumns(panelElements, questionName))
+                    {
+                        return true;
+                    }
+                }
+            }
+        }
+        
+        return false;
     }
 
     private async Task LoadEntityFields(string entityType)
@@ -505,5 +618,44 @@ public string? ReturnUrl { get; set; }
             Navigation.NavigateTo(ReturnUrl);
         else
             Navigation.NavigateTo("/Settings/Mappings");
+    }
+
+    private async Task FixSurveyLink()
+    {
+        if (string.IsNullOrEmpty(selectedFixSurveyId) || mapping == null)
+            return;
+
+        try
+        {
+            isFixing = true;
+            errorMessage = null;
+
+            var newSurveyId = Guid.Parse(selectedFixSurveyId);
+            
+            Logger.LogInformation("Fixing mapping {MappingId}: Changing ConfigurationId from {OldSurveyId} to {NewSurveyId}",
+                mapping.Id, mapping.ConfigurationId, newSurveyId);
+
+            // Update mapping to point to new survey
+            mapping.ConfigurationId = newSurveyId;
+            mapping.LastModified = DateTime.UtcNow;
+            
+            await Context.SaveChangesAsync();
+
+            successMessage = $"? Mapping successfully updated to use selected survey!";
+            canFixSurveyLink = false;
+            
+            // Reload the page with new survey
+            Logger.LogInformation("Reloading page with fixed survey link");
+            await OnInitializedAsync();
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error fixing survey link for mapping {MappingId}", mapping?.Id);
+            errorMessage = $"Failed to fix survey link: {ex.Message}";
+        }
+        finally
+        {
+            isFixing = false;
+        }
     }
 }

@@ -51,15 +51,41 @@ public class SurveyCompletionApiController : ControllerBase
                 return Forbid();
             }
 
+            bool hasMappingError = false;
+            string? mappingErrorMessage = null;
+
             // Save survey response
             _logger.LogInformation("Saving survey response for task {TaskId}", taskId);
-            await _surveyService.SaveSurveyResponseAsync(taskId, responses);
+            try
+            {
+                await _surveyService.SaveSurveyResponseAsync(taskId, responses);
+            }
+            catch (Exception ex) when (ex.Message.Contains("review item has been created") ||
+                                      ex.Message.Contains("Survey data was saved"))
+            {
+                // Survey JSON was saved, but mapping failed - continue to mark task as completed
+                hasMappingError = true;
+                mappingErrorMessage = ex.Message;
+                _logger.LogWarning(ex, "Survey saved with mapping error for task {TaskId}, will mark task completed anyway", taskId);
+            }
 
-            // Mark task as completed
+            // Mark task as completed (even if mapping failed - user's work is done)
             task.Status = CaseTaskStatus.Completed;
             task.CompletedAt = DateTime.UtcNow;
             task.CompletedByUserId = currentUserId;
             await _context.SaveChangesAsync();
+
+            if (hasMappingError)
+            {
+                _logger.LogInformation("Task {TaskId} completed with mapping warnings, redirecting to Data Inbox", taskId);
+                return Ok(new
+                {
+                    success = true,
+                    warning = true,
+                    message = "? Survey saved! Your responses are secure. However, automatic processing encountered an issue and your submission needs manual review. You'll be redirected to the Data Review Inbox.",
+                    redirectUrl = "/DataInbox/Index"
+                });
+            }
 
             _logger.LogInformation("Successfully completed survey for task {TaskId}", taskId);
             return Ok(new { success = true });
@@ -68,20 +94,12 @@ public class SurveyCompletionApiController : ControllerBase
         {
             _logger.LogError(ex, "Error saving survey for task {TaskId}: {ErrorMessage}", taskId, ex.Message);
 
-            // Check if this is a "saved but needs review" exception
-            if (ex.Message.Contains("review item has been created") ||
-                ex.Message.Contains("Survey data was saved"))
+            // For any other exception, return error
+            return StatusCode(500, new
             {
-                _logger.LogInformation("Survey saved with warnings for task {TaskId}, redirecting to Data Inbox", taskId);
-
-                return Ok(new
-                {
-                    success = true, // ? Treat as success (JSON was saved)
-                    warning = true,
-                    message = "? Survey saved! Your responses are secure. However, automatic processing encountered an issue and your submission needs manual review. You'll be redirected to the Data Review Inbox.",
-                    redirectUrl = "/DataInbox/Index" // Redirect to review queue
-                });
-            }
+                success = false,
+                error = ex.Message
+            });
 
             // For any other exception, return error
             _logger.LogError("Unhandled exception saving survey for task {TaskId}: {Exception}", taskId, ex);

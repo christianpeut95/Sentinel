@@ -469,23 +469,30 @@
         try
         {
             var surveyJson = JObject.Parse(SurveyDefinitionJson ?? "{}");
-            var questions = surveyJson["pages"]?
-                .SelectMany(p => p["elements"] ?? new JArray())
-                .Where(q => q["name"]?.ToString() == questionName)
-                .ToList();
-
-            if (questions.Any())
+            var pages = surveyJson["pages"] as JArray;
+            
+            if (pages != null)
             {
-                var question = questions.First();
-                var columns = question["columns"] as JArray;
-
-                if (columns != null)
+                foreach (var page in pages)
                 {
-                    MatrixColumns = columns
-                        .Select(c => c["name"]?.ToString())
-                        .Where(n => !string.IsNullOrEmpty(n))
-                        .Cast<string>()
-                        .ToList();
+                    var elements = page["elements"] as JArray;
+                    if (elements != null)
+                    {
+                        var question = FindQuestionRecursive(elements, questionName);
+                        if (question != null)
+                        {
+                            var columns = question["columns"] as JArray;
+                            if (columns != null)
+                            {
+                                MatrixColumns = columns
+                                    .Select(c => c["name"]?.ToString())
+                                    .Where(n => !string.IsNullOrEmpty(n))
+                                    .Cast<string>()
+                                    .ToList();
+                            }
+                            break;
+                        }
+                    }
                 }
             }
         }
@@ -493,6 +500,30 @@
         {
             ValidationErrors.Add($"Error parsing matrix columns: {ex.Message}");
         }
+    }
+
+    private JToken? FindQuestionRecursive(JArray elements, string questionName)
+    {
+        foreach (var element in elements)
+        {
+            if (element["name"]?.ToString() == questionName)
+            {
+                return element;
+            }
+            
+            // Recurse into panels
+            if (element["type"]?.ToString() == "panel")
+            {
+                var panelElements = element["elements"] as JArray;
+                if (panelElements != null)
+                {
+                    var found = FindQuestionRecursive(panelElements, questionName);
+                    if (found != null) return found;
+                }
+            }
+        }
+        
+        return null;
     }
 
     private async Task LoadEntityFields()

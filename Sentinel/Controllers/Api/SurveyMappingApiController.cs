@@ -62,8 +62,7 @@ namespace Sentinel.Controllers.Api
         [HttpGet("survey-questions")]
         public async Task<IActionResult> GetSurveyQuestions([FromQuery] Guid surveyTemplateId)
         {
-            var template = await _context.SurveyTemplates
-                .FirstOrDefaultAsync(st => st.Id == surveyTemplateId);
+            var template = await ResolveActiveSurveyTemplateAsync(surveyTemplateId);
 
             if (template == null)
                 return NotFound();
@@ -152,8 +151,7 @@ namespace Sentinel.Controllers.Api
         [HttpPost("suggest")]
         public async Task<IActionResult> SuggestMappings([FromBody] SuggestMappingsRequest request)
         {
-            var template = await _context.SurveyTemplates
-                .FirstOrDefaultAsync(st => st.Id == request.SurveyTemplateId);
+            var template = await ResolveActiveSurveyTemplateAsync(request.SurveyTemplateId);
 
             if (template == null)
                 return NotFound();
@@ -209,6 +207,24 @@ namespace Sentinel.Controllers.Api
         private async Task<bool> MappingExistsAsync(Guid id)
         {
             return await _context.SurveyFieldMappings.AnyAsync(m => m.Id == id);
+        }
+
+        private async Task<SurveyTemplate?> ResolveActiveSurveyTemplateAsync(Guid surveyTemplateId)
+        {
+            var original = await _context.SurveyTemplates
+                .AsNoTracking()
+                .FirstOrDefaultAsync(st => st.Id == surveyTemplateId);
+
+            if (original == null) return null;
+
+            var rootParentId = original.ParentSurveyTemplateId ?? original.Id;
+            var active = await _context.SurveyTemplates
+                .AsNoTracking()
+                .Where(st => (st.Id == rootParentId || st.ParentSurveyTemplateId == rootParentId))
+                .Where(st => st.VersionStatus == SurveyVersionStatus.Active)
+                .FirstOrDefaultAsync();
+
+            return active ?? original;
         }
     }
 

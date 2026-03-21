@@ -1114,6 +1114,17 @@
                     <i class="bi bi-arrow-up-circle"></i>
                     Transmissions (@Model.Transmissions.Count)
                 </h3>
+                <div class="d-flex gap-1">
+                    <a asp-page="/Cases/Contacts/BulkCreate"
+                       asp-route-caseId="@Model.Contact.Id"
+                       class="btn btn-sm btn-outline-primary"
+                       title="Bulk Add Contacts">
+                        <i class="bi bi-people-fill"></i>
+                    </a>
+                    <button type="button" class="btn btn-sm btn-outline-success" onclick="openAddExposure()" title="Add Exposure">
+                        <i class="bi bi-plus-circle"></i>
+                    </button>
+                </div>
             </div>
             @if (Model.Transmissions.Any())
             {

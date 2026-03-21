@@ -6,6 +6,7 @@ using Sentinel.Data;
 using Sentinel.Services;
 using Sentinel.Models;
 using Sentinel.Models.Lookups;
+using System.Security.Claims;
 
 namespace Sentinel.Pages.Outbreaks;
 
@@ -159,5 +160,18 @@ public class IndexModel : PageModel
     {
         var newSortOrder = (SortBy == columnName && SortOrder == "asc") ? "desc" : "asc";
         return $"?SortBy={columnName}&SortOrder={newSortOrder}&CurrentPage=1&SearchTerm={SearchTerm}&FilterBy={FilterBy}&ShowInactive={ShowInactive}";
+    }
+
+    [Authorize(Policy = "Permission.Outbreak.Delete")]
+    public async Task<IActionResult> OnPostDeleteAsync(int id)
+    {
+        var userId = User.FindFirstValue(System.Security.Claims.ClaimTypes.NameIdentifier) ?? string.Empty;
+
+        var success = await _outbreakService.DeleteAsync(id, userId);
+
+        TempData["SuccessMessage"] = success ? "Outbreak deleted successfully." : null;
+        TempData["ErrorMessage"] = success ? null : "Failed to delete outbreak.";
+
+        return RedirectToPage();
     }
 }

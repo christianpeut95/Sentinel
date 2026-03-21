@@ -7,6 +7,7 @@ namespace Sentinel.Pages.Settings
         public string Version => Constants.AppVersion.DisplayVersion;
         public string ReleaseDate => Constants.AppVersion.ReleaseDate;
         public string ProductName => Constants.AppVersion.ProductName;
+        public string BuildDate => Constants.AppVersion.BuildDateString;
         
         public void OnGet()
         {

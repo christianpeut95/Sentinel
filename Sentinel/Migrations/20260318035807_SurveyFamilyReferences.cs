@@ -10,116 +10,99 @@ namespace Sentinel.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            // Drop existing FK and index on old column name
-            migrationBuilder.DropForeignKey(
-                name: "FK_TaskTemplates_SurveyTemplates_SurveyFamilyRootId",
-                table: "TaskTemplates");
+            // Idempotent migration: handles databases in any state
+            // - Fresh DB from InitialCreate (already has SurveyTemplateId)
+            // - Old DB with SurveyFamilyRootId (needs rename)
+            // - Partially migrated DB (some columns already added)
 
-            migrationBuilder.DropIndex(
-                name: "IX_TaskTemplates_SurveyFamilyRootId",
-                table: "TaskTemplates");
+            migrationBuilder.Sql(@"
+                -- 1. Rename SurveyFamilyRootId -> SurveyTemplateId if old column exists
+                IF EXISTS (SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS 
+                           WHERE TABLE_NAME = 'TaskTemplates' AND COLUMN_NAME = 'SurveyFamilyRootId')
+                BEGIN
+                    -- Drop old FK if exists
+                    IF EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name = 'FK_TaskTemplates_SurveyTemplates_SurveyFamilyRootId')
+                        ALTER TABLE [TaskTemplates] DROP CONSTRAINT [FK_TaskTemplates_SurveyTemplates_SurveyFamilyRootId];
 
-            // Rename column
-            migrationBuilder.RenameColumn(
-                name: "SurveyFamilyRootId",
-                table: "TaskTemplates",
-                newName: "SurveyTemplateId");
+                    -- Drop old index if exists
+                    IF EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_TaskTemplates_SurveyFamilyRootId' AND object_id = OBJECT_ID('TaskTemplates'))
+                        DROP INDEX [IX_TaskTemplates_SurveyFamilyRootId] ON [TaskTemplates];
 
-            // Add missing columns
-            migrationBuilder.AddColumn<string>(
-                name: "SurveyDefinitionJson",
-                table: "TaskTemplates",
-                type: "nvarchar(max)",
-                nullable: true);
+                    -- Rename column
+                    EXEC sp_rename 'TaskTemplates.SurveyFamilyRootId', 'SurveyTemplateId', 'COLUMN';
+                END
 
-            migrationBuilder.AddColumn<string>(
-                name: "DefaultInputMappingJson",
-                table: "TaskTemplates",
-                type: "nvarchar(max)",
-                nullable: true);
+                -- 2. Add missing columns to TaskTemplates (if not already present)
+                IF NOT EXISTS (SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS 
+                               WHERE TABLE_NAME = 'TaskTemplates' AND COLUMN_NAME = 'SurveyDefinitionJson')
+                    ALTER TABLE [TaskTemplates] ADD [SurveyDefinitionJson] nvarchar(max) NULL;
 
-            migrationBuilder.AddColumn<string>(
-                name: "DefaultOutputMappingJson",
-                table: "TaskTemplates",
-                type: "nvarchar(max)",
-                nullable: true);
+                IF NOT EXISTS (SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS 
+                               WHERE TABLE_NAME = 'TaskTemplates' AND COLUMN_NAME = 'DefaultInputMappingJson')
+                    ALTER TABLE [TaskTemplates] ADD [DefaultInputMappingJson] nvarchar(max) NULL;
 
-            // Recreate index and FK with correct names
-            migrationBuilder.CreateIndex(
-                name: "IX_TaskTemplates_SurveyTemplateId",
-                table: "TaskTemplates",
-                column: "SurveyTemplateId");
+                IF NOT EXISTS (SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS 
+                               WHERE TABLE_NAME = 'TaskTemplates' AND COLUMN_NAME = 'DefaultOutputMappingJson')
+                    ALTER TABLE [TaskTemplates] ADD [DefaultOutputMappingJson] nvarchar(max) NULL;
 
-            migrationBuilder.AddForeignKey(
-                name: "FK_TaskTemplates_SurveyTemplates_SurveyTemplateId",
-                table: "TaskTemplates",
-                column: "SurveyTemplateId",
-                principalTable: "SurveyTemplates",
-                principalColumn: "Id",
-                onDelete: ReferentialAction.SetNull);
+                -- 3. Ensure index exists on SurveyTemplateId
+                IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_TaskTemplates_SurveyTemplateId' AND object_id = OBJECT_ID('TaskTemplates'))
+                    CREATE INDEX [IX_TaskTemplates_SurveyTemplateId] ON [TaskTemplates] ([SurveyTemplateId]);
 
-            // Add mapping columns to DiseaseTaskTemplates
-            migrationBuilder.AddColumn<string>(
-                name: "InputMappingJson",
-                table: "DiseaseTaskTemplates",
-                type: "nvarchar(max)",
-                nullable: true);
+                -- 4. Ensure FK exists
+                IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name = 'FK_TaskTemplates_SurveyTemplates_SurveyTemplateId')
+                    ALTER TABLE [TaskTemplates] ADD CONSTRAINT [FK_TaskTemplates_SurveyTemplates_SurveyTemplateId]
+                        FOREIGN KEY ([SurveyTemplateId]) REFERENCES [SurveyTemplates] ([Id]) ON DELETE SET NULL;
 
-            migrationBuilder.AddColumn<string>(
-                name: "OutputMappingJson",
-                table: "DiseaseTaskTemplates",
-                type: "nvarchar(max)",
-                nullable: true);
+                -- 5. Add mapping columns to DiseaseTaskTemplates (if not already present)
+                IF NOT EXISTS (SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS 
+                               WHERE TABLE_NAME = 'DiseaseTaskTemplates' AND COLUMN_NAME = 'InputMappingJson')
+                    ALTER TABLE [DiseaseTaskTemplates] ADD [InputMappingJson] nvarchar(max) NULL;
+
+                IF NOT EXISTS (SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS 
+                               WHERE TABLE_NAME = 'DiseaseTaskTemplates' AND COLUMN_NAME = 'OutputMappingJson')
+                    ALTER TABLE [DiseaseTaskTemplates] ADD [OutputMappingJson] nvarchar(max) NULL;
+
+                -- 6. Clean up duplicate migration history entry from demo branch
+                IF (SELECT COUNT(*) FROM [__EFMigrationsHistory] WHERE MigrationId = '20260315013226_SurveyFamilyReferences') > 0
+                    DELETE FROM [__EFMigrationsHistory] WHERE MigrationId = '20260315013226_SurveyFamilyReferences';
+            ");
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropColumn(
-                name: "InputMappingJson",
-                table: "DiseaseTaskTemplates");
+            migrationBuilder.Sql(@"
+                IF EXISTS (SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS 
+                           WHERE TABLE_NAME = 'DiseaseTaskTemplates' AND COLUMN_NAME = 'InputMappingJson')
+                    ALTER TABLE [DiseaseTaskTemplates] DROP COLUMN [InputMappingJson];
 
-            migrationBuilder.DropColumn(
-                name: "OutputMappingJson",
-                table: "DiseaseTaskTemplates");
+                IF EXISTS (SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS 
+                           WHERE TABLE_NAME = 'DiseaseTaskTemplates' AND COLUMN_NAME = 'OutputMappingJson')
+                    ALTER TABLE [DiseaseTaskTemplates] DROP COLUMN [OutputMappingJson];
 
-            migrationBuilder.DropForeignKey(
-                name: "FK_TaskTemplates_SurveyTemplates_SurveyTemplateId",
-                table: "TaskTemplates");
+                IF EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name = 'FK_TaskTemplates_SurveyTemplates_SurveyTemplateId')
+                    ALTER TABLE [TaskTemplates] DROP CONSTRAINT [FK_TaskTemplates_SurveyTemplates_SurveyTemplateId];
 
-            migrationBuilder.DropIndex(
-                name: "IX_TaskTemplates_SurveyTemplateId",
-                table: "TaskTemplates");
+                IF EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_TaskTemplates_SurveyTemplateId' AND object_id = OBJECT_ID('TaskTemplates'))
+                    DROP INDEX [IX_TaskTemplates_SurveyTemplateId] ON [TaskTemplates];
 
-            migrationBuilder.DropColumn(
-                name: "SurveyDefinitionJson",
-                table: "TaskTemplates");
+                IF EXISTS (SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS 
+                           WHERE TABLE_NAME = 'TaskTemplates' AND COLUMN_NAME = 'SurveyDefinitionJson')
+                    ALTER TABLE [TaskTemplates] DROP COLUMN [SurveyDefinitionJson];
 
-            migrationBuilder.DropColumn(
-                name: "DefaultInputMappingJson",
-                table: "TaskTemplates");
+                IF EXISTS (SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS 
+                           WHERE TABLE_NAME = 'TaskTemplates' AND COLUMN_NAME = 'DefaultInputMappingJson')
+                    ALTER TABLE [TaskTemplates] DROP COLUMN [DefaultInputMappingJson];
 
-            migrationBuilder.DropColumn(
-                name: "DefaultOutputMappingJson",
-                table: "TaskTemplates");
+                IF EXISTS (SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS 
+                           WHERE TABLE_NAME = 'TaskTemplates' AND COLUMN_NAME = 'DefaultOutputMappingJson')
+                    ALTER TABLE [TaskTemplates] DROP COLUMN [DefaultOutputMappingJson];
 
-            migrationBuilder.RenameColumn(
-                name: "SurveyTemplateId",
-                table: "TaskTemplates",
-                newName: "SurveyFamilyRootId");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_TaskTemplates_SurveyFamilyRootId",
-                table: "TaskTemplates",
-                column: "SurveyFamilyRootId");
-
-            migrationBuilder.AddForeignKey(
-                name: "FK_TaskTemplates_SurveyTemplates_SurveyFamilyRootId",
-                table: "TaskTemplates",
-                column: "SurveyFamilyRootId",
-                principalTable: "SurveyTemplates",
-                principalColumn: "Id",
-                onDelete: ReferentialAction.SetNull);
+                IF EXISTS (SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS 
+                           WHERE TABLE_NAME = 'TaskTemplates' AND COLUMN_NAME = 'SurveyTemplateId')
+                    EXEC sp_rename 'TaskTemplates.SurveyTemplateId', 'SurveyFamilyRootId', 'COLUMN';
+            ");
         }
     }
 }

@@ -102,14 +102,34 @@ namespace Sentinel.Services
 
             if (diseaseId.HasValue)
             {
+                // Build disease ID list: the disease itself + all ancestors via PathIds (mirrors TaskService inheritance)
+                var diseaseIds = new List<Guid> { diseaseId.Value };
+
+                var disease = await _context.Diseases
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(d => d.Id == diseaseId.Value);
+
+                if (disease != null && !string.IsNullOrEmpty(disease.PathIds))
+                {
+                    var ancestorIds = disease.PathIds
+                        .Split(new[] { '/' }, StringSplitOptions.RemoveEmptyEntries)
+                        .Select(id => Guid.TryParse(id, out var guid) ? guid : (Guid?)null)
+                        .Where(id => id.HasValue)
+                        .Select(id => id!.Value)
+                        .ToList();
+                    diseaseIds.AddRange(ancestorIds);
+                    _logger.LogInformation("Disease {DiseaseId} has {AncestorCount} ancestor(s) via PathIds: {AncestorIds}",
+                        diseaseId.Value, ancestorIds.Count, string.Join(", ", ancestorIds));
+                }
+
                 var diseaseMappings = await _context.SurveyFieldMappings
                     .Where(m => m.ConfigurationType == MappingConfigurationType.Disease
-                             && m.ConfigurationId == diseaseId.Value
+                             && diseaseIds.Contains(m.ConfigurationId)
                              && m.IsActive)
                     .OrderBy(m => m.DisplayOrder)
                     .ToListAsync();
-                _logger.LogInformation("Found {Count} disease mappings for DiseaseId={Id}", 
-                    diseaseMappings.Count, diseaseId.Value);
+                _logger.LogInformation("Found {Count} disease mappings for DiseaseId={Id} (searched {Total} disease(s) in hierarchy)",
+                    diseaseMappings.Count, diseaseId.Value, diseaseIds.Count);
                 mappings.AddRange(diseaseMappings);
             }
 
@@ -127,8 +147,19 @@ namespace Sentinel.Services
 
         public async Task<List<ReportFieldMetadata>> GetAvailableFieldsAsync(string entityType)
         {
-            // Leverage existing field discovery service from reporting system
-            return await _fieldMetadataService.GetFieldsForEntityAsync(entityType);
+            // excludeNavigationFields=true: only direct entity fields, not related lookup entities
+            var fields = await _fieldMetadataService.GetFieldsForEntityAsync(entityType, excludeNavigationFields: true);
+
+            // In the survey field-mapping context a user should not be able to reassign ownership
+            // (e.g. change which Patient a Case belongs to). These are blocked here only — collection
+            // mappings intentionally need PatientId/CaseId to link newly created entities.
+            var surveyOwnershipBlocked = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+            {
+                "PatientId",
+                "CaseId",
+            };
+
+            return fields.Where(f => !surveyOwnershipBlocked.Contains(f.FieldPath)).ToList();
         }
 
         public async Task<List<SurveyQuestion>> GetSurveyQuestionsAsync(string surveyDefinitionJson)
@@ -1300,11 +1331,26 @@ namespace Sentinel.Services
 
         public async Task<List<SurveyQuestion>> GetSurveyQuestionsAsync(Guid surveyTemplateId)
         {
-            var template = await _context.SurveyTemplates
+            // Resolve to the active version of this survey family
+            var originalTemplate = await _context.SurveyTemplates
                 .AsNoTracking()
                 .FirstOrDefaultAsync(st => st.Id == surveyTemplateId);
 
-            if (template == null || string.IsNullOrEmpty(template.SurveyDefinitionJson))
+            if (originalTemplate == null)
+                return new List<SurveyQuestion>();
+
+            var rootParentId = originalTemplate.ParentSurveyTemplateId ?? originalTemplate.Id;
+
+            // Find the active version in this family
+            var activeTemplate = await _context.SurveyTemplates
+                .AsNoTracking()
+                .Where(st => (st.Id == rootParentId || st.ParentSurveyTemplateId == rootParentId))
+                .Where(st => st.VersionStatus == SurveyVersionStatus.Active)
+                .FirstOrDefaultAsync();
+
+            var template = activeTemplate ?? originalTemplate;
+
+            if (string.IsNullOrEmpty(template.SurveyDefinitionJson))
                 return new List<SurveyQuestion>();
 
             return await GetSurveyQuestionsAsync(template.SurveyDefinitionJson);
@@ -1420,11 +1466,24 @@ namespace Sentinel.Services
             Guid configurationId,
             Guid? diseaseId = null)
         {
-            var template = await _context.SurveyTemplates
+            // Resolve to the active version of this survey family
+            var originalTemplate = await _context.SurveyTemplates
                 .AsNoTracking()
                 .FirstOrDefaultAsync(st => st.Id == surveyTemplateId);
 
-            if (template == null || string.IsNullOrEmpty(template.SurveyDefinitionJson))
+            if (originalTemplate == null)
+                return;
+
+            var rootParentId = originalTemplate.ParentSurveyTemplateId ?? originalTemplate.Id;
+            var activeTemplate = await _context.SurveyTemplates
+                .AsNoTracking()
+                .Where(st => (st.Id == rootParentId || st.ParentSurveyTemplateId == rootParentId))
+                .Where(st => st.VersionStatus == SurveyVersionStatus.Active)
+                .FirstOrDefaultAsync();
+
+            var template = activeTemplate ?? originalTemplate;
+
+            if (string.IsNullOrEmpty(template.SurveyDefinitionJson))
                 return;
 
             // CRITICAL FIX: Remove any existing inactive suggestions first to prevent duplicates

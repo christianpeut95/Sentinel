@@ -315,44 +315,57 @@
 @section Scripts {
     <script nonce="@GetCspNonce()">
         (function() {
-            try {                // Parse JSON data
-                const surveyDefinition = @Html.Raw(Model.SurveyDefinitionJson ?? "{}")
-                const surveyResponse = @Html.Raw(Model.SurveyResponseJson ?? "{}");                // Validate data
-                if (!surveyDefinition || typeof surveyDefinition !== 'object') {                    throw new Error('Invalid survey definition')
+            try {
+                // Parse JSON data
+                const surveyDefinition = @Html.Raw(Model.SurveyDefinitionJson ?? "{}");
+                const surveyResponse = @Html.Raw(Model.SurveyResponseJson ?? "{}");
+                
+                // Validate data
+                if (!surveyDefinition || typeof surveyDefinition !== 'object') {
+                    throw new Error('Invalid survey definition');
                 }
 
-                if (!surveyResponse || typeof surveyResponse !== 'object') {                    throw new Error('Invalid survey response')
+                if (!surveyResponse || typeof surveyResponse !== 'object') {
+                    throw new Error('Invalid survey response');
                 }
 
                 // Check Survey is available
-                if (typeof Survey === 'undefined') {                    throw new Error('Survey library not loaded')
+                if (typeof Survey === 'undefined') {
+                    throw new Error('Survey library not loaded');
                 }
 
                 // Create survey model
-                const survey = new Survey.Model(surveyDefinition)
+                const survey = new Survey.Model(surveyDefinition);
                 // Set to display mode (read-only)
-                survey.mode = "display"
+                survey.mode = "display";
                 // Load the saved responses
-                survey.data = surveyResponse
+                survey.data = surveyResponse;
                 // ENABLE navigation buttons for multi-page surveys in display mode
                 // This allows users to navigate through all pages to view responses
-                survey.showNavigationButtons = true
-                survey.showCompletedPage = false
+                survey.showNavigationButtons = true;
+                survey.showCompletedPage = false;
                 // Show progress bar to indicate multiple pages
-                survey.showProgressBar = "top"
-                survey.progressBarType = "pages";                // Render the survey - same as CompleteSurvey page
-                const surveyContainer = document.getElementById("surveyResultContainer")
-                if (!surveyContainer) {                    throw new Error('Survey container not found')
-                }                survey.render(surveyContainer);                );            } catch (error) {                const container = document.getElementById('surveyResultContainer')
+                survey.showProgressBar = "top";
+                survey.progressBarType = "pages";
+                
+                // Render the survey - same as CompleteSurvey page
+                const surveyContainer = document.getElementById("surveyResultContainer");
+                if (!surveyContainer) {
+                    throw new Error('Survey container not found');
+                }
+                
+                survey.render(surveyContainer);
+            } catch (error) {
+                const container = document.getElementById('surveyResultContainer');
                 if (container) {
                     container.innerHTML = 
                         '<div class="alert alert-danger">' +
                         '<i class="bi bi-exclamation-triangle me-2"></i>' +
                         '<strong>Error:</strong> ' + (error.message || 'Error loading survey results. Please contact support.') +
-                        '</div>'
+                        '</div>';
                 }
             }
-        })()
+        })();
     </script>
 }
 

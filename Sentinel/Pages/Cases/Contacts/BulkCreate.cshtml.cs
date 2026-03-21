@@ -21,17 +21,20 @@ public class BulkCreateModel : PageModel
     private readonly IDuplicateDetectionService _duplicateDetectionService;
     private readonly IPatientIdGeneratorService _patientIdGenerator;
     private readonly ICaseIdGeneratorService _caseIdGenerator;
+    private readonly IOutbreakService _outbreakService;
 
     public BulkCreateModel(
         ApplicationDbContext context,
         IDuplicateDetectionService duplicateDetectionService,
         IPatientIdGeneratorService patientIdGenerator,
-        ICaseIdGeneratorService caseIdGenerator)
+        ICaseIdGeneratorService caseIdGenerator,
+        IOutbreakService outbreakService)
     {
         _context = context;
         _duplicateDetectionService = duplicateDetectionService;
         _patientIdGenerator = patientIdGenerator;
         _caseIdGenerator = caseIdGenerator;
+        _outbreakService = outbreakService;
     }
 
     // Route parameters
@@ -50,12 +53,16 @@ public class BulkCreateModel : PageModel
     [BindProperty(SupportsGet = true)]
     public DateTime? ExposureEndDate { get; set; }
 
+    [BindProperty(SupportsGet = true)]
+    public int? OutbreakId { get; set; }
+
     // Page data
     public Case SourceCase { get; set; } = default!;
     public Location? Location { get; set; }
     public Event? Event { get; set; }
     public SelectList ContactClassificationsList { get; set; } = default!;
     public SelectList ExposureStatusList { get; set; } = default!;
+    public SelectList OutbreaksList { get; set; } = default!;
 
 
     // For Step 2: Review screen
@@ -113,6 +120,7 @@ public class BulkCreateModel : PageModel
 
         await LoadContactClassifications();
         LoadExposureStatuses();
+        await LoadOutbreaksAsync();
     }
 
 
@@ -121,7 +129,7 @@ public class BulkCreateModel : PageModel
         if (csvFile == null || csvFile.Length == 0)
         {
             ErrorMessage = "Please select a CSV file to upload.";
-            return RedirectToPage(new { CaseId, LocationId, EventId, ExposureStartDate, ExposureEndDate });
+            return RedirectToPage(new { CaseId, LocationId, EventId, ExposureStartDate, ExposureEndDate, OutbreakId });
         }
 
         try
@@ -187,7 +195,7 @@ public class BulkCreateModel : PageModel
         catch (Exception ex)
         {
             ErrorMessage = $"Error processing CSV file: {ex.Message}";
-            return RedirectToPage(new { CaseId, LocationId, EventId, ExposureStartDate, ExposureEndDate });
+            return RedirectToPage(new { CaseId, LocationId, EventId, ExposureStartDate, ExposureEndDate, OutbreakId });
         }
     }
 
@@ -202,7 +210,7 @@ public class BulkCreateModel : PageModel
         if (!ContactList.Any())
         {
             ErrorMessage = "No contacts to create.";
-            return RedirectToPage(new { CaseId, LocationId, EventId, ExposureStartDate, ExposureEndDate });
+            return RedirectToPage(new { CaseId, LocationId, EventId, ExposureStartDate, ExposureEndDate, OutbreakId });
         }
 
         // Filter to only included contacts
@@ -219,6 +227,7 @@ public class BulkCreateModel : PageModel
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
         int createdCount = 0;
         int linkedCount = 0;
+        var createdContactIds = new List<Guid>();
 
         try
         {
@@ -266,10 +275,8 @@ public class BulkCreateModel : PageModel
                 };
 
                 _context.Cases.Add(contact);
+                createdContactIds.Add(contact.Id);
 
-                // Create exposure event linking source case to contact
-                // This is a Contact exposure (person-to-person) that occurred at a Location/Event
-                
                 // Parse exposure status from DTO
                 var exposureStatus = contactDto.ExposureStatus switch
                 {
@@ -283,14 +290,14 @@ public class BulkCreateModel : PageModel
                 var exposureEvent = new ExposureEvent
                 {
                     Id = Guid.NewGuid(),
-                    SourceCaseId = CaseId, // Source case (transmitter)
-                    ExposedCaseId = contact.Id, // This contact (the person exposed)
-                    LocationId = LocationId, // WHERE the contact occurred
-                    EventId = EventId, // OR which event the contact occurred at
+                    SourceCaseId = CaseId,
+                    ExposedCaseId = contact.Id,
+                    LocationId = LocationId,
+                    EventId = EventId,
                     ContactClassificationId = contactDto.ContactClassificationId,
                     ExposureStartDate = contactDto.ExposureStartDate,
                     ExposureEndDate = contactDto.ExposureEndDate,
-                    ExposureType = ExposureType.Contact, // This is a person-to-person contact
+                    ExposureType = ExposureType.Contact,
                     ExposureStatus = exposureStatus,
                     ConfidenceLevel = contactDto.ConfidenceLevel,
                     Description = contactDto.Notes
@@ -301,9 +308,24 @@ public class BulkCreateModel : PageModel
 
             await _context.SaveChangesAsync();
 
+            // Link all created contacts to the selected outbreak (if any)
+            if (OutbreakId.HasValue && createdContactIds.Any())
+            {
+                foreach (var contactId in createdContactIds)
+                {
+                    await _outbreakService.LinkCaseAsync(
+                        OutbreakId.Value,
+                        contactId,
+                        classification: null,
+                        method: LinkMethod.Manual,
+                        userId: userId!);
+                }
+            }
+
             var excludedCount = ContactList.Count - contactsToCreate.Count;
             var excludedMessage = excludedCount > 0 ? $" ({excludedCount} excluded)" : "";
-            SuccessMessage = $"Successfully created {createdCount} new patients and linked {linkedCount} existing patients. Total {contactsToCreate.Count} contacts created{excludedMessage}.";
+            var outbreakMessage = OutbreakId.HasValue ? $" Linked to outbreak." : "";
+            SuccessMessage = $"Successfully created {createdCount} new patients and linked {linkedCount} existing patients. Total {contactsToCreate.Count} contacts created{excludedMessage}.{outbreakMessage}";
             return RedirectToPage("/Cases/Details", new { id = CaseId });
         }
         catch (Exception ex)
@@ -324,6 +346,12 @@ public class BulkCreateModel : PageModel
                 .ToListAsync(),
             "Id",
             "Name");
+    }
+
+    private async Task LoadOutbreaksAsync()
+    {
+        var activeOutbreaks = await _outbreakService.GetActiveOutbreaksAsync();
+        OutbreaksList = new SelectList(activeOutbreaks, "Id", "Name", OutbreakId);
     }
 
     private void LoadExposureStatuses()

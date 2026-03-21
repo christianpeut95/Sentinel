@@ -158,6 +158,23 @@ public class DetailsModel : PageModel
         return RedirectToPage(new { id });
     }
 
+    [Authorize(Policy = "Permission.Outbreak.Delete")]
+    public async Task<IActionResult> OnPostDeleteAsync(int id)
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? string.Empty;
+
+        var success = await _outbreakService.DeleteAsync(id, userId);
+
+        if (success)
+        {
+            TempData["SuccessMessage"] = "Outbreak deleted successfully.";
+            return RedirectToPage("/Outbreaks/Index");
+        }
+
+        ErrorMessage = "Failed to delete outbreak.";
+        return RedirectToPage(new { id });
+    }
+
     public async Task<IActionResult> OnPostAddTimelineEventAsync(int id, string title, string? description, DateTime eventDate, TimelineEventType eventType)
     {
         if (string.IsNullOrWhiteSpace(title))

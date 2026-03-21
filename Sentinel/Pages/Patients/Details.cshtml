@@ -87,6 +87,12 @@
             <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#addNoteModal">
                 <i class="bi bi-plus-circle"></i> Add Note
             </button>
+            @if (User.HasClaim(c => c.Type == "Permission" && c.Value == "Patient.Delete"))
+            {
+                <a asp-page="./Delete" asp-route-id="@Model.Patient.Id" class="btn btn-danger">
+                    <i class="bi bi-trash"></i> Delete
+                </a>
+            }
             <a asp-page="./Index" class="btn btn-outline-secondary ms-2">
                 Back
             </a>

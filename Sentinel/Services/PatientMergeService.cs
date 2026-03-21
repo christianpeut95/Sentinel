@@ -93,44 +93,54 @@ namespace Sentinel.Services
                     return result;
                 }
 
-                using var transaction = await _context.Database.BeginTransactionAsync();
-
-                try
+                // Use execution strategy to handle retries with transactions
+                var strategy = _context.Database.CreateExecutionStrategy();
+                
+                await strategy.ExecuteAsync(async () =>
                 {
-                    // Update target patient with selected values
-                    await ApplySelectedValuesAsync(targetPatient, selection, sourcePatient, userId, ipAddress);
+                    using var transaction = await _context.Database.BeginTransactionAsync();
 
-                    // Merge custom fields
-                    await MergeCustomFieldsAsync(sourcePatientId, targetPatientId, selection, userId, ipAddress);
+                    try
+                    {
+                        // Update target patient with selected values
+                        await ApplySelectedValuesAsync(targetPatient, selection, sourcePatient, userId, ipAddress);
 
-                    // Reassign audit logs from source to target
-                    await ReassignAuditLogsAsync(sourcePatientId, targetPatientId);
+                        // Merge custom fields
+                        await MergeCustomFieldsAsync(sourcePatientId, targetPatientId, selection, userId, ipAddress);
 
-                    // Mark source patient as deleted
-                    _context.Patients.Remove(sourcePatient);
-                    await _context.SaveChangesAsync();
+                        // Reassign audit logs from source to target
+                        await ReassignAuditLogsAsync(sourcePatientId, targetPatientId);
 
-                    // Log the merge operation
-                    await _auditService.LogChangeAsync(
-                        "Patient",
-                        targetPatientId.ToString(),
-                        "Merge",
-                        $"Patient {sourcePatientId}",
-                        $"Merged into Patient {targetPatientId}",
-                        userId,
-                        ipAddress);
+                        // Reassign all FK references before deleting source patient
+                        await ReassignRelatedEntitiesAsync(sourcePatientId, targetPatientId);
 
-                    await transaction.CommitAsync();
+                        // Mark source patient as deleted
+                        _context.Patients.Remove(sourcePatient);
+                        await _context.SaveChangesAsync();
 
-                    result.Success = true;
-                    result.MergedPatientId = targetPatientId;
-                    result.DeletedPatientId = sourcePatientId;
-                }
-                catch (Exception ex)
-                {
-                    await transaction.RollbackAsync();
-                    result.ErrorMessage = $"Merge failed: {ex.Message}";
-                }
+                        // Log the merge operation
+                        await _auditService.LogChangeAsync(
+                            "Patient",
+                            targetPatientId.ToString(),
+                            "Merge",
+                            $"Patient {sourcePatientId}",
+                            $"Merged into Patient {targetPatientId}",
+                            userId,
+                            ipAddress);
+
+                        await transaction.CommitAsync();
+
+                        result.Success = true;
+                        result.MergedPatientId = targetPatientId;
+                        result.DeletedPatientId = sourcePatientId;
+                    }
+                    catch (Exception ex)
+                    {
+                        await transaction.RollbackAsync();
+                        result.ErrorMessage = $"Merge failed: {ex.Message}";
+                        throw; // Re-throw to allow strategy to retry if needed
+                    }
+                });
             }
             catch (Exception ex)
             {
@@ -241,7 +251,8 @@ namespace Sentinel.Services
                 }
             }
 
-            await _context.SaveChangesAsync();
+            // Don't save yet - will be saved at the end of the transaction
+            // await _context.SaveChangesAsync();
         }
 
         private async Task MergeCustomFieldsAsync(
@@ -317,7 +328,8 @@ namespace Sentinel.Services
                 _context.PatientCustomFieldStrings.Remove(existing);
             }
 
-            await _context.SaveChangesAsync();
+            // Don't save yet - will be saved at the end of the transaction
+            // await _context.SaveChangesAsync();
 
             if (oldValue != value)
             {
@@ -353,7 +365,8 @@ namespace Sentinel.Services
                 _context.PatientCustomFieldNumbers.Remove(existing);
             }
 
-            await _context.SaveChangesAsync();
+            // Don't save yet - will be saved at the end of the transaction
+            // await _context.SaveChangesAsync();
 
             if (oldValue != value?.ToString())
             {
@@ -389,7 +402,8 @@ namespace Sentinel.Services
                 _context.PatientCustomFieldDates.Remove(existing);
             }
 
-            await _context.SaveChangesAsync();
+            // Don't save yet - will be saved at the end of the transaction
+            // await _context.SaveChangesAsync();
 
             if (oldValue != value?.ToString("yyyy-MM-dd"))
             {
@@ -425,7 +439,8 @@ namespace Sentinel.Services
                 _context.PatientCustomFieldBooleans.Remove(existing);
             }
 
-            await _context.SaveChangesAsync();
+            // Don't save yet - will be saved at the end of the transaction
+            // await _context.SaveChangesAsync();
 
             if (oldValue != value?.ToString())
             {
@@ -469,12 +484,41 @@ namespace Sentinel.Services
                 _context.PatientCustomFieldLookups.Remove(existing);
             }
 
-            await _context.SaveChangesAsync();
+            // Don't save yet - will be saved at the end of the transaction
+            // await _context.SaveChangesAsync();
 
             if (oldValue != newValue)
             {
                 await _auditService.LogCustomFieldChangeAsync(patientId, label, oldValue, newValue, userId, ipAddress);
             }
+        }
+
+        private async Task ReassignRelatedEntitiesAsync(Guid sourcePatientId, Guid targetPatientId)
+        {
+            // Reassign Cases - CRITICAL: Case.PatientId is non-nullable, cascade delete would
+            // permanently destroy all case history for the source patient
+            var cases = await _context.Cases
+                .Where(c => c.PatientId == sourcePatientId)
+                .ToListAsync();
+            foreach (var c in cases)
+                c.PatientId = targetPatientId;
+
+            // Reassign Notes (Note.PatientId has Restrict delete - would FK-fail otherwise)
+            var notes = await _context.Notes
+                .Where(n => n.PatientId == sourcePatientId)
+                .ToListAsync();
+            foreach (var n in notes)
+                n.PatientId = targetPatientId;
+
+            // Reassign ReviewQueue items
+            var reviewItems = await _context.ReviewQueue
+                .Where(r => r.PatientId == sourcePatientId)
+                .ToListAsync();
+            foreach (var r in reviewItems)
+                r.PatientId = targetPatientId;
+
+            // Don't save yet - will be saved at the end of the transaction
+            // await _context.SaveChangesAsync();
         }
 
         private async Task ReassignAuditLogsAsync(Guid sourcePatientId, Guid targetPatientId)
@@ -489,7 +533,8 @@ namespace Sentinel.Services
                 log.FieldName = $"[From Patient {sourcePatientId}] {log.FieldName}";
             }
 
-            await _context.SaveChangesAsync();
+            // Don't save yet - will be saved at the end of the transaction
+            // await _context.SaveChangesAsync();
         }
     }
 }

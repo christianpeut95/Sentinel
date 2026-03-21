@@ -13,8 +13,9 @@ public interface IReportFieldMetadataService
     /// Includes both regular fields and custom fields
     /// </summary>
     /// <param name="entityType">Case, Outbreak, Patient, etc.</param>
+    /// <param name="excludeNavigationFields">If true, excludes all fields from related entities (for survey mappings)</param>
     /// <returns>List of field metadata</returns>
-    Task<List<ReportFieldMetadata>> GetFieldsForEntityAsync(string entityType);
+    Task<List<ReportFieldMetadata>> GetFieldsForEntityAsync(string entityType, bool excludeNavigationFields = false);
 
     /// <summary>
     /// Gets fields grouped by category for UI display

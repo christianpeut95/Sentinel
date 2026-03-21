@@ -1,8 +1,11 @@
 @using Sentinel.Models
 @using Sentinel.Models.Reporting
 @using Sentinel.Services
+@using Sentinel.Data
+@using Microsoft.EntityFrameworkCore
 @using Microsoft.JSInterop
 @inject ISurveyMappingService MappingService
+@inject ApplicationDbContext DbContext
 @inject IJSRuntime JS
 @inject NavigationManager Navigation
 
@@ -114,7 +117,7 @@
                                     </td>
                                     <td>
                                         <span class="badge @GetActionBadgeClass(mapping.MappingAction)">
-                                            @GetActionIcon(mapping.MappingAction) @mapping.MappingAction
+                                            @GetActionIcon(mapping.MappingAction) @mapping.MappingAction.ToString()
                                         </span>
                                         @if (GetOverrideSource(mapping) is string source)
                                         {
@@ -124,7 +127,7 @@
                                     </td>
                                     <td>
                                         <span class="badge bg-light text-dark border">
-                                            @mapping.BusinessRule
+                                            @mapping.BusinessRule.ToString()
                                         </span>
                                     </td>
                                     <td class="text-center">
@@ -140,7 +143,11 @@
                                     <td>
                                         @if (mapping.TriggerReviewQueue)
                                         {
-                                            <span class="badge bg-info">P@mapping.ReviewPriority</span>
+                                            <span class="badge bg-info">P@(mapping.ReviewPriority)</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="text-muted">—</span>
                                         }
                                     </td>
                                     <td>
@@ -380,4 +387,5 @@ private bool HasRendered = false;
         MappingAction.Skip => "?",
         _ => "?"
     };
+
 }

@@ -45,28 +45,7 @@
                 {
                     if (page.TryGetProperty("elements", out var elements))
                     {
-                        foreach (var element in elements.EnumerateArray())
-                        {
-                            if (element.TryGetProperty("type", out var type))
-                            {
-                                var typeStr = type.GetString();
-                                if (typeStr == "matrix" || typeStr == "matrixdynamic" || typeStr == "matrixdropdown")
-                                {
-                                    var name = element.TryGetProperty("name", out var n) ? n.GetString() : "";
-                                    var title = element.TryGetProperty("title", out var t) ? t.GetString() : name;
-
-                                    if (!string.IsNullOrEmpty(name))
-                                    {
-                                        matrixQuestions.Add(new MatrixQuestion
-                                        {
-                                            Name = name,
-                                            Title = title ?? name,
-                                            Type = typeStr ?? "matrix"
-                                        });
-                                    }
-                                }
-                            }
-                        }
+                        FindMatrixQuestions(elements);
                     }
                 }
             }
@@ -74,6 +53,40 @@
         catch (Exception ex)
         {
             Console.WriteLine($"Error loading matrix questions: {ex.Message}");
+        }
+    }
+
+    private void FindMatrixQuestions(JsonElement elements)
+    {
+        foreach (var element in elements.EnumerateArray())
+        {
+            if (element.TryGetProperty("type", out var type))
+            {
+                var typeStr = type.GetString();
+                if (typeStr == "matrix" || typeStr == "matrixdynamic" || typeStr == "matrixdropdown")
+                {
+                    var name = element.TryGetProperty("name", out var n) ? n.GetString() : "";
+                    var title = element.TryGetProperty("title", out var t) ? t.GetString() : name;
+
+                    if (!string.IsNullOrEmpty(name))
+                    {
+                        matrixQuestions.Add(new MatrixQuestion
+                        {
+                            Name = name,
+                            Title = title ?? name,
+                            Type = typeStr ?? "matrix"
+                        });
+                    }
+                }
+                else if (typeStr == "panel")
+                {
+                    // Recurse into panels
+                    if (element.TryGetProperty("elements", out var panelElements))
+                    {
+                        FindMatrixQuestions(panelElements);
+                    }
+                }
+            }
         }
     }
 

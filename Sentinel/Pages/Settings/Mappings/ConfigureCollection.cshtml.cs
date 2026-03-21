@@ -49,19 +49,17 @@ public class ConfigureCollectionModel : PageModel
                     return Page();
                 }
 
-                // Get survey template from mapping
+                // Get survey template from mapping - resolve to active version
                 if (Mapping.ConfigurationType == MappingConfigurationType.Survey && Mapping.ConfigurationId != Guid.Empty)
                 {
-                    SurveyTemplate = await _context.SurveyTemplates
-                        .FirstOrDefaultAsync(st => st.Id == Mapping.ConfigurationId);
+                    SurveyTemplate = await ResolveActiveSurveyTemplateAsync(Mapping.ConfigurationId);
                 }
             }
 
-            // If survey template ID provided directly, use that
+            // If survey template ID provided directly, resolve to active version
             if (surveyTemplateId.HasValue && SurveyTemplate == null)
             {
-                SurveyTemplate = await _context.SurveyTemplates
-                    .FirstOrDefaultAsync(st => st.Id == surveyTemplateId.Value);
+                SurveyTemplate = await ResolveActiveSurveyTemplateAsync(surveyTemplateId.Value);
             }
 
             // If creating new mapping, initialize empty
@@ -86,6 +84,24 @@ public class ConfigureCollectionModel : PageModel
         }
 
         return Page();
+    }
+
+    private async Task<SurveyTemplate?> ResolveActiveSurveyTemplateAsync(Guid surveyTemplateId)
+    {
+        var original = await _context.SurveyTemplates
+            .AsNoTracking()
+            .FirstOrDefaultAsync(st => st.Id == surveyTemplateId);
+
+        if (original == null) return null;
+
+        var rootParentId = original.ParentSurveyTemplateId ?? original.Id;
+        var active = await _context.SurveyTemplates
+            .AsNoTracking()
+            .Where(st => (st.Id == rootParentId || st.ParentSurveyTemplateId == rootParentId))
+            .Where(st => st.VersionStatus == SurveyVersionStatus.Active)
+            .FirstOrDefaultAsync();
+
+        return active ?? original;
     }
 
     public async Task<IActionResult> SaveConfigurationAsync(CollectionMappingConfig config)
