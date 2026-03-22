@@ -12,7 +12,7 @@
 
 A publicly hosted demo is available at:
 
-**http://sentinel-demo.ddns.net** or **http://134.199.174.97
+**http://sentinel-demo.ddns.net**
 
 > Demo credentials are pre-loaded. See the [Demo Mode](#demo-mode) section for login details.
 
