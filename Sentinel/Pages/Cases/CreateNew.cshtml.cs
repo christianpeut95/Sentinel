@@ -21,19 +21,22 @@ namespace Sentinel.Pages.Cases
         private readonly IAuditService _auditService;
         private readonly IDiseaseAccessService _diseaseAccessService;
         private readonly ITaskService _taskService;
+        private readonly IPatientAddressService _patientAddressService;
 
         public CreateNewModel(
             ApplicationDbContext context,
             ICaseIdGeneratorService caseIdGenerator,
             IAuditService auditService,
             IDiseaseAccessService diseaseAccessService,
-            ITaskService taskService)
+            ITaskService taskService,
+            IPatientAddressService patientAddressService)
         {
             _context = context;
             _caseIdGenerator = caseIdGenerator;
             _auditService = auditService;
             _diseaseAccessService = diseaseAccessService;
             _taskService = taskService;
+            _patientAddressService = patientAddressService;
         }
 
         public List<DiseaseDto> Diseases { get; set; } = new();
@@ -133,6 +136,9 @@ namespace Sentinel.Pages.Cases
 
                 _context.Cases.Add(newCase);
                 await _context.SaveChangesAsync();
+
+                // Auto-copy patient address to new case
+                await _patientAddressService.CopyAddressToCaseAsync(newCase.Id, manualOverride: false);
 
                 // ? Task auto-creation now handled by CaseCreationInterceptor
                 // No need to manually call AutoCreateTasksForNewCase anymore

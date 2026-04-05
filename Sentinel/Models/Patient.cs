@@ -51,7 +51,8 @@ namespace Sentinel.Models
         [Display(Name = "Suburb")]
         public string? City { get; set; }
 
-        public string? State { get; set; }
+        public int? StateId { get; set; }
+        public State? State { get; set; }
 
         [Display(Name = "Postcode")]
         public string? PostalCode { get; set; }

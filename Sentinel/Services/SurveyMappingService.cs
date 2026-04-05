@@ -302,7 +302,8 @@ namespace Sentinel.Services
                         SurveyQuestion = mapping.SurveyQuestionName,
                         TargetField = mapping.TargetFieldPath,
                         Action = mapping.MappingAction,
-                        BusinessRuleApplied = mapping.BusinessRule.ToString()
+                        BusinessRuleApplied = mapping.BusinessRule.ToString(),
+                        BusinessRule = mapping.BusinessRule.ToString()
                     };
 
                     // Get survey value
@@ -1808,6 +1809,53 @@ namespace Sentinel.Services
                     // Update result with collection processing outcomes
                     result.CollectionEntitiesCreated += collectionResult.EntitiesCreated.Count(e => e.IsPrimaryEntity);
                     result.CollectionItemsForReview += collectionResult.ItemsRequiringReview;
+
+                    // Build per-row detail for the activity log
+                    var collectionDetail = new CollectionMappingDetail
+                    {
+                        QuestionName = mapping.SurveyQuestionName,
+                        TargetEntityType = config.TargetEntityType ?? "Unknown",
+                        RowsFound = rowData.Count,
+                        EntitiesCreated = collectionResult.EntitiesCreated.Count(e => e.IsPrimaryEntity),
+                        EntitiesQueuedForReview = collectionResult.ItemsRequiringReview,
+                        RowErrors = collectionResult.Errors.Count,
+                        Errors = collectionResult.Errors,
+                    };
+
+                    // Map each created entity back to a row detail
+                    for (int rowIndex = 0; rowIndex < rowData.Count; rowIndex++)
+                    {
+                        var created = collectionResult.EntitiesCreated
+                            .Where(e => e.IsPrimaryEntity)
+                            .ElementAtOrDefault(rowIndex);
+
+                        var rowStatus = created != null
+                            ? (collectionResult.ItemsRequiringReview > 0 ? "QueuedForReview" : "Created")
+                            : (collectionResult.Errors.Count > rowIndex ? "Error" : "Skipped");
+
+                        // Find related entities (Contact, Exposure, etc.) created alongside this primary entity
+                        var relatedEntities = created != null
+                            ? collectionResult.EntitiesCreated
+                                .Where(e => !e.IsPrimaryEntity && e.PrimaryEntityId == created.EntityId)
+                                .ToList()
+                            : new List<CreatedEntityInfo>();
+
+                        collectionDetail.Rows.Add(new CollectionRowDetail
+                        {
+                            RowIndex = rowIndex + 1,
+                            Status = rowStatus,
+                            EntityType = created?.EntityType ?? config.TargetEntityType,
+                            EntityId = created?.EntityId,
+                            FieldValues = created?.FieldValues
+                                .ToDictionary(kv => kv.Key, kv => kv.Value?.ToString() ?? ""),
+                            ErrorMessage = rowStatus == "Error"
+                                ? collectionResult.Errors.ElementAtOrDefault(rowIndex)
+                                : null,
+                            RelatedEntities = relatedEntities.Any() ? relatedEntities : null
+                        });
+                    }
+
+                    result.CollectionDetails.Add(collectionDetail);
 
                     if (!collectionResult.Success)
                     {

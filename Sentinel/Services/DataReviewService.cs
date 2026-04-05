@@ -756,11 +756,16 @@ public class DataReviewService : IDataReviewService
                 .ThenInclude(c => c.Patient)
                     .ThenInclude(p => p.SexAtBirth)  // ? And SexAtBirth
             .Include(r => r.Case)
+                .ThenInclude(c => c.Patient)
+                    .ThenInclude(p => p.State)  // ? And State!
+            .Include(r => r.Case)
                 .ThenInclude(c => c.Disease)  // ? Load Case's Disease!
             .Include(r => r.Patient)  // Also load direct ReviewQueue.Patient (for other scenarios)
                 .ThenInclude(p => p.Gender)
             .Include(r => r.Patient)
                 .ThenInclude(p => p.SexAtBirth)
+            .Include(r => r.Patient)
+                .ThenInclude(p => p.State)  // ? And State for direct Patient!
             .Include(r => r.Disease)  // And direct ReviewQueue.Disease
             .Include(r => r.Task)
             .AsQueryable();
@@ -852,10 +857,10 @@ public class DataReviewService : IDataReviewService
                 PatientCity = r.Patient != null 
                     ? r.Patient.City 
                     : (r.Case != null && r.Case.Patient != null ? r.Case.Patient.City : null),
-                PatientState = r.Patient != null 
-                    ? r.Patient.State 
-                    : (r.Case != null && r.Case.Patient != null ? r.Case.Patient.State : null),
-                PatientPostalCode = r.Patient != null 
+                PatientState = r.Patient != null && r.Patient.State != null
+                    ? r.Patient.State.Code 
+                    : (r.Case != null && r.Case.Patient != null && r.Case.Patient.State != null ? r.Case.Patient.State.Code : null),
+                PatientPostalCode = r.Patient != null
                     ? r.Patient.PostalCode 
                     : (r.Case != null && r.Case.Patient != null ? r.Case.Patient.PostalCode : null),
                 DiseaseId = r.DiseaseId ?? (r.Case != null ? r.Case.DiseaseId : null),
@@ -1020,7 +1025,7 @@ public class DataReviewService : IDataReviewService
                     MobilePhone = patient.MobilePhone,
                     Address = patient.AddressLine,
                     City = patient.City,
-                    State = patient.State,
+                    State = patient.State?.Code,
                     Postcode = patient.PostalCode
                 };
             }

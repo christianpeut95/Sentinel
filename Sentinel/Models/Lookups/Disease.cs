@@ -61,6 +61,25 @@ namespace Sentinel.Models.Lookups
         [Display(Name = "Sync with Patient Address Updates")]
         public bool SyncWithPatientAddressUpdates { get; set; } = false;
 
+        // Address Change Detection Configuration
+        [Display(Name = "Address Review Window Before Onset (Days)")]
+        [Range(0, 365)]
+        public int? AddressReviewWindowBeforeDays { get; set; } = 30;
+
+        [Display(Name = "Address Review Window After Onset (Days)")]
+        [Range(0, 365)]
+        public int? AddressReviewWindowAfterDays { get; set; } = 90;
+
+        [Display(Name = "Check Jurisdiction Crossing on Address Change")]
+        public bool CheckJurisdictionCrossing { get; set; } = true;
+
+        [Display(Name = "Jurisdiction Fields to Check (comma-separated: 1,2,3,4,5)")]
+        [StringLength(50)]
+        public string? JurisdictionFieldsToCheck { get; set; } = "1,2,3";
+
+        [Display(Name = "Inherit Address Settings from Parent Disease")]
+        public bool InheritAddressSettingsFromParent { get; set; } = true;
+
         [Display(Name = "Exposure Guidance Text")]
         [StringLength(1000)]
         [DataType(DataType.MultilineText)]

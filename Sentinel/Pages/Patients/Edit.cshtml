@@ -250,10 +250,11 @@
                 </div>
 
                 <div class="col-md-4 mb-3">
-                    <label asp-for="Patient.State" class="form-label">State</label>
-                    <input asp-for="Patient.State" class="form-control address-field" id="Patient_State" placeholder="State"
-                           data-original-value="@Model.Patient.State" />
-                    <span asp-validation-for="Patient.State" class="text-danger small"></span>
+                    <label asp-for="Patient.StateId" class="form-label">State</label>
+                    <select asp-for="Patient.StateId" class="form-select address-field" id="Patient_StateId" asp-items="ViewBag.StateId">
+                        <option value="">-- Select --</option>
+                    </select>
+                    <span asp-validation-for="Patient.StateId" class="text-danger small"></span>
                 </div>
 
                 <div class="col-md-4 mb-3">
@@ -313,7 +314,8 @@
                     {
                         var fieldProperty = $"Jurisdiction{jurisdictionType.FieldNumber}Id";
                         var fieldId = $"jurisdiction_{jurisdictionType.FieldNumber}";
-                        // Get current value
+
+                        // Get current value and name from eager-loaded navigation properties
                         int? currentValue = jurisdictionType.FieldNumber switch
                         {
                             1 => Model.Patient.Jurisdiction1Id,
@@ -321,6 +323,16 @@
                             3 => Model.Patient.Jurisdiction3Id,
                             4 => Model.Patient.Jurisdiction4Id,
                             5 => Model.Patient.Jurisdiction5Id,
+                            _ => null
+                        };
+
+                        string? currentName = jurisdictionType.FieldNumber switch
+                        {
+                            1 => Model.Patient.Jurisdiction1?.Name,
+                            2 => Model.Patient.Jurisdiction2?.Name,
+                            3 => Model.Patient.Jurisdiction3?.Name,
+                            4 => Model.Patient.Jurisdiction4?.Name,
+                            5 => Model.Patient.Jurisdiction5?.Name,
                             _ => null
                         };
                         <div class="col-md-6 mb-3">
@@ -338,6 +350,7 @@
                                    data-jurisdiction-type-id="@jurisdictionType.Id"
                                    data-field-number="@jurisdictionType.FieldNumber"
                                    data-current-value="@currentValue"
+                                   value="@currentName"
                                    autocomplete="off" />
                             <input type="hidden" 
                                    name="Patient.@fieldProperty" 
@@ -515,10 +528,55 @@
                     var addressInput = document.getElementById('addressInput');
                     if (addressInput) addressInput.value = street || result.formatted_address || pred.description || '';
                     var cityEl = document.getElementById('Patient_City');
-                    var stateEl = document.getElementById('Patient_State');
+                    var stateEl = document.getElementById('Patient_StateId');
                     var postalEl = document.getElementById('Patient_PostalCode');
                     if (cityEl) cityEl.value = city;
-                    if (stateEl) stateEl.value = state;
+                    if (stateEl && state) {
+                        // Try to match the state name from Google to a State option
+                        // Build a mapping of state codes to full names for Australian states
+                        var stateMapping = {
+                            'nsw': 'new south wales',
+                            'vic': 'victoria',
+                            'qld': 'queensland',
+                            'sa': 'south australia',
+                            'wa': 'western australia',
+                            'tas': 'tasmania',
+                            'nt': 'northern territory',
+                            'act': 'australian capital territory'
+                        };
+
+                        var stateLower = state.toLowerCase();
+                        var matched = false;
+
+                        for (var i = 0; i < stateEl.options.length; i++) {
+                            var optionText = stateEl.options[i].text.toLowerCase();
+
+                            // Match by code directly
+                            if (optionText === stateLower) {
+                                stateEl.selectedIndex = i;
+                                matched = true;
+                                break;
+                            }
+
+                            // Match by checking if the option code maps to the full state name
+                            if (stateMapping[optionText] && stateMapping[optionText] === stateLower) {
+                                stateEl.selectedIndex = i;
+                                matched = true;
+                                break;
+                            }
+
+                            // Partial match fallback
+                            if (optionText.includes(stateLower) || stateLower.includes(optionText)) {
+                                stateEl.selectedIndex = i;
+                                matched = true;
+                                break;
+                            }
+                        }
+
+                        if (!matched) {
+                            console.log('Could not match state "' + state + '" to any State option');
+                        }
+                    }
                     if (postalEl) postalEl.value = postal;
 
                     var latEl = document.getElementById('Patient_Latitude');

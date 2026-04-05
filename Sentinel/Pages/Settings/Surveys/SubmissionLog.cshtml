@@ -1,0 +1,632 @@
+@page
+@model Sentinel.Pages.Settings.Surveys.SubmissionLogModel
+@using Sentinel.Models
+
+@{
+    ViewData["Title"] = "Survey Activity Log";
+}
+
+@functions {
+    public string GetCspNonce()
+    {
+        if (HttpContext?.Items?.TryGetValue("csp-nonce", out var nonce) == true && nonce is string nonceStr)
+            return nonceStr;
+        return string.Empty;
+    }
+
+    public static (string badgeCss, string icon, string label) GetOutcomeDisplay(SurveySubmissionOutcome outcome)
+    {
+        return outcome switch
+        {
+            SurveySubmissionOutcome.Completed          => ("bg-success", "check-circle-fill", "Completed"),
+            SurveySubmissionOutcome.SentForReview      => ("bg-warning text-dark", "clock-fill", "Needs Review"),
+            SurveySubmissionOutcome.PartiallyCompleted => ("bg-warning text-dark", "exclamation-circle-fill", "Partially Saved"),
+            SurveySubmissionOutcome.ProblemOccurred    => ("bg-danger", "x-circle-fill", "Problem"),
+            SurveySubmissionOutcome.NotConfigured      => ("bg-secondary", "dash-circle-fill", "Not Set Up"),
+            _                                          => ("bg-secondary", "question-circle", "Unknown")
+        };
+    }
+
+    public static string GetFieldSummary(SurveySubmissionLog log)
+    {
+        var parts = new List<string>();
+        if (log.FieldsSavedAutomatically > 0)
+            parts.Add($"{log.FieldsSavedAutomatically} field{(log.FieldsSavedAutomatically == 1 ? "" : "s")} saved automatically");
+        if (log.FieldsSentForReview > 0)
+            parts.Add($"{log.FieldsSentForReview} sent for review");
+        if (log.FieldsRequiringApproval > 0)
+            parts.Add($"{log.FieldsRequiringApproval} awaiting approval");
+        if (log.FieldsWithErrors > 0)
+            parts.Add($"{log.FieldsWithErrors} could not be saved");
+        if (log.FieldsSkipped > 0 && parts.Count == 0)
+            parts.Add($"{log.FieldsSkipped} skipped (no change needed)");
+        if (parts.Count == 0 && log.TotalMappingsConfigured == 0)
+            return "No field mappings configured";
+        if (parts.Count == 0)
+            return "No fields updated";
+        return string.Join(", ", parts);
+    }
+}
+
+<nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a asp-page="/Index">Home</a></li>
+        <li class="breadcrumb-item"><a asp-page="/Settings/Index">Settings</a></li>
+        <li class="breadcrumb-item"><a asp-page="./SurveyTemplates">Survey Templates</a></li>
+        <li class="breadcrumb-item active" aria-current="page">Activity Log</li>
+    </ol>
+</nav>
+
+<div class="container-fluid">
+
+    <!-- Page header -->
+    <div class="d-flex justify-content-between align-items-start flex-wrap mb-4">
+        <div>
+            <h2 class="mb-1"><i class="bi bi-activity me-2 text-primary"></i>Survey Activity Log</h2>
+            <p class="text-muted mb-0">
+                A record of every completed survey interview — what data was saved, what needs your attention, and any problems that occurred.
+            </p>
+        </div>
+        <a asp-page="./SurveyTemplates" class="btn btn-outline-secondary mt-2 mt-md-0">
+            <i class="bi bi-arrow-left me-1"></i>Back to Survey Templates
+        </a>
+    </div>
+
+    <!-- Summary cards -->
+    <div class="row g-3 mb-4">
+        <div class="col-6 col-md-3 col-xl">
+            <div class="card border-0 shadow-sm h-100 text-center py-3">
+                <div class="card-body p-2">
+                    <div style="font-size:2rem; font-weight:700; color:#2d3748;">@Model.TotalCount</div>
+                    <div class="text-muted small">Total submissions</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3 col-xl">
+            <a href="?DateRange=@Model.DateRange&OutcomeFilter=Completed" class="text-decoration-none">
+                <div class="card border-0 shadow-sm h-100 text-center py-3 summary-card-hover">
+                    <div class="card-body p-2">
+                        <div style="font-size:2rem; font-weight:700; color:#16a34a;">@Model.CompletedCount</div>
+                        <div class="text-muted small"><i class="bi bi-check-circle-fill text-success me-1"></i>Completed</div>
+                    </div>
+                </div>
+            </a>
+        </div>
+        <div class="col-6 col-md-3 col-xl">
+            <a href="?DateRange=@Model.DateRange&OutcomeFilter=review" class="text-decoration-none">
+                <div class="card border-0 shadow-sm h-100 text-center py-3 summary-card-hover">
+                    <div class="card-body p-2">
+                        <div style="font-size:2rem; font-weight:700; color:#d97706;">@Model.NeedsAttentionCount</div>
+                        <div class="text-muted small"><i class="bi bi-clock-fill text-warning me-1"></i>Needs Review</div>
+                    </div>
+                </div>
+            </a>
+        </div>
+        <div class="col-6 col-md-3 col-xl">
+            <a href="?DateRange=@Model.DateRange&OutcomeFilter=issues" class="text-decoration-none">
+                <div class="card border-0 shadow-sm h-100 text-center py-3 summary-card-hover">
+                    <div class="card-body p-2">
+                        <div style="font-size:2rem; font-weight:700; color:#dc2626;">@Model.ProblemsCount</div>
+                        <div class="text-muted small"><i class="bi bi-x-circle-fill text-danger me-1"></i>Problems</div>
+                    </div>
+                </div>
+            </a>
+        </div>
+        @if (Model.NotConfiguredCount > 0)
+        {
+            <div class="col-6 col-md-3 col-xl">
+                <a href="?DateRange=@Model.DateRange&OutcomeFilter=NotConfigured" class="text-decoration-none">
+                    <div class="card border-0 shadow-sm h-100 text-center py-3 summary-card-hover">
+                        <div class="card-body p-2">
+                            <div style="font-size:2rem; font-weight:700; color:#6b7280;">@Model.NotConfiguredCount</div>
+                            <div class="text-muted small"><i class="bi bi-dash-circle-fill text-secondary me-1"></i>Not Set Up</div>
+                        </div>
+                    </div>
+                </a>
+            </div>
+        }
+    </div>
+
+    @if (Model.ProblemsCount > 0 && string.IsNullOrEmpty(Model.OutcomeFilter))
+    {
+        <div class="alert alert-danger d-flex align-items-center mb-4" role="alert">
+            <i class="bi bi-exclamation-triangle-fill me-2 flex-shrink-0" style="font-size:1.25rem;"></i>
+            <div>
+                <strong>@Model.ProblemsCount survey submission@(Model.ProblemsCount == 1 ? "" : "s") had a problem</strong> in the selected period.
+                The interview data was saved but the answers were <strong>not automatically applied</strong> to the case record.
+                <a href="?DateRange=@Model.DateRange&OutcomeFilter=issues" class="alert-link ms-1">View these submissions →</a>
+            </div>
+        </div>
+    }
+
+    @if (Model.NeedsAttentionCount > 0 && string.IsNullOrEmpty(Model.OutcomeFilter))
+    {
+        <div class="alert alert-warning d-flex align-items-center mb-4" role="alert">
+            <i class="bi bi-clock-fill me-2 flex-shrink-0" style="font-size:1.25rem;"></i>
+            <div>
+                <strong>@Model.NeedsAttentionCount submission@(Model.NeedsAttentionCount == 1 ? "" : "s") are waiting for staff review</strong> before being applied to case records.
+                <a asp-page="/DataInbox/Index" class="alert-link ms-1">Go to Data Inbox to review →</a>
+            </div>
+        </div>
+    }
+
+    <!-- Filters -->
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-body">
+            <form method="get" class="row g-3 align-items-end">
+                <div class="col-12 col-sm-6 col-md-3">
+                    <label class="form-label fw-semibold small text-muted">Time Period</label>
+                    <select name="DateRange" asp-for="DateRange" class="form-select" onchange="this.form.submit()">
+                        <option value="today">Today</option>
+                        <option value="7days">Last 7 days</option>
+                        <option value="30days">Last 30 days</option>
+                        <option value="90days">Last 90 days</option>
+                        <option value="all">All time</option>
+                    </select>
+                </div>
+                <div class="col-12 col-sm-6 col-md-3">
+                    <label class="form-label fw-semibold small text-muted">Status</label>
+                    <select name="OutcomeFilter" asp-for="OutcomeFilter" class="form-select" onchange="this.form.submit()">
+                        <option value="">All statuses</option>
+                        <option value="Completed">✓ Completed</option>
+                        <option value="review">⏳ Needs Review</option>
+                        <option value="issues">⚠ Problems</option>
+                        <option value="NotConfigured">⬤ Not Set Up</option>
+                    </select>
+                </div>
+                <div class="col-12 col-sm-6 col-md-3">
+                    <label class="form-label fw-semibold small text-muted">Disease</label>
+                    <select name="DiseaseFilter" asp-for="DiseaseFilter" asp-items="Model.DiseaseOptions" class="form-select" onchange="this.form.submit()">
+                        <option value="">All diseases</option>
+                    </select>
+                </div>
+                <div class="col-12 col-sm-6 col-md-3">
+                    <label class="form-label fw-semibold small text-muted">Search</label>
+                    <div class="input-group">
+                        <input type="text" name="SearchTerm" value="@Model.SearchTerm"
+                               class="form-control" placeholder="Patient, disease, survey…" />
+                        <button type="submit" class="btn btn-outline-secondary">
+                            <i class="bi bi-search"></i>
+                        </button>
+                    </div>
+                </div>
+                @if (!string.IsNullOrEmpty(Model.OutcomeFilter) || Model.DiseaseFilter.HasValue || !string.IsNullOrEmpty(Model.SearchTerm) || Model.DateRange != "7days")
+                {
+                    <div class="col-12">
+                        <a asp-page="./SubmissionLog" class="btn btn-sm btn-outline-secondary">
+                            <i class="bi bi-x-circle me-1"></i>Clear filters
+                        </a>
+                    </div>
+                }
+            </form>
+        </div>
+    </div>
+
+    <!-- Results table -->
+    @if (!Model.Submissions.Any())
+    {
+        <div class="card border-0 shadow-sm">
+            <div class="card-body text-center py-5">
+                <i class="bi bi-inbox text-muted" style="font-size: 3rem;"></i>
+                <h5 class="mt-3 text-muted">No submissions found</h5>
+                <p class="text-muted">
+                    @if (Model.TotalCount == 0)
+                    {
+                        <span>No survey interviews have been completed yet.</span>
+                    }
+                    else
+                    {
+                        <span>No submissions match the current filters. Try expanding the time period or clearing the filters.</span>
+                    }
+                </p>
+            </div>
+        </div>
+    }
+    else
+    {
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-white border-bottom d-flex justify-content-between align-items-center py-3">
+                <span class="fw-semibold">
+                    <i class="bi bi-list-ul me-1 text-muted"></i>
+                    @Model.Submissions.Count submission@(Model.Submissions.Count == 1 ? "" : "s")
+                    @if (Model.Submissions.Count == 500)
+                    {
+                        <span class="text-muted small ms-1">(showing most recent 500)</span>
+                    }
+                </span>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th style="width:160px;">Date &amp; Time</th>
+                            <th>Patient</th>
+                            <th>Disease</th>
+                            <th>Survey / Task</th>
+                            <th style="width:130px;">Status</th>
+                            <th>What happened</th>
+                            <th style="width:80px;"></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var log in Model.Submissions)
+                        {
+                            var (badgeCss, icon, label) = GetOutcomeDisplay(log.Outcome);
+                            var summaryText = GetFieldSummary(log);
+                            var localTime = TimeZoneInfo.ConvertTimeFromUtc(log.SubmittedAt, TimeZoneInfo.Local);
+                            <tr>
+                                <td class="small text-nowrap">
+                                    <div>@localTime.ToString("d MMM yyyy")</div>
+                                    <div class="text-muted">@localTime.ToString("h:mm tt")</div>
+                                </td>
+                                <td>
+                                    @if (!string.IsNullOrEmpty(log.PatientName))
+                                    {
+                                        if (log.CaseId.HasValue)
+                                        {
+                                            <a asp-page="/Cases/Details" asp-route-id="@log.CaseId"
+                                               class="text-decoration-none fw-semibold">
+                                                @log.PatientName
+                                            </a>
+                                        }
+                                        else
+                                        {
+                                            <span class="fw-semibold">@log.PatientName</span>
+                                        }
+                                        if (!string.IsNullOrEmpty(log.CaseReference))
+                                        {
+                                            <div class="text-muted small">Case @log.CaseReference</div>
+                                        }
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted">—</span>
+                                    }
+                                </td>
+                                <td>
+                                    @if (!string.IsNullOrEmpty(log.DiseaseName))
+                                    {
+                                        <span>@log.DiseaseName</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted">—</span>
+                                    }
+                                </td>
+                                <td class="small">
+                                    @if (!string.IsNullOrEmpty(log.SurveyName))
+                                    {
+                                        <span>@log.SurveyName</span>
+                                        if (!string.IsNullOrEmpty(log.SubmittedByName))
+                                        {
+                                            <div class="text-muted">by @log.SubmittedByName</div>
+                                        }
+                                    }
+                                    else if (!string.IsNullOrEmpty(log.TaskName))
+                                    {
+                                        <span>@log.TaskName</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted">—</span>
+                                    }
+                                </td>
+                                <td>
+                                    <span class="badge @badgeCss rounded-pill px-2 py-1">
+                                        <i class="bi bi-@icon me-1"></i>@label
+                                    </span>
+                                </td>
+                                <td class="small">
+                                    <span>@summaryText</span>
+                                    @if (!string.IsNullOrEmpty(log.IssuesSummary) &&
+                                         (log.Outcome == SurveySubmissionOutcome.ProblemOccurred ||
+                                          log.Outcome == SurveySubmissionOutcome.PartiallyCompleted))
+                                    {
+                                        <div class="text-danger mt-1">
+                                            <i class="bi bi-exclamation-triangle me-1"></i>
+                                            <em>@(log.IssuesSummary.Length > 120 ? log.IssuesSummary[..120] + "…" : log.IssuesSummary)</em>
+                                        </div>
+                                    }
+                                    @if (log.Outcome == SurveySubmissionOutcome.NotConfigured)
+                                    {
+                                        <div class="text-secondary mt-1 small">
+                                            <i class="bi bi-info-circle me-1"></i>Set up field mappings in
+                                            <a asp-page="/Settings/Mappings/EditMapping"
+                                               class="text-secondary">Survey Mappings</a> to automate data entry.
+                                        </div>
+                                    }
+                                </td>
+                                <td class="text-end">
+                                    @if (log.TaskId.HasValue)
+                                    {
+                                        <a asp-page="/Tasks/ViewSurveyResult"
+                                           asp-route-taskId="@log.TaskId"
+                                           class="btn btn-sm btn-outline-secondary me-1"
+                                           title="View the submitted answers">
+                                            <i class="bi bi-eye"></i>
+                                        </a>
+                                    }
+                                    @if (!string.IsNullOrEmpty(log.MappingDetailJson))
+                                    {
+                                        <button type="button"
+                                                class="btn btn-sm btn-outline-primary"
+                                                data-bs-toggle="modal"
+                                                data-bs-target="#detailModal-@log.Id"
+                                                title="View detailed mapping results">
+                                            <i class="bi bi-list-ul"></i> Details
+                                        </button>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    }
+
+    <!-- Detail Modals (one per log entry with detail JSON) -->
+    @foreach (var log in Model.Submissions.Where(l => !string.IsNullOrEmpty(l.MappingDetailJson)))
+    {
+        var detail = Sentinel.Pages.Settings.Surveys.SubmissionLogModel.GetMappingDetail(log);
+        if (detail == null) continue;
+
+        <div class="modal fade" id="detailModal-@log.Id" tabindex="-1" aria-labelledby="detailModalLabel-@log.Id" aria-hidden="true">
+            <div class="modal-dialog modal-xl modal-dialog-scrollable">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="detailModalLabel-@log.Id">
+                            <i class="bi bi-list-check me-2"></i>Mapping Details
+                        </h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <h6 class="text-muted mb-1">Survey Submission</h6>
+                            <div><strong>@log.PatientName</strong> — @log.DiseaseName</div>
+                            <div class="small text-muted">@log.SurveyName, submitted @log.SubmittedAt.ToLocalTime().ToString("d MMM yyyy h:mm tt")</div>
+                        </div>
+
+                        @if (log.ReviewQueueItemId.HasValue)
+                        {
+                            <div class="mt-2">
+                                <a asp-page="/DataInbox/Review" asp-route-id="@log.ReviewQueueItemId" class="btn btn-sm btn-warning">
+                                    <i class="bi bi-exclamation-triangle me-1"></i>View in Review Queue
+                                </a>
+                            </div>
+                        }
+
+                        @* Resubmission History *@
+                        @{
+                            var priorSubmissions = Model.Submissions
+                                .Where(s => s.TaskId == log.TaskId && s.Id != log.Id && s.SubmittedAt < log.SubmittedAt)
+                                .OrderByDescending(s => s.SubmittedAt)
+                                .Take(5)
+                                .ToList();
+                        }
+                        @if (priorSubmissions.Any())
+                        {
+                            <div class="alert alert-info small mb-3">
+                                <i class="bi bi-arrow-repeat me-1"></i>
+                                <strong>Resubmission:</strong> This task was previously submitted @priorSubmissions.Count time@(priorSubmissions.Count == 1 ? "" : "s").
+                                @foreach (var prior in priorSubmissions)
+                                {
+                                    var priorOutcome = GetOutcomeDisplay(prior.Outcome);
+                                    <div class="ms-3 mt-1">
+                                        <span class="badge @priorOutcome.badgeCss">@priorOutcome.label</span>
+                                        @prior.SubmittedAt.ToLocalTime().ToString("d MMM yyyy h:mm tt")
+                                        by @(prior.SubmittedByName ?? "unknown")
+                                    </div>
+                                }
+                            </div>
+                        }
+
+                        @if (detail.SimpleFields.Any())
+                        {
+                            <h6 class="mt-4 mb-3 border-bottom pb-2">
+                                <i class="bi bi-text-left me-1"></i>Individual Fields (@detail.SimpleFields.Count)
+                            </h6>
+                            <div class="table-responsive">
+                                <table class="table table-sm table-hover">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th>Survey Question</th>
+                                            <th>Target Field</th>
+                                            <th>Action</th>
+                                            <th>Business Rule</th>
+                                            <th>Survey Value</th>
+                                            <th>Database Value</th>
+                                            <th>Result</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @foreach (var field in detail.SimpleFields)
+                                        {
+                                            var actionBadge = field.Action switch
+                                            {
+                                                MappingAction.AutoSave => "bg-success",
+                                                MappingAction.QueueForReview => "bg-warning text-dark",
+                                                MappingAction.RequireApproval => "bg-danger",
+                                                MappingAction.Skip => "bg-secondary",
+                                                _ => "bg-secondary"
+                                            };
+                                            <tr>
+                                                <td class="small">@field.SurveyQuestion</td>
+                                                <td class="small text-muted">@field.TargetField</td>
+                                                <td>
+                                                    <span class="badge @actionBadge">@field.Action</span>
+                                                </td>
+                                                <td class="small text-muted">@(field.BusinessRule ?? "—")</td>
+                                                <td class="small">@(field.SurveyValue?.ToString() ?? "—")</td>
+                                                <td class="small text-muted">@(field.DatabaseValue?.ToString() ?? "—")</td>
+                                                <td>
+                                                    @if (field.WasModified)
+                                                    {
+                                                        <span class="text-success small">
+                                                            <i class="bi bi-check-circle-fill me-1"></i>Updated
+                                                        </span>
+                                                    }
+                                                    else
+                                                    {
+                                                        <span class="text-muted small">No change</span>
+                                                    }
+                                                    @if (!string.IsNullOrEmpty(field.ErrorMessage))
+                                                    {
+                                                        <div class="text-danger small mt-1">
+                                                            <i class="bi bi-x-circle me-1"></i>@field.ErrorMessage
+                                                        </div>
+                                                    }
+                                                </td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </table>
+                            </div>
+                        }
+
+                        @if (detail.Collections.Any())
+                        {
+                            <h6 class="mt-4 mb-3 border-bottom pb-2">
+                                <i class="bi bi-table me-1"></i>Collection Questions (@detail.Collections.Count)
+                            </h6>
+                            @foreach (var collection in detail.Collections)
+                            {
+                                <div class="card mb-3">
+                                    <div class="card-header bg-light">
+                                        <div class="d-flex justify-content-between align-items-center">
+                                            <div>
+                                                <strong>@collection.QuestionName</strong>
+                                                <span class="text-muted ms-2">→ @collection.TargetEntityType</span>
+                                            </div>
+                                            <div class="text-end small">
+                                                <span class="badge bg-success">@collection.EntitiesCreated created</span>
+                                                @if (collection.EntitiesQueuedForReview > 0)
+                                                {
+                                                    <span class="badge bg-warning text-dark ms-1">@collection.EntitiesQueuedForReview for review</span>
+                                                }
+                                                @if (collection.RowErrors > 0)
+                                                {
+                                                    <span class="badge bg-danger ms-1">@collection.RowErrors errors</span>
+                                                }
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="card-body">
+                                        @if (collection.Errors.Any())
+                                        {
+                                            <div class="alert alert-danger small mb-3">
+                                                <strong>Errors:</strong>
+                                                <ul class="mb-0 mt-2">
+                                                    @foreach (var error in collection.Errors)
+                                                    {
+                                                        <li>@error</li>
+                                                    }
+                                                </ul>
+                                            </div>
+                                        }
+                                        @if (collection.Rows.Any())
+                                        {
+                                            <div class="table-responsive">
+                                                <table class="table table-sm table-hover mb-0">
+                                                    <thead class="table-light">
+                                                        <tr>
+                                                            <th style="width:60px;">Row</th>
+                                                            <th style="width:120px;">Status</th>
+                                                            <th>Field Values</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                        @foreach (var row in collection.Rows)
+                                                        {
+                                                            var rowBadge = row.Status switch
+                                                            {
+                                                                "Created" => "bg-success",
+                                                                "QueuedForReview" => "bg-warning text-dark",
+                                                                "Error" => "bg-danger",
+                                                                _ => "bg-secondary"
+                                                            };
+                                                            var rowLabel = row.Status switch
+                                                            {
+                                                                "Created" => "Created",
+                                                                "QueuedForReview" => "For Review",
+                                                                "Error" => "Error",
+                                                                _ => row.Status
+                                                            };
+                                                            <tr>
+                                                                <td class="text-center">@row.RowIndex</td>
+                                                                <td>
+                                                                    <span class="badge @rowBadge">@rowLabel</span>
+                                                                </td>
+                                                                <td class="small">
+                                                                    @if (row.FieldValues != null && row.FieldValues.Any())
+                                                                    {
+                                                                        <div style="max-height:100px; overflow-y:auto;">
+                                                                            @foreach (var kv in row.FieldValues.Take(5))
+                                                                            {
+                                                                                <div><strong>@kv.Key:</strong> @kv.Value</div>
+                                                                            }
+                                                                            @if (row.FieldValues.Count > 5)
+                                                                            {
+                                                                                <div class="text-muted">...and @(row.FieldValues.Count - 5) more field(s)</div>
+                                                                            }
+                                                                        </div>
+                                                                    }
+                                                                    else
+                                                                    {
+                                                                        <span class="text-muted">No data</span>
+                                                                    }
+                                                                    @if (!string.IsNullOrEmpty(row.ErrorMessage))
+                                                                    {
+                                                                        <div class="text-danger mt-1">
+                                                                            <i class="bi bi-exclamation-triangle me-1"></i>@row.ErrorMessage
+                                                                        </div>
+                                                                    }
+                                                                    @if (row.RelatedEntities != null && row.RelatedEntities.Any())
+                                                                    {
+                                                                        <div class="mt-2 pt-2 border-top">
+                                                                            <div class="small text-muted fw-semibold mb-1">Related entities created:</div>
+                                                                            @foreach (var entity in row.RelatedEntities)
+                                                                            {
+                                                                                <div class="badge bg-info text-dark me-1">@entity.EntityType @(entity.IsPrimaryEntity ? "(primary)" : "")</div>
+                                                                            }
+                                                                        </div>
+                                                                    }
+                                                                </td>
+                                                            </tr>
+                                                        }
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        }
+                                        else
+                                        {
+                                            <p class="text-muted mb-0">No rows processed.</p>
+                                        }
+                                    </div>
+                                </div>
+                            }
+                        }
+
+                        @if (!detail.SimpleFields.Any() && !detail.Collections.Any())
+                        {
+                            <div class="alert alert-info">
+                                <i class="bi bi-info-circle me-2"></i>
+                                No detailed mapping information available for this submission.
+                            </div>
+                        }
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+
+</div>
+
+<style nonce="@GetCspNonce()">
+    .summary-card-hover { transition: box-shadow 0.2s, transform 0.2s; }
+    .summary-card-hover:hover { box-shadow: 0 4px 16px rgba(0,0,0,.1) !important; transform: translateY(-2px); }
+    .table > tbody > tr:last-child > td { border-bottom: none; }
+</style>

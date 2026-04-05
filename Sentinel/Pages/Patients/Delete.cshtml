@@ -61,7 +61,7 @@
                 {
                     <text>@Model.Patient.City </text>
                 }
-                @if (!string.IsNullOrWhiteSpace(Model.Patient.State))
+                @if (!string.IsNullOrWhiteSpace(Model.Patient.State?.Code))
                 {
                     <text>@Model.Patient.State </text>
                 }

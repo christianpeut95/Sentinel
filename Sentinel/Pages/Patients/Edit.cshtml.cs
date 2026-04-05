@@ -26,8 +26,9 @@ namespace Sentinel.Pages.Patients
         private readonly IPatientIdGeneratorService _patientIdGenerator;
         private readonly IJurisdictionService _jurisdictionService;
         private readonly IServiceProvider _serviceProvider;
+        private readonly IPatientAddressService _patientAddressService;
 
-        public EditModel(Sentinel.Data.ApplicationDbContext context, IGeocodingService geocoder, IPatientCustomFieldService customFieldService, IAuditService auditService, IPatientIdGeneratorService patientIdGenerator, IJurisdictionService jurisdictionService, IServiceProvider serviceProvider)
+        public EditModel(Sentinel.Data.ApplicationDbContext context, IGeocodingService geocoder, IPatientCustomFieldService customFieldService, IAuditService auditService, IPatientIdGeneratorService patientIdGenerator, IJurisdictionService jurisdictionService, IServiceProvider serviceProvider, IPatientAddressService patientAddressService)
         {
             _context = context;
             _geocoder = geocoder;
@@ -36,6 +37,7 @@ namespace Sentinel.Pages.Patients
             _patientIdGenerator = patientIdGenerator;
             _jurisdictionService = jurisdictionService;
             _serviceProvider = serviceProvider;
+            _patientAddressService = patientAddressService;
         }
 
         [BindProperty]
@@ -59,9 +61,15 @@ namespace Sentinel.Pages.Patients
 
             var patient = await _context.Patients
                 .Include(p => p.CountryOfBirth)
+                .Include(p => p.State)
                 .Include(p => p.Ancestry)
                 .Include(p => p.LanguageSpokenAtHome)
                 .Include(p => p.Occupation)
+                .Include(p => p.Jurisdiction1).ThenInclude(j => j!.JurisdictionType)
+                .Include(p => p.Jurisdiction2).ThenInclude(j => j!.JurisdictionType)
+                .Include(p => p.Jurisdiction3).ThenInclude(j => j!.JurisdictionType)
+                .Include(p => p.Jurisdiction4).ThenInclude(j => j!.JurisdictionType)
+                .Include(p => p.Jurisdiction5).ThenInclude(j => j!.JurisdictionType)
                 .FirstOrDefaultAsync(m => m.Id == id);
 
             if (patient == null) return NotFound();
@@ -71,10 +79,11 @@ namespace Sentinel.Pages.Patients
             // Store original address for comparison
             OriginalAddress = patient.AddressLine;
             OriginalCity = patient.City;
-            OriginalState = patient.State;
+            OriginalState = patient.State?.Code; // Display state code for reference
             OriginalPostalCode = patient.PostalCode;
 
             ViewData["CountryOfBirthId"] = new SelectList(_context.Countries.OrderBy(c => c.Name), "Id", "Name");
+            ViewData["StateId"] = new SelectList(_context.States.Where(s => s.IsActive).OrderBy(s => s.Code), "Id", "Code");
             ViewData["AncestryId"] = new SelectList(_context.Ancestries.OrderBy(e => e.DisplayOrder).ThenBy(e => e.Name), "Id", "Name");
             ViewData["LanguageSpokenAtHomeId"] = new SelectList(_context.Languages.OrderBy(l => l.Name), "Id", "Name");
             ViewData["AtsiStatusId"] = new SelectList(_context.AtsiStatuses.Where(a => a.IsActive).OrderBy(a => a.DisplayOrder).ThenBy(a => a.Name), "Id", "Name");
@@ -97,6 +106,7 @@ namespace Sentinel.Pages.Patients
             if (!ModelState.IsValid)
             {
                 ViewData["CountryOfBirthId"] = new SelectList(_context.Countries.OrderBy(c => c.Name), "Id", "Name");
+                ViewData["StateId"] = new SelectList(_context.States.Where(s => s.IsActive).OrderBy(s => s.Code), "Id", "Code");
                 ViewData["AncestryId"] = new SelectList(_context.Ancestries.OrderBy(e => e.DisplayOrder).ThenBy(e => e.Name), "Id", "Name");
                 ViewData["LanguageSpokenAtHomeId"] = new SelectList(_context.Languages.OrderBy(l => l.Name), "Id", "Name");
                 ViewData["AtsiStatusId"] = new SelectList(_context.AtsiStatuses.Where(a => a.IsActive).OrderBy(a => a.DisplayOrder).ThenBy(a => a.Name), "Id", "Name");
@@ -132,12 +142,12 @@ namespace Sentinel.Pages.Patients
                 // Check if any address field changed
                 bool addressChanged = originalPatient.AddressLine != Patient.AddressLine ||
                                      originalPatient.City != Patient.City ||
-                                     originalPatient.State != Patient.State ||
+                                     originalPatient.StateId != Patient.StateId ||
                                      originalPatient.PostalCode != Patient.PostalCode;
 
                 // Build current address string
                 var address = string.Join(", ",
-                    new[] { Patient.AddressLine, Patient.City, Patient.State, Patient.PostalCode }
+                    new string?[] { Patient.AddressLine, Patient.City, Patient.State?.Code, Patient.PostalCode }
                     .Where(s => !string.IsNullOrWhiteSpace(s)));
 
                 bool geocodingSucceeded = false;
@@ -189,6 +199,28 @@ namespace Sentinel.Pages.Patients
                 _context.Entry(trackedPatient).CurrentValues.SetValues(Patient);
                 
                 await _context.SaveChangesAsync();
+
+                // Process address change for related cases
+                PatientAddressUpdateResult? addressUpdateResult = null;
+                if (addressChanged)
+                {
+                    var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+                    addressUpdateResult = await _patientAddressService.ProcessAddressChangeAsync(
+                        trackedPatient,
+                        originalPatient.AddressLine,
+                        originalPatient.City,
+                        originalPatient.StateId,
+                        originalPatient.PostalCode,
+                        currentUserId);
+
+                    // If there are cases requiring review, show them to the user
+                    if (addressUpdateResult.CasesRequiringReview.Any())
+                    {
+                        // Store in TempData for display on next page
+                        TempData["AddressChangeReview"] = System.Text.Json.JsonSerializer.Serialize(
+                            addressUpdateResult.CasesRequiringReview);
+                    }
+                }
 
                 // Auto-detect jurisdictions in background (fire-and-forget) - don't make user wait
                 _ = Task.Run(async () => await AutoDetectJurisdictionsInBackgroundAsync(Patient.Id, Patient.Latitude, Patient.Longitude));
@@ -352,8 +384,8 @@ namespace Sentinel.Pages.Patients
             if (oldPatient.City != newPatient.City)
                 await _auditService.LogChangeAsync("Patient", patientIdString, "City", oldPatient.City, newPatient.City, userId, ipAddress);
 
-            if (oldPatient.State != newPatient.State)
-                await _auditService.LogChangeAsync("Patient", patientIdString, "State", oldPatient.State, newPatient.State, userId, ipAddress);
+            if (oldPatient.StateId != newPatient.StateId)
+                await _auditService.LogChangeAsync("Patient", patientIdString, "State", oldPatient.State?.Code, newPatient.State?.Code, userId, ipAddress);
 
             if (oldPatient.PostalCode != newPatient.PostalCode)
                 await _auditService.LogChangeAsync("Patient", patientIdString, "Postal Code", oldPatient.PostalCode, newPatient.PostalCode, userId, ipAddress);
@@ -376,11 +408,8 @@ namespace Sentinel.Pages.Patients
                 var patient = await scopedContext.Patients.FindAsync(patientId);
                 if (patient == null) return;
 
-                // Check if ANY jurisdiction fields are already populated - if so, don't override user's selection
-                if (patient.Jurisdiction1Id.HasValue || patient.Jurisdiction2Id.HasValue || 
-                    patient.Jurisdiction3Id.HasValue || patient.Jurisdiction4Id.HasValue || 
-                    patient.Jurisdiction5Id.HasValue)
-                    return;
+                // ALWAYS update jurisdictions when address changes (don't skip if already populated)
+                // The address change means the location changed, so jurisdictions should be re-evaluated
 
                 var detectedJurisdictions = await scopedJurisdictionService.FindJurisdictionsContainingPointAsync(
                     latitude.Value,
@@ -388,48 +417,45 @@ namespace Sentinel.Pages.Patients
                 );
 
                 // Auto-assign to appropriate jurisdiction fields based on JurisdictionType.FieldNumber
-                bool anyAssigned = false;
-                foreach (var jurisdiction in detectedJurisdictions)
-                {
-                    var fieldNumber = jurisdiction.JurisdictionType?.FieldNumber;
-                    if (!fieldNumber.HasValue) continue;
+                // Group by field number to avoid overwriting - take first match for each type
+                var jurisdictionsByField = detectedJurisdictions
+                    .Where(j => j.JurisdictionType?.FieldNumber != null)
+                    .GroupBy(j => j.JurisdictionType!.FieldNumber)
+                    .ToDictionary(g => g.Key, g => g.First());
 
-                    switch (fieldNumber.Value)
+                bool anyAssigned = false;
+
+                foreach (var kvp in jurisdictionsByField)
+                {
+                    var fieldNumber = kvp.Key;
+                    var jurisdiction = kvp.Value;
+
+                    switch (fieldNumber)
                     {
                         case 1:
-                            if (!patient.Jurisdiction1Id.HasValue)
-                            {
-                                patient.Jurisdiction1Id = jurisdiction.Id;
-                                anyAssigned = true;
-                            }
+                            patient.Jurisdiction1Id = jurisdiction.Id;
+                            anyAssigned = true;
+                            Console.WriteLine($"✓ Assigned Jurisdiction1: {jurisdiction.Name} (Type: {jurisdiction.JurisdictionType?.Name})");
                             break;
                         case 2:
-                            if (!patient.Jurisdiction2Id.HasValue)
-                            {
-                                patient.Jurisdiction2Id = jurisdiction.Id;
-                                anyAssigned = true;
-                            }
+                            patient.Jurisdiction2Id = jurisdiction.Id;
+                            anyAssigned = true;
+                            Console.WriteLine($"✓ Assigned Jurisdiction2: {jurisdiction.Name} (Type: {jurisdiction.JurisdictionType?.Name})");
                             break;
                         case 3:
-                            if (!patient.Jurisdiction3Id.HasValue)
-                            {
-                                patient.Jurisdiction3Id = jurisdiction.Id;
-                                anyAssigned = true;
-                            }
+                            patient.Jurisdiction3Id = jurisdiction.Id;
+                            anyAssigned = true;
+                            Console.WriteLine($"✓ Assigned Jurisdiction3: {jurisdiction.Name} (Type: {jurisdiction.JurisdictionType?.Name})");
                             break;
                         case 4:
-                            if (!patient.Jurisdiction4Id.HasValue)
-                            {
-                                patient.Jurisdiction4Id = jurisdiction.Id;
-                                anyAssigned = true;
-                            }
+                            patient.Jurisdiction4Id = jurisdiction.Id;
+                            anyAssigned = true;
+                            Console.WriteLine($"✓ Assigned Jurisdiction4: {jurisdiction.Name} (Type: {jurisdiction.JurisdictionType?.Name})");
                             break;
                         case 5:
-                            if (!patient.Jurisdiction5Id.HasValue)
-                            {
-                                patient.Jurisdiction5Id = jurisdiction.Id;
-                                anyAssigned = true;
-                            }
+                            patient.Jurisdiction5Id = jurisdiction.Id;
+                            anyAssigned = true;
+                            Console.WriteLine($"✓ Assigned Jurisdiction5: {jurisdiction.Name} (Type: {jurisdiction.JurisdictionType?.Name})");
                             break;
                     }
                 }

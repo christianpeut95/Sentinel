@@ -228,7 +228,7 @@ namespace Sentinel.Pages.Cases
 
             if (!string.IsNullOrEmpty(State))
             {
-                query = query.Where(c => c.Patient != null && c.Patient.State != null && c.Patient.State.Contains(State));
+                query = query.Where(c => c.Patient != null && c.Patient.State != null && c.Patient.State.Code.Contains(State));
             }
 
             // Custom Field Filters

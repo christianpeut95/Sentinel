@@ -27,7 +27,7 @@ namespace Sentinel.Controllers
         public string? HomePhone { get; set; }
         public string? Address { get; set; }
         public string? City { get; set; }
-        public string? State { get; set; }
+        public int? StateId { get; set; }
         public string? Postcode { get; set; }
         public int? CountryOfBirthId { get; set; }
         public int? LanguageSpokenAtHomeId { get; set; }
@@ -185,7 +185,7 @@ namespace Sentinel.Controllers
             patient.HomePhone = request.HomePhone;
             patient.AddressLine = request.Address;
             patient.City = request.City;
-            patient.State = request.State;
+            patient.StateId = request.StateId;
             patient.PostalCode = request.Postcode;
             patient.CountryOfBirthId = request.CountryOfBirthId;
             patient.LanguageSpokenAtHomeId = request.LanguageSpokenAtHomeId;

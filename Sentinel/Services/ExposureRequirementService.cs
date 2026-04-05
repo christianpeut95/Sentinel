@@ -42,8 +42,8 @@ namespace Sentinel.Services
             var fullAddress = patient.AddressLine;
             if (!string.IsNullOrWhiteSpace(patient.City))
                 fullAddress += $", {patient.City}";
-            if (!string.IsNullOrWhiteSpace(patient.State))
-                fullAddress += $", {patient.State}";
+            if (!string.IsNullOrWhiteSpace(patient.State?.Code))
+                fullAddress += $", {patient.State.Code}";
             if (!string.IsNullOrWhiteSpace(patient.PostalCode))
                 fullAddress += $" {patient.PostalCode}";
 

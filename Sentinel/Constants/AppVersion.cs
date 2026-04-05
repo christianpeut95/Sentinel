@@ -2,8 +2,8 @@ namespace Sentinel.Constants
 {
     public static class AppVersion
     {
-        public const string Version = "1.0.1-alpha";
-        public const string ReleaseDate = "March 2026";
+        public const string Version = "1.0.2-alpha";
+        public const string ReleaseDate = "April 2026";
         public const string ProductName = "Sentinel";
 
         public static bool IsDemoMode { get; set; }

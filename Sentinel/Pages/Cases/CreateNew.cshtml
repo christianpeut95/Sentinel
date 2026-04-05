@@ -1117,7 +1117,59 @@
                 // Populate fields
                 $('#editAddress').val((streetNumber + ' ' + streetName).trim());
                 $('#editCity').val(city);
-                $('#editState').val(state);
+
+                // Match state to dropdown options with Australian state mapping
+                if (state) {
+                    var stateEl = document.getElementById('editState');
+                    if (stateEl) {
+                        // Build a mapping of state codes to full names for Australian states
+                        var stateMapping = {
+                            'nsw': 'new south wales',
+                            'vic': 'victoria',
+                            'qld': 'queensland',
+                            'sa': 'south australia',
+                            'wa': 'western australia',
+                            'tas': 'tasmania',
+                            'nt': 'northern territory',
+                            'act': 'australian capital territory'
+                        };
+
+                        var stateLower = state.toLowerCase();
+                        var matched = false;
+
+                        for (var i = 0; i < stateEl.options.length; i++) {
+                            var optionValue = stateEl.options[i].value.toLowerCase();
+                            var optionText = stateEl.options[i].text.toLowerCase();
+
+                            // Match by value or text directly
+                            if (optionValue === stateLower || optionText === stateLower) {
+                                stateEl.selectedIndex = i;
+                                matched = true;
+                                break;
+                            }
+
+                            // Match by checking if the option code maps to the full state name
+                            if (stateMapping[optionValue] && stateMapping[optionValue] === stateLower) {
+                                stateEl.selectedIndex = i;
+                                matched = true;
+                                break;
+                            }
+
+                            // Partial match fallback
+                            if (optionValue.includes(stateLower) || optionText.includes(stateLower) || 
+                                stateLower.includes(optionValue) || stateLower.includes(optionText)) {
+                                stateEl.selectedIndex = i;
+                                matched = true;
+                                break;
+                            }
+                        }
+
+                        if (!matched) {
+                            console.log('Could not match state "' + state + '" to any State option');
+                        }
+                    }
+                }
+
                 $('#editPostcode').val(postcode);
             });
         };

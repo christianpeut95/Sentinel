@@ -20,7 +20,7 @@ namespace Sentinel.Pages.Api
             _context = context;
         }
 
-        public async Task<IActionResult> OnGetAsync(string term)
+        public async Task<IActionResult> OnGetAsync(string? term = null)
         {
             if (string.IsNullOrWhiteSpace(term) || term.Length < 2)
             {

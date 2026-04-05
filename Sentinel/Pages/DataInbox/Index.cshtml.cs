@@ -325,7 +325,7 @@ public class IndexModel : PageModel
             }
             
             // Extract patient data from ProposedEntityDataJson
-            var newPatient = ExtractPatientFromProposedData(reviewQueue.ProposedEntityDataJson);
+            var newPatient = await ExtractPatientFromProposedData(reviewQueue.ProposedEntityDataJson);
             if (newPatient == null)
             {
                 return new JsonResult(new { success = false, error = "Could not extract patient data" });
@@ -367,7 +367,7 @@ public class IndexModel : PageModel
         }
     }
     
-    private Patient? ExtractPatientFromProposedData(string? proposedDataJson)
+    private async Task<Patient?> ExtractPatientFromProposedData(string? proposedDataJson)
     {
         if (string.IsNullOrEmpty(proposedDataJson))
             return null;
@@ -388,7 +388,7 @@ public class IndexModel : PageModel
                 EmailAddress = GetValueFromDict(proposedData, "EmailAddress"),
                 AddressLine = GetValueFromDict(proposedData, "AddressLine"),
                 City = GetValueFromDict(proposedData, "City"),
-                State = GetValueFromDict(proposedData, "State"),
+                StateId = await GetStateIdFromStringAsync(GetValueFromDict(proposedData, "State")),
                 PostalCode = GetValueFromDict(proposedData, "PostalCode"),
                 CreatedAt = DateTime.UtcNow,
                 CreatedByUserId = User.Identity?.Name
@@ -744,6 +744,20 @@ public class IndexModel : PageModel
         catch { }
         
         return result;
+    }
+
+    private async Task<int?> GetStateIdFromStringAsync(string? stateString)
+    {
+        if (string.IsNullOrWhiteSpace(stateString))
+        {
+            return null;
+        }
+
+        // Try to find by code (e.g., "NSW") or name (e.g., "New South Wales")
+        var state = await _context.States
+            .FirstOrDefaultAsync(s => s.Code == stateString || s.Name == stateString);
+
+        return state?.Id;
     }
 }
 

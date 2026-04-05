@@ -27,12 +27,12 @@ namespace Sentinel.Controllers
         }
 
         [HttpGet("search")]
-        public async Task<IActionResult> Search([FromQuery] string term)
+        public async Task<IActionResult> Search([FromQuery] string? term = null)
         {
             try
             {
                 var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-                
+
                 if (string.IsNullOrEmpty(userId))
                 {
                     return Ok(new object[] { });

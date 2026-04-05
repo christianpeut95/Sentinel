@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Sentinel.Data;
@@ -10,15 +11,73 @@ namespace Sentinel.Services
         private readonly ApplicationDbContext _context;
         private readonly ILogger<SurveyService> _logger;
         private readonly ISurveyMappingService _mappingService;
+        private readonly IHttpContextAccessor _httpContextAccessor;
 
         public SurveyService(
             ApplicationDbContext context, 
             ILogger<SurveyService> logger,
-            ISurveyMappingService mappingService)
+            ISurveyMappingService mappingService,
+            IHttpContextAccessor httpContextAccessor)
         {
             _context = context;
             _logger = logger;
             _mappingService = mappingService;
+            _httpContextAccessor = httpContextAccessor;
+        }
+
+        private SurveySubmissionLog BuildSubmissionLog(
+            CaseTask task,
+            SurveySubmissionOutcome outcome,
+            MappingExecutionResult? mappingResult = null,
+            string? issuesSummary = null)
+        {
+            var patientName = task.Case?.Patient != null
+                ? $"{task.Case.Patient.GivenName} {task.Case.Patient.FamilyName}".Trim()
+                : null;
+
+            var user = _httpContextAccessor.HttpContext?.User;
+            var userId = user?.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            var userName = user?.Identity?.Name;
+
+            int totalConfigured = mappingResult != null
+                ? mappingResult.AutoSavedCount + mappingResult.QueuedForReviewCount
+                    + mappingResult.RequireApprovalCount + mappingResult.SkippedCount
+                    + mappingResult.ErrorCount
+                : 0;
+
+            string? detailJson = null;
+            if (mappingResult != null && (mappingResult.Details.Count > 0 || mappingResult.CollectionDetails.Count > 0))
+            {
+                var snapshot = new MappingDetailSnapshot
+                {
+                    CapturedAt = DateTime.UtcNow,
+                    SimpleFields = mappingResult.Details,
+                    Collections = mappingResult.CollectionDetails,
+                };
+                detailJson = JsonSerializer.Serialize(snapshot);
+            }
+
+            return new SurveySubmissionLog
+            {
+                TaskId = task.Id,
+                CaseId = task.CaseId,
+                PatientName = patientName,
+                DiseaseName = task.Case?.Disease?.Name,
+                SurveyName = task.TaskTemplate?.Name,
+                TaskName = task.Title,
+                SubmittedAt = DateTime.UtcNow,
+                SubmittedByUserId = userId,
+                SubmittedByName = userName,
+                Outcome = outcome,
+                FieldsSavedAutomatically = mappingResult?.AutoSavedCount ?? 0,
+                FieldsSentForReview = mappingResult?.QueuedForReviewCount ?? 0,
+                FieldsRequiringApproval = mappingResult?.RequireApprovalCount ?? 0,
+                FieldsSkipped = mappingResult?.SkippedCount ?? 0,
+                FieldsWithErrors = mappingResult?.ErrorCount ?? 0,
+                TotalMappingsConfigured = totalConfigured,
+                IssuesSummary = issuesSummary,
+                MappingDetailJson = detailJson,
+            };
         }
 
         public async Task<SurveyDefinitionWithData> GetSurveyForTaskAsync(Guid taskId)
@@ -194,6 +253,8 @@ namespace Sentinel.Services
             var task = await _context.CaseTasks
                 .Include(t => t.Case)
                     .ThenInclude(c => c.Patient)
+                .Include(t => t.Case)
+                    .ThenInclude(c => c!.Disease)
                 .Include(t => t.TaskTemplate)
                 .FirstOrDefaultAsync(t => t.Id == taskId);
 
@@ -291,10 +352,22 @@ namespace Sentinel.Services
                             $"Survey mapping completed with {result.ErrorCount} error(s): {string.Join("; ", result.Errors)}"
                         );
                     }
+
+                    // Write activity log entry (success path)
+                    var successOutcome = (result.QueuedForReviewCount > 0 || result.RequireApprovalCount > 0)
+                        ? SurveySubmissionOutcome.SentForReview
+                        : SurveySubmissionOutcome.Completed;
+                    _context.SurveySubmissionLogs.Add(BuildSubmissionLog(task, successOutcome, result));
                 }
                 else
                 {
                     _logger.LogWarning("No field mappings configured for Task {TaskId} - survey data will not be auto-saved", taskId);
+
+                    // Write activity log entry (not configured path)
+                    _context.SurveySubmissionLogs.Add(BuildSubmissionLog(
+                        task,
+                        SurveySubmissionOutcome.NotConfigured,
+                        issuesSummary: "No field mappings are set up for this survey. The interview data was saved but nothing was automatically applied to the case record."));
                 }
             }
             catch (Exception ex)
@@ -336,14 +409,26 @@ namespace Sentinel.Services
                     };
                     
                     _context.ReviewQueue.Add(reviewItem);
+
+                    // Write activity log entry (error path) - will be updated with review item ID after save
+                    var errorLog = BuildSubmissionLog(
+                        task,
+                        SurveySubmissionOutcome.ProblemOccurred,
+                        issuesSummary: $"A problem occurred while applying survey answers to the case record. Your answers were saved. Error details: {ex.Message}");
+                    _context.SurveySubmissionLogs.Add(errorLog);
+
                     await _context.SaveChangesAsync();
-                    
+
+                    // Now that review item has an ID, link it to the log
+                    errorLog.ReviewQueueItemId = reviewItem.Id;
+                    await _context.SaveChangesAsync();
+
                     _logger.LogInformation(
                         "Created review item {ReviewId} for failed survey submission on Task {TaskId}. Survey JSON was saved.",
                         reviewItem.Id,
                         taskId
                     );
-                    
+
                     // Throw custom exception to inform user that data was saved but needs review
                     throw new InvalidOperationException(
                         $"Survey data was saved, but automatic mapping failed. " +

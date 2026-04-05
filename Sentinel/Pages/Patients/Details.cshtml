@@ -272,7 +272,7 @@
                     </div>
                     <div class="row mb-3">
                         <div class="col-sm-5 text-muted">State</div>
-                        <div class="col-sm-7 fw-medium">@(Model.Patient.State ?? "-")</div>
+                        <div class="col-sm-7 fw-medium">@(Model.Patient.State?.Name ?? "-")</div>
                     </div>
                     <div class="row mb-3">
                         <div class="col-sm-5 text-muted">Postcode</div>

@@ -153,7 +153,7 @@ namespace Sentinel.Pages.Patients
 
                         // Build address string
                         var address = string.Join(", ",
-                            new[] { Patient.AddressLine, Patient.City, Patient.State, Patient.PostalCode }
+                            new string?[] { Patient.AddressLine, Patient.City, Patient.State?.Code, Patient.PostalCode }
                             .Where(s => !string.IsNullOrWhiteSpace(s)));
 
                         if (!string.IsNullOrWhiteSpace(address))

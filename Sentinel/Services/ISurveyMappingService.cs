@@ -128,10 +128,11 @@ namespace Sentinel.Services
         public int ErrorCount { get; set; }
         public List<string> Errors { get; set; } = new();
         public List<MappingExecutionDetail> Details { get; set; } = new();
-        
+
         // Collection Mapping Results (Phase 2B)
         public int CollectionEntitiesCreated { get; set; }
         public int CollectionItemsForReview { get; set; }
+        public List<CollectionMappingDetail> CollectionDetails { get; set; } = new();
     }
 
     public class MappingExecutionDetail
@@ -143,6 +144,7 @@ namespace Sentinel.Services
         public object? ResultingValue { get; set; }
         public MappingAction Action { get; set; }
         public string BusinessRuleApplied { get; set; } = string.Empty;
+        public string? BusinessRule { get; set; }
         public bool WasModified { get; set; }
         public string? ErrorMessage { get; set; }
     }
@@ -177,5 +179,46 @@ namespace Sentinel.Services
         public bool IsValid { get; set; }
         public List<string> Errors { get; set; } = new();
         public List<string> Warnings { get; set; } = new();
+    }
+
+    /// <summary>
+    /// Per-collection-question detail: how many rows were processed and what happened to each.
+    /// </summary>
+    public class CollectionMappingDetail
+    {
+        public string QuestionName { get; set; } = string.Empty;
+        public string TargetEntityType { get; set; } = string.Empty;
+        public int RowsFound { get; set; }
+        public int EntitiesCreated { get; set; }
+        public int EntitiesQueuedForReview { get; set; }
+        public int RowErrors { get; set; }
+        public List<CollectionRowDetail> Rows { get; set; } = new();
+        public List<string> Errors { get; set; } = new();
+    }
+
+    /// <summary>
+    /// Outcome for a single row inside a collection (matrix/matrixdynamic) question.
+    /// </summary>
+    public class CollectionRowDetail
+    {
+        public int RowIndex { get; set; }
+        /// <summary>"Created", "QueuedForReview", "Skipped", or "Error"</summary>
+        public string Status { get; set; } = string.Empty;
+        public string? EntityType { get; set; }
+        public Guid? EntityId { get; set; }
+        public Dictionary<string, string>? FieldValues { get; set; }
+        public string? ErrorMessage { get; set; }
+        public List<CreatedEntityInfo>? RelatedEntities { get; set; }
+    }
+
+    /// <summary>
+    /// Full mapping execution snapshot serialised into SurveySubmissionLog.MappingDetailJson.
+    /// Designed to render a plain-English debugging view for non-technical staff.
+    /// </summary>
+    public class MappingDetailSnapshot
+    {
+        public DateTime CapturedAt { get; set; } = DateTime.UtcNow;
+        public List<MappingExecutionDetail> SimpleFields { get; set; } = new();
+        public List<CollectionMappingDetail> Collections { get; set; } = new();
     }
 }

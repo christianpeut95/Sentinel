@@ -81,6 +81,36 @@ namespace Sentinel.Models
         public int? Jurisdiction5Id { get; set; }
         public Jurisdiction? Jurisdiction5 { get; set; }
 
+        // Address Snapshot - captured at case creation/update time
+        // Preserves historical location data even if patient moves
+        [Display(Name = "Address")]
+        [StringLength(500)]
+        public string? CaseAddressLine { get; set; }
+
+        [Display(Name = "Suburb")]
+        [StringLength(200)]
+        public string? CaseCity { get; set; }
+
+        [Display(Name = "State")]
+        public int? CaseStateId { get; set; }
+        public State? CaseState { get; set; }
+
+        [Display(Name = "Postcode")]
+        [StringLength(20)]
+        public string? CasePostalCode { get; set; }
+
+        [Display(Name = "Latitude")]
+        public double? CaseLatitude { get; set; }
+
+        [Display(Name = "Longitude")]
+        public double? CaseLongitude { get; set; }
+
+        [Display(Name = "Address Captured At")]
+        public DateTime? CaseAddressCapturedAt { get; set; }
+
+        [Display(Name = "Address Manually Set")]
+        public bool CaseAddressManualOverride { get; set; } = false;
+
         public ICollection<Note> Notes { get; set; } = new List<Note>();
         public ICollection<LabResult> LabResults { get; set; } = new List<LabResult>();
         public ICollection<CaseSymptom> CaseSymptoms { get; set; } = new List<CaseSymptom>();

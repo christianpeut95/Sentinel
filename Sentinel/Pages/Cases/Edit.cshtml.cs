@@ -24,6 +24,8 @@ namespace Sentinel.Pages.Cases
         private readonly IExposureRequirementService _exposureRequirementService;
         private readonly ITaskService _taskService;
         private readonly IJurisdictionService _jurisdictionService;
+        private readonly IGeocodingService _geocodingService;
+        private readonly IServiceProvider _serviceProvider;
 
         public EditModel(
             ApplicationDbContext context, 
@@ -32,7 +34,9 @@ namespace Sentinel.Pages.Cases
             IDiseaseAccessService diseaseAccessService,
             IExposureRequirementService exposureRequirementService,
             ITaskService taskService,
-            IJurisdictionService jurisdictionService)
+            IJurisdictionService jurisdictionService,
+            IGeocodingService geocodingService,
+            IServiceProvider serviceProvider)
         {
             _context = context;
             _auditService = auditService;
@@ -41,6 +45,8 @@ namespace Sentinel.Pages.Cases
             _exposureRequirementService = exposureRequirementService;
             _taskService = taskService;
             _jurisdictionService = jurisdictionService;
+            _geocodingService = geocodingService;
+            _serviceProvider = serviceProvider;
         }
 
         [BindProperty]
@@ -75,6 +81,12 @@ namespace Sentinel.Pages.Cases
             var caseEntity = await _context.Cases
                 .Include(c => c.Patient)
                 .Include(c => c.Disease)
+                .Include(c => c.CaseState)
+                .Include(c => c.Jurisdiction1).ThenInclude(j => j!.JurisdictionType)
+                .Include(c => c.Jurisdiction2).ThenInclude(j => j!.JurisdictionType)
+                .Include(c => c.Jurisdiction3).ThenInclude(j => j!.JurisdictionType)
+                .Include(c => c.Jurisdiction4).ThenInclude(j => j!.JurisdictionType)
+                .Include(c => c.Jurisdiction5).ThenInclude(j => j!.JurisdictionType)
                 .FirstOrDefaultAsync(m => m.Id == id);
             if (caseEntity == null)
             {
@@ -134,6 +146,14 @@ namespace Sentinel.Pages.Cases
                 await _context.Organizations
                     .Where(o => o.IsActive && o.OrganizationType != null && o.OrganizationType.Name == "Hospital")
                     .OrderBy(o => o.Name)
+                    .ToListAsync(),
+                "Id", "Name");
+
+            // Load States dropdown for case address
+            ViewData["CaseStateId"] = new SelectList(
+                await _context.States
+                    .Where(s => s.IsActive)
+                    .OrderBy(s => s.Name)
                     .ToListAsync(),
                 "Id", "Name");
 
@@ -286,7 +306,11 @@ namespace Sentinel.Pages.Cases
                 Jurisdiction2Id = caseToUpdate.Jurisdiction2Id,
                 Jurisdiction3Id = caseToUpdate.Jurisdiction3Id,
                 Jurisdiction4Id = caseToUpdate.Jurisdiction4Id,
-                Jurisdiction5Id = caseToUpdate.Jurisdiction5Id
+                Jurisdiction5Id = caseToUpdate.Jurisdiction5Id,
+                CaseAddressLine = caseToUpdate.CaseAddressLine,
+                CaseCity = caseToUpdate.CaseCity,
+                CaseStateId = caseToUpdate.CaseStateId,
+                CasePostalCode = caseToUpdate.CasePostalCode
             };
 
             // Debug: Verify entity state
@@ -318,6 +342,25 @@ namespace Sentinel.Pages.Cases
             caseToUpdate.Jurisdiction4Id = Case.Jurisdiction4Id;
             caseToUpdate.Jurisdiction5Id = Case.Jurisdiction5Id;
             // Don't update Type - cases can't change type after creation
+
+            // ===== CASE ADDRESS HANDLING =====
+            // Track if case address changed to trigger geocoding
+            string oldAddress = $"{caseToUpdate.CaseAddressLine}|{caseToUpdate.CaseCity}|{caseToUpdate.CaseStateId}|{caseToUpdate.CasePostalCode}";
+            string newAddress = $"{Case.CaseAddressLine}|{Case.CaseCity}|{Case.CaseStateId}|{Case.CasePostalCode}";
+            bool caseAddressChanged = oldAddress != newAddress;
+
+            // Update case address fields
+            caseToUpdate.CaseAddressLine = Case.CaseAddressLine;
+            caseToUpdate.CaseCity = Case.CaseCity;
+            caseToUpdate.CaseStateId = Case.CaseStateId;
+            caseToUpdate.CasePostalCode = Case.CasePostalCode;
+
+            // If address changed and not empty, mark as manual override and geocode
+            if (caseAddressChanged && !string.IsNullOrWhiteSpace(Case.CaseAddressLine))
+            {
+                caseToUpdate.CaseAddressManualOverride = true;
+                caseToUpdate.CaseAddressCapturedAt = DateTime.UtcNow;
+            }
 
             // Debug: Check if properties are now modified
             System.Diagnostics.Debug.WriteLine($"[EDIT] After property updates - Entity State: {entry.State}");
@@ -361,8 +404,59 @@ namespace Sentinel.Pages.Cases
                 System.Diagnostics.Debug.WriteLine($"[EDIT] Entity state before save: {_context.Entry(caseToUpdate).State}");
                 
                 await _context.SaveChangesAsync();
-                
+
                 System.Diagnostics.Debug.WriteLine($"[EDIT] Atomic save completed successfully");
+
+                // ===== POST-SAVE: GEOCODE CASE ADDRESS IF CHANGED =====
+                if (caseAddressChanged && !string.IsNullOrWhiteSpace(Case.CaseAddressLine))
+                {
+                    try
+                    {
+                        // Build full address for geocoding
+                        var addressParts = new List<string>();
+                        if (!string.IsNullOrWhiteSpace(Case.CaseAddressLine)) addressParts.Add(Case.CaseAddressLine);
+                        if (!string.IsNullOrWhiteSpace(Case.CaseCity)) addressParts.Add(Case.CaseCity);
+
+                        // Get state name if StateId is provided
+                        if (Case.CaseStateId.HasValue)
+                        {
+                            var state = await _context.States.FindAsync(Case.CaseStateId.Value);
+                            if (state != null)
+                            {
+                                addressParts.Add(state.Code ?? state.Name);
+                            }
+                        }
+
+                        if (!string.IsNullOrWhiteSpace(Case.CasePostalCode)) addressParts.Add(Case.CasePostalCode);
+
+                        string fullAddress = string.Join(", ", addressParts);
+
+                        // Geocode the address
+                        var (latitude, longitude) = await _geocodingService.GeocodeAsync(fullAddress);
+
+                        if (latitude.HasValue && longitude.HasValue)
+                        {
+                            // Update case with geocoded coordinates
+                            caseToUpdate.CaseLatitude = latitude.Value;
+                            caseToUpdate.CaseLongitude = longitude.Value;
+                            await _context.SaveChangesAsync();
+
+                            System.Diagnostics.Debug.WriteLine($"[EDIT] Case address geocoded: {latitude}, {longitude}");
+
+                            // Trigger background jurisdiction mapping (1-2 minutes)
+                            _ = AutoDetectCaseJurisdictionsInBackgroundAsync(Case.Id, latitude.Value, longitude.Value);
+                        }
+                        else
+                        {
+                            System.Diagnostics.Debug.WriteLine($"[EDIT] Geocoding failed for address: {fullAddress}");
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"[EDIT] Error geocoding case address: {ex.Message}");
+                        // Don't fail the update if geocoding fails
+                    }
+                }
 
                 // Post-save actions (these don't modify the database)
                 
@@ -654,6 +748,87 @@ namespace Sentinel.Pages.Cases
                 changes.Add($"Confirmation Status changed");
 
             return changes.Any() ? string.Join("; ", changes) : "Case updated";
+        }
+
+        /// <summary>
+        /// Background task to auto-detect case jurisdictions based on geocoded coordinates.
+        /// Runs asynchronously (1-2 minutes) using point-in-polygon detection.
+        /// </summary>
+        private async Task AutoDetectCaseJurisdictionsInBackgroundAsync(Guid caseId, double latitude, double longitude)
+        {
+            try
+            {
+                // Create a new scope for background work - this ensures proper DI and DbContext lifecycle
+                using var scope = _serviceProvider.CreateScope();
+                var scopedContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+                var scopedJurisdictionService = scope.ServiceProvider.GetRequiredService<IJurisdictionService>();
+
+                // Reload the case in this scope
+                var caseEntity = await scopedContext.Cases.FindAsync(caseId);
+                if (caseEntity == null) return;
+
+                // Detect jurisdictions containing the case address point
+                var detectedJurisdictions = await scopedJurisdictionService.FindJurisdictionsContainingPointAsync(
+                    latitude,
+                    longitude
+                );
+
+                // Auto-assign to appropriate jurisdiction fields based on JurisdictionType.FieldNumber
+                // Group by field number to avoid overwriting - take first match for each type
+                var jurisdictionsByField = detectedJurisdictions
+                    .Where(j => j.JurisdictionType?.FieldNumber != null)
+                    .GroupBy(j => j.JurisdictionType!.FieldNumber)
+                    .ToDictionary(g => g.Key, g => g.First());
+
+                bool anyAssigned = false;
+
+                foreach (var kvp in jurisdictionsByField)
+                {
+                    var fieldNumber = kvp.Key;
+                    var jurisdiction = kvp.Value;
+
+                    switch (fieldNumber)
+                    {
+                        case 1:
+                            caseEntity.Jurisdiction1Id = jurisdiction.Id;
+                            anyAssigned = true;
+                            Console.WriteLine($"? Assigned Case Jurisdiction1: {jurisdiction.Name} (Type: {jurisdiction.JurisdictionType?.Name})");
+                            break;
+                        case 2:
+                            caseEntity.Jurisdiction2Id = jurisdiction.Id;
+                            anyAssigned = true;
+                            Console.WriteLine($"? Assigned Case Jurisdiction2: {jurisdiction.Name} (Type: {jurisdiction.JurisdictionType?.Name})");
+                            break;
+                        case 3:
+                            caseEntity.Jurisdiction3Id = jurisdiction.Id;
+                            anyAssigned = true;
+                            Console.WriteLine($"? Assigned Case Jurisdiction3: {jurisdiction.Name} (Type: {jurisdiction.JurisdictionType?.Name})");
+                            break;
+                        case 4:
+                            caseEntity.Jurisdiction4Id = jurisdiction.Id;
+                            anyAssigned = true;
+                            Console.WriteLine($"? Assigned Case Jurisdiction4: {jurisdiction.Name} (Type: {jurisdiction.JurisdictionType?.Name})");
+                            break;
+                        case 5:
+                            caseEntity.Jurisdiction5Id = jurisdiction.Id;
+                            anyAssigned = true;
+                            Console.WriteLine($"? Assigned Case Jurisdiction5: {jurisdiction.Name} (Type: {jurisdiction.JurisdictionType?.Name})");
+                            break;
+                    }
+                }
+
+                if (anyAssigned)
+                {
+                    // Save the updated jurisdictions
+                    await scopedContext.SaveChangesAsync();
+                    Console.WriteLine($"? Background task: Auto-detected and saved {detectedJurisdictions.Count} jurisdictions for case {caseId}");
+                }
+            }
+            catch (Exception ex)
+            {
+                // Don't fail - just log the error
+                Console.WriteLine($"? Background task error: Failed to auto-detect case jurisdictions: {ex.Message}");
+            }
         }
     }
 }

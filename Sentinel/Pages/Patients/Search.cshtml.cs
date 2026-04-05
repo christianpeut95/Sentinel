@@ -180,7 +180,7 @@ namespace Sentinel.Pages.Patients
 
             if (!string.IsNullOrWhiteSpace(State))
             {
-                query = query.Where(p => p.State != null && p.State.Contains(State));
+                query = query.Where(p => p.State != null && p.State.Code.Contains(State));
             }
 
             if (!string.IsNullOrWhiteSpace(PostalCode))

@@ -233,7 +233,7 @@
                                         }
                                     </td>
                                     <td>@(patient.City ?? "-")</td>
-                                    <td>@(patient.State ?? "-")</td>
+                                    <td>@(patient.State?.Code ?? "-")</td>
                                     <td><small class="text-muted">@patient.CreatedAt.ToString("dd MMM yyyy")</small></td>
                                     <td class="text-end">
                                         <div class="btn-group btn-group-sm" role="group">

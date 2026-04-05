@@ -461,7 +461,7 @@
                         var fieldProperty = $"Jurisdiction{jurisdictionType.FieldNumber}Id";
                         var fieldId = $"jurisdiction_{jurisdictionType.FieldNumber}";
                         
-                        // Get current value
+                        // Get current value and name from eager-loaded navigation properties
                         int? currentValue = jurisdictionType.FieldNumber switch
                         {
                             1 => Model.Case.Jurisdiction1Id,
@@ -471,12 +471,16 @@
                             5 => Model.Case.Jurisdiction5Id,
                             _ => null
                         };
-                        
-                        string currentName = null;
-                        if (currentValue.HasValue)
+
+                        string? currentName = jurisdictionType.FieldNumber switch
                         {
-                            // We'll need to get the name via JavaScript on page load
-                        }
+                            1 => Model.Case.Jurisdiction1?.Name,
+                            2 => Model.Case.Jurisdiction2?.Name,
+                            3 => Model.Case.Jurisdiction3?.Name,
+                            4 => Model.Case.Jurisdiction4?.Name,
+                            5 => Model.Case.Jurisdiction5?.Name,
+                            _ => null
+                        };
                         
                         <div class="mb-3">
                             <label for="@fieldId" class="form-label small">
@@ -493,6 +497,7 @@
                                    data-jurisdiction-type-id="@jurisdictionType.Id"
                                    data-field-number="@jurisdictionType.FieldNumber"
                                    data-current-value="@currentValue"
+                                   value="@currentName"
                                    autocomplete="off" />
                             <input type="hidden" 
                                    name="Case.@fieldProperty" 
@@ -518,6 +523,59 @@
             }
         </div>
 
+        <!-- Column 3: Case-Specific Address (NEW) -->
+        <div class="info-card">
+            <div class="info-card-header">
+                <h3 class="info-card-title">
+                    <i class="bi bi-geo-alt"></i>
+                    Case-Specific Address (Optional)
+                </h3>
+            </div>
+            <div>
+                <div class="alert alert-info" style="font-size: 0.85rem;">
+                    <i class="bi bi-info-circle me-1"></i>
+                    <strong>Note:</strong> This address is case-specific and does <strong>NOT</strong> update the patient's record. 
+                    Use this to record where <strong>THIS case occurred</strong> if different from the patient's home address 
+                    (e.g., workplace exposure, travel-related case, event location).
+                </div>
+
+                <div class="mb-3">
+                    <label asp-for="Case.CaseAddressLine" class="form-label fw-bold">Street Address</label>
+                    <input asp-for="Case.CaseAddressLine" class="form-control" placeholder="123 Main Street" />
+                    <span asp-validation-for="Case.CaseAddressLine" class="text-danger"></span>
+                </div>
+
+                <div class="mb-3">
+                    <label asp-for="Case.CaseCity" class="form-label fw-bold">City</label>
+                    <input asp-for="Case.CaseCity" class="form-control" placeholder="City name" />
+                    <span asp-validation-for="Case.CaseCity" class="text-danger"></span>
+                </div>
+
+                <div class="mb-3">
+                    <label asp-for="Case.CaseStateId" class="form-label fw-bold">State</label>
+                    <select asp-for="Case.CaseStateId" class="form-select" asp-items="@((SelectList)ViewData["CaseStateId"])">
+                        <option value="">-- Select State --</option>
+                    </select>
+                    <span asp-validation-for="Case.CaseStateId" class="text-danger"></span>
+                </div>
+
+                <div class="mb-3">
+                    <label asp-for="Case.CasePostalCode" class="form-label fw-bold">Postal Code</label>
+                    <input asp-for="Case.CasePostalCode" class="form-control" placeholder="12345" />
+                    <span asp-validation-for="Case.CasePostalCode" class="text-danger"></span>
+                </div>
+
+                <div class="alert alert-success" style="font-size: 0.85rem;">
+                    <i class="bi bi-lightning-charge me-1"></i>
+                    <strong>Auto-Geocoding:</strong> When you save, the address will be automatically geocoded 
+                    and jurisdictions will be detected (takes 1-2 minutes in the background).
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Second Row: Actions Column -->
+    <div class="case-grid" style="grid-template-columns: 1fr;">
         <!-- Column 3: Actions & Info -->
         <div>
             <!-- Primary Actions Card -->

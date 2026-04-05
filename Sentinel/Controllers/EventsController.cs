@@ -23,7 +23,7 @@ namespace Sentinel.Controllers
         }
 
         [HttpGet("search")]
-        public async Task<IActionResult> Search([FromQuery] string term)
+        public async Task<IActionResult> Search([FromQuery] string? term = null)
         {
             try
             {

@@ -25,6 +25,7 @@ namespace Sentinel.Pages.Cases
         private readonly IExposureRequirementService _exposureRequirementService;
         private readonly ITaskService _taskService;
         private readonly IJurisdictionService _jurisdictionService;
+        private readonly IPatientAddressService _patientAddressService;
 
         public CreateModel(
             ApplicationDbContext context, 
@@ -33,7 +34,8 @@ namespace Sentinel.Pages.Cases
             CustomFieldService customFieldService,
             IExposureRequirementService exposureRequirementService,
             ITaskService taskService,
-            IJurisdictionService jurisdictionService)
+            IJurisdictionService jurisdictionService,
+            IPatientAddressService patientAddressService)
         {
             _context = context;
             _caseIdGenerator = caseIdGenerator;
@@ -42,6 +44,7 @@ namespace Sentinel.Pages.Cases
             _exposureRequirementService = exposureRequirementService;
             _taskService = taskService;
             _jurisdictionService = jurisdictionService;
+            _patientAddressService = patientAddressService;
         }
 
         public Disease? DiseaseRequirements { get; set; }
@@ -194,6 +197,16 @@ namespace Sentinel.Pages.Cases
                 _context.Cases.Add(Case);
                 await _context.SaveChangesAsync();
 
+                // Snapshot patient address to case (if disease configured for it)
+                if (Case.DiseaseId.HasValue)
+                {
+                    var settings = await _patientAddressService.GetEffectiveAddressSettingsAsync(Case.DiseaseId.Value);
+                    if (settings.DefaultToResidentialAddress)
+                    {
+                        await _patientAddressService.CopyAddressToCaseAsync(Case.Id, manualOverride: false);
+                    }
+                }
+
                 // ? Task auto-creation now handled by CaseCreationInterceptor
                 // No need to manually call AutoCreateTasksForNewCase anymore
                 // The interceptor will automatically create tasks after SaveChangesAsync completes
@@ -233,12 +246,12 @@ namespace Sentinel.Pages.Cases
                                 // Structured address fields
                                 AddressLine = patient.AddressLine,
                                 City = patient.City,
-                                State = patient.State,
+                                State = patient.State?.Code,
                                 PostalCode = patient.PostalCode,
                                 Country = "Australia", // Default to Australia
-                                
+
                                 // Legacy free-text field for backward compatibility
-                                FreeTextLocation = $"{patient.AddressLine}, {patient.City}, {patient.State} {patient.PostalCode}".Trim(),
+                                FreeTextLocation = $"{patient.AddressLine}, {patient.City}, {patient.State?.Code} {patient.PostalCode}".Trim(),
                                 
                                 // Geocoding from patient if available (convert double to decimal)
                                 Latitude = patient.Latitude.HasValue ? (decimal?)patient.Latitude.Value : null,

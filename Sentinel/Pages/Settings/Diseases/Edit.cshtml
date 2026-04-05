@@ -354,6 +354,68 @@
                         </div>
                     </div>
 
+                    <div class="card mb-3">
+                        <div class="card-header bg-light">
+                            <strong>Address Management Settings</strong>
+                        </div>
+                        <div class="card-body">
+                            @if (Model.Disease.ParentDiseaseId.HasValue)
+                            {
+                                <div class="mb-3 form-check form-switch">
+                                    <input asp-for="Disease.InheritAddressSettingsFromParent" class="form-check-input" type="checkbox" id="inheritAddressSettings" />
+                                    <label asp-for="Disease.InheritAddressSettingsFromParent" class="form-check-label"></label>
+                                    <br />
+                                    <small class="text-muted">If enabled, this child disease will inherit address sync settings from its parent disease. Uncheck to configure custom settings below.</small>
+                                </div>
+                                <hr />
+                            }
+
+                            <div class="row" id="addressSettingsFields">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label asp-for="Disease.AddressReviewWindowBeforeDays" class="form-label"></label>
+                                        <input asp-for="Disease.AddressReviewWindowBeforeDays" class="form-control" type="number" min="0" max="365" />
+                                        <span asp-validation-for="Disease.AddressReviewWindowBeforeDays" class="text-danger"></span>
+                                        <small class="form-text text-muted">Days before onset date to check for address changes (leave blank for no limit)</small>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label asp-for="Disease.AddressReviewWindowAfterDays" class="form-label"></label>
+                                        <input asp-for="Disease.AddressReviewWindowAfterDays" class="form-control" type="number" min="0" max="365" />
+                                        <span asp-validation-for="Disease.AddressReviewWindowAfterDays" class="text-danger"></span>
+                                        <small class="form-text text-muted">Days after onset date to check for address changes (leave blank for no limit)</small>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="mb-3 form-check form-switch">
+                                <input asp-for="Disease.CheckJurisdictionCrossing" class="form-check-input" type="checkbox" id="checkJurisdictionCrossing" />
+                                <label asp-for="Disease.CheckJurisdictionCrossing" class="form-check-label"></label>
+                                <br />
+                                <small class="text-muted">Automatically flag cases for review when patient moves to a different jurisdiction</small>
+                            </div>
+
+                            <div class="mb-3" id="jurisdictionFieldsGroup">
+                                <label asp-for="Disease.JurisdictionFieldsToCheck" class="form-label"></label>
+                                <input asp-for="Disease.JurisdictionFieldsToCheck" class="form-control" placeholder="e.g., 1,2,3" />
+                                <span asp-validation-for="Disease.JurisdictionFieldsToCheck" class="text-danger"></span>
+                                <small class="form-text text-muted">Which jurisdiction levels to monitor (1=highest, 5=lowest). Default: 1,2,3</small>
+                            </div>
+
+                            <div class="alert alert-info small">
+                                <i class="bi bi-info-circle me-2"></i>
+                                <strong>How Address Sync Works:</strong>
+                                <ul class="mb-0 mt-2">
+                                    <li>When a patient's address changes, cases within the review window are flagged</li>
+                                    <li>Cases with manual address overrides are excluded from automatic sync</li>
+                                    <li>Jurisdiction crossings always create a high-priority review queue entry</li>
+                                    <li>Time windows are calculated relative to the case's Date of Onset</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+
                     <div class="mt-3">
                         <button type="submit" class="btn btn-primary" formaction="?handler=SaveExposureTracking" formmethod="post">
                             <i class="bi bi-check-circle me-1"></i>Save Exposure Settings
@@ -1004,6 +1066,57 @@
                     sessionStorage.setItem(accordionStorageKey, JSON.stringify(filtered));
                 });
             });
+
+            // Toggle address settings fields based on inheritance checkbox
+            const inheritCheckbox = document.getElementById('inheritAddressSettings');
+            const addressFields = document.getElementById('addressSettingsFields');
+            const checkJurisdiction = document.getElementById('checkJurisdictionCrossing');
+            const jurisdictionFields = document.getElementById('jurisdictionFieldsGroup');
+
+            function toggleAddressFieldsVisibility() {
+                if (inheritCheckbox && inheritCheckbox.checked) {
+                    // Disable fields when inheriting
+                    if (addressFields) {
+                        addressFields.querySelectorAll('input').forEach(input => {
+                            input.disabled = true;
+                            input.style.opacity = '0.5';
+                        });
+                    }
+                    if (checkJurisdiction) {
+                        checkJurisdiction.disabled = true;
+                        checkJurisdiction.parentElement.style.opacity = '0.5';
+                    }
+                    if (jurisdictionFields) {
+                        jurisdictionFields.querySelectorAll('input').forEach(input => {
+                            input.disabled = true;
+                            input.style.opacity = '0.5';
+                        });
+                    }
+                } else {
+                    // Enable fields when not inheriting
+                    if (addressFields) {
+                        addressFields.querySelectorAll('input').forEach(input => {
+                            input.disabled = false;
+                            input.style.opacity = '1';
+                        });
+                    }
+                    if (checkJurisdiction) {
+                        checkJurisdiction.disabled = false;
+                        checkJurisdiction.parentElement.style.opacity = '1';
+                    }
+                    if (jurisdictionFields) {
+                        jurisdictionFields.querySelectorAll('input').forEach(input => {
+                            input.disabled = false;
+                            input.style.opacity = '1';
+                        });
+                    }
+                }
+            }
+
+            if (inheritCheckbox) {
+                inheritCheckbox.addEventListener('change', toggleAddressFieldsVisibility);
+                toggleAddressFieldsVisibility(); // Initial state
+            }
         });
     </script>
 }

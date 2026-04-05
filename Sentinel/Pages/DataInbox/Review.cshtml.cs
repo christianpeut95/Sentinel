@@ -172,7 +172,7 @@ public class ReviewModel : PageModel
                 _logger.LogInformation("Creating new patient from duplicate review {ReviewId}", id);
                 
                 // Extract patient data from ProposedEntityDataJson
-                var newPatient = ExtractPatientFromProposedData(reviewQueue.ProposedEntityDataJson);
+                var newPatient = await ExtractPatientFromProposedData(reviewQueue.ProposedEntityDataJson);
                 if (newPatient == null)
                 {
                     TempData["ErrorMessage"] = "Could not extract patient data from survey.";
@@ -331,7 +331,7 @@ public class ReviewModel : PageModel
                 id, reviewQueue.ChangeType);
             
             // Extract patient data from ProposedEntityDataJson
-            var newPatient = ExtractPatientFromProposedData(reviewQueue.ProposedEntityDataJson);
+            var newPatient = await ExtractPatientFromProposedData(reviewQueue.ProposedEntityDataJson);
             if (newPatient == null)
             {
                 TempData["ErrorMessage"] = "Could not extract patient data from review item.";
@@ -394,7 +394,7 @@ public class ReviewModel : PageModel
         }
     }
     
-    private Patient? ExtractPatientFromProposedData(string? proposedDataJson)
+    private async Task<Patient?> ExtractPatientFromProposedData(string? proposedDataJson)
     {
         if (string.IsNullOrEmpty(proposedDataJson))
             return null;
@@ -415,7 +415,7 @@ public class ReviewModel : PageModel
                 EmailAddress = GetValueFromDict(proposedData, "EmailAddress"),
                 AddressLine = GetValueFromDict(proposedData, "AddressLine"),
                 City = GetValueFromDict(proposedData, "City"),
-                State = GetValueFromDict(proposedData, "State"),
+                StateId = await GetStateIdFromStringAsync(GetValueFromDict(proposedData, "State")),
                 PostalCode = GetValueFromDict(proposedData, "PostalCode"),
                 CreatedAt = DateTime.UtcNow,
                 CreatedByUserId = User.Identity?.Name
@@ -455,7 +455,7 @@ public class ReviewModel : PageModel
         return null;
     }
 
-    private Patient? ExtractPatientFromEntityData(Dictionary<string, object?> entityData)
+    private async Task<Patient?> ExtractPatientFromEntityData(Dictionary<string, object?> entityData)
     {
         try
         {
@@ -470,8 +470,9 @@ public class ReviewModel : PageModel
                 AddressLine = entityData.ContainsKey("AddressLine") ? entityData["AddressLine"]?.ToString() : 
                              entityData.ContainsKey("StreetAddress") ? entityData["StreetAddress"]?.ToString() : null,
                 City = entityData.ContainsKey("City") ? entityData["City"]?.ToString() : null,
-                State = entityData.ContainsKey("State") ? entityData["State"]?.ToString() : 
-                       entityData.ContainsKey("Province") ? entityData["Province"]?.ToString() : null,
+                StateId = await GetStateIdFromStringAsync(
+                    entityData.ContainsKey("State") ? entityData["State"]?.ToString() : 
+                    entityData.ContainsKey("Province") ? entityData["Province"]?.ToString() : null),
                 PostalCode = entityData.ContainsKey("PostalCode") ? entityData["PostalCode"]?.ToString() : null,
                 CreatedAt = DateTime.UtcNow,
                 CreatedByUserId = User.Identity?.Name
@@ -793,5 +794,19 @@ public class ReviewModel : PageModel
                 questionName, elementType);
             return null;
         }
+    }
+
+    private async Task<int?> GetStateIdFromStringAsync(string? stateString)
+    {
+        if (string.IsNullOrWhiteSpace(stateString))
+        {
+            return null;
+        }
+
+        // Try to find by code (e.g., "NSW") or name (e.g., "New South Wales")
+        var state = await _context.States
+            .FirstOrDefaultAsync(s => s.Code == stateString || s.Name == stateString);
+
+        return state?.Id;
     }
 }

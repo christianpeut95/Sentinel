@@ -23,6 +23,7 @@ namespace Sentinel.Data
         public DbSet<Patient> Patients { get; set; }
         public DbSet<Case> Cases { get; set; }
         public DbSet<Country> Countries { get; set; }
+        public DbSet<State> States { get; set; }
         public DbSet<Language> Languages { get; set; }
         public DbSet<Ancestry> Ancestries { get; set; }
         public DbSet<AboriginalTorresStraitIslanderStatus> AtsiStatuses { get; set; }
@@ -99,6 +100,7 @@ namespace Sentinel.Data
         public DbSet<SurveyTemplate> SurveyTemplates { get; set; }
         public DbSet<SurveyTemplateDisease> SurveyTemplateDiseases { get; set; }
         public DbSet<SurveyFieldMapping> SurveyFieldMappings { get; set; }
+        public DbSet<SurveySubmissionLog> SurveySubmissionLogs { get; set; }
 
         // Outbreak Management System
         public DbSet<Outbreak> Outbreaks { get; set; }

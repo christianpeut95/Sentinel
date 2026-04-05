@@ -363,6 +363,33 @@ namespace Sentinel.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<DateTime?>("CaseAddressCapturedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CaseAddressLine")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<bool>("CaseAddressManualOverride")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("CaseCity")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<double?>("CaseLatitude")
+                        .HasColumnType("float");
+
+                    b.Property<double?>("CaseLongitude")
+                        .HasColumnType("float");
+
+                    b.Property<string>("CasePostalCode")
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<int?>("CaseStateId")
+                        .HasColumnType("int");
+
                     b.Property<DateTime?>("ClinicalNotificationDate")
                         .HasColumnType("datetime2");
 
@@ -437,6 +464,8 @@ namespace Sentinel.Migrations
                         .HasColumnType("int");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("CaseStateId");
 
                     b.HasIndex("ConfirmationStatusId");
 
@@ -1693,10 +1722,19 @@ namespace Sentinel.Migrations
                     b.Property<int>("AccessLevel")
                         .HasColumnType("int");
 
+                    b.Property<int?>("AddressReviewWindowAfterDays")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("AddressReviewWindowBeforeDays")
+                        .HasColumnType("int");
+
                     b.Property<bool>("AllowDomesticAcquisition")
                         .HasColumnType("bit");
 
                     b.Property<bool>("AlwaysPromptForLocation")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("CheckJurisdictionCrossing")
                         .HasColumnType("bit");
 
                     b.Property<string>("Code")
@@ -1735,8 +1773,15 @@ namespace Sentinel.Migrations
                     b.Property<int>("ExposureTrackingMode")
                         .HasColumnType("int");
 
+                    b.Property<bool>("InheritAddressSettingsFromParent")
+                        .HasColumnType("bit");
+
                     b.Property<bool>("IsActive")
                         .HasColumnType("bit");
+
+                    b.Property<string>("JurisdictionFieldsToCheck")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
 
                     b.Property<int>("Level")
                         .HasColumnType("int");
@@ -2237,6 +2282,30 @@ namespace Sentinel.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("SpecimenTypes");
+                });
+
+            modelBuilder.Entity("Sentinel.Models.Lookups.State", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("States");
                 });
 
             modelBuilder.Entity("Sentinel.Models.Lookups.Symptom", b =>
@@ -3061,8 +3130,8 @@ namespace Sentinel.Migrations
                     b.Property<int?>("SexAtBirthId")
                         .HasColumnType("int");
 
-                    b.Property<string>("State")
-                        .HasColumnType("nvarchar(max)");
+                    b.Property<int?>("StateId")
+                        .HasColumnType("int");
 
                     b.HasKey("Id");
 
@@ -3094,6 +3163,8 @@ namespace Sentinel.Migrations
                     b.HasIndex("OccupationId");
 
                     b.HasIndex("SexAtBirthId");
+
+                    b.HasIndex("StateId");
 
                     b.ToTable("Patients");
                 });
@@ -3902,6 +3973,93 @@ namespace Sentinel.Migrations
                         .HasDatabaseName("IX_SurveyFieldMapping_Config_Question");
 
                     b.ToTable("SurveyFieldMappings");
+                });
+
+            modelBuilder.Entity("Sentinel.Models.SurveySubmissionLog", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<Guid?>("CaseId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("CaseReference")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("DiseaseName")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<int>("FieldsRequiringApproval")
+                        .HasColumnType("int");
+
+                    b.Property<int>("FieldsSavedAutomatically")
+                        .HasColumnType("int");
+
+                    b.Property<int>("FieldsSentForReview")
+                        .HasColumnType("int");
+
+                    b.Property<int>("FieldsSkipped")
+                        .HasColumnType("int");
+
+                    b.Property<int>("FieldsWithErrors")
+                        .HasColumnType("int");
+
+                    b.Property<string>("IssuesSummary")
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
+
+                    b.Property<string>("MappingDetailJson")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("Outcome")
+                        .HasColumnType("int");
+
+                    b.Property<string>("PatientName")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<int?>("ReviewQueueItemId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("SubmittedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("SubmittedByName")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("SubmittedByUserId")
+                        .HasMaxLength(450)
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<string>("SurveyName")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<Guid?>("TaskId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("TaskName")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<int>("TotalMappingsConfigured")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CaseId");
+
+                    b.HasIndex("ReviewQueueItemId");
+
+                    b.HasIndex("TaskId");
+
+                    b.ToTable("SurveySubmissionLogs");
                 });
 
             modelBuilder.Entity("Sentinel.Models.SurveyTemplate", b =>
@@ -4740,6 +4898,10 @@ namespace Sentinel.Migrations
 
             modelBuilder.Entity("Sentinel.Models.Case", b =>
                 {
+                    b.HasOne("Sentinel.Models.Lookups.State", "CaseState")
+                        .WithMany()
+                        .HasForeignKey("CaseStateId");
+
                     b.HasOne("Sentinel.Models.Lookups.CaseStatus", "ConfirmationStatus")
                         .WithMany()
                         .HasForeignKey("ConfirmationStatusId");
@@ -4783,6 +4945,8 @@ namespace Sentinel.Migrations
                         .HasForeignKey("PatientId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+
+                    b.Navigation("CaseState");
 
                     b.Navigation("ConfirmationStatus");
 
@@ -5473,6 +5637,10 @@ namespace Sentinel.Migrations
                         .WithMany()
                         .HasForeignKey("SexAtBirthId");
 
+                    b.HasOne("Sentinel.Models.Lookups.State", "State")
+                        .WithMany()
+                        .HasForeignKey("StateId");
+
                     b.Navigation("Ancestry");
 
                     b.Navigation("AtsiStatus");
@@ -5498,6 +5666,8 @@ namespace Sentinel.Migrations
                     b.Navigation("Occupation");
 
                     b.Navigation("SexAtBirth");
+
+                    b.Navigation("State");
                 });
 
             modelBuilder.Entity("Sentinel.Models.PatientCustomFieldBoolean", b =>
@@ -5787,6 +5957,27 @@ namespace Sentinel.Migrations
                     b.Navigation("LastModifiedBy");
 
                     b.Navigation("TargetSymptom");
+                });
+
+            modelBuilder.Entity("Sentinel.Models.SurveySubmissionLog", b =>
+                {
+                    b.HasOne("Sentinel.Models.Case", "Case")
+                        .WithMany()
+                        .HasForeignKey("CaseId");
+
+                    b.HasOne("Sentinel.Models.ReviewQueue", "ReviewQueueItem")
+                        .WithMany()
+                        .HasForeignKey("ReviewQueueItemId");
+
+                    b.HasOne("Sentinel.Models.CaseTask", "Task")
+                        .WithMany()
+                        .HasForeignKey("TaskId");
+
+                    b.Navigation("Case");
+
+                    b.Navigation("ReviewQueueItem");
+
+                    b.Navigation("Task");
                 });
 
             modelBuilder.Entity("Sentinel.Models.SurveyTemplate", b =>

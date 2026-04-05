@@ -67,6 +67,7 @@ namespace Sentinel.Pages.Patients
             // Eagerly load lookup navigation properties so their .Name is available in the view
             var patient = await _context.Patients
                 .Include(p => p.CountryOfBirth)
+                .Include(p => p.State)
                 .Include(p => p.LanguageSpokenAtHome)
                 .Include(p => p.Ancestry)
                 .Include(p => p.AtsiStatus)

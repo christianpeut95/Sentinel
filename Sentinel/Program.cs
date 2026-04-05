@@ -280,6 +280,7 @@ builder.Services.AddScoped<Sentinel.Services.IDataReviewService, Sentinel.Servic
 builder.Services.AddScoped<Sentinel.Services.ISurveyMappingService, Sentinel.Services.SurveyMappingService>();
 builder.Services.AddScoped<Sentinel.Services.ICollectionMappingService, Sentinel.Services.CollectionMappingService>();
 builder.Services.AddScoped<Sentinel.Services.CollectionMappingValidationService>();
+builder.Services.AddScoped<Sentinel.Services.IPatientAddressService, Sentinel.Services.PatientAddressService>();
 builder.Services.AddScoped<Sentinel.Services.TestDataGeneratorService>();
 builder.Services.AddScoped<Sentinel.Helpers.PermissionHelper>();
 
@@ -384,7 +385,7 @@ app.MapGet("/api/address-suggest", async (HttpRequest req, Sentinel.Services.ILo
 
 
 // API endpoint for jurisdiction autocomplete
-app.MapGet("/api/jurisdictions/search", async (string term, int? typeId, ApplicationDbContext context) =>
+app.MapGet("/api/jurisdictions/search", async (string? term, int? typeId, ApplicationDbContext context) =>
 {
     if (string.IsNullOrWhiteSpace(term) && !typeId.HasValue)
         return Results.Json(Array.Empty<object>());
@@ -543,7 +544,7 @@ app.MapGet("/api/patients/{caseId}/address", async (Guid caseId, ApplicationDbCo
 });
 
 // API endpoint for user autocomplete (for task assignment)
-app.MapGet("/api/users/search", async (string term, Microsoft.AspNetCore.Identity.UserManager<ApplicationUser> userManager) =>
+app.MapGet("/api/users/search", async (string? term, Microsoft.AspNetCore.Identity.UserManager<ApplicationUser> userManager) =>
 {
     if (string.IsNullOrWhiteSpace(term))
         return Results.Json(Array.Empty<object>());

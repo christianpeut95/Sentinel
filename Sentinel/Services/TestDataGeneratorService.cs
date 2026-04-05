@@ -184,7 +184,7 @@ namespace Sentinel.Services
                 EmailAddress = GenerateEmail(firstName, lastName),
                 AddressLine = address.Street,
                 City = address.Suburb,
-                State = state,
+                StateId = await GetStateIdFromCodeAsync(state),
                 PostalCode = address.Postcode,
                 IsDeceased = false,
                 
@@ -1163,6 +1163,20 @@ namespace Sentinel.Services
                 }
                 return result;
             }
+        }
+
+        private async Task<int?> GetStateIdFromCodeAsync(string? stateCode)
+        {
+            if (string.IsNullOrWhiteSpace(stateCode))
+            {
+                return null;
+            }
+
+            // Try to find by code (e.g., "NSW") or name (e.g., "New South Wales")
+            var state = await _context.States
+                .FirstOrDefaultAsync(s => s.Code == stateCode || s.Name == stateCode);
+
+            return state?.Id;
         }
     }
 

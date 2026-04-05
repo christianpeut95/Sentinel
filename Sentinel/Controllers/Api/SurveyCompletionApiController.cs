@@ -100,15 +100,6 @@ public class SurveyCompletionApiController : ControllerBase
                 success = false,
                 error = ex.Message
             });
-
-            // For any other exception, return error
-            _logger.LogError("Unhandled exception saving survey for task {TaskId}: {Exception}", taskId, ex);
-
-            return StatusCode(500, new
-            {
-                success = false,
-                error = ex.Message
-            });
         }
     }
 }

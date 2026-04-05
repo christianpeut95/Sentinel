@@ -377,7 +377,7 @@
         grid-row: 1;
     }
 
-    /* Exposures - positioned at row 2, column 2 */
+    /* Exposures - positioned at row 2, column 2 & 3 */
     .info-card.acquisitions-card {
         grid-column: 2;
         grid-row: 2;
@@ -388,16 +388,10 @@
         grid-row: 2;
     }
 
-    /* Tasks - positioned at row 2, columns 2-3 */
+    /* Tasks - positioned at row 3, columns 2-3 (same row as location card in col 1) */
     .info-card.tasks-card {
         grid-column: 2 / span 2;
         grid-row: 3;
-    }
-
-    /* Notes - positioned at row 2, column 3 */
-    .info-card.notes-card {
-        grid-column: 3;
-        grid-row: 2;
     }
 
     @@media (max-width: 1200px) {
@@ -407,6 +401,7 @@
 
         .info-card.case-info-card,
         .info-card.patient-info-card,
+        .info-card.location-card,
         .info-card.symptoms-card,
         .info-card.lab-results-card,
         .info-card.acquisitions-card, .info-card.transmissions-card,
@@ -424,6 +419,7 @@
 
         .info-card.case-info-card,
         .info-card.patient-info-card,
+        .info-card.location-card,
         .info-card.symptoms-card,
         .info-card.lab-results-card,
         .info-card.acquisitions-card, .info-card.transmissions-card,
@@ -728,6 +724,114 @@
                             <span class="badge badge-teal">@Model.Case.ConfirmationStatus.Name</span>
                         }
                     </p>
+
+                    @* Address and Jurisdictions on second line *@
+                    var hasAddress = !string.IsNullOrWhiteSpace(Model.Case.CaseAddressLine) || !string.IsNullOrWhiteSpace(Model.Case.CaseCity);
+                    var hasJurisdictions = Model.Case.Jurisdiction1Id.HasValue ||
+                                         Model.Case.Jurisdiction2Id.HasValue ||
+                                         Model.Case.Jurisdiction3Id.HasValue ||
+                                         Model.Case.Jurisdiction4Id.HasValue ||
+                                         Model.Case.Jurisdiction5Id.HasValue;
+                    <p class="subtitle mb-0 mt-1" style="font-size: 0.875rem;">
+                        @if (hasAddress || hasJurisdictions)
+                        {
+                            @if (hasAddress)
+                            {
+                                var jurisdictions = new List<string>();
+                                foreach (var jurisdictionType in Model.ActiveJurisdictionTypes.OrderBy(jt => jt.DisplayOrder))
+                                {
+                                    var jurisdiction = jurisdictionType.FieldNumber switch
+                                    {
+                                        1 => Model.Case.Jurisdiction1,
+                                        2 => Model.Case.Jurisdiction2,
+                                        3 => Model.Case.Jurisdiction3,
+                                        4 => Model.Case.Jurisdiction4,
+                                        5 => Model.Case.Jurisdiction5,
+                                        _ => null
+                                    };
+
+                                    if (jurisdiction != null)
+                                    {
+                                        var label = !string.IsNullOrEmpty(jurisdictionType.Code) 
+                                            ? jurisdictionType.Code 
+                                            : jurisdictionType.Name;
+                                        jurisdictions.Add($"{label}: {jurisdiction.Name}");
+                                    }
+                                }
+
+                                <i class="bi bi-geo-alt-fill text-primary me-1"></i>
+                                if (!string.IsNullOrWhiteSpace(Model.Case.CaseAddressLine))
+                                {
+                                    <span>@Model.Case.CaseAddressLine, </span>
+                                }
+                                if (!string.IsNullOrWhiteSpace(Model.Case.CaseCity))
+                                {
+                                    <span>@Model.Case.CaseCity</span>
+                                }
+                                if (Model.Case.CaseState != null)
+                                {
+                                    <span>, @Model.Case.CaseState.Code</span>
+                                }
+                                if (!string.IsNullOrWhiteSpace(Model.Case.CasePostalCode))
+                                {
+                                    <span> @Model.Case.CasePostalCode</span>
+                                }
+
+                                if (jurisdictions.Any())
+                                {
+                                    <span class="mx-2">•</span>
+                                    @string.Join(" • ", jurisdictions)
+                                }
+                            }
+                            else
+                            {
+                                var jurisdictionsOnly = new List<string>();
+                                foreach (var jurisdictionType in Model.ActiveJurisdictionTypes.OrderBy(jt => jt.DisplayOrder))
+                                {
+                                    var jurisdiction = jurisdictionType.FieldNumber switch
+                                    {
+                                        1 => Model.Case.Jurisdiction1,
+                                        2 => Model.Case.Jurisdiction2,
+                                        3 => Model.Case.Jurisdiction3,
+                                        4 => Model.Case.Jurisdiction4,
+                                        5 => Model.Case.Jurisdiction5,
+                                        _ => null
+                                    };
+
+                                    if (jurisdiction != null)
+                                    {
+                                        var label = !string.IsNullOrEmpty(jurisdictionType.Code) 
+                                            ? jurisdictionType.Code 
+                                            : jurisdictionType.Name;
+                                        jurisdictionsOnly.Add($"{label}: {jurisdiction.Name}");
+                                    }
+                                }
+
+                                if (jurisdictionsOnly.Any())
+                                {
+                                    <i class="bi bi-pin-map text-success me-1"></i>
+                                    @string.Join(" • ", jurisdictionsOnly)
+                                }
+                            }
+
+                            @if (Model.Case.CaseAddressManualOverride)
+                            {
+                                <span class="mx-2">•</span>
+                                <span class="badge bg-info" style="font-size: 0.65rem;" title="Address manually set">Manual Override</span>
+                            }
+                        }
+                        else
+                        {
+                            <i class="bi bi-geo-alt text-muted me-1"></i>
+                            <span class="text-muted">No address or jurisdiction recorded</span>
+                            @if (Model.PatientHasDifferentAddress)
+                            {
+                                <span class="mx-2">•</span>
+                                <i class="bi bi-info-circle text-warning me-1" title="Patient has address data"></i>
+                                <span class="text-warning">Patient has address available</span>
+                            }
+                        }
+                    </p>
                 }
             </div>
             <div class="text-end">
@@ -742,6 +846,16 @@
             <a asp-page="./Edit" asp-route-id="@Model.Case.Id" class="quick-action-btn primary">
                 <i class="bi bi-pencil"></i> Edit Case
             </a>
+            @if (Model.PatientHasDifferentAddress)
+            {
+                <button type="button" class="quick-action-btn warning" onclick="copyAddressFromPatient()" title="Copy address and jurisdiction data from patient record">
+                    <i class="bi bi-arrow-down-circle"></i> Copy Address from Patient
+                    @if (Model.PatientJurisdictionMappingInProgress)
+                    {
+                        <i class="bi bi-hourglass-split ms-1" title="Jurisdiction mapping in progress"></i>
+                    }
+                </button>
+            }
             <button type="button" class="quick-action-btn success" data-bs-toggle="modal" data-bs-target="#addNoteModal">
                 <i class="bi bi-plus-circle"></i> Add Note
             </button>
@@ -1225,60 +1339,6 @@
                         }
                     </div>
                 </div>
-            </div>
-        }
-
-        <!-- Jurisdictions Card (if any assigned) -->
-        @if (Model.ActiveJurisdictionTypes.Any() &&
-                (Model.Case.Jurisdiction1Id.HasValue ||
-                Model.Case.Jurisdiction2Id.HasValue ||
-                Model.Case.Jurisdiction3Id.HasValue ||
-                Model.Case.Jurisdiction4Id.HasValue ||
-                Model.Case.Jurisdiction5Id.HasValue))
-        {
-            <div class="info-card">
-                <div class="info-card-header">
-                    <h3 class="info-card-title">
-                        <i class="bi bi-pin-map"></i>
-                        Geographic Jurisdictions
-                    </h3>
-                </div>
-                @foreach (var jurisdictionType in Model.ActiveJurisdictionTypes.OrderBy(jt => jt.DisplayOrder))
-                {
-                    var jurisdiction = jurisdictionType.FieldNumber switch
-                    {
-                        1 => Model.Case.Jurisdiction1,
-                        2 => Model.Case.Jurisdiction2,
-                        3 => Model.Case.Jurisdiction3,
-                        4 => Model.Case.Jurisdiction4,
-                        5 => Model.Case.Jurisdiction5,
-                        _ => null
-                    };
-
-                    if (jurisdiction != null)
-                    {
-                        <div class="info-row">
-                            <div class="info-label">
-                                @jurisdictionType.Name
-                                @if (!string.IsNullOrEmpty(jurisdictionType.Code))
-                                {
-                                    <br />
-
-                                    <small class="text-muted">(@jurisdictionType.Code)</small>
-                                }
-                            </div>
-                            <div class="info-value">
-                                @jurisdiction.Name
-                                @if (!string.IsNullOrEmpty(jurisdiction.Code))
-                                {
-                                    <br />
-
-                                    <small class="text-muted">@jurisdiction.Code</small>
-                                }
-                            </div>
-                        </div>
-                    }
-                }
             </div>
         }
 
@@ -2887,6 +2947,74 @@
                 }
             });
         });
+
+        // ========================================================================
+        // COPY ADDRESS FROM PATIENT
+        // ========================================================================
+
+        function copyAddressFromPatient() {
+            if (!confirm('Copy address and jurisdiction data from the patient record to this case?\n\n?? This will overwrite any existing case address data.')) {
+                return;
+            }
+
+            const caseId = '@Model.Case.Id';
+
+            // Show loading state
+            const btn = event.target.closest('button');
+            const originalHtml = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = '<i class="bi bi-hourglass-split spinner-border spinner-border-sm me-1"></i> Copying...';
+
+            fetch(`/Cases/Details?handler=CopyAddressFromPatient&id=${caseId}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]').value
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                btn.disabled = false;
+                btn.innerHTML = originalHtml;
+
+                if (data.success) {
+                    if (data.warning) {
+                        // Show warning message
+                        const alertHtml = `
+                            <div class="alert alert-warning alert-dismissible fade show" role="alert">
+                                <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                                <strong>Address Copied with Warnings:</strong><br/>
+                                ${data.message}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                            </div>
+                        `;
+                        document.querySelector('.case-details-container').insertAdjacentHTML('afterbegin', alertHtml);
+                    } else {
+                        // Show success message
+                        const alertHtml = `
+                            <div class="alert alert-success alert-dismissible fade show" role="alert">
+                                <i class="bi bi-check-circle-fill me-2"></i>
+                                ${data.message}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                            </div>
+                        `;
+                        document.querySelector('.case-details-container').insertAdjacentHTML('afterbegin', alertHtml);
+                    }
+
+                    if (data.reloadPage) {
+                        // Reload after 2 seconds to show updated address
+                        setTimeout(() => location.reload(), 2000);
+                    }
+                } else {
+                    alert('Error: ' + data.message);
+                }
+            })
+            .catch(error => {
+                btn.disabled = false;
+                btn.innerHTML = originalHtml;
+                alert('Error copying address: ' + error.message);
+            });
+        }
 </script>
 
 

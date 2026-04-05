@@ -25,6 +25,7 @@ namespace Sentinel.Pages.Cases
         private readonly IDiseaseAccessService _diseaseAccessService;
         private readonly ITaskService _taskService;
         private readonly IJurisdictionService _jurisdictionService;
+        private readonly IPatientAddressService _patientAddressService;
         private readonly ILogger<DetailsModel> _logger;
 
         public DetailsModel(
@@ -35,6 +36,7 @@ namespace Sentinel.Pages.Cases
             IDiseaseAccessService diseaseAccessService, 
             ITaskService taskService, 
             IJurisdictionService jurisdictionService,
+            IPatientAddressService patientAddressService,
             ILogger<DetailsModel> logger)
         {
             _context = context;
@@ -44,6 +46,7 @@ namespace Sentinel.Pages.Cases
             _diseaseAccessService = diseaseAccessService;
             _taskService = taskService;
             _jurisdictionService = jurisdictionService;
+            _patientAddressService = patientAddressService;
             _logger = logger;
         }
 
@@ -70,6 +73,10 @@ namespace Sentinel.Pages.Cases
         // Jurisdiction properties
         public List<JurisdictionType> ActiveJurisdictionTypes { get; set; } = new();
 
+        // Address comparison properties
+        public bool PatientHasDifferentAddress { get; set; }
+        public bool PatientJurisdictionMappingInProgress { get; set; }
+
         // Note properties - NOT bound automatically to avoid validation conflicts
         public Note NewNote { get; set; } = default!;
         public IFormFile? Attachment { get; set; }
@@ -94,9 +101,12 @@ namespace Sentinel.Pages.Cases
                     .ThenInclude(p => p.Gender)
                 .Include(c => c.Patient)
                     .ThenInclude(p => p.CountryOfBirth)
+                .Include(c => c.Patient)
+                    .ThenInclude(p => p.State)
                 .Include(c => c.ConfirmationStatus)
                 .Include(c => c.Disease)
                 .Include(c => c.Hospital)
+                .Include(c => c.CaseState)
                 .Include(c => c.Jurisdiction1).ThenInclude(j => j!.JurisdictionType)
                 .Include(c => c.Jurisdiction2).ThenInclude(j => j!.JurisdictionType)
                 .Include(c => c.Jurisdiction3).ThenInclude(j => j!.JurisdictionType)
@@ -194,6 +204,9 @@ namespace Sentinel.Pages.Cases
 
             // Load active jurisdiction types for display
             ActiveJurisdictionTypes = await _jurisdictionService.GetActiveJurisdictionTypesAsync();
+
+            // Check if patient has different address than case
+            CheckPatientAddressDifference();
 
             // Load dropdown lists for lab results
             await LoadLabResultDropdowns();
@@ -1457,6 +1470,177 @@ namespace Sentinel.Pages.Cases
             }
 
             return null;
+        }
+
+        // ========================================================================
+        // ADDRESS COPY HELPERS
+        // ========================================================================
+
+        private void CheckPatientAddressDifference()
+        {
+            if (Case?.Patient == null)
+            {
+                PatientHasDifferentAddress = false;
+                PatientJurisdictionMappingInProgress = false;
+                return;
+            }
+
+            var patient = Case.Patient;
+
+            // Check if addresses differ
+            bool addressesDiffer = 
+                patient.AddressLine != Case.CaseAddressLine ||
+                patient.City != Case.CaseCity ||
+                patient.StateId != Case.CaseStateId ||
+                patient.PostalCode != Case.CasePostalCode;
+
+            // Check if patient has an address at all
+            bool patientHasAddress = 
+                !string.IsNullOrWhiteSpace(patient.AddressLine) ||
+                !string.IsNullOrWhiteSpace(patient.City) ||
+                patient.StateId.HasValue;
+
+            PatientHasDifferentAddress = patientHasAddress && addressesDiffer;
+
+            // Detect jurisdiction mapping in progress:
+            // Patient has lat/lon (geocoded) but NULL jurisdictions = background mapping not complete
+            PatientJurisdictionMappingInProgress = 
+                patient.Latitude.HasValue && 
+                patient.Longitude.HasValue &&
+                !patient.Jurisdiction1Id.HasValue &&
+                !patient.Jurisdiction2Id.HasValue &&
+                !patient.Jurisdiction3Id.HasValue &&
+                !patient.Jurisdiction4Id.HasValue &&
+                !patient.Jurisdiction5Id.HasValue;
+        }
+
+        [Authorize(Policy = "Permission.Case.Edit")]
+        public async Task<JsonResult> OnPostCopyAddressFromPatientAsync(Guid id)
+        {
+            try
+            {
+                var caseEntity = await _context.Cases
+                    .Include(c => c.Patient)
+                    .FirstOrDefaultAsync(c => c.Id == id);
+
+                if (caseEntity?.Patient == null)
+                {
+                    return new JsonResult(new { success = false, message = "Case or patient not found" });
+                }
+
+                var patient = caseEntity.Patient;
+
+                // Check if patient has an address
+                bool hasAddress = !string.IsNullOrWhiteSpace(patient.AddressLine) || 
+                                !string.IsNullOrWhiteSpace(patient.City) ||
+                                patient.StateId.HasValue;
+
+                if (!hasAddress)
+                {
+                    return new JsonResult(new { 
+                        success = false, 
+                        message = "Patient has no address to copy" 
+                    });
+                }
+
+                // Detect if jurisdiction mapping is in progress
+                bool jurisdictionMappingInProgress = 
+                    patient.Latitude.HasValue && 
+                    patient.Longitude.HasValue &&
+                    !patient.Jurisdiction1Id.HasValue &&
+                    !patient.Jurisdiction2Id.HasValue &&
+                    !patient.Jurisdiction3Id.HasValue &&
+                    !patient.Jurisdiction4Id.HasValue &&
+                    !patient.Jurisdiction5Id.HasValue;
+
+                _logger.LogInformation(
+                    "Copying address from Patient {PatientId} to Case {CaseId}. " +
+                    "JurisdictionMappingInProgress: {InProgress}",
+                    patient.Id, id, jurisdictionMappingInProgress);
+
+                // ALWAYS copy address fields
+                caseEntity.CaseAddressLine = patient.AddressLine;
+                caseEntity.CaseCity = patient.City;
+                caseEntity.CaseStateId = patient.StateId;
+                caseEntity.CasePostalCode = patient.PostalCode;
+                caseEntity.CaseLatitude = patient.Latitude;
+                caseEntity.CaseLongitude = patient.Longitude;
+                caseEntity.CaseAddressCapturedAt = DateTime.UtcNow;
+                caseEntity.CaseAddressManualOverride = true; // User explicitly requested copy
+
+                string warningMessage = null;
+
+                if (jurisdictionMappingInProgress)
+                {
+                    // CLEAR case jurisdictions - don't copy NULL/old values
+                    // The user can re-copy after patient jurisdiction mapping completes
+                    caseEntity.Jurisdiction1Id = null;
+                    caseEntity.Jurisdiction2Id = null;
+                    caseEntity.Jurisdiction3Id = null;
+                    caseEntity.Jurisdiction4Id = null;
+                    caseEntity.Jurisdiction5Id = null;
+
+                    warningMessage = "⚠️ Address copied successfully. However, the patient's jurisdiction mapping is still in progress (1-2 minutes). Jurisdictions were NOT copied to avoid using stale data. Please wait and copy again once patient jurisdiction mapping completes.";
+
+                    _logger.LogWarning(
+                        "Jurisdiction mapping in progress for Patient {PatientId}. " +
+                        "Cleared case jurisdictions for Case {CaseId} to prevent stale data.",
+                        patient.Id, id);
+                }
+                else if (patient.Jurisdiction1Id.HasValue || patient.Jurisdiction2Id.HasValue ||
+                         patient.Jurisdiction3Id.HasValue || patient.Jurisdiction4Id.HasValue ||
+                         patient.Jurisdiction5Id.HasValue)
+                {
+                    // Patient has jurisdictions - safe to copy
+                    caseEntity.Jurisdiction1Id = patient.Jurisdiction1Id;
+                    caseEntity.Jurisdiction2Id = patient.Jurisdiction2Id;
+                    caseEntity.Jurisdiction3Id = patient.Jurisdiction3Id;
+                    caseEntity.Jurisdiction4Id = patient.Jurisdiction4Id;
+                    caseEntity.Jurisdiction5Id = patient.Jurisdiction5Id;
+                }
+                else
+                {
+                    // Patient has no lat/lon and no jurisdictions - copy address only
+                    caseEntity.Jurisdiction1Id = null;
+                    caseEntity.Jurisdiction2Id = null;
+                    caseEntity.Jurisdiction3Id = null;
+                    caseEntity.Jurisdiction4Id = null;
+                    caseEntity.Jurisdiction5Id = null;
+
+                    warningMessage = "Address copied successfully. Note: Patient has no geocoded coordinates or jurisdictions.";
+                }
+
+                await _context.SaveChangesAsync();
+
+                // Audit log
+                var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+                await _auditService.LogChangeAsync(
+                    "Case",
+                    id.ToString(),
+                    "Address Copied from Patient",
+                    null,
+                    $"{patient.AddressLine}, {patient.City}",
+                    userId,
+                    HttpContext.Connection.RemoteIpAddress?.ToString()
+                );
+
+                return new JsonResult(new
+                {
+                    success = true,
+                    warning = warningMessage != null,
+                    message = warningMessage ?? "✅ Address and jurisdictions copied successfully from patient record.",
+                    reloadPage = true
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error copying address from patient to case {CaseId}", id);
+                return new JsonResult(new
+                {
+                    success = false,
+                    message = $"Error copying address: {ex.Message}"
+                });
+            }
         }
     }
 }

@@ -1763,7 +1763,7 @@
                                         EmailAddress = patient.EmailAddress,
                                         Address = patient.AddressLine,
                                         City = patient.City,
-                                        State = patient.State,
+                                        State = patient.State?.Code,
                                         Postcode = patient.PostalCode
                                     },
                                     MatchScore = (int)(score * 100),
