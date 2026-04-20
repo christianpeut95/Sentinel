@@ -46,7 +46,7 @@ namespace Sentinel.Pages.Cases.Exposures
             }
 
             CaseFriendlyId = caseData.FriendlyId ?? CaseId.ToString();
-            PatientName = $"{caseData.Patient?.FirstName} {caseData.Patient?.LastName}".Trim();
+            PatientName = $"{caseData.Patient?.GivenName} {caseData.Patient?.FamilyName}".Trim();
             DiseaseId = caseData.DiseaseId;
             DiseaseName = caseData.Disease?.Name;
 
