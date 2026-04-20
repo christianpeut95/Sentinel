@@ -1,0 +1,70 @@
+using System.ComponentModel.DataAnnotations;
+
+namespace Sentinel.Models.Timeline
+{
+    /// <summary>
+    /// Types of entities that can be extracted from natural language timeline entries
+    /// </summary>
+    public enum EntityType
+    {
+        [Display(Name = "Person")]
+        Person = 1,
+
+        [Display(Name = "Location")]
+        Location = 2,
+
+        [Display(Name = "Event")]
+        Event = 3,
+
+        [Display(Name = "Transport")]
+        Transport = 4,
+
+        [Display(Name = "Date/Time")]
+        DateTime = 5,
+
+        [Display(Name = "Duration")]
+        Duration = 6,
+
+        [Display(Name = "Activity")]
+        Activity = 7
+    }
+
+    /// <summary>
+    /// Confidence level for extracted entities
+    /// </summary>
+    public enum ConfidenceLevel
+    {
+        [Display(Name = "High")]
+        High = 3,
+
+        [Display(Name = "Medium")]
+        Medium = 2,
+
+        [Display(Name = "Low")]
+        Low = 1,
+
+        [Display(Name = "Uncertain")]
+        Uncertain = 0
+    }
+
+    /// <summary>
+    /// Relationship types between entities
+    /// </summary>
+    public enum RelationshipType
+    {
+        [Display(Name = "With (accompanied by)")]
+        With = 1,
+
+        [Display(Name = "At (located at)")]
+        At = 2,
+
+        [Display(Name = "Travel By")]
+        TravelBy = 3,
+
+        [Display(Name = "During")]
+        During = 4,
+
+        [Display(Name = "For (duration)")]
+        For = 5
+    }
+}

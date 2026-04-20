@@ -3,432 +3,8 @@
 
 @{
     ViewData["Title"] = "Create Case";
-    Layout = "~/Pages/Shared/_Layout.cshtml";
+    Layout = "~/Pages/Shared/_LayoutSentinel.cshtml";
 }
-
-<style>
-    /* Apple Aesthetic - Multi-Step Case Creation */
-    .create-case-container {
-        max-width: 1200px;
-        margin: 0 auto;
-    }
-
-    /* Progress Steps */
-    .progress-steps {
-        display: flex;
-        justify-content: space-between;
-        margin-bottom: 3rem;
-        position: relative;
-    }
-
-    .progress-steps::before {
-        content: '';
-        position: absolute;
-        top: 20px;
-        left: 10%;
-        right: 10%;
-        height: 2px;
-        background: #e2e8f0;
-        z-index: 0;
-    }
-
-    .step {
-        flex: 1;
-        text-align: center;
-        position: relative;
-        z-index: 1;
-    }
-
-    .step-circle {
-        width: 40px;
-        height: 40px;
-        border-radius: 50%;
-        background: white;
-        border: 2px solid #e2e8f0;
-        color: #9ca3af;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        font-weight: 600;
-        margin-bottom: 0.5rem;
-        transition: all 0.3s;
-    }
-
-    .step.active .step-circle {
-        background: #2d3748;
-        border-color: #2d3748;
-        color: white;
-    }
-
-    .step.completed .step-circle {
-        background: #22c55e;
-        border-color: #22c55e;
-        color: white;
-    }
-
-    .step-label {
-        font-size: 14px;
-        color: #718096;
-        font-weight: 500;
-    }
-
-    .step.active .step-label {
-        color: #2d3748;
-        font-weight: 600;
-    }
-
-    /* Step Content Card */
-    .step-content {
-        background: white;
-        border-radius: 12px;
-        padding: 2rem;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
-        border: 1px solid rgba(0, 0, 0, 0.06);
-        display: none;
-    }
-
-    .step-content.active {
-        display: block;
-        animation: fadeIn 0.3s;
-    }
-
-    @@keyframes fadeIn {
-        from { opacity: 0; transform: translateY(10px); }
-        to { opacity: 1; transform: translateY(0); }
-    }
-
-    /* Patient Search */
-    .search-box {
-        position: relative;
-        margin-bottom: 1.5rem;
-    }
-
-    .search-input {
-        width: 100%;
-        padding: 14px 16px 14px 45px;
-        border: 1px solid #e2e8f0;
-        border-radius: 10px;
-        font-size: 16px;
-        transition: all 0.2s;
-    }
-
-    .search-input:focus {
-        outline: none;
-        border-color: #2d3748;
-        box-shadow: 0 0 0 3px rgba(45, 55, 72, 0.1);
-    }
-
-    .search-icon {
-        position: absolute;
-        left: 16px;
-        top: 50%;
-        transform: translateY(-50%);
-        color: #9ca3af;
-        font-size: 18px;
-    }
-
-    .search-results {
-        position: absolute;
-        top: 100%;
-        left: 0;
-        right: 0;
-        background: white;
-        border: 1px solid #e2e8f0;
-        border-radius: 10px;
-        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
-        max-height: 400px;
-        overflow-y: auto;
-        z-index: 100;
-        display: none;
-    }
-
-    .search-results.show {
-        display: block;
-    }
-
-    .search-result-item {
-        padding: 12px 16px;
-        cursor: pointer;
-        transition: background 0.15s;
-        border-bottom: 1px solid #f7fafc;
-    }
-
-    .search-result-item:last-child {
-        border-bottom: none;
-    }
-
-    .search-result-item:hover {
-        background: #f7fafc;
-    }
-
-    .search-result-name {
-        font-weight: 600;
-        color: #2d3748;
-        margin-bottom: 4px;
-    }
-
-    .search-result-meta {
-        font-size: 13px;
-        color: #718096;
-    }
-
-    .duplicate-badge {
-        display: inline-block;
-        padding: 2px 8px;
-        border-radius: 6px;
-        font-size: 11px;
-        font-weight: 600;
-        background: #fef2f2;
-        color: #dc2626;
-        margin-left: 8px;
-    }
-
-    /* Selected Patient Card */
-    .selected-patient-card {
-        background: #f7fafc;
-        border: 1px solid #e2e8f0;
-        border-radius: 10px;
-        padding: 1.25rem;
-        margin-bottom: 1.5rem;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-    }
-
-    .patient-info h4 {
-        font-size: 18px;
-        font-weight: 600;
-        color: #2d3748;
-        margin-bottom: 4px;
-    }
-
-    .patient-info p {
-        font-size: 14px;
-        color: #718096;
-        margin: 0;
-    }
-
-    .btn-change {
-        background: white;
-        border: 1px solid #e2e8f0;
-        color: #2d3748;
-        padding: 8px 16px;
-        border-radius: 8px;
-        font-size: 14px;
-        font-weight: 500;
-        cursor: pointer;
-        transition: all 0.2s;
-    }
-
-    .btn-change:hover {
-        background: #f7fafc;
-        border-color: #cbd5e0;
-    }
-
-    /* Form Elements */
-    .form-group {
-        margin-bottom: 1.5rem;
-    }
-
-    .form-label {
-        display: block;
-        font-size: 14px;
-        font-weight: 600;
-        color: #2d3748;
-        margin-bottom: 8px;
-    }
-
-    .form-label .required {
-        color: #dc2626;
-        margin-left: 4px;
-    }
-
-    .form-control-modern {
-        width: 100%;
-        padding: 12px 16px;
-        border: 1px solid #e2e8f0;
-        border-radius: 10px;
-        font-size: 15px;
-        transition: all 0.2s;
-    }
-
-    .form-control-modern:focus {
-        outline: none;
-        border-color: #2d3748;
-        box-shadow: 0 0 0 3px rgba(45, 55, 72, 0.1);
-    }
-
-    .form-hint {
-        font-size: 13px;
-        color: #718096;
-        margin-top: 6px;
-    }
-
-    /* Lab Results & Exposures Tables */
-    .item-table {
-        width: 100%;
-        margin-top: 1rem;
-    }
-
-    .item-table thead {
-        background: #f7fafc;
-    }
-
-    .item-table th {
-        padding: 12px;
-        text-align: left;
-        font-weight: 600;
-        font-size: 13px;
-        color: #718096;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-    }
-
-    .item-table td {
-        padding: 12px;
-        border-top: 1px solid #e2e8f0;
-        font-size: 15px;
-    }
-
-    .btn-remove {
-        color: #dc2626;
-        background: none;
-        border: none;
-        cursor: pointer;
-        font-size: 18px;
-        padding: 0;
-    }
-
-    .btn-remove:hover {
-        color: #b91c1c;
-    }
-
-    /* Action Buttons */
-    .step-actions {
-        display: flex;
-        justify-content: space-between;
-        margin-top: 2rem;
-        padding-top: 2rem;
-        border-top: 1px solid #e2e8f0;
-    }
-
-    .btn-modern {
-        padding: 12px 24px;
-        border-radius: 10px;
-        font-size: 15px;
-        font-weight: 600;
-        border: none;
-        cursor: pointer;
-        transition: all 0.2s;
-        display: inline-flex;
-        align-items: center;
-        gap: 8px;
-    }
-
-    .btn-primary {
-        background: #2d3748;
-        color: white;
-    }
-
-    .btn-primary:hover {
-        background: #1a202c;
-        transform: translateY(-1px);
-        box-shadow: 0 4px 12px rgba(45, 55, 72, 0.3);
-    }
-
-    .btn-secondary {
-        background: white;
-        color: #2d3748;
-        border: 1px solid #e2e8f0;
-    }
-
-    .btn-secondary:hover {
-        background: #f7fafc;
-        border-color: #cbd5e0;
-    }
-
-    .btn-success {
-        background: #22c55e;
-        color: white;
-    }
-
-    .btn-success:hover {
-        background: #16a34a;
-        transform: translateY(-1px);
-        box-shadow: 0 4px 12px rgba(34, 197, 94, 0.3);
-    }
-
-    .btn-add {
-        background: white;
-        color: #2d3748;
-        border: 1px solid #e2e8f0;
-        padding: 10px 20px;
-        border-radius: 8px;
-        font-size: 14px;
-        font-weight: 600;
-        cursor: pointer;
-        transition: all 0.2s;
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-    }
-
-    .btn-add:hover {
-        background: #f7fafc;
-        border-color: #2d3748;
-    }
-
-    /* Empty State */
-    .empty-state {
-        text-align: center;
-        padding: 3rem 2rem;
-        color: #9ca3af;
-    }
-
-    .empty-state i {
-        font-size: 3rem;
-        margin-bottom: 1rem;
-    }
-
-    .empty-state p {
-        margin: 0;
-    }
-
-    /* Create New Patient Link */
-    .create-patient-prompt {
-        text-align: center;
-        padding: 2rem;
-        background: #f7fafc;
-        border-radius: 10px;
-        margin-top: 1rem;
-    }
-
-    .create-patient-prompt p {
-        color: #718096;
-        margin-bottom: 1rem;
-    }
-
-    /* Breadcrumb */
-    .breadcrumb {
-        background: transparent;
-        padding: 0;
-        margin-bottom: 1.5rem;
-        font-size: 14px;
-    }
-
-    .breadcrumb-item a {
-        color: #718096;
-        text-decoration: none;
-    }
-
-    .breadcrumb-item a:hover {
-        color: #2d3748;
-    }
-
-    .breadcrumb-item.active {
-        color: #2d3748;
-    }
-</style>
 
 <nav aria-label="breadcrumb">
     <ol class="breadcrumb">
@@ -439,7 +15,7 @@
 </nav>
 
 <div class="create-case-container">
-    <h1 style="font-size: 28px; font-weight: 600; color: #2d3748; margin-bottom: 2rem;">
+    <h1 style="font-size: 28px; font-weight: 600; color: var(--forest); margin-bottom: 2rem; font-family: var(--f-sans);">
         <i class="bi bi-plus-circle me-2"></i>Create New Case
     </h1>
 
@@ -470,7 +46,7 @@
     <form id="createCaseForm" method="post">
         <!-- Step 1: Patient Selection -->
         <div class="step-content active" data-step="1">
-            <h2 style="font-size: 20px; font-weight: 600; margin-bottom: 1.5rem;">Select or Create Patient</h2>
+            <h2 style="font-size: 20px; font-weight: 600; margin-bottom: 1.5rem; color: var(--forest); font-family: var(--f-sans);">Select or Create Patient</h2>
             
             <div id="patientSearchSection">
                 <div class="search-box">
@@ -776,7 +352,7 @@
 
         <!-- Step 2: Case Details -->
         <div class="step-content" data-step="2">
-            <h2 style="font-size: 20px; font-weight: 600; margin-bottom: 1.5rem;">Case Information</h2>
+            <h2 style="font-size: 20px; font-weight: 600; margin-bottom: 1.5rem; color: var(--forest); font-family: var(--f-sans);">Case Information</h2>
             
             <div class="row">
                 <div class="col-md-6">
@@ -848,7 +424,7 @@
 
         <!-- Step 3: Lab Results (Optional) -->
         <div class="step-content" data-step="3">
-            <h2 style="font-size: 20px; font-weight: 600; margin-bottom: 1.5rem;">Laboratory Results (Optional)</h2>
+            <h2 style="font-size: 20px; font-weight: 600; margin-bottom: 1.5rem; color: var(--forest); font-family: var(--f-sans);">Laboratory Results (Optional)</h2>
             
             <button type="button" class="btn-add" onclick="addLabResult()">
                 <i class="bi bi-plus-circle"></i>
@@ -873,7 +449,7 @@
 
     <!-- Step 4: Exposures (Optional) -->
         <div class="step-content" data-step="4">
-            <h2 style="font-size: 20px; font-weight: 600; margin-bottom: 1.5rem;">Exposure Tracking (Optional)</h2>
+            <h2 style="font-size: 20px; font-weight: 600; margin-bottom: 1.5rem; color: var(--forest); font-family: var(--f-sans);">Exposure Tracking (Optional)</h2>
             
             <!-- Exposure Guidance Alert (loaded dynamically) -->
             <div id="exposureGuidanceAlert" style="display: none;" class="alert alert-info mb-4">
@@ -925,9 +501,9 @@
 
         <!-- Step 5: Review & Submit -->
         <div class="step-content" data-step="5">
-            <h2 style="font-size: 20px; font-weight: 600; margin-bottom: 1.5rem;">Review & Submit</h2>
-            
-            <div id="reviewSummary" style="background: #f7fafc; padding: 2rem; border-radius: 10px;">
+            <h2 style="font-size: 20px; font-weight: 600; margin-bottom: 1.5rem; color: var(--forest); font-family: var(--f-sans);">Review & Submit</h2>
+
+            <div id="reviewSummary" style="background: var(--bone); padding: 2rem; border-radius: 10px; border: 1px solid var(--hairline);">
                 <!-- Summary will be populated by JavaScript -->
             </div>
 
@@ -1913,22 +1489,22 @@
 
         function populateReviewSummary() {
             let html = `
-                <h3 style="font-weight: 600; margin-bottom: 1rem;">Patient Information</h3>
-                <p><strong>Name:</strong> ${selectedPatient.name}</p>
-                <p><strong>DOB:</strong> ${selectedPatient.dob || 'N/A'}</p>
-                <p><strong>ID:</strong> ${selectedPatient.friendlyId}</p>
-                <hr style="margin: 1.5rem 0; border-color: #e2e8f0;">
-                <h3 style="font-weight: 600; margin-bottom: 1rem;">Case Details</h3>
-                <p><strong>Disease:</strong> ${$('#diseaseSelect option:selected').text()}</p>
-                <p><strong>Status:</strong> ${$('select[name="ConfirmationStatusId"] option:selected').text() || 'Not specified'}</p>
-                <p><strong>Date of Onset:</strong> ${$('input[name="DateOfOnset"]').val() || 'Not specified'}</p>
-                <p><strong>Date of Notification:</strong> ${$('input[name="DateOfNotification"]').val()}</p>
+                <h3 style="font-weight: 600; margin-bottom: 1rem; color: var(--forest); font-family: var(--f-sans);">Patient Information</h3>
+                <p style="font-family: var(--f-sans);"><strong>Name:</strong> ${selectedPatient.name}</p>
+                <p style="font-family: var(--f-sans);"><strong>DOB:</strong> ${selectedPatient.dob || 'N/A'}</p>
+                <p style="font-family: var(--f-sans);"><strong>ID:</strong> ${selectedPatient.friendlyId}</p>
+                <hr style="margin: 1.5rem 0; border-color: var(--hairline);">
+                <h3 style="font-weight: 600; margin-bottom: 1rem; color: var(--forest); font-family: var(--f-sans);">Case Details</h3>
+                <p style="font-family: var(--f-sans);"><strong>Disease:</strong> ${$('#diseaseSelect option:selected').text()}</p>
+                <p style="font-family: var(--f-sans);"><strong>Status:</strong> ${$('select[name="ConfirmationStatusId"] option:selected').text() || 'Not specified'}</p>
+                <p style="font-family: var(--f-sans);"><strong>Date of Onset:</strong> ${$('input[name="DateOfOnset"]').val() || 'Not specified'}</p>
+                <p style="font-family: var(--f-sans);"><strong>Date of Notification:</strong> ${$('input[name="DateOfNotification"]').val()}</p>
             `;
 
             if (labResults.length > 0 || exposures.length > 0) {
-                html += `<hr style="margin: 1.5rem 0; border-color: #e2e8f0;">`;
-                html += `<p><strong>Lab Results:</strong> ${labResults.length}</p>`;
-                html += `<p><strong>Exposures:</strong> ${exposures.length}</p>`;
+                html += `<hr style="margin: 1.5rem 0; border-color: var(--hairline);">`;
+                html += `<p style="font-family: var(--f-sans);"><strong>Lab Results:</strong> ${labResults.length}</p>`;
+                html += `<p style="font-family: var(--f-sans);"><strong>Exposures:</strong> ${exposures.length}</p>`;
             }
 
             $('#reviewSummary').html(html);
@@ -1960,6 +1536,492 @@ $('form').on('submit', function(e) {
             window.location.href = `/Cases/Details?id=${createdCaseId}`;
         };
     </script>
+
+    <style>
+        /* Sentinel Design - Multi-Step Case Creation */
+        .create-case-container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        /* Progress Steps */
+        .progress-steps {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 3rem;
+            position: relative;
+        }
+
+        .progress-steps::before {
+            content: '';
+            position: absolute;
+            top: 20px;
+            left: 10%;
+            right: 10%;
+            height: 2px;
+            background: var(--hairline);
+            z-index: 0;
+        }
+
+        .step {
+            flex: 1;
+            text-align: center;
+            position: relative;
+            z-index: 1;
+        }
+
+        .step-circle {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: var(--chalk);
+            border: 2px solid var(--hairline);
+            color: var(--slate);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            transition: all 0.3s;
+            font-family: var(--f-sans);
+        }
+
+        .step.active .step-circle {
+            background: var(--forest);
+            border-color: var(--forest);
+            color: white;
+        }
+
+        .step.completed .step-circle {
+            background: var(--signal-dk);
+            border-color: var(--signal-dk);
+            color: white;
+        }
+
+        .step-label {
+            font-size: 14px;
+            color: var(--graphite);
+            font-weight: 500;
+            font-family: var(--f-sans);
+        }
+
+        .step.active .step-label {
+            color: var(--forest);
+            font-weight: 600;
+        }
+
+        /* Step Content Card */
+        .step-content {
+            background: var(--chalk);
+            border-radius: 12px;
+            padding: 2rem;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+            border: 1px solid var(--hairline);
+            display: none;
+        }
+
+        .step-content.active {
+            display: block;
+            animation: fadeIn 0.3s;
+        }
+
+        @@keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Patient Search */
+        .search-box {
+            position: relative;
+            margin-bottom: 1.5rem;
+        }
+
+        .search-input {
+            width: 100%;
+            padding: 14px 16px 14px 45px;
+            border: 1px solid var(--hairline);
+            border-radius: 10px;
+            font-size: 16px;
+            transition: all 0.2s;
+            background: var(--chalk);
+            font-family: var(--f-sans);
+            color: var(--forest);
+        }
+
+        .search-input:focus {
+            outline: none;
+            border-color: var(--signal-dk);
+            box-shadow: 0 0 0 3px rgba(61, 213, 152, 0.1);
+        }
+
+        .search-icon {
+            position: absolute;
+            left: 16px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--slate);
+            font-size: 18px;
+        }
+
+        .search-results {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: white;
+            border: 1px solid var(--hairline);
+            border-radius: 10px;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+            max-height: 400px;
+            overflow-y: auto;
+            z-index: 100;
+            display: none;
+        }
+
+        .search-results.show {
+            display: block;
+        }
+
+        .search-result-item {
+            padding: 12px 16px;
+            cursor: pointer;
+            transition: background 0.15s;
+            border-bottom: 1px solid var(--hairline);
+            font-family: var(--f-sans);
+        }
+
+        .search-result-item:last-child {
+            border-bottom: none;
+        }
+
+        .search-result-item:hover {
+            background: var(--signal-lt);
+        }
+
+        .search-result-name {
+            font-weight: 600;
+            color: var(--forest);
+            margin-bottom: 4px;
+        }
+
+        .search-result-meta {
+            font-size: 13px;
+            color: var(--graphite);
+        }
+
+        .duplicate-badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: 600;
+            background: #FBE2D8;
+            color: var(--status-outbreak);
+            margin-left: 8px;
+        }
+
+        /* Selected Patient Card */
+        .selected-patient-card {
+            background: var(--bone);
+            border: 1px solid var(--hairline);
+            border-radius: 10px;
+            padding: 1.25rem;
+            margin-bottom: 1.5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .patient-info h4 {
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--forest);
+            margin-bottom: 4px;
+            font-family: var(--f-sans);
+        }
+
+        .patient-info p {
+            font-size: 14px;
+            color: var(--graphite);
+            margin: 0;
+            font-family: var(--f-sans);
+        }
+
+        .btn-change {
+            background: var(--chalk);
+            border: 1px solid var(--hairline);
+            color: var(--forest);
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-family: var(--f-sans);
+        }
+
+        .btn-change:hover {
+            background: var(--signal-lt);
+            border-color: var(--signal-dk);
+        }
+
+        /* Form Elements */
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        .form-label {
+            display: block;
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--forest);
+            margin-bottom: 8px;
+            font-family: var(--f-sans);
+        }
+
+        .form-label .required {
+            color: var(--status-outbreak);
+            margin-left: 4px;
+        }
+
+        .form-control-modern {
+            width: 100%;
+            padding: 12px 16px;
+            border: 1px solid var(--hairline);
+            border-radius: 10px;
+            font-size: 15px;
+            transition: all 0.2s;
+            background: var(--chalk);
+            font-family: var(--f-sans);
+            color: var(--forest);
+        }
+
+        .form-control-modern:focus {
+            outline: none;
+            border-color: var(--signal-dk);
+            box-shadow: 0 0 0 3px rgba(61, 213, 152, 0.1);
+        }
+
+        .form-hint {
+            font-size: 13px;
+            color: var(--graphite);
+            margin-top: 6px;
+            font-family: var(--f-sans);
+        }
+
+        /* Lab Results & Exposures Tables */
+        .item-table {
+            width: 100%;
+            margin-top: 1rem;
+        }
+
+        .item-table thead {
+            background: var(--bone);
+        }
+
+        .item-table th {
+            padding: 12px;
+            text-align: left;
+            font-weight: 600;
+            font-size: 13px;
+            color: var(--graphite);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            font-family: var(--f-sans);
+        }
+
+        .item-table td {
+            padding: 12px;
+            border-top: 1px solid var(--hairline);
+            font-size: 15px;
+            font-family: var(--f-sans);
+            color: var(--forest);
+        }
+
+        .btn-remove {
+            color: var(--status-outbreak);
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 18px;
+            padding: 0;
+        }
+
+        .btn-remove:hover {
+            color: #b91c1c;
+        }
+
+        /* Action Buttons */
+        .step-actions {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 2rem;
+            padding-top: 2rem;
+            border-top: 1px solid var(--hairline);
+        }
+
+        .btn-modern {
+            padding: 12px 24px;
+            border-radius: 10px;
+            font-size: 15px;
+            font-weight: 600;
+            border: none;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            font-family: var(--f-sans);
+        }
+
+        .btn-primary {
+            background: var(--forest);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #081612;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(12, 42, 32, 0.3);
+        }
+
+        .btn-secondary {
+            background: var(--chalk);
+            color: var(--forest);
+            border: 1px solid var(--hairline);
+        }
+
+        .btn-secondary:hover {
+            background: var(--bone);
+            border-color: var(--signal-dk);
+        }
+
+        .btn-success {
+            background: var(--signal-dk);
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #0F7C56;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(21, 156, 110, 0.3);
+        }
+
+        .btn-add {
+            background: var(--chalk);
+            color: var(--forest);
+            border: 1px solid var(--hairline);
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-family: var(--f-sans);
+        }
+
+        .btn-add:hover {
+            background: var(--signal-lt);
+            border-color: var(--signal-dk);
+        }
+
+        /* Empty State */
+        .empty-state {
+            text-align: center;
+            padding: 3rem 2rem;
+            color: var(--slate);
+            font-family: var(--f-sans);
+        }
+
+        .empty-state i {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+        }
+
+        .empty-state p {
+            margin: 0;
+        }
+
+        /* Create New Patient Link */
+        .create-patient-prompt {
+            text-align: center;
+            padding: 2rem;
+            background: var(--bone);
+            border-radius: 10px;
+            margin-top: 1rem;
+        }
+
+        .create-patient-prompt p {
+            color: var(--graphite);
+            margin-bottom: 1rem;
+            font-family: var(--f-sans);
+        }
+
+        /* Breadcrumb */
+        .breadcrumb {
+            background: transparent;
+            padding: 0;
+            margin-bottom: 1.5rem;
+            font-size: 14px;
+            font-family: var(--f-sans);
+        }
+
+        .breadcrumb-item a {
+            color: var(--graphite);
+            text-decoration: none;
+        }
+
+        .breadcrumb-item a:hover {
+            color: var(--forest);
+        }
+
+        .breadcrumb-item.active {
+            color: var(--forest);
+        }
+
+        /* Select2 Dropdown Fixes */
+        .select2-container {
+            width: 100% !important;
+        }
+
+        /* Single select (Disease dropdown) */
+        .select2-container .select2-selection--single {
+            height: calc(1.5em + 0.75rem + 2px) !important;
+            border: 1px solid var(--hairline) !important;
+            border-radius: var(--radius-sm) !important;
+            background: var(--chalk) !important;
+            display: flex !important;  /* Use flexbox */
+            align-items: center !important;  /* Center vertically */
+        }
+
+        .select2-container .select2-selection--single .select2-selection__rendered {
+            padding-left: 0.75rem !important;
+            padding-right: 2.5rem !important;  /* Space for arrow */
+            line-height: 1.5 !important;
+            color: var(--forest) !important;
+            overflow: hidden !important;  /* Hide overflow text */
+            text-overflow: ellipsis !important;  /* Show ... for long text */
+            white-space: nowrap !important;  /* Don't wrap */
+            flex: 1 !important;  /* Take available space */
+            min-width: 0 !important;  /* Allow flex item to shrink below content size */
+        }
+
+        .select2-container .select2-selection--single .select2-selection__arrow {
+            height: calc(1.5em + 0.75rem) !important;
+            top: 1px !important;
+            right: 1px !important;
+        }
+
+        /* Focus states for single select */
+        .select2-container--bootstrap-5.select2-container--focus .select2-selection--single,
+        .select2-container--bootstrap-5.select2-container--open .select2-selection--single {
+            border-color: var(--signal-dk) !important;
+            box-shadow: 0 0 0 0.2rem rgba(61, 213, 152, 0.25) !important;
+        }
+    </style>
 }
 
 @functions {

@@ -3,16 +3,8 @@
 
 @{
     ViewData["Title"] = "Custom Fields";
-}
-@functions {
-    public string GetCspNonce()
-    {
-        if (HttpContext?.Items?.TryGetValue("csp-nonce", out var nonce) == true && nonce is string nonceStr)
-        {
-            return nonceStr;
-        }
-        return string.Empty;
-    }
+    ViewData["Subtitle"] = "Manage custom field definitions";
+    Layout = "~/Pages/Shared/_LayoutSentinel.cshtml";
 }
 
 <nav aria-label="breadcrumb" class="mb-3">

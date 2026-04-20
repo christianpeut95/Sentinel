@@ -2,33 +2,26 @@
 @model Sentinel.Pages.Patients.MergeModel
 @{
     ViewData["Title"] = "Merge Patients";
-}
-@functions {
-    public string GetCspNonce()
-    {
-        if (HttpContext?.Items?.TryGetValue("csp-nonce", out var nonce) == true && nonce is string nonceStr)
-        {
-            return nonceStr;
-        }
-        return string.Empty;
-    }
+    ViewData["Subtitle"] = "Review and select which values to keep for each field";
 }
 
-<div class="container-fluid mt-4">
-    <div class="row">
-        <div class="col-md-12">
-            <h2>@ViewData["Title"]</h2>
-            <p class="text-muted">
-                Review and select which values to keep for each field. 
-                Patient @Model.SourceId will be deleted and merged into Patient @Model.TargetId.
-            </p>
-            <hr />
-        </div>
+<!-- Page Header -->
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--spacing-6);">
+    <div>
+        <h1 style="font-family: var(--f-sans); font-weight: 600; font-size: 28px; letter-spacing: -0.02em; color: var(--status-outbreak); margin: 0; display: flex; align-items: center; gap: var(--spacing-2);">
+            <i class="bi bi-arrow-left-right" style="color: var(--status-outbreak);"></i>
+            Merge Patients
+        </h1>
+        <p style="color: var(--graphite); margin-top: var(--spacing-2); font-size: 14px;">
+            Patient @Model.SourceId will be deleted and merged into Patient @Model.TargetId.
+        </p>
     </div>
+</div>
 
     @if (!string.IsNullOrEmpty(Model.ErrorMessage))
     {
-        <div class="alert alert-danger" role="alert">
+        <div style="background: #FFE6E6; border: 1px solid #FF9999; border-radius: var(--radius-md); padding: var(--spacing-4); margin-bottom: var(--spacing-5); color: var(--status-outbreak);">
+            <i class="bi bi-exclamation-triangle-fill" style="margin-right: var(--spacing-2);"></i>
             @Model.ErrorMessage
         </div>
     }
@@ -39,25 +32,29 @@
             <input type="hidden" asp-for="SourceId" />
             <input type="hidden" asp-for="TargetId" />
 
-            <div class="alert alert-info mb-4">
+            <div style="background: #E6F3FF; border: 1px solid #99CCFF; border-radius: var(--radius-md); padding: var(--spacing-4); margin-bottom: var(--spacing-5); color: #004080;">
+                <i class="bi bi-info-circle" style="margin-right: var(--spacing-2);"></i>
                 <strong>Tip:</strong> Click on a value to select it. The selected value will be kept in the merged patient record.
             </div>
 
             <!-- Standard Fields -->
-            <div class="card mb-4">
-                <div class="card-header bg-primary text-white">
-                    <h4 class="mb-0">Standard Fields</h4>
+            <div class="sentinel-card" style="margin-bottom: var(--spacing-5);">
+                <div class="sentinel-card-header">
+                    <h3 class="sentinel-card-title">
+                        <i class="bi bi-clipboard-data"></i>
+                        Standard Fields
+                    </h3>
                 </div>
-                <div class="card-body">
-                    <table class="table table-bordered">
+                <div class="sentinel-card-body">
+                    <table class="patient-table" style="border: 1px solid var(--hairline);">
                         <thead>
                             <tr>
-                                <th style="width: 20%">Field</th>
-                                <th style="width: 40%" class="bg-danger bg-opacity-10">
-                                    Source Patient (@Model.SourceId) - Will be Deleted
+                                <th style="width: 20%; font-family: var(--f-mono); font-size: 12px; color: var(--graphite);">Field</th>
+                                <th style="width: 40%; background: #FFE6E6; border-left: 3px solid var(--status-outbreak);">
+                                    <i class="bi bi-exclamation-circle"></i> Source Patient (@Model.SourceId) - Will be Deleted
                                 </th>
-                                <th style="width: 40%" class="bg-success bg-opacity-10">
-                                    Target Patient (@Model.TargetId) - Will be Kept
+                                <th style="width: 40%; background: #E6F7ED; border-left: 3px solid var(--signal-dk);">
+                                    <i class="bi bi-check-circle"></i> Target Patient (@Model.TargetId) - Will be Kept
                                 </th>
                             </tr>
                         </thead>
@@ -188,19 +185,22 @@
             <!-- Custom Fields -->
             @if (Model.Comparison.SourceCustomFields.Any() || Model.Comparison.TargetCustomFields.Any())
             {
-                <div class="card mb-4">
-                    <div class="card-header bg-primary text-white">
-                        <h4 class="mb-0">Custom Fields</h4>
+                <div class="sentinel-card" style="margin-bottom: var(--spacing-5);">
+                    <div class="sentinel-card-header">
+                        <h3 class="sentinel-card-title">
+                            <i class="bi bi-sliders"></i>
+                            Custom Fields
+                        </h3>
                     </div>
-                    <div class="card-body">
-                        <table class="table table-bordered">
+                    <div class="sentinel-card-body">
+                        <table class="patient-table" style="border: 1px solid var(--hairline);">
                             <thead>
                                 <tr>
-                                    <th style="width: 20%">Field</th>
-                                    <th style="width: 40%" class="bg-danger bg-opacity-10">
+                                    <th style="width: 20%; font-family: var(--f-mono); font-size: 12px; color: var(--graphite);">Field</th>
+                                    <th style="width: 40%; background: #FFE6E6; border-left: 3px solid var(--status-outbreak);">
                                         Source Patient (@Model.SourceId)
                                     </th>
-                                    <th style="width: 40%" class="bg-success bg-opacity-10">
+                                    <th style="width: 40%; background: #E6F7ED; border-left: 3px solid var(--signal-dk);">
                                         Target Patient (@Model.TargetId)
                                     </th>
                                 </tr>
@@ -250,41 +250,42 @@
             }
 
             <!-- Summary -->
-            <div class="card mb-4">
-                <div class="card-header bg-info text-white">
-                    <h4 class="mb-0">Additional Information</h4>
+            <div class="sentinel-card" style="margin-bottom: var(--spacing-5);">
+                <div class="sentinel-card-header">
+                    <h3 class="sentinel-card-title">
+                        <i class="bi bi-info-circle"></i>
+                        Additional Information
+                    </h3>
                 </div>
-                <div class="card-body">
+                <div class="sentinel-card-body">
                     <div class="row">
                         <div class="col-md-6">
-                            <p><strong>Source Patient Audit Logs:</strong> @Model.Comparison.SourceAuditLogCount</p>
-                            <p class="text-muted small">All audit logs will be preserved and linked to the target patient.</p>
+                            <p style="font-weight: 500;"><strong>Source Patient Audit Logs:</strong> @Model.Comparison.SourceAuditLogCount</p>
+                            <p style="color: var(--graphite); font-size: 13px;">All audit logs will be preserved and linked to the target patient.</p>
                         </div>
                         <div class="col-md-6">
-                            <p><strong>Target Patient Audit Logs:</strong> @Model.Comparison.TargetAuditLogCount</p>
+                            <p style="font-weight: 500;"><strong>Target Patient Audit Logs:</strong> @Model.Comparison.TargetAuditLogCount</p>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <!-- Actions -->
-            <div class="row">
-                <div class="col-md-12">
-                    <button type="submit" class="btn btn-danger btn-lg" onclick="return confirm('Are you sure you want to merge these patients? This action cannot be undone.');">
-                        <i class="bi bi-check-circle"></i> Confirm Merge
-                    </button>
-                    <a asp-page="./SelectMerge" class="btn btn-secondary btn-lg">
-                        <i class="bi bi-arrow-left"></i> Back
-                    </a>
-                    <a asp-page="./Index" class="btn btn-outline-secondary btn-lg">
-                        Cancel
-                    </a>
-                </div>
-            </div>
-        </form>
-    }
-</div>
-
+                    <!-- Actions -->
+                    <div class="row">
+                        <div class="col-md-12">
+                            <button type="submit" class="btn-sentinel-primary" style="background: var(--status-outbreak); border-color: var(--status-outbreak); padding: 12px 24px; font-size: 16px;" onclick="return confirm('Are you sure you want to merge these patients? This action cannot be undone.');">
+                                <i class="bi bi-check-circle"></i> Confirm Merge
+                            </button>
+                            <a asp-page="./SelectMerge" class="btn-sentinel-secondary" style="padding: 12px 24px; font-size: 16px; margin-left: var(--spacing-2);">
+                                <i class="bi bi-arrow-left"></i> Back
+                            </a>
+                            <a asp-page="./Index" class="btn-sentinel-secondary" style="padding: 12px 24px; font-size: 16px; margin-left: var(--spacing-2);">
+                                Cancel
+                            </a>
+                        </div>
+                    </div>
+                </form>
+            }
 @section Scripts {
     <style>
         .merge-option {

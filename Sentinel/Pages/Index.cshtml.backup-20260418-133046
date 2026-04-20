@@ -1,0 +1,420 @@
+@page
+@model IndexModel
+@{
+    ViewData["Title"] = "Dashboard";
+}
+@functions {
+    public string GetCspNonce()
+    {
+        if (HttpContext?.Items?.TryGetValue("csp-nonce", out var nonce) == true && nonce is string nonceStr)
+        {
+            return nonceStr;
+        }
+        return string.Empty;
+    }
+}
+
+<style>
+.dashboard-container {
+    max-width: 1600px;
+    margin: 0 auto;
+}
+
+/* Section Headers */
+.section-header {
+    margin: 2.5rem 0 1.25rem 0;
+    padding-bottom: 0.75rem;
+    border-bottom: 2px solid #e2e8f0;
+}
+
+.section-header h3 {
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: #2d3748;
+    margin: 0;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.section-header .section-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.25rem;
+    color: white;
+}
+
+/* Compact Action Cards */
+.action-card-compact {
+    background: white;
+    border-radius: 10px;
+    padding: 0.75rem 1rem;
+    text-decoration: none;
+    color: #2d3748;
+    transition: all 0.2s ease;
+    border: 1px solid #e2e8f0;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    font-size: 0.875rem;
+    font-weight: 600;
+}
+
+.action-card-compact:hover {
+    border-color: #667eea;
+    background: #f7fafc;
+    color: #667eea;
+    transform: translateX(4px);
+}
+
+.action-card-compact i {
+    font-size: 1.25rem;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #f7fafc;
+    border-radius: 8px;
+    flex-shrink: 0;
+}
+
+.action-card-compact:hover i {
+    background: #667eea;
+    color: white;
+}
+
+/* Alert Cards */
+.alert-compact {
+    background: white;
+    border-radius: 10px;
+    padding: 0.875rem 1rem;
+    border-left: 3px solid;
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        font-size: 0.875rem;
+    }
+
+    .alert-compact.alert-warning { border-left-color: #ffc107; background: #fff9e6; }
+    .alert-compact.alert-danger { border-left-color: #dc3545; background: #ffe6e9; }
+    .alert-compact.alert-info { border-left-color: #17a2b8; background: #e6f7fa; }
+
+    .alert-compact i {
+        font-size: 1.25rem;
+        flex-shrink: 0;
+    }
+
+    .alert-compact-content {
+        flex: 1;
+    }
+
+    .alert-compact-title {
+        font-weight: 700;
+        margin-bottom: 0.125rem;
+        color: #2d3748;
+    }
+
+    .alert-compact-text {
+        color: #4a5568;
+        margin: 0;
+    }
+
+    /* Quick Actions Grid */
+    .quick-action-card {
+        background: white;
+        border-radius: 12px;
+        padding: 1.5rem;
+        text-align: center;
+        text-decoration: none;
+        color: #2d3748;
+        transition: all 0.2s ease;
+        border: 2px solid #e2e8f0;
+        display: block;
+    }
+
+    .quick-action-card:hover {
+        border-color: #667eea;
+        transform: translateY(-4px);
+        box-shadow: 0 6px 20px rgba(102, 126, 234, 0.15);
+        color: #667eea;
+    }
+
+    .quick-action-card i {
+        font-size: 2.5rem;
+        margin-bottom: 0.75rem;
+        display: block;
+        color: #667eea;
+    }
+
+    .quick-action-card span {
+        font-weight: 600;
+        font-size: 0.9375rem;
+        display: block;
+    }
+
+    /* Alert/Warning Cards */
+    .alert-card {
+        background: white;
+        border-radius: 12px;
+        padding: 1.25rem;
+        border-left: 4px solid;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+        margin-bottom: 1rem;
+    }
+
+    .alert-card.alert-warning-custom {
+        border-left-color: #ffc107;
+        background: #fff3cd;
+    }
+
+    .alert-card.alert-danger-custom {
+        border-left-color: #dc3545;
+        background: #f8d7da;
+    }
+
+    .alert-card h6 {
+        font-weight: 600;
+        margin-bottom: 0.5rem;
+        font-size: 1rem;
+    }
+
+    .alert-card p {
+        margin: 0;
+        font-size: 0.875rem;
+    }
+
+    /* Responsive */
+    .recently-viewed-item {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        padding: 0.625rem 0.75rem;
+        border-radius: 8px;
+        text-decoration: none;
+        color: #2d3748;
+        transition: background 0.15s;
+    }
+    .recently-viewed-item:hover {
+        background: #f7fafc;
+        color: #2d3748;
+    }
+    .recently-viewed-icon {
+        width: 34px;
+        height: 34px;
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1rem;
+        flex-shrink: 0;
+    }
+    .icon-case  { background: #fde8e8; color: #dc3545; }
+    .icon-contact { background: #d1ecf1; color: #17a2b8; }
+    .icon-patient { background: #e8f4e8; color: #28a745; }
+    .outbreak-item {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0.625rem 0.75rem;
+        border-radius: 8px;
+        border: 1px solid #e2e8f0;
+        margin-bottom: 0.5rem;
+    }
+    @@media (max-width: 768px) {
+        .section-header h3 { font-size: 1.25rem; }
+    }
+</style>
+
+<div class="container-fluid dashboard-container">
+<!-- Page Header -->
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h2 class="mb-1 fw-bold">Dashboard</h2>
+        <p class="text-muted mb-0">@DateTime.Now.ToString("dddd, MMMM d, yyyy")</p>
+    </div>
+</div>
+
+<!-- Quick Actions Grid -->
+<div class="row g-3 mb-4">
+    <div class="col-6 col-md-3 col-lg-2">
+        <a asp-page="/Patients/Create" class="quick-action-card">
+            <i class="bi bi-person-plus-fill"></i>
+            <span>New Patient</span>
+        </a>
+    </div>
+    <div class="col-6 col-md-3 col-lg-2">
+        <a asp-page="/Cases/CreateNew" class="quick-action-card">
+            <i class="bi bi-virus"></i>
+            <span>New Case</span>
+        </a>
+    </div>
+    <div class="col-6 col-md-3 col-lg-2">
+        <a asp-page="/Cases/Index" class="quick-action-card">
+            <i class="bi bi-list-ul"></i>
+            <span>View Cases</span>
+        </a>
+    </div>
+    <div class="col-6 col-md-3 col-lg-2">
+        <a asp-page="/Outbreaks/Create" class="quick-action-card">
+            <i class="bi bi-plus-circle-fill"></i>
+            <span>New Outbreak</span>
+        </a>
+    </div>
+    <div class="col-6 col-md-3 col-lg-2">
+        <a asp-page="/Reports/Builder" class="quick-action-card">
+            <i class="bi bi-bar-chart-fill"></i>
+            <span>Build Report</span>
+        </a>
+    </div>
+</div>
+
+<!-- Patient Search -->
+<div class="card mb-4" style="border-radius: 12px; border: 1px solid #e2e8f0;">
+    <div class="card-body">
+        <h6 class="mb-3"><i class="bi bi-search me-2"></i>Quick Patient Search</h6>
+        <form method="get" asp-page="/Patients/Search" class="row g-3">
+            <div class="col-md-4">
+                <input type="text" name="GivenName" class="form-control" placeholder="First name..." />
+            </div>
+            <div class="col-md-4">
+                <input type="text" name="FamilyName" class="form-control" placeholder="Last name..." />
+            </div>
+            <div class="col-md-4">
+                <input type="text" name="Phone" class="form-control" placeholder="Phone..." />
+            </div>
+            <div class="col-12">
+                <button type="submit" class="btn btn-primary btn-sm">
+                    <i class="bi bi-search me-1"></i>Search
+                </button>
+                <a asp-page="/Patients/Search" class="btn btn-outline-secondary btn-sm">
+                    <i class="bi bi-sliders me-1"></i>Advanced
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Recently Viewed, My Outbreaks, My Tasks -->
+<div class="row g-3 mb-4">
+    <div class="col-lg-4">
+        <div class="card h-100" style="border-radius: 12px; border: 1px solid #e2e8f0;">
+            <div class="card-header bg-light border-bottom">
+                <h6 class="mb-0"><i class="bi bi-clock-history me-2"></i>Recently Viewed</h6>
+            </div>
+            <div class="card-body p-2">
+                @if (Model.RecentlyViewed.Any())
+                {
+                    @foreach (var item in Model.RecentlyViewed)
+                    {
+                        var iconClass = item.EntityType == "Case" ? "icon-case" : item.EntityType == "Contact" ? "icon-contact" : "icon-patient";
+                        var iconBi = item.EntityType == "Case" ? "file-medical" : item.EntityType == "Contact" ? "people" : "person";
+                        var timeAgo = DateTime.UtcNow - item.ViewedAt;
+                        var timeAgoText = timeAgo.TotalMinutes < 2 ? "just now" :
+                                         timeAgo.TotalMinutes < 60 ? $"{(int)timeAgo.TotalMinutes}m ago" :
+                                         timeAgo.TotalHours < 24 ? $"{(int)timeAgo.TotalHours}h ago" :
+                                         $"{(int)timeAgo.TotalDays}d ago";
+                        
+                        var pagePath = item.EntityType == "Contact" ? "/Contacts/Details" : 
+                                      item.EntityType == "Case" ? "/Cases/Details" : "/Patients/Details";
+                        
+                        <a asp-page="@pagePath" asp-route-id="@item.EntityId" class="recently-viewed-item">
+                            <div class="recently-viewed-icon @iconClass">
+                                <i class="bi bi-@iconBi"></i>
+                            </div>
+                            <div class="flex-grow-1 overflow-hidden">
+                                <div class="fw-semibold text-truncate" style="font-size: 0.875rem;">@item.DisplayName</div>
+                                <div class="text-muted" style="font-size: 0.75rem;">@item.EntityType · @item.SubText</div>
+                            </div>
+                            <small class="text-muted text-nowrap">@timeAgoText</small>
+                        </a>
+                    }
+                }
+                else
+                {
+                    <div class="text-center py-4 text-muted">
+                        <i class="bi bi-clock" style="font-size: 1.5rem;"></i>
+                        <p class="mt-2 mb-0 small">No recently viewed records</p>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-4">
+        <div class="card h-100" style="border-radius: 12px; border: 1px solid #e2e8f0;">
+            <div class="card-header bg-light border-bottom d-flex justify-content-between align-items-center">
+                <h6 class="mb-0"><i class="bi bi-diagram-3 me-2"></i>My Outbreaks</h6>
+                <a asp-page="/Outbreaks/Index" class="btn btn-sm btn-outline-secondary">View All</a>
+            </div>
+            <div class="card-body p-2">
+                @if (Model.MyOutbreaks.Any())
+                {
+                    @foreach (var ob in Model.MyOutbreaks)
+                    {
+                        <div class="outbreak-item">
+                            <div class="overflow-hidden me-2">
+                                <a asp-page="/Outbreaks/Details" asp-route-id="@ob.Id" class="fw-semibold text-decoration-none text-truncate d-block" style="font-size: 0.875rem;">@ob.Name</a>
+                                <div class="text-muted" style="font-size: 0.75rem;">@(ob.PrimaryDisease?.Name ?? "No disease")</div>
+                            </div>
+                            <span class="badge @(ob.Status.ToString() == "Active" ? "bg-success" : "bg-info") text-nowrap">@ob.Status</span>
+                        </div>
+                    }
+                }
+                else
+                {
+                    <div class="text-center py-4 text-muted">
+                        <i class="bi bi-diagram-3" style="font-size: 1.5rem;"></i>
+                        <p class="mt-2 mb-0 small">Not assigned to any active outbreaks</p>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-4">
+        <div class="card h-100" style="border-radius: 12px; border: 1px solid #e2e8f0;">
+            <div class="card-header bg-light border-bottom d-flex justify-content-between align-items-center">
+                <h6 class="mb-0"><i class="bi bi-list-check me-2"></i>My Tasks</h6>
+                <a asp-page="/Dashboard/MyTasks" class="btn btn-sm btn-outline-secondary">View All</a>
+            </div>
+            <div class="card-body p-2">
+                @if (Model.MyTasks.Any())
+                {
+                    @foreach (var task in Model.MyTasks)
+                    {
+                        <a asp-page="/Cases/Details" asp-route-id="@task.CaseId" class="outbreak-item text-decoration-none" style="cursor: pointer;">
+                            <div class="overflow-hidden me-2">
+                                <div class="fw-semibold text-truncate" style="font-size: 0.875rem;">@task.Title</div>
+                                <div class="text-muted" style="font-size: 0.75rem;">@task.Case?.Patient?.GivenName @task.Case?.Patient?.FamilyName</div>
+                            </div>
+                            <div class="text-end">
+                                <span class="badge @(task.Priority.ToString() switch {
+                                    "Urgent" => "bg-danger",
+                                    "High" => "bg-warning",
+                                    _ => "bg-secondary"
+                                }) text-nowrap d-block mb-1">@task.Priority</span>
+                                @if (task.DueDate.HasValue)
+                                {
+                                    var daysUntilDue = (task.DueDate.Value.Date - DateTime.UtcNow.Date).Days;
+                                    <small class="text-muted">@(daysUntilDue == 0 ? "Today" : daysUntilDue < 0 ? $"{Math.Abs(daysUntilDue)}d overdue" : $"{daysUntilDue}d left")</small>
+                                }
+                            </div>
+                        </a>
+                    }
+                }
+                else
+                {
+                    <div class="text-center py-4 text-muted">
+                        <i class="bi bi-check-circle" style="font-size: 1.5rem;"></i>
+                        <p class="mt-2 mb-0 small">No pending tasks assigned</p>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+</div>

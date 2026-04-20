@@ -272,6 +272,7 @@ public class ReportFieldMetadataService : IReportFieldMetadataService
 
             // Get queryable sub-fields from collection element type
             var subFields = GetCollectionSubFields(targetType);
+            var subFieldsMetadata = GetCollectionSubFieldsMetadata(targetType);
 
             var collectionField = new ReportFieldMetadata
             {
@@ -286,6 +287,7 @@ public class ReportFieldMetadataService : IReportFieldMetadataService
                 NavigationDepth = 1,
                 CollectionElementType = targetType.ClrType.Name,
                 CollectionSubFields = subFields,
+                CollectionSubFieldsMetadata = subFieldsMetadata,
                 Description = $"Query related {collectionName} (e.g., 'Has any {collectionName} where...')",
                 IsFilterable = true,
                 IsGroupable = false,
@@ -326,11 +328,54 @@ public class ReportFieldMetadataService : IReportFieldMetadataService
             var nameProps = navTargetType.GetProperties()
                 .Where(p => p.Name == "Name" || p.Name == "DisplayName" || p.Name == "Code")
                 .Select(p => $"{nav.Name}.{p.Name}");
-            
+
             subFields.AddRange(nameProps);
         }
 
         return subFields;
+    }
+
+    /// <summary>
+    /// Get queryable fields WITH METADATA (including data types) from a collection element type
+    /// </summary>
+    private List<CollectionSubFieldMetadata> GetCollectionSubFieldsMetadata(IEntityType targetType)
+    {
+        var subFieldsMetadata = new List<CollectionSubFieldMetadata>();
+
+        foreach (var prop in targetType.GetProperties())
+        {
+            // Skip shadow properties, PKs, and FKs
+            if (prop.IsShadowProperty() || prop.IsPrimaryKey() || prop.IsForeignKey())
+                continue;
+
+            // Skip audit fields
+            if (prop.Name.StartsWith("Created") || prop.Name.StartsWith("Modified"))
+                continue;
+
+            subFieldsMetadata.Add(new CollectionSubFieldMetadata
+            {
+                FieldPath = prop.Name,
+                Name = GetDisplayName(prop),
+                DataType = GetDataTypeName(prop.ClrType)
+            });
+        }
+
+        // Also include related lookup names (e.g., TestType.Name for LabResults)
+        foreach (var nav in targetType.GetNavigations().Where(n => !n.IsCollection))
+        {
+            var navTargetType = nav.TargetEntityType;
+            foreach (var p in navTargetType.GetProperties().Where(p => p.Name == "Name" || p.Name == "DisplayName" || p.Name == "Code"))
+            {
+                subFieldsMetadata.Add(new CollectionSubFieldMetadata
+                {
+                    FieldPath = $"{nav.Name}.{p.Name}",
+                    Name = $"{GetDisplayName(nav)} - {GetDisplayName(p)}",
+                    DataType = GetDataTypeName(p.ClrType)
+                });
+            }
+        }
+
+        return subFieldsMetadata;
     }
 
     private Type GetClrType(string entityType)

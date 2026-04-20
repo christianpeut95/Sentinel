@@ -87,6 +87,29 @@ public class ReportFilter
     [StringLength(20)]
     public string? CollectionOperator { get; set; }
 
+    /// <summary>
+    /// Indicates whether this filter uses a dynamic date (e.g., @Today, @Yesterday, @Past7Days)
+    /// instead of a static date value
+    /// </summary>
+    public bool IsDynamicDate { get; set; }
+
+    /// <summary>
+    /// Dynamic date type: Today, Yesterday, Tomorrow, StartOfWeek, EndOfWeek, StartOfMonth, EndOfMonth, etc.
+    /// </summary>
+    [StringLength(50)]
+    public string? DynamicDateType { get; set; }
+
+    /// <summary>
+    /// Optional offset for dynamic dates (e.g., -7 for "Past 7 Days", +14 for "Next 14 Days")
+    /// </summary>
+    public int? DynamicDateOffset { get; set; }
+
+    /// <summary>
+    /// Unit for dynamic date offset: Days, Weeks, Months, Years
+    /// </summary>
+    [StringLength(20)]
+    public string? DynamicDateOffsetUnit { get; set; }
+
     // Navigation property
     public ReportDefinition ReportDefinition { get; set; } = null!;
 }

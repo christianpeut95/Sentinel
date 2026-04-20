@@ -4,7 +4,7 @@
 
 @{
     ViewData["Title"] = "Patients";
-    Layout = "~/Pages/Shared/_Layout.cshtml";
+    ViewData["Subtitle"] = "All registered patients in the surveillance system";
 }
 @functions {
     public string GetCspNonce()
@@ -18,202 +18,97 @@
 }
 
 <style>
-    /* Patients Page - Blue/Teal Theme - More Compact */
-    .page-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 1rem;
-    }
-
-    .page-title {
-        font-size: 24px;
-        font-weight: 600;
-        color: #2d3748;
-        display: flex;
-        align-items: center;
-        gap: 0.4rem;
-    }
-
-    .page-title i {
-        color: #0284c7; /* Blue icon for Patients */
-        font-size: 26px;
-    }
-
-    .page-subtitle {
-        font-size: 13px;
-        color: #718096;
-        font-weight: 400;
-        margin-top: 0.15rem;
-    }
-
-    .btn-hero {
-        background: #0284c7; /* Blue for Patients */
-        color: white;
-        font-weight: 600;
-        border: none;
-        padding: 0.5rem 1rem;
-        border-radius: 8px;
-        transition: all 0.2s;
-        text-decoration: none;
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-        font-size: 14px;
-    }
-
-    .btn-hero:hover {
-        background: #0369a1;
-        transform: translateY(-1px);
-        box-shadow: 0 3px 10px rgba(2, 132, 199, 0.3);
-        color: white;
-    }
-
-    .btn-secondary-hero {
-        background: white;
-        color: #0284c7;
-        font-weight: 600;
-        border: 1px solid #7dd3fc;
-        padding: 0.5rem 1rem;
-        border-radius: 8px;
-        transition: all 0.2s;
-        text-decoration: none;
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-        font-size: 14px;
-    }
-
-    .btn-secondary-hero:hover {
-        background: #f0f9ff;
-        border-color: #0284c7;
-        color: #0284c7;
-        box-shadow: 0 2px 6px rgba(2, 132, 199, 0.15);
-    }
-
-    /* Stats Bar - Compact */
-    .stats-bar {
+    /* Patients Page - Sentinel Theme */
+    .stats-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-        gap: 0.75rem;
-        margin-bottom: 1rem;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: var(--spacing-4);
+        margin-bottom: var(--spacing-6);
     }
 
-    .stat-item {
-        background: white;
-        border-radius: 8px;
-        padding: 0.75rem 1rem;
-        border-left: 3px solid #0284c7;
-        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
-        border-top: 1px solid rgba(0, 0, 0, 0.06);
-        border-right: 1px solid rgba(0, 0, 0, 0.06);
-        border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+    .stat-card {
+        background: var(--chalk);
+        border: 1px solid var(--hairline);
+        border-radius: var(--radius-md);
+        padding: var(--spacing-4);
+        border-left: 3px solid var(--signal-dk);
     }
 
     .stat-value {
-        font-size: 1.5rem;
-        font-weight: 700;
-        color: #0284c7;
-        margin-bottom: 0.1rem;
-        line-height: 1;
+        font-size: 28px;
+        font-weight: 600;
+        color: var(--signal-dk);
+        margin-bottom: var(--spacing-1);
+        font-family: var(--f-mono);
     }
 
     .stat-label {
-        font-size: 0.8rem;
-        color: #718096;
-        font-weight: 500;
+        font-size: 12px;
+        color: var(--graphite);
+        font-family: var(--f-mono);
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
     }
 
-    /* Table Card - Compact */
-    .table-card {
-        background: white;
-        border-radius: 10px;
-        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
-        border: 1px solid rgba(0, 0, 0, 0.06);
-        overflow: hidden;
-    }
-
-    .table-card-header {
-        padding: 0.75rem 1rem;
-        border-bottom: 1px solid #e2e8f0;
-        background: linear-gradient(to right, #f0f9ff, white);
-    }
-
-    .table-card-title {
-        margin: 0;
-        font-size: 1rem;
-        font-weight: 600;
-        color: #2d3748;
-        display: flex;
-        align-items: center;
-        gap: 0.4rem;
-    }
-
-    .table-card-title i {
-        color: #0284c7;
-    }
-
-    /* Compact Table */
-    .apple-table {
+    .patient-table {
         width: 100%;
         border-collapse: collapse;
         font-size: 13px;
     }
 
-    .apple-table thead {
-        background: #f0f9ff;
+    .patient-table thead {
+        background: var(--signal-lt);
     }
 
-    .apple-table th {
-        padding: 0.5rem 0.75rem;
+    .patient-table th {
+        padding: var(--spacing-3);
         text-align: left;
         font-weight: 600;
         font-size: 11px;
-        color: #075985;
-        border-bottom: 1px solid #7dd3fc;
+        color: var(--forest);
+        border-bottom: 2px solid var(--signal-dk);
         text-transform: uppercase;
-        letter-spacing: 0.3px;
+        letter-spacing: 0.05em;
+        font-family: var(--f-mono);
     }
 
-    .apple-table td {
-        padding: 0.6rem 0.75rem;
-        border-bottom: 1px solid #e2e8f0;
+    .patient-table td {
+        padding: var(--spacing-3);
+        border-bottom: 1px solid var(--hairline);
         vertical-align: middle;
     }
 
-    .apple-table tbody tr {
-        transition: background 0.15s;
+    .patient-table tbody tr {
+        transition: background var(--transition-normal);
         cursor: pointer;
     }
 
-    .apple-table tbody tr:hover {
-        background: #f0f9ff;
+    .patient-table tbody tr:hover {
+        background: var(--signal-lt);
     }
 
-    .apple-table tbody tr:last-child td {
+    .patient-table tbody tr:last-child td {
         border-bottom: none;
     }
 
-    /* Friendly ID Badge - Compact */
     .friendly-id {
-        font-family: 'SF Mono', 'Monaco', 'Courier New', monospace;
+        font-family: var(--f-mono);
         font-weight: 600;
-        color: #0284c7;
-        background: #f0f9ff;
-        padding: 2px 6px;
-        border-radius: 4px;
+        color: var(--signal-dk);
+        background: var(--signal-lt);
+        padding: 4px 8px;
+        border-radius: var(--radius-sm);
         font-size: 11px;
         display: inline-block;
-        border: 1px solid #7dd3fc;
+        border: 1px solid var(--signal);
     }
 
-    /* Gender Badge - Compact */
     .gender-badge {
         display: inline-flex;
         align-items: center;
-        gap: 3px;
-        padding: 2px 6px;
-        border-radius: 6px;
+        gap: 4px;
+        padding: 4px 8px;
+        border-radius: var(--radius-sm);
         font-size: 11px;
         font-weight: 500;
     }
@@ -233,111 +128,76 @@
         color: #8b5cf6;
     }
 
-    /* Action Buttons - Compact */
-    .btn-icon {
-        width: 26px;
-        height: 26px;
-        border-radius: 6px;
-        border: 1px solid #e2e8f0;
-        background: white;
-        color: #4a5568;
+    .btn-icon-sm {
+        width: 28px;
+        height: 28px;
+        border-radius: var(--radius-sm);
+        border: 1px solid var(--hairline);
+        background: var(--chalk);
+        color: var(--graphite);
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        transition: all 0.15s;
+        transition: all var(--transition-normal);
         text-decoration: none;
-        margin-right: 3px;
+        margin-right: 4px;
         font-size: 12px;
     }
 
-    .btn-icon:hover {
-        background: #f0f9ff;
-        border-color: #7dd3fc;
-        color: #0284c7;
+    .btn-icon-sm:hover {
+        background: var(--signal-lt);
+        border-color: var(--signal-dk);
+        color: var(--signal-dk);
         transform: translateY(-1px);
     }
 
-    /* Empty State - Compact */
-    .empty-state {
-        background: white;
-        border-radius: 10px;
-        padding: 2rem 1.5rem;
-        text-align: center;
-        border: 1px solid rgba(0, 0, 0, 0.06);
-        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
-    }
-
-    .empty-state i {
-        font-size: 2.5rem;
-        color: #7dd3fc;
-        margin-bottom: 0.75rem;
-    }
-
-    .empty-state h3 {
-        font-size: 1.1rem;
-        font-weight: 600;
-        color: #2d3748;
-        margin-bottom: 0.4rem;
-    }
-
-    .empty-state p {
-        color: #718096;
-        margin-bottom: 1rem;
-        font-size: 14px;
-    }
-
-    /* Breadcrumb - Compact */
-    .breadcrumb {
-        background: transparent;
-        padding: 0;
-        margin-bottom: 1rem;
-        font-size: 13px;
-    }
-
-    .breadcrumb-item a {
-        color: #718096;
+    .sortable-header {
+        cursor: pointer;
+        user-select: none;
+        transition: color var(--transition-normal);
+        display: flex;
+        align-items: center;
+        gap: 4px;
         text-decoration: none;
+        color: inherit;
     }
 
-    .breadcrumb-item a:hover {
-        color: #2d3748;
+    .sortable-header:hover {
+        color: var(--signal-dk) !important;
     }
 
-    .breadcrumb-item.active {
-        color: #0284c7;
-        font-weight: 500;
+    .sort-icon {
+        font-size: 10px;
+        color: var(--hairline);
+        transition: color var(--transition-normal);
     }
 
-    /* Link Styling */
-    .patient-link {
-        color: #2d3748;
-        text-decoration: none;
-        font-weight: 500;
+    .sortable-header:hover .sort-icon {
+        color: var(--signal-dk);
     }
 
-    .patient-link:hover {
-        color: #0284c7;
-        text-decoration: underline;
+    .sort-icon.active {
+        color: var(--signal-dk);
     }
 
-    /* Pagination - Compact */
-    .pagination-container {
+    .pagination-bar {
         display: flex;
         justify-content: space-between;
         align-items: center;
-        padding: 0.75rem 1rem;
-        border-top: 1px solid #e2e8f0;
-        background: #f0f9ff;
+        padding: var(--spacing-4);
+        border-top: 1px solid var(--hairline);
+        background: var(--signal-lt);
     }
 
     .pagination-info {
         font-size: 12px;
-        color: #718096;
+        color: var(--graphite);
+        font-family: var(--f-mono);
     }
 
     .pagination {
         display: flex;
-        gap: 3px;
+        gap: 4px;
         list-style: none;
         margin: 0;
         padding: 0;
@@ -348,166 +208,141 @@
     }
 
     .pagination .page-link {
-        padding: 5px 10px;
-        border-radius: 6px;
-        border: 1px solid #7dd3fc;
-        background: white;
-        color: #0284c7;
+        padding: 6px 12px;
+        border-radius: var(--radius-sm);
+        border: 1px solid var(--hairline);
+        background: var(--chalk);
+        color: var(--forest);
         text-decoration: none;
         font-size: 12px;
         font-weight: 500;
-        transition: all 0.15s;
+        transition: all var(--transition-normal);
         display: flex;
         align-items: center;
         justify-content: center;
-        min-width: 30px;
+        min-width: 32px;
     }
 
     .pagination .page-link:hover {
-        background: #f0f9ff;
-        border-color: #0284c7;
+        background: var(--signal-lt);
+        border-color: var(--signal-dk);
+        color: var(--signal-dk);
     }
 
     .pagination .page-item.active .page-link {
-        background: #0284c7;
-        color: white;
-        border-color: #0284c7;
+        background: var(--signal-dk);
+        color: var(--chalk);
+        border-color: var(--signal-dk);
     }
 
     .pagination .page-item.disabled .page-link {
-        background: #f7fafc;
-        color: #cbd5e0;
-        border-color: #e2e8f0;
+        background: var(--bone);
+        color: var(--hairline);
+        border-color: var(--hairline);
         cursor: not-allowed;
     }
 
-    /* Sortable Column Headers */
-    .sortable-header {
-        cursor: pointer;
-        user-select: none;
-        transition: color 0.15s;
-        display: flex;
-        align-items: center;
-        gap: 4px;
+    .patient-link {
+        color: var(--forest);
         text-decoration: none;
-        color: inherit;
+        font-weight: 500;
     }
 
-    .sortable-header:hover {
-        color: #0284c7 !important;
+    .patient-link:hover {
+        color: var(--signal-dk);
+        text-decoration: underline;
     }
 
-    .sort-icon {
-        font-size: 10px;
-        color: #cbd5e0;
-        transition: color 0.15s;
-    }
-
-    .sortable-header:hover .sort-icon {
-        color: #0284c7;
-    }
-
-    .sort-icon.active {
-        color: #0284c7;
-    }
-
-    /* Responsive */
     @@media (max-width: 768px) {
-        .page-header {
-            flex-direction: column;
-            align-items: flex-start;
-            gap: 0.75rem;
-        }
-
-        .stats-bar {
+        .stats-grid {
             grid-template-columns: 1fr;
         }
 
-        .pagination-container {
+        .pagination-bar {
             flex-direction: column;
-            gap: 0.75rem;
+            gap: var(--spacing-3);
             align-items: flex-start;
         }
     }
 </style>
 
-<nav aria-label="breadcrumb">
-    <ol class="breadcrumb">
-        <li class="breadcrumb-item"><a asp-page="/Index">Home</a></li>
-        <li class="breadcrumb-item active" aria-current="page">Patients</li>
-    </ol>
-</nav>
-
-<div class="page-header">
-    <div>
-        <h1 class="page-title">
-            <i class="bi bi-person-circle"></i>
-            Patients
-        </h1>
-        <p class="page-subtitle">All registered patients in the surveillance system</p>
-    </div>
-    <div class="d-flex gap-2 flex-wrap">
-        <a asp-page="Search" class="btn-secondary-hero">
-            <i class="bi bi-search"></i>
-            Advanced Search
-        </a>
-        <a asp-page="Create" class="btn-hero">
-            <i class="bi bi-plus-circle"></i>
-            Add New Patient
-        </a>
-    </div>
-</div>
+        <!-- Page Header -->
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--spacing-6);">
+            <div>
+                <h1 style="font-family: var(--f-sans); font-weight: 600; font-size: 28px; letter-spacing: -0.02em; color: var(--forest); margin: 0; display: flex; align-items: center; gap: var(--spacing-2);">
+                    <i class="bi bi-person-circle" style="color: var(--signal-dk);"></i>
+                    Patients
+                </h1>
+            </div>
+            <div class="d-flex gap-2 flex-wrap">
+                <a asp-page="Search" class="btn-sentinel-secondary">
+                    <i class="bi bi-search"></i>
+                    Advanced Search
+                </a>
+                <a asp-page="Create" class="btn-sentinel-primary">
+                    <i class="bi bi-plus-circle"></i>
+                    Add New Patient
+                </a>
+            </div>
+        </div>
 
 <!-- Quick Search -->
-<div class="table-card" style="margin-bottom: 1rem;">
-    <div class="table-card-header">
-        <h2 class="table-card-title">
+<div class="sentinel-card" style="margin-bottom: var(--spacing-5);">
+    <div class="sentinel-card-header">
+        <h2 class="sentinel-card-title">
             <i class="bi bi-funnel"></i>
             Quick Search & Filters
         </h2>
     </div>
-    <div style="padding: 0.75rem 1rem;">
-        <form method="get" class="row g-2">
+    <div style="padding: var(--spacing-4);">
+        <form method="get" class="row g-3">
             <div class="col-md-6">
-                <div class="input-group input-group-sm">
-                    <span class="input-group-text"><i class="bi bi-search"></i></span>
-                    <input type="text" class="form-control" name="SearchTerm" value="@Model.SearchTerm" 
+                <div class="sentinel-form-group">
+                    <label class="sentinel-label">Search</label>
+                    <input type="text" class="sentinel-input" name="SearchTerm" value="@Model.SearchTerm" 
                            placeholder="Search by name, patient ID, or city..." />
                 </div>
             </div>
             <div class="col-md-4">
-                <select class="form-select form-select-sm" name="FilterBy">
-                    <option value="" selected="@(string.IsNullOrEmpty(Model.FilterBy))">All Patients</option>
-                    <option value="Recent" selected="@(Model.FilterBy == "Recent")">Recent (7 days)</option>
-                    <option value="Today" selected="@(Model.FilterBy == "Today")">Today</option>
-                    <option value="ThisMonth" selected="@(Model.FilterBy == "ThisMonth")">This Month</option>
-                    <option value="Geocoded" selected="@(Model.FilterBy == "Geocoded")">Geocoded</option>
-                    <option value="NotGeocoded" selected="@(Model.FilterBy == "NotGeocoded")">Not Geocoded</option>
-                    <option value="Deceased" selected="@(Model.FilterBy == "Deceased")">Deceased</option>
-                </select>
+                <div class="sentinel-form-group">
+                    <label class="sentinel-label">Filter By</label>
+                    <select class="sentinel-input" name="FilterBy">
+                        <option value="" selected="@(string.IsNullOrEmpty(Model.FilterBy))">All Patients</option>
+                        <option value="Recent" selected="@(Model.FilterBy == "Recent")">Recent (7 days)</option>
+                        <option value="Today" selected="@(Model.FilterBy == "Today")">Today</option>
+                        <option value="ThisMonth" selected="@(Model.FilterBy == "ThisMonth")">This Month</option>
+                        <option value="Geocoded" selected="@(Model.FilterBy == "Geocoded")">Geocoded</option>
+                        <option value="NotGeocoded" selected="@(Model.FilterBy == "NotGeocoded")">Not Geocoded</option>
+                        <option value="Deceased" selected="@(Model.FilterBy == "Deceased")">Deceased</option>
+                    </select>
+                </div>
             </div>
-            <div class="col-md-2">
-                <button type="submit" class="btn btn-sm btn-primary w-100">Apply</button>
+            <div class="col-md-2 d-flex align-items-end">
+                <div class="sentinel-form-group" style="width: 100%;">
+                    <button type="submit" class="btn-sentinel-primary w-100">
+                        <i class="bi bi-search"></i> Apply
+                    </button>
+                </div>
             </div>
         </form>
     </div>
 </div>
 
 <!-- Stats Bar -->
-<div class="stats-bar">
-    <div class="stat-item">
+<div class="stats-grid">
+    <div class="stat-card">
         <div class="stat-value">@Model.TotalCount</div>
         <div class="stat-label">Total Patients</div>
     </div>
-    <div class="stat-item">
+    <div class="stat-card">
         <div class="stat-value">@Model.Patients.Count(p => p.Gender?.Name == "Male")</div>
         <div class="stat-label">Male (Page)</div>
     </div>
-    <div class="stat-item">
+    <div class="stat-card">
         <div class="stat-value">@Model.Patients.Count(p => p.Gender?.Name == "Female")</div>
         <div class="stat-label">Female (Page)</div>
     </div>
-    <div class="stat-item">
+    <div class="stat-card">
         <div class="stat-value">@Model.Patients.Count(p => p.IsDeceased)</div>
         <div class="stat-label">Deceased (Page)</div>
     </div>
@@ -515,11 +350,11 @@
 
 @if (Model.TotalCount == 0)
 {
-    <div class="empty-state">
-        <i class="bi bi-person-circle"></i>
-        <h3>No Patients Yet</h3>
-        <p>Add your first patient to the surveillance system.</p>
-        <a asp-page="Create" class="btn-hero">
+    <div class="sentinel-card" style="text-align: center; padding: var(--spacing-10);">
+        <i class="bi bi-person-circle" style="font-size: 48px; color: var(--signal); opacity: 0.3;"></i>
+        <h3 style="margin-top: var(--spacing-4); font-weight: 600; color: var(--forest);">No Patients Yet</h3>
+        <p style="color: var(--graphite); margin-bottom: var(--spacing-5);">Add your first patient to the surveillance system.</p>
+        <a asp-page="Create" class="btn-sentinel-primary">
             <i class="bi bi-plus-circle"></i>
             Add First Patient
         </a>
@@ -527,15 +362,15 @@
 }
 else
 {
-    <div class="table-card">
-        <div class="table-card-header">
-            <h2 class="table-card-title">
+    <div class="sentinel-card">
+        <div class="sentinel-card-header">
+            <h2 class="sentinel-card-title">
                 <i class="bi bi-list-ul"></i>
                 All Patients (@Model.TotalCount total, showing @Model.Patients.Count())
             </h2>
         </div>
         <div class="table-responsive">
-            <table class="apple-table">
+            <table class="patient-table">
                 <thead>
                     <tr>
                         <th style="width: 90px;">
@@ -610,7 +445,7 @@ else
                                 }
                                 else
                                 {
-                                    <span style="color: #94a3b8; font-style: italic;">—</span>
+                                    <span style="color: var(--graphite); font-style: italic;">—</span>
                                 }
                             </td>
                             <td>@(patient.City ?? "—")</td>
@@ -619,10 +454,10 @@ else
                                 @(patient.EmailAddress ?? "—")
                             </td>
                             <td style="text-align: center;" onclick="event.stopPropagation()">
-                                <a asp-page="./Details" asp-route-id="@patient.Id" class="btn-icon" title="View Details">
+                                <a asp-page="./Details" asp-route-id="@patient.Id" class="btn-icon-sm" title="View Details">
                                     <i class="bi bi-eye"></i>
                                 </a>
-                                <a asp-page="./Edit" asp-route-id="@patient.Id" class="btn-icon" title="Edit">
+                                <a asp-page="./Edit" asp-route-id="@patient.Id" class="btn-icon-sm" title="Edit">
                                     <i class="bi bi-pencil"></i>
                                 </a>
                             </td>
@@ -631,11 +466,11 @@ else
                 </tbody>
             </table>
         </div>
-        
+
         <!-- Pagination -->
         @if (Model.TotalPages > 1)
         {
-            <div class="pagination-container">
+            <div class="pagination-bar">
                 <div class="pagination-info">
                     Showing @((Model.CurrentPage - 1) * Model.PageSize + 1) - @(Math.Min(Model.CurrentPage * Model.PageSize, Model.TotalCount)) of @Model.TotalCount patients
                 </div>

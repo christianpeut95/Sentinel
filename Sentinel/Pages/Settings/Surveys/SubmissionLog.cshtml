@@ -4,16 +4,11 @@
 
 @{
     ViewData["Title"] = "Survey Activity Log";
+    ViewData["Subtitle"] = "Track survey submissions and outcomes";
+    Layout = "~/Pages/Shared/_LayoutSentinel.cshtml";
 }
 
 @functions {
-    public string GetCspNonce()
-    {
-        if (HttpContext?.Items?.TryGetValue("csp-nonce", out var nonce) == true && nonce is string nonceStr)
-            return nonceStr;
-        return string.Empty;
-    }
-
     public static (string badgeCss, string icon, string label) GetOutcomeDisplay(SurveySubmissionOutcome outcome)
     {
         return outcome switch
@@ -625,7 +620,7 @@
 
 </div>
 
-<style nonce="@GetCspNonce()">
+<style>
     .summary-card-hover { transition: box-shadow 0.2s, transform 0.2s; }
     .summary-card-hover:hover { box-shadow: 0 4px 16px rgba(0,0,0,.1) !important; transform: translateY(-2px); }
     .table > tbody > tr:last-child > td { border-bottom: none; }

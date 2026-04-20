@@ -41,7 +41,17 @@ public class ReportBuilderApiController : ControllerBase
             Console.WriteLine($"============ PREVIEW REQUEST ============");
             Console.WriteLine($"Entity Type: {request?.EntityType}");
             Console.WriteLine($"Fields Count: {request?.Fields?.Count}");
+            Console.WriteLine($"Filters Count: {request?.Filters?.Count}");
             Console.WriteLine($"Collection Queries Count: {request?.CollectionQueries?.Count}");
+
+            // Log dynamic date filters if any
+            if (request?.Filters != null)
+            {
+                foreach (var filter in request.Filters.Where(f => f.IsDynamicDate))
+                {
+                    Console.WriteLine($"[DYNAMIC DATE FILTER] Field: {filter.FieldPath}, Type: {filter.DynamicDateType}, Offset: {filter.DynamicDateOffset} {filter.DynamicDateOffsetUnit}, Operator: {filter.Operator}");
+                }
+            }
             Console.WriteLine($"==========================================");
 
             // Validate request
@@ -88,7 +98,11 @@ public class ReportBuilderApiController : ControllerBase
                     CustomFieldDefinitionId = f.CustomFieldDefinitionId,
                     LogicOperator = f.LogicOperator,
                     GroupId = f.GroupId,
-                    GroupLogicOperator = f.GroupLogicOperator
+                    GroupLogicOperator = f.GroupLogicOperator,
+                    IsDynamicDate = f.IsDynamicDate,
+                    DynamicDateType = f.DynamicDateType,
+                    DynamicDateOffset = f.DynamicDateOffset,
+                    DynamicDateOffsetUnit = f.DynamicDateOffsetUnit
                 }).ToList() ?? new List<ReportFilter>()
             };
 
@@ -261,7 +275,11 @@ public class ReportBuilderApiController : ControllerBase
                     CustomFieldDefinitionId = filter.CustomFieldDefinitionId,
                     LogicOperator = filter.LogicOperator,
                     GroupId = filter.GroupId,
-                    GroupLogicOperator = filter.GroupLogicOperator
+                    GroupLogicOperator = filter.GroupLogicOperator,
+                    IsDynamicDate = filter.IsDynamicDate,
+                    DynamicDateType = filter.DynamicDateType,
+                    DynamicDateOffset = filter.DynamicDateOffset,
+                    DynamicDateOffsetUnit = filter.DynamicDateOffsetUnit
                 });
             }
 
@@ -391,4 +409,10 @@ public class ReportFilterDto
     public string LogicOperator { get; set; } = "AND";
     public int? GroupId { get; set; }
     public string GroupLogicOperator { get; set; } = "AND";
+
+    // Dynamic date properties
+    public bool IsDynamicDate { get; set; }
+    public string? DynamicDateType { get; set; }
+    public int? DynamicDateOffset { get; set; }
+    public string? DynamicDateOffsetUnit { get; set; }
 }

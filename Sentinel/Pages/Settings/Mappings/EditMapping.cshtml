@@ -3,16 +3,8 @@
 @model Sentinel.Pages.Settings.Mappings.EditMappingModel
 @{
     ViewData["Title"] = Model.MappingId.HasValue ? "Edit Mapping" : "Add Mapping";
-}
-@functions {
-    public string GetCspNonce()
-    {
-        if (HttpContext?.Items?.TryGetValue("csp-nonce", out var nonce) == true && nonce is string nonceStr)
-        {
-            return nonceStr;
-        }
-        return string.Empty;
-    }
+    ViewData["Subtitle"] = "Configure survey response to database field mapping";
+    Layout = "~/Pages/Shared/_LayoutSentinel.cshtml";
 }
 
 <nav aria-label="breadcrumb" class="mb-3">

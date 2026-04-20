@@ -3,6 +3,8 @@
 
 @{
     ViewData["Title"] = "Disease Details";
+    ViewData["Subtitle"] = Model.Disease != null ? Model.Disease.Name : "Disease Details";
+    Layout = "~/Pages/Shared/_LayoutSentinel.cshtml";
 }
 
 <nav aria-label="breadcrumb" class="mb-3">

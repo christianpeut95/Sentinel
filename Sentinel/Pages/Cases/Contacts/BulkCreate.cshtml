@@ -26,7 +26,7 @@
     </nav>
 
     <!-- Page Header -->
-    <div class="card mb-4" style="border-left: 4px solid #7c3aed;">
+    <div class="card mb-4" style="border-left: 4px solid var(--signal-dk);">
         <div class="card-body">
             <h1 class="h3 mb-3"><i class="bi bi-people-fill me-2"></i>Bulk Contact Creation</h1>
             
@@ -86,9 +86,9 @@
         <!-- Step 1: Import Contacts -->
 
         <!-- Outbreak / Contact Tracing Event Linking -->
-        <div class="card mb-4 border-warning">
-            <div class="card-header bg-warning bg-opacity-10">
-                <h5 class="mb-0"><i class="bi bi-diagram-3 me-2 text-warning"></i>Link to Outbreak <span class="badge bg-secondary fw-normal fs-6 ms-1">Optional</span></h5>
+        <div class="card mb-4" style="border-left: 3px solid var(--status-outbreak);">
+            <div class="card-header" style="background: var(--bone); border-bottom: 1px solid var(--signal-dk);">
+                <h5 class="mb-0"><i class="bi bi-diagram-3 me-2" style="color: var(--status-outbreak);"></i>Link to Outbreak <span class="badge bg-secondary fw-normal fs-6 ms-1">Optional</span></h5>
             </div>
             <div class="card-body">
                 <p class="text-muted mb-3">Optionally link all created contacts to an active outbreak investigation. This will add each contact to the outbreak's case list and log a timeline event.</p>
@@ -117,7 +117,7 @@
             <!-- CSV Import -->
             <div class="col-lg-6">
                 <div class="card h-100">
-                    <div class="card-header bg-primary text-white">
+                    <div class="card-header" style="background: var(--signal-lt); color: var(--forest);">
                         <h5 class="mb-0"><i class="bi bi-file-earmark-spreadsheet me-2"></i>Option 1: Import CSV File</h5>
                     </div>
                     <div class="card-body">
@@ -150,7 +150,7 @@
                                 <input type="file" class="form-control" name="csvFile" accept=".csv" required />
                             </div>
 
-                            <button type="submit" class="btn btn-primary">
+                            <button type="submit" class="btn" style="background: var(--signal-dk); color: white; border: none;" onmouseover="this.style.background='var(--forest)'" onmouseout="this.style.background='var(--signal-dk)'">
                                 <i class="bi bi-upload me-2"></i>Upload and Review
                             </button>
                         </form>
@@ -158,7 +158,7 @@
                         <hr class="my-3" />
 
                         <div class="text-center">
-                            <a href="/sample-contact-import.csv" class="btn btn-sm btn-outline-secondary">
+                            <a href="/sample-contact-import.csv" class="btn btn-sm" style="background: var(--chalk); border: 1px solid var(--hairline); color: var(--forest);" onmouseover="this.style.background='var(--bone)'" onmouseout="this.style.background='var(--chalk)'">
                                 <i class="bi bi-download me-2"></i>Download Sample CSV Template
                             </a>
                         </div>
@@ -169,14 +169,14 @@
             <!-- Manual Entry -->
             <div class="col-lg-6">
                 <div class="card h-100">
-                    <div class="card-header bg-success text-white">
+                    <div class="card-header" style="background: var(--signal-lt); color: var(--forest);">
                         <h5 class="mb-0"><i class="bi bi-plus-circle me-2"></i>Option 2: Manual Entry</h5>
                     </div>
                     <div class="card-body">
                         <p>Add contacts one at a time using the standard contact creation workflow.</p>
                         
                         <div class="d-grid gap-2">
-                            <a asp-page="/Contacts/CreateNewContact" class="btn btn-success">
+                            <a asp-page="/Contacts/CreateNewContact" class="btn" style="background: var(--signal-dk); color: white; border: none; text-decoration: none;" onmouseover="this.style.background='var(--forest)'" onmouseout="this.style.background='var(--signal-dk)'">
                                 <i class="bi bi-person-plus me-2"></i>Create Single Contact
                             </a>
                         </div>
@@ -217,7 +217,7 @@
 
             <!-- Summary Card -->
             <div class="card mb-4">
-                <div class="card-header bg-info text-white">
+                <div class="card-header" style="background: var(--signal-lt); color: var(--forest);">
                     <h5 class="mb-0"><i class="bi bi-clipboard-check me-2"></i>Review Contacts Before Creating</h5>
                 </div>
                 <div class="card-body">
@@ -229,20 +229,20 @@
                             </div>
                         </div>
                         <div class="col-md-2">
-                            <div class="text-center p-3 bg-primary bg-opacity-10 rounded">
-                                <h3 class="mb-0 text-primary" id="includedCount">@Model.ContactList.Count(c => c.IncludeInImport)</h3>
+                            <div class="text-center p-3 rounded" style="background: var(--signal-lt);">
+                                <h3 class="mb-0" style="color: var(--signal-dk);" id="includedCount">@Model.ContactList.Count(c => c.IncludeInImport)</h3>
                                 <small class="text-muted">Will Be Created</small>
                             </div>
                         </div>
                         <div class="col-md-2">
-                            <div class="text-center p-3 bg-success bg-opacity-10 rounded">
-                                <h3 class="mb-0 text-success">@Model.ContactList.Count(c => !c.IsPotentialDuplicate && c.IncludeInImport)</h3>
+                            <div class="text-center p-3 rounded" style="background: var(--signal-lt);">
+                                <h3 class="mb-0" style="color: var(--signal-dk);">@Model.ContactList.Count(c => !c.IsPotentialDuplicate && c.IncludeInImport)</h3>
                                 <small class="text-muted">New Contacts</small>
                             </div>
                         </div>
                         <div class="col-md-2">
-                            <div class="text-center p-3 bg-warning bg-opacity-10 rounded">
-                                <h3 class="mb-0 text-warning">@Model.ContactList.Count(c => c.IsPotentialDuplicate)</h3>
+                            <div class="text-center p-3 rounded" style="background: var(--bone);">
+                                <h3 class="mb-0" style="color: var(--status-outbreak);">@Model.ContactList.Count(c => c.IsPotentialDuplicate)</h3>
                                 <small class="text-muted">Duplicates</small>
                             </div>
                         </div>
@@ -406,7 +406,7 @@
                             <i class="bi bi-arrow-left me-2"></i>Cancel & Start Over
                         </a>
 
-                        <button type="submit" class="btn btn-primary btn-lg" id="confirmButton">
+                        <button type="submit" class="btn btn-lg" style="background: var(--signal-dk); color: white; border: none;" id="confirmButton" onmouseover="this.style.background='var(--forest)'" onmouseout="this.style.background='var(--signal-dk)'">
                             <i class="bi bi-check-circle me-2"></i>
                             <span id="confirmText">Confirm & Create <span id="confirmCount">@Model.ContactList.Count(c => c.IncludeInImport)</span> Contacts</span>
                         </button>
@@ -427,7 +427,7 @@
                 <div class="modal fade" id="duplicateModal-@i" tabindex="-1">
                     <div class="modal-dialog modal-lg">
                         <div class="modal-content">
-                            <div class="modal-header bg-warning text-dark">
+                            <div class="modal-header" style="background: var(--bone); color: var(--forest); border-bottom: 2px solid var(--status-outbreak);">
                                 <h5 class="modal-title">Duplicate Detection: @contact.FirstName @contact.LastName</h5>
                                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                             </div>
@@ -454,7 +454,7 @@
                                                 <p><strong>DOB:</strong> @match.DateOfBirth?.ToString("dd MMM yyyy")</p>
                                                 <p><strong>Phone:</strong> @match.MobilePhone @match.HomePhone</p>
                                                 <p><strong>Email:</strong> @match.EmailAddress</p>
-                                                <button type="button" class="btn btn-sm btn-primary" onclick="linkToExisting(@i, '@match.Id')">
+                                                <button type="button" class="btn btn-sm" style="background: var(--signal-dk); color: white; border: none;" onmouseover="this.style.background='var(--forest)'" onmouseout="this.style.background='var(--signal-dk)'" onclick="linkToExisting(@i, '@match.Id')">
                                                     <i class="bi bi-link me-1"></i>Link to This Patient
                                                 </button>
                                             </div>
@@ -463,7 +463,7 @@
                                 }
 
                                 <hr />
-                                <button type="button" class="btn btn-success" onclick="createAsNew(@i)" data-bs-dismiss="modal">
+                                <button type="button" class="btn" style="background: var(--signal-dk); color: white; border: none;" onmouseover="this.style.background='var(--forest)'" onmouseout="this.style.background='var(--signal-dk)'" onclick="createAsNew(@i)" data-bs-dismiss="modal">
                                     <i class="bi bi-plus-circle me-1"></i>Create as New Patient
                                 </button>
                             </div>

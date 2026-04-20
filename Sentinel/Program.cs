@@ -276,6 +276,7 @@ builder.Services.AddScoped<Sentinel.Services.Reporting.IReportFieldMetadataServi
 builder.Services.AddScoped<Sentinel.Services.Reporting.IReportDataService, Sentinel.Services.Reporting.ReportDataService>();
 builder.Services.AddScoped<Sentinel.Services.Reporting.IReportFolderService, Sentinel.Services.Reporting.ReportFolderService>();
 builder.Services.AddScoped<Sentinel.Services.Reporting.ICollectionMetadataService, Sentinel.Services.Reporting.CollectionMetadataService>();
+builder.Services.AddScoped<Sentinel.Services.Reporting.IDynamicDateResolver, Sentinel.Services.Reporting.DynamicDateResolver>();
 builder.Services.AddScoped<Sentinel.Services.IDataReviewService, Sentinel.Services.DataReviewService>();
 builder.Services.AddScoped<Sentinel.Services.ISurveyMappingService, Sentinel.Services.SurveyMappingService>();
 builder.Services.AddScoped<Sentinel.Services.ICollectionMappingService, Sentinel.Services.CollectionMappingService>();
@@ -283,6 +284,11 @@ builder.Services.AddScoped<Sentinel.Services.CollectionMappingValidationService>
 builder.Services.AddScoped<Sentinel.Services.IPatientAddressService, Sentinel.Services.PatientAddressService>();
 builder.Services.AddScoped<Sentinel.Services.TestDataGeneratorService>();
 builder.Services.AddScoped<Sentinel.Helpers.PermissionHelper>();
+
+// Natural Language Timeline Entry Services
+builder.Services.AddScoped<Sentinel.Services.INaturalLanguageParserService, Sentinel.Services.NaturalLanguageParserService>();
+builder.Services.AddScoped<Sentinel.Services.ITimelineStorageService, Sentinel.Services.TimelineStorageService>();
+builder.Services.AddScoped<Sentinel.Services.IEntityMemoryService, Sentinel.Services.EntityMemoryService>();
 
 // HttpContextAccessor for audit logging
 builder.Services.AddHttpContextAccessor();

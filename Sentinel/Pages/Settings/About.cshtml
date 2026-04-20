@@ -2,6 +2,8 @@
 @model Sentinel.Pages.Settings.AboutModel
 @{
     ViewData["Title"] = "About Sentinel";
+    ViewData["Subtitle"] = "Version & System Information";
+    Layout = "~/Pages/Shared/_LayoutSentinel.cshtml";
 }
 
 <nav aria-label="breadcrumb" class="mb-4">
@@ -17,24 +19,24 @@
         <div class="card-body text-center py-5">
             <!-- Logo -->
             <div class="mb-4">
-                <div style="width: 120px; height: 120px; margin: 0 auto; background: linear-gradient(135deg, #007AFF 0%, #0051D5 100%); border-radius: 24px; display: flex; align-items: center; justify-content: center; box-shadow: 0 8px 32px rgba(0, 122, 255, 0.3);">
+                <div style="width: 120px; height: 120px; margin: 0 auto; background: linear-gradient(135deg, var(--signal-dk) 0%, var(--forest) 100%); border-radius: 24px; display: flex; align-items: center; justify-content: center; box-shadow: 0 8px 32px rgba(21, 156, 110, 0.3);">
                     <i class="bi bi-activity" style="font-size: 60px; color: white;"></i>
                 </div>
             </div>
 
             <!-- Product Name -->
-            <h1 style="font-size: 2.5rem; font-weight: 600; color: #2d3748; margin-bottom: 0.5rem;">
+            <h1 style="font-size: 2.5rem; font-weight: 600; color: var(--forest); margin-bottom: 0.5rem;">
                 @Model.ProductName
             </h1>
-            
+
             <!-- Tagline -->
-            <p style="font-size: 1.25rem; color: #718096; margin-bottom: 2rem;">
+            <p style="font-size: 1.25rem; color: var(--graphite); margin-bottom: 2rem;">
                 Disease Surveillance System
             </p>
 
             <!-- Version Badge -->
             <div class="mb-4">
-                <span class="badge" style="background: linear-gradient(135deg, #007AFF 0%, #0051D5 100%); font-size: 1rem; padding: 0.75rem 1.5rem; border-radius: 12px;">
+                <span class="badge" style="background: linear-gradient(135deg, var(--signal-dk) 0%, var(--moss) 100%); font-size: 1rem; padding: 0.75rem 1.5rem; border-radius: 12px;">
                     Version @Model.Version
                 </span>
             </div>
@@ -84,14 +86,14 @@
                 <div class="col-md-6">
                     <h5 class="mb-3"><i class="bi bi-stack me-2"></i>Key Features</h5>
                     <ul class="list-unstyled">
-                        <li class="mb-2"><i class="bi bi-check-circle text-success me-2"></i>Patient & Contact Management</li>
-                        <li class="mb-2"><i class="bi bi-check-circle text-success me-2"></i>Case Investigation & Tracking</li>
-                        <li class="mb-2"><i class="bi bi-check-circle text-success me-2"></i>Outbreak Management</li>
-                        <li class="mb-2"><i class="bi bi-check-circle text-success me-2"></i>Task Assignment & Workflows</li>
-                        <li class="mb-2"><i class="bi bi-check-circle text-success me-2"></i>Survey & Form Builder</li>
-                        <li class="mb-2"><i class="bi bi-check-circle text-success me-2"></i>Geospatial Analysis</li>
-                        <li class="mb-2"><i class="bi bi-check-circle text-success me-2"></i>Advanced Reporting Engine</li>
-                        <li class="mb-2"><i class="bi bi-check-circle text-success me-2"></i>Custom Field Management</li>
+                        <li class="mb-2"><i class="bi bi-check-circle me-2" style="color: var(--signal-dk);"></i>Patient & Contact Management</li>
+                        <li class="mb-2"><i class="bi bi-check-circle me-2" style="color: var(--signal-dk);"></i>Case Investigation & Tracking</li>
+                        <li class="mb-2"><i class="bi bi-check-circle me-2" style="color: var(--signal-dk);"></i>Outbreak Management</li>
+                        <li class="mb-2"><i class="bi bi-check-circle me-2" style="color: var(--signal-dk);"></i>Task Assignment & Workflows</li>
+                        <li class="mb-2"><i class="bi bi-check-circle me-2" style="color: var(--signal-dk);"></i>Survey & Form Builder</li>
+                        <li class="mb-2"><i class="bi bi-check-circle me-2" style="color: var(--signal-dk);"></i>Geospatial Analysis</li>
+                        <li class="mb-2"><i class="bi bi-check-circle me-2" style="color: var(--signal-dk);"></i>Advanced Reporting Engine</li>
+                        <li class="mb-2"><i class="bi bi-check-circle me-2" style="color: var(--signal-dk);"></i>Custom Field Management</li>
                     </ul>
                 </div>
             </div>
@@ -104,10 +106,10 @@
                     &copy; @DateTime.Now.Year All rights reserved.
                 </p>
                 <div class="d-flex justify-content-center gap-3 flex-wrap">
-                    <a asp-page="/Settings/Index" class="text-decoration-none" style="color: #007AFF;">
+                    <a asp-page="/Settings/Index" class="text-decoration-none" style="color: var(--signal-dk);">
                         <i class="bi bi-gear me-1"></i>Settings
                     </a>
-                    <a href="https://github.com/christianpeut95/Sentinel" target="_blank" class="text-decoration-none" style="color: #007AFF;">
+                    <a href="https://github.com/christianpeut95/Sentinel" target="_blank" class="text-decoration-none" style="color: var(--signal-dk);">
                         <i class="bi bi-github me-1"></i>GitHub
                     </a>
                 </div>
@@ -118,10 +120,10 @@
 
 <style>
     .apple-card {
-        background: white;
+        background: var(--chalk);
         border-radius: 16px;
         box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
-        border: 1px solid rgba(0, 0, 0, 0.06);
+        border: 1px solid var(--hairline);
     }
 
     .apple-card .card-body {

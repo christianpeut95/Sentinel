@@ -6,25 +6,19 @@
 
 @{
     ViewData["Title"] = "Create Patient";
-    Layout = "~/Pages/Shared/_Layout.cshtml";
+    ViewData["Subtitle"] = "Add a new patient to the system";
 }
 
-<!-- Apple Page Header -->
-<div class="apple-page-header">
+<!-- Page Header -->
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--spacing-6);">
     <div>
-        <nav class="apple-breadcrumb">
-            <a asp-page="/Index">Dashboard</a>
-            <span class="breadcrumb-separator">›</span>
-            <a asp-page="./Index">Patients</a>
-            <span class="breadcrumb-separator">›</span>
-            <span>New Patient</span>
-        </nav>
-        <h1 class="text-title-1" style="margin-top: 8px;">
-            <i class="bi bi-person-plus-fill me-2" style="color: var(--color-primary);"></i>New Patient
+        <h1 style="font-family: var(--f-sans); font-weight: 600; font-size: 28px; letter-spacing: -0.02em; color: var(--forest); margin: 0; display: flex; align-items: center; gap: var(--spacing-2);">
+            <i class="bi bi-person-plus-fill" style="color: var(--signal-dk);"></i>
+            New Patient
         </h1>
     </div>
-    <div class="apple-page-actions">
-        <a asp-page="./Index" class="btn-apple btn-apple-secondary">
+    <div>
+        <a asp-page="./Index" class="btn-sentinel-secondary">
             <i class="bi bi-arrow-left"></i>
             Back to Patients
         </a>
@@ -34,57 +28,57 @@
 <!-- Duplicate Warning Alert -->
 @if (Model.ShowDuplicateWarning && Model.PotentialDuplicates.Any())
 {
-    <div class="apple-card" style="background: rgba(255, 149, 0, 0.1); border: 1px solid var(--color-warning); margin-bottom: 24px;">
-        <div class="apple-card-header" style="background: rgba(255, 149, 0, 0.15); border-bottom: 1px solid var(--color-warning);">
-            <div style="display: flex; align-items: center; gap: 8px;">
-                <i class="bi bi-exclamation-triangle-fill" style="color: var(--color-warning); font-size: 20px;"></i>
-                <strong>Potential Duplicate Patients Found</strong>
-            </div>
+    <div class="sentinel-card" style="background: #FFF4E6; border: 2px solid #FFD699; margin-bottom: var(--spacing-5);">
+        <div class="sentinel-card-header" style="background: #FFE6B3; border-bottom: 1px solid #FFD699;">
+            <h3 class="sentinel-card-title" style="margin: 0; color: #804000;">
+                <i class="bi bi-exclamation-triangle-fill" style="color: #FF9500;"></i>
+                Potential Duplicate Patients Found
+            </h3>
         </div>
-        <div class="apple-card-body">
-            <p class="text-callout" style="margin-bottom: 16px;">
+        <div class="sentinel-card-body">
+            <p style="font-size: 15px; margin-bottom: var(--spacing-4); color: #804000;">
                 We found <strong>@Model.PotentialDuplicates.Count</strong> existing patient(s) that may be similar to the one you're creating. Please review them before continuing.
             </p>
             
-            <div style="display: flex; flex-direction: column; gap: 12px; margin-bottom: 24px;">
+            <div style="display: flex; flex-direction: column; gap: var(--spacing-3); margin-bottom: var(--spacing-5);">
                 @foreach (var duplicate in Model.PotentialDuplicates)
                 {
                     var age = duplicate.Patient.DateOfBirth.HasValue 
                         ? (int)Math.Floor((DateTime.UtcNow - duplicate.Patient.DateOfBirth.Value).TotalDays / 365.2425) 
                         : (int?)null;
-                    <div class="apple-card" style="box-shadow: var(--shadow-small);">
-                        <div class="apple-card-body">
+                    <div class="sentinel-card" style="border: 1px solid var(--hairline);">
+                        <div class="sentinel-card-body">
                             <div style="display: flex; justify-content: space-between; align-items: start;">
                                 <div style="flex: 1;">
-                                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
-                                        <h3 class="text-title-3" style="margin: 0;">
+                                    <div style="display: flex; align-items: center; gap: var(--spacing-2); margin-bottom: var(--spacing-2);">
+                                        <h3 style="font-weight: 600; font-size: 18px; margin: 0; color: var(--forest);">
                                             @duplicate.Patient.GivenName @duplicate.Patient.FamilyName
                                         </h3>
                                         @if (age.HasValue)
                                         {
-                                            <span class="status-badge normal">@age years</span>
+                                            <span class="chip-info">@age years</span>
                                         }
                                     </div>
-                                    <div class="text-subhead" style="color: var(--gray-2); margin-bottom: 8px;">
+                                    <div style="color: var(--graphite); margin-bottom: var(--spacing-2); font-size: 14px;">
                                         <strong>DOB:</strong> @(duplicate.Patient.DateOfBirth?.ToString("dd MMM yyyy") ?? "-")
                                         | <strong>Sex:</strong> @(duplicate.Patient.SexAtBirth?.Name ?? "-")
                                     </div>
                                     @if (!string.IsNullOrWhiteSpace(duplicate.Patient.AddressLine) || !string.IsNullOrWhiteSpace(duplicate.Patient.City))
                                     {
-                                        <div class="text-footnote" style="color: var(--gray-2);">
+                                        <div style="color: var(--graphite); font-size: 13px;">
                                             <i class="bi bi-geo-alt"></i>
                                             @duplicate.Patient.AddressLine @duplicate.Patient.City @duplicate.Patient.State @duplicate.Patient.PostalCode
                                         </div>
                                     }
-                                    <div style="display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap;">
-                                        <span class="card-badge">Match Score: @duplicate.MatchScore</span>
+                                    <div style="display: flex; gap: var(--spacing-2); margin-top: var(--spacing-3); flex-wrap: wrap;">
+                                        <span class="chip-clear" style="background: var(--bone);">Match Score: @duplicate.MatchScore</span>
                                         @foreach (var reason in duplicate.MatchReasons)
                                         {
-                                            <span class="status-badge warning">@reason</span>
+                                            <span class="chip-watch">@reason</span>
                                         }
                                     </div>
                                 </div>
-                                <a asp-page="./Details" asp-route-id="@duplicate.Patient.Id" target="_blank" class="btn-apple btn-apple-primary">
+                                <a asp-page="./Details" asp-route-id="@duplicate.Patient.Id" target="_blank" class="btn-sentinel-primary">
                                     <i class="bi bi-eye"></i> Review
                                 </a>
                             </div>
@@ -93,7 +87,7 @@
                 }
             </div>
 
-            <div style="display: flex; gap: 12px;">
+            <div style="display: flex; gap: var(--spacing-3);">
                 <form method="post" class="d-inline">
                     <input type="hidden" asp-for="ConfirmDuplicate" value="true" />
                     @Html.AntiForgeryToken()
@@ -114,14 +108,14 @@
                     <input type="hidden" asp-for="Patient.PostalCode" />
                     <input type="hidden" asp-for="Patient.Latitude" />
                     <input type="hidden" asp-for="Patient.Longitude" />
-                    <button type="submit" class="btn-apple" style="background: var(--color-warning); color: white;">
+                    <button type="submit" class="btn-sentinel-primary" style="background: #FF9500; border-color: #FF9500;">
                         <i class="bi bi-check-circle"></i>Continue Anyway
                     </button>
                 </form>
-                <button type="button" class="btn-apple btn-apple-secondary" onclick="window.location.reload();">
+                <button type="button" class="btn-sentinel-secondary" onclick="window.location.reload();">
                     <i class="bi bi-arrow-counterclockwise"></i>Go Back and Edit
                 </button>
-                <a asp-page="./Index" class="btn-apple btn-apple-secondary">
+                <a asp-page="./Index" class="btn-sentinel-secondary">
                     <i class="bi bi-x-circle"></i>Cancel
                 </a>
             </div>
@@ -132,68 +126,62 @@
 <!-- Status Messages -->
 @if (TempData["SuccessMessage"] != null)
 {
-    <div class="apple-card" style="background: rgba(52, 199, 89, 0.1); border: 1px solid var(--color-success); margin-bottom: 24px;">
-        <div class="apple-card-body" style="display: flex; align-items: center; gap: 12px;">
-            <i class="bi bi-check-circle-fill" style="color: var(--color-success); font-size: 24px;"></i>
-            <span class="text-callout">@TempData["SuccessMessage"]</span>
-        </div>
+    <div style="background: #E6F7ED; border: 1px solid #99D6B3; border-radius: var(--radius-md); padding: var(--spacing-4); margin-bottom: var(--spacing-5); display: flex; align-items: center; gap: var(--spacing-3);">
+        <i class="bi bi-check-circle-fill" style="color: var(--signal-dk); font-size: 24px;"></i>
+        <span style="font-weight: 500;">@TempData["SuccessMessage"]</span>
     </div>
 }
 
 @if (TempData["ErrorMessage"] != null)
 {
-    <div class="apple-card" style="background: rgba(255, 59, 48, 0.1); border: 1px solid var(--color-danger); margin-bottom: 24px;">
-        <div class="apple-card-body" style="display: flex; align-items: center; gap: 12px;">
-            <i class="bi bi-exclamation-triangle-fill" style="color: var(--color-danger); font-size: 24px;"></i>
-            <span class="text-callout">@TempData["ErrorMessage"]</span>
-        </div>
+    <div style="background: #FFE6E6; border: 1px solid #FF9999; border-radius: var(--radius-md); padding: var(--spacing-4); margin-bottom: var(--spacing-5); display: flex; align-items: center; gap: var(--spacing-3);">
+        <i class="bi bi-exclamation-triangle-fill" style="color: var(--status-outbreak); font-size: 24px;"></i>
+        <span style="font-weight: 500; color: var(--status-outbreak);">@TempData["ErrorMessage"]</span>
     </div>
 }
 
 @if (TempData["WarningMessage"] != null)
 {
-    <div class="apple-card" style="background: rgba(255, 149, 0, 0.1); border: 1px solid var(--color-warning); margin-bottom: 24px;">
-        <div class="apple-card-body" style="display: flex; align-items: center; gap: 12px;">
-            <i class="bi bi-exclamation-triangle-fill" style="color: var(--color-warning); font-size: 24px;"></i>
-            <span class="text-callout">@TempData["WarningMessage"]</span>
-        </div>
+    <div style="background: #FFF4E6; border: 1px solid #FFD699; border-radius: var(--radius-md); padding: var(--spacing-4); margin-bottom: var(--spacing-5); display: flex; align-items: center; gap: var(--spacing-3);">
+        <i class="bi bi-exclamation-triangle-fill" style="color: #FF9500; font-size: 24px;"></i>
+        <span style="font-weight: 500; color: #804000;">@TempData["WarningMessage"]</span>
     </div>
 }
 
 <form method="post">
-<div asp-validation-summary="ModelOnly" class="apple-card" style="background: rgba(255, 59, 48, 0.1); border: 1px solid var(--color-danger); margin-bottom: 24px;" role="alert"></div>
+<div asp-validation-summary="ModelOnly" style="background: #FFE6E6; border: 1px solid #FF9999; border-radius: var(--radius-md); padding: var(--spacing-4); margin-bottom: var(--spacing-5); color: var(--status-outbreak);" role="alert"></div>
 
 @if (Model.Mode == "popup" && Model.ReturnContext == "exposure")
 {
     <!-- Patient Search Section for Popup Mode -->
-    <div class="apple-card" style="margin-bottom: 24px; background: rgba(0, 122, 255, 0.05);">
-        <div class="apple-card-header" style="background: rgba(0, 122, 255, 0.1);">
-            <div style="display: flex; align-items: center; gap: 8px;">
-                <i class="bi bi-search" style="color: var(--color-primary);"></i>
-                <span>Search for Existing Patient First</span>
-            </div>
+    <div class="sentinel-card" style="margin-bottom: var(--spacing-5); background: #E6F3FF; border: 2px solid #99CCFF;">
+        <div class="sentinel-card-header" style="background: #CCE6FF;">
+            <h3 class="sentinel-card-title" style="margin: 0; color: #004080;">
+                <i class="bi bi-search" style="color: #0066CC;"></i>
+                Search for Existing Patient First
+            </h3>
         </div>
-        <div class="apple-card-body">
-            <p class="text-callout" style="margin-bottom: 16px; color: var(--color-secondary);">
+        <div class="sentinel-card-body">
+            <p style="margin-bottom: var(--spacing-4); color: #004080; font-size: 14px;">
                 <i class="bi bi-info-circle me-1"></i>
                 Before creating a new patient, search to see if they already exist in the system.
             </p>
-            
-            <div class="apple-form-group">
-                <label class="apple-form-label">Search by Name or Patient ID</label>
-                <input type="text" id="patientSearchInput" class="apple-form-input" placeholder="Start typing name or ID..." />
+
+            <div style="margin-bottom: var(--spacing-3);">
+                <label class="sentinel-label">Search by Name or Patient ID</label>
+                <input type="text" id="patientSearchInput" class="sentinel-input" placeholder="Start typing name or ID..." />
             </div>
 
-            <div id="patientSearchResults" style="display: none; margin-top: 16px;">
-                <div style="padding: 12px; background: white; border-radius: 8px; border: 1px solid var(--color-divider);">
-                    <p style="margin: 0 0 12px 0; font-weight: 600; color: var(--color-text);">Found Patients:</p>
+            <div id="patientSearchResults" style="display: none; margin-top: var(--spacing-4);">
+                <div style="padding: var(--spacing-3); background: var(--chalk); border-radius: var(--radius-md); border: 1px solid var(--hairline);">
+                    <p style="margin: 0 0 var(--spacing-3) 0; font-weight: 600; color: var(--forest);">Found Patients:</p>
                     <div id="patientResultsList"></div>
                 </div>
             </div>
 
-            <div id="patientSearchEmpty" style="display: none; margin-top: 16px;">
-                <div style="padding: 16px; background: rgba(52, 199, 89, 0.1); border-radius: 8px; border: 1px solid var(--color-success);">
-                    <p style="margin: 0; color: var(--color-success);">
+            <div id="patientSearchEmpty" style="display: none; margin-top: var(--spacing-4);">
+                <div style="padding: var(--spacing-4); background: #E6F7ED; border-radius: var(--radius-md); border: 1px solid #99D6B3;">
+                    <p style="margin: 0; color: var(--signal-dk);">
                         <i class="bi bi-check-circle me-1"></i>
                         No existing patient found. You can create a new patient below.
                     </p>
@@ -202,145 +190,145 @@
         </div>
     </div>
 
-    <div style="text-align: center; margin-bottom: 24px;">
-        <div style="display: inline-block; padding: 8px 16px; background: var(--color-divider); border-radius: 8px;">
-            <span class="text-callout" style="color: var(--color-secondary); font-weight: 600;">OR CREATE NEW PATIENT</span>
+    <div style="text-align: center; margin-bottom: var(--spacing-5);">
+        <div style="display: inline-block; padding: var(--spacing-2) var(--spacing-4); background: var(--bone); border-radius: var(--radius-md); border: 1px solid var(--hairline);">
+            <span style="color: var(--graphite); font-weight: 600; font-size: 13px; letter-spacing: 0.5px;">OR CREATE NEW PATIENT</span>
         </div>
     </div>
 }
 
 <!-- Demographics Section -->
-<div class="apple-card" style="margin-bottom: 24px;">
-    <div class="apple-card-header">
-        <div style="display: flex; align-items: center; gap: 8px;">
-            <i class="bi bi-person-fill" style="color: var(--color-primary);"></i>
-            <span>Demographics</span>
-        </div>
+<div class="sentinel-card" style="margin-bottom: var(--spacing-5);">
+    <div class="sentinel-card-header">
+        <h3 class="sentinel-card-title">
+            <i class="bi bi-person-fill"></i>
+            Demographics
+        </h3>
     </div>
-    <div class="apple-card-body">
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px;">
+    <div class="sentinel-card-body">
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: var(--spacing-4);">
             <!-- Given Name -->
-            <div class="apple-form-group">
-                <label asp-for="Patient.GivenName" class="apple-form-label">
-                    <span style="color: var(--color-danger);">*</span> First Name
+            <div>
+                <label asp-for="Patient.GivenName" class="sentinel-label">
+                    <span style="color: var(--status-outbreak);">*</span> First Name
                 </label>
-                <input asp-for="Patient.GivenName" class="apple-form-input" placeholder="e.g., John" />
-                <span asp-validation-for="Patient.GivenName" class="text-footnote" style="color: var(--color-danger);"></span>
+                <input asp-for="Patient.GivenName" class="sentinel-input" placeholder="e.g., John" />
+                <span asp-validation-for="Patient.GivenName" style="color: var(--status-outbreak); font-size: 12px; display: block; margin-top: 4px;"></span>
             </div>
 
             <!-- Family Name -->
-            <div class="apple-form-group">
-                <label asp-for="Patient.FamilyName" class="apple-form-label">
-                    <span style="color: var(--color-danger);">*</span> Last Name
+            <div>
+                <label asp-for="Patient.FamilyName" class="sentinel-label">
+                    <span style="color: var(--status-outbreak);">*</span> Last Name
                 </label>
-                <input asp-for="Patient.FamilyName" class="apple-form-input" placeholder="e.g., Smith" />
-                <span asp-validation-for="Patient.FamilyName" class="text-footnote" style="color: var(--color-danger);"></span>
+                <input asp-for="Patient.FamilyName" class="sentinel-input" placeholder="e.g., Smith" />
+                <span asp-validation-for="Patient.FamilyName" style="color: var(--status-outbreak); font-size: 12px; display: block; margin-top: 4px;"></span>
             </div>
         </div>
 
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-top: 16px;">
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: var(--spacing-4); margin-top: var(--spacing-4);">
             <!-- Date of Birth -->
-            <div class="apple-form-group">
-                <label asp-for="Patient.DateOfBirth" class="apple-form-label">Date of Birth</label>
-                <input asp-for="Patient.DateOfBirth" class="apple-form-input" type="date" />
-                <span asp-validation-for="Patient.DateOfBirth" class="text-footnote" style="color: var(--color-danger);"></span>
+            <div>
+                <label asp-for="Patient.DateOfBirth" class="sentinel-label">Date of Birth</label>
+                <input asp-for="Patient.DateOfBirth" class="sentinel-input" type="date" id="Patient_DateOfBirth" />
+                <span asp-validation-for="Patient.DateOfBirth" style="color: var(--status-outbreak); font-size: 12px; display: block; margin-top: 4px;"></span>
             </div>
 
             <!-- Sex at Birth -->
-            <div class="apple-form-group">
-                <label asp-for="Patient.SexAtBirthId" class="apple-form-label">Sex at Birth</label>
-                <select asp-for="Patient.SexAtBirthId" class="apple-form-select" asp-items="ViewBag.SexAtBirthId">
+            <div>
+                <label asp-for="Patient.SexAtBirthId" class="sentinel-label">Sex at Birth</label>
+                <select asp-for="Patient.SexAtBirthId" class="sentinel-input" asp-items="ViewBag.SexAtBirthId">
                     <option value="">Select...</option>
                 </select>
-                <span asp-validation-for="Patient.SexAtBirthId" class="text-footnote" style="color: var(--color-danger);"></span>
+                <span asp-validation-for="Patient.SexAtBirthId" style="color: var(--status-outbreak); font-size: 12px; display: block; margin-top: 4px;"></span>
             </div>
 
             <!-- Gender -->
-            <div class="apple-form-group">
-                <label asp-for="Patient.GenderId" class="apple-form-label">Gender</label>
-                <select asp-for="Patient.GenderId" class="apple-form-select" asp-items="ViewBag.GenderId">
+            <div>
+                <label asp-for="Patient.GenderId" class="sentinel-label">Gender</label>
+                <select asp-for="Patient.GenderId" class="sentinel-input" asp-items="ViewBag.GenderId">
                     <option value="">Select...</option>
                 </select>
-                <span asp-validation-for="Patient.GenderId" class="text-footnote" style="color: var(--color-danger);"></span>
+                <span asp-validation-for="Patient.GenderId" style="color: var(--status-outbreak); font-size: 12px; display: block; margin-top: 4px;"></span>
             </div>
         </div>
 
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-top: 16px;">
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: var(--spacing-4); margin-top: var(--spacing-4);">
             <!-- Country of Birth -->
-            <div class="apple-form-group">
-                <label asp-for="Patient.CountryOfBirthId" class="apple-form-label">Country of Birth</label>
-                <select asp-for="Patient.CountryOfBirthId" class="apple-form-select" asp-items="ViewBag.CountryOfBirthId">
+            <div>
+                <label asp-for="Patient.CountryOfBirthId" class="sentinel-label">Country of Birth</label>
+                <select asp-for="Patient.CountryOfBirthId" class="sentinel-input" asp-items="ViewBag.CountryOfBirthId">
                     <option value="">Select...</option>
                 </select>
-                <span asp-validation-for="Patient.CountryOfBirthId" class="text-footnote" style="color: var(--color-danger);"></span>
+                <span asp-validation-for="Patient.CountryOfBirthId" style="color: var(--status-outbreak); font-size: 12px; display: block; margin-top: 4px;"></span>
             </div>
 
             <!-- Language Spoken at Home -->
-            <div class="apple-form-group">
-                <label asp-for="Patient.LanguageSpokenAtHomeId" class="apple-form-label">Language at Home</label>
-                <select asp-for="Patient.LanguageSpokenAtHomeId" class="apple-form-select" asp-items="ViewBag.LanguageSpokenAtHomeId">
+            <div>
+                <label asp-for="Patient.LanguageSpokenAtHomeId" class="sentinel-label">Language at Home</label>
+                <select asp-for="Patient.LanguageSpokenAtHomeId" class="sentinel-input" asp-items="ViewBag.LanguageSpokenAtHomeId">
                     <option value="">Select...</option>
                 </select>
-                <span asp-validation-for="Patient.LanguageSpokenAtHomeId" class="text-footnote" style="color: var(--color-danger);"></span>
+                <span asp-validation-for="Patient.LanguageSpokenAtHomeId" style="color: var(--status-outbreak); font-size: 12px; display: block; margin-top: 4px;"></span>
             </div>
 
             <!-- Ancestry -->
-            <div class="apple-form-group">
-                <label asp-for="Patient.AncestryId" class="apple-form-label">Ancestry</label>
-                <select asp-for="Patient.AncestryId" class="apple-form-select" asp-items="ViewBag.AncestryId">
+            <div>
+                <label asp-for="Patient.AncestryId" class="sentinel-label">Ancestry</label>
+                <select asp-for="Patient.AncestryId" class="sentinel-input" asp-items="ViewBag.AncestryId">
                     <option value="">Select...</option>
                 </select>
-                <span asp-validation-for="Patient.AncestryId" class="text-footnote" style="color: var(--color-danger);"></span>
+                <span asp-validation-for="Patient.AncestryId" style="color: var(--status-outbreak); font-size: 12px; display: block; margin-top: 4px;"></span>
             </div>
         </div>
 
         <!-- ATSI Status -->
-        <div class="apple-form-group" style="margin-top: 16px;">
-            <label asp-for="Patient.AtsiStatusId" class="apple-form-label">Aboriginal and Torres Strait Islander Status</label>
-            <select asp-for="Patient.AtsiStatusId" class="apple-form-select" asp-items="ViewBag.AtsiStatusId">
+        <div style="margin-top: var(--spacing-4);">
+            <label asp-for="Patient.AtsiStatusId" class="sentinel-label">Aboriginal and Torres Strait Islander Status</label>
+            <select asp-for="Patient.AtsiStatusId" class="sentinel-input" asp-items="ViewBag.AtsiStatusId">
                 <option value="">Select...</option>
             </select>
-            <span asp-validation-for="Patient.AtsiStatusId" class="text-footnote" style="color: var(--color-danger);"></span>
+            <span asp-validation-for="Patient.AtsiStatusId" style="color: var(--status-outbreak); font-size: 12px; display: block; margin-top: 4px;"></span>
         </div>
 
         <!-- Occupation -->
-        <div class="apple-form-group" style="margin-top: 16px;">
-            <label asp-for="Patient.OccupationId" class="apple-form-label">Occupation</label>
+        <div style="margin-top: var(--spacing-4);">
+            <label asp-for="Patient.OccupationId" class="sentinel-label">Occupation</label>
             <input type="text" 
-                   class="apple-form-input" 
+                   class="sentinel-input" 
                    id="occupationSearch" 
                    placeholder="Start typing to search..." 
                    autocomplete="off" />
             <input type="hidden" asp-for="Patient.OccupationId" id="occupationId" />
-            <span asp-validation-for="Patient.OccupationId" class="text-footnote" style="color: var(--color-danger);"></span>
-            <small class="text-footnote" style="color: var(--gray-2); display: block; margin-top: 4px;">
+            <span asp-validation-for="Patient.OccupationId" style="color: var(--status-outbreak); font-size: 12px; display: block; margin-top: 4px;"></span>
+            <small style="color: var(--graphite); display: block; margin-top: 4px; font-size: 12px;">
                 Search by name or ANZSCO code (e.g., "Chief Executive" or "111111")
             </small>
         </div>
 
         <!-- Vital Status Section -->
-        <div style="margin-top: 24px; padding-top: 24px; border-top: 1px solid var(--gray-5);">
-            <h3 class="text-title2" style="margin-bottom: 16px;">
-                <i class="bi bi-heart-pulse-fill me-2"></i>Vital Status
+        <div style="margin-top: var(--spacing-5); padding-top: var(--spacing-5); border-top: 1px solid var(--hairline);">
+            <h3 style="font-weight: 600; font-size: 16px; margin-bottom: var(--spacing-4); color: var(--forest);">
+                <i class="bi bi-heart-pulse-fill" style="margin-right: var(--spacing-2);"></i>Vital Status
             </h3>
 
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px;">
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: var(--spacing-4);">
                 <!-- Deceased -->
-                <div class="apple-form-group">
-                    <label asp-for="Patient.IsDeceased" class="apple-form-label">Deceased</label>
-                    <select asp-for="Patient.IsDeceased" class="apple-form-select" id="isDeceasedSelect">
+                <div>
+                    <label asp-for="Patient.IsDeceased" class="sentinel-label">Deceased</label>
+                    <select asp-for="Patient.IsDeceased" class="sentinel-input" id="isDeceasedSelect">
                         <option value="false">No</option>
                         <option value="true">Yes</option>
                     </select>
-                    <span asp-validation-for="Patient.IsDeceased" class="text-footnote" style="color: var(--color-danger);"></span>
+                    <span asp-validation-for="Patient.IsDeceased" style="color: var(--status-outbreak); font-size: 12px; display: block; margin-top: 4px;"></span>
                 </div>
 
                 <!-- Date of Death -->
-                <div class="apple-form-group" id="dateOfDeathField" style="display: none;">
-                    <label asp-for="Patient.DateOfDeath" class="apple-form-label">Date of Death</label>
-                    <input asp-for="Patient.DateOfDeath" class="apple-form-input" type="date" id="dateOfDeath" />
-                    <span asp-validation-for="Patient.DateOfDeath" class="text-footnote" style="color: var(--color-danger);"></span>
-                    <small class="text-footnote" style="color: var(--gray-2); display: block; margin-top: 4px;">
+                <div id="dateOfDeathField" style="display: none;">
+                    <label asp-for="Patient.DateOfDeath" class="sentinel-label">Date of Death</label>
+                    <input asp-for="Patient.DateOfDeath" class="sentinel-input" type="date" id="dateOfDeath" />
+                    <span asp-validation-for="Patient.DateOfDeath" style="color: var(--status-outbreak); font-size: 12px; display: block; margin-top: 4px;"></span>
+                    <small style="color: var(--graphite); display: block; margin-top: 4px; font-size: 12px;">
                         Must be after date of birth
                     </small>
                 </div>
@@ -352,95 +340,101 @@
 
 
     <!-- Contact Information Section -->
-    <div class="apple-card" style="margin-bottom: 24px;">
-        <div class="apple-card-header">
-            <div style="display: flex; align-items: center; gap: 8px;">
-                <i class="bi bi-telephone-fill" style="color: var(--color-primary);"></i>
-                <span>Contact Information</span>
-            </div>
+    <div class="sentinel-card" style="margin-bottom: var(--spacing-5);">
+        <div class="sentinel-card-header">
+            <h3 class="sentinel-card-title">
+                <i class="bi bi-telephone-fill"></i>
+                Contact Information
+            </h3>
         </div>
-        <div class="apple-card-body">
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 16px;">
+        <div class="sentinel-card-body">
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: var(--spacing-4);">
                 <!-- Home Phone -->
-                <div class="apple-form-group">
-                    <label asp-for="Patient.HomePhone" class="apple-form-label">Home Phone</label>
-                    <input asp-for="Patient.HomePhone" class="apple-form-input" type="tel" placeholder="(02) 1234 5678" />
-                    <span asp-validation-for="Patient.HomePhone" class="text-footnote" style="color: var(--color-danger);"></span>
+                <div>
+                    <label asp-for="Patient.HomePhone" class="sentinel-label">Home Phone</label>
+                    <input asp-for="Patient.HomePhone" class="sentinel-input" type="tel" placeholder="(02) 1234 5678" />
+                    <span asp-validation-for="Patient.HomePhone" style="color: var(--status-outbreak); font-size: 12px; display: block; margin-top: 4px;"></span>
                 </div>
 
                 <!-- Mobile Phone -->
-                <div class="apple-form-group">
-                    <label asp-for="Patient.MobilePhone" class="apple-form-label">Mobile Phone</label>
-                    <input asp-for="Patient.MobilePhone" class="apple-form-input" type="tel" placeholder="0400 123 456" />
-                    <span asp-validation-for="Patient.MobilePhone" class="text-footnote" style="color: var(--color-danger);"></span>
+                <div>
+                    <label asp-for="Patient.MobilePhone" class="sentinel-label">Mobile Phone</label>
+                    <input asp-for="Patient.MobilePhone" class="sentinel-input" type="tel" placeholder="0400 123 456" />
+                    <span asp-validation-for="Patient.MobilePhone" style="color: var(--status-outbreak); font-size: 12px; display: block; margin-top: 4px;"></span>
                 </div>
 
                 <!-- Email Address -->
-                <div class="apple-form-group">
-                    <label asp-for="Patient.EmailAddress" class="apple-form-label">Email Address</label>
-                    <input asp-for="Patient.EmailAddress" class="apple-form-input" type="email" placeholder="patient@example.com" />
-                    <span asp-validation-for="Patient.EmailAddress" class="text-footnote" style="color: var(--color-danger);"></span>
+                <div>
+                    <label asp-for="Patient.EmailAddress" class="sentinel-label">Email Address</label>
+                    <input asp-for="Patient.EmailAddress" class="sentinel-input" type="email" placeholder="patient@example.com" />
+                    <span asp-validation-for="Patient.EmailAddress" style="color: var(--status-outbreak); font-size: 12px; display: block; margin-top: 4px;"></span>
                 </div>
             </div>
         </div>
     </div>
 
-    <div class="card shadow-sm mb-4">
-        <div class="card-header bg-primary text-white fw-semibold">
-            <i class="bi bi-search me-2"></i>Address Lookup
+    <div class="sentinel-card" style="margin-bottom: var(--spacing-5);">
+        <div class="sentinel-card-header">
+            <h3 class="sentinel-card-title">
+                <i class="bi bi-search"></i>
+                Address Lookup
+            </h3>
         </div>
-        <div class="card-body">
-            <div class="alert alert-info mb-3">
-                <i class="bi bi-lightbulb me-2"></i>
+        <div class="sentinel-card-body">
+            <div style="background: #E6F3FF; border: 1px solid #99CCFF; border-radius: var(--radius-md); padding: var(--spacing-3); margin-bottom: var(--spacing-4); color: #004080;">
+                <i class="bi bi-lightbulb" style="margin-right: var(--spacing-2);"></i>
                 <strong>Quick Start:</strong> Search for any business or address (e.g., "123 Main St", "Woolworths Adelaide"). 
                 Selecting a result will auto-fill all address fields and coordinates.
             </div>
-            
+
             <div class="position-relative">
-                <label class="form-label fw-bold">
+                <label class="sentinel-label">
                     <i class="bi bi-geo-alt me-1"></i>Search for Address or Business
                 </label>
-                <input type="text" class="form-control form-control-lg" id="placeSearchInput" autocomplete="off"
+                <input type="text" class="sentinel-input" id="placeSearchInput" autocomplete="off"
                        placeholder="Try '123 Main Street', 'Coles Adelaide', or 'Springfield Hospital'..." 
                        aria-haspopup="listbox" aria-expanded="false" aria-controls="placeDropdown" />
                 <div class="dropdown-menu w-100" id="placeDropdown" role="listbox" style="max-height:300px;overflow:auto;" aria-label="Place suggestions"></div>
-                <small class="form-text text-muted">
+                <small style="color: var(--graphite); display: block; margin-top: 4px; font-size: 12px;">
                     <i class="bi bi-info-circle me-1"></i>Search works for residential addresses and any business location
                 </small>
             </div>
         </div>
     </div>
 
-    <div class="card shadow-sm mb-4">
-        <div class="card-header bg-light fw-semibold">
-            <i class="bi bi-geo-alt me-2"></i>Address Details
+    <div class="sentinel-card" style="margin-bottom: var(--spacing-5);">
+        <div class="sentinel-card-header">
+            <h3 class="sentinel-card-title">
+                <i class="bi bi-geo-alt"></i>
+                Address Details
+            </h3>
         </div>
-        <div class="card-body">
-            <div class="mb-3">
-                <label asp-for="Patient.AddressLine" class="form-label">@Html.DisplayNameFor(m => m.Patient.AddressLine)</label>
-                <input asp-for="Patient.AddressLine" class="form-control" id="addressInput" autocomplete="off" 
+        <div class="sentinel-card-body">
+            <div style="margin-bottom: var(--spacing-4);">
+                <label asp-for="Patient.AddressLine" class="sentinel-label">@Html.DisplayNameFor(m => m.Patient.AddressLine)</label>
+                <input asp-for="Patient.AddressLine" class="sentinel-input" id="addressInput" autocomplete="off" 
                        placeholder="Street address (auto-fills from search above)" />
-                <span asp-validation-for="Patient.AddressLine" class="text-danger small"></span>
-                <small class="form-text text-muted">Auto-fills when you search above, but you can edit it</small>
+                <span asp-validation-for="Patient.AddressLine" style="color: var(--status-outbreak); font-size: 12px; display: block; margin-top: 4px;"></span>
+                <small style="color: var(--graphite); display: block; margin-top: 4px; font-size: 12px;">Auto-fills when you search above, but you can edit it</small>
             </div>
 
             <div class="row">
-                <div class="col-md-4 mb-3">
-                    <label asp-for="Patient.City" class="form-label">@Html.DisplayNameFor(m => m.Patient.City)</label>
-                    <input asp-for="Patient.City" class="form-control" id="Patient_City" placeholder="City/Suburb" />
-                    <span asp-validation-for="Patient.City" class="text-danger small"></span>
+                <div class="col-md-4" style="margin-bottom: var(--spacing-4);">
+                    <label asp-for="Patient.City" class="sentinel-label">@Html.DisplayNameFor(m => m.Patient.City)</label>
+                    <input asp-for="Patient.City" class="sentinel-input" id="Patient_City" placeholder="City/Suburb" />
+                    <span asp-validation-for="Patient.City" style="color: var(--status-outbreak); font-size: 12px; display: block; margin-top: 4px;"></span>
                 </div>
 
-                <div class="col-md-4 mb-3">
-                    <label asp-for="Patient.State" class="form-label">State</label>
-                    <input asp-for="Patient.State" class="form-control" id="Patient_State" placeholder="State" />
-                    <span asp-validation-for="Patient.State" class="text-danger small"></span>
+                <div class="col-md-4" style="margin-bottom: var(--spacing-4);">
+                    <label asp-for="Patient.State" class="sentinel-label">State</label>
+                    <input asp-for="Patient.State" class="sentinel-input" id="Patient_State" placeholder="State" />
+                    <span asp-validation-for="Patient.State" style="color: var(--status-outbreak); font-size: 12px; display: block; margin-top: 4px;"></span>
                 </div>
 
-                <div class="col-md-4 mb-3">
-                    <label asp-for="Patient.PostalCode" class="form-label">@Html.DisplayNameFor(m => m.Patient.PostalCode)</label>
-                    <input asp-for="Patient.PostalCode" class="form-control" id="Patient_PostalCode" placeholder="Postcode" />
-                    <span asp-validation-for="Patient.PostalCode" class="text-danger small"></span>
+                <div class="col-md-4" style="margin-bottom: var(--spacing-4);">
+                    <label asp-for="Patient.PostalCode" class="sentinel-label">@Html.DisplayNameFor(m => m.Patient.PostalCode)</label>
+                    <input asp-for="Patient.PostalCode" class="sentinel-input" id="Patient_PostalCode" placeholder="Postcode" />
+                    <span asp-validation-for="Patient.PostalCode" style="color: var(--status-outbreak); font-size: 12px; display: block; margin-top: 4px;"></span>
                 </div>
             </div>
 
@@ -452,13 +446,16 @@
     <!-- Jurisdictions Section -->
     @if (Model.ActiveJurisdictionTypes.Any())
     {
-        <div class="card shadow-sm mb-4">
-            <div class="card-header bg-light fw-semibold">
-                <i class="bi bi-pin-map me-2"></i>Geographic Jurisdictions
+        <div class="sentinel-card" style="margin-bottom: var(--spacing-5);">
+            <div class="sentinel-card-header">
+                <h3 class="sentinel-card-title">
+                    <i class="bi bi-pin-map"></i>
+                    Geographic Jurisdictions
+                </h3>
             </div>
-            <div class="card-body">
-                <div class="alert alert-info alert-sm mb-3">
-                    <i class="bi bi-info-circle me-2"></i>
+            <div class="sentinel-card-body">
+                <div style="background: #E6F3FF; border: 1px solid #99CCFF; border-radius: var(--radius-md); padding: var(--spacing-3); margin-bottom: var(--spacing-4); color: #004080;">
+                    <i class="bi bi-info-circle" style="margin-right: var(--spacing-2);"></i>
                     Select the jurisdictions for this patient's residence. These can be auto-detected from the address above.
                 </div>
                 
@@ -468,16 +465,16 @@
                         var fieldNumber = jurisdictionType.FieldNumber;
                         var searchFieldId = $"jurisdictionSearch{fieldNumber}";
                         var hiddenFieldId = $"Jurisdiction{fieldNumber}Id";
-                        <div class="col-md-6 mb-3">
-                            <label for="@searchFieldId" class="form-label">
+                        <div class="col-md-6" style="margin-bottom: var(--spacing-4);">
+                            <label for="@searchFieldId" class="sentinel-label">
                                 @jurisdictionType.Name
                                 @if (!string.IsNullOrEmpty(jurisdictionType.Code))
                                 {
-                                    <small class="text-muted">(@jurisdictionType.Code)</small>
+                                    <small style="color: var(--graphite);">(@jurisdictionType.Code)</small>
                                 }
                             </label>
                             <input type="text" 
-                                   class="form-control jurisdiction-autocomplete" 
+                                   class="sentinel-input jurisdiction-autocomplete" 
                                    id="@searchFieldId" 
                                    placeholder="Start typing to search..."
                                    data-field-number="@fieldNumber"
@@ -488,7 +485,7 @@
                                    id="@hiddenFieldId" />
                             @if (!string.IsNullOrEmpty(jurisdictionType.Description))
                             {
-                                <small class="form-text text-muted">@jurisdictionType.Description</small>
+                                <small style="color: var(--graphite); display: block; margin-top: 4px; font-size: 12px;">@jurisdictionType.Description</small>
                             }
                         </div>
                     }
@@ -496,10 +493,10 @@
                 
                 @if (Model.ActiveJurisdictionTypes.Count == 0)
                 {
-                    <div class="text-center text-muted py-3">
-                        <i class="bi bi-info-circle me-2"></i>
+                    <div class="text-center" style="color: var(--graphite); padding: var(--spacing-4);">
+                        <i class="bi bi-info-circle" style="margin-right: var(--spacing-2);"></i>
                         No jurisdiction types configured. 
-                        <a asp-page="/Settings/JurisdictionTypes/Index" target="_blank">Configure jurisdiction types</a>
+                        <a asp-page="/Settings/JurisdictionTypes/Index" target="_blank" style="color: var(--signal-dk);">Configure jurisdiction types</a>
                     </div>
                 }
             </div>
@@ -516,11 +513,11 @@
 
 
     <div class="d-flex gap-2">
-        <button type="submit" class="btn btn-primary">
-            <i class="bi bi-check-circle me-1"></i>Create Patient
+        <button type="submit" class="btn-sentinel-primary">
+            <i class="bi bi-check-circle"></i> Create Patient
         </button>
-        <a asp-page="Index" class="btn btn-outline-secondary">
-            <i class="bi bi-arrow-left me-1"></i>Back to List
+        <a asp-page="Index" class="btn-sentinel-secondary">
+            <i class="bi bi-arrow-left"></i> Back to List
         </a>
     </div>
 </form>

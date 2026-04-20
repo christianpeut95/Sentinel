@@ -16,13 +16,16 @@ public class ReportDataService : IReportDataService
 {
     private readonly ApplicationDbContext _context;
     private readonly IReportFieldMetadataService _fieldMetadataService;
+    private readonly IDynamicDateResolver _dynamicDateResolver;
 
     public ReportDataService(
         ApplicationDbContext context,
-        IReportFieldMetadataService fieldMetadataService)
+        IReportFieldMetadataService fieldMetadataService,
+        IDynamicDateResolver dynamicDateResolver)
     {
         _context = context;
         _fieldMetadataService = fieldMetadataService;
+        _dynamicDateResolver = dynamicDateResolver;
     }
 
     public async Task<List<Dictionary<string, object?>>> GetReportDataAsync(ReportDefinition reportDefinition)
@@ -904,6 +907,27 @@ public class ReportDataService : IReportDataService
         var value = filter.Value ?? "";
         var dataType = filter.DataType ?? "String";
 
+        // Resolve dynamic dates to actual date values
+        if (filter.IsDynamicDate && (dataType == "DateTime" || dataType == "Date" || dataType == "DateOnly"))
+        {
+            try
+            {
+                var resolvedDate = _dynamicDateResolver.ResolveDate(
+                    filter.DynamicDateType ?? "Today",
+                    filter.DynamicDateOffset,
+                    filter.DynamicDateOffsetUnit
+                );
+                value = resolvedDate.ToString("yyyy-MM-dd");
+
+                Console.WriteLine($"[Dynamic Date] Resolved {filter.DynamicDateType} (offset: {filter.DynamicDateOffset} {filter.DynamicDateOffsetUnit}) to {value}");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[Dynamic Date Error] Failed to resolve dynamic date: {ex.Message}");
+                // Fall back to original value if resolution fails
+            }
+        }
+
         // Escape quotes in value for string comparisons
         if (dataType == "String")
         {
@@ -932,11 +956,11 @@ public class ReportDataService : IReportDataService
         {
             whereClause = BuildStringWhereClause(fieldExpression, filter.Operator, value);
         }
-        
+
         // Log the generated WHERE clause for debugging
         Console.WriteLine($"[WHERE CLAUSE] Field: {fieldPath}, Operator: {filter.Operator}, Value: {value}, DataType: {dataType}, IsNullable: {isNullable}");
         Console.WriteLine($"[WHERE CLAUSE] Generated: {whereClause}");
-        
+
         return whereClause;
     }
 
@@ -1116,20 +1140,47 @@ public class ReportDataService : IReportDataService
     {
         // Dynamic LINQ can't resolve DbFunctions - use datetime ranges with ISO 8601 format
         // MUST use "yyyy-MM-ddTHH:mm:ss" format (T separator) for Dynamic LINQ to parse correctly
-        
+
+        // Special operators that don't use standard date values
+        if (operatorType == "InLast")
+        {
+            return BuildInLastDaysClause(fieldExpression, value, isNullable);
+        }
+
+        if (operatorType == "InNext")
+        {
+            return BuildInNextDaysClause(fieldExpression, value, isNullable);
+        }
+
+        if (operatorType == "Between")
+        {
+            return BuildDateBetweenClause(fieldExpression, value, isNullable);
+        }
+
+        if (operatorType == "IsNull")
+        {
+            return isNullable ? $"!{fieldExpression}.HasValue" : "false";
+        }
+
+        if (operatorType == "IsNotNull")
+        {
+            return isNullable ? $"{fieldExpression}.HasValue" : "true";
+        }
+
+        // Standard date operators - parse the date value
         if (!DateTime.TryParse(value, out var dateValue))
         {
-            Console.WriteLine($"[WHERE CLAUSE ERROR] Could not parse date: {value}");
+            Console.WriteLine($"[WHERE CLAUSE ERROR] Could not parse date: {value} for operator: {operatorType}");
             return "";
         }
-        
+
         var startOfDay = dateValue.Date;
         var endOfDay = startOfDay.AddDays(1);
-        
+
         // ISO 8601 format with T separator
         var startStr = startOfDay.ToString("yyyy-MM-ddTHH:mm:ss");
         var endStr = endOfDay.ToString("yyyy-MM-ddTHH:mm:ss");
-        
+
         // For non-nullable DateTime fields, don't check .HasValue
         if (!isNullable)
         {
@@ -1141,15 +1192,10 @@ public class ReportDataService : IReportDataService
                 "LessThan" => $"{fieldExpression} < DateTime.Parse(\"{startStr}\")",
                 "GreaterThanOrEqual" => $"{fieldExpression} >= DateTime.Parse(\"{startStr}\")",
                 "LessThanOrEqual" => $"{fieldExpression} < DateTime.Parse(\"{endStr}\")",
-                "Between" => BuildDateBetweenClause(fieldExpression, value, isNullable),
-                "InLast" => BuildInLastDaysClause(fieldExpression, value, isNullable),
-                "InNext" => BuildInNextDaysClause(fieldExpression, value, isNullable),
-                "IsNull" => "false", // Non-nullable DateTime can never be null
-                "IsNotNull" => "true", // Non-nullable DateTime is always not null
                 _ => ""
             };
         }
-        
+
         // For nullable DateTime fields, check .HasValue
         return operatorType switch
         {
@@ -1159,11 +1205,6 @@ public class ReportDataService : IReportDataService
             "LessThan" => $"{fieldExpression}.HasValue && {fieldExpression}.Value < DateTime.Parse(\"{startStr}\")",
             "GreaterThanOrEqual" => $"{fieldExpression}.HasValue && {fieldExpression}.Value >= DateTime.Parse(\"{startStr}\")",
             "LessThanOrEqual" => $"{fieldExpression}.HasValue && {fieldExpression}.Value < DateTime.Parse(\"{endStr}\")",
-            "Between" => BuildDateBetweenClause(fieldExpression, value, isNullable),
-            "InLast" => BuildInLastDaysClause(fieldExpression, value, isNullable),
-            "InNext" => BuildInNextDaysClause(fieldExpression, value, isNullable),
-            "IsNull" => $"!{fieldExpression}.HasValue",
-            "IsNotNull" => $"{fieldExpression}.HasValue",
             _ => ""
         };
     }
@@ -1175,9 +1216,9 @@ public class ReportDataService : IReportDataService
 
         if (!DateTime.TryParse(parts[0], out var startDate) || !DateTime.TryParse(parts[1], out var endDate))
             return "";
-        
+
         var startOfDay = startDate.Date;
-        var endOfDay = endDate.Date.AddDays(1);
+        var endOfDay = endDate.Date.AddDays(1); // Include the entire end date
 
         var startStr = startOfDay.ToString("yyyy-MM-ddTHH:mm:ss");
         var endStr = endOfDay.ToString("yyyy-MM-ddTHH:mm:ss");
@@ -1186,38 +1227,48 @@ public class ReportDataService : IReportDataService
         {
             return $"{fieldPath} >= DateTime.Parse(\"{startStr}\") && {fieldPath} < DateTime.Parse(\"{endStr}\")";
         }
-        
+
         return $"{fieldPath}.HasValue && {fieldPath}.Value >= DateTime.Parse(\"{startStr}\") && {fieldPath}.Value < DateTime.Parse(\"{endStr}\")";
     }
 
     private string BuildInLastDaysClause(string fieldPath, string value, bool isNullable)
     {
         if (!int.TryParse(value, out var days)) return "";
-        
+
+        // InLast should filter dates BETWEEN (today - X days) AND today
         var startDate = DateTime.UtcNow.Date.AddDays(-days);
+        var endDate = DateTime.UtcNow.Date.AddDays(1); // End of today (start of tomorrow)
         var startStr = startDate.ToString("yyyy-MM-ddTHH:mm:ss");
-        
+        var endStr = endDate.ToString("yyyy-MM-ddTHH:mm:ss");
+
+        Console.WriteLine($"[InLast Filter] Range: {startStr} to {endStr} (last {days} days)");
+
         if (!isNullable)
         {
-            return $"{fieldPath} >= DateTime.Parse(\"{startStr}\")";
+            return $"{fieldPath} >= DateTime.Parse(\"{startStr}\") && {fieldPath} < DateTime.Parse(\"{endStr}\")";
         }
-        
-        return $"{fieldPath}.HasValue && {fieldPath}.Value >= DateTime.Parse(\"{startStr}\")";
+
+        return $"{fieldPath}.HasValue && {fieldPath}.Value >= DateTime.Parse(\"{startStr}\") && {fieldPath}.Value < DateTime.Parse(\"{endStr}\")";
     }
 
     private string BuildInNextDaysClause(string fieldPath, string value, bool isNullable)
     {
         if (!int.TryParse(value, out var days)) return "";
-        
-        var endDate = DateTime.UtcNow.Date.AddDays(days + 1);
+
+        // InNext should filter dates BETWEEN today AND (today + X days)
+        var startDate = DateTime.UtcNow.Date; // Start of today
+        var endDate = DateTime.UtcNow.Date.AddDays(days + 1); // End of target day
+        var startStr = startDate.ToString("yyyy-MM-ddTHH:mm:ss");
         var endStr = endDate.ToString("yyyy-MM-ddTHH:mm:ss");
-        
+
+        Console.WriteLine($"[InNext Filter] Range: {startStr} to {endStr} (next {days} days)");
+
         if (!isNullable)
         {
-            return $"{fieldPath} < DateTime.Parse(\"{endStr}\")";
+            return $"{fieldPath} >= DateTime.Parse(\"{startStr}\") && {fieldPath} < DateTime.Parse(\"{endStr}\")";
         }
-        
-        return $"{fieldPath}.HasValue && {fieldPath}.Value < DateTime.Parse(\"{endStr}\")";
+
+        return $"{fieldPath}.HasValue && {fieldPath}.Value >= DateTime.Parse(\"{startStr}\") && {fieldPath}.Value < DateTime.Parse(\"{endStr}\")";
     }
 
     private string BuildNumericWhereClause(string fieldExpression, string operatorType, string value)
@@ -2322,6 +2373,46 @@ public class ReportDataService : IReportDataService
     }
 
     /// <summary>
+    /// Calculate a dynamic date based on type and offset
+    /// </summary>
+    private DateTime CalculateDynamicDate(string? dynamicDateType, int offset)
+    {
+        var now = DateTime.UtcNow;
+
+        return dynamicDateType switch
+        {
+            // Offset-based (days, weeks, months, years)
+            "PastDays" => now.AddDays(-offset),
+            "NextDays" => now.AddDays(offset),
+            "PastWeeks" => now.AddDays(-offset * 7),
+            "NextWeeks" => now.AddDays(offset * 7),
+            "PastMonths" => now.AddMonths(-offset),
+            "NextMonths" => now.AddMonths(offset),
+            "PastYears" => now.AddYears(-offset),
+            "NextYears" => now.AddYears(offset),
+
+            // Specific dates (no offset needed)
+            "Today" => now.Date,
+            "Yesterday" => now.Date.AddDays(-1),
+            "Tomorrow" => now.Date.AddDays(1),
+
+            // Week boundaries
+            "StartOfWeek" => now.Date.AddDays(-(int)now.DayOfWeek),
+            "EndOfWeek" => now.Date.AddDays(6 - (int)now.DayOfWeek),
+
+            // Month boundaries
+            "StartOfMonth" => new DateTime(now.Year, now.Month, 1),
+            "EndOfMonth" => new DateTime(now.Year, now.Month, DateTime.DaysInMonth(now.Year, now.Month)),
+
+            // Year boundaries
+            "StartOfYear" => new DateTime(now.Year, 1, 1),
+            "EndOfYear" => new DateTime(now.Year, 12, 31),
+
+            _ => now.Date  // Default to today if type unknown
+        };
+    }
+
+    /// <summary>
     /// Builds a Dynamic LINQ where clause from a sub-filter
     /// </summary>
     private string BuildSubFilterWhereClause(CollectionSubFilter filter)
@@ -2346,8 +2437,34 @@ public class ReportDataService : IReportDataService
             switch (filter.Operator)
             {
                 case "Equals":
+                    // Check if this is a dynamic date comparison
+                    if (filter.IsDynamicDate && filter.DynamicDateOffset.HasValue)
+                    {
+                        var dynamicDate = CalculateDynamicDate(filter.DynamicDateType, filter.DynamicDateOffset.Value);
+                        return $"{navigationProp} != null && {propertyAccess} == DateTime({dynamicDate.Year}, {dynamicDate.Month}, {dynamicDate.Day})";
+                    }
+                    // Special handling for dynamic date types without offset (Today, Yesterday, etc.)
+                    if (filter.IsDynamicDate && !string.IsNullOrEmpty(filter.DynamicDateType))
+                    {
+                        var dynamicDate = CalculateDynamicDate(filter.DynamicDateType, 0);
+                        return $"{navigationProp} != null && {propertyAccess} == DateTime({dynamicDate.Year}, {dynamicDate.Month}, {dynamicDate.Day})";
+                    }
+                    // String comparison (original logic)
                     return $"{navigationProp} != null && {propertyAccess} != null && {propertyAccess}.ToLower() == \"{valueLower}\"";
                 case "NotEquals":
+                    // Check if this is a dynamic date comparison
+                    if (filter.IsDynamicDate && filter.DynamicDateOffset.HasValue)
+                    {
+                        var dynamicDate = CalculateDynamicDate(filter.DynamicDateType, filter.DynamicDateOffset.Value);
+                        return $"{navigationProp} != null && {propertyAccess} != DateTime({dynamicDate.Year}, {dynamicDate.Month}, {dynamicDate.Day})";
+                    }
+                    // Special handling for dynamic date types without offset (Today, Yesterday, etc.)
+                    if (filter.IsDynamicDate && !string.IsNullOrEmpty(filter.DynamicDateType))
+                    {
+                        var dynamicDate = CalculateDynamicDate(filter.DynamicDateType, 0);
+                        return $"{navigationProp} != null && {propertyAccess} != DateTime({dynamicDate.Year}, {dynamicDate.Month}, {dynamicDate.Day})";
+                    }
+                    // String comparison (original logic)
                     return $"{navigationProp} != null && {propertyAccess} != null && {propertyAccess}.ToLower() != \"{valueLower}\"";
                 case "Contains":
                     return $"{navigationProp} != null && {propertyAccess} != null && {propertyAccess}.ToLower().Contains(\"{valueLower}\")";
@@ -2356,13 +2473,75 @@ public class ReportDataService : IReportDataService
                 case "EndsWith":
                     return $"{navigationProp} != null && {propertyAccess} != null && {propertyAccess}.ToLower().EndsWith(\"{valueLower}\")";
                 case "GreaterThan":
+                    // Check if this is a dynamic date comparison
+                    if (filter.IsDynamicDate && filter.DynamicDateOffset.HasValue)
+                    {
+                        var dynamicDate = CalculateDynamicDate(filter.DynamicDateType, filter.DynamicDateOffset.Value);
+                        return $"{navigationProp} != null && {propertyAccess} > DateTime({dynamicDate.Year}, {dynamicDate.Month}, {dynamicDate.Day})";
+                    }
                     return $"{navigationProp} != null && {propertyAccess} > {value}";
                 case "LessThan":
+                    // Check if this is a dynamic date comparison
+                    if (filter.IsDynamicDate && filter.DynamicDateOffset.HasValue)
+                    {
+                        var dynamicDate = CalculateDynamicDate(filter.DynamicDateType, filter.DynamicDateOffset.Value);
+                        return $"{navigationProp} != null && {propertyAccess} < DateTime({dynamicDate.Year}, {dynamicDate.Month}, {dynamicDate.Day})";
+                    }
                     return $"{navigationProp} != null && {propertyAccess} < {value}";
                 case "GreaterThanOrEqual":
+                    // Check if this is a dynamic date comparison
+                    if (filter.IsDynamicDate && filter.DynamicDateOffset.HasValue)
+                    {
+                        var dynamicDate = CalculateDynamicDate(filter.DynamicDateType, filter.DynamicDateOffset.Value);
+                        return $"{navigationProp} != null && {propertyAccess} >= DateTime({dynamicDate.Year}, {dynamicDate.Month}, {dynamicDate.Day})";
+                    }
                     return $"{navigationProp} != null && {propertyAccess} >= {value}";
                 case "LessThanOrEqual":
+                    // Check if this is a dynamic date comparison
+                    if (filter.IsDynamicDate && filter.DynamicDateOffset.HasValue)
+                    {
+                        var dynamicDate = CalculateDynamicDate(filter.DynamicDateType, filter.DynamicDateOffset.Value);
+                        return $"{navigationProp} != null && {propertyAccess} <= DateTime({dynamicDate.Year}, {dynamicDate.Month}, {dynamicDate.Day})";
+                    }
                     return $"{navigationProp} != null && {propertyAccess} <= {value}";
+                case "InLast":
+                    // For "in the last X days" - date between (Today - X days) and Today
+                    int daysAgo = 0;
+                    if (!string.IsNullOrEmpty(value))
+                    {
+                        int.TryParse(value, out daysAgo);
+                    }
+                    else if (filter.DynamicDateOffset.HasValue)
+                    {
+                        daysAgo = filter.DynamicDateOffset.Value;
+                    }
+
+                    if (daysAgo > 0)
+                    {
+                        var cutoffDate = DateTime.UtcNow.AddDays(-daysAgo);
+                        var today = DateTime.UtcNow;
+                        return $"{navigationProp} != null && {propertyAccess} >= DateTime({cutoffDate.Year}, {cutoffDate.Month}, {cutoffDate.Day}) && {propertyAccess} <= DateTime({today.Year}, {today.Month}, {today.Day})";
+                    }
+                    return "";
+                case "InNext":
+                    // For "in the next X days" - date between Today and (Today + X days)
+                    int daysAhead = 0;
+                    if (!string.IsNullOrEmpty(value))
+                    {
+                        int.TryParse(value, out daysAhead);
+                    }
+                    else if (filter.DynamicDateOffset.HasValue)
+                    {
+                        daysAhead = filter.DynamicDateOffset.Value;
+                    }
+
+                    if (daysAhead > 0)
+                    {
+                        var today = DateTime.UtcNow;
+                        var futureDate = DateTime.UtcNow.AddDays(daysAhead);
+                        return $"{navigationProp} != null && {propertyAccess} >= DateTime({today.Year}, {today.Month}, {today.Day}) && {propertyAccess} <= DateTime({futureDate.Year}, {futureDate.Month}, {futureDate.Day})";
+                    }
+                    return "";
                 default:
                     return "";
             }
@@ -2373,6 +2552,19 @@ public class ReportDataService : IReportDataService
         switch (filter.Operator)
         {
             case "Equals":
+                // Check if this is a dynamic date comparison
+                if (filter.IsDynamicDate && filter.DynamicDateOffset.HasValue)
+                {
+                    var dynamicDate = CalculateDynamicDate(filter.DynamicDateType, filter.DynamicDateOffset.Value);
+                    return $"{field} == DateTime({dynamicDate.Year}, {dynamicDate.Month}, {dynamicDate.Day})";
+                }
+                // Special handling for dynamic date types without offset (Today, Yesterday, etc.)
+                if (filter.IsDynamicDate && !string.IsNullOrEmpty(filter.DynamicDateType))
+                {
+                    var dynamicDate = CalculateDynamicDate(filter.DynamicDateType, 0);
+                    return $"{field} == DateTime({dynamicDate.Year}, {dynamicDate.Month}, {dynamicDate.Day})";
+                }
+                // Numeric or string comparison (original logic)
                 if (isNumericValue)
                     return $"{field} == {value}";
                 else
@@ -2382,6 +2574,19 @@ public class ReportDataService : IReportDataService
                 }
                 
             case "NotEquals":
+                // Check if this is a dynamic date comparison
+                if (filter.IsDynamicDate && filter.DynamicDateOffset.HasValue)
+                {
+                    var dynamicDate = CalculateDynamicDate(filter.DynamicDateType, filter.DynamicDateOffset.Value);
+                    return $"{field} != DateTime({dynamicDate.Year}, {dynamicDate.Month}, {dynamicDate.Day})";
+                }
+                // Special handling for dynamic date types without offset (Today, Yesterday, etc.)
+                if (filter.IsDynamicDate && !string.IsNullOrEmpty(filter.DynamicDateType))
+                {
+                    var dynamicDate = CalculateDynamicDate(filter.DynamicDateType, 0);
+                    return $"{field} != DateTime({dynamicDate.Year}, {dynamicDate.Month}, {dynamicDate.Day})";
+                }
+                // Numeric or string comparison (original logic)
                 if (isNumericValue)
                     return $"{field} != {value}";
                 else
@@ -2399,17 +2604,81 @@ public class ReportDataService : IReportDataService
                 return $"{field} != null && {field}.ToString().ToLower().{methodName}(\"{valLower}\")";
                 
             case "GreaterThan":
+                // Check if this is a dynamic date comparison
+                if (filter.IsDynamicDate && filter.DynamicDateOffset.HasValue)
+                {
+                    var dynamicDate = CalculateDynamicDate(filter.DynamicDateType, filter.DynamicDateOffset.Value);
+                    return $"{field} > DateTime({dynamicDate.Year}, {dynamicDate.Month}, {dynamicDate.Day})";
+                }
                 return $"{field} > {value}";
-                
+
             case "LessThan":
+                // Check if this is a dynamic date comparison
+                if (filter.IsDynamicDate && filter.DynamicDateOffset.HasValue)
+                {
+                    var dynamicDate = CalculateDynamicDate(filter.DynamicDateType, filter.DynamicDateOffset.Value);
+                    return $"{field} < DateTime({dynamicDate.Year}, {dynamicDate.Month}, {dynamicDate.Day})";
+                }
                 return $"{field} < {value}";
-                
+
             case "GreaterThanOrEqual":
+                // Check if this is a dynamic date comparison
+                if (filter.IsDynamicDate && filter.DynamicDateOffset.HasValue)
+                {
+                    var dynamicDate = CalculateDynamicDate(filter.DynamicDateType, filter.DynamicDateOffset.Value);
+                    return $"{field} >= DateTime({dynamicDate.Year}, {dynamicDate.Month}, {dynamicDate.Day})";
+                }
                 return $"{field} >= {value}";
-                
+
             case "LessThanOrEqual":
+                // Check if this is a dynamic date comparison
+                if (filter.IsDynamicDate && filter.DynamicDateOffset.HasValue)
+                {
+                    var dynamicDate = CalculateDynamicDate(filter.DynamicDateType, filter.DynamicDateOffset.Value);
+                    return $"{field} <= DateTime({dynamicDate.Year}, {dynamicDate.Month}, {dynamicDate.Day})";
+                }
                 return $"{field} <= {value}";
-                
+
+            case "InLast":
+                // For "in the last X days" - date between (Today - X days) and Today
+                int daysAgoD = 0;
+                if (!string.IsNullOrEmpty(value))
+                {
+                    int.TryParse(value, out daysAgoD);
+                }
+                else if (filter.DynamicDateOffset.HasValue)
+                {
+                    daysAgoD = filter.DynamicDateOffset.Value;
+                }
+
+                if (daysAgoD > 0)
+                {
+                    var cutoffDate = DateTime.UtcNow.AddDays(-daysAgoD);
+                    var today = DateTime.UtcNow;
+                    return $"{field} >= DateTime({cutoffDate.Year}, {cutoffDate.Month}, {cutoffDate.Day}) && {field} <= DateTime({today.Year}, {today.Month}, {today.Day})";
+                }
+                return "";
+
+            case "InNext":
+                // For "in the next X days" - date between Today and (Today + X days)
+                int daysAheadD = 0;
+                if (!string.IsNullOrEmpty(value))
+                {
+                    int.TryParse(value, out daysAheadD);
+                }
+                else if (filter.DynamicDateOffset.HasValue)
+                {
+                    daysAheadD = filter.DynamicDateOffset.Value;
+                }
+
+                if (daysAheadD > 0)
+                {
+                    var today = DateTime.UtcNow;
+                    var futureDate = DateTime.UtcNow.AddDays(daysAheadD);
+                    return $"{field} >= DateTime({today.Year}, {today.Month}, {today.Day}) && {field} <= DateTime({futureDate.Year}, {futureDate.Month}, {futureDate.Day})";
+                }
+                return "";
+
             default:
                 return "";
         }

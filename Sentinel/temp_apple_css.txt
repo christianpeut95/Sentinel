@@ -1,0 +1,714 @@
+﻿/* ========================================
+   Apple Design System - Surveillance MVP
+   ======================================== */
+
+/* CSS Variables */
+:root {
+    /* Spacing - 8px grid system */
+    --spacing-1: 4px;
+    --spacing-2: 8px;
+    --spacing-3: 12px;
+    --spacing-4: 16px;
+    --spacing-6: 24px;
+    --spacing-8: 32px;
+    --spacing-12: 48px;
+    
+    /* Colors - Apple System */
+    --color-primary: #007AFF;
+    --color-success: #34C759;
+    --color-warning: #FF9500;
+    --color-danger: #FF3B30;
+    --color-yellow: #FFCC00;
+    
+    /* Grays */
+    --gray-1: #000000;
+    --gray-2: rgba(60, 60, 67, 0.6);
+    --gray-3: rgba(60, 60, 67, 0.3);
+    --gray-4: #F2F2F7;
+    --gray-5: #E5E5EA;
+    --gray-6: #8E8E93;
+    --white: #FFFFFF;
+    
+    /* Border Radius */
+    --radius-small: 8px;
+    --radius-medium: 12px;
+    --radius-large: 16px;
+    
+    /* Shadows */
+    --shadow-small: 0 2px 8px rgba(0,0,0,0.04);
+    --shadow-medium: 0 4px 12px rgba(0,0,0,0.08);
+    
+    /* Transitions */
+    --transition-fast: 100ms ease-in-out;
+    --transition-normal: 200ms ease-in-out;
+    --transition-slow: 300ms ease-in-out;
+}
+
+/* ========================================
+   Base Typography & Body
+   ======================================== */
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    font-size: 16px;
+    line-height: 1.5;
+    color: var(--gray-1);
+    background: var(--gray-4);
+}
+
+/* Typography Scale */
+.text-hero {
+    font-size: 36px;
+    font-weight: 700;
+    line-height: 1.2;
+    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+}
+
+.text-title-1 {
+    font-size: 28px;
+    font-weight: 700;
+    line-height: 1.3;
+}
+
+.text-title-2 {
+    font-size: 22px;
+    font-weight: 700;
+    line-height: 1.3;
+}
+
+.text-title-3 {
+    font-size: 20px;
+    font-weight: 600;
+    line-height: 1.4;
+}
+
+.text-body {
+    font-size: 16px;
+    font-weight: 400;
+    line-height: 1.5;
+}
+
+.text-callout {
+    font-size: 15px;
+    font-weight: 400;
+    line-height: 1.4;
+}
+
+.text-subhead {
+    font-size: 14px;
+    font-weight: 400;
+    line-height: 1.4;
+}
+
+.text-footnote {
+    font-size: 13px;
+    font-weight: 400;
+    line-height: 1.4;
+}
+
+.text-caption {
+    font-size: 12px;
+    font-weight: 400;
+    line-height: 1.3;
+}
+
+/* ========================================
+   Apple Header
+   ======================================== */
+.apple-header {
+    background: var(--white);
+    border-bottom: 1px solid var(--gray-5);
+    padding: var(--spacing-4) var(--spacing-8);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    box-shadow: var(--shadow-small);
+    gap: var(--spacing-4);
+}
+
+.apple-header .header-left {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-4);
+}
+
+.apple-header .menu-toggle {
+    font-size: 24px;
+    border: none;
+    background: none;
+    cursor: pointer;
+    padding: var(--spacing-2);
+    color: var(--gray-1);
+    transition: background var(--transition-normal);
+    border-radius: var(--radius-small);
+}
+
+.apple-header .menu-toggle:hover {
+    background: var(--gray-4);
+}
+
+.apple-header .page-title {
+    font-size: 20px;
+    font-weight: 600;
+    color: var(--gray-1);
+}
+
+.apple-header .header-right {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-4);
+}
+
+.apple-header .icon-button {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    border: none;
+    background: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background var(--transition-normal);
+    font-size: 16px;
+}
+
+.apple-header .icon-button:hover {
+    background: var(--gray-4);
+}
+
+.apple-header .user-name {
+    font-size: 15px;
+    font-weight: 500;
+    color: var(--gray-1);
+}
+
+/* ========================================
+   Apple Sidebar
+   ======================================== */
+.apple-sidebar {
+    position: fixed;
+    left: -280px;
+    top: 0;
+    width: 280px;
+    height: 100vh;
+    background: var(--white);
+    box-shadow: var(--shadow-medium);
+    transition: left var(--transition-slow);
+    z-index: 200;
+    padding: var(--spacing-6);
+    overflow-y: auto;
+}
+
+.apple-sidebar.open {
+    left: 0;
+}
+
+.apple-sidebar-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.3);
+    z-index: 150;
+    display: none;
+    backdrop-filter: blur(4px);
+}
+
+.apple-sidebar-overlay.show {
+    display: block;
+}
+
+.apple-sidebar .sidebar-header {
+    padding: var(--spacing-4) 0;
+    border-bottom: 1px solid var(--gray-5);
+    margin-bottom: var(--spacing-4);
+}
+
+.apple-sidebar .sidebar-logo {
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--color-primary);
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-2);
+}
+
+.apple-sidebar .sidebar-logo i {
+    font-size: 24px;
+}
+
+.apple-sidebar .sidebar-section {
+    margin-bottom: var(--spacing-6);
+}
+
+.apple-sidebar .sidebar-section-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--gray-2);
+    margin-bottom: var(--spacing-2);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 0 var(--spacing-2);
+}
+
+.apple-sidebar .sidebar-link {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-3);
+    padding: var(--spacing-3) var(--spacing-4);
+    border-radius: var(--radius-small);
+    text-decoration: none;
+    color: var(--gray-1);
+    transition: background var(--transition-normal);
+    font-size: 15px;
+    margin-bottom: var(--spacing-1);
+}
+
+.apple-sidebar .sidebar-link:hover {
+    background: var(--gray-4);
+}
+
+.apple-sidebar .sidebar-link.active {
+    background: var(--color-primary);
+    color: var(--white);
+}
+
+.apple-sidebar .sidebar-icon {
+    font-size: 18px;
+    width: 24px;
+    text-align: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: inherit;
+}
+
+.apple-sidebar .sidebar-icon i {
+    font-size: 18px;
+}
+
+/* ========================================
+   Cards
+   ======================================== */
+.apple-card {
+    background: var(--white);
+    border-radius: var(--radius-medium);
+    box-shadow: var(--shadow-small);
+    overflow: hidden;
+    transition: transform var(--transition-normal), box-shadow var(--transition-normal);
+}
+
+.apple-card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-medium);
+}
+
+.apple-card-header {
+    padding: var(--spacing-4);
+    border-bottom: 1px solid var(--gray-5);
+    font-weight: 600;
+    font-size: 16px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.apple-card-body {
+    padding: var(--spacing-4);
+}
+
+.apple-card-footer {
+    padding: var(--spacing-4);
+    border-top: 1px solid var(--gray-5);
+    background: var(--gray-4);
+}
+
+/* Card Badge */
+.card-badge {
+    background: var(--gray-4);
+    color: var(--gray-2);
+    padding: 4px 12px;
+    border-radius: var(--radius-small);
+    font-size: 13px;
+    font-weight: 500;
+}
+
+/* ========================================
+   Status Indicators
+   ======================================== */
+.status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    display: inline-block;
+    margin-right: var(--spacing-1);
+}
+
+.status-dot.critical {
+    background: var(--color-danger);
+}
+
+.status-dot.warning {
+    background: var(--color-warning);
+}
+
+.status-dot.attention {
+    background: var(--color-yellow);
+}
+
+.status-dot.normal {
+    background: var(--color-success);
+}
+
+.status-dot.inactive {
+    background: var(--gray-6);
+}
+
+/* Status Badge */
+.status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--spacing-1);
+    padding: 4px 12px;
+    border-radius: var(--radius-small);
+    font-size: 13px;
+    font-weight: 500;
+}
+
+.status-badge.critical {
+    background: rgba(255, 59, 48, 0.1);
+    color: var(--color-danger);
+}
+
+.status-badge.warning {
+    background: rgba(255, 149, 0, 0.1);
+    color: var(--color-warning);
+}
+
+.status-badge.attention {
+    background: rgba(255, 204, 0, 0.1);
+    color: var(--color-yellow);
+}
+
+.status-badge.normal {
+    background: rgba(52, 199, 89, 0.1);
+    color: var(--color-success);
+}
+
+/* ========================================
+   Buttons
+   ======================================== */
+.btn-apple {
+    padding: var(--spacing-2) var(--spacing-4);
+    border-radius: var(--radius-small);
+    border: none;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all var(--transition-normal);
+    display: inline-flex;
+    align-items: center;
+    gap: var(--spacing-2);
+    text-decoration: none;
+}
+
+.btn-apple-primary {
+    background: var(--color-primary);
+    color: var(--white);
+}
+
+.btn-apple-primary:hover {
+    background: #0051D5;
+}
+
+.btn-apple-secondary {
+    background: var(--gray-4);
+    color: var(--gray-1);
+}
+
+.btn-apple-secondary:hover {
+    background: var(--gray-5);
+}
+
+.btn-apple-danger {
+    background: var(--color-danger);
+    color: var(--white);
+}
+
+.btn-apple-danger:hover {
+    background: #D32F2F;
+}
+
+.btn-apple-link {
+    background: none;
+    color: var(--color-primary);
+    padding: var(--spacing-2);
+}
+
+.btn-apple-link:hover {
+    text-decoration: underline;
+}
+
+/* ========================================
+   Stats Grid
+   ======================================== */
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: var(--spacing-4);
+    margin-bottom: var(--spacing-6);
+}
+
+.stat-card {
+    background: var(--white);
+    border-radius: var(--radius-medium);
+    padding: var(--spacing-6);
+    box-shadow: var(--shadow-small);
+    text-align: center;
+    transition: transform var(--transition-normal);
+}
+
+.stat-card:hover {
+    transform: translateY(-2px);
+}
+
+.stat-icon {
+    font-size: 32px;
+    margin-bottom: var(--spacing-2);
+}
+
+.stat-value {
+    font-size: 36px;
+    font-weight: 700;
+    margin-bottom: var(--spacing-1);
+    color: var(--gray-1);
+}
+
+.stat-label {
+    font-size: 15px;
+    color: var(--gray-2);
+}
+
+/* ========================================
+   Tables
+   ======================================== */
+.apple-table-container {
+    background: var(--white);
+    border-radius: var(--radius-medium);
+    box-shadow: var(--shadow-small);
+    overflow: hidden;
+}
+
+.apple-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.apple-table thead {
+    background: var(--gray-4);
+}
+
+.apple-table th {
+    padding: var(--spacing-3) var(--spacing-4);
+    text-align: left;
+    font-weight: 600;
+    font-size: 14px;
+    color: var(--gray-2);
+    border-bottom: 1px solid var(--gray-5);
+}
+
+.apple-table td {
+    padding: var(--spacing-4);
+    border-bottom: 1px solid var(--gray-5);
+    vertical-align: top;
+}
+
+.apple-table tbody tr:hover {
+    background: #F9F9F9;
+    cursor: pointer;
+}
+
+.apple-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+/* ========================================
+   Forms
+   ======================================== */
+.apple-form-group {
+    margin-bottom: var(--spacing-4);
+}
+
+.apple-form-label {
+    display: block;
+    font-size: 14px;
+    font-weight: 500;
+    margin-bottom: var(--spacing-2);
+    color: var(--gray-1);
+}
+
+.apple-form-input {
+    width: 100%;
+    padding: var(--spacing-3) var(--spacing-4);
+    border: 1px solid var(--gray-5);
+    border-radius: var(--radius-medium);
+    font-size: 15px;
+    background: var(--white);
+    transition: all var(--transition-normal);
+}
+
+.apple-form-input:focus {
+    outline: 2px solid var(--color-primary);
+    border-color: var(--color-primary);
+}
+
+.apple-form-select {
+    width: 100%;
+    padding: var(--spacing-3) var(--spacing-4);
+    border: 1px solid var(--gray-5);
+    border-radius: var(--radius-medium);
+    font-size: 15px;
+    background: var(--white);
+    transition: all var(--transition-normal);
+}
+
+.apple-form-select:focus {
+    outline: 2px solid var(--color-primary);
+    border-color: var(--color-primary);
+}
+
+/* ========================================
+   Container & Layout
+   ======================================== */
+.apple-container {
+    max-width: 3840px; /* Support ultra-wide and 4K displays */
+    margin: 0 auto;
+    padding: var(--spacing-8);
+    padding-top: 80px; /* Account for fixed header */
+    min-height: 100vh;
+    background: var(--gray-4);
+}
+
+/* Responsive max-widths for better readability on different screens */
+@media (min-width: 3840px) {
+    .apple-container {
+        max-width: 100%; /* No limit on ultra-wide displays */
+        padding-left: var(--spacing-8);
+        padding-right: var(--spacing-8);
+    }
+}
+
+@media (min-width: 2560px) and (max-width: 3839px) {
+    .apple-container {
+        max-width: 3200px; /* 2K/QHD displays */
+    }
+}
+
+@media (min-width: 1920px) and (max-width: 2559px) {
+    .apple-container {
+        max-width: 1920px; /* Full HD displays */
+    }
+}
+
+@media (min-width: 1440px) and (max-width: 1919px) {
+    .apple-container {
+        max-width: 1440px; /* Standard laptop displays */
+    }
+}
+
+.apple-page-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--spacing-6);
+}
+
+.apple-page-title {
+    font-size: 28px;
+    font-weight: 700;
+    color: var(--gray-1);
+}
+
+/* Grid Layouts */
+.apple-grid-2 {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: var(--spacing-6);
+}
+
+.apple-grid-3 {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: var(--spacing-6);
+}
+
+/* ========================================
+   Utilities
+   ======================================== */
+.text-muted {
+    color: var(--gray-2);
+}
+
+.text-primary {
+    color: var(--color-primary);
+}
+
+.text-danger {
+    color: var(--color-danger);
+}
+
+.text-success {
+    color: var(--color-success);
+}
+
+.mb-0 { margin-bottom: 0; }
+.mb-1 { margin-bottom: var(--spacing-1); }
+.mb-2 { margin-bottom: var(--spacing-2); }
+.mb-3 { margin-bottom: var(--spacing-3); }
+.mb-4 { margin-bottom: var(--spacing-4); }
+.mb-6 { margin-bottom: var(--spacing-6); }
+.mb-8 { margin-bottom: var(--spacing-8); }
+
+.mt-0 { margin-top: 0; }
+.mt-1 { margin-top: var(--spacing-1); }
+.mt-2 { margin-top: var(--spacing-2); }
+.mt-3 { margin-top: var(--spacing-3); }
+.mt-4 { margin-top: var(--spacing-4); }
+.mt-6 { margin-top: var(--spacing-6); }
+.mt-8 { margin-top: var(--spacing-8); }
+
+/* ========================================
+   Responsive
+   ======================================== */
+@media (max-width: 1200px) {
+    .apple-grid-3 {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (max-width: 768px) {
+    .apple-container {
+        padding: var(--spacing-4);
+    }
+    
+    .apple-grid-2,
+    .apple-grid-3 {
+        grid-template-columns: 1fr;
+    }
+    
+    .stats-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .apple-header {
+        padding: var(--spacing-3) var(--spacing-4);
+    }
+    
+    .apple-header .user-name {
+        display: none;
+    }
+}

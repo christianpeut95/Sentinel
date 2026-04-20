@@ -4,17 +4,7 @@
 
 @{
     ViewData["Title"] = "Edit Contact";
-    Layout = "~/Pages/Shared/_Layout.cshtml";
-}
-@functions {
-    public string GetCspNonce()
-    {
-        if (HttpContext?.Items?.TryGetValue("csp-nonce", out var nonce) == true && nonce is string nonceStr)
-        {
-            return nonceStr;
-        }
-        return string.Empty;
-    }
+    Layout = "~/Pages/Shared/_LayoutSentinel.cshtml";
 }
 
 <style>

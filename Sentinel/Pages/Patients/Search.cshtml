@@ -3,157 +3,151 @@
 
 @{
     ViewData["Title"] = "Advanced Patient Search";
-    Layout = "~/Pages/Shared/_Layout.cshtml";
-}
-@functions {
-    public string GetCspNonce()
-    {
-        if (HttpContext?.Items?.TryGetValue("csp-nonce", out var nonce) == true && nonce is string nonceStr)
-        {
-            return nonceStr;
-        }
-        return string.Empty;
-    }
+    ViewData["Subtitle"] = "Search across all patient records with advanced filtering";
 }
 
-<nav aria-label="breadcrumb" class="mb-3">
-    <ol class="breadcrumb">
-        <li class="breadcrumb-item"><a asp-page="/Index">Home</a></li>
-        <li class="breadcrumb-item"><a asp-page="./Index">Patients</a></li>
-        <li class="breadcrumb-item active" aria-current="page">Advanced Search</li>
-    </ol>
-</nav>
-
-<div class="d-flex justify-content-between align-items-center mb-3">
-    <h2 class="mb-0"><i class="bi bi-search me-2"></i>Advanced Patient Search</h2>
-    <a asp-page="./Index" class="btn btn-outline-secondary"><i class="bi bi-arrow-left me-1"></i>Back to List</a>
+<!-- Page Header -->
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--spacing-6);">
+    <div>
+        <h1 style="font-family: var(--f-sans); font-weight: 600; font-size: 28px; letter-spacing: -0.02em; color: var(--forest); margin: 0; display: flex; align-items: center; gap: var(--spacing-2);">
+            <i class="bi bi-search" style="color: var(--signal-dk);"></i>
+            Advanced Patient Search
+        </h1>
+    </div>
+    <a asp-page="./Index" class="btn-sentinel-secondary">
+        <i class="bi bi-arrow-left"></i> Back to List
+    </a>
 </div>
 
-<div class="card shadow-sm mb-4">
-    <div class="card-header bg-primary text-white">
-        <h5 class="mb-0"><i class="bi bi-funnel me-2"></i>Search Criteria</h5>
+<!-- Search Criteria Card -->
+<div class="sentinel-card" style="margin-bottom: var(--spacing-5);">
+    <div class="sentinel-card-header">
+        <h3 class="sentinel-card-title">
+            <i class="bi bi-funnel"></i>
+            Search Criteria
+        </h3>
     </div>
-    <div class="card-body">
+    <div class="sentinel-card-body">
         <form method="get">
             <!-- Essential Fields -->
-            <div class="row g-2">
+            <div class="row g-3">
                 <div class="col-md-3">
-                    <label asp-for="GivenName" class="form-label fw-bold">First Name</label>
-                    <input asp-for="GivenName" class="form-control form-control-sm" placeholder="First name" />
+                    <label asp-for="GivenName" class="sentinel-label">First Name</label>
+                    <input asp-for="GivenName" class="sentinel-input" placeholder="First name" />
                 </div>
                 <div class="col-md-3">
-                    <label asp-for="FamilyName" class="form-label fw-bold">Last Name</label>
-                    <input asp-for="FamilyName" class="form-control form-control-sm" placeholder="Last name" />
+                    <label asp-for="FamilyName" class="sentinel-label">Last Name</label>
+                    <input asp-for="FamilyName" class="sentinel-input" placeholder="Last name" />
                 </div>
                 <div class="col-md-3">
-                    <label asp-for="Phone" class="form-label fw-bold">Phone</label>
-                    <input asp-for="Phone" class="form-control form-control-sm" placeholder="Phone number" />
+                    <label asp-for="Phone" class="sentinel-label">Phone</label>
+                    <input asp-for="Phone" class="sentinel-input" placeholder="Phone number" />
                 </div>
                 <div class="col-md-3">
-                    <label asp-for="Email" class="form-label fw-bold">Email</label>
-                    <input asp-for="Email" class="form-control form-control-sm" type="email" placeholder="Email" />
+                    <label asp-for="Email" class="sentinel-label">Email</label>
+                    <input asp-for="Email" class="sentinel-input" type="email" placeholder="Email" />
                 </div>
             </div>
 
-            <div class="row g-2 mt-2">
+            <div class="row g-3 mt-2">
                 <div class="col-md-3">
-                    <label asp-for="DateOfBirthFrom" class="form-label fw-bold">DOB From</label>
-                    <input asp-for="DateOfBirthFrom" class="form-control form-control-sm" type="date" />
+                    <label asp-for="DateOfBirthFrom" class="sentinel-label">DOB From</label>
+                    <input asp-for="DateOfBirthFrom" class="sentinel-input" type="date" />
                 </div>
                 <div class="col-md-3">
-                    <label asp-for="DateOfBirthTo" class="form-label fw-bold">DOB To</label>
-                    <input asp-for="DateOfBirthTo" class="form-control form-control-sm" type="date" />
+                    <label asp-for="DateOfBirthTo" class="sentinel-label">DOB To</label>
+                    <input asp-for="DateOfBirthTo" class="sentinel-input" type="date" />
                 </div>
                 <div class="col-md-3">
-                    <label asp-for="City" class="form-label fw-bold">Suburb</label>
-                    <input asp-for="City" class="form-control form-control-sm" placeholder="Suburb" />
+                    <label asp-for="City" class="sentinel-label">Suburb</label>
+                    <input asp-for="City" class="sentinel-input" placeholder="Suburb" />
                 </div>
                 <div class="col-md-3">
-                    <label asp-for="PostalCode" class="form-label fw-bold">Postcode</label>
-                    <input asp-for="PostalCode" class="form-control form-control-sm" placeholder="Postcode" />
+                    <label asp-for="PostalCode" class="sentinel-label">Postcode</label>
+                    <input asp-for="PostalCode" class="sentinel-input" placeholder="Postcode" />
                 </div>
             </div>
 
             <!-- Collapsible Additional Filters -->
-            <div class="mt-3">
-                <a class="btn btn-sm btn-outline-secondary" data-bs-toggle="collapse" href="#additionalFilters" role="button" aria-expanded="false" aria-controls="additionalFilters">
-                    <i class="bi bi-plus-circle me-1"></i>More Filters
-                </a>
+            <div style="margin-top: var(--spacing-4);">
+                <button type="button" class="btn-sentinel-secondary" style="padding: 8px 14px; font-size: 13px;" data-bs-toggle="collapse" data-bs-target="#additionalFilters" aria-expanded="false" aria-controls="additionalFilters">
+                    <i class="bi bi-plus-circle"></i> More Filters
+                </button>
             </div>
 
-            <div class="collapse mt-3" id="additionalFilters">
-                <div class="card card-body bg-light">
-                    <div class="row g-2">
+            <div class="collapse" style="margin-top: var(--spacing-4);" id="additionalFilters">
+                <div style="background: var(--bone); border: 1px solid var(--hairline); border-radius: var(--radius-md); padding: var(--spacing-4);">
+                    <div class="row g-3">
                         <div class="col-md-3">
-                            <label asp-for="SexAtBirthId" class="form-label fw-bold">Sex at Birth</label>
-                            <select asp-for="SexAtBirthId" class="form-select form-select-sm" asp-items="Model.SexAtBirths">
+                            <label asp-for="SexAtBirthId" class="sentinel-label">Sex at Birth</label>
+                            <select asp-for="SexAtBirthId" class="sentinel-input" asp-items="Model.SexAtBirths">
                                 <option value="">-- All --</option>
                             </select>
                         </div>
                         <div class="col-md-3">
-                            <label asp-for="GenderId" class="form-label fw-bold">Gender</label>
-                            <select asp-for="GenderId" class="form-select form-select-sm" asp-items="Model.Genders">
+                            <label asp-for="GenderId" class="sentinel-label">Gender</label>
+                            <select asp-for="GenderId" class="sentinel-input" asp-items="Model.Genders">
                                 <option value="">-- All --</option>
                             </select>
                         </div>
                         <div class="col-md-3">
-                            <label asp-for="State" class="form-label fw-bold">State</label>
-                            <input asp-for="State" class="form-control form-control-sm" placeholder="State" />
+                            <label asp-for="State" class="sentinel-label">State</label>
+                            <input asp-for="State" class="sentinel-input" placeholder="State" />
                         </div>
                         <div class="col-md-3">
-                            <label asp-for="CountryOfBirthId" class="form-label fw-bold">Country of Birth</label>
-                            <select asp-for="CountryOfBirthId" class="form-select form-select-sm" asp-items="Model.Countries">
-                                <option value="">-- All --</option>
-                            </select>
-                        </div>
-                    </div>
-
-                    <div class="row g-2 mt-2">
-                        <div class="col-md-3">
-                            <label asp-for="LanguageSpokenAtHomeId" class="form-label fw-bold">Language</label>
-                            <select asp-for="LanguageSpokenAtHomeId" class="form-select form-select-sm" asp-items="Model.Languages">
-                                <option value="">-- All --</option>
-                            </select>
-                        </div>
-                        <div class="col-md-3">
-                            <label asp-for="AncestryId" class="form-label fw-bold">Ethnicity</label>
-                            <select asp-for="AncestryId" class="form-select form-select-sm" asp-items="Model.Ethnicities">
-                                <option value="">-- All --</option>
-                            </select>
-                        </div>
-                        <div class="col-md-3">
-                            <label asp-for="AtsiStatusId" class="form-label fw-bold">ATSI Status</label>
-                            <select asp-for="AtsiStatusId" class="form-select form-select-sm" asp-items="Model.AtsiStatuses">
-                                <option value="">-- All --</option>
-                            </select>
-                        </div>
-                        <div class="col-md-3">
-                            <label asp-for="OccupationId" class="form-label fw-bold">Occupation</label>
-                            <select asp-for="OccupationId" class="form-select form-select-sm" asp-items="Model.Occupations">
+                            <label asp-for="CountryOfBirthId" class="sentinel-label">Country of Birth</label>
+                            <select asp-for="CountryOfBirthId" class="sentinel-input" asp-items="Model.Countries">
                                 <option value="">-- All --</option>
                             </select>
                         </div>
                     </div>
 
-                    <div class="row g-2 mt-2">
+                    <div class="row g-3 mt-2">
                         <div class="col-md-3">
-                            <label asp-for="CreatedFrom" class="form-label fw-bold">Created From</label>
-                            <input asp-for="CreatedFrom" class="form-control form-control-sm" type="date" />
+                            <label asp-for="LanguageSpokenAtHomeId" class="sentinel-label">Language</label>
+                            <select asp-for="LanguageSpokenAtHomeId" class="sentinel-input" asp-items="Model.Languages">
+                                <option value="">-- All --</option>
+                            </select>
                         </div>
                         <div class="col-md-3">
-                            <label asp-for="CreatedTo" class="form-label fw-bold">Created To</label>
-                            <input asp-for="CreatedTo" class="form-control form-control-sm" type="date" />
+                            <label asp-for="AncestryId" class="sentinel-label">Ethnicity</label>
+                            <select asp-for="AncestryId" class="sentinel-input" asp-items="Model.Ethnicities">
+                                <option value="">-- All --</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label asp-for="AtsiStatusId" class="sentinel-label">ATSI Status</label>
+                            <select asp-for="AtsiStatusId" class="sentinel-input" asp-items="Model.AtsiStatuses">
+                                <option value="">-- All --</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label asp-for="OccupationId" class="sentinel-label">Occupation</label>
+                            <select asp-for="OccupationId" class="sentinel-input" asp-items="Model.Occupations">
+                                <option value="">-- All --</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="row g-3 mt-2">
+                        <div class="col-md-3">
+                            <label asp-for="CreatedFrom" class="sentinel-label">Created From</label>
+                            <input asp-for="CreatedFrom" class="sentinel-input" type="date" />
+                        </div>
+                        <div class="col-md-3">
+                            <label asp-for="CreatedTo" class="sentinel-label">Created To</label>
+                            <input asp-for="CreatedTo" class="sentinel-input" type="date" />
                         </div>
                     </div>
                 </div>
             </div>
 
-            <div class="d-flex gap-2 mt-3">
-                <button type="submit" class="btn btn-primary btn-sm">
-                    <i class="bi bi-search me-1"></i>Search
+            <div class="d-flex gap-2" style="margin-top: var(--spacing-4);">
+                <button type="submit" class="btn-sentinel-primary">
+                    <i class="bi bi-search"></i> Search
                 </button>
-                <button type="submit" asp-page-handler="Clear" class="btn btn-outline-secondary btn-sm">
-                    <i class="bi bi-x-circle me-1"></i>Clear
+                <button type="submit" asp-page-handler="Clear" class="btn-sentinel-secondary">
+                    <i class="bi bi-x-circle"></i> Clear
                 </button>
             </div>
         </form>
@@ -162,26 +156,28 @@
 
 @if (Model.HasSearched)
 {
-    <div class="card shadow-sm">
-        <div class="card-header bg-light">
-            <h5 class="mb-0">
-                <i class="bi bi-list-check me-2"></i>Search Results
-                <span class="badge bg-primary ms-2">@Model.TotalResults patient(s) found</span>
-            </h5>
+    <!-- Search Results Card -->
+    <div class="sentinel-card">
+        <div class="sentinel-card-header">
+            <h3 class="sentinel-card-title">
+                <i class="bi bi-list-check"></i>
+                Search Results
+                <span class="chip-info" style="margin-left: var(--spacing-2);">@Model.TotalResults patient(s)</span>
+            </h3>
         </div>
-        <div class="card-body">
+        <div class="sentinel-card-body">
             @if (Model.TotalResults == 0)
             {
-                <div class="alert alert-info mb-0">
-                    <i class="bi bi-info-circle me-2"></i>
+                <div style="background: #E6F3FF; border: 1px solid #99CCFF; border-radius: var(--radius-md); padding: var(--spacing-4); color: #004080;">
+                    <i class="bi bi-info-circle" style="margin-right: var(--spacing-2);"></i>
                     No patients found matching your search criteria. Try adjusting your filters.
                 </div>
             }
             else
             {
                 <div class="table-responsive">
-                    <table class="table table-hover mb-0">
-                        <thead class="table-light">
+                    <table class="patient-table" style="margin-bottom: 0;">
+                        <thead>
                             <tr>
                                 <th>Name</th>
                                 <th>Date of Birth</th>
@@ -237,10 +233,10 @@
                                     <td><small class="text-muted">@patient.CreatedAt.ToString("dd MMM yyyy")</small></td>
                                     <td class="text-end">
                                         <div class="btn-group btn-group-sm" role="group">
-                                            <a asp-page="./Details" asp-route-id="@patient.Id" class="btn btn-outline-primary" title="View details">
+                                            <a asp-page="./Details" asp-route-id="@patient.Id" class="btn-sentinel-secondary" style="padding: 4px 10px; font-size: 12px;" title="View details">
                                                 <i class="bi bi-eye"></i> View
                                             </a>
-                                            <a asp-page="./Edit" asp-route-id="@patient.Id" class="btn btn-outline-secondary" title="Edit">
+                                            <a asp-page="./Edit" asp-route-id="@patient.Id" class="btn-sentinel-secondary" style="padding: 4px 10px; font-size: 12px;" title="Edit">
                                                 <i class="bi bi-pencil"></i>
                                             </a>
                                         </div>
@@ -253,8 +249,8 @@
 
                 @if (Model.TotalResults > 50)
                 {
-                    <div class="alert alert-warning mt-3 mb-0">
-                        <i class="bi bi-exclamation-triangle me-2"></i>
+                    <div style="background: #FFF4E6; border: 1px solid #FFD699; border-radius: var(--radius-md); padding: var(--spacing-4); margin-top: var(--spacing-4); margin-bottom: 0; color: #804000;">
+                        <i class="bi bi-exclamation-triangle" style="margin-right: var(--spacing-2);"></i>
                         <strong>Large result set:</strong> @Model.TotalResults patients found. Consider refining your search criteria for faster results.
                     </div>
                 }
@@ -264,8 +260,8 @@
 }
 else
 {
-    <div class="alert alert-info">
-        <i class="bi bi-info-circle me-2"></i>
+    <div style="background: #E6F3FF; border: 1px solid #99CCFF; border-radius: var(--radius-md); padding: var(--spacing-4); color: #004080;">
+        <i class="bi bi-info-circle" style="margin-right: var(--spacing-2);"></i>
         Enter search criteria above and click <strong>Search</strong> to find patients.
     </div>
 }

@@ -115,7 +115,12 @@ public class ReportFieldMetadata
     /// For collection element types: Fields available for sub-filtering
     /// </summary>
     public List<string>? CollectionSubFields { get; set; }
-    
+
+    /// <summary>
+    /// For collection element types: Metadata for sub-filtering fields (includes data types)
+    /// </summary>
+    public List<CollectionSubFieldMetadata>? CollectionSubFieldsMetadata { get; set; }
+
     /// <summary>
     /// For enum fields: List of valid enum values with display names
     /// </summary>
@@ -136,14 +141,35 @@ public class EnumValueOption
     /// The numeric code or name of the enum value (e.g., "3" or "Contact")
     /// </summary>
     public string Value { get; set; } = string.Empty;
-    
+
     /// <summary>
     /// The display name from the [Display(Name = "...")] attribute
     /// </summary>
     public string DisplayName { get; set; } = string.Empty;
-    
+
     /// <summary>
     /// The numeric code (for enums that use numeric values)
     /// </summary>
     public int? Code { get; set; }
+}
+
+/// <summary>
+/// Metadata for a sub-field within a collection (used for smart filtering)
+/// </summary>
+public class CollectionSubFieldMetadata
+{
+    /// <summary>
+    /// The field path/name (e.g., "ResultDate", "TestType.Name")
+    /// </summary>
+    public string FieldPath { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Display name for UI
+    /// </summary>
+    public string Name { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Data type: String, Int32, DateTime, Boolean, Decimal, etc.
+    /// </summary>
+    public string DataType { get; set; } = string.Empty;
 }
