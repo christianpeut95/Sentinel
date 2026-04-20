@@ -1269,7 +1269,14 @@
                 <div style="text-align: center; padding: var(--spacing-6) var(--spacing-4);">
                     <i class="bi bi-diagram-3" style="font-size: 3rem; color: var(--hairline); display: block; margin-bottom: var(--spacing-3);"></i>
                     <p style="color: var(--graphite); margin-bottom: var(--spacing-3);">No exposures recorded</p>
-                    <button type="button" class="btn btn-sentinel-secondary btn-sm" onclick="openAddExposure()">Add Exposure</button>
+                    <div class="btn-group" role="group">
+                        <a asp-page="/Cases/Exposures/NaturalEntry" asp-route-caseId="@Model.Case.Id" class="btn btn-sentinel-primary btn-sm">
+                            <i class="bi bi-calendar-week me-1"></i>Natural Entry
+                        </a>
+                        <button type="button" class="btn btn-sentinel-secondary btn-sm" onclick="openAddExposure()">
+                            <i class="bi bi-ui-checks me-1"></i>Traditional Form
+                        </button>
+                    </div>
                 </div>
             }
             </div>

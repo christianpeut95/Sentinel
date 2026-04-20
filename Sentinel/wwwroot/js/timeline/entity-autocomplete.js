@@ -185,13 +185,40 @@ class EntityAutocomplete {
                     loc.displayText.toLowerCase().includes(searchText)
                 );
                 suggestions.push(...matches);
-            }
 
-            // TODO: Add Google Places API suggestions
-            // For now, just use entity memory
+                // Add Google Places API suggestions
+                if (searchText.length >= 3) {
+                    const placesSuggestions = await this.getPlacesSuggestions(entity.rawText);
+                    suggestions.push(...placesSuggestions);
+                }
+            }
         }
 
         return suggestions.sort((a, b) => (b.score || 0) - (a.score || 0));
+    }
+
+    async getPlacesSuggestions(searchText) {
+        try {
+            const response = await fetch(`/api/address-suggest?q=${encodeURIComponent(searchText)}&limit=5`);
+            if (!response.ok) {
+                return [];
+            }
+
+            const results = await response.json();
+
+            return results.map(place => ({
+                displayText: place.display || place.address?.name || 'Unknown',
+                description: place.address?.formatted || 'Place suggestion',
+                address: place.address?.formatted,
+                latitude: place.lat,
+                longitude: place.lon,
+                recordType: 'Place',
+                score: 0.6 // Places API suggestions have medium score (below known locations)
+            }));
+        } catch (error) {
+            console.error('Error fetching Places suggestions:', error);
+            return [];
+        }
     }
 
     navigate(direction) {
