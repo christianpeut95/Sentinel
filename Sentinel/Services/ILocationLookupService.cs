@@ -14,13 +14,21 @@ namespace Sentinel.Services
         /// Search for address/place suggestions with detailed information.
         /// Returns a list of results with display text, coordinates, and address components.
         /// </summary>
-        Task<List<AddressLookupResult>> SearchAddressesAsync(string query, int limit = 5);
+        /// <param name="query">Search query text</param>
+        /// <param name="limit">Maximum number of results to return</param>
+        /// <param name="biasLatitude">Optional latitude to bias results near this location</param>
+        /// <param name="biasLongitude">Optional longitude to bias results near this location</param>
+        Task<List<AddressLookupResult>> SearchAddressesAsync(string query, int limit = 5, double? biasLatitude = null, double? biasLongitude = null);
 
         /// <summary>
         /// Search for business/place suggestions.
         /// Returns a list of results with business name, address, and coordinates.
         /// </summary>
-        Task<List<PlaceLookupResult>> SearchPlacesAsync(string query, int limit = 5);
+        /// <param name="query">Search query text</param>
+        /// <param name="limit">Maximum number of results to return</param>
+        /// <param name="biasLatitude">Optional latitude to bias results near this location</param>
+        /// <param name="biasLongitude">Optional longitude to bias results near this location</param>
+        Task<List<PlaceLookupResult>> SearchPlacesAsync(string query, int limit = 5, double? biasLatitude = null, double? biasLongitude = null);
     }
 
     public class AddressLookupResult

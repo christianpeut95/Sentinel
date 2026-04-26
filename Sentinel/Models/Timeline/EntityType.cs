@@ -55,16 +55,46 @@ namespace Sentinel.Models.Timeline
         [Display(Name = "With (accompanied by)")]
         With = 1,
 
+        [Display(Name = "Accompaniment")]
+        Accompaniment = 1, // Alias for With
+
         [Display(Name = "At (located at)")]
         At = 2,
+
+        [Display(Name = "At Location")]
+        AtLocation = 2, // Alias for At
 
         [Display(Name = "Travel By")]
         TravelBy = 3,
 
+        [Display(Name = "Via Transport")]
+        ViaTransport = 3, // Alias for TravelBy
+
         [Display(Name = "During")]
         During = 4,
 
+        [Display(Name = "At Event")]
+        AtEvent = 4, // Alias for During
+
         [Display(Name = "For (duration)")]
-        For = 5
+        For = 5,
+
+        [Display(Name = "For Duration")]
+        ForDuration = 5, // Alias for For
+
+        [Display(Name = "At Time")]
+        AtTime = 6,
+
+        [Display(Name = "Co-Occurrence")]
+        CoOccurrence = 7,
+
+        [Display(Name = "Sequence (then/after)")]
+        Sequence = 8,
+
+        [Display(Name = "Person to Person")]
+        PersonToPerson = 9,
+
+        [Display(Name = "Activity")]
+        Activity = 10
     }
 }

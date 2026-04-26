@@ -1,0 +1,27 @@
+{
+  "caseId": "7eea821f-5034-4704-9d64-cc7315183cc3",
+  "entries": [],
+  "conventions": {},
+  "entityGroups": {
+    "aebae6e0-200d-476b-9033-26694a57e32c": {
+      "id": "aebae6e0-200d-476b-9033-26694a57e32c",
+      "caseId": "7eea821f-5034-4704-9d64-cc7315183cc3",
+      "name": "Siblings",
+      "entityIds": [
+        "entity_1776893290956_ldh1m90vm",
+        "entity_1776893295609_9hjtmtzdd",
+        "entity_1776893300961_yljrp3jxm"
+      ],
+      "createdDate": "2026-04-22T21:28:22.1344125Z",
+      "description": null
+    }
+  },
+  "createdDate": "2026-04-22T21:28:22.135367Z",
+  "createdByUserId": "6964051a-a741-43ff-8b37-dfbd11ce666e",
+  "lastModified": "2026-04-22T21:28:22.1353891Z",
+  "lastModifiedByUserId": "6964051a-a741-43ff-8b37-dfbd11ce666e",
+  "isReviewed": false,
+  "reviewedAt": null,
+  "reviewedByUserId": null,
+  "version": 2
+}

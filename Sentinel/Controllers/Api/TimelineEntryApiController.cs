@@ -246,6 +246,134 @@ namespace Sentinel.Controllers.Api
                 return StatusCode(500, new { error = "Error deleting timeline" });
             }
         }
+
+        /// <summary>
+        /// Get all entity groups for a case
+        /// </summary>
+        [HttpGet("groups/{caseId}")]
+        public async Task<IActionResult> GetEntityGroups(Guid caseId)
+        {
+            try
+            {
+                var timeline = await _storageService.LoadTimelineAsync(caseId);
+
+                if (timeline == null || timeline.EntityGroups == null)
+                {
+                    return Ok(new Dictionary<string, EntityGroup>());
+                }
+
+                return Ok(timeline.EntityGroups);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error loading entity groups for case {CaseId}", caseId);
+                return StatusCode(500, new { error = "Error loading entity groups" });
+            }
+        }
+
+        /// <summary>
+        /// Create a new entity group
+        /// </summary>
+        [HttpPost("groups")]
+        public async Task<IActionResult> CreateEntityGroup([FromBody] CreateEntityGroupRequest request)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(request.Name) || request.EntityIds == null || !request.EntityIds.Any())
+                {
+                    return BadRequest(new { error = "Group name and entity IDs are required" });
+                }
+
+                var timeline = await _storageService.LoadTimelineAsync(request.CaseId);
+
+                if (timeline == null)
+                {
+                    timeline = new CaseTimelineData { CaseId = request.CaseId };
+                }
+
+                // Check if group name already exists (case-insensitive)
+                var existingGroup = timeline.EntityGroups.Values
+                    .FirstOrDefault(g => g.Name.Equals(request.Name, StringComparison.OrdinalIgnoreCase));
+
+                if (existingGroup != null)
+                {
+                    // Update existing group
+                    existingGroup.EntityIds = request.EntityIds;
+                    existingGroup.Description = request.Description;
+
+                    await _storageService.SaveTimelineAsync(timeline);
+
+                    _logger.LogInformation("Updated entity group '{GroupName}' for case {CaseId}", request.Name, request.CaseId);
+
+                    return Ok(new EntityGroupResponse
+                    {
+                        Id = existingGroup.Id,
+                        Name = existingGroup.Name,
+                        EntityIds = existingGroup.EntityIds,
+                        EntityCount = existingGroup.EntityIds.Count
+                    });
+                }
+
+                // Create new group
+                var newGroup = new EntityGroup
+                {
+                    Id = Guid.NewGuid().ToString(),
+                    CaseId = request.CaseId,
+                    Name = request.Name,
+                    EntityIds = request.EntityIds,
+                    Description = request.Description,
+                    CreatedDate = DateTime.UtcNow
+                };
+
+                timeline.EntityGroups[newGroup.Id] = newGroup;
+                await _storageService.SaveTimelineAsync(timeline);
+
+                _logger.LogInformation("Created entity group '{GroupName}' with {EntityCount} entities for case {CaseId}", 
+                    request.Name, request.EntityIds.Count, request.CaseId);
+
+                return Ok(new EntityGroupResponse
+                {
+                    Id = newGroup.Id,
+                    Name = newGroup.Name,
+                    EntityIds = newGroup.EntityIds,
+                    EntityCount = newGroup.EntityIds.Count
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error creating entity group for case {CaseId}", request.CaseId);
+                return StatusCode(500, new { error = "Error creating entity group" });
+            }
+        }
+
+        /// <summary>
+        /// Delete an entity group
+        /// </summary>
+        [HttpDelete("groups/{caseId}/{groupId}")]
+        public async Task<IActionResult> DeleteEntityGroup(Guid caseId, string groupId)
+        {
+            try
+            {
+                var timeline = await _storageService.LoadTimelineAsync(caseId);
+
+                if (timeline == null || !timeline.EntityGroups.ContainsKey(groupId))
+                {
+                    return NotFound(new { error = "Entity group not found" });
+                }
+
+                timeline.EntityGroups.Remove(groupId);
+                await _storageService.SaveTimelineAsync(timeline);
+
+                _logger.LogInformation("Deleted entity group {GroupId} from case {CaseId}", groupId, caseId);
+
+                return Ok(new { success = true });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error deleting entity group {GroupId} for case {CaseId}", groupId, caseId);
+                return StatusCode(500, new { error = "Error deleting entity group" });
+            }
+        }
     }
 
     // Request/Response DTOs

@@ -1,0 +1,394 @@
+{
+  "caseId": "e83c8e4b-47fd-4952-8012-08de7e6e7726",
+  "entries": [
+    {
+      "id": "entry_1776835078575_20wqu04ck",
+      "entryDate": "2026-04-22T00:00:00Z",
+      "narrativeText": "went to work with John then later that day went to the gym with John. \nWent to work at McDonald\u0027s Tea Tree Plaza II\n",
+      "entities": [
+        {
+          "id": "entity_1776835088410_u8juutbf1",
+          "entityType": 1,
+          "rawText": "John",
+          "normalizedValue": "John",
+          "startPosition": 18,
+          "endPosition": 22,
+          "confidence": 3,
+          "isConfirmed": true,
+          "linkedRecordType": null,
+          "linkedRecordId": null,
+          "linkedRecordDisplayName": null,
+          "suggestions": [],
+          "metadata": {
+            "relationship": ""
+          },
+          "notes": null
+        },
+        {
+          "id": "entity_1776835098099_8zye86ujc",
+          "entityType": 1,
+          "rawText": "John",
+          "normalizedValue": "John",
+          "startPosition": 64,
+          "endPosition": 68,
+          "confidence": 3,
+          "isConfirmed": true,
+          "linkedRecordType": null,
+          "linkedRecordId": null,
+          "linkedRecordDisplayName": null,
+          "suggestions": [],
+          "metadata": {
+            "relationship": ""
+          },
+          "notes": null
+        },
+        {
+          "id": "entity_1776835142600_9ng6w0ey5",
+          "entityType": 2,
+          "rawText": "McDonald\u0027s Tea Tree Plaza II",
+          "normalizedValue": "McDonald\u0027s Tea Tree Plaza II",
+          "startPosition": 87,
+          "endPosition": 115,
+          "confidence": 3,
+          "isConfirmed": true,
+          "linkedRecordType": null,
+          "linkedRecordId": null,
+          "linkedRecordDisplayName": null,
+          "suggestions": [],
+          "metadata": {
+            "placeId": "ChIJD9BfxPG0sGoRlbR5Dl2queE",
+            "address": "Cnr North East Road \u0026, Reservoir Rd, Modbury SA 5092, Australia",
+            "coordinates": {
+              "lat": -34.8319018,
+              "lon": 138.6882338
+            }
+          },
+          "notes": null
+        }
+      ],
+      "relationships": [],
+      "parsedAt": null,
+      "confidenceScore": null,
+      "isReviewed": false,
+      "uncertaintyMarkers": [],
+      "corrections": [],
+      "protectiveMeasures": [],
+      "isMemoryGap": false,
+      "memoryGapNotes": null
+    },
+    {
+      "id": "entry_1776835104015_fcpwblpzu",
+      "entryDate": "2026-04-22T00:00:00Z",
+      "narrativeText": "Woke up with John.\nThen went to work again McDonald\u0027s Tea Tree Plaza II \u002BJohn\n\nMcDonald\u0027s Tea Tree Plaza II now went with  ..",
+      "entities": [
+        {
+          "id": "entity_1776835109537_961686opu",
+          "entityType": 1,
+          "rawText": "John",
+          "normalizedValue": "John",
+          "startPosition": 13,
+          "endPosition": 17,
+          "confidence": 3,
+          "isConfirmed": true,
+          "linkedRecordType": null,
+          "linkedRecordId": null,
+          "linkedRecordDisplayName": null,
+          "suggestions": [],
+          "metadata": {
+            "relationship": ""
+          },
+          "notes": null
+        },
+        {
+          "id": "entity_1776835149845_cb8oqlfh1",
+          "entityType": 2,
+          "rawText": "McDonald\u0027s Tea Tree Plaza II",
+          "normalizedValue": "McDonald\u0027s Tea Tree Plaza II",
+          "startPosition": 43,
+          "endPosition": 71,
+          "confidence": 3,
+          "isConfirmed": true,
+          "linkedRecordType": null,
+          "linkedRecordId": null,
+          "linkedRecordDisplayName": null,
+          "suggestions": [],
+          "metadata": {
+            "placeId": "ChIJD9BfxPG0sGoRlbR5Dl2queE",
+            "address": "Cnr North East Road \u0026, Reservoir Rd, Modbury SA 5092, Australia",
+            "coordinates": {
+              "lat": -34.8319018,
+              "lon": 138.6882338
+            }
+          },
+          "notes": null
+        },
+        {
+          "id": "entity_1776835157809_g7vmlh431",
+          "entityType": 1,
+          "rawText": "John",
+          "normalizedValue": "John",
+          "startPosition": 73,
+          "endPosition": 77,
+          "confidence": 3,
+          "isConfirmed": true,
+          "linkedRecordType": null,
+          "linkedRecordId": null,
+          "linkedRecordDisplayName": null,
+          "suggestions": [],
+          "metadata": {
+            "relationship": ""
+          },
+          "notes": null
+        },
+        {
+          "id": "entity_1776835189885_jdfpaxqvp",
+          "entityType": 2,
+          "rawText": "McDonald\u0027s Tea Tree Plaza II",
+          "normalizedValue": "McDonald\u0027s Tea Tree Plaza II",
+          "startPosition": 79,
+          "endPosition": 107,
+          "confidence": 3,
+          "isConfirmed": true,
+          "linkedRecordType": null,
+          "linkedRecordId": null,
+          "linkedRecordDisplayName": null,
+          "suggestions": [],
+          "metadata": {
+            "placeId": "ChIJD9BfxPG0sGoRlbR5Dl2queE",
+            "address": "Cnr North East Road \u0026, Reservoir Rd, Modbury SA 5092, Australia",
+            "coordinates": {
+              "lat": -34.8319018,
+              "lon": 138.6882338
+            }
+          },
+          "notes": null
+        }
+      ],
+      "relationships": [],
+      "parsedAt": null,
+      "confidenceScore": null,
+      "isReviewed": false,
+      "uncertaintyMarkers": [],
+      "corrections": [],
+      "protectiveMeasures": [],
+      "isMemoryGap": false,
+      "memoryGapNotes": null
+    },
+    {
+      "id": "entry_1776836341879_1lztua760",
+      "entryDate": "2026-04-22T00:00:00Z",
+      "narrativeText": "went to McDonald\u0027s Tea Tree Plaza II with \u002BJohn",
+      "entities": [
+        {
+          "id": "entity_1776836348622_fqqmjs4qw",
+          "entityType": 2,
+          "rawText": "McDonald\u0027s Tea Tree Plaza II",
+          "normalizedValue": "McDonald\u0027s Tea Tree Plaza II",
+          "startPosition": 8,
+          "endPosition": 36,
+          "confidence": 3,
+          "isConfirmed": true,
+          "linkedRecordType": null,
+          "linkedRecordId": null,
+          "linkedRecordDisplayName": null,
+          "suggestions": [],
+          "metadata": {
+            "placeId": "ChIJD9BfxPG0sGoRlbR5Dl2queE",
+            "address": "Cnr North East Road \u0026, Reservoir Rd, Modbury SA 5092, Australia",
+            "coordinates": {
+              "lat": -34.8319018,
+              "lon": 138.6882338
+            }
+          },
+          "notes": null
+        },
+        {
+          "id": "entity_1776836353417_jlfirnpv9",
+          "entityType": 1,
+          "rawText": "John",
+          "normalizedValue": "John",
+          "startPosition": 43,
+          "endPosition": 47,
+          "confidence": 3,
+          "isConfirmed": true,
+          "linkedRecordType": null,
+          "linkedRecordId": null,
+          "linkedRecordDisplayName": null,
+          "suggestions": [],
+          "metadata": {
+            "relationship": ""
+          },
+          "notes": null
+        }
+      ],
+      "relationships": [],
+      "parsedAt": null,
+      "confidenceScore": null,
+      "isReviewed": false,
+      "uncertaintyMarkers": [],
+      "corrections": [],
+      "protectiveMeasures": [],
+      "isMemoryGap": false,
+      "memoryGapNotes": null
+    },
+    {
+      "id": "entry_1776838535019_prnokqf0k",
+      "entryDate": "2026-04-22T00:00:00Z",
+      "narrativeText": "went to McDonald\u0027s Tea Tree Plaza II with \u002BJohn \u002BJohn ",
+      "entities": [
+        {
+          "id": "entity_1776838540597_wd8rtkvb0",
+          "entityType": 2,
+          "rawText": "McDonald\u0027s Tea Tree Plaza II",
+          "normalizedValue": "McDonald\u0027s Tea Tree Plaza II",
+          "startPosition": 8,
+          "endPosition": 36,
+          "confidence": 3,
+          "isConfirmed": true,
+          "linkedRecordType": null,
+          "linkedRecordId": null,
+          "linkedRecordDisplayName": null,
+          "suggestions": [],
+          "metadata": {
+            "placeId": "ChIJD9BfxPG0sGoRlbR5Dl2queE",
+            "address": "Cnr North East Road \u0026, Reservoir Rd, Modbury SA 5092, Australia",
+            "coordinates": {
+              "lat": -34.8319018,
+              "lon": 138.6882338
+            }
+          },
+          "notes": null
+        },
+        {
+          "id": "entity_1776838545766_0e48bzb59",
+          "entityType": 1,
+          "rawText": "John",
+          "normalizedValue": "John",
+          "startPosition": 43,
+          "endPosition": 47,
+          "confidence": 3,
+          "isConfirmed": true,
+          "linkedRecordType": null,
+          "linkedRecordId": null,
+          "linkedRecordDisplayName": null,
+          "suggestions": [],
+          "metadata": {
+            "relationship": ""
+          },
+          "notes": null
+        },
+        {
+          "id": "entity_1776838570586_h20dnxds1",
+          "entityType": 1,
+          "rawText": "John",
+          "normalizedValue": "John",
+          "startPosition": 49,
+          "endPosition": 53,
+          "confidence": 3,
+          "isConfirmed": true,
+          "linkedRecordType": null,
+          "linkedRecordId": null,
+          "linkedRecordDisplayName": null,
+          "suggestions": [],
+          "metadata": {
+            "relationship": ""
+          },
+          "notes": null
+        }
+      ],
+      "relationships": [],
+      "parsedAt": null,
+      "confidenceScore": null,
+      "isReviewed": false,
+      "uncertaintyMarkers": [],
+      "corrections": [],
+      "protectiveMeasures": [],
+      "isMemoryGap": false,
+      "memoryGapNotes": null
+    },
+    {
+      "id": "entry_1776839042593_wqff5ho05",
+      "entryDate": "2026-04-22T00:00:00Z",
+      "narrativeText": "went to McDonald\u0027s Tea Tree Plaza II with \u002BJohn \u002BJohn ",
+      "entities": [
+        {
+          "id": "entity_1776839060938_b3lzb43jq",
+          "entityType": 2,
+          "rawText": "McDonald\u0027s Tea Tree Plaza II",
+          "normalizedValue": "McDonald\u0027s Tea Tree Plaza II",
+          "startPosition": 8,
+          "endPosition": 36,
+          "confidence": 3,
+          "isConfirmed": true,
+          "linkedRecordType": null,
+          "linkedRecordId": null,
+          "linkedRecordDisplayName": null,
+          "suggestions": [],
+          "metadata": {
+            "placeId": "ChIJD9BfxPG0sGoRlbR5Dl2queE",
+            "address": "Cnr North East Road \u0026, Reservoir Rd, Modbury SA 5092, Australia",
+            "coordinates": {
+              "lat": -34.8319018,
+              "lon": 138.6882338
+            }
+          },
+          "notes": null
+        },
+        {
+          "id": "entity_1776839064053_sknqafmf8",
+          "entityType": 1,
+          "rawText": "John",
+          "normalizedValue": "John",
+          "startPosition": 43,
+          "endPosition": 47,
+          "confidence": 3,
+          "isConfirmed": true,
+          "linkedRecordType": null,
+          "linkedRecordId": null,
+          "linkedRecordDisplayName": null,
+          "suggestions": [],
+          "metadata": {
+            "relationship": ""
+          },
+          "notes": null
+        },
+        {
+          "id": "entity_1776839071382_1a36rxgth",
+          "entityType": 1,
+          "rawText": "John",
+          "normalizedValue": "John",
+          "startPosition": 49,
+          "endPosition": 53,
+          "confidence": 3,
+          "isConfirmed": true,
+          "linkedRecordType": null,
+          "linkedRecordId": null,
+          "linkedRecordDisplayName": null,
+          "suggestions": [],
+          "metadata": {
+            "relationship": ""
+          },
+          "notes": null
+        }
+      ],
+      "relationships": [],
+      "parsedAt": null,
+      "confidenceScore": null,
+      "isReviewed": false,
+      "uncertaintyMarkers": [],
+      "corrections": [],
+      "protectiveMeasures": [],
+      "isMemoryGap": false,
+      "memoryGapNotes": null
+    }
+  ],
+  "conventions": {},
+  "createdDate": "2026-04-22T06:24:57.8545814Z",
+  "createdByUserId": "6964051a-a741-43ff-8b37-dfbd11ce666e",
+  "lastModified": "2026-04-22T06:24:57.8546211Z",
+  "lastModifiedByUserId": "6964051a-a741-43ff-8b37-dfbd11ce666e",
+  "isReviewed": false,
+  "reviewedAt": null,
+  "reviewedByUserId": null,
+  "version": 2
+}

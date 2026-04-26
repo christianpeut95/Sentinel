@@ -347,56 +347,132 @@ namespace Sentinel.Services
             var relationships = new List<EntityRelationship>();
             var lowerText = narrativeText.ToLowerInvariant();
 
-            // Detect "with" relationships (person accompaniment)
+            // 1. Detect "with" relationships (person accompaniment)
+            // Example: "went to work with Jane" -> Jane is with work activity
             var withMatches = Regex.Matches(lowerText, @"with\s+(\w+)");
             foreach (Match match in withMatches)
             {
                 var person = entities.FirstOrDefault(e => 
                     e.EntityType == EntityType.Person && 
                     e.StartPosition == match.Groups[1].Index);
-                
+
                 if (person != null)
                 {
-                    // Find preceding location or activity
-                    var precedingEntity = entities
-                        .Where(e => e.EndPosition < person.StartPosition)
-                        .OrderByDescending(e => e.EndPosition)
-                        .FirstOrDefault();
+                    // Find all locations/activities in this narrative
+                    var contextEntities = entities
+                        .Where(e => e.EntityType == EntityType.Location || 
+                                    e.EntityType == EntityType.Activity ||
+                                    e.EntityType == EntityType.Event)
+                        .ToList();
 
-                    if (precedingEntity != null)
+                    foreach (var contextEntity in contextEntities)
                     {
                         relationships.Add(new EntityRelationship
                         {
-                            ParentEntityId = precedingEntity.Id,
-                            ChildEntityId = person.Id,
-                            RelationType = RelationshipType.With
+                            PrimaryEntityId = person.Id,
+                            RelatedEntityId = contextEntity.Id,
+                            RelationType = RelationshipType.Accompaniment,
+                            SourcePosition = match.Index,
+                            Confidence = ConfidenceLevel.High
                         });
                     }
                 }
             }
 
-            // Detect "at" relationships (location)
-            var atMatches = Regex.Matches(lowerText, @"at\s+");
+            // 2. Detect "at" relationships (location)
+            // Example: "at work" -> activity at work location
+            var atMatches = Regex.Matches(lowerText, @"\bat\s+");
             foreach (Match match in atMatches)
             {
                 var location = entities.FirstOrDefault(e => 
                     e.EntityType == EntityType.Location && 
-                    e.StartPosition >= match.Index);
-                
+                    e.StartPosition >= match.Index &&
+                    e.StartPosition <= match.Index + 50); // within reasonable range
+
                 if (location != null)
                 {
-                    var activity = entities
-                        .Where(e => e.EndPosition < match.Index)
-                        .OrderByDescending(e => e.EndPosition)
+                    // Find time entity if present
+                    var timeEntity = entities
+                        .Where(e => e.EntityType == EntityType.DateTime)
+                        .OrderBy(e => Math.Abs(e.StartPosition - match.Index))
                         .FirstOrDefault();
 
-                    if (activity != null)
+                    relationships.Add(new EntityRelationship
                     {
+                        PrimaryEntityId = location.Id,
+                        RelatedEntityId = timeEntity?.Id ?? string.Empty,
+                        RelationType = RelationshipType.AtTime,
+                        TimeEntityId = timeEntity?.Id,
+                        SourcePosition = match.Index,
+                        Confidence = timeEntity != null ? ConfidenceLevel.High : ConfidenceLevel.Medium
+                    });
+                }
+            }
+
+            // 3. Detect sequential relationships (then, after)
+            // Example: "went to work then to the pub" -> sequence: work -> pub
+            var sequenceMatches = Regex.Matches(lowerText, @"\b(then|after|next|afterwards)\b");
+            var sequenceOrder = 1;
+            foreach (Match match in sequenceMatches)
+            {
+                var entitiesBefore = entities
+                    .Where(e => e.EndPosition < match.Index && 
+                               (e.EntityType == EntityType.Location || e.EntityType == EntityType.Activity))
+                    .OrderByDescending(e => e.EndPosition)
+                    .FirstOrDefault();
+
+                var entitiesAfter = entities
+                    .Where(e => e.StartPosition > match.Index && 
+                               (e.EntityType == EntityType.Location || e.EntityType == EntityType.Activity))
+                    .OrderBy(e => e.StartPosition)
+                    .FirstOrDefault();
+
+                if (entitiesBefore != null && entitiesAfter != null)
+                {
+                    relationships.Add(new EntityRelationship
+                    {
+                        PrimaryEntityId = entitiesBefore.Id,
+                        RelatedEntityId = entitiesAfter.Id,
+                        RelationType = RelationshipType.Sequence,
+                        SourcePosition = match.Index,
+                        SequenceOrder = sequenceOrder++,
+                        Confidence = ConfidenceLevel.High
+                    });
+                }
+            }
+
+            // 4. Detect co-occurrence (entities in same sentence)
+            // This creates relationships between all entities that appear together
+            var people = entities.Where(e => e.EntityType == EntityType.Person).ToList();
+            var locations = entities.Where(e => e.EntityType == EntityType.Location).ToList();
+            var times = entities.Where(e => e.EntityType == EntityType.DateTime).ToList();
+
+            foreach (var person in people)
+            {
+                foreach (var location in locations)
+                {
+                    // If person and location are within ~100 characters, they co-occur
+                    if (Math.Abs(person.StartPosition - location.StartPosition) <= 100)
+                    {
+                        var timeEntity = times
+                            .Where(t => Math.Abs(t.StartPosition - person.StartPosition) <= 100)
+                            .OrderBy(t => Math.Abs(t.StartPosition - person.StartPosition))
+                            .FirstOrDefault();
+
                         relationships.Add(new EntityRelationship
                         {
-                            ParentEntityId = activity.Id,
-                            ChildEntityId = location.Id,
-                            RelationType = RelationshipType.At
+                            PrimaryEntityId = person.Id,
+                            RelatedEntityId = location.Id,
+                            RelationType = RelationshipType.CoOccurrence,
+                            TimeEntityId = timeEntity?.Id,
+                            SourcePosition = Math.Min(person.StartPosition, location.StartPosition),
+                            Confidence = ConfidenceLevel.Medium,
+                            Metadata = new Dictionary<string, object>
+                            {
+                                { "PersonText", person.RawText },
+                                { "LocationText", location.RawText },
+                                { "TimeText", timeEntity?.RawText ?? "unspecified" }
+                            }
                         });
                     }
                 }

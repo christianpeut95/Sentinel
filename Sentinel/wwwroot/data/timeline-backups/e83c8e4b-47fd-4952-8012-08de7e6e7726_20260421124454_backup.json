@@ -1,0 +1,68 @@
+{
+  "caseId": "e83c8e4b-47fd-4952-8012-08de7e6e7726",
+  "entries": [
+    {
+      "id": "entry_1776775450845_6jmx2ihi1",
+      "entryDate": "2026-04-21T00:00:00Z",
+      "narrativeText": "Sushi Train Welland Plaza with Grand",
+      "entities": [
+        {
+          "id": "entity_1776775463085_q9w506znh",
+          "entityType": 2,
+          "rawText": "Sushi Train Welland Plaza",
+          "normalizedValue": "Sushi Train Welland Plaza",
+          "startPosition": 0,
+          "endPosition": 25,
+          "confidence": 3,
+          "isConfirmed": true,
+          "linkedRecordType": null,
+          "linkedRecordId": null,
+          "linkedRecordDisplayName": null,
+          "suggestions": [],
+          "metadata": {
+            "placeId": "ChIJSZCLjQHGsGoRI79a3nKT09E",
+            "address": "Welland Avenue, 25/522 Port Rd, Welland SA 5007, Australia",
+            "coordinates": {
+              "lat": -34.8964255,
+              "lon": 138.5566615
+            }
+          },
+          "notes": null
+        }
+      ],
+      "relationships": [],
+      "parsedAt": null,
+      "confidenceScore": null,
+      "isReviewed": false,
+      "uncertaintyMarkers": [],
+      "corrections": [],
+      "protectiveMeasures": [],
+      "isMemoryGap": false,
+      "memoryGapNotes": null
+    },
+    {
+      "id": "entry_1776775450849_9gmoziy6b",
+      "entryDate": "2026-04-21T00:00:00Z",
+      "narrativeText": "",
+      "entities": [],
+      "relationships": [],
+      "parsedAt": null,
+      "confidenceScore": null,
+      "isReviewed": false,
+      "uncertaintyMarkers": [],
+      "corrections": [],
+      "protectiveMeasures": [],
+      "isMemoryGap": false,
+      "memoryGapNotes": null
+    }
+  ],
+  "conventions": {},
+  "createdDate": "2026-04-21T12:44:25.5709493Z",
+  "createdByUserId": "6964051a-a741-43ff-8b37-dfbd11ce666e",
+  "lastModified": "2026-04-21T12:44:25.571777Z",
+  "lastModifiedByUserId": "6964051a-a741-43ff-8b37-dfbd11ce666e",
+  "isReviewed": false,
+  "reviewedAt": null,
+  "reviewedByUserId": null,
+  "version": 2
+}

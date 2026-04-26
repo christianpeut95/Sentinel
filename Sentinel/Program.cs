@@ -388,6 +388,42 @@ app.MapGet("/api/address-suggest", async (HttpRequest req, Sentinel.Services.ILo
     return Results.Json(legacyFormat);
 });
 
+// Minimal API endpoint for place/business suggestions with location bias (for timeline feature)
+app.MapGet("/api/places-suggest", async (HttpRequest req, Sentinel.Services.ILocationLookupService locationService) =>
+{
+    var q = req.Query["q"].ToString();
+    var limitStr = req.Query["limit"].ToString();
+    var latStr = req.Query["lat"].ToString();
+    var lonStr = req.Query["lon"].ToString();
+
+    if (string.IsNullOrWhiteSpace(q))
+        return Results.Json(Array.Empty<object>());
+
+    var limit = 5;
+    if (!string.IsNullOrWhiteSpace(limitStr) && int.TryParse(limitStr, out var parsed)) 
+        limit = parsed;
+
+    double? lat = null, lon = null;
+    if (!string.IsNullOrWhiteSpace(latStr) && double.TryParse(latStr, out var parsedLat))
+        lat = parsedLat;
+    if (!string.IsNullOrWhiteSpace(lonStr) && double.TryParse(lonStr, out var parsedLon))
+        lon = parsedLon;
+
+    var results = await locationService.SearchPlacesAsync(q, limit, lat, lon);
+
+    // Format for timeline feature (matches expected JavaScript properties)
+    var formattedResults = results.Select(r => new 
+    { 
+        placeId = r.PlaceId,
+        displayName = r.Name,
+        description = r.Name,  // Fallback for compatibility
+        formattedAddress = r.Address,
+        coordinates = new { lat = r.Latitude, lon = r.Longitude }
+    });
+
+    return Results.Json(formattedResults);
+});
+
 
 
 // API endpoint for jurisdiction autocomplete

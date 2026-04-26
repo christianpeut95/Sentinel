@@ -1,0 +1,71 @@
+{
+  "caseId": "e83c8e4b-47fd-4952-8012-08de7e6e7726",
+  "entries": [
+    {
+      "id": "entry_1776831778781_66drryk9o",
+      "entryDate": "2026-04-22T00:00:00Z",
+      "narrativeText": "went to HOYTS Salisbury with \u002Bjohn n",
+      "entities": [
+        {
+          "id": "entity_1776831790726_mtjxdycvv",
+          "entityType": 2,
+          "rawText": "HOYTS Salisbury",
+          "normalizedValue": "HOYTS Salisbury",
+          "startPosition": 8,
+          "endPosition": 23,
+          "confidence": 3,
+          "isConfirmed": true,
+          "linkedRecordType": null,
+          "linkedRecordId": null,
+          "linkedRecordDisplayName": null,
+          "suggestions": [],
+          "metadata": {
+            "placeId": "ChIJ-3U17dmzsGoRrsKA_frmpjA",
+            "address": "Cnr James \u0026, Gawler St, Salisbury SA 5108, Australia",
+            "coordinates": {
+              "lat": -34.7616657,
+              "lon": 138.6440925
+            }
+          },
+          "notes": null
+        },
+        {
+          "id": "entity_1776831796304_i1ehgh8ge",
+          "entityType": 1,
+          "rawText": "john",
+          "normalizedValue": "john",
+          "startPosition": 30,
+          "endPosition": 34,
+          "confidence": 3,
+          "isConfirmed": true,
+          "linkedRecordType": null,
+          "linkedRecordId": null,
+          "linkedRecordDisplayName": null,
+          "suggestions": [],
+          "metadata": {
+            "relationship": ""
+          },
+          "notes": null
+        }
+      ],
+      "relationships": [],
+      "parsedAt": null,
+      "confidenceScore": null,
+      "isReviewed": false,
+      "uncertaintyMarkers": [],
+      "corrections": [],
+      "protectiveMeasures": [],
+      "isMemoryGap": false,
+      "memoryGapNotes": null
+    }
+  ],
+  "conventions": {},
+  "createdDate": "2026-04-22T04:23:19.9514251Z",
+  "createdByUserId": "6964051a-a741-43ff-8b37-dfbd11ce666e",
+  "lastModified": "2026-04-22T04:23:19.9529405Z",
+  "lastModifiedByUserId": "6964051a-a741-43ff-8b37-dfbd11ce666e",
+  "isReviewed": false,
+  "reviewedAt": null,
+  "reviewedByUserId": null,
+  "version": 2
+}

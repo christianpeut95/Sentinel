@@ -1,0 +1,100 @@
+{
+  "caseId": "e83c8e4b-47fd-4952-8012-08de7e6e7726",
+  "entries": [
+    {
+      "id": "entry_1776835078575_20wqu04ck",
+      "entryDate": "2026-04-22T00:00:00Z",
+      "narrativeText": "went to work with John then later that day went to the gym with John. \n\n",
+      "entities": [
+        {
+          "id": "entity_1776835088410_u8juutbf1",
+          "entityType": 1,
+          "rawText": "John",
+          "normalizedValue": "John",
+          "startPosition": 18,
+          "endPosition": 22,
+          "confidence": 3,
+          "isConfirmed": true,
+          "linkedRecordType": null,
+          "linkedRecordId": null,
+          "linkedRecordDisplayName": null,
+          "suggestions": [],
+          "metadata": {
+            "relationship": ""
+          },
+          "notes": null
+        },
+        {
+          "id": "entity_1776835098099_8zye86ujc",
+          "entityType": 1,
+          "rawText": "John",
+          "normalizedValue": "John",
+          "startPosition": 64,
+          "endPosition": 68,
+          "confidence": 3,
+          "isConfirmed": true,
+          "linkedRecordType": null,
+          "linkedRecordId": null,
+          "linkedRecordDisplayName": null,
+          "suggestions": [],
+          "metadata": {
+            "relationship": ""
+          },
+          "notes": null
+        }
+      ],
+      "relationships": [],
+      "parsedAt": null,
+      "confidenceScore": null,
+      "isReviewed": false,
+      "uncertaintyMarkers": [],
+      "corrections": [],
+      "protectiveMeasures": [],
+      "isMemoryGap": false,
+      "memoryGapNotes": null
+    },
+    {
+      "id": "entry_1776835104015_fcpwblpzu",
+      "entryDate": "2026-04-22T00:00:00Z",
+      "narrativeText": "Woke up with John.",
+      "entities": [
+        {
+          "id": "entity_1776835109537_961686opu",
+          "entityType": 1,
+          "rawText": "John",
+          "normalizedValue": "John",
+          "startPosition": 13,
+          "endPosition": 17,
+          "confidence": 3,
+          "isConfirmed": true,
+          "linkedRecordType": null,
+          "linkedRecordId": null,
+          "linkedRecordDisplayName": null,
+          "suggestions": [],
+          "metadata": {
+            "relationship": ""
+          },
+          "notes": null
+        }
+      ],
+      "relationships": [],
+      "parsedAt": null,
+      "confidenceScore": null,
+      "isReviewed": false,
+      "uncertaintyMarkers": [],
+      "corrections": [],
+      "protectiveMeasures": [],
+      "isMemoryGap": false,
+      "memoryGapNotes": null
+    }
+  ],
+  "conventions": {},
+  "createdDate": "2026-04-22T05:18:53.0567985Z",
+  "createdByUserId": "6964051a-a741-43ff-8b37-dfbd11ce666e",
+  "lastModified": "2026-04-22T05:18:53.056819Z",
+  "lastModifiedByUserId": "6964051a-a741-43ff-8b37-dfbd11ce666e",
+  "isReviewed": false,
+  "reviewedAt": null,
+  "reviewedByUserId": null,
+  "version": 2
+}

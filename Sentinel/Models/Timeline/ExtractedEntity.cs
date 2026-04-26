@@ -93,8 +93,56 @@ namespace Sentinel.Models.Timeline
     /// </summary>
     public class EntityRelationship
     {
-        public string ParentEntityId { get; set; } = string.Empty;
-        public string ChildEntityId { get; set; } = string.Empty;
+        public string Id { get; set; } = Guid.NewGuid().ToString();
+
+        /// <summary>
+        /// ID of the primary entity in this relationship
+        /// </summary>
+        public string PrimaryEntityId { get; set; } = string.Empty;
+
+        /// <summary>
+        /// ID of the related entity
+        /// </summary>
+        public string RelatedEntityId { get; set; } = string.Empty;
+
+        /// <summary>
+        /// Type of relationship
+        /// </summary>
         public RelationshipType RelationType { get; set; }
+
+        /// <summary>
+        /// Optional time entity ID when this relationship occurred
+        /// </summary>
+        public string? TimeEntityId { get; set; }
+
+        /// <summary>
+        /// Confidence level of this relationship detection
+        /// </summary>
+        public ConfidenceLevel Confidence { get; set; } = ConfidenceLevel.Medium;
+
+        /// <summary>
+        /// Whether operator has confirmed this relationship
+        /// </summary>
+        public bool IsConfirmed { get; set; } = false;
+
+        /// <summary>
+        /// Character position in narrative where relationship was detected
+        /// </summary>
+        public int SourcePosition { get; set; }
+
+        /// <summary>
+        /// Additional metadata about this relationship
+        /// </summary>
+        public Dictionary<string, object>? Metadata { get; set; }
+
+        /// <summary>
+        /// For sequential relationships, the order in sequence
+        /// </summary>
+        public int? SequenceOrder { get; set; }
+
+        /// <summary>
+        /// Optional contextual notes
+        /// </summary>
+        public string? Notes { get; set; }
     }
 }

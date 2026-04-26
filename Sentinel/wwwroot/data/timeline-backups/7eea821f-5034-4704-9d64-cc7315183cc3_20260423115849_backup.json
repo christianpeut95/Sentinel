@@ -1,0 +1,65 @@
+{
+  "caseId": "7eea821f-5034-4704-9d64-cc7315183cc3",
+  "entries": [
+    {
+      "id": "entry_1776934127081_21jt3k80d",
+      "entryDate": "2026-04-23T00:00:00Z",
+      "narrativeText": "james went to work at mcdonalds murray bridge ",
+      "entities": [
+        {
+          "id": "entity_1776934140014_2g0c69fnj",
+          "entityType": 1,
+          "rawText": "james",
+          "normalizedValue": "james",
+          "startPosition": 0,
+          "endPosition": 5,
+          "confidence": 2,
+          "isConfirmed": false,
+          "linkedRecordType": null,
+          "linkedRecordId": null,
+          "linkedRecordDisplayName": null,
+          "suggestions": [],
+          "metadata": {
+            "relationship": "Contact"
+          },
+          "notes": null
+        },
+        {
+          "id": "entity_1776934161235_b5p9y07my",
+          "entityType": 2,
+          "rawText": "mcdonalds murray bridge",
+          "normalizedValue": "mcdonalds murray bridge",
+          "startPosition": 22,
+          "endPosition": 45,
+          "confidence": 2,
+          "isConfirmed": false,
+          "linkedRecordType": null,
+          "linkedRecordId": null,
+          "linkedRecordDisplayName": null,
+          "suggestions": [],
+          "metadata": {},
+          "notes": null
+        }
+      ],
+      "relationships": [],
+      "parsedAt": null,
+      "confidenceScore": null,
+      "isReviewed": false,
+      "uncertaintyMarkers": [],
+      "corrections": [],
+      "protectiveMeasures": [],
+      "isMemoryGap": false,
+      "memoryGapNotes": null
+    }
+  ],
+  "conventions": {},
+  "entityGroups": {},
+  "createdDate": "2026-04-23T08:49:43.3672358Z",
+  "createdByUserId": "6964051a-a741-43ff-8b37-dfbd11ce666e",
+  "lastModified": "2026-04-23T08:49:43.3672578Z",
+  "lastModifiedByUserId": "6964051a-a741-43ff-8b37-dfbd11ce666e",
+  "isReviewed": false,
+  "reviewedAt": null,
+  "reviewedByUserId": null,
+  "version": 2
+}

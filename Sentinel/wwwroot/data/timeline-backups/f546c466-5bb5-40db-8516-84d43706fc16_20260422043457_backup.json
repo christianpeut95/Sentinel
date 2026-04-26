@@ -1,0 +1,110 @@
+{
+  "caseId": "f546c466-5bb5-40db-8516-84d43706fc16",
+  "entries": [
+    {
+      "id": "entry_1776831853267_3kh5mqv8a",
+      "entryDate": "2026-04-22T00:00:00Z",
+      "narrativeText": "went to HOYTS Cinema Sunnybank with ..",
+      "entities": [
+        {
+          "id": "entity_1776831870970_6bztj5uba",
+          "entityType": 2,
+          "rawText": "HOYTS Cinema Sunnybank",
+          "normalizedValue": "HOYTS Cinema Sunnybank",
+          "startPosition": 8,
+          "endPosition": 30,
+          "confidence": 3,
+          "isConfirmed": true,
+          "linkedRecordType": null,
+          "linkedRecordId": null,
+          "linkedRecordDisplayName": null,
+          "suggestions": [],
+          "metadata": {
+            "placeId": "ChIJcX8PEdhEkWsRK2rDKwtviTQ",
+            "address": "Cnr Main St \u0026, McCullough St, Sunnybank QLD 4109, Australia",
+            "coordinates": {
+              "lat": -27.5712575,
+              "lon": 153.0632826
+            }
+          },
+          "notes": null
+        }
+      ],
+      "relationships": [],
+      "parsedAt": null,
+      "confidenceScore": null,
+      "isReviewed": false,
+      "uncertaintyMarkers": [],
+      "corrections": [],
+      "protectiveMeasures": [],
+      "isMemoryGap": false,
+      "memoryGapNotes": null
+    },
+    {
+      "id": "entry_1776832437468_z4qcp97vz",
+      "entryDate": "2026-04-22T00:00:00Z",
+      "narrativeText": "John \n\nWent to Coles Welland with  s\n .",
+      "entities": [
+        {
+          "id": "entity_1776832443202_8dbt824un",
+          "entityType": 1,
+          "rawText": "John",
+          "normalizedValue": "John",
+          "startPosition": 0,
+          "endPosition": 4,
+          "confidence": 3,
+          "isConfirmed": true,
+          "linkedRecordType": null,
+          "linkedRecordId": null,
+          "linkedRecordDisplayName": null,
+          "suggestions": [],
+          "metadata": {
+            "relationship": ""
+          },
+          "notes": null
+        },
+        {
+          "id": "entity_1776832463947_jtq2hc1kq",
+          "entityType": 2,
+          "rawText": "Coles Welland",
+          "normalizedValue": "Coles Welland",
+          "startPosition": 15,
+          "endPosition": 28,
+          "confidence": 3,
+          "isConfirmed": true,
+          "linkedRecordType": null,
+          "linkedRecordId": null,
+          "linkedRecordDisplayName": null,
+          "suggestions": [],
+          "metadata": {
+            "placeId": "ChIJzfaGjwHGsGoRVjImfT2By6g",
+            "address": "522/530 Port Rd, Welland SA 5007, Australia",
+            "coordinates": {
+              "lat": -34.896868,
+              "lon": 138.5571339
+            }
+          },
+          "notes": null
+        }
+      ],
+      "relationships": [],
+      "parsedAt": null,
+      "confidenceScore": null,
+      "isReviewed": false,
+      "uncertaintyMarkers": [],
+      "corrections": [],
+      "protectiveMeasures": [],
+      "isMemoryGap": false,
+      "memoryGapNotes": null
+    }
+  ],
+  "conventions": {},
+  "createdDate": "2026-04-22T04:34:27.5552942Z",
+  "createdByUserId": "6964051a-a741-43ff-8b37-dfbd11ce666e",
+  "lastModified": "2026-04-22T04:34:27.5553482Z",
+  "lastModifiedByUserId": "6964051a-a741-43ff-8b37-dfbd11ce666e",
+  "isReviewed": false,
+  "reviewedAt": null,
+  "reviewedByUserId": null,
+  "version": 2
+}

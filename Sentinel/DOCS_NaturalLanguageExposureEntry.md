@@ -8,7 +8,7 @@ The Natural Language Exposure Entry feature allows contact tracers to enter expo
 
 1. Navigate to a Case Details page
 2. Click "Exposures" tab
-3. Click "Natural Entry" button (or navigate to `/Cases/Exposures/NaturalEntry?caseId={guid}`)
+3. Click "Natural Entry" button (or navigate to `/Cases/v?caseId={guid}`)
 
 Alternatively, you can use the traditional form-based entry by clicking "Traditional Form".
 
@@ -56,6 +56,39 @@ When you type a recognized entity, an autocomplete dropdown appears with:
 - `Tab` or `Enter` - Accept suggestion
 - `Esc` - Close dropdown
 - Keep typing to ignore and continue
+
+### Entity Quick-Add (`.` Trigger)
+
+Type `.` (dot) in the textarea to open a guided entity creation menu:
+
+1. **Entity Type Menu** appears with 6 options:
+   - 👤 Person
+   - 📍 Location
+   - 🚌 Transport
+   - ⏰ Date/Time
+   - ⏱️ Duration
+   - 🎫 Event
+
+2. **Select type** (arrow keys + Enter or click)
+
+3. **Fill form** with:
+   - Quick picks (conventions, recent entities)
+   - Google Places search (for locations)
+   - Manual entry
+
+4. **Submit** - Entity inserted automatically into text
+
+**Fully keyboard accessible** - see [Keyboard Navigation Guide](DOCS_KeyboardNavigation_EntityQuickAdd.md)
+
+**Example workflow:**
+```
+Type: ..
+Select: Location (arrow down + Enter)
+Choose: Search Google Places
+Type: "Coles Salisbury"
+Select: First result (arrow down + Enter)
+→ "Coles Salisbury" inserted with full address and coordinates
+```
 
 ### Uncertainty & Notes
 

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Net.Http;
 using System.Text.Json;
 using System.Threading.Tasks;
@@ -56,7 +57,7 @@ namespace Sentinel.Services
             return (null, null);
         }
 
-        public async Task<List<AddressLookupResult>> SearchAddressesAsync(string query, int limit = 5)
+        public async Task<List<AddressLookupResult>> SearchAddressesAsync(string query, int limit = 5, double? biasLatitude = null, double? biasLongitude = null)
         {
             var results = new List<AddressLookupResult>();
 
@@ -65,7 +66,13 @@ namespace Sentinel.Services
 
             // 1) Place Autocomplete to get place_ids
             var autoUrl = $"place/autocomplete/json?input={Uri.EscapeDataString(query)}&types=address&key={Uri.EscapeDataString(_apiKey)}";
-            
+
+            // Add location bias if provided (prioritize nearby results)
+            if (biasLatitude.HasValue && biasLongitude.HasValue)
+            {
+                autoUrl += $"&location={biasLatitude.Value.ToString(CultureInfo.InvariantCulture)},{biasLongitude.Value.ToString(CultureInfo.InvariantCulture)}&radius=50000";
+            }
+
             // Add country code bias if configured
             if (!string.IsNullOrWhiteSpace(_countryCode))
             {
@@ -140,7 +147,7 @@ namespace Sentinel.Services
             return results;
         }
 
-        public async Task<List<PlaceLookupResult>> SearchPlacesAsync(string query, int limit = 5)
+        public async Task<List<PlaceLookupResult>> SearchPlacesAsync(string query, int limit = 5, double? biasLatitude = null, double? biasLongitude = null)
         {
             var results = new List<PlaceLookupResult>();
 
@@ -149,13 +156,19 @@ namespace Sentinel.Services
 
             // 1) Place Autocomplete for establishments/businesses
             var autoUrl = $"place/autocomplete/json?input={Uri.EscapeDataString(query)}&types=establishment&key={Uri.EscapeDataString(_apiKey)}";
-            
+
             // Add country code bias if configured
             if (!string.IsNullOrWhiteSpace(_countryCode))
             {
                 autoUrl += $"&components=country:{Uri.EscapeDataString(_countryCode)}";
             }
-            
+
+            // Add location bias if coordinates provided (bias results near patient's address)
+            if (biasLatitude.HasValue && biasLongitude.HasValue)
+            {
+                autoUrl += $"&location={biasLatitude.Value},{biasLongitude.Value}&radius=10000"; // 10km radius
+            }
+
             var autoResp = await _http.GetAsync(autoUrl);
             if (!autoResp.IsSuccessStatusCode)
                 return results;

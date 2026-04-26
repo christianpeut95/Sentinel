@@ -1,0 +1,199 @@
+{
+  "caseId": "7eea821f-5034-4704-9d64-cc7315183cc3",
+  "entries": [
+    {
+      "id": "entry_1776894076217_ito6w1lof",
+      "entryDate": "2026-04-23T00:00:00Z",
+      "narrativeText": "went to Pawly Understood with ",
+      "entities": [
+        {
+          "id": "entity_1776894088987_u039d95g6",
+          "entityType": 2,
+          "rawText": "Pawly Understood",
+          "normalizedValue": "Pawly Understood",
+          "startPosition": 8,
+          "endPosition": 24,
+          "confidence": 3,
+          "isConfirmed": true,
+          "linkedRecordType": null,
+          "linkedRecordId": null,
+          "linkedRecordDisplayName": null,
+          "suggestions": [],
+          "metadata": {
+            "placeId": "ChIJDy9y2GHFsGoRu3yUEOXMWSo",
+            "address": "116 South Rd, Torrensville SA 5031, Australia",
+            "coordinates": {
+              "lat": -34.91970209999999,
+              "lon": 138.5683494
+            }
+          },
+          "notes": null
+        }
+      ],
+      "relationships": [],
+      "parsedAt": null,
+      "confidenceScore": null,
+      "isReviewed": false,
+      "uncertaintyMarkers": [],
+      "corrections": [],
+      "protectiveMeasures": [],
+      "isMemoryGap": false,
+      "memoryGapNotes": null
+    },
+    {
+      "id": "entry_1776894393445_b2183hmmn",
+      "entryDate": "2026-04-23T00:00:00Z",
+      "narrativeText": "went outside with #Siblings( Humphrey Bash Christian )\n",
+      "entities": [
+        {
+          "id": "entity_1776894406151_mjy3w62ok",
+          "entityType": 1,
+          "rawText": "Humphrey",
+          "normalizedValue": "Humphrey",
+          "startPosition": 29,
+          "endPosition": 37,
+          "confidence": 3,
+          "isConfirmed": true,
+          "linkedRecordType": null,
+          "linkedRecordId": null,
+          "linkedRecordDisplayName": null,
+          "suggestions": [],
+          "metadata": {
+            "relationship": ""
+          },
+          "notes": null
+        },
+        {
+          "id": "entity_1776894411819_6aphm6coz",
+          "entityType": 1,
+          "rawText": "Bash",
+          "normalizedValue": "Bash",
+          "startPosition": 38,
+          "endPosition": 42,
+          "confidence": 3,
+          "isConfirmed": true,
+          "linkedRecordType": null,
+          "linkedRecordId": null,
+          "linkedRecordDisplayName": null,
+          "suggestions": [],
+          "metadata": {
+            "relationship": ""
+          },
+          "notes": null
+        },
+        {
+          "id": "entity_1776894417634_dbx3jrg9d",
+          "entityType": 1,
+          "rawText": "Christian",
+          "normalizedValue": "Christian",
+          "startPosition": 43,
+          "endPosition": 52,
+          "confidence": 3,
+          "isConfirmed": true,
+          "linkedRecordType": null,
+          "linkedRecordId": null,
+          "linkedRecordDisplayName": null,
+          "suggestions": [],
+          "metadata": {
+            "relationship": ""
+          },
+          "notes": null
+        },
+        {
+          "id": "entry_1776894424500_zxmf0mne0",
+          "entityType": 1,
+          "rawText": "Humphrey",
+          "normalizedValue": "Humphrey",
+          "startPosition": 19,
+          "endPosition": 27,
+          "confidence": 3,
+          "isConfirmed": true,
+          "linkedRecordType": null,
+          "linkedRecordId": null,
+          "linkedRecordDisplayName": "Humphrey",
+          "suggestions": [],
+          "metadata": null,
+          "notes": null
+        },
+        {
+          "id": "entry_1776894424500_ahxz46bpj",
+          "entityType": 1,
+          "rawText": "Bash",
+          "normalizedValue": "Bash",
+          "startPosition": 29,
+          "endPosition": 33,
+          "confidence": 3,
+          "isConfirmed": true,
+          "linkedRecordType": null,
+          "linkedRecordId": null,
+          "linkedRecordDisplayName": "Bash",
+          "suggestions": [],
+          "metadata": null,
+          "notes": null
+        },
+        {
+          "id": "entry_1776894424500_k19p8f60g",
+          "entityType": 1,
+          "rawText": "Christian",
+          "normalizedValue": "Christian",
+          "startPosition": 35,
+          "endPosition": 44,
+          "confidence": 3,
+          "isConfirmed": true,
+          "linkedRecordType": null,
+          "linkedRecordId": null,
+          "linkedRecordDisplayName": "Christian",
+          "suggestions": [],
+          "metadata": null,
+          "notes": null
+        }
+      ],
+      "relationships": [
+        {
+          "id": "rel_1776894424502_i03c63xsm",
+          "primaryEntityId": "entity_1776894406151_mjy3w62ok",
+          "relatedEntityId": "entity_1776894411819_6aphm6coz",
+          "relationType": 1,
+          "timeEntityId": null,
+          "confidence": 2,
+          "isConfirmed": false,
+          "sourcePosition": 0,
+          "metadata": null,
+          "sequenceOrder": 0,
+          "notes": null
+        },
+        {
+          "id": "rel_1776894424502_bsw4eehuq",
+          "primaryEntityId": "entity_1776894406151_mjy3w62ok",
+          "relatedEntityId": "entity_1776894417634_dbx3jrg9d",
+          "relationType": 1,
+          "timeEntityId": null,
+          "confidence": 2,
+          "isConfirmed": false,
+          "sourcePosition": 0,
+          "metadata": null,
+          "sequenceOrder": 0,
+          "notes": null
+        }
+      ],
+      "parsedAt": null,
+      "confidenceScore": null,
+      "isReviewed": false,
+      "uncertaintyMarkers": [],
+      "corrections": [],
+      "protectiveMeasures": [],
+      "isMemoryGap": false,
+      "memoryGapNotes": null
+    }
+  ],
+  "conventions": {},
+  "entityGroups": {},
+  "createdDate": "2026-04-22T21:47:21.8693913Z",
+  "createdByUserId": "6964051a-a741-43ff-8b37-dfbd11ce666e",
+  "lastModified": "2026-04-22T21:47:21.8694299Z",
+  "lastModifiedByUserId": "6964051a-a741-43ff-8b37-dfbd11ce666e",
+  "isReviewed": false,
+  "reviewedAt": null,
+  "reviewedByUserId": null,
+  "version": 2
+}

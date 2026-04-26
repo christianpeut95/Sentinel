@@ -18,6 +18,11 @@ namespace Sentinel.Models.Timeline
         public Dictionary<string, ConventionLocation> Conventions { get; set; } = new();
 
         /// <summary>
+        /// Entity groups for quick reference (e.g., #Family, #Colleagues)
+        /// </summary>
+        public Dictionary<string, EntityGroup> EntityGroups { get; set; } = new();
+
+        /// <summary>
         /// When this timeline was created
         /// </summary>
         public DateTime CreatedDate { get; set; }
