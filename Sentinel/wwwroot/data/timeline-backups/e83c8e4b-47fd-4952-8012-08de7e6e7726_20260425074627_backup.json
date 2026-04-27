@@ -1,0 +1,116 @@
+{
+  "caseId": "e83c8e4b-47fd-4952-8012-08de7e6e7726",
+  "entries": [
+    {
+      "id": "entry_1777103102562_8chcwgcen",
+      "entryDate": "2026-04-25T00:00:00Z",
+      "narrativeText": "went to @Coles Welland with \u002BMum @9:00 AM for @.\n",
+      "entities": [
+        {
+          "id": "entity_1777103124631_zabo42afm",
+          "entityType": 2,
+          "rawText": "Coles Welland",
+          "normalizedValue": "Coles Welland",
+          "startPosition": 9,
+          "endPosition": 22,
+          "confidence": 3,
+          "isConfirmed": true,
+          "linkedRecordType": null,
+          "linkedRecordId": null,
+          "linkedRecordDisplayName": null,
+          "suggestions": [],
+          "metadata": {
+            "placeId": "ChIJzfaGjwHGsGoRVjImfT2By6g",
+            "address": "522/530 Port Rd, Welland SA 5007, Australia",
+            "latitude": "-34.896868",
+            "longitude": "138.5571339"
+          },
+          "notes": null
+        },
+        {
+          "id": "entity_1777103131444_dvb5x56wt",
+          "entityType": 1,
+          "rawText": "Mum",
+          "normalizedValue": "Mum",
+          "startPosition": 29,
+          "endPosition": 32,
+          "confidence": 2,
+          "isConfirmed": true,
+          "linkedRecordType": null,
+          "linkedRecordId": null,
+          "linkedRecordDisplayName": null,
+          "suggestions": [],
+          "metadata": {
+            "relationship": "Mother",
+            "phone": null,
+            "ageDob": null,
+            "notes": null
+          },
+          "notes": null
+        },
+        {
+          "id": "entity_1777103145280_v83kl7h3b",
+          "entityType": 5,
+          "rawText": "9:00 AM",
+          "normalizedValue": "9:00 AM",
+          "startPosition": 34,
+          "endPosition": 41,
+          "confidence": 2,
+          "isConfirmed": false,
+          "linkedRecordType": null,
+          "linkedRecordId": null,
+          "linkedRecordDisplayName": null,
+          "suggestions": [],
+          "metadata": {},
+          "notes": null
+        }
+      ],
+      "relationships": [
+        {
+          "id": "rel_1777103157098_hh8s09cib",
+          "primaryEntityId": "entity_1777103124631_zabo42afm",
+          "relatedEntityId": "entity_1777103131444_dvb5x56wt",
+          "relationType": 1,
+          "timeEntityId": "entity_1777103145280_v83kl7h3b",
+          "confidence": 2,
+          "isConfirmed": false,
+          "sourcePosition": 0,
+          "metadata": null,
+          "sequenceOrder": 0,
+          "notes": null
+        },
+        {
+          "id": "rel_1777103157098_hudybqqdg",
+          "primaryEntityId": "entity_1777103124631_zabo42afm",
+          "relatedEntityId": "entity_1777103145280_v83kl7h3b",
+          "relationType": 5,
+          "timeEntityId": null,
+          "confidence": 2,
+          "isConfirmed": false,
+          "sourcePosition": 0,
+          "metadata": null,
+          "sequenceOrder": 0,
+          "notes": null
+        }
+      ],
+      "parsedAt": null,
+      "confidenceScore": null,
+      "isReviewed": false,
+      "uncertaintyMarkers": [],
+      "corrections": [],
+      "protectiveMeasures": [],
+      "isMemoryGap": false,
+      "memoryGapNotes": null
+    }
+  ],
+  "conventions": {},
+  "entityGroups": {},
+  "createdDate": "2026-04-25T07:45:58.064418Z",
+  "createdByUserId": "6964051a-a741-43ff-8b37-dfbd11ce666e",
+  "lastModified": "2026-04-25T07:45:58.0644363Z",
+  "lastModifiedByUserId": "6964051a-a741-43ff-8b37-dfbd11ce666e",
+  "isReviewed": false,
+  "reviewedAt": null,
+  "reviewedByUserId": null,
+  "version": 2
+}

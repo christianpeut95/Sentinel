@@ -3,16 +3,6 @@
 @{
     Layout = null; // Standalone page - no layout
 }
-@functions {
-    public string GetCspNonce()
-    {
-        if (HttpContext?.Items?.TryGetValue("csp-nonce", out var nonce) == true && nonce is string nonceStr)
-        {
-            return nonceStr;
-        }
-        return string.Empty;
-    }
-}
 <!DOCTYPE html>
 <html lang="en">
 <head>

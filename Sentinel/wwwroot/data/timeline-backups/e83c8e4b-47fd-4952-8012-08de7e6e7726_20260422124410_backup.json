@@ -1,0 +1,42 @@
+{
+  "caseId": "e83c8e4b-47fd-4952-8012-08de7e6e7726",
+  "entries": [
+    {
+      "id": "entry_1776861812037_6excns5tc",
+      "entryDate": "2026-04-22T00:00:00Z",
+      "narrativeText": "#Siblings(..",
+      "entities": [],
+      "relationships": [],
+      "parsedAt": null,
+      "confidenceScore": null,
+      "isReviewed": false,
+      "uncertaintyMarkers": [],
+      "corrections": [],
+      "protectiveMeasures": [],
+      "isMemoryGap": false,
+      "memoryGapNotes": null
+    }
+  ],
+  "conventions": {},
+  "entityGroups": {
+    "537d3203-0312-4cfe-acc3-f2f8dbe744ab": {
+      "id": "537d3203-0312-4cfe-acc3-f2f8dbe744ab",
+      "caseId": "e83c8e4b-47fd-4952-8012-08de7e6e7726",
+      "name": "Siblings",
+      "entityIds": [
+        "entity_1776861823394_8cikp73yz",
+        "entity_1776861833593_ooetuz6bh"
+      ],
+      "createdDate": "2026-04-22T12:43:55.1710054Z",
+      "description": null
+    }
+  },
+  "createdDate": "2026-04-22T12:43:40.3966321Z",
+  "createdByUserId": "6964051a-a741-43ff-8b37-dfbd11ce666e",
+  "lastModified": "2026-04-22T12:44:06.47993Z",
+  "lastModifiedByUserId": "6964051a-a741-43ff-8b37-dfbd11ce666e",
+  "isReviewed": false,
+  "reviewedAt": null,
+  "reviewedByUserId": null,
+  "version": 4
+}

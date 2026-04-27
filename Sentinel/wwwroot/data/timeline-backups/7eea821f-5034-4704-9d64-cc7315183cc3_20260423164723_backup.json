@@ -1,0 +1,30 @@
+{
+  "caseId": "7eea821f-5034-4704-9d64-cc7315183cc3",
+  "entries": [
+    {
+      "id": "entry_1776962736494_p80ht2hmg",
+      "entryDate": "2026-04-24T00:00:00Z",
+      "narrativeText": "\n.",
+      "entities": [],
+      "relationships": [],
+      "parsedAt": null,
+      "confidenceScore": null,
+      "isReviewed": false,
+      "uncertaintyMarkers": [],
+      "corrections": [],
+      "protectiveMeasures": [],
+      "isMemoryGap": false,
+      "memoryGapNotes": null
+    }
+  ],
+  "conventions": {},
+  "entityGroups": {},
+  "createdDate": "2026-04-23T16:46:53.6427536Z",
+  "createdByUserId": "6964051a-a741-43ff-8b37-dfbd11ce666e",
+  "lastModified": "2026-04-23T16:46:53.6427868Z",
+  "lastModifiedByUserId": "6964051a-a741-43ff-8b37-dfbd11ce666e",
+  "isReviewed": false,
+  "reviewedAt": null,
+  "reviewedByUserId": null,
+  "version": 2
+}

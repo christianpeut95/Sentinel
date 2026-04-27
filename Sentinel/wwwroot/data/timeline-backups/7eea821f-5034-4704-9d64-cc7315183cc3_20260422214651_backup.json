@@ -1,0 +1,199 @@
+{
+  "caseId": "7eea821f-5034-4704-9d64-cc7315183cc3",
+  "entries": [
+    {
+      "id": "entry_1776894076217_ito6w1lof",
+      "entryDate": "2026-04-23T00:00:00Z",
+      "narrativeText": "went to Pawly Understood with ",
+      "entities": [
+        {
+          "id": "entity_1776894088987_u039d95g6",
+          "entityType": 2,
+          "rawText": "Pawly Understood",
+          "normalizedValue": "Pawly Understood",
+          "startPosition": 8,
+          "endPosition": 24,
+          "confidence": 3,
+          "isConfirmed": true,
+          "linkedRecordType": null,
+          "linkedRecordId": null,
+          "linkedRecordDisplayName": null,
+          "suggestions": [],
+          "metadata": {
+            "placeId": "ChIJDy9y2GHFsGoRu3yUEOXMWSo",
+            "address": "116 South Rd, Torrensville SA 5031, Australia",
+            "coordinates": {
+              "lat": -34.91970209999999,
+              "lon": 138.5683494
+            }
+          },
+          "notes": null
+        }
+      ],
+      "relationships": [],
+      "parsedAt": null,
+      "confidenceScore": null,
+      "isReviewed": false,
+      "uncertaintyMarkers": [],
+      "corrections": [],
+      "protectiveMeasures": [],
+      "isMemoryGap": false,
+      "memoryGapNotes": null
+    },
+    {
+      "id": "entry_1776894117016_hiplxsr50",
+      "entryDate": "2026-04-23T00:00:00Z",
+      "narrativeText": "went outside with #Siblings( Humphrey Bash Chester)\n",
+      "entities": [
+        {
+          "id": "entity_1776894133344_s7rw5vbm3",
+          "entityType": 1,
+          "rawText": "Humphrey",
+          "normalizedValue": "Humphrey",
+          "startPosition": 29,
+          "endPosition": 37,
+          "confidence": 3,
+          "isConfirmed": true,
+          "linkedRecordType": null,
+          "linkedRecordId": null,
+          "linkedRecordDisplayName": null,
+          "suggestions": [],
+          "metadata": {
+            "relationship": ""
+          },
+          "notes": null
+        },
+        {
+          "id": "entity_1776894140768_waae7ukao",
+          "entityType": 1,
+          "rawText": "Bash",
+          "normalizedValue": "Bash",
+          "startPosition": 38,
+          "endPosition": 42,
+          "confidence": 3,
+          "isConfirmed": true,
+          "linkedRecordType": null,
+          "linkedRecordId": null,
+          "linkedRecordDisplayName": null,
+          "suggestions": [],
+          "metadata": {
+            "relationship": ""
+          },
+          "notes": null
+        },
+        {
+          "id": "entity_1776894147649_0nripelar",
+          "entityType": 1,
+          "rawText": "Chester",
+          "normalizedValue": "Chester",
+          "startPosition": 43,
+          "endPosition": 50,
+          "confidence": 3,
+          "isConfirmed": true,
+          "linkedRecordType": null,
+          "linkedRecordId": null,
+          "linkedRecordDisplayName": null,
+          "suggestions": [],
+          "metadata": {
+            "relationship": ""
+          },
+          "notes": null
+        },
+        {
+          "id": "entry_1776894149203_tci8sfpg9",
+          "entityType": 1,
+          "rawText": "Humphrey",
+          "normalizedValue": "Humphrey",
+          "startPosition": 19,
+          "endPosition": 27,
+          "confidence": 3,
+          "isConfirmed": true,
+          "linkedRecordType": null,
+          "linkedRecordId": null,
+          "linkedRecordDisplayName": "Humphrey",
+          "suggestions": [],
+          "metadata": null,
+          "notes": null
+        },
+        {
+          "id": "entry_1776894149204_g9odn79ka",
+          "entityType": 1,
+          "rawText": "Bash",
+          "normalizedValue": "Bash",
+          "startPosition": 29,
+          "endPosition": 33,
+          "confidence": 3,
+          "isConfirmed": true,
+          "linkedRecordType": null,
+          "linkedRecordId": null,
+          "linkedRecordDisplayName": "Bash",
+          "suggestions": [],
+          "metadata": null,
+          "notes": null
+        },
+        {
+          "id": "entry_1776894149204_2h8t5xdgn",
+          "entityType": 1,
+          "rawText": "Chester",
+          "normalizedValue": "Chester",
+          "startPosition": 35,
+          "endPosition": 42,
+          "confidence": 3,
+          "isConfirmed": true,
+          "linkedRecordType": null,
+          "linkedRecordId": null,
+          "linkedRecordDisplayName": "Chester",
+          "suggestions": [],
+          "metadata": null,
+          "notes": null
+        }
+      ],
+      "relationships": [
+        {
+          "id": "rel_1776894149207_xxvtxfyw9",
+          "primaryEntityId": "entity_1776894133344_s7rw5vbm3",
+          "relatedEntityId": "entity_1776894140768_waae7ukao",
+          "relationType": 1,
+          "timeEntityId": null,
+          "confidence": 2,
+          "isConfirmed": false,
+          "sourcePosition": 0,
+          "metadata": null,
+          "sequenceOrder": 0,
+          "notes": null
+        },
+        {
+          "id": "rel_1776894149207_v4wp28fw6",
+          "primaryEntityId": "entity_1776894133344_s7rw5vbm3",
+          "relatedEntityId": "entity_1776894147649_0nripelar",
+          "relationType": 1,
+          "timeEntityId": null,
+          "confidence": 2,
+          "isConfirmed": false,
+          "sourcePosition": 0,
+          "metadata": null,
+          "sequenceOrder": 0,
+          "notes": null
+        }
+      ],
+      "parsedAt": null,
+      "confidenceScore": null,
+      "isReviewed": false,
+      "uncertaintyMarkers": [],
+      "corrections": [],
+      "protectiveMeasures": [],
+      "isMemoryGap": false,
+      "memoryGapNotes": null
+    }
+  ],
+  "conventions": {},
+  "entityGroups": {},
+  "createdDate": "2026-04-22T21:42:43.1821319Z",
+  "createdByUserId": "6964051a-a741-43ff-8b37-dfbd11ce666e",
+  "lastModified": "2026-04-22T21:42:43.182152Z",
+  "lastModifiedByUserId": "6964051a-a741-43ff-8b37-dfbd11ce666e",
+  "isReviewed": false,
+  "reviewedAt": null,
+  "reviewedByUserId": null,
+  "version": 2
+}

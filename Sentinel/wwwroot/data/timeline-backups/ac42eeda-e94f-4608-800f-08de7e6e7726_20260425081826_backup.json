@@ -1,0 +1,137 @@
+{
+  "caseId": "ac42eeda-e94f-4608-800f-08de7e6e7726",
+  "entries": [
+    {
+      "id": "entry_1777105019359_lffwnpl36",
+      "entryDate": "2026-04-25T00:00:00Z",
+      "narrativeText": "went with \u002BMum to @Cafe Primo @12:00 PM.\nLater that day went with \u002BDad to .",
+      "entities": [
+        {
+          "id": "entity_1777105028529_1a5ylmg3s",
+          "entityType": 1,
+          "rawText": "Mum",
+          "normalizedValue": "Mum",
+          "startPosition": 11,
+          "endPosition": 14,
+          "confidence": 2,
+          "isConfirmed": true,
+          "linkedRecordType": null,
+          "linkedRecordId": null,
+          "linkedRecordDisplayName": null,
+          "suggestions": [],
+          "metadata": {
+            "relationship": "Mother",
+            "phone": null,
+            "ageDob": null,
+            "notes": null
+          },
+          "notes": null
+        },
+        {
+          "id": "entity_1777105038261_s9xn9wd3y",
+          "entityType": 2,
+          "rawText": "Cafe Primo",
+          "normalizedValue": "Cafe Primo",
+          "startPosition": 19,
+          "endPosition": 29,
+          "confidence": 3,
+          "isConfirmed": true,
+          "linkedRecordType": null,
+          "linkedRecordId": null,
+          "linkedRecordDisplayName": null,
+          "suggestions": [],
+          "metadata": {
+            "placeId": "ChIJ3yac1r4TA0cRNJBRUQUygoo",
+            "address": "Gda\u0144ska 18, 85-006 Bydgoszcz, Poland",
+            "latitude": "53.1262388",
+            "longitude": "18.004188"
+          },
+          "notes": null
+        },
+        {
+          "id": "entity_1777105048627_70vp5acze",
+          "entityType": 5,
+          "rawText": "12:00 PM",
+          "normalizedValue": "12:00 PM",
+          "startPosition": 31,
+          "endPosition": 39,
+          "confidence": 2,
+          "isConfirmed": false,
+          "linkedRecordType": null,
+          "linkedRecordId": null,
+          "linkedRecordDisplayName": null,
+          "suggestions": [],
+          "metadata": {},
+          "notes": null
+        },
+        {
+          "id": "entity_1777105065711_7r446ilvt",
+          "entityType": 1,
+          "rawText": "Dad",
+          "normalizedValue": "Dad",
+          "startPosition": 67,
+          "endPosition": 70,
+          "confidence": 2,
+          "isConfirmed": true,
+          "linkedRecordType": null,
+          "linkedRecordId": null,
+          "linkedRecordDisplayName": null,
+          "suggestions": [],
+          "metadata": {
+            "relationship": "Father",
+            "phone": null,
+            "ageDob": null,
+            "notes": null
+          },
+          "notes": null
+        }
+      ],
+      "relationships": [
+        {
+          "id": "rel_1777105069698_chwef5vex",
+          "primaryEntityId": "entity_1777105038261_s9xn9wd3y",
+          "relatedEntityId": "entity_1777105028529_1a5ylmg3s",
+          "relationType": 1,
+          "timeEntityId": "entity_1777105048627_70vp5acze",
+          "confidence": 2,
+          "isConfirmed": false,
+          "sourcePosition": 0,
+          "metadata": null,
+          "sequenceOrder": 0,
+          "notes": null
+        },
+        {
+          "id": "rel_1777105069698_lys1upmkt",
+          "primaryEntityId": "entity_1777105038261_s9xn9wd3y",
+          "relatedEntityId": "entity_1777105048627_70vp5acze",
+          "relationType": 5,
+          "timeEntityId": null,
+          "confidence": 2,
+          "isConfirmed": false,
+          "sourcePosition": 0,
+          "metadata": null,
+          "sequenceOrder": 0,
+          "notes": null
+        }
+      ],
+      "parsedAt": null,
+      "confidenceScore": null,
+      "isReviewed": false,
+      "uncertaintyMarkers": [],
+      "corrections": [],
+      "protectiveMeasures": [],
+      "isMemoryGap": false,
+      "memoryGapNotes": null
+    }
+  ],
+  "conventions": {},
+  "entityGroups": {},
+  "createdDate": "2026-04-25T08:17:56.8292295Z",
+  "createdByUserId": "6964051a-a741-43ff-8b37-dfbd11ce666e",
+  "lastModified": "2026-04-25T08:17:56.8292425Z",
+  "lastModifiedByUserId": "6964051a-a741-43ff-8b37-dfbd11ce666e",
+  "isReviewed": false,
+  "reviewedAt": null,
+  "reviewedByUserId": null,
+  "version": 2
+}

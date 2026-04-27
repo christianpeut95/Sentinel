@@ -3,17 +3,7 @@
 
 @{
     ViewData["Title"] = "Create Contact";
-    Layout = "~/Pages/Shared/_Layout.cshtml";
-}
-@functions {
-    public string GetCspNonce()
-    {
-        if (HttpContext?.Items?.TryGetValue("csp-nonce", out var nonce) == true && nonce is string nonceStr)
-        {
-            return nonceStr;
-        }
-        return string.Empty;
-    }
+    Layout = "~/Pages/Shared/_LayoutSentinel.cshtml";
 }
 
 <style>
@@ -65,8 +55,8 @@
     }
 
     .step.active .step-circle {
-        background: #7c3aed;
-        border-color: #7c3aed;
+        background: var(--signal-dk);
+        border-color: var(--signal-dk);
         color: white;
     }
 
@@ -83,7 +73,7 @@
     }
 
     .step.active .step-label {
-        color: #7c3aed;
+        color: var(--signal-dk);
         font-weight: 600;
     }
 
@@ -124,8 +114,8 @@
 
     .search-input:focus {
         outline: none;
-        border-color: #7c3aed;
-        box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.1);
+        border-color: var(--signal-dk);
+        box-shadow: 0 0 0 3px rgba(21, 156, 110, 0.1);
     }
 
     .search-icon {
@@ -168,7 +158,7 @@
     }
 
     .search-result-item:hover {
-        background: #faf5ff;
+        background: var(--signal-lt);
     }
 
     .search-result-name {
@@ -184,8 +174,8 @@
 
     /* Selected Patient/Case Card */
     .selected-patient-card, .selected-case-card {
-        background: #faf5ff;
-        border: 1px solid #c4b5fd;
+        background: var(--signal-lt);
+        border: 1px solid var(--hairline);
         border-radius: 10px;
         padding: 1.25rem;
         margin-bottom: 1.5rem;
@@ -209,8 +199,8 @@
 
     .btn-change {
         background: white;
-        border: 1px solid #c4b5fd;
-        color: #7c3aed;
+        border: 1px solid var(--hairline);
+        color: var(--signal-dk);
         padding: 8px 16px;
         border-radius: 8px;
         font-size: 14px;
@@ -220,8 +210,8 @@
     }
 
     .btn-change:hover {
-        background: #faf5ff;
-        border-color: #7c3aed;
+        background: var(--signal-lt);
+        border-color: var(--signal-dk);
     }
 
     /* Form Elements */
@@ -253,8 +243,8 @@
 
     .form-control-modern:focus {
         outline: none;
-        border-color: #7c3aed;
-        box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.1);
+        border-color: var(--signal-dk);
+        box-shadow: 0 0 0 3px rgba(21, 156, 110, 0.1);
     }
 
     .form-hint {
@@ -286,25 +276,25 @@
     }
 
     .btn-primary {
-        background: #7c3aed;
+        background: var(--signal-dk);
         color: white;
     }
 
     .btn-primary:hover {
-        background: #6d28d9;
+        background: var(--forest);
         transform: translateY(-1px);
-        box-shadow: 0 4px 12px rgba(124, 58, 237, 0.3);
+        box-shadow: 0 4px 12px rgba(21, 156, 110, 0.3);
     }
 
     .btn-secondary {
         background: white;
-        color: #7c3aed;
-        border: 1px solid #c4b5fd;
+        color: var(--signal-dk);
+        border: 1px solid var(--hairline);
     }
 
     .btn-secondary:hover {
-        background: #faf5ff;
-        border-color: #7c3aed;
+        background: var(--signal-lt);
+        border-color: var(--signal-dk);
     }
 
     .btn-success {
@@ -322,7 +312,7 @@
     .create-patient-prompt {
         text-align: center;
         padding: 2rem;
-        background: #faf5ff;
+        background: var(--signal-lt);
         border-radius: 10px;
         margin-top: 1rem;
     }
@@ -346,7 +336,7 @@
     }
 
     .breadcrumb-item a:hover {
-        color: #7c3aed;
+        color: var(--signal-dk);
     }
 
     .breadcrumb-item.active {
@@ -627,7 +617,7 @@
         <div class="step-content" data-step="4">
             <h2 style="font-size: 20px; font-weight: 600; margin-bottom: 1.5rem;">Review & Submit</h2>
             
-            <div id="reviewSummary" style="background: #faf5ff; padding: 2rem; border-radius: 10px; border: 1px solid #c4b5fd;">
+            <div id="reviewSummary" style="background: var(--signal-lt); padding: 2rem; border-radius: 10px; border: 1px solid var(--hairline);">
                 <!-- Summary will be populated by JavaScript -->
             </div>
 

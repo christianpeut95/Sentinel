@@ -4,156 +4,69 @@
 
 @{
     ViewData["Title"] = "Contacts";
-    Layout = "~/Pages/Shared/_Layout.cshtml";
-}
-@functions {
-    public string GetCspNonce()
-    {
-        if (HttpContext?.Items?.TryGetValue("csp-nonce", out var nonce) == true && nonce is string nonceStr)
-        {
-            return nonceStr;
-        }
-        return string.Empty;
-    }
+    Layout = "~/Pages/Shared/_LayoutSentinel.cshtml";
 }
 
 <style>
-    /* Contacts Page - Purple/Violet Theme - More Compact */
-    .page-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 1rem;
+    /* Sentinel Green Theme Overrides */
+    .apple-table thead {
+        background: var(--signal-lt);
     }
 
-    .page-title {
-        font-size: 24px;
-        font-weight: 600;
-        color: #2d3748;
-        display: flex;
-        align-items: center;
-        gap: 0.4rem;
+    .apple-table thead th {
+        color: var(--forest);
+        border-bottom: 2px solid var(--hairline);
     }
 
-    .page-title i {
-        color: #7c3aed; /* Purple icon for Contacts */
-        font-size: 26px;
+    .apple-table tbody tr:hover {
+        background: var(--signal-lt);
     }
 
-    .page-subtitle {
-        font-size: 13px;
-        color: #718096;
-        font-weight: 400;
-        margin-top: 0.15rem;
+    .friendly-id {
+        background: var(--signal-lt);
+        color: var(--forest);
     }
 
-    .btn-hero {
-        background: #7c3aed; /* Purple for Contacts */
-        color: white;
-        font-weight: 600;
-        border: none;
-        padding: 0.5rem 1rem;
-        border-radius: 8px;
-        transition: all 0.2s;
-        text-decoration: none;
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-        font-size: 14px;
+    .breadcrumb-item a {
+        color: var(--signal-dk);
     }
 
-    .btn-hero:hover {
-        background: #6d28d9;
-        transform: translateY(-1px);
-        box-shadow: 0 3px 10px rgba(124, 58, 237, 0.3);
-        color: white;
+    .breadcrumb-item a:hover {
+        color: var(--forest);
     }
 
-    .btn-secondary-hero {
-        background: white;
-        color: #7c3aed;
-        font-weight: 600;
-        border: 1px solid #c4b5fd;
-        padding: 0.5rem 1rem;
-        border-radius: 8px;
-        transition: all 0.2s;
-        text-decoration: none;
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-        font-size: 14px;
+    .page-link:hover {
+        background: var(--signal-lt);
+        border-color: var(--hairline);
+        color: var(--signal-dk);
     }
 
-    .btn-secondary-hero:hover {
-        background: #faf5ff;
-        border-color: #7c3aed;
-        color: #7c3aed;
-        box-shadow: 0 2px 6px rgba(124, 58, 237, 0.15);
+    .page-item.active .page-link {
+        background: var(--signal-dk);
+        border-color: var(--signal-dk);
     }
 
-    /* Stats Bar - Compact */
-    .stats-bar {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-        gap: 0.75rem;
-        margin-bottom: 1rem;
+    .btn-icon:hover {
+        color: var(--signal-dk);
     }
 
-    .stat-item {
-        background: white;
-        border-radius: 8px;
-        padding: 0.75rem 1rem;
-        border-left: 3px solid #7c3aed;
-        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
-        border-top: 1px solid rgba(0, 0, 0, 0.06);
-        border-right: 1px solid rgba(0, 0, 0, 0.06);
-        border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+    .patient-link:hover {
+        color: var(--signal-dk);
     }
 
-    .stat-value {
-        font-size: 1.5rem;
-        font-weight: 700;
-        color: #7c3aed;
-        margin-bottom: 0.1rem;
-        line-height: 1;
+    .sortable-header:hover {
+        color: var(--signal-dk) !important;
     }
 
-    .stat-label {
-        font-size: 0.8rem;
-        color: #718096;
-        font-weight: 500;
+    .sortable-header:hover .sort-icon {
+        color: var(--signal-dk);
     }
 
-    /* Table Card - Compact */
-    .table-card {
-        background: white;
-        border-radius: 10px;
-        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
-        border: 1px solid rgba(0, 0, 0, 0.06);
-        overflow: hidden;
+    .sort-icon.active {
+        color: var(--signal-dk);
     }
 
-    .table-card-header {
-        padding: 0.75rem 1rem;
-        border-bottom: 1px solid #e2e8f0;
-        background: linear-gradient(to right, #faf5ff, white);
-    }
-
-    .table-card-title {
-        margin: 0;
-        font-size: 1rem;
-        font-weight: 600;
-        color: #2d3748;
-        display: flex;
-        align-items: center;
-        gap: 0.4rem;
-    }
-
-    .table-card-title i {
-        color: #7c3aed;
-    }
-
-    /* Compact Table */
+    /* Utility Classes */
     .apple-table {
         width: 100%;
         border-collapse: collapse;
@@ -161,7 +74,7 @@
     }
 
     .apple-table thead {
-        background: #faf5ff;
+        background: var(--signal-lt);
     }
 
     .apple-table th {
@@ -169,8 +82,8 @@
         text-align: left;
         font-weight: 600;
         font-size: 11px;
-        color: #6b21a8;
-        border-bottom: 1px solid #c4b5fd;
+        color: var(--forest);
+        border-bottom: 1px solid var(--hairline);
         text-transform: uppercase;
         letter-spacing: 0.3px;
     }
@@ -187,7 +100,7 @@
     }
 
     .apple-table tbody tr:hover {
-        background: #faf5ff;
+        background: var(--signal-lt);
     }
 
     .apple-table tbody tr:last-child td {
@@ -198,13 +111,13 @@
     .friendly-id {
         font-family: 'SF Mono', 'Monaco', 'Courier New', monospace;
         font-weight: 600;
-        color: #7c3aed;
-        background: #faf5ff;
+        color: var(--forest);
+        background: var(--signal-lt);
         padding: 2px 6px;
         border-radius: 4px;
         font-size: 11px;
         display: inline-block;
-        border: 1px solid #c4b5fd;
+        border: 1px solid var(--hairline);
     }
 
     /* Exposure Details - Compact */
@@ -223,12 +136,12 @@
     }
 
     .exposure-item i {
-        color: #7c3aed;
+        color: var(--signal-dk);
         font-size: 11px;
     }
 
     .related-case-link {
-        color: #7c3aed;
+        color: var(--signal-dk);
         text-decoration: none;
         font-weight: 500;
         font-size: 12px;
@@ -258,8 +171,8 @@
         border-radius: 4px;
         font-size: 10px;
         font-weight: 500;
-        background: #ede9fe;
-        color: #6b21a8;
+        background: var(--signal-lt);
+        color: var(--forest);
     }
 
     /* Status Badge - Compact */
@@ -306,9 +219,9 @@
     }
 
     .btn-icon:hover {
-        background: #faf5ff;
-        border-color: #c4b5fd;
-        color: #7c3aed;
+        background: var(--signal-lt);
+        border-color: var(--hairline);
+        color: var(--signal-dk);
         transform: translateY(-1px);
     }
 
@@ -324,7 +237,7 @@
 
     .empty-state i {
         font-size: 2.5rem;
-        color: #c4b5fd;
+        color: var(--hairline);
         margin-bottom: 0.75rem;
     }
 
@@ -359,7 +272,7 @@
     }
 
     .breadcrumb-item.active {
-        color: #7c3aed;
+        color: var(--signal-dk);
         font-weight: 500;
     }
 
@@ -371,7 +284,7 @@
     }
 
     .contact-link:hover {
-        color: #7c3aed;
+        color: var(--signal-dk);
         text-decoration: underline;
     }
 
@@ -391,7 +304,7 @@
         align-items: center;
         padding: 0.75rem 1rem;
         border-top: 1px solid #e2e8f0;
-        background: #faf5ff;
+        background: var(--signal-lt);
     }
 
     .pagination-info {
@@ -414,9 +327,9 @@
     .pagination .page-link {
         padding: 5px 10px;
         border-radius: 6px;
-        border: 1px solid #c4b5fd;
+        border: 1px solid var(--hairline);
         background: white;
-        color: #7c3aed;
+        color: var(--signal-dk);
         text-decoration: none;
         font-size: 12px;
         font-weight: 500;
@@ -428,14 +341,14 @@
     }
 
     .pagination .page-link:hover {
-        background: #faf5ff;
-        border-color: #7c3aed;
+        background: var(--signal-lt);
+        border-color: var(--signal-dk);
     }
 
     .pagination .page-item.active .page-link {
-        background: #7c3aed;
+        background: var(--signal-dk);
         color: white;
-        border-color: #7c3aed;
+        border-color: var(--signal-dk);
     }
 
     .pagination .page-item.disabled .page-link {
@@ -458,7 +371,7 @@
     }
 
     .sortable-header:hover {
-        color: #7c3aed !important;
+        color: var(--signal-dk) !important;
     }
 
     .sort-icon {
@@ -468,11 +381,11 @@
     }
 
     .sortable-header:hover .sort-icon {
-        color: #7c3aed;
+        color: var(--signal-dk);
     }
 
     .sort-icon.active {
-        color: #7c3aed;
+        color: var(--signal-dk);
     }
 
     /* Responsive */
@@ -502,20 +415,20 @@
     </ol>
 </nav>
 
-<div class="page-header">
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
     <div>
-        <h1 class="page-title">
-            <i class="bi bi-people"></i>
+        <h1 style="font-size: 24px; font-weight: 600; color: #2d3748; display: flex; align-items: center; gap: 0.4rem;">
+            <i class="bi bi-people" style="color: var(--signal-dk); font-size: 26px;"></i>
             Contacts
         </h1>
-        <p class="page-subtitle">Contacts under monitoring and follow-up</p>
+        <p style="font-size: 13px; color: #718096; font-weight: 400; margin-top: 0.15rem;">Contacts under monitoring and follow-up</p>
     </div>
     <div class="d-flex gap-2 flex-wrap">
-        <a asp-page="/Cases/Search" asp-route-type="Contact" class="btn-secondary-hero">
+        <a asp-page="/Cases/Search" asp-route-type="Contact" class="btn" style="background: white; color: var(--signal-dk); font-weight: 600; border: 1px solid var(--hairline); padding: 0.5rem 1rem; border-radius: var(--radius-sm); transition: all 0.2s; text-decoration: none; display: inline-flex; align-items: center; gap: 6px; font-size: 14px;" onmouseover="this.style.background='var(--signal-lt)'; this.style.borderColor='var(--signal-dk)';" onmouseout="this.style.background='white'; this.style.borderColor='var(--hairline)';">
             <i class="bi bi-search"></i>
             Advanced Search
         </a>
-        <a asp-page="./CreateNewContact" class="btn-hero">
+        <a asp-page="./CreateNewContact" class="btn" style="background: var(--signal-dk); color: white; font-weight: 600; border: none; padding: 0.5rem 1rem; border-radius: var(--radius-sm); transition: all 0.2s; text-decoration: none; display: inline-flex; align-items: center; gap: 6px; font-size: 14px;" onmouseover="this.style.background='var(--forest)';" onmouseout="this.style.background='var(--signal-dk)';">
             <i class="bi bi-plus-circle"></i>
             Add New Contact
         </a>
@@ -523,9 +436,9 @@
 </div>
 
 <!-- Quick Search -->
-<div class="table-card" style="margin-bottom: 1rem;">
-    <div class="table-card-header">
-        <h2 class="table-card-title">
+<div style="background: white; border-radius: var(--radius-sm); overflow: hidden; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08); margin-bottom: 1rem;">
+    <div style="background: linear-gradient(to right, var(--signal-lt), var(--chalk)); padding: 0.75rem 1rem; border-bottom: 2px solid var(--hairline);">
+        <h2 style="font-size: 16px; font-weight: 600; color: var(--forest); margin: 0; display: flex; align-items: center; gap: 0.4rem;">
             <i class="bi bi-funnel"></i>
             Quick Search & Filters
         </h2>
@@ -552,29 +465,29 @@
                 </select>
             </div>
             <div class="col-md-2">
-                <button type="submit" class="btn btn-sm btn-primary w-100">Apply</button>
+                <button type="submit" class="btn btn-sm w-100" style="background: var(--signal-dk); color: white; border: none;" onmouseover="this.style.background='var(--forest)';" onmouseout="this.style.background='var(--signal-dk)';">Apply</button>
             </div>
         </form>
     </div>
 </div>
 
 <!-- Stats Bar -->
-<div class="stats-bar">
-    <div class="stat-item">
-        <div class="stat-value">@Model.TotalCount</div>
-        <div class="stat-label">Total Contacts</div>
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 0.75rem; margin-bottom: 1rem;">
+    <div style="background: white; border-radius: var(--radius-sm); padding: 0.75rem 1rem; border-left: 3px solid var(--signal-dk); box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08); border-top: 1px solid rgba(0, 0, 0, 0.06); border-right: 1px solid rgba(0, 0, 0, 0.06); border-bottom: 1px solid rgba(0, 0, 0, 0.06);">
+        <div style="font-size: 22px; font-weight: 700; color: var(--signal-dk); margin-bottom: 2px; font-variant-numeric: tabular-nums;">@Model.TotalCount</div>
+        <div style="font-size: 12px; color: #64748b; font-weight: 500; text-transform: uppercase; letter-spacing: 0.02em;">Total Contacts</div>
     </div>
-    <div class="stat-item">
-        <div class="stat-value">@Model.Contacts.Count(c => c.DateOfOnset.HasValue && c.DateOfOnset.Value >= DateTime.Today.AddDays(-14))</div>
-        <div class="stat-label">Last 14 Days</div>
+    <div style="background: white; border-radius: var(--radius-sm); padding: 0.75rem 1rem; border-left: 3px solid var(--signal-dk); box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08); border-top: 1px solid rgba(0, 0, 0, 0.06); border-right: 1px solid rgba(0, 0, 0, 0.06); border-bottom: 1px solid rgba(0, 0, 0, 0.06);">
+        <div style="font-size: 22px; font-weight: 700; color: var(--signal-dk); margin-bottom: 2px; font-variant-numeric: tabular-nums;">@Model.Contacts.Count(c => c.DateOfOnset.HasValue && c.DateOfOnset.Value >= DateTime.Today.AddDays(-14))</div>
+        <div style="font-size: 12px; color: #64748b; font-weight: 500; text-transform: uppercase; letter-spacing: 0.02em;">Last 14 Days</div>
     </div>
-    <div class="stat-item">
-        <div class="stat-value">@Model.ContactExposures.Count</div>
-        <div class="stat-label">With Exposures (Page)</div>
+    <div style="background: white; border-radius: var(--radius-sm); padding: 0.75rem 1rem; border-left: 3px solid var(--signal-dk); box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08); border-top: 1px solid rgba(0, 0, 0, 0.06); border-right: 1px solid rgba(0, 0, 0, 0.06); border-bottom: 1px solid rgba(0, 0, 0, 0.06);">
+        <div style="font-size: 22px; font-weight: 700; color: var(--signal-dk); margin-bottom: 2px; font-variant-numeric: tabular-nums;">@Model.ContactExposures.Count</div>
+        <div style="font-size: 12px; color: #64748b; font-weight: 500; text-transform: uppercase; letter-spacing: 0.02em;">With Exposures (Page)</div>
     </div>
-    <div class="stat-item">
-        <div class="stat-value">@Model.Contacts.Count(c => c.ConfirmationStatus?.Name?.Contains("Confirmed") == true || c.ConfirmationStatus?.Name?.Contains("Probable") == true)</div>
-        <div class="stat-label">Converted (Page)</div>
+    <div style="background: white; border-radius: var(--radius-sm); padding: 0.75rem 1rem; border-left: 3px solid var(--signal-dk); box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08); border-top: 1px solid rgba(0, 0, 0, 0.06); border-right: 1px solid rgba(0, 0, 0, 0.06); border-bottom: 1px solid rgba(0, 0, 0, 0.06);">
+        <div style="font-size: 22px; font-weight: 700; color: var(--signal-dk); margin-bottom: 2px; font-variant-numeric: tabular-nums;">@Model.Contacts.Count(c => c.ConfirmationStatus?.Name?.Contains("Confirmed") == true || c.ConfirmationStatus?.Name?.Contains("Probable") == true)</div>
+        <div style="font-size: 12px; color: #64748b; font-weight: 500; text-transform: uppercase; letter-spacing: 0.02em;">Converted (Page)</div>
     </div>
 </div>
 
@@ -584,7 +497,7 @@
         <i class="bi bi-people"></i>
         <h3>No Contacts Yet</h3>
         <p>Add contacts to track and monitor exposure events.</p>
-        <a asp-page="./CreateNewContact" class="btn-hero">
+        <a asp-page="./CreateNewContact" class="btn" style="background: var(--signal-dk); color: white; font-weight: 600; border: none; padding: 0.5rem 1rem; border-radius: var(--radius-sm); text-decoration: none; display: inline-flex; align-items: center; gap: 6px; font-size: 14px;" onmouseover="this.style.background='var(--forest)';" onmouseout="this.style.background='var(--signal-dk)';">
             <i class="bi bi-plus-circle"></i>
             Add First Contact
         </a>
@@ -592,9 +505,9 @@
 }
 else
 {
-    <div class="table-card">
-        <div class="table-card-header">
-            <h2 class="table-card-title">
+    <div style="background: white; border-radius: var(--radius-sm); overflow: hidden; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);">
+        <div style="background: linear-gradient(to right, var(--signal-lt), var(--chalk)); padding: 0.75rem 1rem; border-bottom: 2px solid var(--hairline);">
+            <h2 style="font-size: 16px; font-weight: 600; color: var(--forest); margin: 0; display: flex; align-items: center; gap: 0.4rem;">
                 <i class="bi bi-list-ul"></i>
                 All Contacts (@Model.TotalCount total, showing @Model.Contacts.Count())
             </h2>

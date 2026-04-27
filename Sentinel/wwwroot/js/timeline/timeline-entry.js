@@ -35,19 +35,18 @@ class TimelineEntry {
     async init() {
         console.log('Initializing Timeline Entry for case:', this.caseId);
 
-        // Initialize relationship syntax parser FIRST (before loading timeline)
-        // This is needed for inline group expansion during page load
-        this.syntaxParser = new RelationshipSyntaxParser();
-
         // Load patient location for biasing place searches
         await this.loadPatientLocation();
 
-        // Load existing timeline data (uses syntaxParser for inline group expansion)
+        // Load existing timeline data
         await this.loadTimeline();
 
         // Initialize components
         this.initializeEventListeners();
         this.initializeMap();
+
+        // Initialize relationship syntax parser
+        this.syntaxParser = new RelationshipSyntaxParser();
 
         // Initialize entity quick-add with .. trigger (manual-only entity creation)
         this.quickAdd = new EntityQuickAdd(this);
@@ -407,7 +406,7 @@ class TimelineEntry {
 
             // Render existing entries
             if (this.timelineData.entries && this.timelineData.entries.length > 0) {
-                await this.renderExistingEntries();
+                this.renderExistingEntries();
             }
 
             this.unsavedChanges = false;
@@ -430,23 +429,22 @@ class TimelineEntry {
         }
     }
 
-    async renderExistingEntries() {
+    renderExistingEntries() {
         const container = document.getElementById('timelineContainer');
         container.innerHTML = '';
 
-        const sortedEntries = this.timelineData.entries
-            .sort((a, b) => new Date(a.entryDate) - new Date(b.entryDate));
-
-        for (const entry of sortedEntries) {
-            await this.addDayBlock(new Date(entry.entryDate), entry);
-        }
+        this.timelineData.entries
+            .sort((a, b) => new Date(a.entryDate) - new Date(b.entryDate))
+            .forEach(entry => {
+                this.addDayBlock(new Date(entry.entryDate), entry);
+            });
 
         this.updateEntitySummary();
         this.updateGroupsList();
         this.updateMapPins();
     }
 
-    async addDayBlock(date = null, existingEntry = null) {
+    addDayBlock(date = null, existingEntry = null) {
         const container = document.getElementById('timelineContainer');
         
         // Clear empty state message if present
@@ -518,64 +516,20 @@ class TimelineEntry {
 
         // Attach event listeners
         const textarea = dayBlock.querySelector('.narrative-textarea');
-        const highlightLayer = dayBlock.querySelector('.narrative-highlight-layer');
-
-        // Helper function to sync highlight layer position with textarea scroll
-        const syncHighlightPosition = () => {
-            if (highlightLayer && textarea) {
-                highlightLayer.style.transform = `translate(-${textarea.scrollLeft}px, -${textarea.scrollTop}px)`;
-            }
-        };
-
         textarea.addEventListener('input', (e) => this.handleTextInput(e, entryId));
         textarea.addEventListener('keydown', (e) => this.handleKeyDown(e, entryId));
-
-        // Sync highlight layer scroll with textarea scroll using transform
-        textarea.addEventListener('scroll', syncHighlightPosition);
 
         const dateInput = dayBlock.querySelector('input[type="date"]');
         dateInput.addEventListener('change', (e) => this.handleDateChange(e, entryId));
 
-        // If there's existing entry data with entities, process inline groups FIRST, then highlight
+        // If there's existing entry data with entities, highlight them
         if (existingEntry && existingEntry.narrativeText) {
             if (existingEntry.entities && existingEntry.entities.length > 0) {
-                // Repair entity positions if they don't match the actual text
-                // This fixes data corruption from previous inline group expansion bugs
-                this.repairEntityPositions(existingEntry.entities, existingEntry.narrativeText);
-
-                // Enrich loaded entities with stable IDs for proper deduplication
-                // This ensures entities loaded from JSON have the same stable IDs as newly created ones
-                existingEntry.entities.forEach(entity => {
-                    this.enrichEntityWithStableIds(entity);
-                });
-
                 this.entryEntities[entryId] = existingEntry.entities;
+                this.highlightEntities(entryId, existingEntry.narrativeText, existingEntry.entities);
             }
             if (existingEntry.relationships && existingEntry.relationships.length > 0) {
                 this.entryRelationships[entryId] = existingEntry.relationships;
-            }
-
-            // Re-parse relationships from saved text
-            // NOTE: We do NOT expand inline groups on load - they should already be expanded in saved data
-            // Inline group expansion only happens when user first types #GroupName(...)
-            if (this.syntaxParser) {
-                // Skip inline group processing for loaded data - pass a flag
-                await this.parseAndCreateRelationships(entryId, existingEntry.narrativeText, true);
-            } else {
-                console.warn('[addDayBlock] syntaxParser not available, skipping parseAndCreateRelationships');
-            }
-
-            // NOW highlight with the expanded text and adjusted positions
-            if (existingEntry.entities && existingEntry.entities.length > 0) {
-                // Get the potentially-updated text from the textarea (after group expansion)
-                const currentText = textarea.value;
-                this.highlightEntities(entryId, currentText, this.entryEntities[entryId]);
-
-                // Initialize highlight layer position to match textarea scroll
-                // Use requestAnimationFrame to ensure DOM is fully rendered
-                requestAnimationFrame(() => {
-                    syncHighlightPosition();
-                });
             }
         }
 
@@ -647,13 +601,6 @@ class TimelineEntry {
         entities.forEach(entity => {
             const entityText = entity.rawText;
 
-            // Skip position adjustment for freshly added entities (their position is already correct)
-            if (entity.freshlyAdded) {
-                adjustedEntities.push(entity);
-                delete entity.freshlyAdded; // Clear flag after first use
-                return;
-            }
-
             // Try to find entity text in current text, preferring positions close to original
             let foundIndex = -1;
             let searchStart = Math.max(0, entity.startPosition - 50); // Search around original position
@@ -712,7 +659,7 @@ class TimelineEntry {
         }
 
         // Parse relationship syntax and auto-create relationships
-        await this.parseAndCreateRelationships(entryId, text);
+        this.parseAndCreateRelationships(entryId, text);
 
         // Update UI panels
         this.updateEntitySummary();
@@ -722,88 +669,21 @@ class TimelineEntry {
     }
 
     /**
-     * Repair entity positions by finding each entity's text in the actual narrative
-     * This fixes data corruption where entity positions don't match the saved text
-     * (e.g., positions calculated for expanded inline groups but text is unexpanded)
-     * @param {Array} entities - Array of entity objects with positions
-     * @param {string} text - The actual narrative text
-     */
-    repairEntityPositions(entities, text) {
-        if (!entities || entities.length === 0 || !text) return;
-
-        let repairedCount = 0;
-
-        entities.forEach(entity => {
-            // Skip entities without positions
-            if (entity.startPosition === undefined || entity.endPosition === undefined) return;
-
-            // Get what the entity text should be
-            const entityText = entity.linkedRecordDisplayName || entity.normalizedValue || entity.rawText || '';
-            if (!entityText) return;
-
-            // Check if current position matches
-            const textAtPosition = text.substring(entity.startPosition, entity.endPosition);
-            const matches = textAtPosition === entityText;
-
-            if (!matches) {
-                // Position is wrong - search for the entity text in the narrative
-                // Try to find the entity text (case-insensitive)
-                const searchText = entityText.toLowerCase();
-                let foundIndex = -1;
-                let searchStart = 0;
-
-                // Search through the text looking for this entity
-                // We want to find it near where it should be, so start from the recorded position
-                const searchRadius = 100; // Search 100 characters before and after
-                const minSearch = Math.max(0, entity.startPosition - searchRadius);
-                const maxSearch = Math.min(text.length, entity.endPosition + searchRadius);
-
-                // First try: search nearby
-                for (let i = minSearch; i < maxSearch; i++) {
-                    if (text.substring(i, i + entityText.length).toLowerCase() === searchText) {
-                        foundIndex = i;
-                        break;
-                    }
-                }
-
-                // Second try: search from beginning if not found nearby
-                if (foundIndex === -1) {
-                    foundIndex = text.toLowerCase().indexOf(searchText);
-                }
-
-                if (foundIndex !== -1) {
-                    // Found it - update positions
-                    entity.startPosition = foundIndex;
-                    entity.endPosition = foundIndex + entityText.length;
-                    repairedCount++;
-                } else {
-                    console.warn(`[EntityRepair] Could not find "${entityText}" in text - entity may have been deleted`);
-                }
-            }
-        });
-
-        if (repairedCount > 0) {
-            console.log(`[EntityRepair] Repaired ${repairedCount} entity position(s)`);
-            // Mark that we need to save the repaired data
-            this.unsavedChanges = true;
-        }
-    }
-
-    /**
      * Parse relationship syntax in text and automatically create relationships
      * Syntax: @person @location >transport @time.
      * Example: "went to ..sushi train @john @mary @1PM."
      * Groups: @#Siblings expands to all members
      * Inline creation: #Family(..John ..Mary) creates group and expands
-     * @param {string} entryId - The timeline entry ID
-     * @param {string} text - The text to parse
-     * @param {boolean} skipInlineGroupExpansion - If true, skip inline group processing (for loaded data)
      */
-    async parseAndCreateRelationships(entryId, text, skipInlineGroupExpansion = false) {
+    async parseAndCreateRelationships(entryId, text) {
         if (!this.syntaxParser || !text) return;
 
-        // NOTE: Inline group creation syntax (+#GroupName(...)) has been removed for simplicity
-        // Groups should be created via UI, then referenced with @#GroupName
+        // Process inline group creation first: #GroupName(...) -> API + expansion
+        text = await this.processInlineGroupCreation(text, entryId);
+
+        // NOTE: We do NOT expand @#GroupName in the text itself
+        // Groups are expanded only during relationship parsing below
+        // This keeps the text clean and avoids position tracking issues
 
         // Get existing entities for this entry
         const entities = this.entryEntities[entryId] || [];
@@ -812,10 +692,11 @@ class TimelineEntry {
         // Parse text for relationship syntax
         const parsed = this.syntaxParser.parse(text);
         if (!parsed || !Array.isArray(parsed) || parsed.length === 0) {
+            console.log('[TimelineEntry] No relationship syntax found');
             return;
         }
 
-        console.log(`[Relationships] Found ${parsed.length} relationship group(s)`);
+        console.log('[TimelineEntry] Parsed relationship groups:', parsed);
 
         // Create relationships from each parsed group
         const allRelationships = [];
@@ -824,6 +705,7 @@ class TimelineEntry {
             const resolvedEntities = this.resolveGroupEntities(group, entities);
 
             if (resolvedEntities.length < 2) {
+                console.log('[TimelineEntry] Not enough resolved entities for group', groupIndex);
                 return;
             }
 
@@ -850,20 +732,132 @@ class TimelineEntry {
 
         this.entryRelationships[entryId].push(...allRelationships);
 
-        console.log(`[Relationships] Created ${allRelationships.length} relationship(s)`);
+        console.log('[TimelineEntry] Created relationships:', allRelationships);
     }
 
     /**
-     * DISABLED: Inline group creation syntax was too complex and buggy
-     * Groups should be created via UI instead
+     * Process inline group creation syntax: #GroupName(...entities...)
+     * Creates groups automatically and expands them inline
      * @param {string} text - Text with potential inline group creation
      * @param {string} entryId - Entry ID for entity resolution
-     * @returns {Promise<string>} Text unchanged
+     * @returns {Promise<string>} Text with inline groups expanded
      */
     async processInlineGroupCreation(text, entryId) {
-        // FEATURE DISABLED - inline group creation was too complex
-        // Users should create groups via UI, then reference with @#GroupName
-        return text;
+        if (!text) return text;
+
+        // Pattern: #GroupName(..entity1 +entity2 ..entity3)
+        const inlineGroupPattern = /#(\w+)\(([^)]+)\)/g;
+        const matches = [...text.matchAll(inlineGroupPattern)];
+
+        if (matches.length === 0) return text;
+
+        let processedText = text;
+        const entities = this.entryEntities[entryId] || [];
+
+        for (let match of matches) {
+            const fullMatch = match[0]; // e.g., "#Siblings(..john ..mary)" or "#Siblings( John Cathy)"
+            const groupName = match[1]; // e.g., "Siblings"
+            const entitiesText = match[2]; // e.g., "..john ..mary" or " John Cathy"
+
+            console.log(`[TimelineEntry] Processing inline group creation: ${fullMatch}`);
+
+            // Calculate position range of the group's parentheses in the text
+            const groupStartIndex = match.index;
+            const groupEndIndex = groupStartIndex + fullMatch.length;
+            const parenStartIndex = text.indexOf('(', groupStartIndex);
+            const parenEndIndex = text.indexOf(')', parenStartIndex);
+
+            console.log(`[TimelineEntry] Group range: ${groupStartIndex}-${groupEndIndex}, Paren range: ${parenStartIndex}-${parenEndIndex}`);
+
+            // Method 1: Find entities by position (for Quick-Add entities inserted as plain text)
+            const entitiesInRange = entities.filter(e => {
+                if (e.startPosition !== undefined && e.endPosition !== undefined) {
+                    // Entity is within the parentheses if its position overlaps with paren range
+                    const entityInParens = e.startPosition >= parenStartIndex && e.endPosition <= parenEndIndex;
+                    if (entityInParens) {
+                        console.log(`[TimelineEntry] Found entity by position: ${e.rawText} at ${e.startPosition}-${e.endPosition}`);
+                    }
+                    return entityInParens;
+                }
+                return false;
+            });
+
+            // Method 2: Parse entities from markers (..entity, +entity, @entity, etc.) - for manual syntax
+            const entityPattern = /(\.\.\w+|[+@>]\s*\w+)/g;
+            const entityMatches = [...entitiesText.matchAll(entityPattern)];
+            const entityNames = entityMatches.map(m => m[0].replace(/^(\.\.|\.\.|[+@>])\s*/, '').trim());
+
+            console.log(`[TimelineEntry] Found ${entitiesInRange.length} entities by position, ${entityNames.length} by marker pattern`);
+
+            // Combine both methods: prioritize position-based entities, then look up marker-based entities
+            const entityIds = [];
+
+            // Add position-based entities first
+            for (let entity of entitiesInRange) {
+                const entityId = entity.sourceEntityId || entity.id;
+                if (!entityIds.includes(entityId)) {
+                    entityIds.push(entityId);
+                }
+            }
+
+            // Add marker-based entities (if any)
+            for (let name of entityNames) {
+                const matchingEntity = entities.find(e => {
+                    const displayText = (e.linkedRecordDisplayName || e.normalizedValue || e.rawText || '').trim();
+                    return displayText.toLowerCase().includes(name.toLowerCase()) ||
+                           name.toLowerCase().includes(displayText.toLowerCase());
+                });
+                if (matchingEntity) {
+                    const entityId = matchingEntity.sourceEntityId || matchingEntity.id;
+                    if (!entityIds.includes(entityId)) {
+                        entityIds.push(entityId);
+                    }
+                }
+            }
+
+            if (entityIds.length === 0) {
+                console.warn(`[TimelineEntry] No entities found in group definition: ${fullMatch}`);
+                continue;
+            }
+
+            // Build expansion names from actual entities
+            const expansionNames = entityIds.map(id => {
+                const entity = entities.find(e => (e.sourceEntityId || e.id) === id);
+                return entity ? (entity.linkedRecordDisplayName || entity.normalizedValue || entity.rawText || 'Unknown') : 'Unknown';
+            });
+
+            // Create group via API
+            try {
+                const response = await fetch('/api/timeline/groups', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        caseId: this.caseId,
+                        name: groupName,
+                        entityIds: entityIds
+                    })
+                });
+
+                if (response.ok) {
+                    const createdGroup = await response.json();
+                    console.log(`[TimelineEntry] Created group "${groupName}" with ${entityIds.length} entities`);
+
+                    // Add to local cache
+                    this.entityGroups[createdGroup.id] = createdGroup;
+
+                    // Expand inline: #Siblings( John Cathy) -> @John @Mary
+                    const expansion = expansionNames.map(name => `@${name}`).join(' ');
+                    processedText = processedText.replace(fullMatch, expansion);
+                    console.log(`[TimelineEntry] Expanded ${fullMatch} to: ${expansion}`);
+                } else {
+                    console.error(`[TimelineEntry] Failed to create group: ${response.statusText}`);
+                }
+            } catch (error) {
+                console.error(`[TimelineEntry] Error creating group:`, error);
+            }
+        }
+
+        return processedText;
     }
 
     /**
@@ -920,58 +914,54 @@ class TimelineEntry {
       * @returns {Array} Resolved entities with IDs and types
       */
     resolveGroupEntities(group, entities) {
-       // Filter entities to only those within this sentence's boundaries
-       // This prevents group expansion from crossing sentence boundaries (marked by periods)
-       const sentenceEntities = group.startPosition !== undefined && group.endPosition !== undefined
-           ? entities.filter(e => {
-               // Entity must overlap with the sentence boundaries (not necessarily fully within)
-               // This allows entities added via menu (which may extend past original parse boundary)
-               const entityStart = e.startPosition || 0;
-               const entityEnd = e.endPosition || 0;
-               // Check for overlap: entity starts at or before sentence ends AND entity ends at or after sentence starts
-               // Use <= to include entities that start exactly at the boundary (e.g., last item before period)
-               return entityStart <= group.endPosition && entityEnd >= group.startPosition;
-             })
-           : entities; // Fallback to all entities if no position info (backward compatibility)
+        console.log('[TimelineEntry] Resolving group:', group);
+        console.log('[TimelineEntry] Available entities:', entities.map(e => ({ text: e.rawText, type: e.entityType })));
 
-       const resolved = [];
+        // Filter entities to only those within this sentence's boundaries
+        // This prevents group expansion from crossing sentence boundaries (marked by periods)
+        const sentenceEntities = group.startPosition !== undefined && group.endPosition !== undefined
+            ? entities.filter(e => {
+                // Entity must be fully within the sentence boundaries
+                const entityStart = e.startPosition || 0;
+                const entityEnd = e.endPosition || 0;
+                return entityStart >= group.startPosition && entityEnd <= group.endPosition;
+              })
+            : entities; // Fallback to all entities if no position info (backward compatibility)
 
-       for (let syntaxEntity of group.entities) {
+        if (sentenceEntities.length < entities.length) {
+            console.log(`[TimelineEntry] Filtered to sentence-only entities: ${entities.length} → ${sentenceEntities.length}`);
+        }
+
+        const resolved = [];
+
+        for (let syntaxEntity of group.entities) {
+            console.log('[TimelineEntry] Trying to resolve syntax entity:', syntaxEntity);
 
             // Check if this is a group reference (@#GroupName)
             if (syntaxEntity.marker === '@' && syntaxEntity.text.startsWith('#')) {
                 const groupName = syntaxEntity.text.substring(1); // Remove # prefix
-                console.log(`[GroupExpansion] Detected group reference: @#${groupName}`);
-                console.log(`[GroupExpansion] Available groups:`, Object.keys(this.entityGroups).map(id => this.entityGroups[id].name));
-
                 const entityGroup = Object.values(this.entityGroups).find(g => 
                     g.name.toLowerCase() === groupName.toLowerCase()
                 );
 
                 if (entityGroup) {
-                    console.log(`[GroupExpansion] ✓ Found group "${groupName}" with ${entityGroup.entityIds.length} members`);
+                    console.log(`[TimelineEntry] Expanding group #${groupName} with ${entityGroup.entityIds.length} members`);
 
                     // Find all entities that are members of this group
-                    // NOTE: Search in ALL entities (not just sentence-scoped) because groups can reference
-                    // entities from anywhere in the entry. The group reference itself is within the sentence,
-                    // but its members may have been defined elsewhere.
+                    // IMPORTANT: Only search within sentence-scoped entities to prevent
+                    // group expansion from crossing sentence boundaries
                     entityGroup.entityIds.forEach(entityId => {
-                        const memberEntity = entities.find(e => (e.sourceEntityId || e.id) === entityId);
+                        const memberEntity = sentenceEntities.find(e => e.id === entityId);
                         if (memberEntity) {
                             resolved.push({
                                 ...memberEntity,
                                 isPrimary: syntaxEntity.role === 'primary',
                                 relationshipType: syntaxEntity.relationshipType
                             });
-                            console.log(`[TimelineEntry]   ✓ Expanded group member: ${memberEntity.rawText}`);
-                        } else {
-                            console.warn(`[TimelineEntry]   ✗ Group member entity ${entityId} not found in entry`);
                         }
                     });
 
                     continue; // Skip normal entity matching
-                } else {
-                    console.warn(`[GroupExpansion] ✗ Group "${groupName}" not found in entityGroups`);
                 }
             }
 
@@ -980,11 +970,14 @@ class TimelineEntry {
             const matchingEntity = sentenceEntities.find(e => {
                 const displayText = (e.linkedRecordDisplayName || e.normalizedValue || e.rawText || '').trim();
                 const syntaxText = syntaxEntity.text.trim();
-                return displayText.toLowerCase().includes(syntaxText.toLowerCase()) ||
+                const matches = displayText.toLowerCase().includes(syntaxText.toLowerCase()) ||
                        syntaxText.toLowerCase().includes(displayText.toLowerCase());
+                console.log(`[TimelineEntry]   Comparing "${displayText}" with "${syntaxText}": ${matches}`);
+                return matches;
             });
 
             if (matchingEntity) {
+                console.log('[TimelineEntry]   ✓ Matched:', matchingEntity.rawText);
                 resolved.push({
                     ...matchingEntity,
                     isPrimary: syntaxEntity.role === 'primary',
@@ -995,6 +988,7 @@ class TimelineEntry {
             }
         }
 
+        console.log('[TimelineEntry] Resolved entities:', resolved);
         return resolved;
     }
 
@@ -1026,7 +1020,7 @@ class TimelineEntry {
         // Get manually-added confirmed entities
         const entities = this.entryEntities[entryId] || [];
 
-        // Refresh highlights for manual entities
+        console.log(`[TimelineEntry] Refreshing highlights for ${entities.length} manual entities`);
 
         // Highlight confirmed entities in the text
         this.highlightEntities(entryId, text, entities);
@@ -1041,20 +1035,14 @@ class TimelineEntry {
         const highlightLayer = document.querySelector(`.narrative-highlight-layer[data-entry-id="${entryId}"]`);
         if (!highlightLayer) return;
 
-        console.log(`[Highlighting] ${entities.length} entities to highlight`);
-        console.log(`[Highlighting] Entities:`, entities.map(e => `${e.rawText} (${e.startPosition}-${e.endPosition})`));
-
         // Get relationship groups for this entry
         const relationships = this.entryRelationships[entryId] || [];
         const entityGroupMap = this.buildEntityGroupMap(entities, relationships);
 
-        // Find all group references (@#GroupName)
+        // First, find all group references (@#GroupName) and their positions
         const groupReferences = [];
         const groupRefPattern = /@#([A-Za-z0-9_-]+)/g;
-
         let match;
-
-        // Find @#GroupName references only (inline group creation disabled)
         while ((match = groupRefPattern.exec(text)) !== null) {
             const groupName = match[1];
             const entityGroup = Object.values(this.entityGroups).find(g => 
@@ -1069,7 +1057,6 @@ class TimelineEntry {
                     memberCount: entityGroup.entityIds.length,
                     groupId: entityGroup.id
                 });
-                console.log(`[Highlighting] Found group reference: @#${groupName} at position ${match.index}`);
             }
         }
 
@@ -1304,16 +1291,13 @@ class TimelineEntry {
                 const dbId = entity.personId || entity.locationId || entity.transportId || entity.eventId;
                 const entityTypeName = this.entityTypeMap[entity.entityType] || 'unknown';
                 groupKey = `db_${entityTypeName}_${dbId}`;
-                console.log(`[Dedup] Entity "${entity.rawText}" using db ID: ${groupKey}`);
             } else if (entity.sourceEntityId) {
                 // This is a reused entity - group under the original entity's ID
                 groupKey = `source_${entity.sourceEntityId}`;
-                console.log(`[Dedup] Entity "${entity.rawText}" using sourceEntityId: ${groupKey}`);
             } else {
                 // Original entity OR unlinked entity - group by ID for browser-session linking
                 // This allows future sourceEntityId references to find it
                 groupKey = `source_${entity.id}`;
-                console.log(`[Dedup] Entity "${entity.rawText}" using entity ID: ${groupKey}`);
             }
 
             if (!entityMap.has(groupKey)) {
@@ -1323,7 +1307,6 @@ class TimelineEntry {
                 // Additional mention - increment counter
                 const existing = entityMap.get(groupKey);
                 existing.mentions = (existing.mentions || 1) + 1;
-                console.log(`[Dedup] Incrementing "${entity.rawText}" to ${existing.mentions} mentions`);
             }
         });
 
@@ -1347,17 +1330,6 @@ class TimelineEntry {
 
         // Build HTML - use simple, clean tables
         let html = '';
-
-        // Add export button at the top
-        html += `
-            <div style="display: flex; justify-content: flex-end; padding: 0.75rem 1rem; background: #f8f9fa; border-bottom: 1px solid #e0e0e0;">
-                <button type="button" class="btn btn-sm btn-outline-primary" 
-                        onclick="window.timelineEntry.exportComprehensiveReport()" 
-                        title="Print Comprehensive Report">
-                    <i class="bi bi-printer"></i> Print Report
-                </button>
-            </div>
-        `;
 
         // Order: Person, Location, Event, Transport, DateTime, Duration, Activity
         const typeOrder = ['Person', 'Location', 'Event', 'Transport', 'DateTime', 'Duration', 'Activity'];
@@ -1470,6 +1442,7 @@ class TimelineEntry {
                                 <th>Date</th>
                                 <th>Time</th>
                                 <th>Duration</th>
+                                <th>Type</th>
                                 <th>Actions</th>
                             </tr>
                         </thead>
@@ -1478,65 +1451,109 @@ class TimelineEntry {
 
                 entities.forEach(entity => {
                     const displayText = entity.linkedRecordDisplayName || entity.normalizedValue || entity.rawText;
+                    const mentionCount = (entity.mentions && entity.mentions > 1) ? ` (×${entity.mentions})` : '';
+
+                    // Extract metadata fields
                     const address = entity.metadata?.address || '—';
-                    const visitCount = entity.mentions || 1;
 
-                    // Collect all occurrences of this location across entries
-                    const locationOccurrences = [];
-                    const groupKey = this.getEntityGroupKey(entity);
+                    // Get entry date from timeline data
+                    let entryDate = '—';
+                    if (entity.entryId && this.timelineData?.entries) {
+                        const entry = this.timelineData.entries.find(e => e.id === entity.entryId);
+                        if (entry?.entryDate) {
+                            const date = new Date(entry.entryDate);
+                            entryDate = date.toLocaleDateString('en-AU', { 
+                                day: 'numeric', 
+                                month: 'short', 
+                                year: 'numeric' 
+                            });
+                        }
+                    }
 
-                    Object.entries(this.entryEntities).forEach(([entryId, entryEntityList]) => {
-                        entryEntityList.forEach(e => {
-                            const eGroupKey = this.getEntityGroupKey(e);
-                            if (eGroupKey === groupKey && e.entityType === entity.entityType) {
-                                // Get entry date
-                                let entryDate = '—';
-                                if (this.timelineData?.entries) {
-                                    const entry = this.timelineData.entries.find(entry => entry.id === entryId);
-                                    if (entry?.entryDate) {
-                                        const date = new Date(entry.entryDate);
-                                        entryDate = date.toLocaleDateString('en-AU', { 
-                                            day: 'numeric', 
-                                            month: 'short', 
-                                            year: 'numeric',
-                                            weekday: 'short'
-                                        });
+                    // Get time from related DateTime entity (entityType 5)
+                    let time = '—';
+                    if (entity.entryId) {
+                        const relationships = this.entryRelationships[entity.entryId] || [];
+                        const entities = this.entryEntities[entity.entryId] || [];
+                        const locationRelationships = relationships.filter(r => 
+                            r.primaryEntityId === entity.id || r.relatedEntityId === entity.id
+                        );
+
+                        // Check for timeEntityId in relationships
+                        for (const rel of locationRelationships) {
+                            if (rel.timeEntityId) {
+                                const timeEntity = entities.find(e => e.id === rel.timeEntityId);
+                                if (timeEntity) {
+                                    time = timeEntity.rawText;
+                                    break;
+                                }
+                            }
+                        }
+
+                        // Also check if any related entity IS a DateTime entity
+                        if (time === '—') {
+                            for (const rel of locationRelationships) {
+                                const relatedId = rel.primaryEntityId === entity.id ? rel.relatedEntityId : rel.primaryEntityId;
+                                const relatedEntity = entities.find(e => e.id === relatedId);
+                                if (relatedEntity && relatedEntity.entityType === 5) {
+                                    time = relatedEntity.rawText;
+                                    break;
+                                }
+                            }
+                        }
+
+                        // Fallback to metadata if no relationship time found
+                        if (time === '—' && entity.metadata?.time) {
+                            time = entity.metadata.time;
+                        }
+                    }
+
+                    // Get duration from related Duration entity (entityType 6)
+                    let duration = '—';
+                    if (entity.entryId) {
+                        const relationships = this.entryRelationships[entity.entryId] || [];
+                        const entities = this.entryEntities[entity.entryId] || [];
+
+                        // Look for Duration entity related to this location
+                        for (const rel of relationships) {
+                            if (rel.primaryEntityId === entity.id || rel.relatedEntityId === entity.id) {
+                                // Check if related entity is Duration (entityType 6)
+                                const relatedId = rel.primaryEntityId === entity.id ? rel.relatedEntityId : rel.primaryEntityId;
+                                const relatedEntity = entities.find(e => e.id === relatedId);
+                                if (relatedEntity && relatedEntity.entityType === 6) {
+                                    duration = relatedEntity.rawText;
+                                    break;
+                                }
+                            }
+                        }
+
+                        // Check metadata in relationships for durationEntityId
+                        if (duration === '—') {
+                            for (const rel of relationships) {
+                                if ((rel.primaryEntityId === entity.id || rel.relatedEntityId === entity.id) && rel.metadata?.durationEntityId) {
+                                    const durationEntity = entities.find(e => e.id === rel.metadata.durationEntityId);
+                                    if (durationEntity) {
+                                        duration = durationEntity.rawText;
+                                        break;
                                     }
                                 }
-
-                                // Get time and duration
-                                const timeData = this.getLocationTimeData(e, entryId);
-
-                                locationOccurrences.push({
-                                    entryId,
-                                    date: entryDate,
-                                    time: timeData.time,
-                                    duration: timeData.duration,
-                                    entityId: e.id
-                                });
                             }
-                        });
-                    });
+                        }
 
-                    const hasMultipleVisits = visitCount > 1;
-                    const expandIconHtml = hasMultipleVisits 
-                        ? `<span class="expand-icon" onclick="window.timelineEntry.toggleLocationDetails('${entity.id}')">▶</span>`
-                        : '';
-
-                    // For single visits, show the details inline
-                    const singleVisit = locationOccurrences.length === 1 ? locationOccurrences[0] : null;
+                        // Fallback to metadata if no relationship duration found
+                        if (duration === '—' && entity.metadata?.duration) {
+                            duration = entity.metadata.duration;
+                        }
+                    }
 
                     html += `
-                        <tr class="location-row">
-                            <td>
-                                ${expandIconHtml}
-                                <strong>${this.escapeHtml(displayText)}</strong>
-                                ${hasMultipleVisits ? `<span class="visit-count-badge ms-2">${visitCount} visits</span>` : ''}
-                            </td>
+                        <tr>
+                            <td><strong>${this.escapeHtml(displayText)}</strong>${mentionCount}</td>
                             <td>${this.escapeHtml(address)}</td>
-                            <td>${singleVisit ? this.escapeHtml(singleVisit.date) : '—'}</td>
-                            <td>${singleVisit ? this.escapeHtml(singleVisit.time) : '—'}</td>
-                            <td>${singleVisit ? this.escapeHtml(singleVisit.duration) : '—'}</td>
+                            <td>${this.escapeHtml(entryDate)}</td>
+                            <td>${this.escapeHtml(time)}</td>
+                            <td>${this.escapeHtml(duration)}</td>
+                            <td>${entity.linkedRecordType || '—'}</td>
                             <td>
                                 <button type="button" class="btn btn-sm btn-outline-primary" 
                                         onclick="window.timelineEntry.editEntityFromSummary('${entity.id}', '${entity.entryId}')">
@@ -1544,37 +1561,6 @@ class TimelineEntry {
                                 </button>
                             </td>
                         </tr>
-                        ${hasMultipleVisits ? `
-                        <tr class="location-detail-row" id="location-details-${entity.id}" style="display: none;">
-                            <td colspan="6" class="detail-cell">
-                                <table class="visit-detail-table">
-                                    <thead>
-                                        <tr>
-                                            <th>Date</th>
-                                            <th>Time</th>
-                                            <th>Duration</th>
-                                            <th>Actions</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        ${locationOccurrences.map(occ => `
-                                            <tr>
-                                                <td>${this.escapeHtml(occ.date)}</td>
-                                                <td>${this.escapeHtml(occ.time)}</td>
-                                                <td>${this.escapeHtml(occ.duration)}</td>
-                                                <td>
-                                                    <button type="button" class="btn btn-sm btn-outline-primary" 
-                                                            onclick="window.timelineEntry.editEntityFromSummary('${occ.entityId}', '${occ.entryId}')">
-                                                        <i class="bi bi-pencil"></i>
-                                                    </button>
-                                                </td>
-                                            </tr>
-                                        `).join('')}
-                                    </tbody>
-                                </table>
-                            </td>
-                        </tr>
-                        ` : ''}
                     `;
                 });
 
@@ -1698,8 +1684,153 @@ class TimelineEntry {
     }
 
     updateRelationshipTimeline() {
-        // REMOVED: Relationship timeline panel has been removed from the UI
-        // Relationships are still created and stored, just not visualized in a separate panel
+        const timelineDiv = document.getElementById('relationshipTimeline');
+        if (!timelineDiv) return;
+
+        // Collect all relationships across all entries
+        const allRelationships = [];
+        Object.entries(this.entryRelationships).forEach(([entryId, relationships]) => {
+            const entryEntities = this.entryEntities[entryId] || [];
+            const entryBlock = document.querySelector(`.timeline-day-block[data-entry-id="${entryId}"]`);
+            const dateInput = entryBlock?.querySelector('input[type="date"]');
+            const entryDate = dateInput ? new Date(dateInput.value) : null;
+
+            relationships.forEach(rel => {
+                const primaryEntity = entryEntities.find(e => e.id === rel.primaryEntityId);
+                const relatedEntity = entryEntities.find(e => e.id === rel.relatedEntityId);
+                const timeEntity = rel.timeEntityId ? entryEntities.find(e => e.id === rel.timeEntityId) : null;
+
+                if (primaryEntity && relatedEntity) {
+                    allRelationships.push({
+                        ...rel,
+                        primaryEntity,
+                        relatedEntity,
+                        timeEntity,
+                        entryDate,
+                        entryId
+                    });
+                }
+            });
+        });
+
+        if (allRelationships.length === 0) {
+            timelineDiv.innerHTML = `
+                <div class="text-muted text-center py-3">
+                    <i class="bi bi-clock-history fs-3 d-block mb-2"></i>
+                    No relationships detected yet
+                </div>
+            `;
+            return;
+        }
+
+        // Sort by date and sequence
+        allRelationships.sort((a, b) => {
+            if (a.entryDate && b.entryDate) {
+                const dateDiff = a.entryDate - b.entryDate;
+                if (dateDiff !== 0) return dateDiff;
+            }
+            return (a.sequenceOrder || 0) - (b.sequenceOrder || 0);
+        });
+
+        // Build timeline HTML
+        const relationshipTypeMap = this.getRelationshipTypeMap();
+        let html = '<div class="relationship-timeline-content">';
+
+        // Group by person (key entities)
+        const peopleRelationships = {};
+        allRelationships.forEach(rel => {
+            const personId = rel.primaryEntity.entityType === 1 ? rel.primaryEntityId : 
+                           (rel.relatedEntity.entityType === 1 ? rel.relatedEntityId : null);
+
+            if (personId) {
+                if (!peopleRelationships[personId]) {
+                    const person = rel.primaryEntity.entityType === 1 ? rel.primaryEntity : rel.relatedEntity;
+                    peopleRelationships[personId] = {
+                        person,
+                        relationships: []
+                    };
+                }
+                peopleRelationships[personId].relationships.push(rel);
+            }
+        });
+
+        // Display person-centric relationship chains
+        Object.entries(peopleRelationships).forEach(([personId, data]) => {
+            const personName = data.person.linkedRecordDisplayName || data.person.normalizedValue || data.person.rawText;
+
+            html += `
+                <div class="person-relationship-block mb-3">
+                    <div class="person-header">
+                        <i class="bi bi-person-circle text-primary"></i>
+                        <strong>${this.escapeHtml(personName)}</strong>
+                    </div>
+                    <div class="relationship-chain">
+            `;
+
+            data.relationships.forEach((rel, index) => {
+                const relType = relationshipTypeMap[rel.relationType] || { name: 'related to', icon: 'bi-link' };
+                const otherEntity = rel.primaryEntityId === personId ? rel.relatedEntity : rel.primaryEntity;
+                const entityTypeName = this.entityTypeMap[otherEntity.entityType] || 'unknown';
+                const entityDisplayName = otherEntity.linkedRecordDisplayName || otherEntity.normalizedValue || otherEntity.rawText;
+                const timeText = rel.timeEntity ? ` <span class="time-badge">${rel.timeEntity.rawText}</span>` : '';
+                const dateText = rel.entryDate ? rel.entryDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }) : '';
+
+                html += `
+                    <div class="relationship-item">
+                        ${dateText ? `<span class="date-badge">${dateText}</span>` : ''}
+                        <i class="bi ${relType.icon} text-muted"></i>
+                        <span class="relationship-description">${relType.description}</span>
+                        <span class="entity-badge entity-${entityTypeName.toLowerCase()}">${this.escapeHtml(entityDisplayName)}</span>
+                        ${timeText}
+                    </div>
+                `;
+
+                // Show sequence arrow if this is a sequence relationship
+                if (rel.relationType === 8 && index < data.relationships.length - 1) {
+                    html += `<div class="sequence-arrow"><i class="bi bi-arrow-down"></i></div>`;
+                }
+            });
+
+            html += `
+                    </div>
+                </div>
+            `;
+        });
+
+        // Display standalone location/event relationships (no person)
+        const standalonRels = allRelationships.filter(rel => 
+            rel.primaryEntity.entityType !== 1 && rel.relatedEntity.entityType !== 1
+        );
+
+        if (standalonRels.length > 0) {
+            html += `
+                <div class="standalone-relationships mb-3">
+                    <div class="section-header">
+                        <i class="bi bi-diagram-3"></i>
+                        <strong>Other Connections</strong>
+                    </div>
+            `;
+
+            standalonRels.forEach(rel => {
+                const relType = relationshipTypeMap[rel.relationType] || { name: 'related to', icon: 'bi-link' };
+                const primaryTypeName = this.entityTypeMap[rel.primaryEntity.entityType] || 'unknown';
+                const relatedTypeName = this.entityTypeMap[rel.relatedEntity.entityType] || 'unknown';
+
+                html += `
+                    <div class="relationship-item">
+                        <span class="entity-badge entity-${primaryTypeName.toLowerCase()}">${this.escapeHtml(rel.primaryEntity.rawText)}</span>
+                        <i class="bi ${relType.icon} text-muted"></i>
+                        <span class="relationship-description">${relType.description}</span>
+                        <span class="entity-badge entity-${relatedTypeName.toLowerCase()}">${this.escapeHtml(rel.relatedEntity.rawText)}</span>
+                    </div>
+                `;
+            });
+
+            html += `</div>`;
+        }
+
+        html += '</div>';
+        timelineDiv.innerHTML = html;
     }
 
     updateMapPins() {
@@ -1811,10 +1942,6 @@ class TimelineEntry {
 
                 this.unsavedChanges = false;
                 console.log('[TimelineEntry] Auto-save successful');
-
-                // Reload timeline to get updated entity database IDs
-                // This ensures proper entity grouping after save
-                await this.reloadTimelineAfterSave();
 
                 // Show subtle indicator (no intrusive alert)
                 this.showAutoSaveIndicator();
@@ -1981,15 +2108,6 @@ class TimelineEntry {
     }
 
     /**
-     * Get entity type name from entity type number
-     * @param {number} entityType - The entity type number
-     * @returns {string} The entity type name
-     */
-    getEntityTypeName(entityType) {
-        return this.entityTypeMap[entityType] || 'Unknown';
-    }
-
-    /**
      * Get relationship history for a person entity
      * @param {Object} personEntity - The person entity
      * @returns {Array} Array of relationship records with date, location, time/duration
@@ -2085,27 +2203,13 @@ class TimelineEntry {
                 }
 
                 // Check for time entity in this relationship
-                // Collect ALL time entities associated with this relationship
-                const timeEntitiesToAdd = [];
-
-                // First check if there's an allTimeEntityIds array (from updated relationship parser)
-                if (rel.allTimeEntityIds && rel.allTimeEntityIds.length > 0) {
-                    // Use all time entity IDs from the relationship
-                    rel.allTimeEntityIds.forEach(timeId => {
-                        const timeEnt = entryEntities.find(e => e.id === timeId);
-                        if (timeEnt && timeEnt.entityType === 5) {
-                            timeEntitiesToAdd.push(timeEnt);
-                        }
-                    });
-                } else {
-                    // Fallback to old behavior - single time entity
-                    if (rel.timeEntity?.entityType === 5) {
-                        timeEntitiesToAdd.push(rel.timeEntity);
-                    } else if (rel.primaryEntity?.entityType === 5) { // DateTime
-                        timeEntitiesToAdd.push(rel.primaryEntity);
-                    } else if (rel.relatedEntity?.entityType === 5) {
-                        timeEntitiesToAdd.push(rel.relatedEntity);
-                    }
+                // First check the dedicated timeEntity property (from timeEntityId)
+                if (rel.timeEntity?.entityType === 5) {
+                    timeEntity = rel.timeEntity;
+                } else if (rel.primaryEntity?.entityType === 5) { // DateTime
+                    timeEntity = rel.primaryEntity;
+                } else if (rel.relatedEntity?.entityType === 5) {
+                    timeEntity = rel.relatedEntity;
                 }
 
                 // Create grouping key:
@@ -2146,34 +2250,11 @@ class TimelineEntry {
                     }
                 }
 
-                // Add ALL time entities found (not just one)
-                timeEntitiesToAdd.forEach(timeEntity => {
+                // Add time only if not already in array (deduplicate by ID)
+                if (timeEntity) {
                     const timeId = timeEntity.sourceEntityId || timeEntity.id;
                     if (!group.times.some(t => (t.sourceEntityId || t.id) === timeId)) {
                         group.times.push(timeEntity);
-                    }
-                });
-
-                // Check for duration entity in this relationship
-                if (rel.durationEntityId) {
-                    const durationEntity = entryEntities.find(e => e.id === rel.durationEntityId);
-                    if (durationEntity && durationEntity.entityType === 6) {
-                        const durationId = durationEntity.sourceEntityId || durationEntity.id;
-                        if (!group.durations.some(d => (d.sourceEntityId || d.id) === durationId)) {
-                            group.durations.push(durationEntity);
-                        }
-                    }
-                } else if (rel.primaryEntity?.entityType === 6) {
-                    // Duration is primary entity
-                    const durationId = rel.primaryEntity.sourceEntityId || rel.primaryEntity.id;
-                    if (!group.durations.some(d => (d.sourceEntityId || d.id) === durationId)) {
-                        group.durations.push(rel.primaryEntity);
-                    }
-                } else if (rel.relatedEntity?.entityType === 6) {
-                    // Duration is related entity
-                    const durationId = rel.relatedEntity.sourceEntityId || rel.relatedEntity.id;
-                    if (!group.durations.some(d => (d.sourceEntityId || d.id) === durationId)) {
-                        group.durations.push(rel.relatedEntity);
                     }
                 }
             });
@@ -2208,8 +2289,8 @@ class TimelineEntry {
                 // Build time/duration string
                 let timeDuration = '—';
                 if (group.times.length > 0) {
+                    const timeTexts = group.times.map(t => t.rawText).join(', ');
                     if (group.durations.length > 0) {
-                        const timeTexts = group.times.map(t => t.rawText).join(', ');
                         const durationText = group.durations.map(d => d.rawText).join(', ');
                         timeDuration = `${timeTexts} (${durationText})`;
                     } else if (group.times.length === 2) {
@@ -2224,16 +2305,8 @@ class TimelineEntry {
                             const duration = this.calculateDuration(startTime, endTime);
                             timeDuration = `${startTime} - ${endTime}${duration ? ` (${duration})` : ''}`;
                         }
-                    } else if (group.times.length > 2) {
-                        // Multiple times - show earliest to latest
-                        const timeTexts = group.times.map(t => t.rawText);
-                        const sortedTimes = this.sortTimes(timeTexts);
-                        const earliest = sortedTimes[0];
-                        const latest = sortedTimes[sortedTimes.length - 1];
-                        const duration = this.calculateDuration(earliest, latest);
-                        timeDuration = `${earliest} - ${latest}${duration ? ` (${duration})` : ''}`;
                     } else {
-                        timeDuration = group.times[0].rawText;
+                        timeDuration = timeTexts;
                     }
                 }
 
@@ -2251,17 +2324,18 @@ class TimelineEntry {
     }
 
     /**
-     * Sort time strings chronologically
-     * @param {Array<string>} times - Array of time strings (e.g., ["9AM", "11:30AM", "2PM", "14:00"])
-     * @returns {Array<string>} Sorted array of time strings
+     * Calculate duration between two time strings
+     * @param {string} startTime - Start time (e.g., "9AM", "9:00AM")
+     * @param {string} endTime - End time (e.g., "11AM", "11:00AM")
+     * @returns {string} Duration string (e.g., "2 hours")
      */
-    sortTimes(times) {
-        const parseTime = (timeStr) => {
-            timeStr = timeStr.trim();
+    calculateDuration(startTime, endTime) {
+        try {
+            // Parse time strings (simple parser for common formats)
+            const parseTime = (timeStr) => {
+                const match = timeStr.match(/(\d+):?(\d{2})?\s*(AM|PM)/i);
+                if (!match) return null;
 
-            // Try AM/PM format
-            let match = timeStr.match(/(\d+):?(\d{2})?\s*(AM|PM)/i);
-            if (match) {
                 let hours = parseInt(match[1]);
                 const minutes = match[2] ? parseInt(match[2]) : 0;
                 const period = match[3].toUpperCase();
@@ -2269,82 +2343,7 @@ class TimelineEntry {
                 if (period === 'PM' && hours !== 12) hours += 12;
                 if (period === 'AM' && hours === 12) hours = 0;
 
-                return hours * 60 + minutes;
-            }
-
-            // Try 24-hour format
-            match = timeStr.match(/^(\d{1,2}):?(\d{2})$/);
-            if (match) {
-                const hours = parseInt(match[1]);
-                const minutes = parseInt(match[2]);
-
-                if (hours >= 0 && hours < 24 && minutes >= 0 && minutes < 60) {
-                    return hours * 60 + minutes;
-                }
-            }
-
-            // Try hour only
-            match = timeStr.match(/^(\d{1,2})$/);
-            if (match) {
-                const hours = parseInt(match[1]);
-                if (hours >= 0 && hours < 24) {
-                    return hours * 60;
-                }
-            }
-
-            return 999999; // Invalid times sort to end
-        };
-
-        return times.slice().sort((a, b) => parseTime(a) - parseTime(b));
-    }
-
-    /**
-     * Calculate duration between two time strings
-     * @param {string} startTime - Start time (e.g., "9AM", "9:00AM", "9:00 AM", "09:00")
-     * @param {string} endTime - End time (e.g., "11AM", "11:00AM", "11:00 AM", "11:00")
-     * @returns {string} Duration string (e.g., "2h", "2h 30m")
-     */
-    calculateDuration(startTime, endTime) {
-        try {
-            // Enhanced time parser supporting multiple formats
-            const parseTime = (timeStr) => {
-                // Remove extra spaces and normalize
-                timeStr = timeStr.trim();
-
-                // Try AM/PM format first (e.g., "9AM", "9:00AM", "9:00 AM")
-                let match = timeStr.match(/(\d+):?(\d{2})?\s*(AM|PM)/i);
-                if (match) {
-                    let hours = parseInt(match[1]);
-                    const minutes = match[2] ? parseInt(match[2]) : 0;
-                    const period = match[3].toUpperCase();
-
-                    if (period === 'PM' && hours !== 12) hours += 12;
-                    if (period === 'AM' && hours === 12) hours = 0;
-
-                    return hours * 60 + minutes;
-                }
-
-                // Try 24-hour format (e.g., "09:00", "14:30", "1430")
-                match = timeStr.match(/^(\d{1,2}):?(\d{2})$/);
-                if (match) {
-                    const hours = parseInt(match[1]);
-                    const minutes = parseInt(match[2]);
-
-                    if (hours >= 0 && hours < 24 && minutes >= 0 && minutes < 60) {
-                        return hours * 60 + minutes;
-                    }
-                }
-
-                // Try hour only (e.g., "9", "14") - assume on the hour
-                match = timeStr.match(/^(\d{1,2})$/);
-                if (match) {
-                    const hours = parseInt(match[1]);
-                    if (hours >= 0 && hours < 24) {
-                        return hours * 60;
-                    }
-                }
-
-                return null;
+                return hours * 60 + minutes; // Return total minutes
             };
 
             const startMinutes = parseTime(startTime);
@@ -2779,808 +2778,6 @@ class TimelineEntry {
 
             document.querySelector(`.location-confirm-prompt[data-entity-id="${entityId}"]`)?.remove();
         }
-    }
-
-    getEntityGroupKey(entity) {
-        // Generate the same grouping key used in deduplication
-        if (entity.personId || entity.locationId || entity.transportId || entity.eventId) {
-            const dbId = entity.personId || entity.locationId || entity.transportId || entity.eventId;
-            const entityTypeName = this.entityTypeMap[entity.entityType] || 'unknown';
-            return `db_${entityTypeName}_${dbId}`;
-        } else if (entity.sourceEntityId) {
-            return `source_${entity.sourceEntityId}`;
-        } else {
-            return `source_${entity.id}`;
-        }
-    }
-
-    getLocationTimeData(entity, entryId) {
-        // Get time and duration data for a location entity
-        let time = '—';
-        let duration = '—';
-
-        if (!entryId) {
-            return { time, duration };
-        }
-
-        const relationships = this.entryRelationships[entryId] || [];
-        const entities = this.entryEntities[entryId] || [];
-        const locationRelationships = relationships.filter(r => 
-            r.primaryEntityId === entity.id || r.relatedEntityId === entity.id
-        );
-
-        const timeTexts = [];
-
-        // Collect all time entities related to this location
-        for (const rel of locationRelationships) {
-            if (rel.allTimeEntityIds && rel.allTimeEntityIds.length > 0) {
-                rel.allTimeEntityIds.forEach(timeId => {
-                    const timeEntity = entities.find(e => e.id === timeId);
-                    if (timeEntity && !timeTexts.includes(timeEntity.rawText)) {
-                        timeTexts.push(timeEntity.rawText);
-                    }
-                });
-            } else if (rel.timeEntityId) {
-                const timeEntity = entities.find(e => e.id === rel.timeEntityId);
-                if (timeEntity && !timeTexts.includes(timeEntity.rawText)) {
-                    timeTexts.push(timeEntity.rawText);
-                }
-            }
-        }
-
-        // Also check if any related entity IS a DateTime entity
-        for (const rel of locationRelationships) {
-            const relatedId = rel.primaryEntityId === entity.id ? rel.relatedEntityId : rel.primaryEntityId;
-            const relatedEntity = entities.find(e => e.id === relatedId);
-            if (relatedEntity && relatedEntity.entityType === 5 && !timeTexts.includes(relatedEntity.rawText)) {
-                timeTexts.push(relatedEntity.rawText);
-            }
-        }
-
-        // Fallback to metadata if no relationship time found
-        if (timeTexts.length === 0 && entity.metadata?.time) {
-            timeTexts.push(entity.metadata.time);
-        }
-
-        // Format time display
-        if (timeTexts.length === 2) {
-            const [time1, time2] = timeTexts;
-            const dur = this.calculateDuration(time1, time2);
-            time = `${time1} - ${time2}${dur ? ` (${dur})` : ''}`;
-        } else if (timeTexts.length > 2) {
-            const sortedTimes = this.sortTimes(timeTexts);
-            const earliest = sortedTimes[0];
-            const latest = sortedTimes[sortedTimes.length - 1];
-            const dur = this.calculateDuration(earliest, latest);
-            time = `${earliest} - ${latest}${dur ? ` (${dur})` : ''}`;
-        } else if (timeTexts.length === 1) {
-            time = timeTexts[0];
-        }
-
-        // Get duration from related Duration entity
-        for (const rel of locationRelationships) {
-            if (rel.primaryEntityId === entity.id || rel.relatedEntityId === entity.id) {
-                const relatedId = rel.primaryEntityId === entity.id ? rel.relatedEntityId : rel.primaryEntityId;
-                const relatedEntity = entities.find(e => e.id === relatedId);
-                if (relatedEntity && relatedEntity.entityType === 6) {
-                    duration = relatedEntity.rawText;
-                    break;
-                }
-            }
-        }
-
-        // Check relationship durationEntityId (stored directly on relationship by parser)
-        if (duration === '—') {
-            for (const rel of locationRelationships) {
-                if ((rel.primaryEntityId === entity.id || rel.relatedEntityId === entity.id) && rel.durationEntityId) {
-                    const durationEntity = entities.find(e => e.id === rel.durationEntityId);
-                    if (durationEntity) {
-                        duration = durationEntity.rawText;
-                        break;
-                    }
-                }
-            }
-        }
-
-        // Check metadata in relationships for durationEntityId (legacy/fallback)
-        if (duration === '—') {
-            for (const rel of locationRelationships) {
-                if ((rel.primaryEntityId === entity.id || rel.relatedEntityId === entity.id) && rel.metadata?.durationEntityId) {
-                    const durationEntity = entities.find(e => e.id === rel.metadata.durationEntityId);
-                    if (durationEntity) {
-                        duration = durationEntity.rawText;
-                        break;
-                    }
-                }
-            }
-        }
-
-        // Fallback to metadata
-        if (duration === '—' && entity.metadata?.duration) {
-            duration = entity.metadata.duration;
-        }
-
-        return { time, duration };
-    }
-
-    toggleLocationDetails(entityId) {
-        const detailRow = document.getElementById(`location-details-${entityId}`);
-        const expandIcon = event.target;
-
-        if (detailRow) {
-            const isVisible = detailRow.style.display !== 'none';
-            detailRow.style.display = isVisible ? 'none' : 'table-row';
-            expandIcon.textContent = isVisible ? '▶' : '▼';
-        }
-    }
-
-    async reloadTimelineAfterSave() {
-        try {
-            console.log('[TimelineEntry] Reloading timeline after save to update entity IDs');
-
-            // Reload timeline data from server
-            const response = await fetch(`/api/timeline/${this.caseId}`);
-            if (!response.ok) {
-                throw new Error('Failed to reload timeline');
-            }
-
-            const reloadedData = await response.json();
-
-            // Update only the entity and relationship data, preserving UI state
-            if (reloadedData.entries) {
-                reloadedData.entries.forEach(entry => {
-                    if (entry.entities) {
-                        // Enrich reloaded entities with stable IDs for proper deduplication
-                        entry.entities.forEach(entity => {
-                            this.enrichEntityWithStableIds(entity);
-                        });
-                        this.entryEntities[entry.id] = entry.entities;
-                    }
-                    if (entry.relationships) {
-                        this.entryRelationships[entry.id] = entry.relationships;
-                    }
-                });
-            }
-
-            // Update entity summary to reflect proper grouping
-            this.updateEntitySummary();
-
-            console.log('[TimelineEntry] Timeline reloaded successfully');
-        } catch (error) {
-            console.error('[TimelineEntry] Error reloading timeline after save:', error);
-            // Non-critical error - grouping will be correct after page refresh
-        }
-    }
-
-    /**
-     * Generate a stable hash-based ID from text
-     * This ensures the same entity text always gets the same ID for proper grouping
-     * @param {string} text - The text to hash
-     * @returns {string} Stable numeric ID
-     */
-    generateStableId(text) {
-        if (!text) return null;
-
-        // Normalize text: lowercase, trim whitespace
-        const normalized = text.toLowerCase().trim();
-
-        // Simple hash function (djb2)
-        let hash = 5381;
-        for (let i = 0; i < normalized.length; i++) {
-            hash = ((hash << 5) + hash) + normalized.charCodeAt(i); // hash * 33 + c
-        }
-
-        // Convert to positive integer and return as string
-        return Math.abs(hash).toString();
-    }
-
-    /**
-     * Add stable database-like IDs to an entity for proper grouping
-     * @param {Object} entity - Entity object to enrich
-     * @returns {Object} Entity with stable IDs added
-     */
-    enrichEntityWithStableIds(entity) {
-        if (!entity) return entity;
-
-        const normalizedValue = entity.normalizedValue || entity.rawText;
-        if (!normalizedValue) return entity;
-
-        // Generate stable IDs based on entity type and normalized value
-        switch(entity.entityType) {
-            case 1: // Person
-                if (!entity.personId) {
-                    entity.personId = this.generateStableId(normalizedValue);
-                }
-                break;
-            case 2: // Location
-                if (!entity.locationId) {
-                    entity.locationId = this.generateStableId(normalizedValue);
-                }
-                break;
-            case 3: // Event
-                if (!entity.eventId) {
-                    entity.eventId = this.generateStableId(normalizedValue);
-                }
-                break;
-            case 4: // Transport
-                if (!entity.transportId) {
-                    entity.transportId = this.generateStableId(normalizedValue);
-                }
-                break;
-        }
-
-        return entity;
-    }
-
-    /**
-     * Export comprehensive report with all entities in clean card-based layout
-     */
-    exportComprehensiveReport() {
-        // Get case details from page
-        const caseId = document.getElementById('caseId')?.value || 'Unknown';
-
-        // Extract patient name and disease from the header section
-        let patientName = 'Unknown Patient';
-        let diseaseName = 'Unknown Disease';
-        let onsetDate = 'Unknown';
-
-        // Look for patient name and disease in the header paragraph
-        const headerParagraph = document.querySelector('.case-details-container h1 + p');
-        if (headerParagraph) {
-            const strongElement = headerParagraph.querySelector('strong');
-            if (strongElement) {
-                patientName = strongElement.textContent.trim();
-            }
-            // Disease is in a span after the bullet separator
-            const spans = headerParagraph.querySelectorAll('span');
-            spans.forEach(span => {
-                const text = span.textContent.trim();
-                // Skip if it's a chip (has class) or empty
-                if (!span.className && text && text !== '•' && !text.includes('Confirmed')) {
-                    diseaseName = text;
-                }
-            });
-        }
-
-        // Look for Date of Onset in the case info card
-        const infoRows = document.querySelectorAll('.info-row');
-        infoRows.forEach(row => {
-            const label = row.querySelector('.info-label')?.textContent?.trim();
-            const value = row.querySelector('.info-value')?.textContent?.trim();
-            if (label === 'Date of Onset' && value) {
-                onsetDate = value;
-            }
-        });
-
-        // Get all entities and deduplicate (same as updateEntitySummary)
-        const allEntities = [];
-        Object.values(this.entryEntities).forEach(entities => {
-            allEntities.push(...entities);
-        });
-
-        if (allEntities.length === 0) {
-            alert('No data to export');
-            return;
-        }
-
-        // Deduplicate entities using the same logic as updateEntitySummary
-        const entityMap = new Map();
-        allEntities.forEach(entity => {
-            const groupKey = this.getEntityGroupKey(entity);
-
-            if (!entityMap.has(groupKey)) {
-                entityMap.set(groupKey, { 
-                    ...entity, 
-                    mentions: 1,
-                    allInstances: [entity]
-                });
-            } else {
-                const existing = entityMap.get(groupKey);
-                existing.mentions++;
-                existing.allInstances.push(entity);
-            }
-        });
-
-        // Group by type (exclude DateTime and Duration)
-        const groupedByType = {};
-        entityMap.forEach(entity => {
-            if (entity.entityType === 5 || entity.entityType === 6) return;
-
-            const typeName = this.getEntityTypeName(entity.entityType);
-            if (!groupedByType[typeName]) {
-                groupedByType[typeName] = [];
-            }
-            groupedByType[typeName].push(entity);
-        });
-
-        // Generate print HTML
-        const printWindow = window.open('', '_blank');
-        const currentDate = new Date().toLocaleDateString('en-AU', { 
-            day: 'numeric', 
-            month: 'long', 
-            year: 'numeric' 
-        });
-
-        // Avatar color classes
-        const avatarColors = ['avatar-blue', 'avatar-green', 'avatar-amber', 'avatar-pink', 'avatar-purple'];
-
-        // Helper to get initials
-        const getInitials = (name) => {
-            if (!name) return '??';
-            const parts = name.trim().split(/\s+/);
-            if (parts.length === 1) return parts[0].substring(0, 2).toUpperCase();
-            return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
-        };
-
-        // Build entity cards HTML
-        let entitiesHTML = '';
-        const typeOrder = ['Person', 'Location', 'Transport', 'Event'];
-
-        typeOrder.forEach(typeName => {
-            const entities = groupedByType[typeName];
-            if (!entities || entities.length === 0) return;
-
-            entitiesHTML += `<div class="section-label">${typeName}s (${entities.length})</div>`;
-
-            if (typeName === 'Person') {
-                entities.forEach((entity, idx) => {
-                    const displayName = entity.linkedRecordDisplayName || entity.normalizedValue || entity.rawText;
-                    const relationship = entity.metadata?.relationship || '';
-                    const initials = getInitials(displayName);
-                    const avatarClass = avatarColors[idx % avatarColors.length];
-
-                    // Get relationship history for this person (exposures)
-                    const relationshipHistory = this.getPersonRelationshipHistory(entity);
-
-                    entitiesHTML += `
-                    <div class="person-card">
-                        <div class="person-header">
-                            <div class="avatar ${avatarClass}">${this.escapeHtml(initials)}</div>
-                            <div>
-                                <div class="person-name">${this.escapeHtml(displayName)}</div>
-                                ${relationship ? `<div class="person-rel">${this.escapeHtml(relationship)}</div>` : ''}
-                            </div>
-                        </div>`;
-
-                    if (relationshipHistory.length > 0) {
-                        entitiesHTML += `
-                        <table class="data-table">
-                            <thead>
-                                <tr>
-                                    <th>Date</th>
-                                    <th>Location</th>
-                                    <th>Time / Duration</th>
-                                </tr>
-                            </thead>
-                            <tbody>`;
-
-                        relationshipHistory.forEach(rel => {
-                            entitiesHTML += `
-                                <tr>
-                                    <td><span class="date-badge">${this.escapeHtml(rel.date)}</span></td>
-                                    <td><span class="location-name">${this.escapeHtml(rel.location)}</span>${rel.transport ? `<br><span style="font-size: 11px; color: #888;">via ${this.escapeHtml(rel.transport)}</span>` : ''}</td>
-                                    <td>${this.escapeHtml(rel.timeDuration)}</td>
-                                </tr>`;
-                        });
-
-                        entitiesHTML += `
-                            </tbody>
-                        </table>`;
-                    } else {
-                        entitiesHTML += `<div style="font-size: 12px; color: #888; font-style: italic;">No exposures recorded</div>`;
-                    }
-
-                    entitiesHTML += `</div>`;
-                });
-
-            } else if (typeName === 'Location') {
-                entities.forEach(entity => {
-                    const displayName = entity.linkedRecordDisplayName || entity.normalizedValue || entity.rawText;
-                    const address = entity.metadata?.address || '';
-                    const visitCount = entity.mentions || 1;
-
-                    // Collect all occurrences of this location
-                    const locationOccurrences = [];
-                    const groupKey = this.getEntityGroupKey(entity);
-
-                    Object.entries(this.entryEntities).forEach(([entryId, entryEntityList]) => {
-                        entryEntityList.forEach(e => {
-                            const eGroupKey = this.getEntityGroupKey(e);
-                            if (eGroupKey === groupKey && e.entityType === entity.entityType) {
-                                let entryDate = '—';
-                                if (this.timelineData?.entries) {
-                                    const entry = this.timelineData.entries.find(entry => entry.id === entryId);
-                                    if (entry?.entryDate) {
-                                        const date = new Date(entry.entryDate);
-                                        entryDate = date.toLocaleDateString('en-AU', { 
-                                            day: 'numeric', 
-                                            month: 'short', 
-                                            year: 'numeric',
-                                            weekday: 'short'
-                                        });
-                                    }
-                                }
-                                const timeData = this.getLocationTimeData(e, entryId);
-                                locationOccurrences.push({
-                                    date: entryDate,
-                                    time: timeData.time,
-                                    duration: timeData.duration
-                                });
-                            }
-                        });
-                    });
-
-                    entitiesHTML += `
-                    <div class="location-card">
-                        <div class="loc-header">
-                            <div>
-                                <div class="loc-name">${this.escapeHtml(displayName)}</div>
-                                ${address ? `<div class="loc-address">${this.escapeHtml(address)}</div>` : ''}
-                            </div>
-                            <span class="visit-count">${visitCount} visit${visitCount !== 1 ? 's' : ''}</span>
-                        </div>`;
-
-                    locationOccurrences.forEach(occ => {
-                        entitiesHTML += `
-                        <div class="visit-row">
-                            <span class="visit-date">${this.escapeHtml(occ.date)}</span>
-                            <span class="visit-time">${this.escapeHtml(occ.time)}</span>
-                            <span class="visit-dur">${this.escapeHtml(occ.duration)}</span>
-                        </div>`;
-                    });
-
-                    entitiesHTML += `</div>`;
-                });
-
-            } else if (typeName === 'Transport') {
-                entities.forEach(entity => {
-                    const displayName = entity.linkedRecordDisplayName || entity.normalizedValue || entity.rawText;
-                    const details = entity.metadata?.details || '';
-                    const mentionCount = entity.mentions || 1;
-
-                    entitiesHTML += `
-                    <div class="person-card">
-                        <div class="person-header">
-                            <div class="avatar avatar-blue">🚗</div>
-                            <div>
-                                <div class="person-name">${this.escapeHtml(displayName)}</div>
-                                ${details ? `<div class="person-rel">${this.escapeHtml(details)}</div>` : ''}
-                            </div>
-                        </div>
-                        <div style="font-size: 12px; color: #666;">Mentioned ${mentionCount} time${mentionCount !== 1 ? 's' : ''}</div>
-                    </div>`;
-                });
-
-            } else if (typeName === 'Event') {
-                entities.forEach(entity => {
-                    const displayName = entity.linkedRecordDisplayName || entity.normalizedValue || entity.rawText;
-                    const description = entity.metadata?.description || '';
-                    const mentionCount = entity.mentions || 1;
-
-                    entitiesHTML += `
-                    <div class="person-card">
-                        <div class="person-header">
-                            <div class="avatar avatar-purple">📅</div>
-                            <div>
-                                <div class="person-name">${this.escapeHtml(displayName)}</div>
-                                ${description ? `<div class="person-rel">${this.escapeHtml(description)}</div>` : ''}
-                            </div>
-                        </div>
-                        <div style="font-size: 12px; color: #666;">Mentioned ${mentionCount} time${mentionCount !== 1 ? 's' : ''}</div>
-                    </div>`;
-                });
-            }
-
-            if (typeName !== typeOrder[typeOrder.length - 1] && groupedByType[typeOrder[typeOrder.indexOf(typeName) + 1]]?.length > 0) {
-                entitiesHTML += `<hr class="divider">`;
-            }
-        });
-
-        const printHTML = `
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Exposure Timeline Report</title>
-    <style>
-        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-            font-size: 13px;
-            line-height: 1.5;
-            color: #1a1a1a;
-            background: #f5f4f0;
-            padding: 1.5rem 1rem;
-        }
-
-        .report {
-            max-width: 900px;
-            margin: 0 auto;
-        }
-
-        .report-header {
-            margin-bottom: 1.25rem;
-        }
-
-        .report-title {
-            font-size: 20px;
-            font-weight: 600;
-            color: #1a1a1a;
-            margin-bottom: 0.4rem;
-        }
-
-        .meta-row {
-            display: flex;
-            gap: 1.5rem;
-            flex-wrap: wrap;
-            margin-top: 0.4rem;
-        }
-
-        .meta-item {
-            font-size: 10px;
-            color: #888;
-            text-transform: uppercase;
-            letter-spacing: 0.06em;
-        }
-
-        .meta-item span {
-            color: #1a1a1a;
-            font-weight: 500;
-            text-transform: none;
-            letter-spacing: 0;
-        }
-
-        .section-label {
-            font-size: 10px;
-            font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 0.08em;
-            color: #aaa;
-            margin-bottom: 0.5rem;
-            margin-top: 0.2rem;
-        }
-
-        .divider {
-            border: none;
-            border-top: 1px solid #e5e3dc;
-            margin: 1rem 0;
-        }
-
-        .person-card,
-        .location-card {
-            background: #fff;
-            border: 1px solid #e5e3dc;
-            border-radius: 8px;
-            padding: 0.65rem 0.85rem;
-            margin-bottom: 0.5rem;
-            page-break-inside: avoid;
-        }
-
-        .person-header {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            margin-bottom: 0.55rem;
-        }
-
-        .avatar {
-            width: 28px;
-            height: 28px;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 11px;
-            font-weight: 600;
-            flex-shrink: 0;
-        }
-
-        .avatar-blue   { background: #ddeeff; color: #1a4e8a; }
-        .avatar-green  { background: #d9f0e5; color: #1a5c40; }
-        .avatar-amber  { background: #fdefd4; color: #7a4b0a; }
-        .avatar-pink   { background: #fce4ef; color: #8a1a48; }
-        .avatar-purple { background: #ece8fc; color: #4a2eb0; }
-
-        .person-name {
-            font-size: 13px;
-            font-weight: 600;
-            color: #1a1a1a;
-        }
-
-        .person-rel {
-            font-size: 11px;
-            color: #888;
-            margin-top: 0px;
-        }
-
-        .data-table {
-            width: 100%;
-            border-collapse: collapse;
-            font-size: 11px;
-        }
-
-        .data-table th {
-            font-size: 10px;
-            font-weight: 600;
-            color: #bbb;
-            text-transform: uppercase;
-            letter-spacing: 0.06em;
-            padding: 3px 6px 4px 0;
-            border-bottom: 1px solid #e5e3dc;
-            text-align: left;
-            white-space: nowrap;
-        }
-
-        .data-table td {
-            padding: 5px 6px 5px 0;
-            border-bottom: 1px solid #e5e3dc;
-            color: #1a1a1a;
-            vertical-align: middle;
-        }
-
-        .data-table tr:last-child td {
-            border-bottom: none;
-        }
-
-        .date-badge {
-            display: inline-block;
-            background: #f5f4f0;
-            border-radius: 3px;
-            padding: 1px 6px;
-            font-size: 10px;
-            color: #666;
-            white-space: nowrap;
-        }
-
-        .location-name {
-            font-weight: 500;
-        }
-
-        .loc-header {
-            display: flex;
-            align-items: flex-start;
-            justify-content: space-between;
-            gap: 10px;
-            margin-bottom: 0.5rem;
-        }
-
-        .loc-name {
-            font-size: 13px;
-            font-weight: 600;
-            color: #1a1a1a;
-        }
-
-        .loc-address {
-            font-size: 11px;
-            color: #888;
-            margin-top: 2px;
-            line-height: 1.4;
-        }
-
-        .visit-count {
-            font-size: 10px;
-            color: #666;
-            background: #f5f4f0;
-            border-radius: 20px;
-            padding: 2px 8px;
-            white-space: nowrap;
-            flex-shrink: 0;
-        }
-
-        .visit-row {
-            display: flex;
-            gap: 1rem;
-            padding: 5px 0;
-            border-bottom: 1px solid #e5e3dc;
-            font-size: 11px;
-            align-items: center;
-        }
-
-        .visit-row:last-child {
-            border-bottom: none;
-        }
-
-        .visit-date { color: #1a1a1a; min-width: 100px; }
-        .visit-time { color: #666; }
-        .visit-dur  { color: #888; margin-left: auto; }
-
-        .report-footer {
-            font-size: 10px;
-            color: #bbb;
-            margin-top: 1.5rem;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            flex-wrap: wrap;
-            gap: 0.5rem;
-        }
-
-        @media print {
-            body {
-                -webkit-print-color-adjust: exact;
-                print-color-adjust: exact;
-                padding: 1rem 0.5rem;
-            }
-            .report {
-                max-width: 100%;
-            }
-        }
-    </style>
-</head>
-<body>
-<div class="report">
-    <div class="report-header">
-        <div class="report-title">Exposure Timeline Report</div>
-        <div class="meta-row">
-            <div class="meta-item">Case <span>${this.escapeHtml(caseId)}</span></div>
-            <div class="meta-item">Patient <span>${this.escapeHtml(patientName)}</span></div>
-            <div class="meta-item">Disease <span>${this.escapeHtml(diseaseName)}</span></div>
-            <div class="meta-item">Onset <span>${this.escapeHtml(onsetDate)}</span></div>
-            <div class="meta-item">Generated <span>${currentDate}</span></div>
-        </div>
-    </div>
-
-    ${entitiesHTML}
-
-    <div class="report-footer">
-        <span>Sentinel · Exposure Timeline System</span>
-        <span>Case ${this.escapeHtml(caseId)}</span>
-    </div>
-</div>
-
-<script>
-    window.onload = function() {
-        window.print();
-    };
-</script>
-</body>
-</html>
-        `;
-
-        printWindow.document.write(printHTML);
-        printWindow.document.close();
-    }
-
-    /**
-     * Get contacts for a person entity
-     */
-    getPersonContacts(personEntity, allEntities, allRelationships) {
-        const contacts = new Set();
-
-        allRelationships.forEach(rel => {
-            if (rel.primaryEntityId === personEntity.id || rel.relatedEntityId === personEntity.id) {
-                const otherId = rel.primaryEntityId === personEntity.id ? rel.relatedEntityId : rel.primaryEntityId;
-                const otherEntity = allEntities.find(e => e.id === otherId);
-
-                if (otherEntity && otherEntity.entityType === 1 && otherEntity.id !== personEntity.id) {
-                    const name = otherEntity.linkedRecordDisplayName || otherEntity.normalizedValue || otherEntity.rawText;
-                    contacts.add(name);
-                }
-            }
-        });
-
-        return Array.from(contacts);
-    }
-
-    /**
-     * Get relationship type name from relationship type number
-     */
-    getRelationshipTypeName(relType) {
-        const types = {
-            1: 'WITH',
-            2: 'AT_LOCATION',
-            3: 'VIA',
-            4: 'AT_EVENT',
-            5: 'AT_TIME',
-            6: 'FOR_DURATION',
-            7: 'CO_OCCURRED',
-            8: 'SEQUENCE',
-            9: 'MET',
-            10: 'ACTIVITY'
-        };
-        return types[relType] || 'Unknown';
     }
 }
 

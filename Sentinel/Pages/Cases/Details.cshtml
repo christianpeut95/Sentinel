@@ -5,334 +5,26 @@
 
 @{
     ViewData["Title"] = "Case Details";
-    Layout = "~/Pages/Shared/_Layout.cshtml";
+    ViewData["Subtitle"] = Model.Case.FriendlyId ?? "Case Information";
 }
 
-<style>
-    /* Modern Apple Aesthetic - Orange/Amber Theme for Cases */
-    .case-details-container {
-        width: 100%;
-        /* Full width - no max-width constraint */
+@functions {
+    public string GetCspNonce()
+    {
+        if (HttpContext?.Items?.TryGetValue("csp-nonce", out var nonce) == true && nonce is string nonceStr)
+        {
+            return nonceStr;
+        }
+        return string.Empty;
     }
+}
 
-    /* Header Section */
-    .case-header {
-        background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%);
-        border-radius: 16px;
-        padding: 2rem;
-        margin-bottom: 1.5rem;
-        box-shadow: 0 2px 8px rgba(245, 158, 11, 0.08);
-        border: 1px solid rgba(245, 158, 11, 0.15);
-    }
-
-        .case-header h1 {
-            font-size: 2rem;
-            font-weight: 600;
-            color: #2d3748;
-            margin-bottom: 0.5rem;
-            letter-spacing: -0.5px;
-        }
-
-            .case-header h1 i {
-                color: #f59e0b;
-            }
-
-        .case-header .subtitle {
-            color: #718096;
-            font-size: 1rem;
-            margin-bottom: 0;
-        }
-
-    /* Quick Action Buttons */
-    .quick-actions {
-        display: flex;
-        gap: 0.75rem;
-        flex-wrap: wrap;
-        margin-top: 1rem;
-    }
-
-    .quick-action-btn {
-        background: white;
-        border: 1px solid #fbbf24;
-        border-radius: 10px;
-        padding: 0.5rem 1rem;
-        font-size: 0.875rem;
-        font-weight: 600;
-        color: #f59e0b;
-        transition: all 0.2s;
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-        text-decoration: none;
-    }
-
-        .quick-action-btn:hover {
-            background: #fffbeb;
-            border-color: #f59e0b;
-            transform: translateY(-1px);
-            box-shadow: 0 2px 8px rgba(245, 158, 11, 0.15);
-            color: #d97706;
-        }
-
-        .quick-action-btn i {
-            font-size: 1rem;
-        }
-
-        .quick-action-btn.primary {
-            background: #f59e0b;
-            color: white;
-            border-color: #f59e0b;
-        }
-
-            .quick-action-btn.primary:hover {
-                background: #d97706;
-                color: white;
-                border-color: #d97706;
-            }
-
-        .quick-action-btn.success {
-            background: #10b981;
-            color: white;
-            border-color: #10b981;
-        }
-
-            .quick-action-btn.success:hover {
-                background: #059669;
-                color: white;
-                border-color: #059669;
-            }
-
-    /* Compact Card Design */
-    .info-card {
-        background: white;
-        border-radius: 12px;
-        padding: 1.25rem;
-        box-shadow: 0 2px 8px rgba(245, 158, 11, 0.06);
-        border: 1px solid rgba(245, 158, 11, 0.1);
-        margin-bottom: 1rem;
-        height: 100%;
-    }
-
-        .info-card:hover {
-            box-shadow: 0 4px 12px rgba(245, 158, 11, 0.12);
-            transform: translateY(-1px);
-            transition: all 0.2s ease;
-        }
-
-    .info-card-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 1rem;
-        padding-bottom: 0.75rem;
-        border-bottom: 1px solid #fef3c7;
-    }
-
-    .info-card-title {
-        font-size: 1rem;
-        font-weight: 600;
-        color: #2d3748;
-        margin: 0;
-        display: flex;
-        align-items: center;
-        gap: 8px;
-    }
-
-        .info-card-title i {
-            color: #f59e0b;
-        }
-
-    .info-card-action {
-        padding: 0.35rem 0.75rem;
-        font-size: 0.75rem;
-        border-radius: 8px;
-        background: #fffbeb;
-        border: 1px solid #fbbf24;
-        color: #f59e0b;
-        font-weight: 600;
-        transition: all 0.2s;
-        text-decoration: none;
-        display: inline-flex;
-        align-items: center;
-        gap: 4px;
-    }
-
-        .info-card-action:hover {
-            background: #f59e0b;
-            color: white;
-            border-color: #f59e0b;
-        }
-
-    /* Outbreak/Contact Tracing Event buttons */
-    .btn-outline-purple {
-        border-color: #7c3aed;
-        color: #7c3aed;
-        font-weight: 600;
-        transition: all 0.2s;
-    }
-
-        .btn-outline-purple:hover {
-            background: #7c3aed;
-            color: white;
-            border-color: #7c3aed;
-            transform: translateY(-1px);
-            box-shadow: 0 2px 8px rgba(124, 58, 237, 0.2);
-        }
-
-    .btn-outline-danger {
-        font-weight: 600;
-        transition: all 0.2s;
-    }
-
-        .btn-outline-danger:hover {
-            transform: translateY(-1px);
-            box-shadow: 0 2px 8px rgba(220, 38, 38, 0.2);
-        }
-
-    /* Compact Info Rows */
-    .info-row {
-        display: grid;
-        grid-template-columns: 140px 1fr;
-        gap: 0.75rem;
-        padding: 0.5rem 0;
-        border-bottom: 1px solid #f7fafc;
-        font-size: 0.875rem;
-    }
-
-        .info-row:last-child {
-            border-bottom: none;
-        }
-
-    .info-label {
-        color: #718096;
-        font-weight: 500;
-    }
-
-    .info-value {
-        color: #2d3748;
-        font-weight: 600;
-    }
-
-    /* Badges */
-    .badge {
-        padding: 0.35rem 0.65rem;
-        font-size: 0.75rem;
-        font-weight: 600;
-        border-radius: 6px;
-    }
-
-        .badge.badge-grey {
-            background: #718096;
-            color: white;
-        }
-
-        .badge.badge-teal {
-            background: #f59e0b;
-            color: white;
-        }
-
-        .badge.badge-slate {
-            background: #64748b;
-            color: white;
-        }
-
-        .badge.badge-amber {
-            background: #f59e0b;
-            color: white;
-        }
-
-    /* Compact Table */
-    .compact-table {
-        font-size: 0.875rem;
-    }
-
-        .compact-table th {
-            background: #f7fafc;
-            color: #4a5568;
-            font-weight: 600;
-            border: none;
-            padding: 0.5rem 0.75rem;
-        }
-
-        .compact-table td {
-            padding: 0.5rem 0.75rem;
-            border-bottom: 1px solid #f7fafc;
-        }
-
-        .compact-table tr:last-child td {
-            border-bottom: none;
-        }
-
-    /* Note Item */
-    .note-item {
-        background: #fffbeb;
-        border-left: 3px solid #f59e0b;
-        padding: 0.75rem;
-        margin-bottom: 0.75rem;
-        border-radius: 8px;
-        font-size: 0.875rem;
-    }
-
-        .note-item .note-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: start;
-            margin-bottom: 0.5rem;
-        }
-
-        .note-item .note-meta {
-            font-size: 0.75rem;
-            color: #92400e;
-        }
-
-    /* Empty State */
-    .empty-state {
-        text-align: center;
-        padding: 2rem 1rem;
-        color: #718096;
-    }
-
-        .empty-state i {
-            font-size: 2.5rem;
-            color: #cbd5e0;
-            margin-bottom: 0.75rem;
-        }
-
-        .empty-state p {
-            margin: 0.5rem 0;
-            font-size: 0.875rem;
-        }
-
-    /* Breadcrumb */
-    .breadcrumb {
-        background: transparent;
-        padding: 0;
-        margin-bottom: 1rem;
-        font-size: 0.875rem;
-    }
-
-    .breadcrumb-item + .breadcrumb-item::before {
-        color: #cbd5e0;
-    }
-
-    .breadcrumb-item a {
-        color: #4a5568;
-        text-decoration: none;
-    }
-
-        .breadcrumb-item a:hover {
-            color: #2d3748;
-        }
-
-    .breadcrumb-item.active {
-        color: #718096;
-    }
-
-    /* Responsive Grid - 3 column layout */
+<style nonce="@GetCspNonce()">
+    /* Responsive Grid - 3 column layout using Sentinel spacing */
     .case-grid {
         display: grid;
         grid-template-columns: 1fr 1fr 1fr;
-        gap: 1rem;
+        gap: var(--spacing-4);
         grid-auto-rows: auto;
     }
 
@@ -350,210 +42,110 @@
         }
     }
 
-    /* Left column cards - explicit positioning */
-    .info-card.case-info-card {
-        grid-column: 1;
-        grid-row: 1;
-    }
-
-    .info-card.patient-info-card {
-        grid-column: 1;
-        grid-row: 2;
-    }
-
-    .info-card.symptoms-card {
-        grid-column: 1;
-        grid-row: 3;
-    }
-
-    /* Wide cards spanning 2 columns (for lab results and tasks) */
-    .info-card.wide {
-        grid-column: span 2;
-    }
-
-    /* Lab Results - positioned at row 1, columns 2-3 */
-    .info-card.lab-results-card {
-        grid-column: 2 / span 2;
-        grid-row: 1;
-    }
-
-    /* Exposures - positioned at row 2, column 2 & 3 */
-    .info-card.acquisitions-card {
-        grid-column: 2;
-        grid-row: 2;
-    }
-
-    .info-card.transmissions-card {
-        grid-column: 3;
-        grid-row: 2;
-    }
-
-    /* Tasks - positioned at row 3, columns 2-3 (same row as location card in col 1) */
-    .info-card.tasks-card {
-        grid-column: 2 / span 2;
-        grid-row: 3;
-    }
+    /* Card positioning */
+    .case-info-card { grid-column: 1; grid-row: 1; }
+    .patient-info-card { grid-column: 1; grid-row: 2; }
+    .symptoms-card { grid-column: 1; grid-row: 3; }
+    .lab-results-card { grid-column: 2 / span 2; grid-row: 1; }
+    .acquisitions-card { grid-column: 2; grid-row: 2; }
+    .transmissions-card { grid-column: 3; grid-row: 2; }
+    .tasks-card { grid-column: 2 / span 2; grid-row: 3; }
 
     @@media (max-width: 1200px) {
-        .info-card.wide {
-            grid-column: span 2;
-        }
-
-        .info-card.case-info-card,
-        .info-card.patient-info-card,
-        .info-card.location-card,
-        .info-card.symptoms-card,
-        .info-card.lab-results-card,
-        .info-card.acquisitions-card, .info-card.transmissions-card,
-        .info-card.tasks-card,
-        .info-card.notes-card {
+        .case-info-card, .patient-info-card, .symptoms-card,
+        .lab-results-card, .acquisitions-card, .transmissions-card,
+        .tasks-card {
             grid-column: auto;
             grid-row: auto;
         }
     }
 
-    @@media (max-width: 768px) {
-        .info-card.wide {
-            grid-column: span 1;
-        }
+    /* Info rows using Sentinel colors */
+    .info-row {
+        display: grid;
+        grid-template-columns: 140px 1fr;
+        gap: var(--spacing-3);
+        padding: var(--spacing-2) 0;
+        border-bottom: 1px solid var(--hairline);
+        font-size: 0.875rem;
+    }
+    .info-row:last-child { border-bottom: none; }
+    .info-label { color: var(--graphite); font-weight: 500; }
+    .info-value { color: var(--forest); font-weight: 600; }
 
-        .info-card.case-info-card,
-        .info-card.patient-info-card,
-        .info-card.location-card,
-        .info-card.symptoms-card,
-        .info-card.lab-results-card,
-        .info-card.acquisitions-card, .info-card.transmissions-card,
-        .info-card.tasks-card,
-        .info-card.notes-card {
-            grid-column: auto;
-            grid-row: auto;
-        }
+    /* Note items using Sentinel signal */
+    .note-item {
+        background: var(--signal-lt);
+        border-left: 3px solid var(--signal-dk);
+        padding: var(--spacing-3);
+        margin-bottom: var(--spacing-3);
+        border-radius: 8px;
+        font-size: 0.875rem;
+    }
+    .note-item .note-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: start;
+        margin-bottom: var(--spacing-2);
+    }
+    .note-item .note-meta {
+        font-size: 0.75rem;
+        color: var(--forest-2);
     }
 
-    /* Half-height cards */
-    .info-card.half-height {
+    /* Half-height cards with scroll */
+    .half-height {
         max-height: 400px;
     }
-
-        .info-card.half-height .compact-table {
-            display: block;
-            max-height: 280px;
-            overflow-y: auto;
-        }
-
-    /* Alerts */
-    .alert {
-        border-radius: 10px;
-        border: none;
-        padding: 0.75rem 1rem;
-        font-size: 0.875rem;
-        margin-bottom: 1rem;
+    .half-height .table-responsive {
+        max-height: 280px;
+        overflow-y: auto;
     }
 
-    /* Modal z-index fixes - CRITICAL FOR VIEW LAB MODAL */
-    .modal {
-        z-index: 1055 !important;
-    }
+    /* Modal z-index fixes - CRITICAL FOR MODAL VISIBILITY */
+    .modal { z-index: 1055 !important; }
+    .modal-backdrop { z-index: 1050 !important; }
+    .modal-dialog { z-index: 1056 !important; position: relative; }
+    .modal.show { display: block !important; opacity: 1 !important; }
+    .modal.show .modal-dialog { transform: none !important; }
+    #viewLabResultModal.show { display: block !important; visibility: visible !important; }
+    #viewLabResultModal .modal-dialog { pointer-events: auto !important; opacity: 1 !important; transform: translateY(0) !important; }
+    #viewLabResultModal.show .modal-content { visibility: visible !important; opacity: 1 !important; }
 
-    .modal-backdrop {
-        z-index: 1050 !important;
-    }
-
-    .modal-dialog {
-        z-index: 1056 !important;
-        position: relative;
-    }
-
-    /* Force modal to display when shown */
-    .modal.show {
-        display: block !important;
-        opacity: 1 !important;
-    }
-
-        .modal.show .modal-dialog {
-            transform: none !important;
-        }
-
-    /* View Lab Result Modal - Force visibility */
-    #viewLabResultModal.show {
-        display: block !important;
-        visibility: visible !important;
-    }
-
-    #viewLabResultModal .modal-dialog {
-        pointer-events: auto !important;
-        opacity: 1 !important;
-        transform: translateY(0) !important;
-    }
-
-    #viewLabResultModal.show .modal-content {
-        visibility: visible !important;
-        opacity: 1 !important;
-    }
-
-    /* Keyboard navigation enhancements */
-    .field-focused {
-        background-color: #f8f9ff;
-        border-radius: 6px;
-        padding: 8px;
-        margin: -8px;
-        transition: background-color 0.2s;
-    }
-
-    kbd {
-        background-color: #f4f4f4;
-        border: 1px solid #ccc;
-        border-radius: 3px;
-        box-shadow: 0 1px 0 rgba(0,0,0,0.2);
-        color: #333;
-        display: inline-block;
-        font-family: 'Courier New', monospace;
-        font-size: 0.85em;
-        line-height: 1;
-        padding: 2px 5px;
-        white-space: nowrap;
-    }
-
-    /* Custom Field Category Accordion */
+    /* Custom Field Category Accordion using Sentinel colors */
     .custom-field-category {
-        margin-top: 1rem;
-        border-top: 1px solid #fef3c7;
-        padding-top: 0.75rem;
+        margin-top: var(--spacing-4);
+        border-top: 1px solid var(--hairline);
+        padding-top: var(--spacing-3);
     }
-
-        .custom-field-category:first-of-type {
-            margin-top: 0.5rem;
-        }
+    .custom-field-category:first-of-type { margin-top: var(--spacing-2); }
 
     .category-header {
         display: flex;
         align-items: center;
         justify-content: space-between;
         cursor: pointer;
-        padding: 0.5rem 0.75rem;
-        background: #fffbeb;
+        padding: var(--spacing-2) var(--spacing-3);
+        background: var(--signal-lt);
         border-radius: 8px;
-        margin-bottom: 0.5rem;
+        margin-bottom: var(--spacing-2);
         transition: all 0.2s;
         user-select: none;
     }
-
-        .category-header:hover {
-            background: #fef3c7;
-        }
+    .category-header:hover { background: var(--bone); }
 
     .category-title {
         display: flex;
         align-items: center;
-        gap: 0.5rem;
+        gap: var(--spacing-2);
         font-weight: 600;
         font-size: 0.875rem;
-        color: #2d3748;
+        color: var(--forest);
         margin: 0;
     }
 
     .category-count {
-        background: #f59e0b;
+        background: var(--signal-dk);
         color: white;
         padding: 0.15rem 0.5rem;
         border-radius: 12px;
@@ -562,14 +154,11 @@
     }
 
     .category-chevron {
-        color: #f59e0b;
+        color: var(--signal-dk);
         transition: transform 0.2s;
         font-size: 1rem;
     }
-
-        .category-chevron.collapsed {
-            transform: rotate(-90deg);
-        }
+    .category-chevron.collapsed { transform: rotate(-90deg); }
 
     .category-fields {
         max-height: 1000px;
@@ -577,142 +166,64 @@
         transition: max-height 0.3s ease-out, opacity 0.2s;
         opacity: 1;
     }
-
-        .category-fields.collapsed {
-            max-height: 0;
-            opacity: 0;
-        }
-
-    /* Better focus indicators for accessibility */
-    #addLabResultModal input:focus,
-    #addLabResultModal select:focus,
-    #addLabResultModal textarea:focus {
-        border-color: #667eea;
-        box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
-    }
-
-    .select2-container--default .select2-selection--single:focus {
-        border-color: #667eea;
-        outline: 0;
-        box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
-    }
-
-    /* Exposures Modal Enhancements */
-    #viewAllExposuresModal .sticky-top {
-        position: sticky;
-        top: 0;
-        z-index: 10;
-        background: #f8f9fa;
-    }
-
-    #viewAllExposuresModal .table-responsive {
-        position: relative;
-    }
-
-    #allExposuresTable tbody tr {
-        transition: background-color 0.2s ease;
-    }
-
-        #allExposuresTable tbody tr:hover {
-            background-color: #f8f9fa;
-        }
-
-    /* Lab Results Modal Enhancements */
-    #viewAllLabResultsModal .sticky-top {
-        position: sticky;
-        top: 0;
-        z-index: 10;
-        background: #f8f9fa;
-    }
-
-    #viewAllLabResultsModal .table-responsive {
-        position: relative;
-    }
-
-    #allLabResultsTable tbody tr {
-        transition: background-color 0.2s ease;
-    }
-
-        #allLabResultsTable tbody tr:hover {
-            background-color: #f8f9fa;
-        }
-
-    /* Tasks Modal Enhancements */
-    #viewAllTasksModal .sticky-top {
-        position: sticky;
-        top: 0;
-        z-index: 10;
-        background: #f8f9fa;
-    }
-
-    #viewAllTasksModal .table-responsive {
-        position: relative;
-    }
-
-    #allTasksTable tbody tr {
-        transition: background-color 0.2s ease;
-    }
-
-        #allTasksTable tbody tr:hover {
-            background-color: #f8f9fa;
-        }
+    .category-fields.collapsed { max-height: 0; opacity: 0; }
 </style>
 
 
-<nav aria-label="breadcrumb" class="mb-3">
-    <ol class="breadcrumb">
-        <li class="breadcrumb-item"><a asp-page="/Index">Home</a></li>
-        <li class="breadcrumb-item"><a asp-page="./Index">Cases</a></li>
-        <li class="breadcrumb-item active" aria-current="page">@Model.Case.FriendlyId</li>
+<nav aria-label="breadcrumb" class="mb-3" style="font-size: 0.875rem;">
+    <ol class="breadcrumb" style="background: transparent; padding: 0; margin-bottom: var(--spacing-3);">
+        <li class="breadcrumb-item"><a asp-page="/Index" style="color: var(--graphite); text-decoration: none;">Home</a></li>
+        <li class="breadcrumb-item"><a asp-page="./Index" style="color: var(--graphite); text-decoration: none;">Cases</a></li>
+        <li class="breadcrumb-item active" aria-current="page" style="color: var(--forest);">@Model.Case.FriendlyId</li>
     </ol>
 </nav>
 
 @if (TempData["SuccessMessage"] != null)
 {
-    <div class="alert alert-success alert-dismissible fade show" role="alert">
-        <i class="bi bi-check-circle-fill me-2"></i>@TempData["SuccessMessage"]
+    <div class="alert alert-success alert-dismissible fade show" role="alert" style="border-radius: 10px; border-left: 3px solid var(--signal-dk); background: var(--signal-lt); color: var(--forest); margin-bottom: var(--spacing-4);">
+        <i class="bi bi-check-circle-fill me-2" style="color: var(--signal-dk);"></i>@TempData["SuccessMessage"]
         <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
     </div>
 }
 
 @if (TempData["ExposureInfo"] != null)
 {
-    <div class="alert alert-info alert-dismissible fade show" role="alert">
-        <i class="bi bi-info-circle-fill me-2"></i>@TempData["ExposureInfo"]
+    <div class="alert alert-info alert-dismissible fade show" role="alert" style="border-radius: 10px; border-left: 3px solid var(--status-info); background: #E3E9FB; color: var(--forest); margin-bottom: var(--spacing-4);">
+        <i class="bi bi-info-circle-fill me-2" style="color: var(--status-info);"></i>@TempData["ExposureInfo"]
         <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
     </div>
 }
 
 @if (TempData["ExposureWarning"] != null)
 {
-    <div class="alert alert-warning alert-dismissible fade show" role="alert">
-        <i class="bi bi-exclamation-triangle-fill me-2"></i>@TempData["ExposureWarning"]
-        <a asp-page="/Cases/Exposures/Create" asp-route-caseId="@Model.Case.Id" class="alert-link ms-2">Add exposure now</a>
+    <div class="alert alert-warning alert-dismissible fade show" role="alert" style="border-radius: 10px; border-left: 3px solid var(--status-watch); background: #FBEDD1; color: var(--forest); margin-bottom: var(--spacing-4);">
+        <i class="bi bi-exclamation-triangle-fill me-2" style="color: var(--status-watch);"></i>@TempData["ExposureWarning"]
+        <a asp-page="/Cases/Exposures/Create" asp-route-caseId="@Model.Case.Id" class="alert-link ms-2" style="color: var(--forest); font-weight: 600;">Add exposure now</a>
         <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
     </div>
 }
 
 @if (TempData["ErrorMessage"] != null)
 {
-    <div class="alert alert-danger alert-dismissible fade show" role="alert">
-        <i class="bi bi-exclamation-triangle-fill me-2"></i>@TempData["ErrorMessage"]
+    <div class="alert alert-danger alert-dismissible fade show" role="alert" style="border-radius: 10px; border-left: 3px solid var(--status-outbreak); background: #FBE2D8; color: var(--forest); margin-bottom: var(--spacing-4);">
+        <i class="bi bi-exclamation-triangle-fill me-2" style="color: var(--status-outbreak);"></i>@TempData["ErrorMessage"]
         <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
     </div>
 }
 
 <div class="case-details-container">
-    <!-- Header Section -->
-    <div class="case-header">
+    <!-- Header Section with Sentinel styling -->
+    <div style="background: var(--chalk); border: 1px solid var(--hairline); border-radius: 10px; padding: var(--spacing-5); margin-bottom: var(--spacing-4);">
         <div class="d-flex justify-content-between align-items-start">
             <div>
-                <h1>
-                    <i class="bi bi-virus2"></i>
+                <h1 style="color: var(--forest); font-weight: 600; font-size: 2rem; margin-bottom: var(--spacing-2); font-family: var(--f-sans);">
+                    <i class="bi bi-virus2" style="color: var(--signal-dk);"></i>
                     Case @Model.Case.FriendlyId
                 </h1>
                 @if (Model.Case.Patient != null)
                 {
-                    <p class="subtitle mb-0">
-                        <strong>@Model.Case.Patient.GivenName @Model.Case.Patient.FamilyName</strong>
+                    <p class="mb-0" style="color: var(--graphite); font-size: 1rem;">
+                        <strong style="color: var(--forest);">@Model.Case.Patient.GivenName @Model.Case.Patient.FamilyName</strong>
                         @if (Model.Case.Disease != null)
                         {
                             <span class="mx-2">•</span>
@@ -721,7 +232,7 @@
                         @if (Model.Case.ConfirmationStatus != null)
                         {
                             <span class="mx-2">•</span>
-                            <span class="badge badge-teal">@Model.Case.ConfirmationStatus.Name</span>
+                            <span class="chip chip-success">@Model.Case.ConfirmationStatus.Name</span>
                         }
                     </p>
 
@@ -732,7 +243,7 @@
                                          Model.Case.Jurisdiction3Id.HasValue ||
                                          Model.Case.Jurisdiction4Id.HasValue ||
                                          Model.Case.Jurisdiction5Id.HasValue;
-                    <p class="subtitle mb-0 mt-1" style="font-size: 0.875rem;">
+                    <p class="mb-0 mt-1" style="font-size: 0.875rem; color: var(--graphite);">
                         @if (hasAddress || hasJurisdictions)
                         {
                             @if (hasAddress)
@@ -759,7 +270,7 @@
                                     }
                                 }
 
-                                <i class="bi bi-geo-alt-fill text-primary me-1"></i>
+                                <i class="bi bi-geo-alt-fill me-1" style="color: var(--signal-dk);"></i>
                                 if (!string.IsNullOrWhiteSpace(Model.Case.CaseAddressLine))
                                 {
                                     <span>@Model.Case.CaseAddressLine, </span>
@@ -809,7 +320,7 @@
 
                                 if (jurisdictionsOnly.Any())
                                 {
-                                    <i class="bi bi-pin-map text-success me-1"></i>
+                                    <i class="bi bi-pin-map me-1" style="color: var(--signal-dk);"></i>
                                     @string.Join(" • ", jurisdictionsOnly)
                                 }
                             }
@@ -817,7 +328,7 @@
                             @if (Model.Case.CaseAddressManualOverride)
                             {
                                 <span class="mx-2">•</span>
-                                <span class="badge bg-info" style="font-size: 0.65rem;" title="Address manually set">Manual Override</span>
+                                <span class="chip chip-info" style="font-size: 0.65rem;" title="Address manually set">Manual Override</span>
                             }
                         }
                         else
@@ -827,28 +338,28 @@
                             @if (Model.PatientHasDifferentAddress)
                             {
                                 <span class="mx-2">•</span>
-                                <i class="bi bi-info-circle text-warning me-1" title="Patient has address data"></i>
-                                <span class="text-warning">Patient has address available</span>
+                                <i class="bi bi-info-circle me-1" style="color: var(--status-watch);" title="Patient has address data"></i>
+                                <span style="color: var(--status-watch);">Patient has address available</span>
                             }
                         }
                     </p>
                 }
             </div>
             <div class="text-end">
-                <a asp-page="./Index" class="quick-action-btn">
+                <a asp-page="./Index" class="btn btn-sentinel-secondary btn-sm">
                     <i class="bi bi-arrow-left"></i> Back to List
                 </a>
             </div>
         </div>
 
-        <!-- Quick Actions -->
-        <div class="quick-actions">
-            <a asp-page="./Edit" asp-route-id="@Model.Case.Id" class="quick-action-btn primary">
+        <!-- Quick Actions with Sentinel button styling -->
+        <div style="display: flex; flex-wrap: wrap; gap: var(--spacing-2); margin-top: var(--spacing-4); padding-top: var(--spacing-4); border-top: 1px solid var(--hairline);">
+            <a asp-page="./Edit" asp-route-id="@Model.Case.Id" class="btn btn-sentinel-primary btn-sm">
                 <i class="bi bi-pencil"></i> Edit Case
             </a>
             @if (Model.PatientHasDifferentAddress)
             {
-                <button type="button" class="quick-action-btn warning" onclick="copyAddressFromPatient()" title="Copy address and jurisdiction data from patient record">
+                <button type="button" class="btn btn-sm" style="background: var(--status-watch); color: white; border: none; font-weight: 600;" onclick="copyAddressFromPatient()" title="Copy address and jurisdiction data from patient record">
                     <i class="bi bi-arrow-down-circle"></i> Copy Address from Patient
                     @if (Model.PatientJurisdictionMappingInProgress)
                     {
@@ -856,28 +367,28 @@
                     }
                 </button>
             }
-            <button type="button" class="quick-action-btn success" data-bs-toggle="modal" data-bs-target="#addNoteModal">
+            <button type="button" class="btn btn-sentinel-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addNoteModal">
                 <i class="bi bi-plus-circle"></i> Add Note
             </button>
-            <button type="button" class="quick-action-btn success" onclick="openAddLabResult()">
+            <button type="button" class="btn btn-sentinel-primary btn-sm" onclick="openAddLabResult()">
                 <i class="bi bi-plus-circle"></i> Add Lab Result
             </button>
-            <button type="button" class="quick-action-btn success" onclick="openAddExposure()">
+            <button type="button" class="btn btn-sentinel-primary btn-sm" onclick="openAddExposure()">
                 <i class="bi bi-plus-circle"></i> Add Exposure
             </button>
-            <a asp-page="/Cases/Contacts/BulkCreate" asp-route-caseId="@Model.Case.Id" class="quick-action-btn success">
+            <a asp-page="/Cases/Contacts/BulkCreate" asp-route-caseId="@Model.Case.Id" class="btn btn-sentinel-primary btn-sm">
                 <i class="bi bi-people-fill"></i> Bulk Create Contacts
             </a>
-            <button type="button" class="quick-action-btn success" onclick="openAddTask()">
+            <button type="button" class="btn btn-sentinel-primary btn-sm" onclick="openAddTask()">
                 <i class="bi bi-plus-circle"></i> Add Task
             </button>
             @if (Model.Case.Patient != null)
             {
-                <a asp-page="/Patients/Details" asp-route-id="@Model.Case.PatientId" class="quick-action-btn">
+                <a asp-page="/Patients/Details" asp-route-id="@Model.Case.PatientId" class="btn btn-sentinel-secondary btn-sm">
                     <i class="bi bi-person"></i> View Patient
                 </a>
             }
-            <a asp-page="./AuditHistory" asp-route-id="@Model.Case.Id" class="quick-action-btn">
+            <a asp-page="./AuditHistory" asp-route-id="@Model.Case.Id" class="btn btn-sentinel-secondary btn-sm">
                 <i class="bi bi-clock-history"></i> Audit Log
             </a>
         </div>
@@ -887,16 +398,17 @@
     <!-- 3-Column Layout: Left = Case/Patient/Symptoms stacked | Right = Lab Results/Tasks/Exposures+Notes -->
     <div class="case-grid">
         <!-- LEFT COLUMN: Case Information -->
-        <div class="info-card case-info-card">
-            <div class="info-card-header">
-                <h3 class="info-card-title">
-                    <i class="bi bi-clipboard-data"></i>
+        <div class="sentinel-card case-info-card">
+            <div class="sentinel-card-header" style="display: flex; justify-content: space-between; align-items: center;">
+                <h3 style="color: var(--forest); font-weight: 600; font-size: 1.125rem; margin: 0; font-family: var(--f-sans);">
+                    <i class="bi bi-clipboard-data" style="color: var(--signal-dk);"></i>
                     Case Information
                 </h3>
-                <a asp-page="./Edit" asp-route-id="@Model.Case.Id" class="info-card-action">
+                <a asp-page="./Edit" asp-route-id="@Model.Case.Id" class="btn btn-sentinel-secondary btn-sm">
                     <i class="bi bi-pencil"></i> Edit
                 </a>
             </div>
+            <div class="sentinel-card-body">
             @if (Model.Case.Disease != null)
             {
                 <div class="info-row">
@@ -912,7 +424,7 @@
                 <div class="info-value">
                     @if (Model.Case.ConfirmationStatus != null)
                     {
-                        <span class="badge badge-teal">@Model.Case.ConfirmationStatus.Name</span>
+                        <span class="chip chip-success">@Model.Case.ConfirmationStatus.Name</span>
                     }
                     else
                     {
@@ -925,7 +437,7 @@
                 <div class="info-value">
                     @if (Model.Case.DateOfOnset.HasValue)
                     {
-                        <i class="bi bi-calendar-event me-1 text-primary"></i>
+                        <i class="bi bi-calendar-event me-1" style="color: var(--signal-dk);"></i>
                         @Model.Case.DateOfOnset.Value.ToString("dd MMM yyyy")
                     }
                     else
@@ -939,7 +451,7 @@
                 <div class="info-value">
                     @if (Model.Case.DateOfNotification.HasValue)
                     {
-                        <i class="bi bi-calendar-check me-1 text-success"></i>
+                        <i class="bi bi-calendar-check me-1" style="color: var(--signal-dk);"></i>
                         @Model.Case.DateOfNotification.Value.ToString("dd MMM yyyy")
                     }
                     else
@@ -955,7 +467,7 @@
                     <div class="info-value">
                         @if (Model.Case.ClinicalNotificationDate.HasValue)
                         {
-                            <i class="bi bi-calendar-plus me-1 text-info"></i>
+                            <i class="bi bi-calendar-plus me-1" style="color: var(--status-info);"></i>
                             @Model.Case.ClinicalNotificationDate.Value.ToString("dd MMM yyyy")
                         }
                         else
@@ -970,7 +482,7 @@
                 <div class="info-row">
                     <div class="info-label">Clinical Notifier Organisation</div>
                     <div class="info-value">
-                        <i class="bi bi-building me-1 text-info"></i>
+                        <i class="bi bi-building me-1" style="color: var(--status-info);"></i>
                         @Model.Case.ClinicalNotifierOrganisation
                     </div>
                 </div>
@@ -980,7 +492,7 @@
                 <div class="info-row">
                     <div class="info-label">Clinical Notification Notes</div>
                     <div class="info-value">
-                        <i class="bi bi-sticky me-1 text-info"></i>
+                        <i class="bi bi-sticky me-1" style="color: var(--status-info);"></i>
                         @Model.Case.ClinicalNotificationNotes
                     </div>
                 </div>
@@ -993,13 +505,13 @@
                         switch (Model.Case.Hospitalised.Value)
                         {
                             case Sentinel.Models.YesNoUnknown.Yes:
-                                <span class="badge bg-danger">Yes</span>
+                                <span class="chip" style="background: var(--status-outbreak); color: white;">Yes</span>
                                 break;
                             case Sentinel.Models.YesNoUnknown.No:
-                                <span class="badge bg-success">No</span>
+                                <span class="chip chip-success">No</span>
                                 break;
                             case Sentinel.Models.YesNoUnknown.Unknown:
-                                <span class="badge bg-secondary">Unknown</span>
+                                <span class="chip chip-neutral">Unknown</span>
                                 break;
                         }
                     }
@@ -1016,7 +528,7 @@
                     <div class="info-row">
                         <div class="info-label">Hospital</div>
                         <div class="info-value">
-                            <i class="bi bi-hospital me-1 text-danger"></i>
+                            <i class="bi bi-hospital me-1" style="color: var(--status-outbreak);"></i>
                             @Model.Case.Hospital.Name
                         </div>
                     </div>
@@ -1026,7 +538,7 @@
                     <div class="info-row">
                         <div class="info-label">Date of Admission</div>
                         <div class="info-value">
-                            <i class="bi bi-calendar-plus me-1 text-danger"></i>
+                            <i class="bi bi-calendar-plus me-1" style="color: var(--status-outbreak);"></i>
                             @Model.Case.DateOfAdmission.Value.ToString("dd MMM yyyy")
                         </div>
                     </div>
@@ -1036,7 +548,7 @@
                     <div class="info-row">
                         <div class="info-label">Date of Discharge</div>
                         <div class="info-value">
-                            <i class="bi bi-calendar-minus me-1 text-success"></i>
+                            <i class="bi bi-calendar-minus me-1" style="color: var(--signal-dk);"></i>
                             @Model.Case.DateOfDischarge.Value.ToString("dd MMM yyyy")
                         </div>
                     </div>
@@ -1050,13 +562,13 @@
                         switch (Model.Case.DiedDueToDisease.Value)
                         {
                             case Sentinel.Models.YesNoUnknown.Yes:
-                                <span class="badge bg-dark">Yes</span>
+                                <span class="chip" style="background: var(--forest); color: white;">Yes</span>
                                 break;
                             case Sentinel.Models.YesNoUnknown.No:
-                                <span class="badge bg-success">No</span>
+                                <span class="chip chip-success">No</span>
                                 break;
                             case Sentinel.Models.YesNoUnknown.Unknown:
-                                <span class="badge bg-secondary">Unknown</span>
+                                <span class="chip chip-neutral">Unknown</span>
                                 break;
                         }
                     }
@@ -1150,11 +662,11 @@
                                                     {
                                                         if (boolVal)
                                                         {
-                                                            <span class="badge bg-success"><i class="bi bi-check-circle"></i> Yes</span>
+                                                            <span class="chip chip-success"><i class="bi bi-check-circle"></i> Yes</span>
                                                         }
                                                         else
                                                         {
-                                                            <span class="badge bg-secondary"><i class="bi bi-x-circle"></i> No</span>
+                                                            <span class="chip chip-neutral"><i class="bi bi-x-circle"></i> No</span>
                                                         }
                                                     }
                                                     else
@@ -1194,26 +706,27 @@
                     }
                 }
             }
-
+            </div>
         </div>
 
         <!-- LEFT COLUMN: Patient Information (stacked below Case) -->
         @if (Model.Case.Patient != null)
         {
-            <div class="info-card patient-info-card">
-                <div class="info-card-header">
-                    <h3 class="info-card-title">
-                        <i class="bi bi-person-badge"></i>
+            <div class="sentinel-card patient-info-card">
+                <div class="sentinel-card-header" style="display: flex; justify-content: space-between; align-items: center;">
+                    <h3 style="color: var(--forest); font-weight: 600; font-size: 1.125rem; margin: 0; font-family: var(--f-sans);">
+                        <i class="bi bi-person-badge" style="color: var(--signal-dk);"></i>
                         Patient Information
                     </h3>
-                    <a asp-page="/Patients/Details" asp-route-id="@Model.Case.PatientId" class="info-card-action">
+                    <a asp-page="/Patients/Details" asp-route-id="@Model.Case.PatientId" class="btn btn-sentinel-secondary btn-sm">
                         <i class="bi bi-eye"></i> View
                     </a>
                 </div>
+                <div class="sentinel-card-body">
                 <div class="info-row">
                     <div class="info-label">Patient ID</div>
                     <div class="info-value">
-                        <a asp-page="/Patients/Details" asp-route-id="@Model.Case.PatientId">
+                        <a asp-page="/Patients/Details" asp-route-id="@Model.Case.PatientId" style="color: var(--signal-dk); text-decoration: none; font-weight: 600;">
                             @Model.Case.Patient.FriendlyId
                         </a>
                     </div>
@@ -1246,42 +759,42 @@
                     var weeks = (int)((notificationDate - dob).TotalDays / 7);
 
                     string ageDisplay;
-                    string ageClass = "";
+                    string ageColor = "var(--forest)";
 
                     if (totalMonths < 4)
                     {
                         ageDisplay = $"{weeks} weeks";
-                        ageClass = "text-primary fw-bold";
+                        ageColor = "var(--signal-dk)";
                     }
                     else if (totalMonths < 24)
                     {
                         ageDisplay = $"{totalMonths} months";
-                        ageClass = "text-primary fw-bold";
+                        ageColor = "var(--signal-dk)";
                     }
                     else if (years < 5)
                     {
                         ageDisplay = months > 0 ? $"{years} years, {months} months" : $"{years} years";
-                        ageClass = "text-primary fw-bold";
+                        ageColor = "var(--signal-dk)";
                     }
                     else
                     {
                         ageDisplay = $"{years} years";
-                        if (years < 18) ageClass = "text-info fw-bold";
-                        else if (years > 65) ageClass = "text-warning fw-bold";
+                        if (years < 18) ageColor = "var(--status-info)";
+                        else if (years > 65) ageColor = "var(--status-watch)";
                     }
 
                     <div class="info-row">
                         <div class="info-label">Age at Notification</div>
                         <div class="info-value">
-                            <i class="bi bi-cake2 me-1"></i>
-                            <span class="@ageClass">@ageDisplay</span>
+                            <i class="bi bi-cake2 me-1" style="color: var(--signal-dk);"></i>
+                            <span style="color: @ageColor; font-weight: 600;">@ageDisplay</span>
                             @if (years < 18)
                             {
-                                <span class="badge bg-info ms-2" style="font-size: 0.65rem;">Child</span>
+                                <span class="chip chip-info ms-2" style="font-size: 0.65rem;">Child</span>
                             }
                             else if (years > 65)
                             {
-                                <span class="badge bg-warning text-dark ms-2" style="font-size: 0.65rem;">Elderly</span>
+                                <span class="chip ms-2" style="background: var(--status-watch); color: var(--forest); font-size: 0.65rem;">Elderly</span>
                             }
                         </div>
                     </div>
@@ -1295,7 +808,7 @@
                     <div class="info-value">
                         @if (!string.IsNullOrWhiteSpace(Model.Case.Patient.EmailAddress))
                         {
-                            <a href="mailto:@Model.Case.Patient.EmailAddress">
+                            <a href="mailto:@Model.Case.Patient.EmailAddress" style="color: var(--signal-dk); text-decoration: none;">
                                 <i class="bi bi-envelope me-1"></i>@Model.Case.Patient.EmailAddress
                             </a>
                         }
@@ -1310,7 +823,7 @@
                     <div class="info-value">
                         @if (!string.IsNullOrWhiteSpace(Model.Case.Patient.MobilePhone))
                         {
-                            <a href="tel:@Model.Case.Patient.MobilePhone">
+                            <a href="tel:@Model.Case.Patient.MobilePhone" style="color: var(--signal-dk); text-decoration: none;">
                                 <i class="bi bi-phone me-1"></i>@Model.Case.Patient.MobilePhone
                             </a>
                         }
@@ -1325,7 +838,7 @@
                     <div class="info-value">
                         @if (Model.Case.Patient.IsDeceased)
                         {
-                            <span class="badge bg-dark">Yes</span>
+                            <span class="chip" style="background: var(--forest); color: white;">Yes</span>
                             if (Model.Case.Patient.DateOfDeath.HasValue)
                             {
                                 <br />
@@ -1335,27 +848,30 @@
                         }
                         else
                         {
-                            <span class="badge bg-success">No</span>
+                            <span class="chip chip-success">No</span>
                         }
                     </div>
                 </div>
             </div>
+            </div>
         }
 
         <!-- LEFT COLUMN: Symptoms (stacked below Patient) -->
-        <div class="info-card symptoms-card">
-            <div class="info-card-header">
-                <h3 class="info-card-title">
-                    <i class="bi bi-heart-pulse"></i>
+        <div class="sentinel-card symptoms-card">
+            <div class="sentinel-card-header" style="display: flex; justify-content: space-between; align-items: center;">
+                <h3 style="color: var(--forest); font-weight: 600; font-size: 1.125rem; margin: 0; font-family: var(--f-sans);">
+                    <i class="bi bi-heart-pulse" style="color: var(--signal-dk);"></i>
                     Symptoms (@Model.CaseSymptoms.Count)
                 </h3>
-                <a asp-page="./Edit" asp-route-id="@Model.Case.Id" class="info-card-action">
+                <a asp-page="./Edit" asp-route-id="@Model.Case.Id" class="btn btn-sentinel-secondary btn-sm">
                     <i class="bi bi-pencil"></i> Edit
                 </a>
             </div>
+            <div class="sentinel-card-body">
             @if (Model.CaseSymptoms.Any())
             {
-                <table class="compact-table w-100">
+                <div class="table-responsive">
+                <table class="patient-table w-100">
                     <thead>
                         <tr>
                             <th>Symptom</th>
@@ -1389,14 +905,14 @@
                                 <td>
                                     @if (!string.IsNullOrEmpty(symptom.Severity))
                                     {
-                                        var severityClass = symptom.Severity.ToLower() switch
+                                        var severityChip = symptom.Severity.ToLower() switch
                                         {
-                                            "mild" => "bg-success",
-                                            "moderate" => "bg-warning",
-                                            "severe" => "bg-danger",
-                                            _ => "bg-secondary"
+                                            "mild" => "chip-success",
+                                            "moderate" => "chip" + " style=\"background: var(--status-watch); color: var(--forest);\"",
+                                            "severe" => "chip" + " style=\"background: var(--status-outbreak); color: white;\"",
+                                            _ => "chip-neutral"
                                         };
-                                        <span class="badge @severityClass">@symptom.Severity</span>
+                                        <span class="@severityChip">@symptom.Severity</span>
                                     }
                                     else
                                     {
@@ -1407,45 +923,49 @@
                         }
                     </tbody>
                 </table>
+                </div>
 
-                if (Model.CaseSymptoms.Any(cs => cs.OnsetDate.HasValue))
+                @if (Model.CaseSymptoms.Any(cs => cs.OnsetDate.HasValue))
                 {
                     var earliestOnset = Model.CaseSymptoms.Where(cs => cs.OnsetDate.HasValue).Min(cs => cs.OnsetDate!.Value);
-                    <div class="alert alert-info mt-3 mb-0" style="padding: 0.5rem 0.75rem; font-size: 0.75rem;">
-                        <i class="bi bi-info-circle me-1"></i>
+                    <div style="margin-top: var(--spacing-3); padding: var(--spacing-2) var(--spacing-3); background: var(--signal-lt); border-left: 3px solid var(--status-info); border-radius: 6px; font-size: 0.75rem;">
+                        <i class="bi bi-info-circle me-1" style="color: var(--status-info);"></i>
                         <strong>Earliest onset:</strong> @earliestOnset.ToString("dd MMM yyyy")
                     </div>
                 }
             }
             else
             {
-                <div class="empty-state">
-                    <i class="bi bi-heart-pulse"></i>
-                    <p>No symptoms recorded</p>
-                    <a asp-page="./Edit" asp-route-id="@Model.Case.Id" class="info-card-action">Add Symptoms</a>
+                <div style="text-align: center; padding: var(--spacing-5) var(--spacing-3); color: var(--graphite);">
+                    <i class="bi bi-heart-pulse" style="font-size: 2.5rem; color: var(--hairline); margin-bottom: var(--spacing-3); display: block;"></i>
+                    <p style="margin: var(--spacing-2) 0; font-size: 0.875rem;">No symptoms recorded</p>
+                    <a asp-page="./Edit" asp-route-id="@Model.Case.Id" class="btn btn-sentinel-secondary btn-sm" style="margin-top: var(--spacing-2);">Add Symptoms</a>
                 </div>
             }
+            </div>
         </div>
 
         <!-- RIGHT SIDE (2 columns): Lab Results - Wide and Half Height -->
-        <div class="info-card wide half-height lab-results-card">
-            <div class="info-card-header">
-                <h3 class="info-card-title">
-                    <i class="bi bi-clipboard-pulse"></i>
+        <div class="sentinel-card wide half-height lab-results-card">
+            <div class="sentinel-card-header" style="display: flex; justify-content: space-between; align-items: center;">
+                <h3 style="color: var(--forest); font-weight: 600; font-size: 1.125rem; margin: 0; font-family: var(--f-sans);">
+                    <i class="bi bi-clipboard-pulse" style="color: var(--signal-dk);"></i>
                     Lab Results (@Model.LabResults.Count)
                 </h3>
                 <div class="d-flex gap-2">
-                    <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#viewAllLabResultsModal">
+                    <button type="button" class="btn btn-sentinel-primary btn-sm" data-bs-toggle="modal" data-bs-target="#viewAllLabResultsModal">
                         <i class="bi bi-list-ul"></i> View All
                     </button>
-                    <button type="button" class="info-card-action" onclick="openAddLabResult()">
+                    <button type="button" class="btn btn-sentinel-secondary btn-sm" onclick="openAddLabResult()">
                         <i class="bi bi-plus-circle"></i> Add
                     </button>
                 </div>
             </div>
+            <div class="sentinel-card-body">
             @if (Model.LabResults.Any())
             {
-                <table class="compact-table w-100">
+                <div class="table-responsive">
+                <table class="patient-table w-100">
                     <thead>
                         <tr>
                             <th style="width: 25%;">Test / Specimen</th>
@@ -1467,7 +987,7 @@
                                     {
                                         <br />
 
-                                        <span class="badge bg-warning text-dark" style="font-size: 0.6rem;"><i class="bi bi-pencil-square"></i> Amended</span>
+                                        <span class="chip" style="background: var(--status-watch); color: var(--forest); font-size: 0.6rem; padding: 0.15rem 0.4rem;"><i class="bi bi-pencil-square"></i> Amended</span>
                                     }
                                 </td>
                                 <td>
@@ -1483,14 +1003,14 @@
                                 <td>
                                     @if (labResult.TestResult != null)
                                     {
-                                        var resultClass = labResult.TestResult.Name?.ToLower() switch
+                                        var resultStyle = labResult.TestResult.Name?.ToLower() switch
                                         {
-                                            "positive" => "bg-danger",
-                                            "negative" => "bg-success",
-                                            "indeterminate" or "equivocal" => "bg-warning",
-                                            _ => "bg-secondary"
+                                            "positive" => "background: var(--status-outbreak); color: white;",
+                                            "negative" => "background: var(--status-clear); color: var(--forest);",
+                                            "indeterminate" or "equivocal" => "background: var(--status-watch); color: var(--forest);",
+                                            _ => "background: var(--slate); color: white;"
                                         };
-                                        <span class="badge @resultClass" style="font-size: 0.7rem;">@labResult.TestResult.Name</span>
+                                        <span class="chip" style="@resultStyle font-size: 0.7rem;">@labResult.TestResult.Name</span>
                                     }
                                     else
                                     {
@@ -1518,7 +1038,7 @@
                                     }
                                 </td>
                                 <td class="text-end">
-                                    <button type="button" class="btn btn-sm btn-link p-0" onclick="window.viewLabResult('@labResult.Id')" title="View Details">
+                                    <button type="button" class="btn btn-sm btn-link p-0" onclick="window.viewLabResult('@labResult.Id')" title="View Details" style="color: var(--signal-dk);">
                                         <i class="bi bi-eye"></i>
                                     </button>
                                 </td>
@@ -1526,11 +1046,12 @@
                         }
                     </tbody>
                 </table>
-                if (Model.LabResults.Count > 5)
+                </div>
+                @if (Model.LabResults.Count > 5)
                 {
-                    <div class="text-center mt-2">
+                    <div class="text-center" style="margin-top: var(--spacing-2);">
                         <small class="text-muted">Showing 5 of @Model.LabResults.Count lab results</small>
-                        <button type="button" class="btn btn-sm btn-link p-0 ms-2" data-bs-toggle="modal" data-bs-target="#viewAllLabResultsModal">
+                        <button type="button" class="btn btn-sm btn-link p-0 ms-2" data-bs-toggle="modal" data-bs-target="#viewAllLabResultsModal" style="color: var(--signal-dk);">
                             <i class="bi bi-arrows-angle-expand"></i> View All
                         </button>
                     </div>
@@ -1538,19 +1059,20 @@
             }
             else
             {
-                <div class="empty-state">
-                    <i class="bi bi-clipboard-pulse"></i>
-                    <p>No lab results yet</p>
-                    <button type="button" class="info-card-action" onclick="openAddLabResult()">Add Lab Result</button>
+                <div style="text-align: center; padding: var(--spacing-6) var(--spacing-4);">
+                    <i class="bi bi-clipboard-pulse" style="font-size: 3rem; color: var(--hairline); display: block; margin-bottom: var(--spacing-3);"></i>
+                    <p style="color: var(--graphite); margin-bottom: var(--spacing-3);">No lab results yet</p>
+                    <button type="button" class="btn btn-sentinel-secondary btn-sm" onclick="openAddLabResult()">Add Lab Result</button>
                 </div>
             }
+            </div>
         </div>
 
         <!-- RIGHT SIDE: Acquisitions (How THIS case was exposed) -->
-        <div class="info-card acquisitions-card">
-            <div class="info-card-header">
-                <h3 class="info-card-title">
-                    <i class="bi bi-arrow-down-circle"></i>
+        <div class="sentinel-card acquisitions-card">
+            <div class="sentinel-card-header" style="display: flex; justify-content: space-between; align-items: center;">
+                <h3 style="color: var(--forest); font-weight: 600; font-size: 1.125rem; margin: 0; font-family: var(--f-sans);">
+                    <i class="bi bi-arrow-down-circle" style="color: var(--signal-dk);"></i>
                     Acquisitions (@Model.Acquisitions.Count)
                 </h3>
                 <div class="d-flex gap-2">
@@ -1562,18 +1084,20 @@
                            asp-route-exposureId="@firstExposure!.Id"
                            asp-route-locationId="@firstExposure.LocationId"
                            asp-route-eventId="@firstExposure.EventId"
-                           class="btn btn-sm btn-outline-purple" title="Create Outbreak from this exposure">
+                           class="btn btn-sentinel-primary btn-sm" title="Create Outbreak from this exposure">
                             <i class="bi bi-diagram-3"></i> Create Outbreak
                         </a>
                     }
-                    <button type="button" class="info-card-action" onclick="openAddExposure()">
+                    <button type="button" class="btn btn-sentinel-secondary btn-sm" onclick="openAddExposure()">
                         <i class="bi bi-plus-circle"></i> Add
                     </button>
                 </div>
             </div>
+            <div class="sentinel-card-body">
             @if (Model.Acquisitions.Any())
             {
-                <table class="table table-sm table-hover">
+                <div class="table-responsive">
+                <table class="patient-table w-100">
                     <thead>
                         <tr>
                             <th style="width: 120px;">Type</th>
@@ -1591,22 +1115,22 @@
                                     @switch (exposure.ExposureType)
                                     {
                                         case Sentinel.Models.ExposureType.Event:
-                                            <span class="badge badge-teal"><i class="bi bi-calendar-event"></i> Event</span>
+                                            <span class="chip chip-success"><i class="bi bi-calendar-event"></i> Event</span>
                                             break;
                                         case Sentinel.Models.ExposureType.Location:
-                                            <span class="badge badge-slate"><i class="bi bi-geo-alt"></i> Location</span>
+                                            <span class="chip" style="background: var(--slate); color: white;"><i class="bi bi-geo-alt"></i> Location</span>
                                             break;
                                         case Sentinel.Models.ExposureType.Contact:
-                                            <span class="badge badge-amber"><i class="bi bi-people"></i> Contact</span>
+                                            <span class="chip" style="background: var(--status-watch); color: var(--forest);"><i class="bi bi-people"></i> Contact</span>
                                             break;
                                         case Sentinel.Models.ExposureType.Travel:
-                                            <span class="badge badge-grey"><i class="bi bi-airplane"></i> Travel</span>
+                                            <span class="chip" style="background: var(--graphite); color: white;"><i class="bi bi-airplane"></i> Travel</span>
                                             break;
                                         case Sentinel.Models.ExposureType.LocallyAcquired:
-                                            <span class="badge badge-teal"><i class="bi bi-house"></i> Locally Acquired</span>
+                                            <span class="chip chip-success"><i class="bi bi-house"></i> Locally Acquired</span>
                                             break;
                                         default:
-                                            <span class="badge badge-grey">Unknown</span>
+                                            <span class="chip chip-neutral">Unknown</span>
                                             break;
                                     }
                                 </td>
@@ -1630,13 +1154,13 @@
                                                     </a>
                                                 </strong>
                                             </div>
-                                            if (exposure.Location != null)
+                                            @if (exposure.Location != null)
                                             {
                                                 <div class="text-muted">
                                                     <i class="bi bi-geo-alt"></i> At: <a asp-page="/Locations/Details" asp-route-id="@exposure.Location.Id">@exposure.Location.Name</a>
                                                 </div>
                                             }
-                                            if (exposure.Event != null)
+                                            @if (exposure.Event != null)
                                             {
                                                 <div class="text-muted">
                                                     <i class="bi bi-calendar-event"></i> At: <a asp-page="/Events/Details" asp-route-id="@exposure.Event.Id">@exposure.Event.Name</a>
@@ -1655,7 +1179,7 @@
                                         @* For Travel exposures, show country *@
                                         else if (exposure.ExposureType == Sentinel.Models.ExposureType.Travel)
                                         {
-                                            if (!string.IsNullOrEmpty(exposure.Country))
+                                            @if (!string.IsNullOrEmpty(exposure.Country))
                                             {
                                                 <div><i class="bi bi-airplane"></i> @exposure.Country</div>
                                             }
@@ -1675,7 +1199,7 @@
                                         @* Fallback for other exposure types *@
                                         else if (exposure.ExposureType == Sentinel.Models.ExposureType.LocallyAcquired)
                                         {
-                                            if (!string.IsNullOrEmpty(exposure.AddressLine))
+                                            @if (!string.IsNullOrEmpty(exposure.AddressLine))
                                             {
                                                 <text>@exposure.AddressLine, @exposure.City</text>
                                             }
@@ -1699,28 +1223,28 @@
                                     @switch (exposure.ExposureStatus)
                                     {
                                         case Sentinel.Models.ExposureStatus.ConfirmedExposure:
-                                            <span class="badge bg-danger">Confirmed</span>
+                                            <span class="chip" style="background: var(--status-outbreak); color: white;">Confirmed</span>
                                             break;
                                         case Sentinel.Models.ExposureStatus.UnderInvestigation:
-                                            <span class="badge bg-warning">Investigating</span>
+                                            <span class="chip" style="background: var(--status-watch); color: var(--forest);">Investigating</span>
                                             break;
                                         case Sentinel.Models.ExposureStatus.PotentialExposure:
-                                            <span class="badge bg-info">Potential</span>
+                                            <span class="chip" style="background: var(--status-info); color: white;">Potential</span>
                                             break;
                                         case Sentinel.Models.ExposureStatus.RuledOut:
-                                            <span class="badge bg-success">Ruled Out</span>
+                                            <span class="chip" style="background: var(--status-clear); color: var(--forest);">Ruled Out</span>
                                             break;
                                         default:
-                                            <span class="badge bg-secondary">Unknown</span>
+                                            <span class="chip chip-neutral">Unknown</span>
                                             break;
                                     }
                                 </td>
                                 <td class="text-end">
-                                    <button type="button" class="btn btn-sm btn-link p-0 text-primary" onclick="openEditExposure('@exposure.Id')" title="Edit Exposure">
+                                    <button type="button" class="btn btn-sm btn-link p-0" onclick="openEditExposure('@exposure.Id')" title="Edit Exposure" style="color: var(--signal-dk);">
                                         <i class="bi bi-pencil"></i>
                                     </button>
                                     <form method="post" asp-page-handler="DeleteExposure" asp-route-id="@Model.Case.Id" asp-route-exposureId="@exposure.Id" class="d-inline" onsubmit="return confirm('Are you sure you want to delete this exposure?');">
-                                        <button type="submit" class="btn btn-sm btn-link p-0 text-danger" title="Delete Exposure">
+                                        <button type="submit" class="btn btn-sm btn-link p-0" title="Delete Exposure" style="color: var(--status-outbreak);">
                                             <i class="bi bi-trash"></i>
                                         </button>
                                     </form>
@@ -1729,11 +1253,12 @@
                         }
                     </tbody>
                 </table>
-                if (Model.Acquisitions.Count > 5)
+                </div>
+                @if (Model.Acquisitions.Count > 5)
                 {
-                    <div class="text-center mt-2">
+                    <div class="text-center" style="margin-top: var(--spacing-2);">
                         <small class="text-muted">Showing 5 of @Model.Acquisitions.Count exposures</small>
-                        <button type="button" class="btn btn-sm btn-link p-0 ms-2" data-bs-toggle="modal" data-bs-target="#viewAllExposuresModal">
+                        <button type="button" class="btn btn-sm btn-link p-0 ms-2" data-bs-toggle="modal" data-bs-target="#viewAllExposuresModal" style="color: var(--signal-dk);">
                             <i class="bi bi-arrows-angle-expand"></i> View All
                         </button>
                     </div>
@@ -1741,48 +1266,58 @@
             }
             else
             {
-                <div class="empty-state">
-                    <i class="bi bi-diagram-3"></i>
-                    <p>No exposures recorded</p>
-                    <button type="button" class="info-card-action" onclick="openAddExposure()">Add Exposure</button>
+                <div style="text-align: center; padding: var(--spacing-6) var(--spacing-4);">
+                    <i class="bi bi-diagram-3" style="font-size: 3rem; color: var(--hairline); display: block; margin-bottom: var(--spacing-3);"></i>
+                    <p style="color: var(--graphite); margin-bottom: var(--spacing-3);">No exposures recorded</p>
+                    <div class="btn-group" role="group">
+                        <a asp-page="/Cases/Exposures/NaturalEntry" asp-route-caseId="@Model.Case.Id" class="btn btn-sentinel-primary btn-sm">
+                            <i class="bi bi-calendar-week me-1"></i>Natural Entry
+                        </a>
+                        <button type="button" class="btn btn-sentinel-secondary btn-sm" onclick="openAddExposure()">
+                            <i class="bi bi-ui-checks me-1"></i>Traditional Form
+                        </button>
+                    </div>
                 </div>
             }
+            </div>
         </div>
 
         <!-- RIGHT SIDE: Transmissions (Who THIS case exposed) -->
-        <div class="info-card transmissions-card">
-            <div class="info-card-header">
-                <h3 class="info-card-title">
-                    <i class="bi bi-arrow-up-circle"></i>
+        <div class="sentinel-card transmissions-card">
+            <div class="sentinel-card-header" style="display: flex; justify-content: space-between; align-items: center;">
+                <h3 style="color: var(--forest); font-weight: 600; font-size: 1.125rem; margin: 0; font-family: var(--f-sans);">
+                    <i class="bi bi-arrow-up-circle" style="color: var(--signal-dk);"></i>
                     Transmissions (@Model.Transmissions.Count)
                 </h3>
                 <div class="d-flex gap-1">
                     <a asp-page="/Outbreaks/CreateFromExposure"
                        asp-route-caseId="@Model.Case.Id"
-                       class="btn btn-sm btn-outline-danger"
+                       class="btn btn-sentinel-primary btn-sm"
                        title="Create Contact Tracing Event">
                         <i class="bi bi-diagram-3"></i>
                     </a>
                     <a asp-page="/Cases/Contacts/BulkCreate"
                        asp-route-caseId="@Model.Case.Id"
-                       class="btn btn-sm btn-outline-primary"
+                       class="btn btn-sentinel-primary btn-sm"
                        title="Bulk Add Contacts">
                         <i class="bi bi-people-fill"></i>
                     </a>
                     @if (Model.Transmissions.Count > 5)
                     {
-                        <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#viewAllTransmissionsModal" title="View All">
+                        <button type="button" class="btn btn-sentinel-secondary btn-sm" data-bs-toggle="modal" data-bs-target="#viewAllTransmissionsModal" title="View All">
                             <i class="bi bi-list-ul"></i>
                         </button>
                     }
-                    <button type="button" class="btn btn-sm btn-outline-success" onclick="openAddExposure()" title="Add Exposure">
+                    <button type="button" class="btn btn-sentinel-secondary btn-sm" onclick="openAddExposure()" title="Add Exposure">
                         <i class="bi bi-plus-circle"></i>
                     </button>
                 </div>
             </div>
+            <div class="sentinel-card-body">
             @if (Model.Transmissions.Any())
             {
-                <table class="table table-sm table-hover">
+                <div class="table-responsive">
+                <table class="patient-table w-100">
                     <thead>
                         <tr>
                             <th style="width: 120px;">Type</th>
@@ -1800,22 +1335,22 @@
                                     @switch (exposure.ExposureType)
                                     {
                                         case Sentinel.Models.ExposureType.Event:
-                                            <span class="badge badge-teal"><i class="bi bi-calendar-event"></i> Event</span>
+                                            <span class="chip chip-success"><i class="bi bi-calendar-event"></i> Event</span>
                                             break;
                                         case Sentinel.Models.ExposureType.Location:
-                                            <span class="badge badge-slate"><i class="bi bi-geo-alt"></i> Location</span>
+                                            <span class="chip" style="background: var(--slate); color: white;"><i class="bi bi-geo-alt"></i> Location</span>
                                             break;
                                         case Sentinel.Models.ExposureType.Contact:
-                                            <span class="badge badge-amber"><i class="bi bi-people"></i> Contact</span>
+                                            <span class="chip" style="background: var(--status-watch); color: var(--forest);"><i class="bi bi-people"></i> Contact</span>
                                             break;
                                         case Sentinel.Models.ExposureType.Travel:
-                                            <span class="badge badge-grey"><i class="bi bi-airplane"></i> Travel</span>
+                                            <span class="chip" style="background: var(--graphite); color: white;"><i class="bi bi-airplane"></i> Travel</span>
                                             break;
                                         case Sentinel.Models.ExposureType.LocallyAcquired:
-                                            <span class="badge badge-teal"><i class="bi bi-house"></i> Locally Acquired</span>
+                                            <span class="chip chip-success"><i class="bi bi-house"></i> Locally Acquired</span>
                                             break;
                                         default:
-                                            <span class="badge badge-grey">Unknown</span>
+                                            <span class="chip chip-neutral">Unknown</span>
                                             break;
                                     }
                                 </td>
@@ -1839,13 +1374,13 @@
                                                     </a>
                                                 </strong>
                                             </div>
-                                            if (exposure.Location != null)
+                                            @if (exposure.Location != null)
                                             {
                                                 <div class="text-muted">
                                                     <i class="bi bi-geo-alt"></i> At: <a asp-page="/Locations/Details" asp-route-id="@exposure.Location.Id">@exposure.Location?.Name</a>
                                                 </div>
                                             }
-                                            if (exposure.Event != null)
+                                            @if (exposure.Event != null)
                                             {
                                                 <div class="text-muted">
                                                     <i class="bi bi-calendar-event"></i> At: <a asp-page="/Events/Details" asp-route-id="@exposure.Event.Id">@exposure.Event?.Name</a>
@@ -1859,7 +1394,7 @@
                                                 <i class="bi bi-calendar-event"></i>
                                                 <a asp-page="/Events/Details" asp-route-id="@exposure.Event.Id">@exposure.Event.Name</a>
                                             </div>
-                                            if (exposure.Event.Location != null)
+                                            @if (exposure.Event.Location != null)
                                             {
                                                 <div class="text-muted">
                                                     <i class="bi bi-geo-alt"></i> At: @exposure.Event.Location.Name
@@ -1877,7 +1412,7 @@
                                         @* For Travel exposures *@
                                         else if (exposure.ExposureType == Sentinel.Models.ExposureType.Travel)
                                         {
-                                            if (!string.IsNullOrEmpty(exposure.Country))
+                                            @if (!string.IsNullOrEmpty(exposure.Country))
                                             {
                                                 <div><i class="bi bi-airplane"></i> @exposure.Country</div>
                                             }
@@ -1905,19 +1440,19 @@
                                     @switch (exposure.ExposureStatus)
                                     {
                                         case Sentinel.Models.ExposureStatus.ConfirmedExposure:
-                                            <span class="badge bg-danger">Confirmed</span>
+                                            <span class="chip" style="background: var(--status-outbreak); color: white;">Confirmed</span>
                                             break;
                                         case Sentinel.Models.ExposureStatus.UnderInvestigation:
-                                            <span class="badge bg-warning">Investigating</span>
+                                            <span class="chip" style="background: var(--status-watch); color: var(--forest);">Investigating</span>
                                             break;
                                         case Sentinel.Models.ExposureStatus.PotentialExposure:
-                                            <span class="badge bg-info">Potential</span>
+                                            <span class="chip" style="background: var(--status-info); color: white;">Potential</span>
                                             break;
                                         case Sentinel.Models.ExposureStatus.RuledOut:
-                                            <span class="badge bg-success">Ruled Out</span>
+                                            <span class="chip" style="background: var(--status-clear); color: var(--forest);">Ruled Out</span>
                                             break;
                                         default:
-                                            <span class="badge bg-secondary">Unknown</span>
+                                            <span class="chip chip-neutral">Unknown</span>
                                             break;
                                     }
                                 </td>
@@ -1930,16 +1465,17 @@
                                            asp-route-eventId="@exposure.EventId"
                                            asp-route-exposureStartDate="@exposure.ExposureStartDate.ToString("o")"
                                            asp-route-exposureEndDate="@exposure.ExposureEndDate?.ToString("o")"
-                                           class="btn btn-sm btn-link p-0 text-info me-1"
+                                           class="btn btn-sm btn-link p-0 me-1"
+                                           style="color: var(--status-info);"
                                            title="Bulk Add Contacts for this exposure">
                                             <i class="bi bi-people-fill"></i>
                                         </a>
                                     }
-                                    <button type="button" class="btn btn-sm btn-link p-0 text-primary" onclick="openEditExposure('@exposure.Id')" title="Edit Exposure">
+                                    <button type="button" class="btn btn-sm btn-link p-0" style="color: var(--signal-dk);" onclick="openEditExposure('@exposure.Id')" title="Edit Exposure">
                                         <i class="bi bi-pencil"></i>
                                     </button>
                                     <form method="post" asp-page-handler="DeleteExposure" asp-route-id="@Model.Case.Id" asp-route-exposureId="@exposure.Id" class="d-inline" onsubmit="return confirm('Are you sure you want to delete this exposure?');">
-                                        <button type="submit" class="btn btn-sm btn-link p-0 text-danger" title="Delete Exposure">
+                                        <button type="submit" class="btn btn-sm btn-link p-0" style="color: var(--status-outbreak);" title="Delete Exposure">
                                             <i class="bi bi-trash"></i>
                                         </button>
                                     </form>
@@ -1948,11 +1484,12 @@
                         }
                     </tbody>
                 </table>
-                if (Model.Transmissions.Count > 5)
+                </div>
+                @if (Model.Transmissions.Count > 5)
                 {
-                    <div class="text-center mt-2">
+                    <div class="text-center" style="margin-top: var(--spacing-2);">
                         <small class="text-muted">Showing 5 of @Model.Transmissions.Count transmissions</small>
-                        <button type="button" class="btn btn-sm btn-link p-0 ms-2" data-bs-toggle="modal" data-bs-target="#viewAllTransmissionsModal">
+                        <button type="button" class="btn btn-sm btn-link p-0 ms-2" style="color: var(--signal-dk);" data-bs-toggle="modal" data-bs-target="#viewAllTransmissionsModal">
                             <i class="bi bi-arrows-angle-expand"></i> View All
                         </button>
                     </div>
@@ -1960,38 +1497,41 @@
             }
             else
             {
-                <div class="empty-state">
-                    <i class="bi bi-diagram-3"></i>
-                    <p>No transmissions recorded</p>
-                    <small class="text-muted d-block mt-2">
+                <div style="text-align: center; padding: var(--spacing-6) var(--spacing-4);">
+                    <i class="bi bi-diagram-3" style="font-size: 3rem; color: var(--hairline); display: block; margin-bottom: var(--spacing-3);"></i>
+                    <p style="color: var(--graphite); margin-bottom: var(--spacing-2);">No transmissions recorded</p>
+                    <small class="text-muted d-block" style="margin-top: var(--spacing-2);">
                         <i class="bi bi-lightbulb"></i> Tip: After adding exposures with contacts, use "Create Contact Tracing Event" to manage multiple contacts as a unified investigation
                     </small>
                 </div>
             }
+            </div>
         </div>
 
         <!-- Tasks Section - Wide -->
-        <div class="info-card wide tasks-card">
-            <div class="info-card-header">
-                <h3 class="info-card-title">
-                    <i class="bi bi-list-check"></i>
+        <div class="sentinel-card wide tasks-card">
+            <div class="sentinel-card-header" style="display: flex; justify-content: space-between; align-items: center;">
+                <h3 style="color: var(--forest); font-weight: 600; font-size: 1.125rem; margin: 0; font-family: var(--f-sans);">
+                    <i class="bi bi-list-check" style="color: var(--signal-dk);"></i>
                     Tasks (@Model.Tasks.Count)
                 </h3>
                 <div class="d-flex gap-2">
                     @if (Model.Tasks.Count > 5)
                     {
-                        <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#viewAllTasksModal">
+                        <button type="button" class="btn btn-sentinel-primary btn-sm" data-bs-toggle="modal" data-bs-target="#viewAllTasksModal">
                             <i class="bi bi-list-ul"></i> View All
                         </button>
                     }
-                    <button type="button" class="info-card-action" onclick="openAddTask()">
+                    <button type="button" class="btn btn-sentinel-secondary btn-sm" onclick="openAddTask()">
                         <i class="bi bi-plus-circle"></i> Add
                     </button>
                 </div>
             </div>
+            <div class="sentinel-card-body">
             @if (Model.Tasks.Any())
             {
-                <table class="table table-sm table-hover">
+                <div class="table-responsive">
+                <table class="patient-table w-100">
                     <thead>
                         <tr>
                             <th>Task</th>
@@ -2018,13 +1558,13 @@
                                     @if (task.CallAttempts?.Any() == true)
                                     {
                                         <br />
-                                        <span class="badge bg-info" style="font-size: 0.65rem;">
+                                        <span class="chip" style="background: var(--status-info); color: white; font-size: 0.65rem;">
                                             <i class="bi bi-telephone"></i> @task.CallAttempts.Count call(s)
                                         </span>
                                         <button type="button" class="btn btn-sm btn-link p-0 ms-1"
                                                 onclick="showCallHistory('@task.Id')"
                                                 title="View Call History"
-                                                style="font-size: 0.7rem;">
+                                                style="font-size: 0.7rem; color: var(--signal-dk);">
                                             <i class="bi bi-clock-history"></i>
                                         </button>
                                     }
@@ -2061,26 +1601,26 @@
                                 </td>
                                 <td>
                                     @{
-                                        var priorityClass = task.Priority switch
+                                        var priorityStyle = task.Priority switch
                                         {
-                                            TaskPriority.Low => "badge-grey",
-                                            TaskPriority.Medium => "badge-slate",
-                                            TaskPriority.High => "badge-amber",
-                                            TaskPriority.Urgent => "bg-danger",
-                                            _ => "badge-grey"
+                                            TaskPriority.Low => "background: var(--graphite); color: white;",
+                                            TaskPriority.Medium => "background: var(--slate); color: white;",
+                                            TaskPriority.High => "background: var(--status-watch); color: var(--forest);",
+                                            TaskPriority.Urgent => "background: var(--status-outbreak); color: white;",
+                                            _ => "background: var(--graphite); color: white;"
                                         };
                                     }
-                                    <span class="badge @priorityClass">@task.Priority</span>
+                                    <span class="chip" style="@priorityStyle">@task.Priority</span>
                                 </td>
                                 <td>
                                     @if (task.DueDate.HasValue)
                                     {
                                         <small>@task.DueDate.Value.ToString("dd MMM")</small>
-                                        if (task.Status == CaseTaskStatus.Overdue)
+                                        @if (task.Status == CaseTaskStatus.Overdue)
                                         {
                                             <br />
 
-                                            <span class="badge bg-danger" style="font-size: 0.65rem;">Overdue</span>
+                                            <span class="chip" style="background: var(--status-outbreak); color: white; font-size: 0.65rem;">Overdue</span>
                                         }
                                     }
                                     else
@@ -2090,18 +1630,18 @@
                                 </td>
                                 <td>
                                     @{
-                                        var statusClass = task.Status switch
+                                        var statusStyle = task.Status switch
                                         {
-                                            CaseTaskStatus.Pending => "badge-grey",
-                                            CaseTaskStatus.InProgress => "badge-teal",
-                                            CaseTaskStatus.Completed => "bg-success",
-                                            CaseTaskStatus.Cancelled => "bg-dark",
-                                            CaseTaskStatus.Overdue => "bg-danger",
-                                            CaseTaskStatus.WaitingForPatient => "badge-amber",
-                                            _ => "badge-grey"
+                                            CaseTaskStatus.Pending => "background: var(--graphite); color: white;",
+                                            CaseTaskStatus.InProgress => "background: var(--signal); color: var(--forest);",
+                                            CaseTaskStatus.Completed => "background: var(--status-clear); color: var(--forest);",
+                                            CaseTaskStatus.Cancelled => "background: var(--graphite); color: white;",
+                                            CaseTaskStatus.Overdue => "background: var(--status-outbreak); color: white;",
+                                            CaseTaskStatus.WaitingForPatient => "background: var(--status-watch); color: var(--forest);",
+                                            _ => "background: var(--graphite); color: white;"
                                         };
                                     }
-                                    <span class="badge @statusClass">@task.Status</span>
+                                    <span class="chip" style="@statusStyle">@task.Status</span>
                                 </td>
                                 <td class="text-end">
                                     @{
@@ -2118,7 +1658,7 @@
                                     }
                                     else if (task.Status != CaseTaskStatus.Completed && task.Status != CaseTaskStatus.Cancelled)
                                     {
-                                        if (hasSurvey)
+                                        @if (hasSurvey)
                                         {
                                             <a asp-page="/Tasks/CompleteSurvey" asp-route-id="@task.Id" class="btn btn-sm btn-link p-0 me-1" title="Complete Survey">
                                                 <i class="bi bi-clipboard-check"></i>
@@ -2136,11 +1676,12 @@
                         }
                     </tbody>
                 </table>
-                if (Model.Tasks.Count > 5)
+                </div>
+                @if (Model.Tasks.Count > 5)
                 {
-                    <div class="text-center mt-2">
+                    <div class="text-center" style="margin-top: var(--spacing-2);">
                         <small class="text-muted">Showing 5 of @Model.Tasks.Count tasks</small>
-                        <button type="button" class="btn btn-sm btn-link p-0 ms-2" data-bs-toggle="modal" data-bs-target="#viewAllTasksModal">
+                        <button type="button" class="btn btn-sm btn-link p-0 ms-2" style="color: var(--signal-dk);" data-bs-toggle="modal" data-bs-target="#viewAllTasksModal">
                             <i class="bi bi-arrows-angle-expand"></i> View All
                         </button>
                     </div>
@@ -2148,26 +1689,27 @@
             }
             else
             {
-                <div class="empty-state">
-                    <i class="bi bi-list-check"></i>
-                    <p>No tasks yet</p>
-                    <button type="button" class="info-card-action" onclick="openAddTask()">Add Task</button>
+                <div style="text-align: center; padding: var(--spacing-6) var(--spacing-4);">
+                    <i class="bi bi-list-check" style="font-size: 3rem; color: var(--hairline); display: block; margin-bottom: var(--spacing-3);"></i>
+                    <p style="color: var(--graphite); margin-bottom: var(--spacing-3);">No tasks yet</p>
+                    <button type="button" class="btn btn-sentinel-secondary btn-sm" onclick="openAddTask()">Add Task</button>
                 </div>
             }
+            </div>
         </div>
-    </div>
 
     <!-- Notes Card -->
-    <div class="info-card notes-card">
-        <div class="info-card-header">
-            <h3 class="info-card-title">
-                <i class="bi bi-chat-left-text"></i>
+    <div class="sentinel-card notes-card">
+        <div class="sentinel-card-header" style="display: flex; justify-content: space-between; align-items: center;">
+            <h3 style="color: var(--forest); font-weight: 600; font-size: 1.125rem; margin: 0; font-family: var(--f-sans);">
+                <i class="bi bi-chat-left-text" style="color: var(--signal-dk);"></i>
                 Notes (@Model.Notes.Count)
             </h3>
-            <button type="button" class="info-card-action" data-bs-toggle="modal" data-bs-target="#addNoteModal">
+            <button type="button" class="btn btn-sentinel-secondary btn-sm" data-bs-toggle="modal" data-bs-target="#addNoteModal">
                 <i class="bi bi-plus-circle me-1"></i>Add
             </button>
         </div>
+        <div class="sentinel-card-body">
 
         @if (Model.Notes.Any())
         {
@@ -2188,15 +1730,15 @@
                         @if (!string.IsNullOrEmpty(note.AttachmentFileName))
                         {
                             <div class="mt-1">
-                                <a href="@note.AttachmentPath" class="btn btn-sm btn-outline-secondary" target="_blank">
+                                <a href="@note.AttachmentPath" class="btn btn-sentinel-secondary btn-sm" target="_blank">
                                     <i class="bi bi-paperclip"></i> @note.AttachmentFileName
                                 </a>
                             </div>
                         }
-                        <div class="text-end mt-2">
+                        <div class="text-end" style="margin-top: var(--spacing-2);">
                             <form method="post" asp-page-handler="DeleteNote" asp-route-id="@Model.Case.Id" asp-route-noteId="@note.Id"
                                   onsubmit="return confirm('Are you sure you want to delete this note?');" style="display: inline;">
-                                <button type="submit" class="btn btn-sm btn-link text-danger p-0">
+                                <button type="submit" class="btn btn-sm btn-link p-0" style="color: var(--status-outbreak);">
                                     <i class="bi bi-trash"></i> Delete
                                 </button>
                             </form>
@@ -2205,21 +1747,22 @@
                 }
             </div>
 
-            if (Model.Notes.Count > 3)
+            @if (Model.Notes.Count > 3)
             {
-                <div class="text-center mt-2">
+                <div class="text-center" style="margin-top: var(--spacing-2);">
                     <small class="text-muted">Showing 3 of @Model.Notes.Count notes</small>
                 </div>
             }
         }
         else
         {
-            <div class="empty-state">
-                <i class="bi bi-chat-left-text"></i>
-                <p>No notes yet</p>
-                <button type="button" class="info-card-action" data-bs-toggle="modal" data-bs-target="#addNoteModal">Add Note</button>
+            <div style="text-align: center; padding: var(--spacing-6) var(--spacing-4);">
+                <i class="bi bi-chat-left-text" style="font-size: 3rem; color: var(--hairline); display: block; margin-bottom: var(--spacing-3);"></i>
+                <p style="color: var(--graphite); margin-bottom: var(--spacing-3);">No notes yet</p>
+                <button type="button" class="btn btn-sentinel-secondary btn-sm" data-bs-toggle="modal" data-bs-target="#addNoteModal">Add Note</button>
             </div>
         }
+        </div>
     </div>
 </div>
 
@@ -2252,8 +1795,8 @@
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="submit" class="btn btn-primary">
+                    <button type="button" class="btn-sentinel-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn-sentinel-primary">
                         <i class="bi bi-check-circle me-1"></i>Add Note
                     </button>
                 </div>
@@ -2275,18 +1818,19 @@
             <div class="modal-body">
                 @if (Model.Tasks.Any())
                 {
-                    <table class="table table-hover">
-                        <thead>
-                            <tr>
-                                <th>Task</th>
-                                <th>Assigned To</th>
-                                <th>Survey</th>
-                                <th>Priority</th>
-                                <th>Due</th>
-                                <th>Status</th>
-                                <th></th>
-                            </tr>
-                        </thead>
+                    <div class="table-responsive">
+                        <table class="patient-table">
+                            <thead>
+                                <tr>
+                                    <th>Task</th>
+                                    <th>Assigned To</th>
+                                    <th>Survey</th>
+                                    <th>Priority</th>
+                                    <th>Due</th>
+                                    <th>Status</th>
+                                    <th></th>
+                                </tr>
+                            </thead>
                         <tbody>
                             @foreach (var task in Model.Tasks.OrderBy(t => t.DueDate ?? DateTime.MaxValue))
                             {
@@ -2328,26 +1872,26 @@
                                     </td>
                                     <td>
                                         @{
-                                            var priorityClass = task.Priority switch
+                                            var priorityColor = task.Priority switch
                                             {
-                                                TaskPriority.Low => "badge-grey",
-                                                TaskPriority.Medium => "badge-slate",
-                                                TaskPriority.High => "badge-amber",
-                                                TaskPriority.Urgent => "bg-danger",
-                                                _ => "badge-grey"
+                                                TaskPriority.Low => "var(--graphite)",
+                                                TaskPriority.Medium => "var(--slate)",
+                                                TaskPriority.High => "var(--status-watch)",
+                                                TaskPriority.Urgent => "var(--status-outbreak)",
+                                                _ => "var(--graphite)"
                                             };
                                         }
-                                        <span class="badge @priorityClass">@task.Priority</span>
+                                        <span class="chip" style="background: @priorityColor; color: white; border-color: @priorityColor;">@task.Priority</span>
                                     </td>
                                     <td>
                                         @if (task.DueDate.HasValue)
                                         {
                                             @task.DueDate.Value.ToString("dd MMM yyyy")
-                                            if (task.Status == CaseTaskStatus.Overdue)
+                                            @if (task.Status == CaseTaskStatus.Overdue)
                                             {
                                                 <br />
 
-                                                <span class="badge bg-danger" style="font-size: 0.65rem;">Overdue</span>
+                                                <span class="chip" style="background: var(--status-outbreak); color: white; border-color: var(--status-outbreak); font-size: 0.65rem;">Overdue</span>
                                             }
                                         }
                                         else
@@ -2357,18 +1901,18 @@
                                     </td>
                                     <td>
                                         @{
-                                            var statusClass = task.Status switch
+                                            var statusColor = task.Status switch
                                             {
-                                                CaseTaskStatus.Pending => "badge-grey",
-                                                CaseTaskStatus.InProgress => "badge-teal",
-                                                CaseTaskStatus.Completed => "bg-success",
-                                                CaseTaskStatus.Cancelled => "bg-dark",
-                                                CaseTaskStatus.Overdue => "bg-danger",
-                                                CaseTaskStatus.WaitingForPatient => "badge-amber",
-                                                _ => "badge-grey"
+                                                CaseTaskStatus.Pending => "var(--graphite)",
+                                                CaseTaskStatus.InProgress => "var(--signal)",
+                                                CaseTaskStatus.Completed => "var(--signal-dk)",
+                                                CaseTaskStatus.Cancelled => "var(--slate-2)",
+                                                CaseTaskStatus.Overdue => "var(--status-outbreak)",
+                                                CaseTaskStatus.WaitingForPatient => "var(--status-watch)",
+                                                _ => "var(--graphite)"
                                             };
                                         }
-                                        <span class="badge @statusClass">@task.Status</span>
+                                        <span class="chip" style="background: @statusColor; color: white; border-color: @statusColor;">@task.Status</span>
                                     </td>
                                     <td class="text-end">
                                         @{
@@ -2385,7 +1929,7 @@
                                         }
                                         else if (task.Status != CaseTaskStatus.Completed && task.Status != CaseTaskStatus.Cancelled)
                                         {
-                                            if (hasSurvey)
+                                            @if (hasSurvey)
                                             {
                                                 <a asp-page="/Tasks/CompleteSurvey" asp-route-id="@task.Id" class="btn btn-sm btn-link p-0 me-1" title="Complete Survey">
                                                     <i class="bi bi-clipboard-check"></i>
@@ -2403,18 +1947,19 @@
                             }
                         </tbody>
                     </table>
+                    </div>
                 }
                 else
                 {
-                    <div class="alert alert-info">
-                        <i class="bi bi-info-circle me-2"></i>
-                        No tasks have been created for this case.
+                    <div style="text-align: center; padding: 3rem; color: var(--hairline);">
+                        <i class="bi bi-list-check" style="font-size: 3rem; display: block; margin-bottom: 1rem;"></i>
+                        <div style="color: var(--graphite);">No tasks have been created for this case.</div>
                     </div>
                 }
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                <button type="button" class="btn btn-primary" onclick="openAddTask(); $('#viewAllTasksModal').modal('hide');">
+                <button type="button" class="btn-sentinel-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn-sentinel-primary" onclick="openAddTask(); $('#viewAllTasksModal').modal('hide');">
                     <i class="bi bi-plus-circle me-1"></i>Add New Task
                 </button>
             </div>
@@ -2436,8 +1981,8 @@
                 <div class="modal-body">
                     <input type="hidden" name="CaseId" value="@Model.Case.Id" />
 
-                    <div class="alert alert-info mb-3">
-                        <i class="bi bi-info-circle me-2"></i>
+                    <div style="background: var(--signal-lt); border: 1px solid var(--signal); border-radius: 4px; padding: 1rem; margin-bottom: 1rem; color: var(--forest);">
+                        <i class="bi bi-info-circle me-2" style="color: var(--signal-dk);"></i>
                         <strong>Case:</strong> @Model.Case.FriendlyId - @Model.Case.Patient?.GivenName @Model.Case.Patient?.FamilyName
                     </div>
 
@@ -2565,10 +2110,10 @@
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <button type="button" class="btn-sentinel-secondary" data-bs-dismiss="modal">
                         <i class="bi bi-x-circle me-1"></i>Cancel
                     </button>
-                    <button type="submit" class="btn btn-primary">
+                    <button type="submit" class="btn-sentinel-primary">
                         <i class="bi bi-save me-1"></i>Save Exposure
                     </button>
                 </div>
@@ -2590,16 +2135,17 @@
             <div class="modal-body">
                 @if (Model.Transmissions.Any())
                 {
-                    <table class="table table-hover">
-                        <thead>
-                            <tr>
-                                <th>Type</th>
-                                <th>Exposed Person</th>
-                                <th>Date</th>
-                                <th>Status</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
+                    <div class="table-responsive">
+                        <table class="patient-table">
+                            <thead>
+                                <tr>
+                                    <th>Type</th>
+                                    <th>Exposed Person</th>
+                                    <th>Date</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
                         <tbody>
                             @foreach (var exposure in Model.Transmissions.OrderByDescending(e => e.ExposureStartDate))
                             {
@@ -2608,22 +2154,22 @@
                                         @switch (exposure.ExposureType)
                                         {
                                             case Sentinel.Models.ExposureType.Event:
-                                                <span class="badge badge-teal"><i class="bi bi-calendar-event"></i> Event</span>
+                                                <span class="chip" style="background: var(--signal); color: var(--forest); border-color: var(--signal);"><i class="bi bi-calendar-event"></i> Event</span>
                                                 break;
                                             case Sentinel.Models.ExposureType.Location:
-                                                <span class="badge badge-slate"><i class="bi bi-geo-alt"></i> Location</span>
+                                                <span class="chip" style="background: var(--slate); color: white; border-color: var(--slate);"><i class="bi bi-geo-alt"></i> Location</span>
                                                 break;
                                             case Sentinel.Models.ExposureType.Contact:
-                                                <span class="badge badge-amber"><i class="bi bi-people"></i> Contact</span>
+                                                <span class="chip" style="background: var(--status-watch); color: var(--forest); border-color: var(--status-watch);"><i class="bi bi-people"></i> Contact</span>
                                                 break;
                                             case Sentinel.Models.ExposureType.Travel:
-                                                <span class="badge badge-grey"><i class="bi bi-airplane"></i> Travel</span>
+                                                <span class="chip" style="background: var(--graphite); color: white; border-color: var(--graphite);"><i class="bi bi-airplane"></i> Travel</span>
                                                 break;
                                             case Sentinel.Models.ExposureType.LocallyAcquired:
-                                                <span class="badge badge-teal"><i class="bi bi-house"></i> Locally Acquired</span>
+                                                <span class="chip" style="background: var(--signal); color: var(--forest); border-color: var(--signal);"><i class="bi bi-house"></i> Locally Acquired</span>
                                                 break;
                                             default:
-                                                <span class="badge badge-grey">Unknown</span>
+                                                <span class="chip" style="background: var(--graphite); color: white; border-color: var(--graphite);">Unknown</span>
                                                 break;
                                         }
                                     </td>
@@ -2709,28 +2255,28 @@
                                         @switch (exposure.ExposureStatus)
                                         {
                                             case Sentinel.Models.ExposureStatus.ConfirmedExposure:
-                                                <span class="badge bg-danger">Confirmed</span>
+                                                <span class="chip" style="background: var(--status-outbreak); color: white; border-color: var(--status-outbreak);">Confirmed</span>
                                                 break;
                                             case Sentinel.Models.ExposureStatus.UnderInvestigation:
-                                                <span class="badge bg-warning">Investigating</span>
+                                                <span class="chip" style="background: var(--status-watch); color: var(--forest); border-color: var(--status-watch);">Investigating</span>
                                                 break;
                                             case Sentinel.Models.ExposureStatus.PotentialExposure:
-                                                <span class="badge bg-info">Potential</span>
+                                                <span class="chip" style="background: var(--status-info); color: white; border-color: var(--status-info);">Potential</span>
                                                 break;
                                             case Sentinel.Models.ExposureStatus.RuledOut:
-                                                <span class="badge bg-success">Ruled Out</span>
+                                                <span class="chip" style="background: var(--signal-dk); color: white; border-color: var(--signal-dk);">Ruled Out</span>
                                                 break;
                                             default:
-                                                <span class="badge bg-secondary">Unknown</span>
+                                                <span class="chip" style="background: var(--graphite); color: white; border-color: var(--graphite);">Unknown</span>
                                                 break;
                                         }
                                     </td>
                                     <td class="text-end">
-                                        <button type="button" class="btn btn-sm btn-link p-0 text-primary me-2" onclick="openEditExposure('@exposure.Id')" title="Edit">
+                                        <button type="button" class="btn btn-sm btn-link p-0 me-2" style="color: var(--signal-dk);" onclick="openEditExposure('@exposure.Id')" title="Edit">
                                             <i class="bi bi-pencil"></i>
                                         </button>
                                         <form method="post" asp-page-handler="DeleteExposure" asp-route-id="@Model.Case.Id" asp-route-exposureId="@exposure.Id" class="d-inline" onsubmit="return confirm('Delete this transmission?');">
-                                            <button type="submit" class="btn btn-sm btn-link p-0 text-danger" title="Delete">
+                                            <button type="submit" class="btn btn-sm btn-link p-0" style="color: var(--status-outbreak);" title="Delete">
                                                 <i class="bi bi-trash"></i>
                                             </button>
                                         </form>
@@ -2739,18 +2285,19 @@
                             }
                         </tbody>
                     </table>
+                    </div>
                 }
                 else
                 {
-                    <div class="alert alert-info">
-                        <i class="bi bi-info-circle me-2"></i>
-                        No transmissions recorded for this case.
+                    <div style="text-align: center; padding: 3rem; color: var(--hairline);">
+                        <i class="bi bi-arrow-up-circle" style="font-size: 3rem; display: block; margin-bottom: 1rem;"></i>
+                        <div style="color: var(--graphite);">No transmissions recorded for this case.</div>
                     </div>
                 }
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                <button type="button" class="btn btn-primary" onclick="openAddExposure(); $('#viewAllTransmissionsModal').modal('hide');">
+                <button type="button" class="btn-sentinel-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn-sentinel-primary" onclick="openAddExposure(); $('#viewAllTransmissionsModal').modal('hide');">
                     <i class="bi bi-plus-circle me-1"></i>Add New Exposure
                 </button>
             </div>

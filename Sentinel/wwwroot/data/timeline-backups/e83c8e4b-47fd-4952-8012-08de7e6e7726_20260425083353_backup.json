@@ -1,0 +1,116 @@
+{
+  "caseId": "e83c8e4b-47fd-4952-8012-08de7e6e7726",
+  "entries": [
+    {
+      "id": "entry_1777105952748_ejxmk1swx",
+      "entryDate": "2026-04-25T00:00:00Z",
+      "narrativeText": "went with \u002Bmum to @Caffe Primo Dernancourt @9:00 AM.\nThen went with \u002B.",
+      "entities": [
+        {
+          "id": "entity_1777105969264_39jdl0w1t",
+          "entityType": 1,
+          "rawText": "mum",
+          "normalizedValue": "mum",
+          "startPosition": 11,
+          "endPosition": 14,
+          "confidence": 2,
+          "isConfirmed": true,
+          "linkedRecordType": null,
+          "linkedRecordId": null,
+          "linkedRecordDisplayName": null,
+          "suggestions": [],
+          "metadata": {
+            "relationship": "Mother",
+            "phone": null,
+            "ageDob": null,
+            "notes": null
+          },
+          "notes": null
+        },
+        {
+          "id": "entity_1777105982896_qgwti21l7",
+          "entityType": 2,
+          "rawText": "Caffe Primo Dernancourt",
+          "normalizedValue": "Caffe Primo Dernancourt",
+          "startPosition": 19,
+          "endPosition": 42,
+          "confidence": 3,
+          "isConfirmed": true,
+          "linkedRecordType": null,
+          "linkedRecordId": null,
+          "linkedRecordDisplayName": null,
+          "suggestions": [],
+          "metadata": {
+            "placeId": "ChIJT-PETp21sGoRB3laI89w8SM",
+            "address": "Dernancourt Shopping Centre, Shop 22/832-840 Lower North East Rd, Dernancourt SA 5075, Australia",
+            "latitude": "-34.8618427",
+            "longitude": "138.6835682"
+          },
+          "notes": null
+        },
+        {
+          "id": "entity_1777105992327_cmrymn6x1",
+          "entityType": 5,
+          "rawText": "9:00 AM",
+          "normalizedValue": "9:00 AM",
+          "startPosition": 44,
+          "endPosition": 51,
+          "confidence": 2,
+          "isConfirmed": false,
+          "linkedRecordType": null,
+          "linkedRecordId": null,
+          "linkedRecordDisplayName": null,
+          "suggestions": [],
+          "metadata": {},
+          "notes": null
+        }
+      ],
+      "relationships": [
+        {
+          "id": "rel_1777106001648_ghmknx7cf",
+          "primaryEntityId": "entity_1777105982896_qgwti21l7",
+          "relatedEntityId": "entity_1777105969264_39jdl0w1t",
+          "relationType": 1,
+          "timeEntityId": "entity_1777105992327_cmrymn6x1",
+          "confidence": 2,
+          "isConfirmed": false,
+          "sourcePosition": 0,
+          "metadata": null,
+          "sequenceOrder": 0,
+          "notes": null
+        },
+        {
+          "id": "rel_1777106001648_alil7pkxf",
+          "primaryEntityId": "entity_1777105982896_qgwti21l7",
+          "relatedEntityId": "entity_1777105992327_cmrymn6x1",
+          "relationType": 5,
+          "timeEntityId": null,
+          "confidence": 2,
+          "isConfirmed": false,
+          "sourcePosition": 0,
+          "metadata": null,
+          "sequenceOrder": 0,
+          "notes": null
+        }
+      ],
+      "parsedAt": null,
+      "confidenceScore": null,
+      "isReviewed": false,
+      "uncertaintyMarkers": [],
+      "corrections": [],
+      "protectiveMeasures": [],
+      "isMemoryGap": false,
+      "memoryGapNotes": null
+    }
+  ],
+  "conventions": {},
+  "entityGroups": {},
+  "createdDate": "2026-04-25T08:33:23.4415257Z",
+  "createdByUserId": "6964051a-a741-43ff-8b37-dfbd11ce666e",
+  "lastModified": "2026-04-25T08:33:23.4416033Z",
+  "lastModifiedByUserId": "6964051a-a741-43ff-8b37-dfbd11ce666e",
+  "isReviewed": false,
+  "reviewedAt": null,
+  "reviewedByUserId": null,
+  "version": 2
+}

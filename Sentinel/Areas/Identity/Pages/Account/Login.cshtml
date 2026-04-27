@@ -15,9 +15,32 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>@ViewData["Title"] - Sentinel</title>
+
+    <!-- Favicon -->
+    <link rel="icon" type="image/svg+xml" href="~/Icons/sentinel-icon.svg" />
+
     <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
+    <link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+
     <style>
+        :root {
+            --forest:      #0C2A20;
+            --forest-2:    #13382C;
+            --moss:        #1E5D44;
+            --signal:      #3DD598;
+            --signal-dk:   #159C6E;
+            --signal-lt:   #D9F2E5;
+            --bone:        #F5F3EC;
+            --chalk:       #FBFAF5;
+            --graphite:    #4A5A55;
+            --hairline:    #D8D4C4;
+            --status-outbreak: #E04D2B;
+
+            --f-sans: "Geist", ui-sans-serif, system-ui, -apple-system, sans-serif;
+            --f-mono: "Geist Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+        }
+
         * {
             margin: 0;
             padding: 0;
@@ -25,26 +48,129 @@
         }
 
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            font-family: var(--f-sans);
             min-height: 100vh;
             display: flex;
             align-items: center;
             justify-content: center;
-            background: linear-gradient(135deg, #f5f7fa 0%, #e8ecef 100%);
-            color: #1a1a1a;
+            position: relative;
+            overflow: hidden;
+            -webkit-font-smoothing: antialiased;
+            font-feature-settings: "ss01", "ss02", "cv11";
         }
 
-        .login-container {
+        /* Animated Mesh Gradient Background */
+        .mesh-background {
+            position: fixed;
+            top: 0;
+            left: 0;
             width: 100%;
-            max-width: 900px;
-            padding: 32px;
-            animation: fadeIn 0.6s ease-out;
+            height: 100%;
+            z-index: 0;
+            background: var(--forest);
         }
 
-        @@keyframes fadeIn {
+        .mesh-layer {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            opacity: 1;
+        }
+
+        .gradient-orb {
+            position: absolute;
+            border-radius: 50%;
+            filter: blur(120px);
+            animation-timing-function: ease-in-out;
+            animation-iteration-count: infinite;
+            animation-direction: alternate;
+        }
+
+        .orb-1 {
+            width: 900px;
+            height: 900px;
+            background: radial-gradient(circle, #5AE4B0 0%, transparent 70%);
+            top: 10%;
+            left: 15%;
+            animation: float-1 12s infinite;
+        }
+
+        .orb-2 {
+            width: 800px;
+            height: 800px;
+            background: radial-gradient(circle, #3DD598 0%, transparent 70%);
+            top: 15%;
+            right: 10%;
+            animation: float-2 15s infinite;
+        }
+
+        .orb-3 {
+            width: 1000px;
+            height: 1000px;
+            background: radial-gradient(circle, #3E4A48 0%, transparent 65%);
+            bottom: 10%;
+            right: 20%;
+            animation: float-3 18s infinite;
+        }
+
+        .orb-4 {
+            width: 850px;
+            height: 850px;
+            background: radial-gradient(circle, #1E5D44 0%, transparent 70%);
+            bottom: 5%;
+            left: 10%;
+            animation: float-4 14s infinite;
+        }
+
+        .orb-5 {
+            width: 750px;
+            height: 750px;
+            background: radial-gradient(circle, #6B7A78 0%, transparent 65%);
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            animation: float-5 16s infinite;
+        }
+
+        @@keyframes float-1 {
+            0%, 100% { transform: translate(0, 0) scale(1); }
+            50% { transform: translate(30px, -40px) scale(1.1); }
+        }
+
+        @@keyframes float-2 {
+            0%, 100% { transform: translate(0, 0) scale(1); }
+            50% { transform: translate(-40px, 30px) scale(1.15); }
+        }
+
+        @@keyframes float-3 {
+            0%, 100% { transform: translate(0, 0) scale(1); }
+            50% { transform: translate(25px, 35px) scale(1.08); }
+        }
+
+        @@keyframes float-4 {
+            0%, 100% { transform: translate(0, 0) scale(1); }
+            50% { transform: translate(-30px, -25px) scale(1.12); }
+        }
+
+        @@keyframes float-5 {
+            0%, 100% { transform: translate(-50%, -50%) scale(1) rotate(0deg); }
+            50% { transform: translate(-50%, -50%) scale(1.05) rotate(5deg); }
+        }
+
+        /* Login Container */
+        .login-container {
+            position: relative;
+            z-index: 10;
+            width: 100%;
+            max-width: 460px;
+            padding: 32px;
+            animation: fadeInUp 0.8s ease-out;
+        }
+
+        @@keyframes fadeInUp {
             from {
                 opacity: 0;
-                transform: translateY(20px);
+                transform: translateY(30px);
             }
             to {
                 opacity: 1;
@@ -53,108 +179,107 @@
         }
 
         .login-card {
-            background: #ffffff;
-            border-radius: 16px;
-            padding: 0;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
-            display: grid;
-            grid-template-columns: 45% 55%;
-            min-height: 500px;
-            overflow: hidden;
-        }
-
-        .login-left {
-            background: linear-gradient(135deg, #007AFF 0%, #0051D5 100%);
-            padding: 60px 40px;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            color: white;
-        }
-
-        .logo-circle {
-            width: 100px;
-            height: 100px;
-            background: rgba(255, 255, 255, 0.15);
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin-bottom: 32px;
+            background: var(--chalk);
+            border: 1px solid var(--hairline);
+            border-radius: 12px;
+            padding: 48px;
+            box-shadow: 0 20px 60px rgba(12, 42, 32, 0.4);
             backdrop-filter: blur(10px);
         }
 
-        .logo-circle i {
-            font-size: 50px;
-            color: #ffffff;
+        /* Logo */
+        .login-logo {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-bottom: 40px;
+        }
+
+        .logo-icon {
+            width: 64px;
+            height: 64px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 20px;
+            position: relative;
+            box-shadow: 0 0 40px rgba(61, 213, 152, 0.3);
+            border-radius: 16px;
+            overflow: hidden;
+        }
+
+        .logo-icon svg {
+            width: 64px;
+            height: 64px;
         }
 
         .login-title {
-            font-size: 32px;
+            font-family: var(--f-sans);
+            font-size: 28px;
             font-weight: 600;
-            letter-spacing: -0.5px;
-            margin-bottom: 12px;
-            text-align: center;
+            letter-spacing: -0.02em;
+            color: var(--forest);
+            margin-bottom: 8px;
         }
 
         .login-subtitle {
-            font-size: 16px;
-            color: rgba(255, 255, 255, 0.9);
-            text-align: center;
-        }
-
-        .login-right {
-            padding: 60px 50px;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
+            font-family: var(--f-mono);
+            font-size: 11px;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            color: var(--graphite);
         }
 
         .form-title {
-            font-size: 24px;
-            font-weight: 600;
-            margin-bottom: 32px;
-            color: #1a1a1a;
+            font-size: 20px;
+            font-weight: 500;
+            margin-bottom: 28px;
+            color: var(--forest);
+            padding-bottom: 16px;
+            border-bottom: 1px solid var(--hairline);
         }
 
+        /* Form */
         .form-group {
-            margin-bottom: 20px;
+            margin-bottom: 24px;
         }
 
         .form-label {
             display: block;
+            font-family: var(--f-sans);
             font-size: 14px;
             font-weight: 500;
             margin-bottom: 8px;
-            color: #4a4a4a;
+            color: var(--forest);
         }
 
         .form-control {
             width: 100%;
             padding: 12px 16px;
-            font-size: 16px;
-            border: 1px solid #d1d5db;
+            font-family: var(--f-sans);
+            font-size: 14px;
+            border: 1px solid var(--hairline);
             border-radius: 8px;
-            background: #ffffff;
-            color: #1a1a1a;
-            transition: all 0.2s;
+            background: var(--chalk);
+            color: var(--forest);
+            transition: all 0.2s ease;
         }
 
         .form-control::placeholder {
-            color: #9ca3af;
+            color: var(--graphite);
+            opacity: 0.6;
         }
 
         .form-control:focus {
             outline: none;
-            border-color: #007AFF;
-            box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.1);
+            border-color: var(--signal-dk);
+            box-shadow: 0 0 0 3px var(--signal-lt);
         }
 
         .form-check {
             display: flex;
             align-items: center;
-            margin-bottom: 24px;
+            margin-bottom: 28px;
         }
 
         .form-check-input {
@@ -162,38 +287,41 @@
             height: 18px;
             margin-right: 10px;
             cursor: pointer;
-            border: 1px solid #d1d5db;
+            border: 1px solid var(--hairline);
+            border-radius: 4px;
         }
 
         .form-check-input:checked {
-            background-color: #007AFF;
-            border-color: #007AFF;
+            background-color: var(--signal-dk);
+            border-color: var(--signal-dk);
         }
 
         .form-check-label {
             font-size: 14px;
-            color: #4a4a4a;
+            color: var(--graphite);
             cursor: pointer;
         }
 
         .btn-login {
             width: 100%;
             padding: 14px;
-            font-size: 16px;
-            font-weight: 600;
+            font-family: var(--f-sans);
+            font-size: 14px;
+            font-weight: 500;
             border: none;
             border-radius: 8px;
-            background: #007AFF;
-            color: #ffffff;
+            background: var(--signal-dk);
+            color: var(--chalk);
             cursor: pointer;
-            transition: all 0.2s;
-            margin-bottom: 16px;
+            transition: all 0.2s ease;
+            margin-bottom: 20px;
+            letter-spacing: -0.005em;
         }
 
         .btn-login:hover {
-            background: #0051D5;
+            background: var(--moss);
             transform: translateY(-1px);
-            box-shadow: 0 4px 12px rgba(0, 122, 255, 0.3);
+            box-shadow: 0 8px 16px rgba(12, 42, 32, 0.2);
         }
 
         .btn-login:active {
@@ -202,34 +330,39 @@
 
         .login-links {
             text-align: center;
+            padding-top: 24px;
+            border-top: 1px solid var(--hairline);
         }
 
         .login-link {
-            color: #007AFF;
+            color: var(--signal-dk);
             text-decoration: none;
             font-size: 14px;
             transition: color 0.2s;
+            font-weight: 500;
         }
 
         .login-link:hover {
-            color: #0051D5;
+            color: var(--moss);
             text-decoration: underline;
         }
 
         .text-danger {
-            color: #dc2626 !important;
-            font-size: 13px;
-            margin-top: 4px;
+            color: var(--status-outbreak) !important;
+            font-size: 12px;
+            margin-top: 6px;
+            font-family: var(--f-mono);
+            letter-spacing: 0.02em;
         }
 
         .alert {
-            background: #fef2f2;
-            border: 1px solid #fca5a5;
+            background: #FBE2D8;
+            border: 1px solid #F2BBA4;
             border-radius: 8px;
-            padding: 12px 16px;
-            margin-bottom: 20px;
-            color: #dc2626;
-            font-size: 14px;
+            padding: 14px 16px;
+            margin-bottom: 24px;
+            color: #7A2A15;
+            font-size: 13px;
         }
 
         .validation-summary-errors ul {
@@ -238,155 +371,273 @@
             margin: 0;
         }
 
-        @@media (max-width: 768px) {
+        .validation-summary-errors li {
+            padding: 4px 0;
+        }
+
+        /* Demo Banner */
+        .demo-banner {
+            background: var(--signal-lt);
+            border: 1px solid #9BE8C6;
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 24px;
+            font-size: 13px;
+            color: #0A3F2C;
+        }
+
+        .demo-banner strong {
+            font-family: var(--f-mono);
+            font-size: 10px;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            display: block;
+            margin-bottom: 8px;
+            color: var(--signal-dk);
+        }
+
+        .demo-credentials {
+            font-family: var(--f-mono);
+            font-size: 11px;
+            margin-top: 8px;
+            padding: 8px;
+            background: rgba(255, 255, 255, 0.5);
+            border-radius: 4px;
+        }
+
+        .demo-user-btn {
+            width: 100%;
+            padding: 12px 16px;
+            margin-bottom: 10px;
+            border: 1px solid var(--hairline);
+            border-radius: 8px;
+            background: var(--chalk);
+            color: var(--forest);
+            text-align: left;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .demo-user-btn:hover {
+            border-color: var(--signal-dk);
+            background: var(--signal-lt);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(21, 156, 110, 0.15);
+        }
+
+        .demo-user-btn i {
+            font-size: 18px;
+            color: var(--signal-dk);
+        }
+
+        .demo-user-btn strong {
+            font-size: 14px;
+            display: block;
+            color: var(--forest);
+        }
+
+        .demo-user-btn small {
+            font-size: 11px;
+            color: var(--graphite);
+            display: block;
+            margin-top: 2px;
+        }
+
+        .info-box {
+            background: var(--signal-lt);
+            border: 1px solid #9BE8C6;
+            border-radius: 8px;
+            padding: 14px;
+            margin-bottom: 20px;
+            font-size: 13px;
+            color: #0A3F2C;
+        }
+
+        .info-box i {
+            color: var(--signal-dk);
+            margin-right: 8px;
+        }
+
+        .version-info {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            font-family: var(--f-mono);
+            font-size: 10px;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: rgba(255, 255, 255, 0.4);
+            z-index: 5;
+        }
+
+        @@media (max-width: 576px) {
             .login-card {
-                grid-template-columns: 1fr;
+                padding: 32px 24px;
             }
 
-            .login-left {
-                padding: 40px 30px;
-                min-height: auto;
+            .login-title {
+                font-size: 24px;
             }
 
-            .login-right {
-                padding: 40px 30px;
+            .version-info {
+                display: none;
             }
         }
     </style>
 </head>
 <body>
-    @if (isDemoMode)
-    {
-        <div style="position: fixed; top: 0; left: 0; right: 0; background: linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%); color: white; padding: 12px; text-align: center; z-index: 10000; box-shadow: 0 4px 12px rgba(0,0,0,0.15); font-weight: 600;">
-            <i class="bi bi-exclamation-triangle-fill me-2"></i>DEMO ENVIRONMENT - Test accounts available below
+    <!-- Animated Mesh Gradient Background -->
+    <div class="mesh-background">
+        <div class="mesh-layer">
+            <div class="gradient-orb orb-1"></div>
+            <div class="gradient-orb orb-2"></div>
+            <div class="gradient-orb orb-3"></div>
+            <div class="gradient-orb orb-4"></div>
+            <div class="gradient-orb orb-5"></div>
         </div>
-    }
-    <div class="login-container" style="@(isDemoMode ? "margin-top: 50px;" : "")">
+    </div>
+
+    <!-- Version Info -->
+    <div class="version-info">
+        Version @AppVersion.Version • @AppVersion.ReleaseDate
+    </div>
+
+    <!-- Login Container -->
+    <div class="login-container">
         <div class="login-card">
-            <div class="login-left">
-                <div class="logo-circle">
-                    <i class="bi bi-activity"></i>
+            <!-- Logo Section -->
+            <div class="login-logo">
+                <div class="logo-icon">
+                    <img src="~/Icons/sentinel-icon.svg" alt="Sentinel Logo" style="width: 64px; height: 64px;" />
                 </div>
                 <h1 class="login-title">@AppVersion.ProductName</h1>
                 <p class="login-subtitle">Disease Surveillance System</p>
-                <div style="margin-top: 40px; text-align: center; opacity: 0.8; font-size: 14px;">
-                    <div style="font-weight: 500;">Version @AppVersion.Version</div>
-                    <div style="font-size: 12px; margin-top: 4px;">@AppVersion.ReleaseDate</div>
-                </div>
             </div>
 
-            <div class="login-right">
+            <!-- Demo Mode Banner -->
+            @if (isDemoMode)
+            {
+                <div class="demo-banner">
+                    <strong>Demo Environment</strong>
+                    <p style="margin-bottom: 12px;">Quick login with test accounts below:</p>
+
+                    <form method="post" asp-page-handler="DemoLogin" asp-route-returnUrl="@Model.ReturnUrl">
+                        <input type="hidden" name="email" value="manager@sentinel-demo.com" />
+                        <input type="hidden" name="password" value="Demo123!@@#Manager" />
+                        <button type="submit" class="demo-user-btn">
+                            <i class="bi bi-person-badge"></i>
+                            <div>
+                                <strong>Emma</strong>
+                                <small>Surveillance Manager • Full system access</small>
+                            </div>
+                        </button>
+                    </form>
+
+                    <form method="post" asp-page-handler="DemoLogin" asp-route-returnUrl="@Model.ReturnUrl">
+                        <input type="hidden" name="email" value="officer@sentinel-demo.com" />
+                        <input type="hidden" name="password" value="Demo123!@@#Officer" />
+                        <button type="submit" class="demo-user-btn">
+                            <i class="bi bi-person-badge"></i>
+                            <div>
+                                <strong>Isabella</strong>
+                                <small>Surveillance Officer • Operational access</small>
+                            </div>
+                        </button>
+                    </form>
+
+                    <form method="post" asp-page-handler="DemoLogin" asp-route-returnUrl="@Model.ReturnUrl">
+                        <input type="hidden" name="email" value="tracer@sentinel-demo.com" />
+                        <input type="hidden" name="password" value="Demo123!@@#Tracer" />
+                        <button type="submit" class="demo-user-btn">
+                            <i class="bi bi-person-check"></i>
+                            <div>
+                                <strong>John</strong>
+                                <small>Contact Tracer • Interview queue & surveys</small>
+                            </div>
+                        </button>
+                    </form>
+
+                    <form method="post" asp-page-handler="DemoLogin" asp-route-returnUrl="@Model.ReturnUrl">
+                        <input type="hidden" name="email" value="supervisor@sentinel-demo.com" />
+                        <input type="hidden" name="password" value="Demo123!@@#Supervisor" />
+                        <button type="submit" class="demo-user-btn">
+                            <i class="bi bi-person-gear"></i>
+                            <div>
+                                <strong>Caitlin</strong>
+                                <small>Contact Tracing Supervisor • Task management</small>
+                            </div>
+                        </button>
+                    </form>
+
+                    <form method="post" asp-page-handler="DemoLogin" asp-route-returnUrl="@Model.ReturnUrl">
+                        <input type="hidden" name="email" value="stiofficer@sentinel-demo.com" />
+                        <input type="hidden" name="password" value="Demo123!@@#STI" />
+                        <button type="submit" class="demo-user-btn">
+                            <i class="bi bi-shield-check"></i>
+                            <div>
+                                <strong>Megge</strong>
+                                <small>STI/BBV Officer • STI/BBV surveillance</small>
+                            </div>
+                        </button>
+                    </form>
+
+                    <div style="margin-top: 16px; padding-top: 16px; border-top: 1px solid #9BE8C6; font-size: 11px; color: var(--graphite);">
+                        Or login manually with your credentials below
+                    </div>
+                </div>
+            }
+
+            <!-- Login Form -->
+            <form id="account" method="post">
                 <h2 class="form-title">Sign In</h2>
-                
-                
-                @if (isDemoMode)
+
+                @if (!ModelState.IsValid || Model.ExternalLogins?.Count > 0)
                 {
-                    <div class="alert alert-info" style="margin-bottom: 24px;">
-                        <div class="d-flex align-items-center mb-3">
-                            <i class="bi bi-info-circle me-2" style="font-size: 1.25rem;"></i>
-                            <strong style="font-size: 1rem;">Quick Demo Login</strong>
-                        </div>
-                        <p style="margin-bottom: 16px; font-size: 0.875rem; color: #4a5568;">Click a button below to login as a demo user:</p>
-                        
-                        <div class="d-grid gap-2">
-                            <form method="post" asp-page-handler="DemoLogin" asp-route-returnUrl="@Model.ReturnUrl" style="margin: 0;">
-                                <input type="hidden" name="email" value="manager@sentinel-demo.com" />
-                                <input type="hidden" name="password" value="Demo123!@@#Manager" />
-                                <button type="submit" class="btn btn-outline-primary btn-sm w-100 text-start">
-                                    <i class="bi bi-person-badge me-2"></i><strong>Emma</strong> - Surveillance Manager
-                                    <small class="d-block text-muted" style="font-size: 0.75rem; margin-top: 2px;">Full system access</small>
-                                </button>
-                            </form>
-                            
-                            <form method="post" asp-page-handler="DemoLogin" asp-route-returnUrl="@Model.ReturnUrl" style="margin: 0;">
-                                <input type="hidden" name="email" value="officer@sentinel-demo.com" />
-                                <input type="hidden" name="password" value="Demo123!@@#Officer" />
-                                <button type="submit" class="btn btn-outline-primary btn-sm w-100 text-start">
-                                    <i class="bi bi-person-badge me-2"></i><strong>Isabella</strong> - Surveillance Officer
-                                    <small class="d-block text-muted" style="font-size: 0.75rem; margin-top: 2px;">Operational access (no settings)</small>
-                                </button>
-                            </form>
-                            
-                            <form method="post" asp-page-handler="DemoLogin" asp-route-returnUrl="@Model.ReturnUrl" style="margin: 0;">
-                                <input type="hidden" name="email" value="tracer@sentinel-demo.com" />
-                                <input type="hidden" name="password" value="Demo123!@@#Tracer" />
-                                <button type="submit" class="btn btn-outline-primary btn-sm w-100 text-start">
-                                    <i class="bi bi-person-check me-2"></i><strong>John</strong> - Contact Tracer
-                                    <small class="d-block text-muted" style="font-size: 0.75rem; margin-top: 2px;">Interview queue & surveys</small>
-                                </button>
-                            </form>
-                            
-                            <form method="post" asp-page-handler="DemoLogin" asp-route-returnUrl="@Model.ReturnUrl" style="margin: 0;">
-                                <input type="hidden" name="email" value="supervisor@sentinel-demo.com" />
-                                <input type="hidden" name="password" value="Demo123!@@#Supervisor" />
-                                <button type="submit" class="btn btn-outline-primary btn-sm w-100 text-start">
-                                    <i class="bi bi-person-gear me-2"></i><strong>Caitlin</strong> - Contact Tracing Supervisor
-                                    <small class="d-block text-muted" style="font-size: 0.75rem; margin-top: 2px;">Task reassignment & management</small>
-                                </button>
-                            </form>
-                            
-                            <form method="post" asp-page-handler="DemoLogin" asp-route-returnUrl="@Model.ReturnUrl" style="margin: 0;">
-                                <input type="hidden" name="email" value="stiofficer@sentinel-demo.com" />
-                                <input type="hidden" name="password" value="Demo123!@@#STI" />
-                                <button type="submit" class="btn btn-outline-primary btn-sm w-100 text-start">
-                                    <i class="bi bi-shield-check me-2"></i><strong>Megge</strong> - STI/BBV Officer
-                                    <small class="d-block text-muted" style="font-size: 0.75rem; margin-top: 2px;">STI/BBV surveillance</small>
-                                </button>
-                            </form>
-                        </div>
-                        
-                        <div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid #e2e8f0; font-size: 0.75rem; color: #718096;">
-                            Or login manually below with your own credentials
-                        </div>
+                    <div asp-validation-summary="ModelOnly" class="alert" role="alert"></div>
+                }
+
+                @if (!ModelState.IsValid)
+                {
+                    <div class="info-box">
+                        <i class="bi bi-info-circle"></i>
+                        <strong>Troubleshooting:</strong> Make sure you're using the email address that was registered for your account. 
+                        Password must be at least 6 characters. Contact your administrator if you continue to have issues.
                     </div>
                 }
-                
-                <form id="account" method="post">
-                    @if (!ModelState.IsValid || Model.ExternalLogins?.Count > 0)
+
+                <div class="form-group">
+                    <label asp-for="Input.Email" class="form-label">Email</label>
+                    <input asp-for="Input.Email" class="form-control" placeholder="name@example.com" autocomplete="username" />
+                    <span asp-validation-for="Input.Email" class="text-danger"></span>
+                </div>
+
+                <div class="form-group">
+                    <label asp-for="Input.Password" class="form-label">Password</label>
+                    <input asp-for="Input.Password" class="form-control" type="password" placeholder="Enter your password" autocomplete="current-password" />
+                    <span asp-validation-for="Input.Password" class="text-danger"></span>
+                </div>
+
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" asp-for="Input.RememberMe" id="rememberMe" />
+                    <label class="form-check-label" asp-for="Input.RememberMe" for="rememberMe">
+                        Remember me
+                    </label>
+                </div>
+
+                <button id="login-submit" type="submit" class="btn-login">Sign In</button>
+
+                <div class="login-links">
+                    <a id="forgot-password" asp-page="./ForgotPassword" class="login-link">Forgot your password?</a>
+                    @if (Model.ExternalLogins?.Count > 0)
                     {
-                        <div asp-validation-summary="ModelOnly" class="alert" role="alert"></div>
+                        <span style="color: var(--graphite); margin: 0 8px; opacity: 0.5;">•</span>
+                        <a id="external-login" asp-page="./ExternalLogin" asp-route-returnUrl="@Model.ReturnUrl" class="login-link">External login</a>
                     }
-
-                    @if (!ModelState.IsValid)
-                    {
-                        <div class="info-box">
-                            <i class="bi bi-info-circle"></i>
-                            <strong>Troubleshooting:</strong> Make sure you're using the email address that was registered for your account. 
-                            Password must be at least 6 characters. Contact your administrator if you continue to have issues.
-                        </div>
-                    }
-
-                    <div class="form-group">
-                        <label asp-for="Input.Email" class="form-label">Email</label>
-                        <input asp-for="Input.Email" class="form-control" placeholder="name@example.com" autocomplete="username" />
-                        <span asp-validation-for="Input.Email" class="text-danger"></span>
-                    </div>
-
-                    <div class="form-group">
-                        <label asp-for="Input.Password" class="form-label">Password</label>
-                        <input asp-for="Input.Password" class="form-control" type="password" placeholder="Enter your password" autocomplete="current-password" />
-                        <span asp-validation-for="Input.Password" class="text-danger"></span>
-                    </div>
-
-                    <div class="form-check">
-                        <input class="form-check-input" type="checkbox" asp-for="Input.RememberMe" id="rememberMe" />
-                        <label class="form-check-label" asp-for="Input.RememberMe" for="rememberMe">
-                            Remember me
-                        </label>
-                    </div>
-
-                    <button id="login-submit" type="submit" class="btn-login">Sign In</button>
-
-                    <div class="login-links">
-                        <a id="forgot-password" asp-page="./ForgotPassword" class="login-link">Forgot your password?</a>
-                        @if (Model.ExternalLogins?.Count > 0)
-                        {
-                            <span style="color: #9ca3af; margin: 0 8px;">•</span>
-                            <a id="external-login" asp-page="./ExternalLogin" asp-route-returnUrl="@Model.ReturnUrl" class="login-link">External login</a>
-                        }
-                    </div>
-                </form>
-            </div>
+                </div>
+            </form>
         </div>
     </div>
 

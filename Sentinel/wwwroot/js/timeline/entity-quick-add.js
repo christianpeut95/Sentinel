@@ -109,30 +109,6 @@ class EntityQuickAdd {
                     if (this.currentState.textarea && this.currentState.textarea.tagName === 'TEXTAREA') {
                         // Tribute has now placed cursor at T (trigger-start position)
                         this.currentState.cursorPosition = this.currentState.textarea.selectionStart;
-
-                        // Clean up any remaining query text after the trigger
-                        // When user types "..per" and selects "Person", Tribute removes ".." but leaves "per"
-                        // We need to remove the query characters that remain
-                        if (item.original.isEntityType || item.original.value) {
-                            const textarea = this.currentState.textarea;
-                            const cursorPos = textarea.selectionStart;
-                            const textBefore = textarea.value.substring(0, cursorPos);
-                            const textAfter = textarea.value.substring(cursorPos);
-
-                            // Check if there are orphaned query characters right before cursor
-                            // These would be lowercase letters that remain from the search query
-                            const orphanMatch = textBefore.match(/([a-z]+)$/);
-                            if (orphanMatch) {
-                                const orphanedText = orphanMatch[1];
-                                // Remove the orphaned query text
-                                const cleanBefore = textBefore.substring(0, textBefore.length - orphanedText.length);
-                                textarea.value = cleanBefore + textAfter;
-                                const newCursorPos = cleanBefore.length;
-                                textarea.setSelectionRange(newCursorPos, newCursorPos);
-                                this.currentState.cursorPosition = newCursorPos;
-                                console.log(`[EntityQuickAdd] Cleaned up orphaned query text: "${orphanedText}"`);
-                            }
-                        }
                     }
                     if (item.original.isEntityType) {
                         this.showEntityForm(item.original.value, item.original.searchTerm);
@@ -503,22 +479,12 @@ class EntityQuickAdd {
             return;
         }
 
-        // Determine if we're editing or creating new
-        // If editingEntity exists in currentState, preserve it; otherwise, this is a NEW entity
-        const isEditing = !!this.currentState.editingEntity;
-
         // Preserve textarea and cursor position from Tribute callback, update entity type
         this.currentState = {
-            textarea: this.currentState.textarea || textarea,
-            cursorPosition: this.currentState.cursorPosition,
+            ...this.currentState,  // Preserve textarea and cursorPosition from Tribute/editEntity
             entityType,
             entryId: textarea.closest('.timeline-day-block')?.dataset.entryId,
-            smartSearchTerm: searchTerm, // Store search term for pre-filling
-            // Only preserve editing state if we were already editing
-            ...(isEditing && {
-                editingEntity: this.currentState.editingEntity,
-                originalEntity: this.currentState.originalEntity
-            })
+            smartSearchTerm: searchTerm // Store search term for pre-filling
         };
 
         // Load recent entities
@@ -3233,9 +3199,6 @@ class EntityQuickAdd {
             entity.entityTypeName = typeMap[entity.entityType] || 'Person';
         }
 
-        // Add stable IDs for proper entity grouping across mentions
-        this.enrichEntityWithStableIds(entity);
-
         const text = textarea.value;
         const pos = this.currentState.cursorPosition;
         console.log('[EntityQuickAdd] Textarea value:', text);
@@ -3287,8 +3250,6 @@ class EntityQuickAdd {
             if (!this.timelineEntry.entryEntities[this.currentState.entryId]) {
                 this.timelineEntry.entryEntities[this.currentState.entryId] = [];
             }
-            // Mark entity as freshly added to skip position adjustment in handleTextInput
-            entity.freshlyAdded = true;
             this.timelineEntry.entryEntities[this.currentState.entryId].push(entity);
             console.log('[EntityQuickAdd] Stored entity in entryEntities');
         }
@@ -3515,37 +3476,11 @@ class EntityQuickAdd {
         };
 
         // Copy database IDs if they exist (after save, these will be populated)
-        // Also generate stable location/person IDs based on normalized value for proper grouping
-        if (entityData.personId) {
-            entity.personId = entityData.personId;
-        } else if (entityData.entityType === 1) { // Person
-            // Generate stable ID from normalized value
-            entity.personId = this.generateStableId(entityData.normalizedValue || entityData.rawText);
-        }
-
-        if (entityData.locationId) {
-            entity.locationId = entityData.locationId;
-        } else if (entityData.entityType === 2) { // Location
-            // Generate stable ID from normalized value
-            entity.locationId = this.generateStableId(entityData.normalizedValue || entityData.rawText);
-        }
-
-        if (entityData.transportId) {
-            entity.transportId = entityData.transportId;
-        } else if (entityData.entityType === 4) { // Transport
-            // Generate stable ID from normalized value
-            entity.transportId = this.generateStableId(entityData.normalizedValue || entityData.rawText);
-        }
-
-        if (entityData.eventId) {
-            entity.eventId = entityData.eventId;
-        } else if (entityData.entityType === 3) { // Event
-            // Generate stable ID from normalized value
-            entity.eventId = this.generateStableId(entityData.normalizedValue || entityData.rawText);
-        }
+        if (entityData.personId) entity.personId = entityData.personId;
+        if (entityData.locationId) entity.locationId = entityData.locationId;
+        if (entityData.transportId) entity.transportId = entityData.transportId;
 
         console.log('[EntityQuickAdd] Created entity for insertion:', entity);
-        console.log('[EntityQuickAdd] Entity locationId:', entity.locationId, 'personId:', entity.personId);
         console.log('[EntityQuickAdd] Linked to source entity:', entityData.id);
 
         if (!this.timelineEntry.entryEntities[entryId]) {
@@ -3574,66 +3509,6 @@ class EntityQuickAdd {
         const div = document.createElement('div');
         div.textContent = text;
         return div.innerHTML;
-    }
-
-    /**
-     * Generate a stable hash-based ID from text
-     * This ensures the same entity text always gets the same ID for proper grouping
-     * @param {string} text - The text to hash
-     * @returns {string} Stable numeric ID
-     */
-    generateStableId(text) {
-        if (!text) return null;
-
-        // Normalize text: lowercase, trim whitespace
-        const normalized = text.toLowerCase().trim();
-
-        // Simple hash function (djb2)
-        let hash = 5381;
-        for (let i = 0; i < normalized.length; i++) {
-            hash = ((hash << 5) + hash) + normalized.charCodeAt(i); // hash * 33 + c
-        }
-
-        // Convert to positive integer and return as string
-        return Math.abs(hash).toString();
-    }
-
-    /**
-     * Add stable database-like IDs to an entity for proper grouping
-     * @param {Object} entity - Entity object to enrich
-     * @returns {Object} Entity with stable IDs added
-     */
-    enrichEntityWithStableIds(entity) {
-        if (!entity) return entity;
-
-        const normalizedValue = entity.normalizedValue || entity.rawText;
-        if (!normalizedValue) return entity;
-
-        // Generate stable IDs based on entity type and normalized value
-        switch(entity.entityType) {
-            case 1: // Person
-                if (!entity.personId) {
-                    entity.personId = this.generateStableId(normalizedValue);
-                }
-                break;
-            case 2: // Location
-                if (!entity.locationId) {
-                    entity.locationId = this.generateStableId(normalizedValue);
-                }
-                break;
-            case 3: // Event
-                if (!entity.eventId) {
-                    entity.eventId = this.generateStableId(normalizedValue);
-                }
-                break;
-            case 4: // Transport
-                if (!entity.transportId) {
-                    entity.transportId = this.generateStableId(normalizedValue);
-                }
-                break;
-        }
-
-        return entity;
     }
 
     /**

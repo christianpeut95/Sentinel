@@ -4,7 +4,7 @@
 
 @{
     ViewData["Title"] = "Search Cases";
-    Layout = "~/Pages/Shared/_Layout.cshtml";
+    ViewData["Subtitle"] = "Advanced search across all cases";
 }
 @functions {
     public string GetCspNonce()
@@ -17,172 +17,136 @@
     }
 }
 
-<style>
-    .search-header {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
-        padding: 1rem 1.5rem;
-        border-radius: 8px;
-        margin-bottom: 1rem;
-    }
-    
-    .search-form {
-        background: white;
-        border: 1px solid #dee2e6;
-        border-radius: 8px;
-        padding: 1rem;
-        margin-bottom: 1rem;
-    }
-    
-    .search-form .form-label {
-        font-size: 0.85rem;
-        font-weight: 600;
-        margin-bottom: 0.25rem;
-    }
-    
-    .search-form .form-control, .search-form .form-select {
-        font-size: 0.9rem;
-        padding: 0.375rem 0.75rem;
-    }
-    
-    .search-form .row {
-        row-gap: 0.75rem;
-    }
-    
-    .table-compact {
-        font-size: 0.9rem;
-    }
-    
-    .table-compact th, .table-compact td {
-        padding: 0.5rem;
-        vertical-align: middle;
-    }
-</style>
-
-<nav aria-label="breadcrumb" class="mb-2">
-    <ol class="breadcrumb mb-0">
-        <li class="breadcrumb-item"><a asp-page="/Index">Home</a></li>
-        <li class="breadcrumb-item"><a asp-page="./Index">Cases</a></li>
-        <li class="breadcrumb-item active" aria-current="page">Search</li>
-    </ol>
-</nav>
-
-<div class="search-header">
-    <div class="d-flex justify-content-between align-items-center">
-        <h3 class="mb-0"><i class="bi bi-search me-2"></i>Search Cases</h3>
-        <a asp-page="./Index" class="btn btn-light btn-sm">
-            <i class="bi bi-arrow-left"></i> Back
-        </a>
+<!-- Page Header -->
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--spacing-6);">
+    <div>
+        <h1 style="font-family: var(--f-sans); font-weight: 600; font-size: 28px; letter-spacing: -0.02em; color: var(--forest); margin: 0; display: flex; align-items: center; gap: var(--spacing-2);">
+            <i class="bi bi-search" style="color: var(--signal-dk);"></i>
+            Advanced Case Search
+        </h1>
     </div>
+    <a asp-page="./Index" class="btn-sentinel-secondary">
+        <i class="bi bi-arrow-left"></i> Back to List
+    </a>
 </div>
 
 <!-- Search Form -->
-<div class="search-form">
+<div class="sentinel-card" style="margin-bottom: var(--spacing-5);">
+    <div class="sentinel-card-header">
+        <h3 class="sentinel-card-title">
+            <i class="bi bi-funnel"></i>
+            Search Criteria
+        </h3>
+    </div>
+    <div class="sentinel-card-body">
     <form method="get">
-        <div class="row">
+        <div class="row g-3">
             <div class="col-md-3">
-                <label asp-for="CaseId" class="form-label">Case ID</label>
-                <input asp-for="CaseId" class="form-control form-control-sm" placeholder="C-2024-00001" />
+                <label asp-for="CaseId" class="sentinel-label">Case ID</label>
+                <input asp-for="CaseId" class="sentinel-input" placeholder="C-2024-00001" />
             </div>
             <div class="col-md-3">
-                <label asp-for="PatientName" class="form-label">Patient Name</label>
-                <input asp-for="PatientName" class="form-control form-control-sm" placeholder="First Last" />
+                <label asp-for="PatientName" class="sentinel-label">Patient Name</label>
+                <input asp-for="PatientName" class="sentinel-input" placeholder="First Last" />
             </div>
             <div class="col-md-3">
-                <label asp-for="DiseaseId" class="form-label">Disease</label>
-                <select asp-for="DiseaseId" class="form-select form-select-sm disease-select" asp-items="Model.Diseases">
+                <label asp-for="DiseaseId" class="sentinel-label">Disease</label>
+                <select asp-for="DiseaseId" class="sentinel-input disease-select" asp-items="Model.Diseases">
                     <option value="">-- All --</option>
                 </select>
             </div>
             <div class="col-md-3">
-                <label asp-for="ConfirmationStatusId" class="form-label">Status</label>
-                <select asp-for="ConfirmationStatusId" class="form-select form-select-sm" asp-items="Model.ConfirmationStatuses">
+                <label asp-for="ConfirmationStatusId" class="sentinel-label">Status</label>
+                <select asp-for="ConfirmationStatusId" class="sentinel-input" asp-items="Model.ConfirmationStatuses">
                     <option value="">-- All --</option>
                 </select>
             </div>
         </div>
 
-        <div class="row mt-2">
+        <div class="row g-3" style="margin-top: var(--spacing-3);">
             <div class="col-md-3">
-                <label asp-for="OnsetDateFrom" class="form-label">Onset From</label>
-                <input asp-for="OnsetDateFrom" class="form-control form-control-sm" type="date" />
+                <label asp-for="OnsetDateFrom" class="sentinel-label">Onset From</label>
+                <input asp-for="OnsetDateFrom" class="sentinel-input" type="date" />
             </div>
             <div class="col-md-3">
-                <label asp-for="OnsetDateTo" class="form-label">Onset To</label>
-                <input asp-for="OnsetDateTo" class="form-control form-control-sm" type="date" />
+                <label asp-for="OnsetDateTo" class="sentinel-label">Onset To</label>
+                <input asp-for="OnsetDateTo" class="sentinel-input" type="date" />
             </div>
             <div class="col-md-3">
-                <label asp-for="NotificationDateFrom" class="form-label">Notified From</label>
-                <input asp-for="NotificationDateFrom" class="form-control form-control-sm" type="date" />
+                <label asp-for="NotificationDateFrom" class="sentinel-label">Notified From</label>
+                <input asp-for="NotificationDateFrom" class="sentinel-input" type="date" />
             </div>
             <div class="col-md-3">
-                <label asp-for="NotificationDateTo" class="form-label">Notified To</label>
-                <input asp-for="NotificationDateTo" class="form-control form-control-sm" type="date" />
+                <label asp-for="NotificationDateTo" class="sentinel-label">Notified To</label>
+                <input asp-for="NotificationDateTo" class="sentinel-input" type="date" />
             </div>
         </div>
 
         <!-- Collapsible Additional Filters -->
-        <div class="mt-2">
-            <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#moreFilters">
-                <i class="bi bi-plus-circle me-1"></i>More Filters
+        <div style="margin-top: var(--spacing-4);">
+            <button class="btn-sentinel-secondary" style="padding: 8px 14px; font-size: 13px;" type="button" data-bs-toggle="collapse" data-bs-target="#moreFilters">
+                <i class="bi bi-plus-circle"></i> More Filters
             </button>
         </div>
 
-        <div class="collapse mt-2" id="moreFilters">
-            <div class="row">
+        <div class="collapse" style="margin-top: var(--spacing-4);" id="moreFilters">
+            <div style="background: var(--bone); border: 1px solid var(--hairline); border-radius: var(--radius-md); padding: var(--spacing-4);">
+            <div class="row g-3">
                 <div class="col-md-3">
-                    <label asp-for="DiseaseCategoryId" class="form-label">Category</label>
-                    <select asp-for="DiseaseCategoryId" class="form-select form-select-sm" asp-items="Model.DiseaseCategories">
+                    <label asp-for="DiseaseCategoryId" class="sentinel-label">Category</label>
+                    <select asp-for="DiseaseCategoryId" class="sentinel-input" asp-items="Model.DiseaseCategories">
                         <option value="">-- All --</option>
                     </select>
                 </div>
                 <div class="col-md-3">
-                    <label asp-for="HasSymptoms" class="form-label">Has Symptoms</label>
-                    <select asp-for="HasSymptoms" class="form-select form-select-sm">
-                        <option value="">-- All --</option>
-                        <option value="true">Yes</option>
-                        <option value="false">No</option>
-                    </select>
-                </div>
-                <div class="col-md-3">
-                    <label asp-for="HasLabResults" class="form-label">Has Lab Results</label>
-                    <select asp-for="HasLabResults" class="form-select form-select-sm">
+                    <label asp-for="HasSymptoms" class="sentinel-label">Has Symptoms</label>
+                    <select asp-for="HasSymptoms" class="sentinel-input">
                         <option value="">-- All --</option>
                         <option value="true">Yes</option>
                         <option value="false">No</option>
                     </select>
                 </div>
                 <div class="col-md-3">
-                    <label asp-for="City" class="form-label">Suburb</label>
-                    <input asp-for="City" class="form-control form-control-sm" />
+                    <label asp-for="HasLabResults" class="sentinel-label">Has Lab Results</label>
+                    <select asp-for="HasLabResults" class="sentinel-input">
+                        <option value="">-- All --</option>
+                        <option value="true">Yes</option>
+                        <option value="false">No</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label asp-for="City" class="sentinel-label">Suburb</label>
+                    <input asp-for="City" class="sentinel-input" />
                 </div>
             </div>
-            <div class="row mt-2">
+            <div class="row g-3" style="margin-top: var(--spacing-2);">
                 <div class="col-md-3">
-                    <label asp-for="PostalCode" class="form-label">Postcode</label>
-                    <input asp-for="PostalCode" class="form-control form-control-sm" />
+                    <label asp-for="PostalCode" class="sentinel-label">Postcode</label>
+                    <input asp-for="PostalCode" class="sentinel-input" />
                 </div>
                 <div class="col-md-3">
-                    <label asp-for="State" class="form-label">State</label>
-                    <input asp-for="State" class="form-control form-control-sm" />
+                    <label asp-for="State" class="sentinel-label">State</label>
+                    <input asp-for="State" class="sentinel-input" />
                 </div>
+            </div>
             </div>
         </div>
 
         <!-- Custom Fields Section -->
         @if (Model.SearchableCustomFields.Any())
         {
-            <div class="mt-2">
-                <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#customFieldFilters">
-                    <i class="bi bi-ui-checks me-1"></i>Custom Fields (@Model.SearchableCustomFields.Count)
+            <div style="margin-top: var(--spacing-4);">
+                <button class="btn-sentinel-secondary" style="padding: 8px 14px; font-size: 13px;" type="button" data-bs-toggle="collapse" data-bs-target="#customFieldFilters">
+                    <i class="bi bi-ui-checks"></i> Custom Fields (@Model.SearchableCustomFields.Count)
                 </button>
             </div>
 
-            <div class="collapse mt-2" id="customFieldFilters">
+            <div class="collapse" style="margin-top: var(--spacing-4);" id="customFieldFilters">
+                <div style="background: var(--bone); border: 1px solid var(--hairline); border-radius: var(--radius-md); padding: var(--spacing-4);">
                 @foreach (var category in Model.SearchableCustomFields.GroupBy(f => f.Category))
                 {
-                    <h6 class="small text-muted mb-2 mt-2">@category.Key</h6>
-                    <div class="row">
+                    <h6 style="font-size: 12px; color: var(--graphite); margin-bottom: var(--spacing-2); margin-top: var(--spacing-3); text-transform: uppercase; letter-spacing: 0.5px;">@category.Key</h6>
+                    <div class="row g-3">
                         @foreach (var field in category.OrderBy(f => f.DisplayOrder))
                         {
                             var fieldName = $"customfield_{field.Id}";
@@ -190,7 +154,7 @@
                                 ? Model.CustomFieldSearchValues[field.Id] : "";
 
                             <div class="col-md-3">
-                                <label class="form-label">@field.Label</label>
+                                <label class="sentinel-label">@field.Label</label>
 
                                 @switch (field.FieldType)
                                 {
@@ -198,22 +162,22 @@
                                     case CustomFieldType.Email:
                                     case CustomFieldType.Phone:
                                     case CustomFieldType.TextArea:
-                                        <input type="text" class="form-control form-control-sm" 
+                                        <input type="text" class="sentinel-input" 
                                                name="@fieldName" value="@fieldValue" />
                                         break;
 
                                     case CustomFieldType.Number:
-                                        <input type="number" class="form-control form-control-sm" 
+                                        <input type="number" class="sentinel-input" 
                                                name="@fieldName" value="@fieldValue" step="any" />
                                         break;
 
                                     case CustomFieldType.Date:
-                                        <input type="date" class="form-control form-control-sm" 
+                                        <input type="date" class="sentinel-input" 
                                                name="@fieldName" value="@fieldValue" />
                                         break;
 
                                     case CustomFieldType.Checkbox:
-                                        <select class="form-select form-select-sm" name="@fieldName">
+                                        <select class="sentinel-input" name="@fieldName">
                                             <option value="">-- All --</option>
                                             <option value="true" selected="@(fieldValue == "true")">Yes</option>
                                             <option value="false" selected="@(fieldValue == "false")">No</option>
@@ -223,7 +187,7 @@
                                     case CustomFieldType.Dropdown:
                                         if (field.LookupTable != null && field.LookupTable.Values != null && field.LookupTable.Values.Any())
                                         {
-                                            <select class="form-select form-select-sm" name="@fieldName">
+                                            <select class="sentinel-input" name="@fieldName">
                                                 <option value="">-- All --</option>
                                                 @foreach (var value in field.LookupTable.Values.OrderBy(v => v.DisplayOrder))
                                                 {
@@ -239,43 +203,47 @@
                         }
                     </div>
                 }
+                </div>
             </div>
         }
 
         <!-- Action Buttons -->
-        <div class="d-flex gap-2 mt-3">
-            <button type="submit" class="btn btn-primary btn-sm">
-                <i class="bi bi-search me-1"></i>Search
+        <div class="d-flex gap-2" style="margin-top: var(--spacing-4);">
+            <button type="submit" class="btn-sentinel-primary">
+                <i class="bi bi-search"></i> Search
             </button>
-            <button type="submit" asp-page-handler="Clear" class="btn btn-outline-secondary btn-sm">
-                <i class="bi bi-x-circle me-1"></i>Clear
+            <button type="submit" asp-page-handler="Clear" class="btn-sentinel-secondary">
+                <i class="bi bi-x-circle"></i> Clear
             </button>
         </div>
     </form>
+    </div>
 </div>
 
 <!-- Results Section -->
 @if (Model.HasSearched)
 {
-    <div class="card">
-        <div class="card-header bg-light py-2">
-            <div class="d-flex justify-content-between align-items-center">
-                <h6 class="mb-0"><i class="bi bi-list-check me-2"></i>Results</h6>
-                <span class="badge bg-primary">@Model.TotalResults</span>
-            </div>
+    <div class="sentinel-card">
+        <div class="sentinel-card-header">
+            <h3 class="sentinel-card-title">
+                <i class="bi bi-list-check"></i>
+                Search Results
+                <span class="chip-info" style="margin-left: var(--spacing-2);">@Model.TotalResults result(s)</span>
+            </h3>
         </div>
-        <div class="card-body p-0">
+        <div class="sentinel-card-body" style="padding: 0;">
             @if (Model.TotalResults == 0)
             {
-                <div class="alert alert-info m-3 mb-0 py-2">
-                    <i class="bi bi-info-circle me-2"></i>No cases found matching your search criteria.
+                <div style="background: #E6F3FF; border: 1px solid #99CCFF; border-radius: var(--radius-md); padding: var(--spacing-4); margin: var(--spacing-4); color: #004080;">
+                    <i class="bi bi-info-circle" style="margin-right: var(--spacing-2);"></i>
+                    No cases found matching your search criteria.
                 </div>
             }
             else
             {
                 <div class="table-responsive">
-                    <table class="table table-hover table-compact mb-0">
-                        <thead class="table-light">
+                    <table class="patient-table" style="margin-bottom: 0;">
+                        <thead>
                             <tr>
                                 <th>Case ID</th>
                                 <th>Patient</th>
@@ -293,28 +261,28 @@
                             {
                                 <tr>
                                     <td>
-                                        <strong><a asp-page="./Details" asp-route-id="@caseItem.Id">@caseItem.FriendlyId</a></strong>
+                                        <strong><a asp-page="./Details" asp-route-id="@caseItem.Id" style="color: var(--signal-dk); text-decoration: none;">@caseItem.FriendlyId</a></strong>
                                     </td>
                                     <td>
                                         @if (caseItem.Patient != null)
                                         {
-                                            <a asp-page="/Patients/Details" asp-route-id="@caseItem.PatientId">
+                                            <a asp-page="/Patients/Details" asp-route-id="@caseItem.PatientId" style="color: var(--signal-dk); text-decoration: none;">
                                                 @caseItem.Patient.GivenName @caseItem.Patient.FamilyName
                                             </a>
                                         }
                                         else
                                         {
-                                            <span class="text-muted">Unknown</span>
+                                            <span style="color: var(--graphite); font-style: italic;">Unknown</span>
                                         }
                                     </td>
                                     <td>
                                         @if (caseItem.Disease != null)
                                         {
-                                            <span class="badge bg-secondary">@caseItem.Disease.Name</span>
+                                            <span class="chip-neutral">@caseItem.Disease.Name</span>
                                         }
                                         else
                                         {
-                                            <span class="text-muted">-</span>
+                                            <span style="color: var(--graphite);">-</span>
                                         }
                                     </td>
                                     <td>@(caseItem.DateOfOnset?.ToString("dd MMM") ?? "-")</td>
@@ -322,39 +290,39 @@
                                     <td>
                                         @if (caseItem.ConfirmationStatus != null)
                                         {
-                                            <span class="badge bg-info">@caseItem.ConfirmationStatus.Name</span>
+                                            <span class="chip-info">@caseItem.ConfirmationStatus.Name</span>
                                         }
                                         else
                                         {
-                                            <span class="text-muted">-</span>
+                                            <span style="color: var(--graphite);">-</span>
                                         }
                                     </td>
                                     <td class="text-center">
                                         @if (caseItem.CaseSymptoms.Any())
                                         {
-                                            <span class="badge bg-success">@caseItem.CaseSymptoms.Count</span>
+                                            <span class="chip-success">@caseItem.CaseSymptoms.Count</span>
                                         }
                                         else
                                         {
-                                            <span class="text-muted">-</span>
+                                            <span style="color: var(--graphite);">-</span>
                                         }
                                     </td>
                                     <td class="text-center">
                                         @if (caseItem.LabResults.Any())
                                         {
-                                            <span class="badge bg-primary">@caseItem.LabResults.Count</span>
+                                            <span class="chip-info">@caseItem.LabResults.Count</span>
                                         }
                                         else
                                         {
-                                            <span class="text-muted">-</span>
+                                            <span style="color: var(--graphite);">-</span>
                                         }
                                     </td>
                                     <td class="text-end">
-                                        <div class="btn-group btn-group-sm">
-                                            <a asp-page="./Details" asp-route-id="@caseItem.Id" class="btn btn-outline-primary" title="View">
-                                                <i class="bi bi-eye"></i>
+                                        <div class="btn-group btn-group-sm" role="group">
+                                            <a asp-page="./Details" asp-route-id="@caseItem.Id" class="btn-sentinel-secondary" style="padding: 4px 10px; font-size: 12px;" title="View">
+                                                <i class="bi bi-eye"></i> View
                                             </a>
-                                            <a asp-page="./Edit" asp-route-id="@caseItem.Id" class="btn btn-outline-secondary" title="Edit">
+                                            <a asp-page="./Edit" asp-route-id="@caseItem.Id" class="btn-sentinel-secondary" style="padding: 4px 10px; font-size: 12px;" title="Edit">
                                                 <i class="bi bi-pencil"></i>
                                             </a>
                                         </div>
@@ -367,8 +335,8 @@
 
                 @if (Model.TotalResults >= 500)
                 {
-                    <div class="alert alert-warning m-3 mb-0 py-2">
-                        <i class="bi bi-exclamation-triangle me-2"></i>
+                    <div style="background: #FFF4E6; border: 1px solid #FFD699; border-radius: var(--radius-md); padding: var(--spacing-4); margin: var(--spacing-4); margin-bottom: 0; color: #804000;">
+                        <i class="bi bi-exclamation-triangle" style="margin-right: var(--spacing-2);"></i>
                         <strong>Note:</strong> Results limited to 500 cases. Please refine your search.
                     </div>
                 }

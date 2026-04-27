@@ -240,7 +240,100 @@
                                         {
                                             <li>
                                                 <i class="bi bi-funnel"></i>
-                                                @filter.FieldPath @filter.Operator @filter.Value
+                                                <strong>@filter.FieldPath</strong>
+                                                @{
+                                                    // Human-readable filter description
+                                                    var description = "";
+
+                                                    if (filter.Operator == "InLast")
+                                                    {
+                                                        description = $"is within the last {filter.Value} days";
+                                                    }
+                                                    else if (filter.Operator == "InNext")
+                                                    {
+                                                        description = $"is within the next {filter.Value} days";
+                                                    }
+                                                    else if (filter.IsDynamicDate && !string.IsNullOrEmpty(filter.DynamicDateType))
+                                                    {
+                                                        if (filter.DynamicDateOffset.HasValue)
+                                                        {
+                                                            // Custom dynamic date with offset
+                                                            var direction = filter.DynamicDateType.StartsWith("Past") ? "ago" : "from now";
+                                                            var unit = filter.DynamicDateOffsetUnit?.ToLower() ?? "days";
+                                                            var operatorText = filter.Operator switch {
+                                                                "Equals" => "is exactly",
+                                                                "GreaterThan" => "is after",
+                                                                "LessThan" => "is before",
+                                                                "GreaterThanOrEqual" => "is on or after",
+                                                                "LessThanOrEqual" => "is on or before",
+                                                                _ => filter.Operator
+                                                            };
+                                                            description = $"{operatorText} {filter.DynamicDateOffset} {unit} {direction}";
+                                                        }
+                                                        else
+                                                        {
+                                                            // Fixed dynamic date type
+                                                            var dateTypeText = filter.DynamicDateType switch {
+                                                                "Today" => "today",
+                                                                "Yesterday" => "yesterday",
+                                                                "Tomorrow" => "tomorrow",
+                                                                "StartOfWeek" => "start of this week",
+                                                                "EndOfWeek" => "end of this week",
+                                                                "StartOfMonth" => "start of this month",
+                                                                "EndOfMonth" => "end of this month",
+                                                                _ => filter.DynamicDateType
+                                                            };
+                                                            description = $"is {dateTypeText}";
+                                                        }
+                                                    }
+                                                    else if (filter.Operator == "Between")
+                                                    {
+                                                        var values = filter.Value?.Split('|') ?? new string[0];
+                                                        if (values.Length == 2)
+                                                        {
+                                                            description = $"is between {values[0]} and {values[1]}";
+                                                        }
+                                                        else
+                                                        {
+                                                            description = $"Between {filter.Value}";
+                                                        }
+                                                    }
+                                                    else if (filter.Operator == "IsNull")
+                                                    {
+                                                        description = "is null/empty";
+                                                    }
+                                                    else if (filter.Operator == "IsNotNull")
+                                                    {
+                                                        description = "is not null/empty";
+                                                    }
+                                                    else if (filter.Operator == "IsEmpty")
+                                                    {
+                                                        description = "is empty";
+                                                    }
+                                                    else if (filter.Operator == "IsNotEmpty")
+                                                    {
+                                                        description = "is not empty";
+                                                    }
+                                                    else
+                                                    {
+                                                        // Regular operator + value
+                                                        var operatorText = filter.Operator switch {
+                                                            "Equals" => "equals",
+                                                            "NotEquals" => "does not equal",
+                                                            "Contains" => "contains",
+                                                            "NotContains" => "does not contain",
+                                                            "StartsWith" => "starts with",
+                                                            "EndsWith" => "ends with",
+                                                            "GreaterThan" => ">",
+                                                            "LessThan" => "<",
+                                                            "GreaterThanOrEqual" => ">=",
+                                                            "LessThanOrEqual" => "<=",
+                                                            _ => filter.Operator
+                                                        };
+                                                        description = $"{operatorText} {filter.Value}";
+                                                    }
+                                                }
+                                                <span class="text-muted">@description</span>
                                             </li>
                                         }
                                     </ul>
@@ -283,11 +376,13 @@
             if (pivotConfig) {
                 // Use saved pivot configuration but REPLACE dataSource with fresh data
                 reportConfig = JSON.parse(JSON.stringify(pivotConfig)); // Deep clone
-                reportConfig.dataSource = { data: reportData }; // Inject fresh data            } else {
+                reportConfig.dataSource = { data: reportData }; // Inject fresh data
+            } else {
                 // No saved config - use default flat table
                 reportConfig = {
                     dataSource: { data: reportData }
-                };            }
+                };
+            }
 
             // Initialize pivot view
             pivot1 = new WebDataRocks({

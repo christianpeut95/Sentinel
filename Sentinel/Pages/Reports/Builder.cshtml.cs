@@ -37,6 +37,8 @@ public class BuilderModel : PageModel
     public Dictionary<string, List<ReportFieldMetadata>>? AvailableFields { get; set; }
     public List<Dictionary<string, object?>>? ReportData { get; set; }
     public string? CollectionQueriesJson { get; set; }
+    public string? FieldsJson { get; set; }
+    public string? FiltersJson { get; set; }
 
     public async Task<IActionResult> OnGetAsync()
     {
@@ -64,6 +66,32 @@ public class BuilderModel : PageModel
 
             // Pass collection queries to the page for JavaScript initialization
             CollectionQueriesJson = ReportDefinition.CollectionQueriesJson;
+
+            // Serialize fields to JSON
+            var fieldObjects = ReportDefinition.Fields.OrderBy(f => f.DisplayOrder).Select(f => new
+            {
+                fieldPath = f.FieldPath,
+                displayName = f.DisplayName,
+                dataType = f.DataType,
+                isCustomField = f.IsCustomField,
+                customFieldDefinitionId = f.CustomFieldDefinitionId
+            });
+            FieldsJson = JsonSerializer.Serialize(fieldObjects);
+
+            // Serialize filters to JSON
+            var filterObjects = ReportDefinition.Filters.OrderBy(f => f.DisplayOrder).Select(f => new
+            {
+                fieldPath = f.FieldPath,
+                @operator = f.Operator,
+                value = f.Value,
+                dataType = f.DataType,
+                groupId = f.GroupId,
+                isDynamicDate = f.IsDynamicDate,
+                dynamicDateType = f.DynamicDateType,
+                dynamicDateOffset = f.DynamicDateOffset,
+                dynamicDateOffsetUnit = f.DynamicDateOffsetUnit
+            });
+            FiltersJson = JsonSerializer.Serialize(filterObjects);
 
             // Load report data
             ReportData = await _reportDataService.GetReportPreviewAsync(ReportDefinition);
@@ -155,7 +183,15 @@ public class BuilderModel : PageModel
                     Value = filter.Value,
                     DataType = filter.DataType,
                     DisplayOrder = filter.DisplayOrder,
-                    IsCustomField = filter.IsCustomField
+                    IsCustomField = filter.IsCustomField,
+                    CustomFieldDefinitionId = filter.CustomFieldDefinitionId,
+                    LogicOperator = filter.LogicOperator,
+                    GroupId = filter.GroupId,
+                    GroupLogicOperator = filter.GroupLogicOperator,
+                    IsDynamicDate = filter.IsDynamicDate,
+                    DynamicDateType = filter.DynamicDateType,
+                    DynamicDateOffset = filter.DynamicDateOffset,
+                    DynamicDateOffsetUnit = filter.DynamicDateOffsetUnit
                 });
             }
 
@@ -233,7 +269,15 @@ public class BuilderModel : PageModel
                     Operator = f.Operator,
                     Value = f.Value,
                     DataType = f.DataType,
-                    IsCustomField = f.IsCustomField
+                    IsCustomField = f.IsCustomField,
+                    CustomFieldDefinitionId = f.CustomFieldDefinitionId,
+                    LogicOperator = f.LogicOperator,
+                    GroupId = f.GroupId,
+                    GroupLogicOperator = f.GroupLogicOperator,
+                    IsDynamicDate = f.IsDynamicDate,
+                    DynamicDateType = f.DynamicDateType,
+                    DynamicDateOffset = f.DynamicDateOffset,
+                    DynamicDateOffsetUnit = f.DynamicDateOffsetUnit
                 }).ToList() ?? new List<ReportFilter>()
             };
 
@@ -468,4 +512,14 @@ public class ReportFilterDto
     public string DataType { get; set; } = string.Empty;
     public int DisplayOrder { get; set; }
     public bool IsCustomField { get; set; }
+    public int? CustomFieldDefinitionId { get; set; }
+    public string LogicOperator { get; set; } = "AND";
+    public int? GroupId { get; set; }
+    public string GroupLogicOperator { get; set; } = "AND";
+
+    // Dynamic date properties
+    public bool IsDynamicDate { get; set; }
+    public string? DynamicDateType { get; set; }
+    public int? DynamicDateOffset { get; set; }
+    public string? DynamicDateOffsetUnit { get; set; }
 }

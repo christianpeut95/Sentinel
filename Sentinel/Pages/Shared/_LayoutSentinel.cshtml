@@ -1,7 +1,6 @@
 @using Microsoft.AspNetCore.Identity
 @using Sentinel.Models
 @inject UserManager<ApplicationUser> UserManager
-@inject Microsoft.Extensions.Configuration.IConfiguration Configuration
 @*
   Sentinel Design System Layout v0.2
   Watchful. Modern. Quiet.
@@ -196,24 +195,7 @@
     <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
     <script src="/_content/AntDesign/js/ant-design-blazor.js"></script>
     <script src="~/js/site.js" asp-append-version="true"></script>
-
-    <!-- Apple Navigation Script -->
-    <script src="~/js/apple-navigation.js" asp-append-version="true"></script>
-
-    <!-- Autocomplete Utility -->
-    <script src="~/js/autocomplete.js" asp-append-version="true"></script>
-
-    <!-- Geocoding Service -->
-    <script src="~/js/geocoding.js" asp-append-version="true"></script>
-    <script>
-        SentinelGeocoding.init({
-            provider: '@(Configuration["Geocoding:Provider"] ?? "nominatim")',
-            apiKey: '@(Configuration["Geocoding:ApiKey"] ?? "")',
-            email: '@(Configuration["Geocoding:Email"] ?? "")',
-            defaultCountry: '@(Configuration["Organization:CountryCode"] ?? "AU")'
-        });
-    </script>
-
+    
     <script>
         // Sidebar toggle for mobile
         function toggleSidebar() {

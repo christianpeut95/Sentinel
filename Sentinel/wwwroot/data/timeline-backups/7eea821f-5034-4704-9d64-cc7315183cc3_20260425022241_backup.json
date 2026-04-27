@@ -1,0 +1,73 @@
+{
+  "caseId": "7eea821f-5034-4704-9d64-cc7315183cc3",
+  "entries": [
+    {
+      "id": "entry_1777083675359_6pxw6a3fu",
+      "entryDate": "2026-04-25T00:00:00Z",
+      "narrativeText": "went with McDonald\u0027s Rundle Mall East with  \u002Bbash",
+      "entities": [
+        {
+          "id": "entity_1777083691323_sde06zxix",
+          "entityType": 1,
+          "rawText": "bash",
+          "normalizedValue": "bash",
+          "startPosition": 45,
+          "endPosition": 49,
+          "confidence": 2,
+          "isConfirmed": true,
+          "linkedRecordType": null,
+          "linkedRecordId": null,
+          "linkedRecordDisplayName": null,
+          "suggestions": [],
+          "metadata": {
+            "relationship": "Friend",
+            "phone": null,
+            "ageDob": null,
+            "notes": null
+          },
+          "notes": null
+        },
+        {
+          "id": "entity_1777083723785_55r9i8nwj",
+          "entityType": 2,
+          "rawText": "McDonald\u0027s Rundle Mall East",
+          "normalizedValue": "McDonald\u0027s Rundle Mall East",
+          "startPosition": 10,
+          "endPosition": 37,
+          "confidence": 3,
+          "isConfirmed": true,
+          "linkedRecordType": null,
+          "linkedRecordId": null,
+          "linkedRecordDisplayName": null,
+          "suggestions": [],
+          "metadata": {
+            "placeId": "ChIJxf6nGNTOsGoRyMUc63gckMQ",
+            "address": "Rundle Mall, Adelaide SA 5000, Australia",
+            "latitude": "-34.92283",
+            "longitude": "138.6051306"
+          },
+          "notes": null
+        }
+      ],
+      "relationships": [],
+      "parsedAt": null,
+      "confidenceScore": null,
+      "isReviewed": false,
+      "uncertaintyMarkers": [],
+      "corrections": [],
+      "protectiveMeasures": [],
+      "isMemoryGap": false,
+      "memoryGapNotes": null
+    }
+  ],
+  "conventions": {},
+  "entityGroups": {},
+  "createdDate": "2026-04-25T02:22:11.600254Z",
+  "createdByUserId": "6964051a-a741-43ff-8b37-dfbd11ce666e",
+  "lastModified": "2026-04-25T02:22:11.6002966Z",
+  "lastModifiedByUserId": "6964051a-a741-43ff-8b37-dfbd11ce666e",
+  "isReviewed": false,
+  "reviewedAt": null,
+  "reviewedByUserId": null,
+  "version": 2
+}

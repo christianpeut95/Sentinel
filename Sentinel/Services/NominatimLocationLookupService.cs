@@ -51,14 +51,20 @@ namespace Sentinel.Services
             return (null, null);
         }
 
-        public async Task<List<AddressLookupResult>> SearchAddressesAsync(string query, int limit = 5)
+        public async Task<List<AddressLookupResult>> SearchAddressesAsync(string query, int limit = 5, double? biasLatitude = null, double? biasLongitude = null)
         {
             var results = new List<AddressLookupResult>();
 
             if (string.IsNullOrWhiteSpace(query)) return results;
 
             var url = $"search?format=json&limit={limit}&addressdetails=1&q={Uri.EscapeDataString(query)}";
-            
+
+            // Add location bias if provided (prioritize nearby results)
+            if (biasLatitude.HasValue && biasLongitude.HasValue)
+            {
+                url += $"&viewbox={biasLongitude.Value - 0.5},{biasLatitude.Value + 0.5},{biasLongitude.Value + 0.5},{biasLatitude.Value - 0.5}&bounded=0";
+            }
+
             if (!string.IsNullOrWhiteSpace(_countryCode))
             {
                 url += $"&countrycodes={Uri.EscapeDataString(_countryCode.ToLowerInvariant())}";
@@ -100,19 +106,32 @@ namespace Sentinel.Services
             return results;
         }
 
-        public async Task<List<PlaceLookupResult>> SearchPlacesAsync(string query, int limit = 5)
+        public async Task<List<PlaceLookupResult>> SearchPlacesAsync(string query, int limit = 5, double? biasLatitude = null, double? biasLongitude = null)
         {
             var results = new List<PlaceLookupResult>();
 
             if (string.IsNullOrWhiteSpace(query)) return results;
 
             var url = $"search?format=json&limit={limit}&q={Uri.EscapeDataString(query)}";
-            
+
             if (!string.IsNullOrWhiteSpace(_countryCode))
             {
                 url += $"&countrycodes={Uri.EscapeDataString(_countryCode.ToLowerInvariant())}";
             }
-            
+
+            // Add location bias if coordinates provided (Nominatim uses viewbox for biasing)
+            if (biasLatitude.HasValue && biasLongitude.HasValue)
+            {
+                // Create a bounding box around the point (approx 10km radius)
+                var latOffset = 0.09; // ~10km
+                var lonOffset = 0.09;
+                var left = biasLongitude.Value - lonOffset;
+                var top = biasLatitude.Value + latOffset;
+                var right = biasLongitude.Value + lonOffset;
+                var bottom = biasLatitude.Value - latOffset;
+                url += $"&viewbox={left},{top},{right},{bottom}&bounded=0"; // bounded=0 allows results outside box
+            }
+
             using var resp = await _http.GetAsync(url);
             if (!resp.IsSuccessStatusCode) return results;
 

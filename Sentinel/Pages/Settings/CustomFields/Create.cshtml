@@ -3,16 +3,8 @@
 
 @{
     ViewData["Title"] = "Create Custom Field";
-}
-@functions {
-    public string GetCspNonce()
-    {
-        if (HttpContext?.Items?.TryGetValue("csp-nonce", out var nonce) == true && nonce is string nonceStr)
-        {
-            return nonceStr;
-        }
-        return string.Empty;
-    }
+    ViewData["Subtitle"] = "Add new custom field definition";
+    Layout = "~/Pages/Shared/_LayoutSentinel.cshtml";
 }
 
 <div class="container-fluid">

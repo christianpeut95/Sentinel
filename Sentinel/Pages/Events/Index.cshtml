@@ -3,16 +3,8 @@
 
 @{
     ViewData["Title"] = "Events";
-}
-@functions {
-    public string GetCspNonce()
-    {
-        if (HttpContext?.Items?.TryGetValue("csp-nonce", out var nonce) == true && nonce is string nonceStr)
-        {
-            return nonceStr;
-        }
-        return string.Empty;
-    }
+    ViewData["Subtitle"] = "Public Health Event Tracking";
+    Layout = "~/Pages/Shared/_LayoutSentinel.cshtml";
 }
 
 <style>
@@ -34,7 +26,7 @@
     }
 
     .page-title i {
-        color: #f43f5e; /* Rose icon for Events */
+        color: var(--signal-dk); /* Sentinel green icon for Events */
         font-size: 26px;
     }
 
@@ -46,7 +38,7 @@
     }
 
     .btn-hero {
-        background: #f43f5e; /* Rose for Events */
+        background: var(--signal-dk); /* Sentinel green for Events */
         color: white;
         font-weight: 600;
         border: none;
@@ -61,17 +53,17 @@
     }
 
     .btn-hero:hover {
-        background: #e11d48;
+        background: var(--forest);
         transform: translateY(-1px);
-        box-shadow: 0 3px 10px rgba(244, 63, 94, 0.3);
+        box-shadow: 0 3px 10px rgba(21, 156, 110, 0.3);
         color: white;
     }
 
     .btn-secondary-hero {
         background: white;
-        color: #f43f5e;
+        color: var(--signal-dk);
         font-weight: 600;
-        border: 1px solid #fda4af;
+        border: 1px solid var(--signal-lt);
         padding: 0.5rem 1rem;
         border-radius: 8px;
         transition: all 0.2s;
@@ -83,10 +75,10 @@
     }
 
     .btn-secondary-hero:hover {
-        background: #fff1f2;
-        border-color: #f43f5e;
-        color: #f43f5e;
-        box-shadow: 0 2px 6px rgba(244, 63, 94, 0.15);
+        background: var(--signal-lt);
+        border-color: var(--signal-dk);
+        color: var(--signal-dk);
+        box-shadow: 0 2px 6px rgba(21, 156, 110, 0.15);
     }
 
     /* Stats Bar */
@@ -101,7 +93,7 @@
         background: white;
         border-radius: 8px;
         padding: 0.75rem 1rem;
-        border-left: 3px solid #f43f5e;
+        border-left: 3px solid var(--signal-dk);
         box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
         border-top: 1px solid rgba(0, 0, 0, 0.06);
         border-right: 1px solid rgba(0, 0, 0, 0.06);
@@ -111,7 +103,7 @@
     .stat-value {
         font-size: 1.5rem;
         font-weight: 700;
-        color: #f43f5e;
+        color: var(--signal-dk);
         margin-bottom: 0.1rem;
         line-height: 1;
     }
@@ -134,7 +126,7 @@
     .table-card-header {
         padding: 0.75rem 1rem;
         border-bottom: 1px solid #e2e8f0;
-        background: linear-gradient(to right, #fff1f2, white);
+        background: linear-gradient(to right, var(--signal-lt), white);
         display: flex;
         justify-content: space-between;
         align-items: center;
@@ -151,7 +143,7 @@
     }
 
     .table-card-title i {
-        color: #f43f5e;
+        color: var(--signal-dk);
     }
 
     /* Apple-style Table */
@@ -162,7 +154,7 @@
     }
 
     .apple-table thead {
-        background: #fff1f2;
+        background: var(--signal-lt);
     }
 
     .apple-table th {
@@ -170,8 +162,8 @@
         text-align: left;
         font-weight: 600;
         font-size: 11px;
-        color: #9f1239;
-        border-bottom: 1px solid #fda4af;
+        color: var(--forest);
+        border-bottom: 1px solid var(--hairline);
         text-transform: uppercase;
         letter-spacing: 0.3px;
     }
@@ -187,7 +179,7 @@
     }
 
     .apple-table tbody tr:hover {
-        background: #fff1f2;
+        background: var(--signal-lt);
     }
 
     .apple-table tbody tr:last-child td {
@@ -208,8 +200,8 @@
     }
 
     .quick-search-input:focus {
-        border-color: #f43f5e;
-        box-shadow: 0 0 0 3px rgba(244, 63, 94, 0.1);
+        border-color: var(--signal-dk);
+        box-shadow: 0 0 0 3px rgba(21, 156, 110, 0.1);
     }
 
     .quick-search-icon {
@@ -217,7 +209,7 @@
         left: 0.75rem;
         top: 50%;
         transform: translateY(-50%);
-        color: #f43f5e;
+        color: var(--signal-dk);
         pointer-events: none;
     }
 </style>
@@ -384,7 +376,7 @@
                         <td>
                             @if (evt.EventType != null)
                             {
-                                <span class="badge" style="background: #fda4af; color: #9f1239;">@evt.EventType.Name</span>
+                                <span class="badge" style="background: var(--signal-lt); color: var(--forest);">@evt.EventType.Name</span>
                             }
                             else
                             {

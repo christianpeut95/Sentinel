@@ -3,17 +3,7 @@
 
 @{
     ViewData["Title"] = "Organizations";
-    Layout = "~/Pages/Shared/_Layout.cshtml";
-}
-@functions {
-    public string GetCspNonce()
-    {
-        if (HttpContext?.Items?.TryGetValue("csp-nonce", out var nonce) == true && nonce is string nonceStr)
-        {
-            return nonceStr;
-        }
-        return string.Empty;
-    }
+    Layout = "~/Pages/Shared/_LayoutSentinel.cshtml";
 }
 
 <style>
@@ -35,7 +25,7 @@
     }
 
     .page-title i {
-        color: #6366f1; /* Indigo icon for Organizations */
+        color: var(--signal-dk); /* Sentinel green icon for Organizations */
         font-size: 26px;
     }
 
@@ -47,7 +37,7 @@
     }
 
     .btn-hero {
-        background: #6366f1; /* Indigo for Organizations */
+        background: var(--signal-dk); /* Sentinel green for Organizations */
         color: white;
         font-weight: 600;
         border: none;
@@ -62,17 +52,17 @@
     }
 
     .btn-hero:hover {
-        background: #4f46e5;
+        background: var(--forest);
         transform: translateY(-1px);
-        box-shadow: 0 3px 10px rgba(99, 102, 241, 0.3);
+        box-shadow: 0 3px 10px rgba(21, 156, 110, 0.3);
         color: white;
     }
 
     .btn-secondary-hero {
         background: white;
-        color: #6366f1;
+        color: var(--signal-dk);
         font-weight: 600;
-        border: 1px solid #a5b4fc;
+        border: 1px solid var(--signal-lt);
         padding: 0.5rem 1rem;
         border-radius: 8px;
         transition: all 0.2s;
@@ -84,10 +74,10 @@
     }
 
     .btn-secondary-hero:hover {
-        background: #eef2ff;
-        border-color: #6366f1;
-        color: #6366f1;
-        box-shadow: 0 2px 6px rgba(99, 102, 241, 0.15);
+        background: var(--signal-lt);
+        border-color: var(--signal-dk);
+        color: var(--signal-dk);
+        box-shadow: 0 2px 6px rgba(21, 156, 110, 0.15);
     }
 
     /* Stats Bar */
@@ -102,7 +92,7 @@
         background: white;
         border-radius: 8px;
         padding: 0.75rem 1rem;
-        border-left: 3px solid #6366f1;
+        border-left: 3px solid var(--signal-dk);
         box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
         border-top: 1px solid rgba(0, 0, 0, 0.06);
         border-right: 1px solid rgba(0, 0, 0, 0.06);
@@ -112,7 +102,7 @@
     .stat-value {
         font-size: 1.5rem;
         font-weight: 700;
-        color: #6366f1;
+        color: var(--signal-dk);
         margin-bottom: 0.1rem;
         line-height: 1;
     }
@@ -135,9 +125,9 @@
     .table-card-header {
         padding: 0.75rem 1rem;
         border-bottom: 1px solid #e2e8f0;
-        background: linear-gradient(to right, #eef2ff, white);
+        background: linear-gradient(to right, var(--signal-lt), white);
         display: flex;
-        justify-content: space-between;
+        justify-content: between;
         align-items: center;
     }
 

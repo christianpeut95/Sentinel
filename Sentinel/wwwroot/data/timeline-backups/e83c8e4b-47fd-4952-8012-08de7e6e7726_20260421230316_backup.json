@@ -1,0 +1,103 @@
+{
+  "caseId": "e83c8e4b-47fd-4952-8012-08de7e6e7726",
+  "entries": [
+    {
+      "id": "entry_1776776561818_483x5dbue",
+      "entryDate": "2026-04-21T00:00:00Z",
+      "narrativeText": "Sushi Train Welland Plaza with Grandmother rar Brother nd 9AM.\n\nThen went with ....",
+      "entities": [
+        {
+          "id": "entity_1776776573917_7n9segaw7",
+          "entityType": 2,
+          "rawText": "Sushi Train Welland Plaza",
+          "normalizedValue": "Sushi Train Welland Plaza",
+          "startPosition": 0,
+          "endPosition": 25,
+          "confidence": 3,
+          "isConfirmed": true,
+          "linkedRecordType": null,
+          "linkedRecordId": null,
+          "linkedRecordDisplayName": null,
+          "suggestions": [],
+          "metadata": {
+            "placeId": "ChIJSZCLjQHGsGoRI79a3nKT09E",
+            "address": "Welland Avenue, 25/522 Port Rd, Welland SA 5007, Australia",
+            "coordinates": {
+              "lat": -34.8964255,
+              "lon": 138.5566615
+            }
+          },
+          "notes": null
+        },
+        {
+          "id": "entity_1776776620313_052t1wd7n",
+          "entityType": 1,
+          "rawText": "Brother",
+          "normalizedValue": "Brother",
+          "startPosition": 47,
+          "endPosition": 54,
+          "confidence": 3,
+          "isConfirmed": true,
+          "linkedRecordType": null,
+          "linkedRecordId": null,
+          "linkedRecordDisplayName": null,
+          "suggestions": [],
+          "metadata": {
+            "relationship": ""
+          },
+          "notes": null
+        },
+        {
+          "id": "e0025354-2a94-4fbb-a28e-c3ea8c39347d",
+          "entityType": 5,
+          "rawText": "9AM",
+          "normalizedValue": "9AM",
+          "startPosition": 58,
+          "endPosition": 61,
+          "confidence": 3,
+          "isConfirmed": false,
+          "linkedRecordType": null,
+          "linkedRecordId": null,
+          "linkedRecordDisplayName": null,
+          "suggestions": [],
+          "metadata": null,
+          "notes": null
+        },
+        {
+          "id": "bffef347-55ca-4b7a-a038-3616a2314c79",
+          "entityType": 1,
+          "rawText": "grandmother",
+          "normalizedValue": "grandmother",
+          "startPosition": 31,
+          "endPosition": 42,
+          "confidence": 2,
+          "isConfirmed": false,
+          "linkedRecordType": null,
+          "linkedRecordId": null,
+          "linkedRecordDisplayName": null,
+          "suggestions": [],
+          "metadata": null,
+          "notes": null
+        }
+      ],
+      "relationships": [],
+      "parsedAt": null,
+      "confidenceScore": null,
+      "isReviewed": false,
+      "uncertaintyMarkers": [],
+      "corrections": [],
+      "protectiveMeasures": [],
+      "isMemoryGap": false,
+      "memoryGapNotes": null
+    }
+  ],
+  "conventions": {},
+  "createdDate": "2026-04-21T13:04:12.4929967Z",
+  "createdByUserId": "6964051a-a741-43ff-8b37-dfbd11ce666e",
+  "lastModified": "2026-04-21T13:04:12.4930073Z",
+  "lastModifiedByUserId": "6964051a-a741-43ff-8b37-dfbd11ce666e",
+  "isReviewed": false,
+  "reviewedAt": null,
+  "reviewedByUserId": null,
+  "version": 2
+}

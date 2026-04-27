@@ -3,16 +3,8 @@
 
 @{
     ViewData["Title"] = "User Details";
-}
-@functions {
-    public string GetCspNonce()
-    {
-        if (HttpContext?.Items?.TryGetValue("csp-nonce", out var nonce) == true && nonce is string nonceStr)
-        {
-            return nonceStr;
-        }
-        return string.Empty;
-    }
+    ViewData["Subtitle"] = "View user account information";
+    Layout = "~/Pages/Shared/_LayoutSentinel.cshtml";
 }
 
 <div class="container-fluid">

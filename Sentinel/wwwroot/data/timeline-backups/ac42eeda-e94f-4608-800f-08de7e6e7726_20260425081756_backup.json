@@ -1,0 +1,100 @@
+{
+  "caseId": "ac42eeda-e94f-4608-800f-08de7e6e7726",
+  "entries": [
+    {
+      "id": "entry_1777105019359_lffwnpl36",
+      "entryDate": "2026-04-25T00:00:00Z",
+      "narrativeText": "went with \u002BMum to @Cafe Primo @m",
+      "entities": [
+        {
+          "id": "entity_1777105028529_1a5ylmg3s",
+          "entityType": 1,
+          "rawText": "Mum",
+          "normalizedValue": "Mum",
+          "startPosition": 11,
+          "endPosition": 14,
+          "confidence": 2,
+          "isConfirmed": true,
+          "linkedRecordType": null,
+          "linkedRecordId": null,
+          "linkedRecordDisplayName": null,
+          "suggestions": [],
+          "metadata": {
+            "relationship": "Mother",
+            "phone": null,
+            "ageDob": null,
+            "notes": null
+          },
+          "notes": null
+        },
+        {
+          "id": "entity_1777105038261_s9xn9wd3y",
+          "entityType": 2,
+          "rawText": "Cafe Primo",
+          "normalizedValue": "Cafe Primo",
+          "startPosition": 19,
+          "endPosition": 29,
+          "confidence": 3,
+          "isConfirmed": true,
+          "linkedRecordType": null,
+          "linkedRecordId": null,
+          "linkedRecordDisplayName": null,
+          "suggestions": [],
+          "metadata": {
+            "placeId": "ChIJ3yac1r4TA0cRNJBRUQUygoo",
+            "address": "Gda\u0144ska 18, 85-006 Bydgoszcz, Poland",
+            "latitude": "53.1262388",
+            "longitude": "18.004188"
+          },
+          "notes": null
+        }
+      ],
+      "relationships": [
+        {
+          "id": "rel_1777105045297_017zgh9n6",
+          "primaryEntityId": "entity_1777105038261_s9xn9wd3y",
+          "relatedEntityId": "entity_1777105028529_1a5ylmg3s",
+          "relationType": 1,
+          "timeEntityId": null,
+          "confidence": 2,
+          "isConfirmed": false,
+          "sourcePosition": 0,
+          "metadata": null,
+          "sequenceOrder": 0,
+          "notes": null
+        },
+        {
+          "id": "rel_1777105045297_o8mzyi2cw",
+          "primaryEntityId": "entity_1777105038261_s9xn9wd3y",
+          "relatedEntityId": "entity_1777105028529_1a5ylmg3s",
+          "relationType": 2,
+          "timeEntityId": null,
+          "confidence": 2,
+          "isConfirmed": false,
+          "sourcePosition": 0,
+          "metadata": null,
+          "sequenceOrder": 0,
+          "notes": null
+        }
+      ],
+      "parsedAt": null,
+      "confidenceScore": null,
+      "isReviewed": false,
+      "uncertaintyMarkers": [],
+      "corrections": [],
+      "protectiveMeasures": [],
+      "isMemoryGap": false,
+      "memoryGapNotes": null
+    }
+  ],
+  "conventions": {},
+  "entityGroups": {},
+  "createdDate": "2026-04-25T08:17:26.8294579Z",
+  "createdByUserId": "6964051a-a741-43ff-8b37-dfbd11ce666e",
+  "lastModified": "2026-04-25T08:17:26.829474Z",
+  "lastModifiedByUserId": "6964051a-a741-43ff-8b37-dfbd11ce666e",
+  "isReviewed": false,
+  "reviewedAt": null,
+  "reviewedByUserId": null,
+  "version": 2
+}

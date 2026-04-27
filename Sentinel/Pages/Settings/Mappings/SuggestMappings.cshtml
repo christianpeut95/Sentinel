@@ -3,16 +3,8 @@
 @model Sentinel.Pages.Settings.Mappings.SuggestMappingsModel
 @{
     ViewData["Title"] = "Suggest Mappings";
-}
-@functions {
-    public string GetCspNonce()
-    {
-        if (HttpContext?.Items?.TryGetValue("csp-nonce", out var nonce) == true && nonce is string nonceStr)
-        {
-            return nonceStr;
-        }
-        return string.Empty;
-    }
+    ViewData["Subtitle"] = "Auto-generate field mappings using AI";
+    Layout = "~/Pages/Shared/_LayoutSentinel.cshtml";
 }
 
 <nav aria-label="breadcrumb" class="mb-3">

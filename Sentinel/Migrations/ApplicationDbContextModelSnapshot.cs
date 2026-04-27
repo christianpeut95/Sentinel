@@ -3544,6 +3544,17 @@ namespace Sentinel.Migrations
                     b.Property<int>("DisplayOrder")
                         .HasColumnType("int");
 
+                    b.Property<int?>("DynamicDateOffset")
+                        .HasColumnType("int");
+
+                    b.Property<string>("DynamicDateOffsetUnit")
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<string>("DynamicDateType")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
                     b.Property<string>("FieldPath")
                         .IsRequired()
                         .HasMaxLength(500)
@@ -3561,6 +3572,9 @@ namespace Sentinel.Migrations
                         .HasColumnType("bit");
 
                     b.Property<bool>("IsCustomField")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsDynamicDate")
                         .HasColumnType("bit");
 
                     b.Property<string>("LogicOperator")

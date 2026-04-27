@@ -3,6 +3,8 @@
 
 @{
     ViewData["Title"] = "Delete Disease";
+    ViewData["Subtitle"] = Model.Disease != null ? $"Deleting {Model.Disease.Name}" : "Delete Disease";
+    Layout = "~/Pages/Shared/_LayoutSentinel.cshtml";
 }
 
 <nav aria-label="breadcrumb" class="mb-3">

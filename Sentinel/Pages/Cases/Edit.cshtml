@@ -5,201 +5,31 @@
 
 @{
     ViewData["Title"] = "Edit Case";
-    Layout = "~/Pages/Shared/_Layout.cshtml";
+    Layout = "~/Pages/Shared/_LayoutSentinel.cshtml";
 }
 
-<style>
-    /* Modern Apple Aesthetic - Matching Details Page */
-    .case-edit-container {
-        max-width: 1600px;
-        margin: 0 auto;
-    }
 
-    /* Header Section */
-    .case-header {
-        background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
-        border-radius: 16px;
-        padding: 2rem;
-        margin-bottom: 1.5rem;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
-        border: 1px solid rgba(0, 0, 0, 0.06);
-    }
-
-    .case-header h1 {
-        font-size: 2rem;
-        font-weight: 600;
-        color: #2d3748;
-        margin-bottom: 0.5rem;
-        letter-spacing: -0.5px;
-    }
-
-    .case-header .subtitle {
-        color: #718096;
-        font-size: 1rem;
-        margin-bottom: 0;
-    }
-
-    /* Quick Action Buttons */
-    .quick-actions {
-        display: flex;
-        gap: 0.75rem;
-        flex-wrap: wrap;
-        margin-top: 1rem;
-    }
-
-    .quick-action-btn {
-        background: white;
-        border: 1px solid #cbd5e0;
-        border-radius: 10px;
-        padding: 0.5rem 1rem;
-        font-size: 0.875rem;
-        font-weight: 600;
-        color: #2d3748;
-        transition: all 0.2s;
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-        text-decoration: none;
-    }
-
-    .quick-action-btn:hover {
-        background: #f7fafc;
-        border-color: #2d3748;
-        transform: translateY(-1px);
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-        color: #1a202c;
-    }
-
-    /* Compact Card Design */
-    .info-card {
-        background: white;
-        border-radius: 12px;
-        padding: 1.25rem;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
-        border: 1px solid rgba(0, 0, 0, 0.06);
-        margin-bottom: 1rem;
-        height: 100%;
-    }
-
-    .info-card:hover {
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-        transform: translateY(-1px);
-        transition: all 0.2s ease;
-    }
-
-    .info-card-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 1rem;
-        padding-bottom: 0.75rem;
-        border-bottom: 1px solid #e2e8f0;
-    }
-
-    .info-card-title {
-        font-size: 1rem;
-        font-weight: 600;
-        color: #2d3748;
-        margin: 0;
-        display: flex;
-        align-items: center;
-        gap: 8px;
-    }
-
-    .info-card-title i {
-        color: #4a5568;
-    }
-
-    /* Alerts */
-    .alert {
-        border-radius: 10px;
-        border: none;
-        padding: 0.75rem 1rem;
-        font-size: 0.875rem;
-        margin-bottom: 1rem;
-    }
-
-    /* Breadcrumb */
-    .breadcrumb {
-        background: transparent;
-        padding: 0;
-        margin-bottom: 1rem;
-        font-size: 0.875rem;
-    }
-
-    .breadcrumb-item + .breadcrumb-item::before {
-        color: #cbd5e0;
-    }
-
-    .breadcrumb-item a {
-        color: #4a5568;
-        text-decoration: none;
-    }
-
-    .breadcrumb-item a:hover {
-        color: #2d3748;
-    }
-
-    .breadcrumb-item.active {
-        color: #718096;
-    }
-
-    /* Responsive Grid */
-    .case-grid {
-        display: grid;
-        grid-template-columns: 1fr 1fr 1fr;
-        gap: 1rem;
-        margin-bottom: 1rem;
-        position: relative;
-        z-index: 1;
-    }
-
-    @@media (max-width: 1200px) {
-        .case-grid {
-            grid-template-columns: repeat(2, 1fr);
-        }
-    }
-
-    @@media (max-width: 768px) {
-        .case-grid {
-            grid-template-columns: 1fr;
-        }
-    }
-
-    /* Full-width sections below grid */
-    .case-grid + .info-card {
-        position: relative;
-        z-index: 2;
-        margin-top: 1rem;
-    }
-
-    /* Ensure proper stacking order */
-    .info-card {
-        position: relative;
-    }
-</style>
-
-<nav aria-label="breadcrumb" class="mb-3">
-    <ol class="breadcrumb">
-        <li class="breadcrumb-item"><a asp-page="/Index">Home</a></li>
-        <li class="breadcrumb-item"><a asp-page="./Index">Cases</a></li>
-        <li class="breadcrumb-item"><a asp-page="./Details" asp-route-id="@Model.Case.Id">@Model.Case.FriendlyId</a></li>
-        <li class="breadcrumb-item active" aria-current="page">Edit</li>
+<nav aria-label="breadcrumb" style="margin-bottom: 1rem;">
+    <ol class="breadcrumb" style="background: transparent; padding: 0; font-size: 0.875rem; font-family: var(--f-sans); color: var(--graphite);">
+        <li class="breadcrumb-item"><a asp-page="/Index" style="color: var(--graphite); text-decoration: none;">Home</a></li>
+        <li class="breadcrumb-item"><a asp-page="./Index" style="color: var(--graphite); text-decoration: none;">Cases</a></li>
+        <li class="breadcrumb-item"><a asp-page="./Details" asp-route-id="@Model.Case.Id" style="color: var(--graphite); text-decoration: none;">@Model.Case.FriendlyId</a></li>
+        <li class="breadcrumb-item active" aria-current="page" style="color: var(--slate);">Edit</li>
     </ol>
 </nav>
 
 @if (TempData["ErrorMessage"] != null)
 {
-    <div class="alert alert-danger alert-dismissible fade show" role="alert">
-        <i class="bi bi-exclamation-triangle-fill me-2"></i>@TempData["ErrorMessage"]
+    <div style="background: #FBE2D8; border: 1px solid #F2BBA4; border-radius: 8px; padding: 0.75rem 1rem; font-size: 0.875rem; margin-bottom: 1rem; color: var(--forest); font-family: var(--f-sans);" class="alert-dismissible fade show" role="alert">
+        <i class="bi bi-exclamation-triangle-fill me-2" style="color: var(--status-outbreak);"></i>@TempData["ErrorMessage"]
         <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
     </div>
 }
 
 @if (TempData["SuccessMessage"] != null)
 {
-    <div class="alert alert-success alert-dismissible fade show" role="alert">
-        <i class="bi bi-check-circle-fill me-2"></i>@TempData["SuccessMessage"]
+    <div style="background: var(--signal-lt); border: 1px solid #9BE8C6; border-radius: 8px; padding: 0.75rem 1rem; font-size: 0.875rem; margin-bottom: 1rem; color: var(--forest); font-family: var(--f-sans);" class="alert-dismissible fade show" role="alert">
+        <i class="bi bi-check-circle-fill me-2" style="color: var(--signal-dk);"></i>@TempData["SuccessMessage"]
         @if (TempData["OnsetDateUpdated"] != null && (bool)TempData["OnsetDateUpdated"])
         {
             <br/>
@@ -212,17 +42,17 @@
 
 <div class="case-edit-container">
     <!-- Header Section -->
-    <div class="case-header">
+    <div style="background: var(--bone); border-bottom: 1px solid var(--hairline); border-radius: 12px; padding: 2rem; margin-bottom: 1.5rem;">
         <div class="d-flex justify-content-between align-items-start">
             <div>
-                <h1>
+                <h1 style="font-family: var(--f-sans); font-weight: 600; font-size: 2rem; color: var(--forest); margin-bottom: 0.5rem; letter-spacing: -0.02em;">
                     <i class="bi bi-pencil-square"></i>
                     Edit Case @Model.Case.FriendlyId
                 </h1>
                 @if (Model.Case.Patient != null)
                 {
-                    <p class="subtitle mb-0">
-                        <strong>@Model.Case.Patient.GivenName @Model.Case.Patient.FamilyName</strong>
+                    <p style="color: var(--graphite); font-size: 1rem; margin-bottom: 0; font-family: var(--f-sans);">
+                        <strong style="color: var(--forest);">@Model.Case.Patient.GivenName @Model.Case.Patient.FamilyName</strong>
                         @if (Model.Case.Disease != null)
                         {
                             <span class="mx-2">•</span>
@@ -232,7 +62,7 @@
                 }
             </div>
             <div class="text-end">
-                <a asp-page="./Details" asp-route-id="@Model.Case.Id" class="quick-action-btn">
+                <a asp-page="./Details" asp-route-id="@Model.Case.Id" class="btn-sentinel-secondary">
                     <i class="bi bi-arrow-left"></i> Back to Details
                 </a>
             </div>
@@ -240,12 +70,12 @@
 
         <!-- Quick Actions -->
         <div class="quick-actions">
-            <a asp-page="./AuditHistory" asp-route-id="@Model.Case.Id" class="quick-action-btn">
+            <a asp-page="./AuditHistory" asp-route-id="@Model.Case.Id" class="btn-sentinel-secondary">
                 <i class="bi bi-clock-history"></i> Audit Log
             </a>
             @if (Model.Case.Patient != null)
             {
-                <a asp-page="/Patients/Details" asp-route-id="@Model.Case.PatientId" class="quick-action-btn">
+                <a asp-page="/Patients/Details" asp-route-id="@Model.Case.PatientId" class="btn-sentinel-secondary">
                     <i class="bi bi-person"></i> View Patient
                 </a>
             }
@@ -261,15 +91,15 @@
 
     <!-- First Row: 3 Column Grid -->
     <div class="case-grid">
-        <!-- Column 1: Case Information -->
-        <div class="info-card">
-            <div class="info-card-header">
-                <h3 class="info-card-title">
-                    <i class="bi bi-clipboard-data"></i>
+        <!-- Column 1: Case Information (spans 2 columns on large screens) -->
+        <div class="sentinel-card" style="grid-column: span 2;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; padding-bottom: 0.75rem; border-bottom: 1px solid var(--hairline);">
+                <h3 style="font-family: var(--f-sans); font-weight: 500; font-size: 1.25rem; color: var(--forest); margin: 0; display: flex; align-items: center; gap: 8px;">
+                    <i class="bi bi-clipboard-data" style="color: var(--signal-dk);"></i>
                     Case Information
                 </h3>
             </div>
-            <div>
+            <div class="sentinel-card-body">
                 <div class="mb-3">
                     <label asp-for="Case.DateOfOnset" class="form-label fw-bold">
                         Date of Onset
@@ -389,9 +219,9 @@
                 {
                     @if (Model.HasIncompleteExposure)
                     {
-                        <div class="alert alert-warning" role="alert">
-                            <h6 class="alert-heading">
-                                <i class="bi bi-exclamation-triangle me-2"></i>
+                        <div style="background: #FBEDD1; border: 1px solid #EBD196; border-radius: 8px; padding: 0.75rem 1rem; margin-bottom: 1rem; font-family: var(--f-sans); color: var(--forest);" role="alert">
+                            <h6 style="font-weight: 600; margin-bottom: 0.5rem;">
+                                <i class="bi bi-exclamation-triangle me-2" style="color: var(--status-watch);"></i>
                                 @if (Model.DiseaseRequirements.ExposureTrackingMode == ExposureTrackingMode.LocalSpecificRegion ||
                                      Model.DiseaseRequirements.ExposureTrackingMode == ExposureTrackingMode.OverseasAcquired)
                                 {
@@ -410,19 +240,19 @@
                                 <strong>Current Status:</strong> 
                                 @if (Model.ExposureCount == 0)
                                 {
-                                    <span class="badge bg-danger">No exposure data recorded</span>
+                                    <span class="chip" style="background: #FBE2D8; color: #7A2A15; border-color: #F2BBA4;">No exposure data recorded</span>
                                 }
                                 else
                                 {
-                                    <span class="badge bg-warning">@Model.ExposureCount exposure(s) recorded - may need more detail</span>
+                                    <span class="chip" style="background: #FBEDD1; color: #6A4410; border-color: #EBD196;">@Model.ExposureCount exposure(s) recorded - may need more detail</span>
                                 }
                             </p>
-                            <hr />
+                            <hr style="border-color: #EBD196; margin: 0.75rem 0;" />
                             <div class="d-flex gap-2">
-                                <a asp-page="./Details" asp-route-id="@Model.Case.Id" asp-fragment="exposures" class="btn btn-warning btn-sm">
+                                <a asp-page="./Details" asp-route-id="@Model.Case.Id" asp-fragment="exposures" class="btn-sentinel-secondary" style="font-size: 0.875rem; padding: 0.375rem 0.75rem;">
                                     <i class="bi bi-eye me-1"></i>View Exposures
                                 </a>
-                                <a asp-page="/Cases/Exposures/Create" asp-route-caseId="@Model.Case.Id" class="btn btn-primary btn-sm">
+                                <a asp-page="/Cases/Exposures/Create" asp-route-caseId="@Model.Case.Id" class="btn-sentinel-primary" style="font-size: 0.875rem; padding: 0.375rem 0.75rem;">
                                     <i class="bi bi-plus-circle me-1"></i>Add Exposure
                                 </a>
                             </div>
@@ -430,29 +260,77 @@
                     }
                     else if (Model.ExposureCount > 0)
                     {
-                        <div class="alert alert-success" role="alert">
-                            <i class="bi bi-check-circle me-2"></i>
+                        <div style="background: var(--signal-lt); border: 1px solid #9BE8C6; border-radius: 8px; padding: 0.75rem 1rem; margin-bottom: 1rem; font-family: var(--f-sans); color: var(--forest);" role="alert">
+                            <i class="bi bi-check-circle me-2" style="color: var(--signal-dk);"></i>
                             <strong>Exposure data complete</strong> - @Model.ExposureCount exposure(s) recorded
-                            <a asp-page="./Details" asp-route-id="@Model.Case.Id" asp-fragment="exposures" class="alert-link ms-2">View exposures</a>
+                            <a asp-page="./Details" asp-route-id="@Model.Case.Id" asp-fragment="exposures" style="color: var(--signal-dk); text-decoration: underline; margin-left: 0.5rem;">View exposures</a>
                         </div>
                     }
                 }
             </div>
         </div>
 
-        <!-- Column 2: Jurisdictions Section -->
-        <div class="info-card">
+        <!-- Column 2: Actions & Quick Info -->
+        <div>
+            <!-- Primary Actions Card -->
+            <div class="sentinel-card mb-3">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; padding-bottom: 0.75rem; border-bottom: 1px solid var(--hairline);">
+                    <h3 style="font-family: var(--f-sans); font-weight: 500; font-size: 1.25rem; color: var(--forest); margin: 0; display: flex; align-items: center; gap: 8px;">
+                        <i class="bi bi-floppy" style="color: var(--signal-dk);"></i>
+                        Actions
+                    </h3>
+                </div>
+                <div class="sentinel-card-body">
+                    <button type="submit" class="btn-sentinel-primary w-100 mb-2">
+                        <i class="bi bi-save me-2"></i>Save Changes
+                    </button>
+                    <a asp-page="./Details" asp-route-id="@Model.Case.Id" class="btn-sentinel-secondary w-100 mb-3">
+                        <i class="bi bi-x-circle me-2"></i>Cancel
+                    </a>
+
+                    <hr class="my-3" style="border-color: var(--hairline);" />
+
+                    <!-- Delete Button -->
+                    <button type="button" class="btn btn-outline-danger w-100" onclick="confirmDelete()">
+                        <i class="bi bi-trash me-2"></i>Delete Case
+                    </button>
+                </div>
+            </div>
+
+            <!-- Quick Info Card -->
+            <div class="sentinel-card" style="background: var(--paper);">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; padding-bottom: 0.75rem; border-bottom: 1px solid var(--hairline);">
+                    <h3 style="font-family: var(--f-sans); font-weight: 500; font-size: 1.25rem; color: var(--forest); margin: 0; display: flex; align-items: center; gap: 8px;">
+                        <i class="bi bi-info-circle" style="color: var(--signal-dk);"></i>
+                        Quick Info
+                    </h3>
+                </div>
+                <div class="sentinel-card-body">
+                    <ul class="small mb-0" style="list-style: none; padding-left: 0; font-family: var(--f-sans);">
+                        <li class="mb-2" style="color: var(--graphite);"><i class="bi bi-hash me-1" style="color: var(--slate);"></i><strong style="color: var(--forest);">ID:</strong> @Model.Case.FriendlyId</li>
+                        <li class="mb-2" style="color: var(--graphite);"><i class="bi bi-shield-check me-1" style="color: var(--slate);"></i>Changes are logged for audit</li>
+                        <li style="color: var(--graphite);"><i class="bi bi-person-lock me-1" style="color: var(--slate);"></i>Patient cannot be reassigned</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Second Row: Jurisdictions and Address - 2 Column Grid -->
+    <div class="case-grid" style="grid-template-columns: 1fr 1fr; margin-top: 1.5rem;">
+        <!-- Column 1: Jurisdictions Section -->
+        <div class="sentinel-card">
             @if (Model.ActiveJurisdictionTypes.Any())
             {
-                <div class="info-card-header">
-                    <h3 class="info-card-title">
-                        <i class="bi bi-pin-map"></i>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; padding-bottom: 0.75rem; border-bottom: 1px solid var(--hairline);">
+                    <h3 style="font-family: var(--f-sans); font-weight: 500; font-size: 1.25rem; color: var(--forest); margin: 0; display: flex; align-items: center; gap: 8px;">
+                        <i class="bi bi-pin-map" style="color: var(--signal-dk);"></i>
                         Geographic Jurisdictions
                     </h3>
                 </div>
-                <div>
-                    <div class="alert alert-info alert-sm mb-3" style="font-size: 0.85rem;">
-                        <i class="bi bi-info-circle me-1"></i>
+                <div class="sentinel-card-body">
+                    <div style="background: #E3E9FB; border: 1px solid #B7C4EE; border-radius: 8px; padding: 0.75rem 1rem; margin-bottom: 1rem; font-size: 0.85rem; font-family: var(--f-sans); color: var(--forest);">
+                        <i class="bi bi-info-circle me-1" style="color: var(--status-info);"></i>
                         Type to search and select jurisdictions for this case.
                     </div>
                     
@@ -510,30 +388,30 @@
             }
             else
             {
-                <div class="info-card-header">
-                    <h3 class="info-card-title">
-                        <i class="bi bi-pin-map"></i>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; padding-bottom: 0.75rem; border-bottom: 1px solid var(--hairline);">
+                    <h3 style="font-family: var(--f-sans); font-weight: 500; font-size: 1.25rem; color: var(--forest); margin: 0; display: flex; align-items: center; gap: 8px;">
+                        <i class="bi bi-pin-map" style="color: var(--signal-dk);"></i>
                         Geographic Jurisdictions
                     </h3>
                 </div>
-                <div class="text-muted text-center py-4">
-                    <i class="bi bi-info-circle me-1"></i>
-                    No jurisdiction types configured
+                <div class="sentinel-card-body" style="text-align: center; padding: 2rem; color: var(--graphite);">
+                    <i class="bi bi-info-circle me-1" style="color: var(--hairline); font-size: 2rem;"></i>
+                    <div>No jurisdiction types configured</div>
                 </div>
             }
         </div>
 
-        <!-- Column 3: Case-Specific Address (NEW) -->
-        <div class="info-card">
-            <div class="info-card-header">
-                <h3 class="info-card-title">
-                    <i class="bi bi-geo-alt"></i>
+        <!-- Column 2: Case-Specific Address -->
+        <div class="sentinel-card">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; padding-bottom: 0.75rem; border-bottom: 1px solid var(--hairline);">
+                <h3 style="font-family: var(--f-sans); font-weight: 500; font-size: 1.25rem; color: var(--forest); margin: 0; display: flex; align-items: center; gap: 8px;">
+                    <i class="bi bi-geo-alt" style="color: var(--signal-dk);"></i>
                     Case-Specific Address (Optional)
                 </h3>
             </div>
-            <div>
-                <div class="alert alert-info" style="font-size: 0.85rem;">
-                    <i class="bi bi-info-circle me-1"></i>
+            <div class="sentinel-card-body">
+                <div style="background: #E3E9FB; border: 1px solid #B7C4EE; border-radius: 8px; padding: 0.75rem 1rem; margin-bottom: 1rem; font-size: 0.85rem; font-family: var(--f-sans); color: var(--forest);">
+                    <i class="bi bi-info-circle me-1" style="color: var(--status-info);"></i>
                     <strong>Note:</strong> This address is case-specific and does <strong>NOT</strong> update the patient's record. 
                     Use this to record where <strong>THIS case occurred</strong> if different from the patient's home address 
                     (e.g., workplace exposure, travel-related case, event location).
@@ -565,8 +443,8 @@
                     <span asp-validation-for="Case.CasePostalCode" class="text-danger"></span>
                 </div>
 
-                <div class="alert alert-success" style="font-size: 0.85rem;">
-                    <i class="bi bi-lightning-charge me-1"></i>
+                <div style="background: var(--signal-lt); border: 1px solid #9BE8C6; border-radius: 8px; padding: 0.75rem 1rem; font-size: 0.85rem; font-family: var(--f-sans); color: var(--forest);">
+                    <i class="bi bi-lightning-charge me-1" style="color: var(--signal-dk);"></i>
                     <strong>Auto-Geocoding:</strong> When you save, the address will be automatically geocoded 
                     and jurisdictions will be detected (takes 1-2 minutes in the background).
                 </div>
@@ -574,119 +452,67 @@
         </div>
     </div>
 
-    <!-- Second Row: Actions Column -->
-    <div class="case-grid" style="grid-template-columns: 1fr;">
-        <!-- Column 3: Actions & Info -->
-        <div>
-            <!-- Primary Actions Card -->
-            <div class="info-card mb-3">
-                <div class="info-card-header">
-                    <h3 class="info-card-title">
-                        <i class="bi bi-floppy"></i>
-                        Actions
-                    </h3>
-                </div>
-                <div>
-                    <button type="submit" class="btn btn-primary w-100 mb-2">
-                        <i class="bi bi-save me-2"></i>Save Changes
-                    </button>
-                    <a asp-page="./Details" asp-route-id="@Model.Case.Id" class="btn btn-secondary w-100 mb-3">
-                        <i class="bi bi-x-circle me-2"></i>Cancel
-                    </a>
-                    
-                    <hr class="my-3" />
-                    
-                    <!-- Delete Button -->
-                    <button type="button" class="btn btn-outline-danger w-100" onclick="confirmDelete()">
-                        <i class="bi bi-trash me-2"></i>Delete Case
-                    </button>
-                </div>
-            </div>
-
-            <!-- Quick Info Card -->
-            <div class="info-card" style="background: #f7fafc;">
-                <div class="info-card-header">
-                    <h3 class="info-card-title">
-                        <i class="bi bi-info-circle"></i>
-                        Quick Info
-                    </h3>
-                </div>
-                <div>
-                    <ul class="small mb-0" style="list-style: none; padding-left: 0;">
-                        <li class="mb-2"><i class="bi bi-hash text-muted me-1"></i><strong>ID:</strong> @Model.Case.FriendlyId</li>
-                        <li class="mb-2"><i class="bi bi-shield-check text-muted me-1"></i>Changes are logged for audit</li>
-                        <li><i class="bi bi-person-lock text-muted me-1"></i>Patient cannot be reassigned</li>
-                    </ul>
-                </div>
-            </div>
-        </div>
-    </div>
-    <!-- End of 3-column grid -->
-
-    <!-- Clear the grid to prevent overlay -->
-    <div style="clear: both; height: 0;"></div>
-
-    <!-- Second Row: Patient Information (Read-Only) - Full Width -->
-    <div class="info-card" style="margin-top: 1.5rem;">
-        <div class="info-card-header">
-            <h3 class="info-card-title">
-                <i class="bi bi-person-badge"></i>
+    <!-- Third Row: Patient Information (Read-Only) - Full Width -->
+    <div class="sentinel-card" style="margin-top: 1.5rem;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; padding-bottom: 0.75rem; border-bottom: 1px solid var(--hairline);">
+            <h3 style="font-family: var(--f-sans); font-weight: 500; font-size: 1.25rem; color: var(--forest); margin: 0; display: flex; align-items: center; gap: 8px;">
+                <i class="bi bi-person-badge" style="color: var(--signal-dk);"></i>
                 Patient Information (Read-Only)
             </h3>
         </div>
-        <div>
+        <div class="sentinel-card-body">
             @if (Model.Case.Patient != null)
             {
-                <div class="alert alert-info mb-3 small">
-                    <i class="bi bi-info-circle me-2"></i>
-                    Patient cannot be changed after case creation. <a asp-page="/Patients/Details" asp-route-id="@Model.Case.PatientId" class="alert-link">View patient details <i class="bi bi-box-arrow-up-right"></i></a>
+                <div style="background: #E3E9FB; border: 1px solid #B7C4EE; border-radius: 8px; padding: 0.75rem 1rem; margin-bottom: 1rem; font-size: 0.875rem; font-family: var(--f-sans); color: var(--forest);">
+                    <i class="bi bi-info-circle me-2" style="color: var(--status-info);"></i>
+                    Patient cannot be changed after case creation. <a asp-page="/Patients/Details" asp-route-id="@Model.Case.PatientId" style="color: var(--status-info); text-decoration: underline;">View patient details <i class="bi bi-box-arrow-up-right"></i></a>
                 </div>
 
                 <div class="row g-3">
                     <div class="col-md-2">
-                        <label class="form-label fw-bold text-muted small">Patient ID</label>
-                        <div class="fw-bold">@Model.Case.Patient.FriendlyId</div>
+                        <label class="form-label fw-bold small" style="color: var(--graphite);">Patient ID</label>
+                        <div class="fw-bold" style="color: var(--forest);">@Model.Case.Patient.FriendlyId</div>
                     </div>
                     <div class="col-md-3">
-                        <label class="form-label fw-bold text-muted small">Full Name</label>
-                        <div class="fw-bold">@Model.Case.Patient.GivenName @Model.Case.Patient.FamilyName</div>
+                        <label class="form-label fw-bold small" style="color: var(--graphite);">Full Name</label>
+                        <div class="fw-bold" style="color: var(--forest);">@Model.Case.Patient.GivenName @Model.Case.Patient.FamilyName</div>
                     </div>
                     <div class="col-md-2">
-                        <label class="form-label fw-bold text-muted small">Date of Birth</label>
-                        <div>
+                        <label class="form-label fw-bold small" style="color: var(--graphite);">Date of Birth</label>
+                        <div style="color: var(--forest);">
                             @if (Model.Case.Patient.DateOfBirth.HasValue)
                             {
                                 var age = DateTime.Now.Year - Model.Case.Patient.DateOfBirth.Value.Year;
-                                <span>@Model.Case.Patient.DateOfBirth.Value.ToString("dd MMM yyyy") <small class="text-muted">(@age yrs)</small></span>
+                                <span>@Model.Case.Patient.DateOfBirth.Value.ToString("dd MMM yyyy") <small style="color: var(--graphite);">(@age yrs)</small></span>
                             }
                             else
                             {
-                                <span class="text-muted">-</span>
+                                <span style="color: var(--graphite);">-</span>
                             }
                         </div>
                     </div>
                     <div class="col-md-2">
-                        <label class="form-label fw-bold text-muted small">Gender</label>
-                        <div>@(Model.Case.Patient.Gender?.Name ?? "-")</div>
+                        <label class="form-label fw-bold small" style="color: var(--graphite);">Gender</label>
+                        <div style="color: var(--forest);">@(Model.Case.Patient.Gender?.Name ?? "-")</div>
                     </div>
                     <div class="col-md-3">
-                        <label class="form-label fw-bold text-muted small">Contact</label>
+                        <label class="form-label fw-bold small" style="color: var(--graphite);">Contact</label>
                         <div>
                             @if (!string.IsNullOrWhiteSpace(Model.Case.Patient.MobilePhone))
                             {
-                                <a href="tel:@Model.Case.Patient.MobilePhone" class="me-2">
+                                <a href="tel:@Model.Case.Patient.MobilePhone" class="me-2" style="color: var(--signal-dk); text-decoration: none;">
                                     <i class="bi bi-phone"></i> @Model.Case.Patient.MobilePhone
                                 </a>
                             }
                             @if (!string.IsNullOrWhiteSpace(Model.Case.Patient.EmailAddress))
                             {
-                                <a href="mailto:@Model.Case.Patient.EmailAddress">
+                                <a href="mailto:@Model.Case.Patient.EmailAddress" style="color: var(--signal-dk); text-decoration: none;">
                                     <i class="bi bi-envelope"></i>
                                 </a>
                             }
                             @if (string.IsNullOrWhiteSpace(Model.Case.Patient.MobilePhone) && string.IsNullOrWhiteSpace(Model.Case.Patient.EmailAddress))
                             {
-                                <span class="text-muted">-</span>
+                                <span style="color: var(--graphite);">-</span>
                             }
                         </div>
                     </div>
@@ -694,8 +520,8 @@
             }
             else
             {
-                <div class="alert alert-warning mb-0">
-                    <i class="bi bi-exclamation-triangle me-2"></i>
+                <div style="background: #FBEDD1; border: 1px solid #EBD196; border-radius: 8px; padding: 0.75rem 1rem; margin-bottom: 0; font-family: var(--f-sans); color: var(--forest);">
+                    <i class="bi bi-exclamation-triangle me-2" style="color: var(--status-watch);"></i>
                     <strong>Warning:</strong> No patient assigned to this case.
                 </div>
             }
@@ -703,20 +529,20 @@
     </div>
 
     <!-- Third Row: Custom Fields - Full Width -->
-    <div class="info-card" style="margin-top: 1.5rem;">
-        <div class="info-card-header">
-            <h3 class="info-card-title">
-                <i class="bi bi-ui-checks"></i>
+    <div class="sentinel-card" style="margin-top: 1.5rem;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; padding-bottom: 0.75rem; border-bottom: 1px solid var(--hairline);">
+            <h3 style="font-family: var(--f-sans); font-weight: 500; font-size: 1.25rem; color: var(--forest); margin: 0; display: flex; align-items: center; gap: 8px;">
+                <i class="bi bi-ui-checks" style="color: var(--signal-dk);"></i>
                 Custom Fields
             </h3>
         </div>
-        <div>
+        <div class="sentinel-card-body">
             @if (Model.CustomFields.Any())
             {
                 @foreach (var category in Model.CustomFields.GroupBy(f => f.Category))
                 {
                     <div class="mb-4">
-                        <h6 class="border-bottom pb-2 mb-3">@category.Key</h6>
+                        <h6 style="border-bottom: 1px solid var(--hairline); padding-bottom: 0.5rem; margin-bottom: 1rem; color: var(--forest); font-family: var(--f-sans); font-weight: 600;">@category.Key</h6>
                         <div class="row">
                             @foreach (var field in category.OrderBy(f => f.DisplayOrder))
                             {
@@ -806,36 +632,35 @@
             }
             else
             {
-                <div class="alert alert-secondary mb-0">
-                    <i class="bi bi-info-circle me-2"></i>
-                    No custom fields configured for this case type. Custom fields can be added in <a asp-page="/Settings/CustomFields/Index" class="alert-link">Settings &gt; Custom Fields</a>.
+                <div style="background: var(--paper); border: 1px solid var(--hairline); border-radius: 8px; padding: 0.75rem 1rem; margin-bottom: 0; font-family: var(--f-sans); color: var(--graphite);">
+                    <i class="bi bi-info-circle me-2" style="color: var(--slate);"></i>
+                    No custom fields configured for this case type. Custom fields can be added in <a asp-page="/Settings/CustomFields/Index" style="color: var(--signal-dk); text-decoration: underline;">Settings &gt; Custom Fields</a>.
                 </div>
             }
         </div>
     </div>
 
     <!-- Fourth Row: Symptoms Section - Full Width -->
-    <div class="info-card" style="margin-top: 1.5rem;">
-        <div class="info-card-header" style="cursor: pointer;" data-bs-toggle="collapse" data-bs-target="#symptomsCollapse">
-            <h3 class="info-card-title">
-                <i class="bi bi-heart-pulse"></i>
+    <div class="sentinel-card" style="margin-top: 1.5rem;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; padding-bottom: 0.75rem; border-bottom: 1px solid var(--hairline); cursor: pointer;" data-bs-toggle="collapse" data-bs-target="#symptomsCollapse">
+            <h3 style="font-family: var(--f-sans); font-weight: 500; font-size: 1.25rem; color: var(--forest); margin: 0; display: flex; align-items: center; gap: 8px;">
+                <i class="bi bi-heart-pulse" style="color: var(--signal-dk);"></i>
                 Symptoms
-                <span class="badge bg-primary ms-2" id="symptomCountBadge" style="font-size: 0.75rem;">@Model.CaseSymptoms.Count(cs => cs.Symptom?.Code != "OTHER")</span>
             </h3>
-            <i class="bi bi-chevron-down"></i>
+            <i class="bi bi-chevron-down" style="color: var(--graphite);"></i>
         </div>
         <div class="collapse show" id="symptomsCollapse">
-            <div>
+            <div class="sentinel-card-body">
                 @if (Model.CommonSymptoms.Any())
                 {
                     <div class="d-flex justify-content-between align-items-center mb-3">
-                        <h6 class="mb-0">Common Symptoms for @Model.Case.Disease?.Name</h6>
-                        <button type="button" class="btn btn-sm btn-outline-primary" id="quickAddAllSymptoms">
+                        <h6 class="mb-0" style="color: var(--forest); font-family: var(--f-sans); font-weight: 600;">Common Symptoms for @Model.Case.Disease?.Name</h6>
+                        <button type="button" class="btn-sentinel-secondary" style="font-size: 0.875rem; padding: 0.375rem 0.75rem;" id="quickAddAllSymptoms">
                             <i class="bi bi-plus-circle me-1"></i>Quick Add All
                         </button>
                     </div>
-                    <p class="text-muted small mb-3">
-                        <i class="bi bi-info-circle me-1"></i>Click symptoms to add them quickly, or use checkboxes for more control.
+                    <p style="color: var(--graphite); font-size: 0.875rem; margin-bottom: 1rem; font-family: var(--f-sans);">
+                        <i class="bi bi-info-circle me-1" style="color: var(--status-info);"></i>Click symptoms to add them quickly, or use checkboxes for more control.
                     </p>
                     
                     <!-- Quick-Add Symptom Buttons -->
@@ -845,13 +670,15 @@
                             {
                                 var existing = Model.CaseSymptoms.FirstOrDefault(cs => cs.SymptomId == symptom.Id);
                                 var isChecked = existing != null;
-                                var badgeClass = isChecked ? "bg-success" : "bg-light text-dark";
-                                
+                                var buttonStyle = isChecked 
+                                    ? "background: var(--signal); color: var(--forest); border: 1px solid var(--signal);" 
+                                    : "background: var(--chalk); color: var(--graphite); border: 1px solid var(--hairline);";
+
                                 <button type="button" 
-                                        class="btn btn-sm symptom-quick-add @badgeClass" 
+                                        class="btn btn-sm symptom-quick-add" 
                                         data-symptom-id="@symptom.Id"
                                         data-symptom-name="@symptom.Name"
-                                        style="border: 1px solid #dee2e6; transition: all 0.2s;">
+                                        style="@buttonStyle">
                                     @if (isChecked)
                                     {
                                         <i class="bi bi-check-circle-fill me-1"></i>
@@ -978,8 +805,8 @@
                     <small class="form-text text-muted">Use this field if a symptom couldn't be found in the search</small>
                 </div>
                 
-                <div class="alert alert-info small mb-0">
-                    <i class="bi bi-lightbulb me-1"></i>
+                <div style="background: #E3E9FB; border: 1px solid #B7C4EE; border-radius: 8px; padding: 0.75rem 1rem; font-size: 0.875rem; font-family: var(--f-sans); color: var(--forest); margin-bottom: 0;">
+                    <i class="bi bi-lightbulb me-1" style="color: var(--status-info);"></i>
                     <strong>Tip:</strong> Symptom onset dates help track disease progression and are important for epidemiological analysis.
                 </div>
             </div>
@@ -1012,15 +839,22 @@
                 
             // Update button appearance
             if (checkbox.is(':checked')) {
-                $(this).removeClass('bg-light text-dark').addClass('bg-success');
+                $(this).css({
+                    'background': 'var(--signal)',
+                    'color': 'var(--forest)',
+                    'border-color': 'var(--signal)'
+                });
                 $(this).find('i').removeClass('bi-plus-circle').addClass('bi-check-circle-fill');
             } else {
-                $(this).removeClass('bg-success').addClass('bg-light text-dark');
+                $(this).css({
+                    'background': 'var(--chalk)',
+                    'color': 'var(--graphite)',
+                    'border-color': 'var(--hairline)'
+                });
                 $(this).find('i').removeClass('bi-check-circle-fill').addClass('bi-plus-circle');
             }
-                
-            // Update symptom count badge
-            updateSymptomCountBadge();
+
+            // Update symptom count badge (removed - count no longer displayed)
                 
             // Show brief toast notification
             showSymptomToast(symptomName, checkbox.is(':checked'));
@@ -1036,14 +870,16 @@
                 if (!checkbox.is(':checked')) {
                     checkbox.prop('checked', true);
                     checkbox.trigger('change');
-                    $(this).removeClass('bg-light text-dark').addClass('bg-success');
+                    $(this).css({
+                        'background': 'var(--signal)',
+                        'color': 'var(--forest)',
+                        'border-color': 'var(--signal)'
+                    });
                     $(this).find('i').removeClass('bi-plus-circle').addClass('bi-check-circle-fill');
                     addedCount++;
                 }
             });
-                
-            updateSymptomCountBadge();
-                
+
             if (addedCount > 0) {
                 showSymptomToast(addedCount + ' symptoms', true);
             }
@@ -1069,14 +905,15 @@
                 'position': 'fixed',
                 'top': '20px',
                 'right': '20px',
-                'background': isAdded ? '#198754' : '#6c757d',
+                'background': isAdded ? '#159C6E' : '#6B7A78',
                 'color': 'white',
                 'padding': '12px 20px',
                 'border-radius': '8px',
                 'box-shadow': '0 4px 6px rgba(0,0,0,0.2)',
                 'z-index': '9999',
                 'animation': 'slideInRight 0.3s ease-out',
-                'font-size': '14px'
+                'font-size': '14px',
+                'font-family': 'var(--f-sans)'
             });
                 
             $('body').append(toast);
@@ -1096,16 +933,22 @@
                 
             if ($(this).is(':checked')) {
                 onsetField.prop('disabled', false);
-                quickAddBtn.removeClass('bg-light text-dark').addClass('bg-success');
+                quickAddBtn.css({
+                    'background': 'var(--signal)',
+                    'color': 'var(--forest)',
+                    'border-color': 'var(--signal)'
+                });
                 quickAddBtn.find('i').removeClass('bi-plus-circle').addClass('bi-check-circle-fill');
             } else {
                 onsetField.prop('disabled', true);
                 onsetField.val('');
-                quickAddBtn.removeClass('bg-success').addClass('bg-light text-dark');
+                quickAddBtn.css({
+                    'background': 'var(--chalk)',
+                    'color': 'var(--graphite)',
+                    'border-color': 'var(--hairline)'
+                });
                 quickAddBtn.find('i').removeClass('bi-check-circle-fill').addClass('bi-plus-circle');
             }
-                
-            updateSymptomCountBadge();
         });
 
             // Initialize symptom autocomplete with Select2
@@ -1399,26 +1242,134 @@
         }
     </script>
     <style>
+        /* Page-specific layout */
+        .case-edit-container {
+            max-width: 1600px;
+            margin: 0 auto;
+        }
+
+        .quick-actions {
+            display: flex;
+            gap: 0.75rem;
+            flex-wrap: wrap;
+            margin-top: 1rem;
+        }
+
+        /* Responsive Grid - 2 wide columns + 1 narrow */
+        .case-grid {
+            display: grid;
+            grid-template-columns: 2fr 2fr 1fr;
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        @@media (max-width: 1200px) {
+            .case-grid {
+                grid-template-columns: 1fr 1fr;
+            }
+            .case-grid > *[style*="grid-column: span 2"] {
+                grid-column: span 1 !important;
+            }
+        }
+
+        @@media (max-width: 768px) {
+            .case-grid {
+                grid-template-columns: 1fr;
+            }
+            .case-grid > *[style*="grid-column: span 2"] {
+                grid-column: span 1 !important;
+            }
+        }
+
+        /* Select2 Dropdown Fixes */
+        .select2-container {
+            width: 100% !important;
+        }
+
+        /* Single select (Disease dropdown) */
+        .select2-container .select2-selection--single {
+            height: calc(1.5em + 0.75rem + 2px);
+            border: 1px solid var(--hairline);
+            border-radius: var(--radius-sm);
+            background: var(--chalk);
+            display: flex;  /* Use flexbox */
+            align-items: center;  /* Center vertically */
+        }
+
+        .select2-container .select2-selection--single .select2-selection__rendered {
+            padding-left: 0.75rem;
+            padding-right: 2.5rem;  /* Space for arrow */
+            line-height: 1.5;
+            color: var(--forest);
+            overflow: hidden;  /* Hide overflow text */
+            text-overflow: ellipsis;  /* Show ... for long text */
+            white-space: nowrap;  /* Don't wrap */
+            flex: 1;  /* Take available space */
+            min-width: 0;  /* Allow flex item to shrink below content size */
+        }
+
+        .select2-container .select2-selection--single .select2-selection__arrow {
+            height: calc(1.5em + 0.75rem);
+            top: 1px;
+            right: 1px;
+        }
+
+        /* Focus states for single select */
+        .select2-container--bootstrap-5.select2-container--focus .select2-selection--single,
+        .select2-container--bootstrap-5.select2-container--open .select2-selection--single {
+            border-color: var(--signal-dk);
+            box-shadow: 0 0 0 0.2rem rgba(61, 213, 152, 0.25);
+        }
+
+        /* Hospital dropdown uses same styling as disease dropdown */
+        .hospital-select + .select2-container .select2-selection--single,
+        .disease-select + .select2-container .select2-selection--single {
+            background: var(--chalk);
+            border: 1px solid var(--hairline);
+        }
+
+        /* Fix autocomplete input styling */
+        .jurisdiction-autocomplete,
+        .organization-autocomplete {
+            border: 1px solid var(--hairline) !important;
+            border-radius: var(--radius-sm) !important;
+            padding: 0.375rem 0.75rem !important;
+        }
+
+        .jurisdiction-autocomplete:focus,
+        .organization-autocomplete:focus {
+            border-color: var(--signal-dk) !important;
+            box-shadow: 0 0 0 0.2rem rgba(61, 213, 152, 0.25) !important;
+            outline: none;
+        }
+
+        /* Symptom Styling */
         .onset-date-field:disabled {
             background-color: #f8f9fa;
             cursor: not-allowed;
         }
+
         .symptom-checkbox-simple {
             cursor: pointer;
         }
+
+        /* Quick-add symptom buttons */
         .symptom-quick-add {
             cursor: pointer;
+            transition: all 0.2s;
+            font-family: var(--f-sans);
             font-weight: 500;
+            font-size: 0.875rem;
+            padding: 0.375rem 0.75rem;
+            border-radius: 6px;
+            margin: 0.25rem; /* Explicit margin for spacing if gap doesn't work */
         }
+
         .symptom-quick-add:hover {
             transform: translateY(-2px);
             box-shadow: 0 2px 8px rgba(0,0,0,0.15);
         }
-        .symptom-quick-add.bg-success {
-            background-color: #198754 !important;
-            color: white !important;
-            border-color: #198754 !important;
-        }
+
         /* Jurisdiction Autocomplete Styles */
         .autocomplete-dropdown {
             position: absolute;
@@ -1452,6 +1403,8 @@
         .jurisdiction-autocomplete {
             position: relative;
         }
+
+        /* Animations */
         @@keyframes slideInRight {
             from {
                 transform: translateX(100%);
@@ -1462,12 +1415,183 @@
                 opacity: 1;
             }
         }
-        #symptomsCollapse .card-header:hover {
-            background-color: #f8f9fa;
+
+        /* Accordion Styling */
+        .accordion {
+            --bs-accordion-bg: var(--chalk);
+            --bs-accordion-border-color: var(--hairline);
+            --bs-accordion-btn-focus-border-color: var(--signal-dk);
+            --bs-accordion-btn-focus-box-shadow: 0 0 0 0.2rem rgba(61, 213, 152, 0.25);
+            --bs-accordion-active-bg: var(--signal-lt);
+            --bs-accordion-active-color: var(--forest);
         }
+
+        .accordion-item {
+            border: 1px solid var(--hairline);
+            border-radius: var(--radius-sm);
+            background: var(--chalk);
+            margin-bottom: 0.5rem;
+        }
+
+        .accordion-button {
+            font-family: var(--f-sans);
+            font-weight: 500;
+            color: var(--forest);
+            background-color: var(--chalk);
+            border: none;
+            padding: 0.75rem 1rem;
+        }
+
         .accordion-button:not(.collapsed) {
-            background-color: #e7f1ff;
-            color: #0c63e4;
+            background-color: var(--signal-lt);
+            color: var(--forest);
+            box-shadow: none;
+        }
+
+        .accordion-button:focus {
+            border-color: var(--signal-dk);
+            box-shadow: 0 0 0 0.2rem rgba(61, 213, 152, 0.25);
+        }
+
+        .accordion-button::after {
+            background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='%23159C6E'%3e%3cpath fill-rule='evenodd' d='M1.646 4.646a.5.5 0 0 1 .708 0L8 10.293l5.646-5.647a.5.5 0 0 1 .708.708l-6 6a.5.5 0 0 1-.708 0l-6-6a.5.5 0 0 1 0-.708z'/%3e%3c/svg%3e");
+        }
+
+        .accordion-body {
+            padding: 1rem;
+            background: var(--chalk);
+            color: var(--graphite);
+        }
+
+        /* Ensure consistent background in symptom card */
+        .sentinel-card .sentinel-card-body {
+            background: var(--chalk);
+        }
+
+        /* Symptom Autocomplete Select2 Fixes */
+        .symptom-autocomplete + .select2-container {
+            width: 100% !important;
+        }
+
+        /* Multi-select container */
+        .symptom-autocomplete + .select2-container .select2-selection--multiple {
+            min-height: calc(1.5em + 0.75rem + 2px);
+            border: 1px solid var(--hairline);
+            border-radius: var(--radius-sm);
+            background: var(--chalk);
+            padding: 0.25rem 0.5rem;
+            display: flex;
+            flex-wrap: wrap;
+            align-items: flex-start;
+        }
+
+        /* Force search field to take full width on its own line */
+        .symptom-autocomplete + .select2-container .select2-search--inline {
+            display: block !important;  /* Override Select2's inline-block */
+            width: 100% !important;
+            clear: both;  /* Force to new line */
+            margin: 0.25rem 0 0 0;
+        }
+
+        .symptom-autocomplete + .select2-container .select2-search--inline .select2-search__field {
+            display: block !important;  /* Make input block-level */
+            width: 100% !important;
+            padding: 0.5rem 0.75rem;  /* Increased height for better text visibility */
+            margin: 0;
+            box-sizing: border-box;
+            font-family: var(--f-sans);
+            font-size: 1rem;  /* Ensure proper font size */
+            line-height: 1.5;  /* Proper line height */
+            border: 1px solid var(--hairline);
+            border-radius: 4px;
+            outline: none;
+            background: var(--chalk);
+        }
+
+        .symptom-autocomplete + .select2-container .select2-search--inline .select2-search__field:focus {
+            border-color: var(--signal-dk);
+            box-shadow: 0 0 0 0.1rem rgba(61, 213, 152, 0.15);
+        }
+
+        .symptom-autocomplete + .select2-container .select2-search--inline .select2-search__field::placeholder {
+            color: var(--graphite);
+            opacity: 0.6;
+        }
+
+        /* Only highlight on actual focus, not the whole container */
+        .symptom-autocomplete + .select2-container.select2-container--focus .select2-selection--multiple,
+        .symptom-autocomplete + .select2-container.select2-container--open .select2-selection--multiple {
+            border-color: var(--signal-dk);
+            box-shadow: 0 0 0 0.2rem rgba(61, 213, 152, 0.25);
+        }
+
+        /* Selected symptom tags/chips */
+        .symptom-autocomplete + .select2-container .select2-selection__choice {
+            background-color: var(--signal-lt);
+            border: 1px solid var(--signal);
+            color: var(--forest);
+            font-family: var(--f-sans);
+            border-radius: 6px;
+            padding: 0.25rem 0.5rem;
+            margin: 0.125rem;
+            display: inline-flex;
+            align-items: center;
+            line-height: 1.2;
+        }
+
+        /* Remove button (×) on symptom chips */
+        .symptom-autocomplete + .select2-container .select2-selection__choice__remove {
+            color: var(--forest);
+            margin-right: 0.25rem;
+            font-weight: bold;
+            border: none;
+            background: none;
+            padding: 0;
+        }
+
+        .symptom-autocomplete + .select2-container .select2-selection__choice__remove:hover {
+            color: var(--status-outbreak);
+            background: none;
+        }
+
+        /* Hide the clear all button if it appears */
+        .symptom-autocomplete + .select2-container .select2-selection__clear {
+            display: none;
+        }
+
+        /* Actions panel button text wrapping for narrow column */
+        .sentinel-card .btn-sentinel-primary.w-100,
+        .sentinel-card .btn-sentinel-secondary.w-100,
+        .sentinel-card .btn-outline-danger.w-100 {
+            white-space: normal !important;  /* Allow text to wrap - override global */
+            word-break: break-word;  /* Break long words if needed */
+            min-height: 42px;  /* Minimum height for comfort */
+            padding: 0.625rem 0.75rem !important;  /* Slightly more vertical padding */
+            font-size: 0.875rem !important;  /* Slightly smaller font */
+            line-height: 1.4;  /* Better line height for readability */
+            text-align: center;  /* Center multi-line text */
+            display: flex;  /* Use flexbox for better text centering */
+            align-items: center;  /* Vertical center */
+            justify-content: center;  /* Horizontal center */
+            flex-wrap: wrap;  /* Allow content to wrap */
+        }
+
+        /* Ensure icons maintain spacing */
+        .sentinel-card .w-100 i {
+            flex-shrink: 0;  /* Prevent icon from shrinking */
+        }
+
+        /* Ensure sentinel-card-body has proper padding */
+        .sentinel-card .sentinel-card-body {
+            padding: 1rem;
+        }
+
+        /* On very small screens, reduce gap between buttons */
+        @@media (max-width: 1200px) {
+            .sentinel-card .btn-sentinel-primary.w-100,
+            .sentinel-card .btn-sentinel-secondary.w-100 {
+                margin-bottom: 0.5rem;
+            }
         }
     </style>
 }

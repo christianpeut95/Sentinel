@@ -1,0 +1,221 @@
+@page
+@model IndexModel
+@{
+    ViewData["Title"] = "Dashboard";
+    ViewData["Subtitle"] = DateTime.Now.ToString("dddd, MMMM d, yyyy");
+}
+
+<!-- Welcome Section -->
+<div class="mb-6">
+    <h2 class="text-h3" style="margin-bottom: var(--spacing-2);">Good @(DateTime.Now.Hour < 12 ? "morning" : DateTime.Now.Hour < 18 ? "afternoon" : "evening")@(User.Identity?.IsAuthenticated == true ? ", " + User.Identity.Name : "").</h2>
+    <p class="text-meta">Welcome to your surveillance dashboard.</p>
+</div>
+
+<!-- KPI Overview -->
+<div class="sentinel-kpi-grid">
+    <div class="sentinel-kpi">
+        <div class="kpi-label">Active Cases</div>
+        <div class="kpi-value">@Model.TotalActiveCases</div>
+        <div class="kpi-detail">across all diseases</div>
+    </div>
+    <div class="sentinel-kpi">
+        <div class="kpi-label">Contacts Traced</div>
+        <div class="kpi-value"><em>@Model.ContactsTracedToday</em></div>
+        <div class="kpi-detail">traced today</div>
+    </div>
+    <div class="sentinel-kpi">
+        <div class="kpi-label">Open Outbreaks</div>
+        <div class="kpi-value">@Model.ActiveOutbreaks</div>
+        <div class="kpi-detail">@Model.WatchOutbreaks under watch</div>
+    </div>
+    <div class="sentinel-kpi">
+        <div class="kpi-label">My Queue</div>
+        <div class="kpi-value">@Model.MyTasks.Count</div>
+        <div class="kpi-detail">tasks pending</div>
+    </div>
+</div>
+
+<!-- Quick Patient Search -->
+<div class="sentinel-card">
+    <div class="sentinel-card-header">
+        <h3 class="sentinel-card-title">Quick Patient Search</h3>
+        <div class="sentinel-card-subtitle">Search by name, phone, or date of birth</div>
+    </div>
+    <form method="get" asp-page="/Patients/Search">
+        <div class="row g-3">
+            <div class="col-md-4">
+                <div class="sentinel-form-group">
+                    <label class="sentinel-label">First Name</label>
+                    <input type="text" name="GivenName" class="sentinel-input" placeholder="Given name..." />
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="sentinel-form-group">
+                    <label class="sentinel-label">Last Name</label>
+                    <input type="text" name="FamilyName" class="sentinel-input" placeholder="Family name..." />
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="sentinel-form-group">
+                    <label class="sentinel-label">Phone</label>
+                    <input type="text" name="Phone" class="sentinel-input" placeholder="Phone number..." />
+                </div>
+            </div>
+            <div class="col-12">
+                <button type="submit" class="btn-sentinel-primary">
+                    <i class="bi bi-search"></i> Search
+                </button>
+                <a asp-page="/Patients/Search" class="btn-sentinel-secondary ms-2">
+                    Advanced Search
+                </a>
+            </div>
+        </div>
+    </form>
+</div>
+
+<!-- Quick Actions -->
+<div class="grid-4 mb-5">
+    <a asp-page="/Patients/Create" class="sentinel-card" style="text-decoration: none; cursor: pointer; transition: all var(--transition-normal);">
+        <div style="text-align: center;">
+            <i class="bi bi-person-plus-fill" style="font-size: 32px; color: var(--signal-dk); margin-bottom: var(--spacing-3);"></i>
+            <div style="font-weight: 500; color: var(--forest);">New Patient</div>
+        </div>
+    </a>
+    <a asp-page="/Cases/CreateNew" class="sentinel-card" style="text-decoration: none; cursor: pointer; transition: all var(--transition-normal);">
+        <div style="text-align: center;">
+            <i class="bi bi-virus" style="font-size: 32px; color: var(--signal-dk); margin-bottom: var(--spacing-3);"></i>
+            <div style="font-weight: 500; color: var(--forest);">New Case</div>
+        </div>
+    </a>
+    <a asp-page="/Reports/Builder" class="sentinel-card" style="text-decoration: none; cursor: pointer; transition: all var(--transition-normal);">
+        <div style="text-align: center;">
+            <i class="bi bi-bar-chart-fill" style="font-size: 32px; color: var(--signal-dk); margin-bottom: var(--spacing-3);"></i>
+            <div style="font-weight: 500; color: var(--forest);">Build Report</div>
+        </div>
+    </a>
+    <a asp-page="/Outbreaks/Index" class="sentinel-card" style="text-decoration: none; cursor: pointer; transition: all var(--transition-normal);">
+        <div style="text-align: center;">
+            <i class="bi bi-diagram-3" style="font-size: 32px; color: var(--signal-dk); margin-bottom: var(--spacing-3);"></i>
+            <div style="font-weight: 500; color: var(--forest);">Outbreaks</div>
+        </div>
+    </a>
+</div>
+
+<!-- Three Column Layout -->
+<div class="grid-3">
+    <!-- Recently Viewed -->
+    <div class="sentinel-card">
+        <div class="sentinel-card-header">
+            <h4 class="sentinel-card-title" style="font-size: 18px;">Recently Viewed</h4>
+        </div>
+        @if (Model.RecentlyViewed.Any())
+        {
+            @foreach (var item in Model.RecentlyViewed)
+            {
+                var iconBi = item.EntityType == "Case" ? "file-medical" : item.EntityType == "Contact" ? "people" : "person";
+                var chipClass = item.EntityType == "Case" ? "chip-outbreak" : item.EntityType == "Contact" ? "chip-info" : "chip-clear";
+                var pagePath = item.EntityType == "Contact" ? "/Contacts/Details" : 
+                              item.EntityType == "Case" ? "/Cases/Details" : "/Patients/Details";
+                var timeAgo = DateTime.UtcNow - item.ViewedAt;
+                var timeAgoText = timeAgo.TotalMinutes < 2 ? "just now" :
+                                 timeAgo.TotalMinutes < 60 ? $"{(int)timeAgo.TotalMinutes}m ago" :
+                                 timeAgo.TotalHours < 24 ? $"{(int)timeAgo.TotalHours}h ago" :
+                                 $"{(int)timeAgo.TotalDays}d ago";
+                
+                <a asp-page="@pagePath" asp-route-id="@item.EntityId" style="display: flex; align-items: center; gap: var(--spacing-3); padding: var(--spacing-3); border-radius: var(--radius-sm); text-decoration: none; color: var(--forest); margin-bottom: var(--spacing-2); transition: background var(--transition-normal);" onmouseover="this.style.background='var(--signal-lt)'" onmouseout="this.style.background='transparent'">
+                    <div>
+                        <i class="bi bi-@iconBi" style="font-size: 18px; color: var(--signal-dk);"></i>
+                    </div>
+                    <div style="flex: 1; min-width: 0;">
+                        <div style="font-weight: 500; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">@item.DisplayName</div>
+                        <div class="text-mono" style="font-size: 10px; color: var(--graphite);">@item.EntityType · @item.SubText</div>
+                    </div>
+                    <div class="text-mono" style="font-size: 10px; color: var(--graphite); white-space: nowrap;">@timeAgoText</div>
+                </a>
+            }
+        }
+        else
+        {
+            <div style="text-align: center; padding: var(--spacing-8); color: var(--graphite);">
+                <i class="bi bi-clock" style="font-size: 32px; opacity: 0.3;"></i>
+                <p class="text-meta" style="margin-top: var(--spacing-3);">No recently viewed records</p>
+            </div>
+        }
+    </div>
+
+    <!-- My Outbreaks -->
+    <div class="sentinel-card">
+        <div class="sentinel-card-header">
+            <h4 class="sentinel-card-title" style="font-size: 18px;">My Outbreaks</h4>
+        </div>
+        @if (Model.MyOutbreaks.Any())
+        {
+            @foreach (var ob in Model.MyOutbreaks)
+            {
+                var chipClass = ob.Status.ToString() == "Active" ? "chip-outbreak" : "chip-watch";
+                
+                <a asp-page="/Outbreaks/Details" asp-route-id="@ob.Id" style="display: flex; align-items: center; justify-content: space-between; padding: var(--spacing-3); border: 1px solid var(--hairline); border-radius: var(--radius-sm); text-decoration: none; color: var(--forest); margin-bottom: var(--spacing-2); transition: all var(--transition-normal);" onmouseover="this.style.borderColor='var(--signal-dk)'; this.style.background='var(--signal-lt)'" onmouseout="this.style.borderColor='var(--hairline)'; this.style.background='transparent'">
+                    <div style="min-width: 0; flex: 1;">
+                        <div style="font-weight: 500; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">@ob.Name</div>
+                        <div class="text-mono" style="font-size: 10px; color: var(--graphite);">@(ob.PrimaryDisease?.Name ?? "No disease")</div>
+                    </div>
+                    <span class="@chipClass" style="white-space: nowrap;">
+                        <span class="dot"></span>
+                        @ob.Status
+                    </span>
+                </a>
+            }
+        }
+        else
+        {
+            <div style="text-align: center; padding: var(--spacing-8); color: var(--graphite);">
+                <i class="bi bi-diagram-3" style="font-size: 32px; opacity: 0.3;"></i>
+                <p class="text-meta" style="margin-top: var(--spacing-3);">Not assigned to any active outbreaks</p>
+            </div>
+        }
+    </div>
+
+    <!-- My Tasks -->
+    <div class="sentinel-card">
+        <div class="sentinel-card-header">
+            <h4 class="sentinel-card-title" style="font-size: 18px;">My Tasks</h4>
+        </div>
+        @if (Model.MyTasks.Any())
+        {
+            @foreach (var task in Model.MyTasks)
+            {
+                var chipClass = task.Priority.ToString() switch {
+                    "Urgent" => "chip-outbreak",
+                    "High" => "chip-watch",
+                    _ => "chip-info"
+                };
+                
+                <a asp-page="/Cases/Details" asp-route-id="@task.CaseId" style="display: flex; align-items: center; justify-content: space-between; padding: var(--spacing-3); border: 1px solid var(--hairline); border-radius: var(--radius-sm); text-decoration: none; color: var(--forest); margin-bottom: var(--spacing-2); transition: all var(--transition-normal);" onmouseover="this.style.borderColor='var(--signal-dk)'; this.style.background='var(--signal-lt)'" onmouseout="this.style.borderColor='var(--hairline)'; this.style.background='transparent'">
+                    <div style="min-width: 0; flex: 1;">
+                        <div style="font-weight: 500; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">@task.Title</div>
+                        <div class="text-mono" style="font-size: 10px; color: var(--graphite);">@task.Case?.Patient?.GivenName @task.Case?.Patient?.FamilyName</div>
+                    </div>
+                    <span class="@chipClass" style="white-space: nowrap;">
+                        <span class="dot"></span>
+                        @task.Priority
+                    </span>
+                </a>
+            }
+        }
+        else
+        {
+            <div style="text-align: center; padding: var(--spacing-8); color: var(--graphite);">
+                <i class="bi bi-list-check" style="font-size: 32px; opacity: 0.3;"></i>
+                <p class="text-meta" style="margin-top: var(--spacing-3);">No pending tasks</p>
+            </div>
+        }
+    </div>
+</div>
+
+<style>
+    /* Override card hover effects */
+    .sentinel-card:hover {
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-md);
+    }
+</style>

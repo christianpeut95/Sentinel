@@ -20,6 +20,12 @@ namespace Sentinel.Pages
         public List<Outbreak> MyOutbreaks { get; set; } = new();
         public List<CaseTask> MyTasks { get; set; } = new();
 
+        // KPI Properties
+        public int TotalActiveCases { get; set; }
+        public int ContactsTracedToday { get; set; }
+        public int ActiveOutbreaks { get; set; }
+        public int WatchOutbreaks { get; set; }
+
         public class RecentlyViewedItem
         {
             public string EntityType { get; set; } = string.Empty;
@@ -34,6 +40,23 @@ namespace Sentinel.Pages
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             if (userId == null) return;
+
+            // KPI calculations (kept for potential future use, but not displayed)
+            TotalActiveCases = await _context.Cases
+                .Where(c => !c.IsDeleted && c.Type == CaseType.Case)
+                .CountAsync();
+
+            ContactsTracedToday = await _context.Cases
+                .Where(c => !c.IsDeleted && c.Type == CaseType.Contact)
+                .CountAsync();
+
+            ActiveOutbreaks = await _context.Outbreaks
+                .Where(o => !o.IsDeleted && o.Status == OutbreakStatus.Active)
+                .CountAsync();
+
+            WatchOutbreaks = await _context.Outbreaks
+                .Where(o => !o.IsDeleted && o.Status == OutbreakStatus.Monitoring)
+                .CountAsync();
 
             // Recently viewed: get the latest distinct views across Cases, Contacts, and Patients
             var recentLogs = await _context.AuditLogs

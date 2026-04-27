@@ -1,0 +1,68 @@
+{
+  "caseId": "e83c8e4b-47fd-4952-8012-08de7e6e7726",
+  "entries": [
+    {
+      "id": "entry_1776812574777_07sd8ocsx",
+      "entryDate": "2026-04-22T00:00:00Z",
+      "narrativeText": "went to Kintaro Sushi with Grandmother",
+      "entities": [
+        {
+          "id": "entity_1776812592097_gmydi6n0d",
+          "entityType": 2,
+          "rawText": "Kintaro Sushi",
+          "normalizedValue": "Kintaro Sushi",
+          "startPosition": 8,
+          "endPosition": 21,
+          "confidence": 3,
+          "isConfirmed": true,
+          "linkedRecordType": null,
+          "linkedRecordId": null,
+          "linkedRecordDisplayName": null,
+          "suggestions": [],
+          "metadata": {
+            "placeId": "ChIJNYW-N1rPsGoR5BEeHOuy4go",
+            "address": "Brickworks Marketplace, Shop 27/38 South Rd, Torrensville SA 5031, Australia",
+            "coordinates": {
+              "lat": -34.9139838,
+              "lon": 138.56388
+            }
+          },
+          "notes": null
+        }
+      ],
+      "relationships": [],
+      "parsedAt": null,
+      "confidenceScore": null,
+      "isReviewed": false,
+      "uncertaintyMarkers": [],
+      "corrections": [],
+      "protectiveMeasures": [],
+      "isMemoryGap": false,
+      "memoryGapNotes": null
+    },
+    {
+      "id": "entry_1776812574778_hc8fpched",
+      "entryDate": "2026-04-22T00:00:00Z",
+      "narrativeText": "",
+      "entities": [],
+      "relationships": [],
+      "parsedAt": null,
+      "confidenceScore": null,
+      "isReviewed": false,
+      "uncertaintyMarkers": [],
+      "corrections": [],
+      "protectiveMeasures": [],
+      "isMemoryGap": false,
+      "memoryGapNotes": null
+    }
+  ],
+  "conventions": {},
+  "createdDate": "2026-04-21T23:03:16.6477396Z",
+  "createdByUserId": "6964051a-a741-43ff-8b37-dfbd11ce666e",
+  "lastModified": "2026-04-21T23:03:16.648294Z",
+  "lastModifiedByUserId": "6964051a-a741-43ff-8b37-dfbd11ce666e",
+  "isReviewed": false,
+  "reviewedAt": null,
+  "reviewedByUserId": null,
+  "version": 2
+}

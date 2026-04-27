@@ -3,16 +3,7 @@
 
 @{
     ViewData["Title"] = "Edit Location";
-}
-@functions {
-    public string GetCspNonce()
-    {
-        if (HttpContext?.Items?.TryGetValue("csp-nonce", out var nonce) == true && nonce is string nonceStr)
-        {
-            return nonceStr;
-        }
-        return string.Empty;
-    }
+    Layout = "~/Pages/Shared/_LayoutSentinel.cshtml";
 }
 
 <nav aria-label="breadcrumb" class="mb-3">

@@ -157,14 +157,12 @@ body {
     background: #ffffff;
 }
 
-/* Tables Section - 50% */
+/* Tables Section - 67% */
 .tables-section {
-    flex: 1.5;
+    flex: 2;
     overflow-y: auto;
     border-bottom: 1px solid #e0e0e0;
 }
-
-
 
 .empty-state {
     display: flex;
@@ -243,27 +241,6 @@ tbody tr:nth-child(even):hover {
     background: #f0f7ff;
 }
 
-/* Print button at top of entity summary */
-.btn-outline-primary {
-    padding: 0.5rem 1rem;
-    font-size: 13px;
-    border: 1px solid #0066cc;
-    background: white;
-    color: #0066cc;
-    border-radius: 4px;
-    cursor: pointer;
-    display: inline-flex;
-    align-items: center;
-    gap: 0.5rem;
-    transition: all 0.2s;
-    font-weight: 500;
-}
-
-.btn-outline-primary:hover {
-    background: #0066cc;
-    color: white;
-}
-
 /* Map Section - 33% */
 .map-section {
     flex: 1;
@@ -331,7 +308,23 @@ tbody tr:nth-child(even):hover {
 }
 
 /* Narrative Textarea */
-/* Narrative Textarea - removed duplicate, see line 813 for actual definition */
+.narrative-textarea {
+    width: 100%;
+    min-height: 120px;
+    padding: 0.75rem;
+    border: 1px solid #dee2e6;
+    border-radius: 6px;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-size: 14px;
+    line-height: 1.6;
+    resize: vertical;
+}
+
+.narrative-textarea:focus {
+    outline: none;
+    border-color: #0066cc;
+    box-shadow: 0 0 0 3px rgba(0, 102, 204, 0.1);
+}
 
 /* ========================================
    ENTITY EDIT OVERLAY (VS Code Style)
@@ -774,15 +767,6 @@ tbody tr:nth-child(even):hover {
 }
 
 /* Narrative Textarea */
-/* Narrative Textarea - removed duplicate, see line ~600 for actual definition */
-
-/* Entity Highlighting Overlays */
-.narrative-highlight-container {
-    position: relative;
-    background: white;
-    border-radius: 6px;
-}
-
 .narrative-textarea {
     width: 100%;
     min-height: 120px;
@@ -794,11 +778,6 @@ tbody tr:nth-child(even):hover {
     line-height: 1.6;
     resize: vertical;
     transition: border-color 0.2s ease, box-shadow 0.2s ease;
-    background: transparent;
-    position: relative;
-    z-index: 2;
-    color: #333;
-    margin: 0;
 }
 
 .narrative-textarea:focus {
@@ -812,14 +791,18 @@ tbody tr:nth-child(even):hover {
     font-style: italic;
 }
 
+/* Entity Highlighting Overlays */
+.narrative-highlight-container {
+    position: relative;
+}
+
 .narrative-highlight-layer {
     position: absolute;
-    top: 1px;
-    left: 1px;
-    right: 1px;
-    bottom: 1px;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
     padding: 0.75rem;
-    margin: 0;
     font-family: var(--f-sans, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif);
     font-size: 14px;
     line-height: 1.6;
@@ -828,8 +811,6 @@ tbody tr:nth-child(even):hover {
     pointer-events: none;
     color: transparent;
     overflow: hidden;
-    z-index: 1;
-    border-radius: 5px;
 }
 
 .entity-highlight {
@@ -1546,7 +1527,161 @@ tbody tr:nth-child(even):hover {
     gap: 0.5rem;
 }
 
+/* Relationship Timeline Visualization */
+.relationship-timeline-content {
+    padding: 0.5rem 0;
+}
 
+.person-relationship-block {
+    background: linear-gradient(135deg, #f0f7ff 0%, #f8f9fa 100%);
+    border: 1px solid var(--hairline, #e0e0e0);
+    border-left: 4px solid #0077cc;
+    border-radius: 8px;
+    padding: 1rem;
+    margin-bottom: 1rem;
+}
+
+.person-header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--forest, #1a1a1a);
+    margin-bottom: 0.75rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 2px solid rgba(0, 119, 204, 0.2);
+}
+
+.person-header i {
+    font-size: 1.25rem;
+}
+
+.relationship-chain {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    padding-left: 1.75rem;
+}
+
+.relationship-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    font-size: 13px;
+    padding: 0.5rem 0.75rem;
+    background: white;
+    border-radius: 6px;
+    border: 1px solid var(--hairline, #e0e0e0);
+    transition: all 0.2s ease;
+}
+
+.relationship-item:hover {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    border-color: var(--signal, #0077cc);
+}
+
+.relationship-item i {
+    color: var(--graphite-lt, #666);
+    flex-shrink: 0;
+}
+
+.relationship-description {
+    color: var(--graphite-lt, #666);
+    font-style: italic;
+    font-size: 12px;
+}
+
+.entity-badge {
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    font-weight: 500;
+    font-size: 12px;
+    white-space: nowrap;
+}
+
+.entity-badge.entity-person {
+    background: #e3f2fd;
+    color: #1565c0;
+    border: 1px solid #90caf9;
+}
+
+.entity-badge.entity-location {
+    background: #e8f5e9;
+    color: #2e7d32;
+    border: 1px solid #81c784;
+}
+
+.entity-badge.entity-event {
+    background: #f3e5f5;
+    color: #6a1b9a;
+    border: 1px solid #ba68c8;
+}
+
+.entity-badge.entity-transport {
+    background: #fff3e0;
+    color: #e65100;
+    border: 1px solid #ffb74d;
+}
+
+.entity-badge.entity-datetime {
+    background: #fce4ec;
+    color: #c2185b;
+    border: 1px solid #f06292;
+}
+
+.date-badge {
+    background: var(--bone, #f8f8f8);
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--graphite, #4a4a4a);
+    border: 1px solid var(--hairline, #e0e0e0);
+}
+
+.time-badge {
+    background: #fff3e0;
+    padding: 0.2rem 0.4rem;
+    border-radius: 3px;
+    font-size: 11px;
+    color: #e65100;
+    border: 1px solid #ffb74d;
+}
+
+.sequence-arrow {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0.25rem 0;
+    color: var(--signal, #0077cc);
+    font-size: 14px;
+}
+
+.standalone-relationships {
+    background: #f8f9fa;
+    border: 1px solid var(--hairline, #e0e0e0);
+    border-radius: 8px;
+    padding: 1rem;
+}
+
+.section-header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--forest, #1a1a1a);
+    margin-bottom: 0.75rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid var(--hairline, #e0e0e0);
+}
+
+.section-header i {
+    font-size: 1.1rem;
+    color: var(--signal, #0077cc);
+}
 
 /* ========================================
    PERSON EXPANDABLE DETAIL ROWS
@@ -1624,78 +1759,5 @@ tbody tr:nth-child(even):hover {
 }
 
 .relationship-table tbody tr:hover {
-    background: #f0f7ff !important;
-}
-
-/* ========================================
-   LOCATION EXPANDABLE DETAIL ROWS
-   ======================================== */
-
-.location-row {
-    cursor: default;
-}
-
-.location-detail-row {
-    background: #f8f9fa !important;
-}
-
-.location-detail-row:hover {
-    background: #f8f9fa !important;
-}
-
-.visit-count-badge {
-    display: inline-block;
-    padding: 0.25rem 0.5rem;
-    background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
-    color: #1565c0;
-    border: 1px solid #90caf9;
-    border-radius: 12px;
-    font-size: 12px;
-    font-weight: 600;
-    white-space: nowrap;
-}
-
-.visit-detail-table {
-    width: 100%;
-    margin: 0;
-    font-size: 12px;
-    background: white;
-    border-collapse: collapse;
-    border: none;
-}
-
-.visit-detail-table thead {
-    background: #e8e8e8;
-}
-
-.visit-detail-table th {
-    padding: 0.5rem;
-    font-size: 11px;
-    text-transform: uppercase;
-    font-weight: 600;
-    color: #333;
-    border-bottom: 2px solid #d0d0d0;
-    text-align: left;
-}
-
-.visit-detail-table td {
-    padding: 0.5rem;
-    border-bottom: 1px solid #e0e0e0;
-    vertical-align: top;
-}
-
-.visit-detail-table tbody tr:nth-child(odd) {
-    background: #fafafa;
-}
-
-.visit-detail-table tbody tr:nth-child(even) {
-    background: #ffffff;
-}
-
-.visit-detail-table tbody tr:last-child td {
-    border-bottom: none;
-}
-
-.visit-detail-table tbody tr:hover {
     background: #f0f7ff !important;
 }

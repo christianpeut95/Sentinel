@@ -1,0 +1,88 @@
+{
+  "caseId": "7eea821f-5034-4704-9d64-cc7315183cc3",
+  "entries": [
+    {
+      "id": "entry_1777083675359_6pxw6a3fu",
+      "entryDate": "2026-04-25T00:00:00Z",
+      "narrativeText": "went to HOYTS Norwood with bash. \n\nwent to ..",
+      "entities": [
+        {
+          "id": "entity_1777084125322_wl4o93kq9",
+          "entityType": 2,
+          "rawText": "HOYTS Norwood",
+          "normalizedValue": "HOYTS Norwood",
+          "startPosition": 8,
+          "endPosition": 21,
+          "confidence": 3,
+          "isConfirmed": true,
+          "linkedRecordType": null,
+          "linkedRecordId": null,
+          "linkedRecordDisplayName": null,
+          "suggestions": [],
+          "metadata": {
+            "placeId": "ChIJQ6kX-ljJsGoR617Wm-ZtwC4",
+            "address": "185 The Parade, Norwood SA 5067, Australia",
+            "latitude": "-34.920558",
+            "longitude": "138.6369732"
+          },
+          "notes": null
+        },
+        {
+          "id": "entity_1777084133051_wj3lil0rt",
+          "entityType": 1,
+          "rawText": "bash",
+          "normalizedValue": "bash",
+          "startPosition": 27,
+          "endPosition": 31,
+          "confidence": 2,
+          "isConfirmed": true,
+          "linkedRecordType": null,
+          "linkedRecordId": null,
+          "linkedRecordDisplayName": null,
+          "suggestions": [],
+          "metadata": {
+            "relationship": "parent",
+            "phone": null,
+            "ageDob": null,
+            "notes": null
+          },
+          "notes": null
+        }
+      ],
+      "relationships": [],
+      "parsedAt": null,
+      "confidenceScore": null,
+      "isReviewed": false,
+      "uncertaintyMarkers": [],
+      "corrections": [],
+      "protectiveMeasures": [],
+      "isMemoryGap": false,
+      "memoryGapNotes": null
+    },
+    {
+      "id": "entry_1777086295667_ptmce04sr",
+      "entryDate": "2026-04-25T00:00:00Z",
+      "narrativeText": "went to@..",
+      "entities": [],
+      "relationships": [],
+      "parsedAt": null,
+      "confidenceScore": null,
+      "isReviewed": false,
+      "uncertaintyMarkers": [],
+      "corrections": [],
+      "protectiveMeasures": [],
+      "isMemoryGap": false,
+      "memoryGapNotes": null
+    }
+  ],
+  "conventions": {},
+  "entityGroups": {},
+  "createdDate": "2026-04-25T03:05:22.6828016Z",
+  "createdByUserId": "6964051a-a741-43ff-8b37-dfbd11ce666e",
+  "lastModified": "2026-04-25T03:05:22.6828824Z",
+  "lastModifiedByUserId": "6964051a-a741-43ff-8b37-dfbd11ce666e",
+  "isReviewed": false,
+  "reviewedAt": null,
+  "reviewedByUserId": null,
+  "version": 2
+}

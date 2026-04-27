@@ -82,14 +82,6 @@ class RelationshipSyntaxParser {
                 // Add position information to the group
                 group.startPosition = segmentInfo.startPosition;
                 group.endPosition = segmentInfo.endPosition;
-
-                // Adjust entity positions to be absolute (relative to full text, not segment)
-                group.entities.forEach(entity => {
-                    if (entity.position !== undefined) {
-                        entity.position += segmentInfo.startPosition;
-                    }
-                });
-
                 groups.push(group);
             }
         }
@@ -106,10 +98,7 @@ class RelationshipSyntaxParser {
         // Find all entity markers: ..entityName, @name, @location, >transport, #groupName, @#GroupName
         // Operators (@/>) may optionally have a space before the entity name
         // Special case: @#GroupName for group references
-        // Updated to support multi-word entity names (e.g., "Hoyts Norwood", "McDonald's West Perth")
-        // Pattern captures from operator until next operator or sentence boundary
-        // Updated to stop at + prefix operator (e.g., "with +@Sunny")
-        const entityPattern = /(\.\.[^@>\s.]+|@\s*#\w+|[@>]\s*[^@>.+]+?(?=\s*[+@>.]|$)|#\w+)/g;
+        const entityPattern = /(\.\.[^@>\s.]+|@\s*#\w+|[@>]\s*[^\s@>.]+|#\w+)/g;
         const matches = [...segment.matchAll(entityPattern)];
 
         if (matches.length === 0) return null;
@@ -198,6 +187,7 @@ class RelationshipSyntaxParser {
         //    This allows "went to McDonald's +John" to work without @ operator
         if (!primaryEntity) {
             primaryEntity = resolvedEntities.find(e => e.entityType === 2 || e.entityType === 3); // Location or Event
+            console.log('[RelationshipParser] No explicit primary found, using Location/Event as primary:', primaryEntity?.rawText);
         }
 
         // 3. Final fallback: use first entity
@@ -205,74 +195,30 @@ class RelationshipSyntaxParser {
             primaryEntity = resolvedEntities[0];
         }
 
-        // Create relationships from all other entities to primary
-        // Exclude temporal/duration entities (DateTime, Duration) as they are metadata, not relationship targets
-        const nonTemporalEntities = resolvedEntities.filter(e => 
-            e.id !== primaryEntity.id && e.entityType !== 5 && e.entityType !== 6
-        );
+        console.log('[RelationshipParser] Primary entity selected:', primaryEntity.rawText, 'Type:', primaryEntity.entityType);
 
-        for (let entity of nonTemporalEntities) {
+        // Create relationships from all other entities to primary
+        for (let entity of resolvedEntities) {
+            if (entity.id === primaryEntity.id) continue;
+
             const relationship = {
                 id: this.generateId(),
                 primaryEntityId: primaryEntity.id,
                 relatedEntityId: entity.id,
                 relationType: entity.relationshipType || this.inferRelationshipType(entity.entityType),
-                timeEntityId: null,
-                allTimeEntityIds: [], // Store all time entities for this relationship
-                durationEntityId: null // Store duration entity for this relationship
+                timeEntityId: null
             };
 
+            console.log('[RelationshipParser] Created relationship:', entity.rawText, '→', primaryEntity.rawText);
             relationships.push(relationship);
         }
 
-        // Special case: If we have a Location/Event with ONLY DateTime/Duration entities (no other relationships)
-        // Create a self-relationship to hold the temporal metadata
-        // This handles cases like "@Coles @2pm" where we want to track the time for the location
-        if (relationships.length === 0 && (primaryEntity.entityType === 2 || primaryEntity.entityType === 3)) {
-            const hasTemporalEntities = resolvedEntities.some(e => e.entityType === 5 || e.entityType === 6);
-            if (hasTemporalEntities) {
-                // Create a self-relationship for the location/event
-                const selfRelationship = {
-                    id: this.generateId(),
-                    primaryEntityId: primaryEntity.id,
-                    relatedEntityId: primaryEntity.id, // Self-reference
-                    relationType: primaryEntity.entityType === 2 ? 2 : 4, // AT_LOCATION or AT_EVENT
-                    timeEntityId: null,
-                    allTimeEntityIds: [],
-                    durationEntityId: null
-                };
-                relationships.push(selfRelationship);
-            }
-        }
-
-        // Link ALL time entities to relationships (not just the first one)
-        const timeEntities = resolvedEntities.filter(e => e.entityType === 5); // DateTime
-        if (timeEntities.length > 0) {
+        // Link time entities to relationships
+        const timeEntity = resolvedEntities.find(e => e.entityType === 5); // DateTime
+        if (timeEntity) {
             relationships.forEach(rel => {
-                // Don't link time entity to itself
-                const relevantTimeEntities = timeEntities.filter(t => t.id !== rel.relatedEntityId);
-
-                if (relevantTimeEntities.length > 0) {
-                    // Set timeEntityId to first time for backward compatibility
-                    rel.timeEntityId = relevantTimeEntities[0].id;
-                    // Store all time entity IDs for duration calculations
-                    rel.allTimeEntityIds = relevantTimeEntities.map(t => t.id);
-                }
-            });
-        }
-
-        // Link Duration entities to relationships
-        // Duration should apply to all relationships in the group (e.g., "at Coles with John for 20 minutes")
-        const durationEntities = resolvedEntities.filter(e => e.entityType === 6); // Duration
-        if (durationEntities.length > 0) {
-            relationships.forEach(rel => {
-                // Don't link duration entity to itself
-                const relevantDurationEntities = durationEntities.filter(d => d.id !== rel.relatedEntityId);
-
-                if (relevantDurationEntities.length > 0) {
-                    // Store duration entity ID for duration calculations
-                    // For now, use the first duration if multiple exist
-                    rel.durationEntityId = relevantDurationEntities[0].id;
+                if (rel.relatedEntityId !== timeEntity.id) {
+                    rel.timeEntityId = timeEntity.id;
                 }
             });
         }

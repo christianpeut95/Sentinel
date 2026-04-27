@@ -1,22 +1,11 @@
-
-
-
 @page
 @model Sentinel.Pages.Settings.IndexModel
 @using Sentinel.Constants
 
 @{
     ViewData["Title"] = "Settings";
-}
-@functions {
-    public string GetCspNonce()
-    {
-        if (HttpContext?.Items?.TryGetValue("csp-nonce", out var nonce) == true && nonce is string nonceStr)
-        {
-            return nonceStr;
-        }
-        return string.Empty;
-    }
+    ViewData["Subtitle"] = "System Configuration & Administration";
+    Layout = "~/Pages/Shared/_LayoutSentinel.cshtml";
 }
 
 <style>
@@ -27,12 +16,12 @@
     }
 
     .settings-hero {
-        background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+        background: linear-gradient(135deg, var(--signal-lt) 0%, var(--chalk) 100%);
         border-radius: 16px;
         padding: 2.5rem;
-        color: #1a1a1a;
+        color: var(--forest);
         box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
-        border: 1px solid rgba(0, 0, 0, 0.06);
+        border: 1px solid var(--hairline);
         margin-bottom: 2.5rem;
     }
 
@@ -40,12 +29,12 @@
         font-size: 2rem;
         font-weight: 600;
         margin-bottom: 0.5rem;
-        color: #2d3748;
+        color: var(--forest);
         letter-spacing: -0.5px;
     }
 
     .settings-hero p {
-        color: #718096;
+        color: var(--graphite);
         font-size: 1rem;
         margin: 0;
     }
@@ -78,36 +67,36 @@
         margin: 0;
         font-size: 1.25rem;
         font-weight: 600;
-        color: #2d3748;
+        color: var(--forest);
         flex: 1;
     }
 
     .category-header .category-description {
         font-size: 0.875rem;
-        color: #718096;
+        color: var(--graphite);
         margin: 0;
         margin-top: 0.25rem;
     }
 
-    /* Color Schemes for Categories */
-    .category-system { background: linear-gradient(135deg, #4a5568 0%, #2d3748 100%); }
-    .category-disease { background: linear-gradient(135deg, #dc2626 0%, #991b1b 100%); }
-    .category-lab { background: linear-gradient(135deg, #0891b2 0%, #0e7490 100%); }
-    .category-exposure { background: linear-gradient(135deg, #059669 0%, #047857 100%); }
-    .category-contact { background: linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%); }
-    .category-task { background: linear-gradient(135deg, #ea580c 0%, #c2410c 100%); }
-    .category-demo { background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%); }
-    .category-security { background: linear-gradient(135deg, #be123c 0%, #9f1239 100%); }
-    .category-admin { background: linear-gradient(135deg, #65a30d 0%, #4d7c0f 100%); }
-    .category-outbreak { background: linear-gradient(135deg, #dc2626 0%, #991b1b 100%); }
+    /* Color Schemes for Categories - Sentinel Green Variants */
+    .category-system { background: linear-gradient(135deg, var(--slate) 0%, var(--slate-2) 100%); }
+    .category-disease { background: linear-gradient(135deg, var(--signal-dk) 0%, var(--moss) 100%); }
+    .category-lab { background: linear-gradient(135deg, var(--signal-dk) 0%, var(--forest-2) 100%); }
+    .category-exposure { background: linear-gradient(135deg, var(--signal) 0%, var(--signal-dk) 100%); }
+    .category-contact { background: linear-gradient(135deg, var(--moss) 0%, var(--forest-2) 100%); }
+    .category-task { background: linear-gradient(135deg, var(--signal-dk) 0%, var(--moss) 100%); }
+    .category-demo { background: linear-gradient(135deg, var(--signal-dk) 0%, var(--forest) 100%); }
+    .category-security { background: linear-gradient(135deg, var(--forest) 0%, var(--forest-2) 100%); }
+    .category-admin { background: linear-gradient(135deg, var(--moss) 0%, var(--forest-2) 100%); }
+    .category-outbreak { background: linear-gradient(135deg, var(--status-outbreak) 0%, #991b1b 100%); }
 
     .setting-card {
-        background: white;
+        background: var(--chalk);
         border-radius: 12px;
         padding: 1.5rem;
         box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
         transition: all 0.3s ease;
-        border: 1px solid rgba(0, 0, 0, 0.06);
+        border: 1px solid var(--hairline);
         height: 100%;
         position: relative;
         display: flex;
@@ -117,7 +106,7 @@
     .setting-card:hover {
         box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
         transform: translateY(-3px);
-        border-color: #cbd5e0;
+        border-color: var(--signal-dk);
     }
 
     .setting-card-icon {
@@ -129,19 +118,19 @@
         justify-content: center;
         font-size: 1.5rem;
         margin-bottom: 1rem;
-        background: #f7fafc;
-        color: #4a5568;
+        background: var(--signal-lt);
+        color: var(--signal-dk);
     }
 
     .setting-card h5 {
-        color: #2d3748;
+        color: var(--forest);
         font-weight: 600;
         margin-bottom: 0.5rem;
         font-size: 1rem;
     }
 
     .setting-card p {
-        color: #718096;
+        color: var(--graphite);
         font-size: 0.813rem;
         line-height: 1.5;
         margin: 0;
@@ -153,29 +142,29 @@
     }
 
     .setting-card-highlight {
-        border: 2px solid #dc2626;
-        background: linear-gradient(135deg, #ffffff 0%, #fef2f2 100%);
+        border: 2px solid var(--signal-dk);
+        background: linear-gradient(135deg, var(--chalk) 0%, var(--signal-lt) 100%);
     }
 
     .setting-card-highlight .setting-card-icon {
-        background: linear-gradient(135deg, #dc2626 0%, #991b1b 100%);
+        background: linear-gradient(135deg, var(--signal-dk) 0%, var(--moss) 100%);
         color: white;
     }
 
     /* Quick Links Section */
     .quick-links {
-        background: white;
+        background: var(--chalk);
         border-radius: 12px;
         padding: 1.5rem;
         box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
-        border: 1px solid rgba(0, 0, 0, 0.06);
+        border: 1px solid var(--hairline);
         margin-bottom: 2.5rem;
     }
 
     .quick-links h4 {
         font-size: 1.125rem;
         font-weight: 600;
-        color: #2d3748;
+        color: var(--forest);
         margin-bottom: 1rem;
     }
 
@@ -184,10 +173,10 @@
         align-items: center;
         gap: 0.5rem;
         padding: 0.5rem 1rem;
-        background: #f7fafc;
-        border: 1px solid #e2e8f0;
+        background: var(--signal-lt);
+        border: 1px solid var(--hairline);
         border-radius: 8px;
-        color: #4a5568;
+        color: var(--forest);
         text-decoration: none;
         font-size: 0.875rem;
         font-weight: 500;
@@ -195,9 +184,9 @@
     }
 
     .quick-link-btn:hover {
-        background: #e2e8f0;
-        color: #2d3748;
-        border-color: #cbd5e0;
+        background: var(--signal-dk);
+        color: white;
+        border-color: var(--signal-dk);
     }
 
     @@media (max-width: 768px) {
