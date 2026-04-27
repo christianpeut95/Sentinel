@@ -441,6 +441,14 @@
             return;
         }
 
+        // Check if SentinelGeocoding is defined
+        if (typeof SentinelGeocoding === 'undefined') {
+            console.error('SentinelGeocoding is not defined. Make sure geocoding.js is loaded.');
+            placeInput.placeholder = 'Address search unavailable - geocoding not initialized';
+            placeInput.disabled = true;
+            return;
+        }
+
         // Only initialize if Google provider is configured
         if (!SentinelGeocoding.shouldUseGoogleMaps()) {
             placeInput.placeholder = 'Place search requires Google Maps (currently using ' + (SentinelGeocoding.getConfig()?.provider || 'Nominatim') + ')';

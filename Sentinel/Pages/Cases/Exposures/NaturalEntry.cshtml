@@ -1,0 +1,178 @@
+@page
+@model Sentinel.Pages.Cases.Exposures.NaturalEntryModel
+
+@{
+    ViewData["Title"] = "Timeline Entry";
+    Layout = null; // No layout - fullscreen mode
+}
+
+@functions {
+    public string GetCspNonce()
+    {
+        if (HttpContext?.Items?.TryGetValue("csp-nonce", out var nonce) == true && nonce is string nonceStr)
+        {
+            return nonceStr;
+        }
+        return string.Empty;
+    }
+}
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Timeline Entry - @Model.PatientName</title>
+
+    <!-- Bootstrap CSS -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" />
+
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tributejs@5.1.3/dist/tribute.css" />
+
+    <!-- Timeline Entry CSS (MUST load AFTER tribute.css to override) -->
+    <link rel="stylesheet" href="~/css/timeline/timeline-entry.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/timeline/entity-quick-add.css" asp-append-version="true" />
+
+</head>
+<body>
+    <!-- Fullscreen Timeline Workspace -->
+    <div class="timeline-workspace">
+        <!-- Left: Timeline Entry -->
+        <div class="timeline-panel">
+            <div class="timeline-header">
+                <div class="timeline-title">
+                    <i class="bi bi-calendar3"></i> Timeline Entries
+                </div>
+                <button type="button" id="addDayBtn" class="btn-add">
+                    <i class="bi bi-plus-circle"></i> Add Day
+                </button>
+            </div>
+
+            <div class="timeline-body" id="timelineContainer">
+                <div class="timeline-empty">
+                    <i class="bi bi-calendar-plus"></i>
+                    <p>Click "Add Day" to start</p>
+                </div>
+            </div>
+
+            <div class="timeline-footer">
+                <button type="button" id="saveDraftBtn" class="btn-secondary">
+                    <i class="bi bi-save"></i> Save Draft
+                </button>
+                <div class="timeline-footer-actions">
+                    <button type="button" id="copyPreviousDayBtn" class="btn-secondary" disabled>
+                        <i class="bi bi-files"></i> Copy Previous
+                    </button>
+                    <button type="button" id="saveAndReviewBtn" class="btn-primary">
+                        <i class="bi bi-check2-circle"></i> Save & Review
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right: Tables + Map -->
+        <div class="data-panel">
+            <!-- Entity Tables (67% - expanded from 50%) -->
+            <div class="tables-section" id="entitySummary">
+                <div class="empty-state">
+                    <i class="bi bi-inbox"></i>
+                    <p>No entities detected yet</p>
+                </div>
+            </div>
+
+            <!-- Map (33%) -->
+            <div class="map-section">
+                <div class="map-header">
+                    <i class="bi bi-geo-alt"></i> Location Map
+                </div>
+                <div class="map-body" id="mapContainer"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Hidden input for case ID -->
+    <input type="hidden" id="caseId" value="@Model.CaseId" />
+
+    <!-- Entity Edit Overlay (VS Code style) -->
+    <div class="entity-edit-overlay" id="entityEditModal" style="display: none;">
+        <div class="entity-edit-panel">
+            <div class="entity-edit-header">
+                <span class="entity-edit-title">Edit Entity</span>
+                <button type="button" class="entity-edit-close" onclick="document.getElementById('entityEditModal').style.display='none'">
+                    <i class="bi bi-x-lg"></i>
+                </button>
+            </div>
+
+            <div class="entity-edit-body">
+                <input type="hidden" id="editEntityId" />
+                <input type="hidden" id="editEntryId" />
+
+                <div class="edit-field">
+                    <label>Entity Type</label>
+                    <div class="edit-value" id="editEntityType"></div>
+                </div>
+
+                <div class="edit-field">
+                    <label>Original Text</label>
+                    <div class="edit-code" id="editEntityOriginal"></div>
+                </div>
+
+                <div class="edit-field">
+                    <label>Display Name</label>
+                    <input type="text" class="edit-input" id="editEntityDisplayName" placeholder="Enter confirmed name">
+                </div>
+
+                <div class="edit-field">
+                    <label class="edit-checkbox">
+                        <input type="checkbox" id="editEntityConfirmed">
+                        <span>Mark as confirmed</span>
+                    </label>
+                </div>
+
+                <div class="edit-field" id="entityRelationshipsSection">
+                    <label>Relationships</label>
+                    <div class="edit-relationships" id="entityRelationshipsList"></div>
+                    <button type="button" class="edit-btn-secondary" onclick="window.timelineEntry.showAddRelationshipForm()">
+                        + Add Relationship
+                    </button>
+                </div>
+            </div>
+
+            <div class="entity-edit-footer">
+                <button type="button" class="edit-btn-danger" onclick="window.timelineEntry.deleteEntity()">Delete</button>
+                <button type="button" class="edit-btn-secondary" onclick="document.getElementById('entityEditModal').style.display='none'">Cancel</button>
+                <button type="button" class="edit-btn-primary" onclick="window.timelineEntry.saveEntityEdit()">Save Changes</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <!-- Entity Quick-Add Libraries -->
+    <script src="https://cdn.jsdelivr.net/npm/tributejs@5.1.3/dist/tribute.min.js" nonce="@GetCspNonce()"></script>
+    <script src="https://unpkg.com/@@popperjs/core@2.11.8/dist/umd/popper.min.js" nonce="@GetCspNonce()"></script>
+    <script src="https://unpkg.com/tippy.js@6.3.7/dist/tippy-bundle.umd.min.js" nonce="@GetCspNonce()"></script>
+
+    <!-- Timeline Entry JavaScript -->
+    <script src="~/js/timeline/relationship-syntax-parser.js" asp-append-version="true" nonce="@GetCspNonce()"></script>
+    <script src="~/js/timeline/entity-quick-add.js" asp-append-version="true" nonce="@GetCspNonce()"></script>
+    <script src="~/js/timeline/timeline-entry.js" asp-append-version="true" nonce="@GetCspNonce()"></script>
+    <script src="~/js/timeline/map-visualization.js" asp-append-version="true" nonce="@GetCspNonce()"></script>
+
+    <script nonce="@GetCspNonce()">
+        // Initialize timeline entry
+        document.addEventListener('DOMContentLoaded', async function() {
+            const caseId = '@Model.CaseId';
+            window.timelineEntry = new TimelineEntry(caseId);
+            await window.timelineEntry.init();
+        });
+    </script>
+</body>
+</html>

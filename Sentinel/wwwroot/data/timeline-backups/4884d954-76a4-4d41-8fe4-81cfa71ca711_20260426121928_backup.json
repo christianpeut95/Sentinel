@@ -1,0 +1,150 @@
+{
+  "caseId": "4884d954-76a4-4d41-8fe4-81cfa71ca711",
+  "entries": [
+    {
+      "id": "entry_1777205831260_ddyne40n9",
+      "entryDate": "2026-04-26T00:00:00Z",
+      "narrativeText": "went with @Humphrey and @Chester to @Coles, 522-530, Port Road, Welland, Adelaide, City of Charles Sturt, South Australia, 5007, Australia @3:30PM.\nAfter this went with ",
+      "entities": [
+        {
+          "id": "entity_1777205848117_o1oa3obqs",
+          "entityType": 1,
+          "rawText": "Humphrey",
+          "normalizedValue": "Humphrey",
+          "startPosition": 11,
+          "endPosition": 19,
+          "confidence": 2,
+          "isConfirmed": true,
+          "linkedRecordType": null,
+          "linkedRecordId": null,
+          "linkedRecordDisplayName": null,
+          "suggestions": [],
+          "metadata": {
+            "relationship": null,
+            "phone": null,
+            "ageDob": null,
+            "notes": null
+          },
+          "notes": null
+        },
+        {
+          "id": "entity_1777205862169_pip50ifsi",
+          "entityType": 1,
+          "rawText": "Chester",
+          "normalizedValue": "Chester",
+          "startPosition": 25,
+          "endPosition": 32,
+          "confidence": 2,
+          "isConfirmed": true,
+          "linkedRecordType": null,
+          "linkedRecordId": null,
+          "linkedRecordDisplayName": null,
+          "suggestions": [],
+          "metadata": {
+            "relationship": "Son",
+            "phone": null,
+            "ageDob": "1 year",
+            "notes": null
+          },
+          "notes": null
+        },
+        {
+          "id": "entity_1777205878057_2qk4xv3tt",
+          "entityType": 2,
+          "rawText": "Coles, 522-530, Port Road, Welland, Adelaide, City of Charles Sturt, South Australia, 5007, Australia",
+          "normalizedValue": "Coles, 522-530, Port Road, Welland, Adelaide, City of Charles Sturt, South Australia, 5007, Australia",
+          "startPosition": 37,
+          "endPosition": 138,
+          "confidence": 3,
+          "isConfirmed": true,
+          "linkedRecordType": null,
+          "linkedRecordId": null,
+          "linkedRecordDisplayName": null,
+          "suggestions": [],
+          "metadata": {
+            "placeId": "null",
+            "address": "Coles, 522-530, Port Road, Welland, Adelaide, City of Charles Sturt, South Australia, 5007, Australia",
+            "latitude": "-34.8969548",
+            "longitude": "138.5575324"
+          },
+          "notes": null
+        },
+        {
+          "id": "entity_1777205895742_7psphrja1",
+          "entityType": 5,
+          "rawText": "3:30PM",
+          "normalizedValue": "3:30PM",
+          "startPosition": 140,
+          "endPosition": 146,
+          "confidence": 2,
+          "isConfirmed": false,
+          "linkedRecordType": null,
+          "linkedRecordId": null,
+          "linkedRecordDisplayName": null,
+          "suggestions": [],
+          "metadata": {},
+          "notes": null
+        }
+      ],
+      "relationships": [
+        {
+          "id": "rel_1777205918131_r36wkfyja",
+          "primaryEntityId": "entity_1777205878057_2qk4xv3tt",
+          "relatedEntityId": "entity_1777205848117_o1oa3obqs",
+          "relationType": 2,
+          "timeEntityId": "entity_1777205895742_7psphrja1",
+          "confidence": 2,
+          "isConfirmed": false,
+          "sourcePosition": 0,
+          "metadata": null,
+          "sequenceOrder": 0,
+          "notes": null
+        },
+        {
+          "id": "rel_1777205918131_u4m8l8yjv",
+          "primaryEntityId": "entity_1777205878057_2qk4xv3tt",
+          "relatedEntityId": "entity_1777205862169_pip50ifsi",
+          "relationType": 2,
+          "timeEntityId": "entity_1777205895742_7psphrja1",
+          "confidence": 2,
+          "isConfirmed": false,
+          "sourcePosition": 0,
+          "metadata": null,
+          "sequenceOrder": 0,
+          "notes": null
+        },
+        {
+          "id": "rel_1777205918131_4dslgkzeu",
+          "primaryEntityId": "entity_1777205878057_2qk4xv3tt",
+          "relatedEntityId": "entity_1777205895742_7psphrja1",
+          "relationType": 5,
+          "timeEntityId": null,
+          "confidence": 2,
+          "isConfirmed": false,
+          "sourcePosition": 0,
+          "metadata": null,
+          "sequenceOrder": 0,
+          "notes": null
+        }
+      ],
+      "parsedAt": null,
+      "confidenceScore": null,
+      "isReviewed": false,
+      "uncertaintyMarkers": [],
+      "corrections": [],
+      "protectiveMeasures": [],
+      "isMemoryGap": false,
+      "memoryGapNotes": null
+    }
+  ],
+  "conventions": {},
+  "entityGroups": {},
+  "createdDate": "2026-04-26T12:18:58.2230318Z",
+  "createdByUserId": "ecb7cf7c-f44d-45a6-8847-e688f7c47677",
+  "lastModified": "2026-04-26T12:18:58.2230432Z",
+  "lastModifiedByUserId": "ecb7cf7c-f44d-45a6-8847-e688f7c47677",
+  "isReviewed": false,
+  "reviewedAt": null,
+  "reviewedByUserId": null,
+  "version": 2
+}

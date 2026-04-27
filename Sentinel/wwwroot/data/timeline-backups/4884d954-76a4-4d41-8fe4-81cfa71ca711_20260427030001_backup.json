@@ -1,0 +1,52 @@
+{
+  "caseId": "4884d954-76a4-4d41-8fe4-81cfa71ca711",
+  "entries": [
+    {
+      "id": "entry_1777205831260_ddyne40n9",
+      "entryDate": "2026-04-26T00:00:00Z",
+      "narrativeText": "went to @Coles with @.",
+      "entities": [
+        {
+          "id": "entity_1777258754542_dcxz5plau",
+          "entityType": 2,
+          "rawText": "Coles",
+          "normalizedValue": "Coles",
+          "startPosition": 9,
+          "endPosition": 14,
+          "confidence": 3,
+          "isConfirmed": true,
+          "linkedRecordType": null,
+          "linkedRecordId": null,
+          "linkedRecordDisplayName": null,
+          "suggestions": [],
+          "metadata": {
+            "placeId": "17643444",
+            "address": "Coles, 522-530, Port Road, Welland, Adelaide, City of Charles Sturt, South Australia, 5007, Australia",
+            "latitude": "-34.8969548",
+            "longitude": "138.5575324"
+          },
+          "notes": null
+        }
+      ],
+      "relationships": [],
+      "parsedAt": null,
+      "confidenceScore": null,
+      "isReviewed": false,
+      "uncertaintyMarkers": [],
+      "corrections": [],
+      "protectiveMeasures": [],
+      "isMemoryGap": false,
+      "memoryGapNotes": null
+    }
+  ],
+  "conventions": {},
+  "entityGroups": {},
+  "createdDate": "2026-04-27T02:59:31.2670106Z",
+  "createdByUserId": "ecb7cf7c-f44d-45a6-8847-e688f7c47677",
+  "lastModified": "2026-04-27T02:59:31.2670259Z",
+  "lastModifiedByUserId": "ecb7cf7c-f44d-45a6-8847-e688f7c47677",
+  "isReviewed": false,
+  "reviewedAt": null,
+  "reviewedByUserId": null,
+  "version": 2
+}

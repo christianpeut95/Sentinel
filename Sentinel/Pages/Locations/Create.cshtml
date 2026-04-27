@@ -249,11 +249,19 @@
     $(document).ready(function() {
         var placeInput = document.getElementById('placeSearchInput');
         var placeDropdown = document.getElementById('placeDropdown');
-            
+
         if (!placeInput || !placeDropdown) {
             return;
         }
-            
+
+        // Check if SentinelGeocoding is defined
+        if (typeof SentinelGeocoding === 'undefined') {
+            console.error('SentinelGeocoding is not defined. Make sure geocoding.js is loaded.');
+            placeInput.placeholder = 'Address search unavailable - geocoding not initialized';
+            placeInput.disabled = true;
+            return;
+        }
+
         // Only initialize if Google provider is configured
         if (!SentinelGeocoding.shouldUseGoogleMaps()) {
             console.log('Place search disabled - using', SentinelGeocoding.getConfig()?.provider || 'nominatim');
