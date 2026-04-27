@@ -40,6 +40,7 @@
     <Folder Include="Events\Handlers\" />
     <Folder Include="Pages\ReviewQueue\" />
     <Folder Include="Sentinel\Pages\Admin\" />
+    <Folder Include="Sentinel\Pages\Cases\Exposures\" />
   </ItemGroup>
 
   <ItemGroup>
