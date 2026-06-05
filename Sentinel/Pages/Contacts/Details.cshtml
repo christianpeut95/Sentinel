@@ -891,11 +891,18 @@
                         {
                             <tr>
                                 <td>
-                                    <strong>@(labResult.TestType?.Name ?? "-")</strong>
-                                    <br/><small class="text-muted">@(labResult.SpecimenType?.Name ?? "-")</small>
+                                    @if (labResult.Markers.Any())
+                                    {
+                                        <strong>@labResult.Markers.Count Marker(s)</strong>
+                                        <br /><small class="text-muted">@string.Join(", ", labResult.Markers.Take(2).Select(m => m.Pathogen?.Name ?? "Unknown"))</small>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted">No markers</span>
+                                    }
                                     @if (labResult.IsAmended)
                                     {
-                                        <br/><span class="badge bg-warning text-dark" style="font-size: 0.65rem;"><i class="bi bi-pencil-square"></i> Amended</span>
+                                        <br /><span class="badge bg-warning text-dark" style="font-size: 0.65rem;"><i class="bi bi-pencil-square"></i> Amended</span>
                                     }
                                 </td>
                                 <td>
@@ -909,16 +916,21 @@
                                     }
                                 </td>
                                 <td>
-                                    @if (labResult.TestResult != null)
+                                    @if (labResult.Markers.Any())
                                     {
-                                        var resultClass = labResult.TestResult.Name?.ToLower() switch
+                                        var firstMarker = labResult.Markers.First();
+                                        var resultClass = firstMarker.QualitativeResultText?.ToLower() switch
                                         {
-                                            "positive" => "bg-danger",
-                                            "negative" => "bg-success",
+                                            "detected" or "positive" or "reactive" => "bg-danger",
+                                            "not detected" or "negative" or "non-reactive" => "bg-success",
                                             "indeterminate" or "equivocal" => "bg-warning",
                                             _ => "bg-secondary"
                                         };
-                                        <span class="badge @resultClass">@labResult.TestResult.Name</span>
+                                        <span class="badge @resultClass">@(firstMarker.QualitativeResultText ?? "See Details")</span>
+                                        @if (labResult.Markers.Count > 1)
+                                        {
+                                            <small class="text-muted">+@(labResult.Markers.Count - 1) more</small>
+                                        }
                                     }
                                     else
                                     {
@@ -1758,6 +1770,12 @@
                         <i class="bi bi-clipboard2-pulse me-2 text-primary"></i>Test Information
                     </h6>
                     <div class="modal-body">
+                    <!-- Note: This form is deprecated. Please use the dedicated Add/Edit Lab Result pages instead -->
+                    <div class="alert alert-info">
+                        <i class="bi bi-info-circle me-2"></i>
+                        <strong>Note:</strong> Please use the dedicated <a href="/Cases/AddLabResult/@Model.Contact.Id" class="alert-link">Add Lab Result</a> page for multi-marker test entry.
+                    </div>
+
                     <!-- Section 1: Test Details -->
                     <h6 class="border-bottom pb-2 mb-3">
                         <i class="bi bi-clipboard2-pulse me-2 text-primary"></i>Test Information
@@ -1774,29 +1792,12 @@
                             <small class="form-text text-muted">Auto-populated with case disease</small>
                         </div>
                         <div class="col-md-6">
-                            <label asp-for="NewLabResult.TestTypeId" class="form-label">
-                                Test Type <span class="text-danger">*</span>
-                            </label>
-                            <select asp-for="NewLabResult.TestTypeId" class="form-select" asp-items="Model.TestTypesList" id="testTypeSelect" required>
-                                <option value="">Select Test Type</option>
-                            </select>
-                        </div>
-                        <div class="col-md-6">
                             <label asp-for="NewLabResult.SpecimenTypeId" class="form-label">
                                 Specimen Type <span class="text-danger">*</span>
                             </label>
                             <select asp-for="NewLabResult.SpecimenTypeId" class="form-select" asp-items="Model.SpecimenTypesList" required>
                                 <option value="">Select Specimen Type</option>
                             </select>
-                        </div>
-                        <div class="col-md-6">
-                            <label asp-for="NewLabResult.TestResultId" class="form-label">
-                                Test Result <span class="text-danger">*</span>
-                            </label>
-                            <select asp-for="NewLabResult.TestResultId" class="form-select select2-testresult" id="testResultSelect" required>
-                                <option value="">Select Test Type First</option>
-                            </select>
-                            <small class="form-text text-muted">Results filtered by test type</small>
                         </div>
                     </div>
 
@@ -1855,25 +1856,6 @@
                             <label asp-for="NewLabResult.AccessionNumber" class="form-label">Accession Number</label>
                             <input asp-for="NewLabResult.AccessionNumber" class="form-control" placeholder="Lab reference/accession number" />
                             <small class="form-text text-muted">Laboratory's internal reference number</small>
-                        </div>
-                    </div>
-
-                    <!-- Section 4: Quantitative Results -->
-                    <h6 class="border-bottom pb-2 mb-3 mt-4">
-                        <i class="bi bi-graph-up me-2 text-primary"></i>Quantitative Results (Optional)
-                    </h6>
-                    <div class="row g-3">
-                        <div class="col-md-6">
-                            <label asp-for="NewLabResult.QuantitativeResult" class="form-label">Quantitative Result</label>
-                            <input asp-for="NewLabResult.QuantitativeResult" class="form-control" type="number" step="0.01" placeholder="e.g., 5.2" />
-                            <small class="form-text text-muted">Numeric value if applicable</small>
-                        </div>
-                        <div class="col-md-6">
-                            <label asp-for="NewLabResult.ResultUnitsId" class="form-label">Units</label>
-                            <select asp-for="NewLabResult.ResultUnitsId" class="form-select" asp-items="Model.ResultUnitsList">
-                                <option value="">Select Units</option>
-                            </select>
-                            <small class="form-text text-muted">e.g., mg/dL, copies/mL</small>
                         </div>
                     </div>
 
@@ -2109,17 +2091,17 @@
 
     function openAddLabResult() {
         var caseId = '@Model.Contact.Id';
-        var width = 900;
-        var height = 700;
+        var width = 1200;
+        var height = 900;
         var left = (screen.width - width) / 2;
         var top = (screen.height - height) / 2;
-        
+
         var popup = window.open(
-            '/Cases/AddLabResult?caseId=' + caseId,
+            '/Cases/AddLabResult/' + caseId,
             'AddLabResult',
             'width=' + width + ',height=' + height + ',left=' + left + ',top=' + top + ',resizable=yes,scrollbars=yes'
         );
-        
+
         if (popup) {
             popup.focus();
         } else {

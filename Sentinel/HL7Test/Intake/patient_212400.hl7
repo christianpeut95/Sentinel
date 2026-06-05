@@ -1,0 +1,4 @@
+MSH|^~\&|LAB|Memorial Hospital Laboratory|SENTINEL|Sentinel Public Health|20260429212400||ORU^R01|MSG212400|P|2.5.1
+PID|1||MRN212400||Anderson^Sarah^M||19920308|F|||742 Cedar Lane^^Portland^^97201||503-555-8899|||||||MRN212400
+OBR|1||LAB212400|87046^Group A Strep Test^LN|||20260429212400
+OBX|1|ST|87046^Group A Strep Test^LN||Positive||||||F

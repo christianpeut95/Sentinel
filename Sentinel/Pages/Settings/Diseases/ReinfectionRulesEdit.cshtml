@@ -1,0 +1,264 @@
+@page "{id:guid?}"
+@model Sentinel.Pages.Settings.Diseases.ReinfectionRulesEditModel
+
+@{
+    ViewData["Title"] = Model.Rule.Id == Guid.Empty ? "Create Reinfection Rule" : "Edit Reinfection Rule";
+    Layout = "~/Pages/Shared/_LayoutSentinel.cshtml";
+}
+
+<nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a asp-page="/Index">Home</a></li>
+        <li class="breadcrumb-item"><a asp-page="/Settings/Index">Settings</a></li>
+        <li class="breadcrumb-item"><a asp-page="./Index">Diseases</a></li>
+        <li class="breadcrumb-item"><a asp-page="./ReinfectionRules">Reinfection Rules</a></li>
+        <li class="breadcrumb-item active" aria-current="page">@(Model.Rule.Id == Guid.Empty ? "Create" : "Edit")</li>
+    </ol>
+</nav>
+
+<div class="sentinel-page-header mb-4">
+    <div>
+        <div class="sentinel-eyebrow">Disease Configuration</div>
+        <h1 class="sentinel-page-title">@(Model.Rule.Id == Guid.Empty ? "Create" : "Edit") Reinfection Rule</h1>
+        <p class="sentinel-page-subtitle">Configure case matching and reinfection detection</p>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-9">
+        <form method="post">
+            <input type="hidden" asp-for="Rule.Id" />
+            <input type="hidden" asp-for="Rule.CreatedAt" />
+            <div asp-validation-summary="ModelOnly" class="alert alert-danger" role="alert"></div>
+
+            <!-- Disease Selection -->
+            <div class="sentinel-card mb-4">
+                <div class="sentinel-card-body">
+                    <h3 class="sentinel-section-title">Disease</h3>
+                    <div class="row g-3">
+                        <div class="col-12">
+                            <label asp-for="Rule.DiseaseId" class="sn-label"></label>
+                            <select asp-for="Rule.DiseaseId" class="sn-input" asp-items="Model.DiseaseSelectList">
+                                <option value="">-- Select Disease --</option>
+                            </select>
+                            <span asp-validation-for="Rule.DiseaseId" class="text-danger"></span>
+                            <small class="form-text" style="color:var(--graphite)">Each disease can have only one reinfection rule</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Rule Type -->
+            <div class="sentinel-card mb-4">
+                <div class="sentinel-card-body">
+                    <h3 class="sentinel-section-title">Rule Type</h3>
+                    <div class="row g-3">
+                        <div class="col-12">
+                            <label asp-for="Rule.RuleType" class="sn-label"></label>
+                            <select asp-for="Rule.RuleType" class="sn-input" id="ruleTypeSelect">
+                                @foreach (var ruleType in Enum.GetValues<Sentinel.Models.Lookups.ReinfectionRuleType>())
+                                {
+                                    <option value="@ruleType">
+                                        @switch (ruleType)
+                                        {
+                                            case Sentinel.Models.Lookups.ReinfectionRuleType.NoReinfection:
+                                                <text>No Reinfection (Single Case per Patient)</text>
+                                                break;
+                                            case Sentinel.Models.Lookups.ReinfectionRuleType.TimeWindow:
+                                                <text>Time Window (New Case After X Days)</text>
+                                                break;
+                                            case Sentinel.Models.Lookups.ReinfectionRuleType.AlwaysNewCase:
+                                                <text>Always New Case (Each Positive = New Case)</text>
+                                                break;
+                                            case Sentinel.Models.Lookups.ReinfectionRuleType.ChronicDisease:
+                                                <text>Chronic Disease (Always Append to Existing)</text>
+                                                break;
+                                            case Sentinel.Models.Lookups.ReinfectionRuleType.ManualReview:
+                                                <text>Manual Review Required</text>
+                                                break;
+                                        }
+                                    </option>
+                                }
+                            </select>
+                            <span asp-validation-for="Rule.RuleType" class="text-danger"></span>
+                        </div>
+                        <div class="col-md-6" id="reinfectionWindowGroup">
+                            <label asp-for="Rule.ReinfectionWindowDays" class="sn-label"></label>
+                            <input asp-for="Rule.ReinfectionWindowDays" class="sn-input" type="number" min="0" max="3650" />
+                            <span asp-validation-for="Rule.ReinfectionWindowDays" class="text-danger"></span>
+                            <small class="form-text" style="color:var(--graphite)">
+                                Days before a new case can be created (e.g., 90 for Influenza, 180 for Pertussis)
+                            </small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Case Matching Strategy -->
+            <div class="sentinel-card mb-4">
+                <div class="sentinel-card-body">
+                    <h3 class="sentinel-section-title">Case Matching Strategy</h3>
+                    <div class="row g-3">
+                        <div class="col-12">
+                            <label asp-for="Rule.CaseMatchingStrategy" class="sn-label"></label>
+                            <select asp-for="Rule.CaseMatchingStrategy" class="sn-input">
+                                @foreach (var strategy in Enum.GetValues<Sentinel.Models.Lookups.CaseMatchingStrategy>())
+                                {
+                                    <option value="@strategy">@strategy.ToString().Replace("_", " ")</option>
+                                }
+                            </select>
+                            <span asp-validation-for="Rule.CaseMatchingStrategy" class="text-danger"></span>
+                            <small class="form-text" style="color:var(--graphite)">
+                                How to match incoming lab results to existing cases
+                            </small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Matching Options -->
+            <div class="sentinel-card mb-4">
+                <div class="sentinel-card-body">
+                    <h3 class="sentinel-section-title">Matching Options</h3>
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="sn-label">
+                                <input asp-for="Rule.IsChronic" type="checkbox" style="margin-right:8px;width:auto" />
+                                Is Chronic Disease
+                            </label>
+                            <small class="form-text d-block" style="color:var(--graphite);margin-top:4px">
+                                Disease has long-term or permanent presence (e.g., HIV, Hepatitis B)
+                            </small>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="sn-label">
+                                <input asp-for="Rule.AlwaysCreateNewCase" type="checkbox" style="margin-right:8px;width:auto" />
+                                Always Create New Case
+                            </label>
+                            <small class="form-text d-block" style="color:var(--graphite);margin-top:4px">
+                                Every positive result creates a new case regardless of timing
+                            </small>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="sn-label">
+                                <input asp-for="Rule.MatchOnTestType" type="checkbox" style="margin-right:8px;width:auto" />
+                                Match on Test Type
+                            </label>
+                            <small class="form-text d-block" style="color:var(--graphite);margin-top:4px">
+                                Consider test type when matching (e.g., culture vs. PCR)
+                            </small>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="sn-label">
+                                <input asp-for="Rule.MatchOnResultType" type="checkbox" style="margin-right:8px;width:auto" />
+                                Match on Result Type
+                            </label>
+                            <small class="form-text d-block" style="color:var(--graphite);margin-top:4px">
+                                Consider result type when matching (e.g., positive vs. negative)
+                            </small>
+                        </div>
+                        <div class="col-12">
+                            <label class="sn-label">
+                                <input asp-for="Rule.RequireConfirmationForNewCase" type="checkbox" style="margin-right:8px;width:auto" />
+                                Require Confirmation for New Case
+                            </label>
+                            <small class="form-text d-block" style="color:var(--graphite);margin-top:4px">
+                                Staff must manually confirm before creating a new case (manual review workflow)
+                            </small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Additional Settings -->
+            <div class="sentinel-card mb-4">
+                <div class="sentinel-card-body">
+                    <h3 class="sentinel-section-title">Additional Settings</h3>
+                    <div class="row g-3">
+                        <div class="col-12">
+                            <label asp-for="Rule.Description" class="sn-label"></label>
+                            <textarea asp-for="Rule.Description" class="sn-textarea" rows="3"
+                                      placeholder="Describe when and how this rule should be applied"></textarea>
+                            <span asp-validation-for="Rule.Description" class="text-danger"></span>
+                        </div>
+                        <div class="col-12">
+                            <label asp-for="Rule.NotificationMessage" class="sn-label"></label>
+                            <input asp-for="Rule.NotificationMessage" class="sn-input" 
+                                   placeholder="Message shown to users when rule is triggered" />
+                            <span asp-validation-for="Rule.NotificationMessage" class="text-danger"></span>
+                        </div>
+                        <div class="col-12">
+                            <label asp-for="Rule.Notes" class="sn-label"></label>
+                            <textarea asp-for="Rule.Notes" class="sn-textarea" rows="2"
+                                      placeholder="Internal notes about this rule"></textarea>
+                            <span asp-validation-for="Rule.Notes" class="text-danger"></span>
+                        </div>
+                        <div class="col-12">
+                            <label class="sn-label">
+                                <input asp-for="Rule.IsActive" type="checkbox" style="margin-right:8px;width:auto" checked />
+                                Rule is active
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Form Actions -->
+            <div class="mt-4">
+                <button type="submit" class="sn-btn sn-btn--signal">
+                    <i class="bi bi-check-circle me-1"></i>@(Model.Rule.Id == Guid.Empty ? "Create Rule" : "Save Changes")
+                </button>
+                <a asp-page="./ReinfectionRules" asp-route-diseaseId="@Model.Rule.DiseaseId" class="sn-btn sn-btn--ghost ms-2">
+                    <i class="bi bi-arrow-left me-1"></i>Cancel
+                </a>
+            </div>
+        </form>
+    </div>
+
+    <div class="col-lg-3">
+        <div class="sentinel-card" style="background:var(--paper)">
+            <div class="sentinel-card-body">
+                <h5 style="font-weight:600;margin-bottom:12px">
+                    <i class="bi bi-lightbulb me-2" style="color:var(--signal-dk)"></i>Quick Guide
+                </h5>
+                <div style="font-size:13px;line-height:1.8;color:var(--graphite)">
+                    <p><strong>Time Window Rules:</strong></p>
+                    <ul style="margin:0;padding-left:20px">
+                        <li>Influenza: 90 days</li>
+                        <li>Pertussis: 180 days</li>
+                        <li>Salmonella: 90 days</li>
+                        <li>Strep A: 30 days</li>
+                    </ul>
+                    <hr style="margin:12px 0;border-color:var(--hairline)">
+                    <p><strong>Chronic Diseases:</strong></p>
+                    <ul style="margin:0;padding-left:20px">
+                        <li>HIV</li>
+                        <li>Hepatitis B (chronic)</li>
+                        <li>Hepatitis C (chronic)</li>
+                        <li>Tuberculosis</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script>
+        // Show/hide reinfection window field based on rule type
+        document.getElementById('ruleTypeSelect').addEventListener('change', function() {
+            const windowGroup = document.getElementById('reinfectionWindowGroup');
+            const timeWindowValue = '@((int)Sentinel.Models.Lookups.ReinfectionRuleType.TimeWindow)';
+
+            if (this.value === timeWindowValue) {
+                windowGroup.style.display = 'block';
+            } else {
+                windowGroup.style.display = 'none';
+            }
+        });
+
+        // Trigger on page load
+        document.getElementById('ruleTypeSelect').dispatchEvent(new Event('change'));
+    </script>
+}

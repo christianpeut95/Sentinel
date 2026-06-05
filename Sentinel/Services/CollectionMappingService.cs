@@ -1276,7 +1276,7 @@ public class CollectionMappingService : ICollectionMappingService
             {
                 patient.FriendlyId = await _patientIdGenerator.GenerateNextPatientIdAsync();
                 fieldValues["FriendlyId"] = patient.FriendlyId;
-                
+
                 _logger.LogInformation(
                     "Generated FriendlyId {FriendlyId} for new Patient (prevents duplicates)",
                     patient.FriendlyId
@@ -1289,10 +1289,23 @@ public class CollectionMappingService : ICollectionMappingService
             {
                 caseEntity.FriendlyId = await _caseIdGenerator.GenerateNextCaseIdAsync();
                 fieldValues["FriendlyId"] = caseEntity.FriendlyId;
-                
+
                 _logger.LogInformation(
                     "Generated FriendlyId {FriendlyId} for new Case (prevents duplicates)",
                     caseEntity.FriendlyId
+                );
+            }
+
+            // CRITICAL: Set CaseType to Case if not explicitly set
+            // Without this, Type defaults to 0 which is not a valid CaseType enum value
+            // (CaseType.Case = 1, CaseType.Contact = 2)
+            if (caseEntity.Type == 0 || (int)caseEntity.Type == 0)
+            {
+                caseEntity.Type = CaseType.Case;
+                fieldValues["Type"] = CaseType.Case;
+
+                _logger.LogInformation(
+                    "Set CaseType to 'Case' for new Case entity (was not explicitly set)"
                 );
             }
         }

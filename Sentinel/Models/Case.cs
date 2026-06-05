@@ -128,6 +128,37 @@ namespace Sentinel.Models
         public ICollection<CaseCustomFieldBoolean> CustomFieldBooleans { get; set; } = new List<CaseCustomFieldBoolean>();
         public ICollection<CaseCustomFieldLookup> CustomFieldLookups { get; set; } = new List<CaseCustomFieldLookup>();
 
+        // Case Definition Classification Fields
+        [Display(Name = "Classification Date")]
+        public DateTime? ConfirmationStatusClassifiedDate { get; set; }
+
+        [Display(Name = "Classified By")]
+        [StringLength(450)]
+        public string? ConfirmationStatusClassifiedBy { get; set; }
+
+        [Display(Name = "Auto Classified")]
+        public bool IsAutoClassified { get; set; } = false;
+
+        [Display(Name = "Last Evaluated Date")]
+        public DateTime? LastEvaluatedDate { get; set; }
+
+        [Display(Name = "Last Evaluated Definitions")]
+        public string? LastEvaluatedDefinitionIds { get; set; }
+
+        // Manual Override Fields - prevents auto-evaluation when user manually changes status
+        [Display(Name = "Manual Override Active")]
+        public bool ConfirmationStatusManualOverride { get; set; } = false;
+
+        [Display(Name = "Manual Override Date")]
+        public DateTime? ConfirmationStatusManualOverrideDate { get; set; }
+
+        [Display(Name = "Manual Override By")]
+        [StringLength(450)]
+        public string? ConfirmationStatusManualOverrideByUserId { get; set; }
+
+        // Classification History Navigation
+        public ICollection<CaseDefinitions.CaseClassificationHistory> ClassificationHistory { get; set; } = new List<CaseDefinitions.CaseClassificationHistory>();
+
         // Soft Delete Properties
         public bool IsDeleted { get; set; } = false;
         public DateTime? DeletedAt { get; set; }

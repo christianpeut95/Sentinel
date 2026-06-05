@@ -504,15 +504,19 @@ namespace Sentinel.Services
                 .Where(st => st.IsActive)
                 .ToListAsync();
 
-            cache.TestTypes = await _context.TestTypes
-                .AsNoTracking()
-                .Where(tt => tt.IsActive)
-                .ToListAsync();
+            // LEGACY: TestTypes removed - use empty list
+            cache.TestTypes = new List<TestType>();
+            // cache.TestTypes = await _context.TestTypes
+            //     .AsNoTracking()
+            //     .Where(tt => tt.IsActive)
+            //     .ToListAsync();
 
-            cache.TestResults = await _context.TestResults
-                .AsNoTracking()
-                .Where(tr => tr.IsActive)
-                .ToListAsync();
+            // LEGACY: TestResults removed - use empty list
+            cache.TestResults = new List<TestResult>();
+            // cache.TestResults = await _context.TestResults
+            //     .AsNoTracking()
+            //     .Where(tr => tr.IsActive)
+            //     .ToListAsync();
 
             cache.ResultUnits = await _context.ResultUnits
                 .AsNoTracking()
@@ -629,32 +633,8 @@ namespace Sentinel.Services
             var receivedDate = specimenDate.AddDays(_random.Next(0, 3));
             var resultDate = receivedDate.AddDays(_random.Next(1, 7));
 
-            // Prefer Positive/Detected results (80% chance) for testing purposes
-            TestResult? testResult = null;
-            if (cache.TestResults.Any())
-            {
-                if (_random.Next(0, 100) < 80)
-                {
-                    testResult = cache.TestResults
-                        .FirstOrDefault(tr => tr.Name.Contains("Positive") || tr.Name.Contains("Detected"))
-                        ?? cache.TestResults[_random.Next(cache.TestResults.Count)];
-                }
-                else
-                {
-                    testResult = cache.TestResults[_random.Next(cache.TestResults.Count)];
-                }
-            }
-
-            // Quantitative result (40% chance)
-            decimal? quantResult = null;
-            int? unitsId = null;
-            if (_random.Next(0, 100) < 40 && cache.ResultUnits.Any())
-            {
-                quantResult = (decimal)(_random.NextDouble() * 100);
-                unitsId = cache.ResultUnits[_random.Next(cache.ResultUnits.Count)].Id;
-            }
-
-            return new LabResult
+            // Create lab result container
+            var labResult = new LabResult
             {
                 CaseId = caseEntity.Id,
                 LaboratoryId = cache.Laboratories.Any() ? cache.Laboratories[_random.Next(cache.Laboratories.Count)].Id : null,
@@ -662,14 +642,16 @@ namespace Sentinel.Services
                 AccessionNumber = $"ACC-{_random.Next(100000, 999999)}",
                 SpecimenCollectionDate = specimenDate,
                 SpecimenTypeId = cache.SpecimenTypes.Any() ? cache.SpecimenTypes[_random.Next(cache.SpecimenTypes.Count)].Id : null,
-                TestTypeId = cache.TestTypes.Any() ? cache.TestTypes[_random.Next(cache.TestTypes.Count)].Id : null,
                 TestedDiseaseId = disease.Id,
-                TestResultId = testResult?.Id,
                 ResultDate = resultDate,
-                QuantitativeResult = quantResult,
-                ResultUnitsId = unitsId,
                 Notes = _random.Next(0, 100) < 30 ? "Auto-generated test lab result" : null
             };
+
+            // Note: Marker generation would require Pathogen data which may not be in cache
+            // For now, returning lab result without markers
+            // TODO: Add pathogen cache and generate 1-3 markers per lab result
+
+            return labResult;
         }
 
         // Generate symptoms using cached lookups (NO database queries)

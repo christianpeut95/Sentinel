@@ -67,6 +67,7 @@ namespace Sentinel.Pages.Settings.Lookups
 
             try
             {
+                SpecimenType.ModifiedAt = DateTime.UtcNow;
                 _context.Attach(SpecimenType).State = EntityState.Modified;
                 await _context.SaveChangesAsync();
 

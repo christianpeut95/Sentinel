@@ -1,0 +1,494 @@
+@page "{configId:guid?}"
+@model Sentinel.Pages.Settings.HL7.FieldMappings.ConfigureLabModel
+
+@{
+    ViewData["Title"] = "Configure Lab Message Mapping";
+    Layout = "~/Pages/Shared/_LayoutSentinel.cshtml";
+}
+
+<nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a asp-page="/Index">Home</a></li>
+        <li class="breadcrumb-item"><a asp-page="/Settings/Index">Settings</a></li>
+        <li class="breadcrumb-item"><a asp-page="/Settings/HL7/Configurations/Index">Lab Configurations</a></li>
+        <li class="breadcrumb-item active" aria-current="page">Configure Message Mapping</li>
+    </ol>
+</nav>
+
+<div class="sentinel-page-header mb-4">
+    <div>
+        <div class="sentinel-eyebrow">Lab Message Configuration</div>
+        <h1 class="sentinel-page-title">
+            @if (Model.Configuration != null)
+            {
+                @Model.Configuration.ConfigurationName
+            }
+            else
+            {
+                <span>New Lab Configuration</span>
+            }
+        </h1>
+        <p class="sentinel-page-subtitle">Teach Sentinel how to read lab messages from this sender</p>
+    </div>
+</div>
+
+@if (TempData["SuccessMessage"] != null)
+{
+    <div class="alert alert-success alert-dismissible fade show" role="alert">
+        <i class="bi bi-check-circle me-2"></i>@TempData["SuccessMessage"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+
+@if (TempData["ErrorMessage"] != null)
+{
+    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+        <i class="bi bi-exclamation-triangle me-2"></i>@TempData["ErrorMessage"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+
+@if (!Model.HasSampleMessage)
+{
+    <!-- Sample Message Upload Card -->
+    <div class="sentinel-card" style="margin-bottom:24px;border:2px dashed var(--signal-dk);background:var(--signal-lt)">
+        <div class="sentinel-card-body" style="text-align:center;padding:32px">
+            <div style="font-size:48px;color:var(--signal-dk);margin-bottom:16px">
+                <i class="bi bi-file-earmark-text"></i>
+            </div>
+            <h4 style="font-size:18px;font-weight:600;letter-spacing:-.01em;margin-bottom:8px;color:var(--forest)">
+                Start by uploading a sample message
+            </h4>
+            <p style="font-size:14px;color:var(--graphite);max-width:60ch;margin:0 auto 24px">
+                Paste a real HL7 message from this laboratory. Sentinel will analyze it and suggest how to read each field. 
+                <strong>This is safe</strong> — no cases or records will be created.
+            </p>
+
+            <form method="post" asp-page-handler="UploadSample" asp-route-configId="@Model.Configuration?.Id" style="max-width:800px;margin:0 auto">
+                <div class="form-field">
+                    <textarea class="sn-textarea" 
+                              name="UploadedMessage" 
+                              rows="8" 
+                              placeholder="Paste your HL7 message here...&#10;&#10;MSH|^~\&|LAB||SENTINEL||20240315103052||ORU^R01|MSG001|P|2.5&#10;PID|1||MRN123456||SMITH^JANE^M||19850422|F|||123 Main St^^Wellington^^6011||..." 
+                              style="font-family:var(--f-mono);font-size:12px"></textarea>
+                </div>
+                <button type="submit" class="sn-btn sn-btn--signal">
+                    <i class="bi bi-upload"></i> Analyze message
+                </button>
+            </form>
+        </div>
+    </div>
+}
+else
+{
+    <!-- Sample Loaded Banner -->
+    <div class="alert" style="background:var(--signal-lt);border:1px solid var(--signal-dk);border-radius:6px;padding:14px;margin-bottom:24px;display:flex;align-items:center;gap:12px">
+        <i class="bi bi-check-circle" style="font-size:20px;color:var(--signal-dk)"></i>
+        <div style="flex:1">
+            <div style="font-size:13px;font-weight:500;color:#0A3F2C">
+                Sample message loaded
+            </div>
+            <div style="font-size:12px;color:var(--graphite)">
+                Sentinel has analyzed the message and detected field candidates below
+            </div>
+        </div>
+        <form method="post" asp-page-handler="ClearSample" asp-route-configId="@Model.Configuration?.Id" style="margin:0">
+            <button type="submit" class="sn-btn sn-btn--ghost sn-btn--sm">
+                <i class="bi bi-arrow-clockwise"></i> Upload different sample
+            </button>
+        </form>
+    </div>
+}
+
+<!-- Progress Banner -->
+<div class="alert" style="background:@(Model.UnresolvedFieldCount == 0 ? "#D9F2E5" : "#FBEDD1");border:1px solid @(Model.UnresolvedFieldCount == 0 ? "#9BE8C6" : "#EBD196");border-radius:6px;padding:16px;margin-bottom:24px;display:flex;align-items:center;gap:12px">
+    <div style="width:8px;height:8px;border-radius:50%;background:@(Model.UnresolvedFieldCount == 0 ? "#159C6E" : "#E0A43A")"></div>
+    <div style="flex:1">
+        @if (Model.UnresolvedFieldCount == 0)
+        {
+            <div style="font-size:14px;font-weight:500;color:#0A3F2C;margin-bottom:4px">
+                <i class="bi bi-check-circle"></i> All fields resolved
+            </div>
+            <div style="font-size:13px;color:#0A3F2C">
+                You can save this configuration or test it with a real message.
+            </div>
+        }
+        else
+        {
+            <div style="font-size:14px;font-weight:500;color:#6A4410;margin-bottom:4px">
+                <i class="bi bi-exclamation-triangle"></i> @Model.UnresolvedFieldCount field@(Model.UnresolvedFieldCount == 1 ? "" : "s") need@(Model.UnresolvedFieldCount == 1 ? "s" : "") your attention
+            </div>
+            <div style="font-size:13px;color:#6A4410">
+                Review the cards below and confirm which values to use. You can skip optional fields if they're not needed.
+            </div>
+        }
+    </div>
+    <div style="display:flex;gap:8px">
+        <button type="button" class="sn-btn sn-btn--ghost sn-btn--sm" data-bs-toggle="modal" data-bs-target="#testMessageModal">
+            <i class="bi bi-flask"></i> Test with message
+        </button>
+        <button type="button" 
+                class="sn-btn sn-btn--signal sn-btn--sm" 
+                @(Model.UnresolvedFieldCount > 0 ? "disabled" : "")
+                onclick="saveConfiguration()">
+            <i class="bi bi-check-lg"></i> Save configuration
+        </button>
+    </div>
+</div>
+
+<!-- Field Mapping Cards -->
+<div style="display:grid;gap:16px">
+    @foreach (var field in Model.Fields.OrderBy(f => f.Priority))
+    {
+        <div class="sentinel-card" 
+             style="@(field.Status == "Confirmed" ? "border-left:3px solid var(--signal-dk)" : field.Status == "NeedsAttention" ? "border-left:3px solid var(--watch)" : "border-left:3px solid var(--hairline)")">
+            <div class="sentinel-card-body">
+                <div style="display:flex;justify-content:between;align-items:start;margin-bottom:16px">
+                    <div style="flex:1">
+                        <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
+                            <h4 style="font-size:17px;font-weight:600;letter-spacing:-.01em;margin:0">@field.FriendlyName</h4>
+                            @if (field.IsRequired)
+                            {
+                                <span class="chip outbreak" style="font-size:9px;padding:2px 7px">
+                                    <span class="dot"></span>Required
+                                </span>
+                            }
+                            else
+                            {
+                                <span class="chip" style="background:var(--paper);color:var(--graphite);font-size:9px;padding:2px 7px">
+                                    Optional
+                                </span>
+                            }
+                        </div>
+                        <p style="font-size:13px;color:var(--graphite);margin:0">@field.HelpText</p>
+                    </div>
+                    @if (field.Status == "Confirmed")
+                    {
+                        <span class="chip clear" style="font-size:10px;padding:3px 9px">
+                            <span class="dot"></span>Confirmed
+                        </span>
+                    }
+                    else if (field.Status == "NeedsAttention")
+                    {
+                        <span class="chip watch" style="font-size:10px;padding:3px 9px">
+                            <span class="dot"></span>Needs attention
+                        </span>
+                    }
+                    else
+                    {
+                        <span class="chip" style="background:#E3E9FB;color:#2A3970;font-size:10px;padding:3px 9px">
+                            <span class="dot" style="background:#6B8CF5"></span>Not set
+                        </span>
+                    }
+                </div>
+
+                @if (field.Status == "Confirmed")
+                {
+                    <!-- Confirmed value -->
+                    <div style="background:var(--signal-lt);border:1px solid #9BE8C6;border-radius:6px;padding:14px;display:flex;align-items:center;gap:12px">
+                        <div style="flex:1">
+                            <div style="font-size:12px;color:#0A3F2C;text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px;font-family:var(--f-mono)">Using this value</div>
+                            <div style="font-size:16px;font-weight:500;color:var(--forest)">@field.ConfirmedValue</div>
+                            @if (!string.IsNullOrEmpty(field.ExtractedHint))
+                            {
+                                <div style="font-size:12px;color:var(--graphite);margin-top:4px">@field.ExtractedHint</div>
+                            }
+                        </div>
+                        <button type="button" class="sn-btn sn-btn--ghost sn-btn--sm" onclick="unresolveField('@field.FieldKey')">
+                            <i class="bi bi-pencil"></i> Change
+                        </button>
+                    </div>
+                }
+                else if (field.CandidateValues != null && field.CandidateValues.Any())
+                {
+                    <!-- Ambiguous: show candidates -->
+                    <div style="display:grid;gap:10px;margin-top:12px">
+                        @foreach (var candidate in field.CandidateValues)
+                        {
+                            <div class="card" 
+                                 style="padding:14px;border:1px solid var(--hairline);border-radius:6px;cursor:pointer;transition:border-color .12s,background .12s"
+                                 onclick="if (event.target.tagName !== 'INPUT') { this.querySelector('input[type=radio]').click(); }">
+                                <div style="display:flex;align-items:start;gap:12px">
+                                    <input type="radio" 
+                                           name="field_@field.FieldKey" 
+                                           value="@candidate.Value"
+                                           data-field-path="@candidate.FieldPath"
+                                           style="margin-top:4px;width:18px;height:18px;flex-shrink:0;cursor:pointer"
+                                           onclick="event.stopPropagation(); selectCandidate('@field.FieldKey', '@candidate.Value', '@candidate.FieldPath', this)" />
+                                    <div style="flex:1">
+                                        <div style="font-size:16px;font-weight:500;color:var(--forest);margin-bottom:4px">@candidate.DisplayValue</div>
+                                        <div style="font-size:13px;color:var(--graphite)">@candidate.Hint</div>
+                                        @if (candidate.Confidence != null)
+                                        {
+                                            <div style="font-family:var(--f-mono);font-size:11px;color:var(--signal-dk);margin-top:6px">
+                                                @(candidate.Confidence)% confident
+                                            </div>
+                                        }
+                                    </div>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                    <div style="margin-top:12px;padding:12px;background:var(--paper);border-radius:4px;font-size:13px;color:var(--graphite)">
+                        <i class="bi bi-lightbulb"></i> Can't find the right value? 
+                        <button type="button" class="sn-btn sn-btn--ghost sn-btn--sm" style="margin-left:8px" data-bs-toggle="modal" data-bs-target="#helpModal" data-field="@field.FieldKey">
+                            Help me find this
+                        </button>
+                    </div>
+                }
+                else
+                {
+                    <!-- Not found: offer escape hatches -->
+                    <div style="background:var(--chalk);border:1px solid var(--hairline);border-radius:6px;padding:18px;margin-top:12px">
+                        <div style="font-size:14px;color:var(--graphite);margin-bottom:14px">
+                            <i class="bi bi-search"></i> Couldn't find this field in the sample message.
+                        </div>
+                        <div style="display:grid;gap:8px">
+                            <button type="button" class="sn-btn sn-btn--ghost sn-btn--sm" onclick="uploadDifferentSample('@field.FieldKey')">
+                                <i class="bi bi-upload"></i> Try another sample message
+                            </button>
+                            <button type="button" class="sn-btn sn-btn--ghost sn-btn--sm" onclick="setDefaultValue('@field.FieldKey')">
+                                <i class="bi bi-gear"></i> Set a fixed default value
+                            </button>
+                            @if (!field.IsRequired)
+                            {
+                                <button type="button" class="sn-btn sn-btn--ghost sn-btn--sm" onclick="skipField('@field.FieldKey')">
+                                    <i class="bi bi-skip-forward"></i> Skip this field (not needed for this lab)
+                                </button>
+                            }
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+    }
+</div>
+
+<!-- Test Message Modal -->
+<div class="modal fade" id="testMessageModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content" style="border-radius:8px;border:1px solid var(--hairline)">
+            <div class="modal-header" style="border-bottom:1px solid var(--hairline)">
+                <h5 class="modal-title" style="font-size:18px;font-weight:600">Test with real message</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" style="padding:24px">
+                <div class="alert" style="background:var(--signal-lt);border:1px solid #9BE8C6;border-radius:6px;padding:14px;margin-bottom:16px">
+                    <div style="font-size:13px;color:#0A3F2C;line-height:1.6">
+                        <i class="bi bi-shield-check"></i> <strong>Safe to test:</strong> This preview won't create any cases or modify your database. You'll see exactly how Sentinel reads the message.
+                    </div>
+                </div>
+                <div class="form-field">
+                    <label class="sn-label">Paste a real HL7 message from this lab</label>
+                    <textarea id="testMessageContent" 
+                              class="sn-textarea" 
+                              rows="12" 
+                              style="font-family:var(--f-mono);font-size:12px"
+                              placeholder="MSH|^~\&|LABCORP^2.16.840.1.113883.19.4.6^ISO|..."></textarea>
+                </div>
+                <div style="display:flex;gap:10px">
+                    <button type="button" class="sn-btn sn-btn--signal" onclick="runTestParse()">
+                        <i class="bi bi-play-fill"></i> Parse message
+                    </button>
+                    <button type="button" class="sn-btn sn-btn--ghost" data-bs-dismiss="modal">Cancel</button>
+                </div>
+
+                <!-- Test results container -->
+                <div id="testResults" style="margin-top:24px;display:none">
+                    <h6 style="font-size:14px;font-weight:600;margin-bottom:12px">Extracted values:</h6>
+                    <div id="testResultsContent"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Help Modal -->
+<div class="modal fade" id="helpModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content" style="border-radius:8px;border:1px solid var(--hairline)">
+            <div class="modal-header" style="border-bottom:1px solid var(--hairline)">
+                <h5 class="modal-title" style="font-size:18px;font-weight:600">Help finding this field</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" style="padding:24px">
+                <p style="font-size:14px;color:var(--graphite);margin-bottom:16px">
+                    Let me know what you're looking for and I'll help you configure it.
+                </p>
+                <div class="form-field">
+                    <label class="sn-label">What field are you trying to map?</label>
+                    <input type="text" id="helpFieldName" class="sn-input" readonly />
+                </div>
+                <div class="form-field">
+                    <label class="sn-label">Describe what you're looking for</label>
+                    <textarea id="helpUserMessage" 
+                              class="sn-textarea" 
+                              rows="4" 
+                              placeholder="e.g., 'The patient's street address is usually at the end of the patient details section...'"></textarea>
+                </div>
+                <div style="display:flex;gap:10px">
+                    <button type="button" class="sn-btn sn-btn--signal" onclick="submitHelpRequest()">
+                        <i class="bi bi-send"></i> Get help
+                    </button>
+                    <button type="button" class="sn-btn sn-btn--ghost" data-bs-dismiss="modal">Cancel</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+    function selectCandidate(fieldKey, value, fieldPath, radioElement) {
+        // Check the radio button immediately for visual feedback
+        if (radioElement) {
+            radioElement.checked = true;
+        }
+
+        fetch('/api/hl7/mapping/confirm-field', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+                configurationId: '@Model.Configuration?.Id',
+                fieldKey: fieldKey, 
+                value: value,
+                fieldPath: fieldPath 
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                location.reload();
+            }
+        });
+    }
+
+    function unresolveField(fieldKey) {
+        if (confirm('Change this mapping? You\'ll need to re-select a value.')) {
+            fetch('/api/hl7/mapping/unresolve-field', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                    configurationId: '@Model.Configuration?.Id',
+                    fieldKey: fieldKey 
+                })
+            })
+            .then(() => location.reload());
+        }
+    }
+
+    function skipField(fieldKey) {
+        if (confirm('Skip this field? It won\'t be extracted from messages from this lab.')) {
+            fetch('/api/hl7/mapping/skip-field', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                    configurationId: '@Model.Configuration?.Id',
+                    fieldKey: fieldKey 
+                })
+            })
+            .then(() => location.reload());
+        }
+    }
+
+    function runTestParse() {
+        const messageContent = document.getElementById('testMessageContent').value;
+        if (!messageContent.trim()) {
+            alert('Please paste an HL7 message first.');
+            return;
+        }
+
+        fetch('/api/hl7/mapping/test-parse', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+                configurationId: '@Model.Configuration?.Id',
+                messageContent: messageContent 
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            document.getElementById('testResults').style.display = 'block';
+            const resultsHtml = data.fields.map(f => `
+                <div style="padding:12px;border:1px solid var(--hairline);border-radius:6px;margin-bottom:8px">
+                    <div style="font-size:12px;color:var(--graphite);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px;font-family:var(--f-mono)">${f.fieldName}</div>
+                    <div style="font-size:15px;font-weight:500;color:var(--forest)">${f.extractedValue || '<em style="color:var(--graphite)">Not found</em>'}</div>
+                </div>
+            `).join('');
+            document.getElementById('testResultsContent').innerHTML = resultsHtml;
+        });
+    }
+
+    function saveConfiguration() {
+        if (confirm('Save this configuration and start processing messages?')) {
+            fetch('/api/hl7/mapping/save-configuration', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ configurationId: '@Model.Configuration?.Id' })
+            })
+            .then(() => {
+                alert('Configuration saved! Messages from this lab will now be processed.');
+                window.location.href = '/Settings/HL7/Configurations/Index';
+            });
+        }
+    }
+
+    function uploadDifferentSample(fieldKey) {
+        // Scroll to top and focus on sample upload form
+        // If already have a sample, trigger the clear sample handler
+        if ('@Model.HasSampleMessage' === 'True') {
+            if (confirm('Clear the current sample and upload a different one?')) {
+                document.querySelector('form[asp-page-handler="ClearSample"]')?.submit();
+            }
+        } else {
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+            document.querySelector('textarea[name="UploadedMessage"]')?.focus();
+        }
+    }
+
+    function setDefaultValue(fieldKey) {
+        const value = prompt('Enter a fixed default value for this field:');
+        if (value !== null && value.trim() !== '') {
+            fetch('/api/hl7/mapping/confirm-field', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                    configurationId: '@Model.Configuration?.Id',
+                    fieldKey: fieldKey, 
+                    value: value.trim(),
+                    fieldPath: 'DEFAULT'
+                })
+            })
+            .then(() => location.reload());
+        }
+    }
+
+    function submitHelpRequest() {
+        const fieldName = document.getElementById('helpFieldName').value;
+        const userMessage = document.getElementById('helpUserMessage').value;
+
+        if (!userMessage.trim()) {
+            alert('Please describe what you\'re looking for.');
+            return;
+        }
+
+        // For now, show a message - this could be wired to AI assistance later
+        alert('Help request noted for "' + fieldName + '". For now, try:\n\n' +
+              '1. Upload a different sample message that might have this field\n' +
+              '2. Set a fixed default value if this field is always the same\n' +
+              '3. Skip this field if it\'s not needed for this lab\n\n' +
+              'Contact support if you need additional assistance.');
+
+        document.getElementById('helpUserMessage').value = '';
+        bootstrap.Modal.getInstance(document.getElementById('helpModal')).hide();
+    }
+
+    // Help modal handler
+    document.getElementById('helpModal').addEventListener('show.bs.modal', function (event) {
+        const button = event.relatedTarget;
+        const fieldKey = button.getAttribute('data-field');
+        const fieldName = document.querySelector(`[data-field-key="${fieldKey}"]`)?.textContent || fieldKey;
+        document.getElementById('helpFieldName').value = fieldName;
+    });
+</script>
+}

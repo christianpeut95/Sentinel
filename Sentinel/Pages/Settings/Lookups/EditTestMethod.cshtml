@@ -1,0 +1,92 @@
+@page
+@model Sentinel.Pages.Settings.Lookups.EditTestMethodModel
+
+@{
+    ViewData["Title"] = "Edit Test Method";
+    Layout = "~/Pages/Shared/_LayoutSentinel.cshtml";
+}
+
+<nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a asp-page="/Index">Home</a></li>
+        <li class="breadcrumb-item"><a asp-page="/Settings/Index">Settings</a></li>
+        <li class="breadcrumb-item"><a asp-page="./TestMethods">Test Methods</a></li>
+        <li class="breadcrumb-item active" aria-current="page">Edit</li>
+    </ol>
+</nav>
+
+<div class="sentinel-page-header mb-4">
+    <div>
+        <h1 class="sentinel-page-title">Edit Test Method</h1>
+        <p class="sentinel-page-subtitle">@Model.TestMethod?.Name</p>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-8">
+        <div class="sentinel-card">
+            <div class="sentinel-card-body">
+                <form method="post">
+                    <input type="hidden" asp-for="TestMethod.Id" />
+                    <div asp-validation-summary="ModelOnly" class="alert alert-danger" role="alert"></div>
+
+                    <div class="mb-3">
+                        <label asp-for="TestMethod.Name" class="sn-label"></label>
+                        <input asp-for="TestMethod.Name" class="sn-input" />
+                        <span asp-validation-for="TestMethod.Name" class="text-danger"></span>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="TestMethod.Description" class="sn-label"></label>
+                        <textarea asp-for="TestMethod.Description" class="sn-textarea" rows="3"></textarea>
+                        <span asp-validation-for="TestMethod.Description" class="text-danger"></span>
+                    </div>
+
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-6">
+                            <label asp-for="TestMethod.ExportCode" class="sn-label"></label>
+                            <input asp-for="TestMethod.ExportCode" class="sn-input" />
+                            <span asp-validation-for="TestMethod.ExportCode" class="text-danger"></span>
+                        </div>
+                        <div class="col-md-6">
+                            <label asp-for="TestMethod.DisplayOrder" class="sn-label"></label>
+                            <input asp-for="TestMethod.DisplayOrder" type="number" class="sn-input" />
+                            <span asp-validation-for="TestMethod.DisplayOrder" class="text-danger"></span>
+                        </div>
+                    </div>
+
+                    <div class="mb-4">
+                        <div class="form-check">
+                            <input asp-for="TestMethod.IsActive" class="form-check-input" type="checkbox" />
+                            <label asp-for="TestMethod.IsActive" class="form-check-label">
+                                Active (visible in lab result entry)
+                            </label>
+                        </div>
+                    </div>
+
+                    @if (Model.UsageCount > 0)
+                    {
+                        <div class="alert alert-info" role="alert">
+                            <i class="bi bi-info-circle me-2"></i>
+                            This test method is referenced in <strong>@Model.UsageCount</strong> lab result marker(s).
+                        </div>
+                    }
+
+                    <div class="d-flex gap-2 pt-3 border-top">
+                        <button type="submit" class="sn-btn sn-btn--signal">
+                            <i class="bi bi-check-lg"></i>
+                            Save Changes
+                        </button>
+                        <a asp-page="TestMethods" class="sn-btn sn-btn--ghost">
+                            Cancel
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+}

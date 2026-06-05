@@ -1,0 +1,366 @@
+@page
+@model Sentinel.Pages.Settings.Lookups.EditSpecimenTypeModel
+
+@{
+    ViewData["Title"] = "Edit Specimen Type";
+    ViewData["Subtitle"] = $"Edit {Model.SpecimenType.Name}";
+    Layout = "~/Pages/Shared/_LayoutSentinel.cshtml";
+}
+
+<nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a asp-page="/Index">Home</a></li>
+        <li class="breadcrumb-item"><a asp-page="/Settings/Index">Settings</a></li>
+        <li class="breadcrumb-item"><a asp-page="./SpecimenTypes">Specimen Types</a></li>
+        <li class="breadcrumb-item active" aria-current="page">Edit</li>
+    </ol>
+</nav>
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2><i class="bi bi-pencil me-2"></i>Edit Specimen Type</h2>
+    @if (Model.UsageCount > 0)
+    {
+        <span class="chip" style="background: #E3E9FB; color: #2A3970; border: 1px solid #B7C4EE;">
+            <i class="bi bi-bar-chart"></i> Used in @Model.UsageCount lab results
+        </span>
+    }
+</div>
+
+@if (TempData["ErrorMessage"] != null)
+{
+    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+        <i class="bi bi-exclamation-triangle me-2"></i>@TempData["ErrorMessage"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+}
+
+<form method="post">
+    <input type="hidden" asp-for="SpecimenType.Id" />
+    <input type="hidden" asp-for="SpecimenType.CreatedAt" />
+    <div asp-validation-summary="ModelOnly" class="alert alert-danger" role="alert"></div>
+
+    <div class="card shadow-sm mb-4">
+        <div class="card-header bg-light fw-semibold">
+            <i class="bi bi-info-circle me-2"></i>Specimen Type Information
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-12 mb-3">
+                    <label asp-for="SpecimenType.Name" class="form-label text-label">
+                        <span class="text-danger">*</span> @Html.DisplayNameFor(m => m.SpecimenType.Name)
+                    </label>
+                    <input asp-for="SpecimenType.Name" class="form-control" aria-required="true" placeholder="e.g., Blood, Serum, Nasopharyngeal Swab" />
+                    <span asp-validation-for="SpecimenType.Name" class="text-danger small"></span>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-md-12 mb-3">
+                    <label asp-for="SpecimenType.Description" class="form-label text-label">
+                        @Html.DisplayNameFor(m => m.SpecimenType.Description)
+                    </label>
+                    <textarea asp-for="SpecimenType.Description" class="form-control" rows="3" placeholder="Brief description of this specimen type..."></textarea>
+                    <span asp-validation-for="SpecimenType.Description" class="text-danger small"></span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- SNOMED CT & Standards Card -->
+    <div class="card shadow-sm mb-4">
+        <div class="card-header bg-light fw-semibold" style="background: var(--signal-lt) !important; border-bottom: 1px solid #9BE8C6;">
+            <i class="bi bi-clipboard-data me-2"></i>Standardization & Interoperability
+        </div>
+        <div class="card-body">
+            <div class="alert alert-info" style="background: #E3E9FB; border-color: #B7C4EE;">
+                <i class="bi bi-info-circle me-2"></i>
+                <strong>SNOMED CT codes</strong> enable data exchange with labs, EHRs, and public health systems. 
+                <a href="#" class="alert-link" data-bs-toggle="modal" data-bs-target="#snomedReferenceModal">View common codes</a>
+            </div>
+
+            <!-- SNOMED CT -->
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label asp-for="SpecimenType.SnomedCode" class="form-label text-label">
+                        @Html.DisplayNameFor(m => m.SpecimenType.SnomedCode)
+                    </label>
+                    <input asp-for="SpecimenType.SnomedCode" class="form-control text-mono" placeholder="e.g., 258500001" />
+                    <span asp-validation-for="SpecimenType.SnomedCode" class="text-danger small"></span>
+                    <small class="form-text text-muted">6-18 digit SNOMED CT code</small>
+                </div>
+
+                <div class="col-md-6 mb-3">
+                    <label asp-for="SpecimenType.SnomedDisplay" class="form-label text-label">
+                        @Html.DisplayNameFor(m => m.SpecimenType.SnomedDisplay)
+                    </label>
+                    <input asp-for="SpecimenType.SnomedDisplay" class="form-control" placeholder="e.g., Nasopharyngeal swab" />
+                    <span asp-validation-for="SpecimenType.SnomedDisplay" class="text-danger small"></span>
+                    <small class="form-text text-muted">Official SNOMED display name</small>
+                </div>
+            </div>
+
+            <!-- Secondary Mappings -->
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label asp-for="SpecimenType.LoincSystemCode" class="form-label text-label">
+                        @Html.DisplayNameFor(m => m.SpecimenType.LoincSystemCode)
+                    </label>
+                    <input asp-for="SpecimenType.LoincSystemCode" class="form-control text-mono" placeholder="e.g., NPS" />
+                    <span asp-validation-for="SpecimenType.LoincSystemCode" class="text-danger small"></span>
+                    <small class="form-text text-muted">For lab result interoperability</small>
+                </div>
+
+                <div class="col-md-6 mb-3">
+                    <label asp-for="SpecimenType.Hl7Code" class="form-label text-label">
+                        @Html.DisplayNameFor(m => m.SpecimenType.Hl7Code)
+                    </label>
+                    <input asp-for="SpecimenType.Hl7Code" class="form-control text-mono" placeholder="e.g., NPS" />
+                    <span asp-validation-for="SpecimenType.Hl7Code" class="text-danger small"></span>
+                    <small class="form-text text-muted">HL7 v2 messaging (optional)</small>
+                </div>
+            </div>
+
+            <!-- Clinical Attributes -->
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label asp-for="SpecimenType.BodySite" class="form-label text-label">
+                        @Html.DisplayNameFor(m => m.SpecimenType.BodySite)
+                    </label>
+                    <input asp-for="SpecimenType.BodySite" class="form-control" placeholder="e.g., Nasopharynx, Blood" />
+                    <span asp-validation-for="SpecimenType.BodySite" class="text-danger small"></span>
+                    <small class="form-text text-muted">Anatomical collection site</small>
+                </div>
+
+                <div class="col-md-6 mb-3">
+                    <label asp-for="SpecimenType.CollectionMethod" class="form-label text-label">
+                        @Html.DisplayNameFor(m => m.SpecimenType.CollectionMethod)
+                    </label>
+                    <input asp-for="SpecimenType.CollectionMethod" class="form-control" placeholder="e.g., Swab, Venipuncture" />
+                    <span asp-validation-for="SpecimenType.CollectionMethod" class="text-danger small"></span>
+                    <small class="form-text text-muted">How specimen is collected</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Attributes Card -->
+    <div class="card shadow-sm mb-4">
+        <div class="card-header bg-light fw-semibold">
+            <i class="bi bi-sliders me-2"></i>Attributes
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-4 mb-3">
+                    <label asp-for="SpecimenType.ExportCode" class="form-label text-label">
+                        @Html.DisplayNameFor(m => m.SpecimenType.ExportCode)
+                    </label>
+                    <input asp-for="SpecimenType.ExportCode" class="form-control text-mono" placeholder="e.g., BLD" />
+                    <span asp-validation-for="SpecimenType.ExportCode" class="text-danger small"></span>
+                    <small class="form-text text-muted">Legacy export code</small>
+                </div>
+
+                <div class="col-md-4 mb-3">
+                    <label asp-for="SpecimenType.DisplayOrder" class="form-label text-label">
+                        @Html.DisplayNameFor(m => m.SpecimenType.DisplayOrder)
+                    </label>
+                    <input asp-for="SpecimenType.DisplayOrder" class="form-control" type="number" placeholder="Sort order" />
+                    <span asp-validation-for="SpecimenType.DisplayOrder" class="text-danger small"></span>
+                    <small class="form-text text-muted">Lower numbers appear first</small>
+                </div>
+
+                <div class="col-md-4 mb-3">
+                    <div style="margin-top: 32px;">
+                        <div class="form-check mb-2">
+                            <input asp-for="SpecimenType.IsActive" class="form-check-input" type="checkbox" />
+                            <label asp-for="SpecimenType.IsActive" class="form-check-label">
+                                Active
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <div class="form-check">
+                        <input asp-for="SpecimenType.IsInvasive" class="form-check-input" type="checkbox" />
+                        <label asp-for="SpecimenType.IsInvasive" class="form-check-label">
+                            <strong>Invasive Specimen</strong>
+                        </label>
+                        <div class="form-text">
+                            <i class="bi bi-info-circle me-1"></i>
+                            Requires invasive procedure (e.g., blood draw, biopsy)
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-md-6 mb-3">
+                    <div class="form-check">
+                        <input asp-for="SpecimenType.IsSterileSite" class="form-check-input" type="checkbox" />
+                        <label asp-for="SpecimenType.IsSterileSite" class="form-check-label">
+                            <strong>Sterile Site</strong>
+                        </label>
+                        <div class="form-text">
+                            <i class="bi bi-info-circle me-1"></i>
+                            Specimen from normally sterile body site
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="d-flex justify-content-between">
+        <a asp-page="./SpecimenTypes" class="sn-btn sn-btn--ghost">
+            <i class="bi bi-arrow-left me-1"></i>Back to List
+        </a>
+        <button type="submit" class="sn-btn sn-btn--signal">
+            <i class="bi bi-check-circle me-1"></i>Save Changes
+        </button>
+    </div>
+</form>
+
+<!-- SNOMED CT Reference Modal -->
+<div class="modal fade" id="snomedReferenceModal" tabindex="-1">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header" style="background: var(--signal); color: white;">
+                <h5 class="modal-title">
+                    <i class="bi bi-book"></i> SNOMED CT Specimen Codes Reference
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <input type="text" id="snomedSearch" class="form-control" placeholder="Search specimen types...">
+                </div>
+
+                <h6 class="text-label">Respiratory Specimens</h6>
+                <table class="table table-sm table-hover sn-table">
+                    <thead>
+                        <tr>
+                            <th>Specimen Type</th>
+                            <th>SNOMED CT Code</th>
+                            <th>LOINC System</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>Nasopharyngeal swab</td>
+                            <td class="text-mono">258500001</td>
+                            <td class="text-mono">NPS</td>
+                            <td><button type="button" class="btn btn-sm btn-outline-primary copy-snomed" data-code="258500001" data-display="Nasopharyngeal swab" data-loinc="NPS">Use</button></td>
+                        </tr>
+                        <tr>
+                            <td>Oropharyngeal swab</td>
+                            <td class="text-mono">258529004</td>
+                            <td class="text-mono">Throat</td>
+                            <td><button type="button" class="btn btn-sm btn-outline-primary copy-snomed" data-code="258529004" data-display="Throat swab" data-loinc="Throat">Use</button></td>
+                        </tr>
+                        <tr>
+                            <td>Sputum</td>
+                            <td class="text-mono">119334006</td>
+                            <td class="text-mono">Sputum</td>
+                            <td><button type="button" class="btn btn-sm btn-outline-primary copy-snomed" data-code="119334006" data-display="Sputum specimen" data-loinc="Sputum">Use</button></td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <h6 class="text-label mt-4">Blood Specimens</h6>
+                <table class="table table-sm table-hover sn-table">
+                    <thead>
+                        <tr>
+                            <th>Specimen Type</th>
+                            <th>SNOMED CT Code</th>
+                            <th>LOINC System</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>Whole Blood</td>
+                            <td class="text-mono">258580003</td>
+                            <td class="text-mono">Bld</td>
+                            <td><button type="button" class="btn btn-sm btn-outline-primary copy-snomed" data-code="258580003" data-display="Whole blood specimen" data-loinc="Bld">Use</button></td>
+                        </tr>
+                        <tr>
+                            <td>Serum</td>
+                            <td class="text-mono">119364003</td>
+                            <td class="text-mono">Ser</td>
+                            <td><button type="button" class="btn btn-sm btn-outline-primary copy-snomed" data-code="119364003" data-display="Serum specimen" data-loinc="Ser">Use</button></td>
+                        </tr>
+                        <tr>
+                            <td>Plasma</td>
+                            <td class="text-mono">119361006</td>
+                            <td class="text-mono">Plas</td>
+                            <td><button type="button" class="btn btn-sm btn-outline-primary copy-snomed" data-code="119361006" data-display="Plasma specimen" data-loinc="Plas">Use</button></td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <h6 class="text-label mt-4">Other Common Specimens</h6>
+                <table class="table table-sm table-hover sn-table">
+                    <thead>
+                        <tr>
+                            <th>Specimen Type</th>
+                            <th>SNOMED CT Code</th>
+                            <th>LOINC System</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>Urine</td>
+                            <td class="text-mono">122575003</td>
+                            <td class="text-mono">Ur</td>
+                            <td><button type="button" class="btn btn-sm btn-outline-primary copy-snomed" data-code="122575003" data-display="Urine specimen" data-loinc="Ur">Use</button></td>
+                        </tr>
+                        <tr>
+                            <td>Cerebrospinal Fluid</td>
+                            <td class="text-mono">258450006</td>
+                            <td class="text-mono">CSF</td>
+                            <td><button type="button" class="btn btn-sm btn-outline-primary copy-snomed" data-code="258450006" data-display="Cerebrospinal fluid specimen" data-loinc="CSF">Use</button></td>
+                        </tr>
+                        <tr>
+                            <td>Stool</td>
+                            <td class="text-mono">119339001</td>
+                            <td class="text-mono">Stl</td>
+                            <td><button type="button" class="btn btn-sm btn-outline-primary copy-snomed" data-code="119339001" data-display="Stool specimen" data-loinc="Stl">Use</button></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+
+    <script>
+        // SNOMED code copy functionality
+        document.querySelectorAll('.copy-snomed').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const code = this.dataset.code;
+                const display = this.dataset.display;
+                const loinc = this.dataset.loinc;
+
+                document.getElementById('SpecimenType_SnomedCode').value = code;
+                document.getElementById('SpecimenType_SnomedDisplay').value = display;
+                document.getElementById('SpecimenType_LoincSystemCode').value = loinc;
+
+                bootstrap.Modal.getInstance(document.getElementById('snomedReferenceModal')).hide();
+            });
+        });
+
+        // Search functionality
+        document.getElementById('snomedSearch')?.addEventListener('input', function(e) {
+            const searchTerm = e.target.value.toLowerCase();
+            document.querySelectorAll('.sn-table tbody tr').forEach(row => {
+                const text = row.textContent.toLowerCase();
+                row.style.display = text.includes(searchTerm) ? '' : 'none';
+            });
+        });
+    </script>
+}

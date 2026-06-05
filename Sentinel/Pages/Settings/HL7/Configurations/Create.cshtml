@@ -1,0 +1,298 @@
+@page
+@model Sentinel.Pages.Settings.HL7.Configurations.CreateModel
+
+@{
+    ViewData["Title"] = "Create HL7 Configuration";
+    Layout = "~/Pages/Shared/_LayoutSentinel.cshtml";
+}
+
+<nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a asp-page="/Index">Home</a></li>
+        <li class="breadcrumb-item"><a asp-page="/Settings/Index">Settings</a></li>
+        <li class="breadcrumb-item"><a asp-page="./Index">HL7 Configurations</a></li>
+        <li class="breadcrumb-item active" aria-current="page">Create</li>
+    </ol>
+</nav>
+
+<div class="sentinel-page-header mb-4">
+    <div>
+        <div class="sentinel-eyebrow">HL7 Interface</div>
+        <h1 class="sentinel-page-title">Create HL7 Configuration</h1>
+        <p class="sentinel-page-subtitle">Configure laboratory message processing and file monitoring</p>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-10">
+        <form method="post">
+            <div asp-validation-summary="ModelOnly" class="alert alert-danger" role="alert"></div>
+
+            <!-- Basic Information -->
+            <div class="sentinel-card mb-4">
+                <div class="sentinel-card-body">
+                    <h3 class="sentinel-section-title">Basic Information</h3>
+                    <div class="row g-3">
+                        <div class="col-md-8">
+                            <label asp-for="Configuration.ConfigurationName" class="sn-label"></label>
+                            <input asp-for="Configuration.ConfigurationName" class="sn-input" 
+                                   placeholder="e.g. Acme Labs - Regional Hospital" />
+                            <span asp-validation-for="Configuration.ConfigurationName" class="text-danger"></span>
+                        </div>
+                        <div class="col-md-4">
+                            <label asp-for="Configuration.Priority" class="sn-label"></label>
+                            <input asp-for="Configuration.Priority" class="sn-input" type="number" min="1" max="100" />
+                            <span asp-validation-for="Configuration.Priority" class="text-danger"></span>
+                            <small class="form-text" style="color:var(--graphite)">Lower numbers process first</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- HL7 Source Identification -->
+            <div class="sentinel-card mb-4">
+                <div class="sentinel-card-body">
+                    <h3 class="sentinel-section-title">HL7 Source Identification</h3>
+                    <div class="alert alert-info" role="alert">
+                        <i class="bi bi-info-circle me-2"></i>
+                        These values match against the <code>MSH-3</code> (Sending Application) and <code>MSH-4</code> (Sending Facility) fields in HL7 messages.
+                    </div>
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label asp-for="Configuration.SendingFacility" class="sn-label"></label>
+                            <input asp-for="Configuration.SendingFacility" class="sn-input" 
+                                   placeholder="e.g. ACMELabs" style="font-family:var(--f-mono)" />
+                            <span asp-validation-for="Configuration.SendingFacility" class="text-danger"></span>
+                        </div>
+                        <div class="col-md-6">
+                            <label asp-for="Configuration.SendingApplication" class="sn-label"></label>
+                            <input asp-for="Configuration.SendingApplication" class="sn-input" 
+                                   placeholder="e.g. LabSystem" style="font-family:var(--f-mono)" />
+                            <span asp-validation-for="Configuration.SendingApplication" class="text-danger"></span>
+                            <small class="form-text" style="color:var(--graphite)">Optional</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- File Monitoring -->
+            <div class="sentinel-card mb-4">
+                <div class="sentinel-card-body">
+                    <h3 class="sentinel-section-title">File Monitoring</h3>
+                    <div class="row g-3">
+                        <div class="col-md-8">
+                            <label asp-for="Configuration.FileDropPath" class="sn-label"></label>
+                            <input asp-for="Configuration.FileDropPath" class="sn-input" 
+                                   placeholder="C:\HL7\AcmeLabs" style="font-family:var(--f-mono)" />
+                            <span asp-validation-for="Configuration.FileDropPath" class="text-danger"></span>
+                            <small class="form-text" style="color:var(--graphite)">Directory will be created if it doesn't exist</small>
+                        </div>
+                        <div class="col-md-4">
+                            <label asp-for="Configuration.FilePattern" class="sn-label"></label>
+                            <input asp-for="Configuration.FilePattern" class="sn-input" 
+                                   placeholder="*.hl7" style="font-family:var(--f-mono)" />
+                            <span asp-validation-for="Configuration.FilePattern" class="text-danger"></span>
+                        </div>
+                        <div class="col-md-4">
+                            <label asp-for="Configuration.CharacterEncoding" class="sn-label"></label>
+                            <select asp-for="Configuration.CharacterEncoding" class="sn-input">
+                                <option value="UTF8">UTF-8</option>
+                                <option value="ASCII">ASCII</option>
+                                <option value="Unicode">Unicode</option>
+                                <option value="UTF7">UTF-7</option>
+                                <option value="UTF32">UTF-32</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="sn-label">
+                                <input asp-for="Configuration.ProcessOnReceipt" type="checkbox" 
+                                       style="margin-right:8px;width:auto" />
+                                Process immediately on file receipt
+                            </label>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="sn-label">
+                                <input asp-for="Configuration.ArchiveProcessedFiles" type="checkbox" 
+                                       style="margin-right:8px;width:auto" />
+                                Archive processed files
+                            </label>
+                        </div>
+                        @if (Model.Configuration.ArchiveProcessedFiles)
+                        {
+                            <div class="col-12">
+                                <label asp-for="Configuration.ArchivePath" class="sn-label"></label>
+                                <input asp-for="Configuration.ArchivePath" class="sn-input" 
+                                       placeholder="C:\HL7\Archive\AcmeLabs" style="font-family:var(--f-mono)" />
+                                <span asp-validation-for="Configuration.ArchivePath" class="text-danger"></span>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+
+            <!-- Patient Matching Strategy -->
+            <div class="sentinel-card mb-4">
+                <div class="sentinel-card-body">
+                    <h3 class="sentinel-section-title">Patient Matching Strategy</h3>
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label asp-for="Configuration.PatientMatchingStrategy" class="sn-label"></label>
+                            <select asp-for="Configuration.PatientMatchingStrategy" class="sn-input">
+                                @foreach (var strategy in Enum.GetValues<Sentinel.Models.PatientMatchingStrategy>())
+                                {
+                                    <option value="@strategy">@strategy.ToString().Replace("_", " ")</option>
+                                }
+                            </select>
+                            <span asp-validation-for="Configuration.PatientMatchingStrategy" class="text-danger"></span>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="sn-label">
+                                <input asp-for="Configuration.AutoCreatePatients" type="checkbox" 
+                                       style="margin-right:8px;width:auto" />
+                                Auto-create patients if no match found
+                            </label>
+                            <small class="form-text d-block" style="color:var(--graphite);margin-top:4px">
+                                Recommended for trusted sources
+                            </small>
+                        </div>
+                    </div>
+
+                    <div class="alert alert-info mt-3" role="alert">
+                        <div style="font-family:var(--f-mono);font-size:12px;line-height:1.8">
+                            <strong>Identifier Only:</strong> Match on official ID (e.g. NHI) only<br>
+                            <strong>Strict Match:</strong> ID + exact name + DOB match required<br>
+                            <strong>Fuzzy Match:</strong> Allows minor name variations (typos, nicknames)<br>
+                            <strong>Manual Review:</strong> All messages go to review queue
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Duplicate Detection -->
+            <div class="sentinel-card mb-4">
+                <div class="sentinel-card-body">
+                    <h3 class="sentinel-section-title">Duplicate Detection</h3>
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label asp-for="Configuration.DuplicateDetectionStrategy" class="sn-label"></label>
+                            <select asp-for="Configuration.DuplicateDetectionStrategy" class="sn-input">
+                                @foreach (var strategy in Enum.GetValues<Sentinel.Models.DuplicateDetectionStrategy>())
+                                {
+                                    <option value="@strategy">@strategy.ToString().Replace("_", " ")</option>
+                                }
+                            </select>
+                            <span asp-validation-for="Configuration.DuplicateDetectionStrategy" class="text-danger"></span>
+                        </div>
+                        <div class="col-md-6">
+                            <label asp-for="Configuration.DuplicateDetectionWindowHours" class="sn-label"></label>
+                            <input asp-for="Configuration.DuplicateDetectionWindowHours" class="sn-input" 
+                                   type="number" min="1" max="720" />
+                            <span asp-validation-for="Configuration.DuplicateDetectionWindowHours" class="text-danger"></span>
+                            <small class="form-text" style="color:var(--graphite)">Default: 72 hours (3 days)</small>
+                        </div>
+                    </div>
+
+                    <div class="alert alert-info mt-3" role="alert">
+                        <div style="font-family:var(--f-mono);font-size:12px;line-height:1.8">
+                            <strong>Message Control ID:</strong> HL7 message ID (MSH-10) only<br>
+                            <strong>Accession And Lab:</strong> Lab accession number + lab identifier<br>
+                            <strong>Patient Specimen Test:</strong> Patient + specimen + test code<br>
+                            <strong>Combined:</strong> All of the above for maximum duplicate prevention
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Laboratory Assignment -->
+            <div class="sentinel-card mb-4">
+                <div class="sentinel-card-body">
+                    <h3 class="sentinel-section-title">Laboratory Assignment</h3>
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label asp-for="Configuration.DefaultLaboratoryId" class="sn-label"></label>
+                            <select asp-for="Configuration.DefaultLaboratoryId" class="sn-input" asp-items="Model.LaboratorySelectList">
+                                <option value="">-- No default laboratory --</option>
+                            </select>
+                            <span asp-validation-for="Configuration.DefaultLaboratoryId" class="text-danger"></span>
+                            <small class="form-text" style="color:var(--graphite)">Used when lab cannot be determined from message</small>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="sn-label">
+                                <input asp-for="Configuration.AutoCreateOrganizations" type="checkbox" 
+                                       style="margin-right:8px;width:auto" />
+                                Auto-create laboratories from message
+                            </label>
+                            <small class="form-text d-block" style="color:var(--graphite);margin-top:4px">
+                                Creates new lab organization if not found
+                            </small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Case Creation -->
+            <div class="sentinel-card mb-4">
+                <div class="sentinel-card-body">
+                    <h3 class="sentinel-section-title">Case Creation</h3>
+                    <div class="row g-3">
+                        <div class="col-md-12">
+                            <label class="sn-label">
+                                <input asp-for="Configuration.AutoCreateCases" type="checkbox" 
+                                       style="margin-right:8px;width:auto" />
+                                Automatically create cases from positive results
+                            </label>
+                            <small class="form-text d-block" style="color:var(--graphite);margin-top:4px">
+                                Requires disease identification via LOINC codes and case definitions
+                            </small>
+                        </div>
+                    </div>
+
+                    <div class="alert alert-warning mt-3" role="alert">
+                        <i class="bi bi-exclamation-triangle me-2"></i>
+                        <strong>Important:</strong> Ensure LOINC codes are mapped to pathogens and case definitions exist before enabling auto-case creation.
+                    </div>
+                </div>
+            </div>
+
+            <!-- Status -->
+            <div class="sentinel-card mb-4">
+                <div class="sentinel-card-body">
+                    <h3 class="sentinel-section-title">Status</h3>
+                    <div class="row g-3">
+                        <div class="col-md-12">
+                            <label class="sn-label">
+                                <input asp-for="Configuration.IsActive" type="checkbox" checked 
+                                       style="margin-right:8px;width:auto" />
+                                Configuration is active
+                            </label>
+                            <small class="form-text d-block" style="color:var(--graphite);margin-top:4px">
+                                Only active configurations are monitored for new files
+                            </small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Form Actions -->
+            <div class="mt-4">
+                <button type="submit" class="sn-btn sn-btn--signal">
+                    <i class="bi bi-check-circle me-1"></i>Create Configuration
+                </button>
+                <a asp-page="./Index" class="sn-btn sn-btn--ghost ms-2">
+                    <i class="bi bi-arrow-left me-1"></i>Cancel
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script>
+        // Show/hide archive path based on checkbox
+        document.getElementById('@Html.IdFor(m => m.Configuration.ArchiveProcessedFiles)').addEventListener('change', function() {
+            // Trigger form refresh
+            this.form.submit();
+        });
+    </script>
+}

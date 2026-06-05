@@ -352,6 +352,41 @@
             </div>
         </div>
 
+        <!-- Manual Override Warning Banner -->
+        @if (Model.Case.ConfirmationStatusManualOverride)
+        {
+            <div class="alert" style="background: linear-gradient(135deg, var(--signal-lt) 0%, #fff9e6 100%); border-left: 4px solid var(--signal-dk); margin-top: var(--spacing-4); box-shadow: 0 2px 8px rgba(0,0,0,0.08);">
+                <div class="d-flex align-items-start">
+                    <i class="bi bi-exclamation-triangle-fill me-3" style="color: var(--signal-dk); font-size: 1.5rem;"></i>
+                    <div class="flex-grow-1">
+                        <h6 class="mb-2" style="color: var(--forest); font-weight: 600;">
+                            <i class="bi bi-shield-lock me-1"></i> Automatic Evaluation Disabled
+                        </h6>
+                        <p class="mb-2" style="font-size: 0.875rem; color: var(--graphite);">
+                            Automatic case definition evaluation is currently blocked for this case because the confirmation status was manually changed
+                            @if (Model.Case.ConfirmationStatusManualOverrideDate.HasValue)
+                            {
+                                <text>on <strong>@Model.Case.ConfirmationStatusManualOverrideDate.Value.ToString("d MMM yyyy")</strong></text>
+                            }
+                            @if (!string.IsNullOrEmpty(Model.ManualOverrideByUserName))
+                            {
+                                <text>by <strong>@Model.ManualOverrideByUserName</strong></text>
+                            }.
+                        </p>
+                        <p class="mb-3" style="font-size: 0.8125rem; color: var(--forest-2);">
+                            The case will not be automatically re-evaluated when lab results, symptoms, or other clinical data changes.
+                            You can re-enable automatic evaluation if needed.
+                        </p>
+                        <form method="post" asp-page-handler="ClearManualOverride" asp-route-id="@Model.Case.Id" style="display: inline;">
+                            <button type="submit" class="btn btn-sm" style="background: var(--signal-dk); color: white; border: none; font-weight: 600;">
+                                <i class="bi bi-unlock"></i> Re-enable Automatic Evaluation
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        }
+
         <!-- Quick Actions with Sentinel button styling -->
         <div style="display: flex; flex-wrap: wrap; gap: var(--spacing-2); margin-top: var(--spacing-4); padding-top: var(--spacing-4); border-top: 1px solid var(--hairline);">
             <a asp-page="./Edit" asp-route-id="@Model.Case.Id" class="btn btn-sentinel-primary btn-sm">
@@ -382,6 +417,17 @@
             <button type="button" class="btn btn-sentinel-primary btn-sm" onclick="openAddTask()">
                 <i class="bi bi-plus-circle"></i> Add Task
             </button>
+            @if (Model.Case.DiseaseId.HasValue)
+            {
+                <form method="post" asp-page-handler="EvaluateDefinitions" asp-route-id="@Model.Case.Id" style="display: inline;">
+                    <button type="submit" class="btn btn-sm" style="background: var(--signal-dk); color: white; border: none; font-weight: 600;">
+                        <i class="bi bi-check2-circle"></i> Evaluate Definitions
+                    </button>
+                </form>
+                <a asp-page="./ClassificationHistory" asp-route-id="@Model.Case.Id" class="btn btn-sm" style="background: var(--forest); color: white; border: none; font-weight: 600; text-decoration: none;">
+                    <i class="bi bi-clock-history"></i> Classification History
+                </a>
+            }
             @if (Model.Case.Patient != null)
             {
                 <a asp-page="/Patients/Details" asp-route-id="@Model.Case.PatientId" class="btn btn-sentinel-secondary btn-sm">
@@ -393,6 +439,74 @@
             </a>
         </div>
     </div>
+
+    @* Case Definition Evaluation Results *@
+    @if (Model.ShowEvaluationResults && Model.EvaluationResults.Any())
+    {
+        <div style="background: var(--chalk); border: 1px solid var(--hairline); border-radius: 10px; padding: var(--spacing-5); margin-bottom: var(--spacing-4);">
+            <h3 style="color: var(--forest); font-weight: 600; font-size: 1.25rem; margin-bottom: var(--spacing-3); display: flex; align-items: center; gap: var(--spacing-2);">
+                <i class="bi bi-list-check" style="color: var(--signal-dk);"></i>
+                Case Definition Evaluation Results
+            </h3>
+
+            @foreach (var result in Model.EvaluationResults)
+            {
+                var chipClass = result.IsMatch ? "chip-success" : "chip-secondary";
+                var chipIcon = result.IsMatch ? "check-circle-fill" : "x-circle";
+                var actionBadge = result.RecommendedAction switch
+                {
+                    Sentinel.Models.CaseDefinitions.RecommendedAction.AutoClassify => ("chip-success", "Auto-Classify"),
+                    Sentinel.Models.CaseDefinitions.RecommendedAction.SuggestClassification => ("chip-warning", "Suggest"),
+                    Sentinel.Models.CaseDefinitions.RecommendedAction.FlagForReview => ("chip-info", "Review"),
+                    _ => ("chip-secondary", "No Action")
+                };
+
+                <div style="background: white; border: 1px solid var(--hairline); border-radius: 8px; padding: var(--spacing-4); margin-bottom: var(--spacing-3); border-left: 3px solid @(result.IsMatch ? "var(--signal-dk)" : "var(--slate)");">
+                    <div class="d-flex justify-content-between align-items-start mb-3">
+                        <div>
+                            <h4 style="color: var(--forest); font-weight: 600; font-size: 1.1rem; margin-bottom: var(--spacing-2);">
+                                @result.CaseDefinitionName
+                            </h4>
+                            <div class="d-flex gap-2 align-items-center flex-wrap">
+                                <span class="chip @chipClass">
+                                    <i class="bi bi-@chipIcon"></i>
+                                    @(result.IsMatch ? "Match" : "No Match")
+                                </span>
+                                @if (result.IsMatch)
+                                {
+                                    <span class="chip @actionBadge.Item1">
+                                        <i class="bi bi-tag-fill"></i>
+                                        @actionBadge.Item2
+                                    </span>
+                                }
+                            </div>
+                        </div>
+                        @if (result.IsMatch && result.RecommendedAction != Sentinel.Models.CaseDefinitions.RecommendedAction.None)
+                        {
+                            <form method="post" asp-page-handler="ApplyClassification" asp-route-id="@Model.Case.Id" asp-route-definitionId="@result.CaseDefinitionId" style="display: inline;">
+                                <button type="submit" class="btn btn-sm" style="background: var(--signal-dk); color: white; border: none; font-weight: 600;"
+                                        onclick="return confirm('Apply this classification to the case? This will update the case status and record the evaluation in history.');">
+                                    <i class="bi bi-check2-square"></i> Apply Classification
+                                </button>
+                            </form>
+                        }
+                    </div>
+
+                    @if (!string.IsNullOrWhiteSpace(result.Rationale))
+                    {
+                        <div style="background: var(--signal-lt); border-left: 3px solid var(--signal-dk); padding: var(--spacing-3); border-radius: 4px; margin-bottom: var(--spacing-2);">
+                            <div style="font-size: 0.75rem; font-family: var(--f-mono); text-transform: uppercase; letter-spacing: 0.08em; color: var(--graphite); margin-bottom: var(--spacing-1);">
+                                Rationale
+                            </div>
+                            <div style="color: var(--forest); font-size: 0.9rem; line-height: 1.6;">
+                                @result.Rationale
+                            </div>
+                        </div>
+                    }
+                </div>
+            }
+        </div>
+    }
 
     <!-- Main Content Grid -->
     <!-- 3-Column Layout: Left = Case/Patient/Symptoms stacked | Right = Lab Results/Tasks/Exposures+Notes -->
@@ -953,10 +1067,10 @@
                     Lab Results (@Model.LabResults.Count)
                 </h3>
                 <div class="d-flex gap-2">
-                    <button type="button" class="btn btn-sentinel-primary btn-sm" data-bs-toggle="modal" data-bs-target="#viewAllLabResultsModal">
+                    <button type="button" class="sn-btn sn-btn--ghost sn-btn--sm" data-bs-toggle="modal" data-bs-target="#viewAllLabResultsModal">
                         <i class="bi bi-list-ul"></i> View All
                     </button>
-                    <button type="button" class="btn btn-sentinel-secondary btn-sm" onclick="openAddLabResult()">
+                    <button type="button" class="sn-btn sn-btn--signal sn-btn--sm" onclick="openAddLabResult()">
                         <i class="bi bi-plus-circle"></i> Add
                     </button>
                 </div>
@@ -965,84 +1079,205 @@
             @if (Model.LabResults.Any())
             {
                 <div class="table-responsive">
-                <table class="patient-table w-100">
+                <table class="sn-table w-100" style="font-size: 14px;">
                     <thead>
                         <tr>
-                            <th style="width: 25%;">Test / Specimen</th>
+                            <th style="width: 5%;"></th>
+                            <th style="width: 20%;">Lab Result ID</th>
                             <th style="width: 20%;">Tested For</th>
-                            <th style="width: 15%;">Result</th>
-                            <th style="width: 15%;">Collected</th>
-                            <th style="width: 15%;">Reported</th>
-                            <th style="width: 10%;"></th>
+                            <th style="width: 15%;">Markers</th>
+                            <th style="width: 15%;">Collection Date</th>
+                            <th style="width: 15%;">Result Date</th>
+                            <th style="width: 10%; text-align: right;">Actions</th>
                         </tr>
                     </thead>
                     <tbody>
                         @foreach (var labResult in Model.LabResults.Take(5))
                         {
-                            <tr>
-                                <td>
-                                    <strong style="font-size: 0.85rem;">@(labResult.TestType?.Name ?? "-")</strong>
-                                    <br /><small class="text-muted" style="font-size: 0.75rem;">@(labResult.SpecimenType?.Name ?? "-")</small>
-                                    @if (labResult.IsAmended)
-                                    {
-                                        <br />
+                            var rowId = $"lab-{labResult.Id}";
+                            var hasMarkers = labResult.Markers.Any();
 
-                                        <span class="chip" style="background: var(--status-watch); color: var(--forest); font-size: 0.6rem; padding: 0.15rem 0.4rem;"><i class="bi bi-pencil-square"></i> Amended</span>
+                            <!-- Main Row -->
+                            <tr class="@(hasMarkers ? "expandable-row" : "")" 
+                                data-row-id="@rowId" 
+                                style="cursor: @(hasMarkers ? "pointer" : "default");">
+                                <td style="padding: 8px 12px;">
+                                    @if (hasMarkers)
+                                    {
+                                        <i class="bi bi-chevron-right expand-icon" id="icon-@rowId" style="color: var(--graphite); font-size: 12px; transition: transform 0.2s;"></i>
                                     }
                                 </td>
-                                <td>
+                                <td style="padding: 8px 12px;">
+                                    <div style="display: flex; align-items: center; gap: 8px;">
+                                        <span class="text-mono" style="font-weight: 500; color: var(--forest);">@labResult.FriendlyId</span>
+                                        @if (labResult.IsAmended)
+                                        {
+                                            <span class="chip" style="background: #FBEDD1; color: #6A4410; font-size: 10px; padding: 2px 6px; border: 1px solid #EBD196;">
+                                                <i class="bi bi-pencil-square"></i> AMENDED
+                                            </span>
+                                        }
+                                    </div>
+                                    @if (labResult.Laboratory != null)
+                                    {
+                                        <div class="text-meta" style="margin-top: 4px; font-size: 12px;">
+                                            <i class="bi bi-building" style="font-size: 11px;"></i> @labResult.Laboratory.Name
+                                        </div>
+                                    }
+                                </td>
+                                <td style="padding: 8px 12px;">
                                     @if (labResult.TestedDisease != null)
                                     {
-                                        <span style="font-size: 0.8rem;">@labResult.TestedDisease.Name</span>
+                                        <span style="font-weight: 500; color: var(--forest);">@labResult.TestedDisease.Name</span>
                                     }
                                     else
                                     {
                                         <span class="text-muted">-</span>
                                     }
                                 </td>
-                                <td>
-                                    @if (labResult.TestResult != null)
+                                <td style="padding: 8px 12px;">
+                                    @if (hasMarkers)
                                     {
-                                        var resultStyle = labResult.TestResult.Name?.ToLower() switch
-                                        {
-                                            "positive" => "background: var(--status-outbreak); color: white;",
-                                            "negative" => "background: var(--status-clear); color: var(--forest);",
-                                            "indeterminate" or "equivocal" => "background: var(--status-watch); color: var(--forest);",
-                                            _ => "background: var(--slate); color: white;"
-                                        };
-                                        <span class="chip" style="@resultStyle font-size: 0.7rem;">@labResult.TestResult.Name</span>
+                                        <span style="background: var(--signal-lt); color: var(--forest); padding: 4px 8px; border-radius: 4px; font-weight: 500; font-size: 13px;">
+                                            @labResult.Markers.Count Marker@(labResult.Markers.Count != 1 ? "s" : "")
+                                        </span>
                                     }
                                     else
                                     {
-                                        <span class="text-muted">-</span>
+                                        <span class="text-muted">No markers</span>
                                     }
                                 </td>
-                                <td>
+                                <td style="padding: 8px 12px;">
                                     @if (labResult.SpecimenCollectionDate.HasValue)
                                     {
-                                        <span style="font-size: 0.8rem;">@labResult.SpecimenCollectionDate.Value.ToString("dd MMM yyyy")</span>
+                                        <span>@labResult.SpecimenCollectionDate.Value.ToString("dd MMM yyyy")</span>
+                                        @if (labResult.SpecimenType != null)
+                                        {
+                                            <div class="text-meta" style="font-size: 11px; margin-top: 2px;">@labResult.SpecimenType.Name</div>
+                                        }
                                     }
                                     else
                                     {
                                         <span class="text-muted">-</span>
                                     }
                                 </td>
-                                <td>
+                                <td style="padding: 8px 12px;">
                                     @if (labResult.ResultDate.HasValue)
                                     {
-                                        <span style="font-size: 0.8rem;">@labResult.ResultDate.Value.ToString("dd MMM yyyy")</span>
+                                        <span>@labResult.ResultDate.Value.ToString("dd MMM yyyy")</span>
                                     }
                                     else
                                     {
                                         <span class="text-muted">-</span>
                                     }
                                 </td>
-                                <td class="text-end">
-                                    <button type="button" class="btn btn-sm btn-link p-0" onclick="window.viewLabResult('@labResult.Id')" title="View Details" style="color: var(--signal-dk);">
-                                        <i class="bi bi-eye"></i>
-                                    </button>
+                                <td style="padding: 8px 12px; text-align: right;">
+                                    <div style="display: flex; gap: 4px; justify-content: flex-end;">
+                                        <button type="button" class="sn-btn sn-btn--ghost sn-btn--sm" onclick="window.open('/Cases/EditLabResult/@labResult.Id/@Model.Case.Id', '_blank', 'width=1200,height=900,scrollbars=yes,resizable=yes')" title="Edit">
+                                            <i class="bi bi-pencil"></i>
+                                        </button>
+                                        <button type="button" class="sn-btn sn-btn--ghost sn-btn--sm" onclick="window.viewLabResult('@labResult.Id')" title="View Details">
+                                            <i class="bi bi-eye"></i>
+                                        </button>
+                                    </div>
                                 </td>
                             </tr>
+
+                            <!-- Expandable Markers Sub-Rows -->
+                            @if (hasMarkers)
+                            {
+                                <tr class="marker-details-row" id="markers-@rowId" style="display: none; background: var(--bone);">
+                                    <td colspan="7" style="padding: 0;">
+                                        <div style="padding: 16px 24px; border-left: 3px solid var(--signal-dk);">
+                                            <div class="text-label" style="margin-bottom: 12px; color: var(--graphite);">
+                                                TEST MARKERS (@labResult.Markers.Count)
+                                            </div>
+                                            <div style="display: flex; flex-direction: column; gap: 12px;">
+                                                @foreach (var marker in labResult.Markers.OrderBy(m => m.DisplayOrder))
+                                                {
+                                                    var resultStyle = marker.QualitativeResultText?.ToLower() switch
+                                                    {
+                                                        "detected" or "positive" or "reactive" => "background: #FBE2D8; border-color: #F2BBA4; color: #7A2A15;",
+                                                        "not detected" or "negative" or "non-reactive" => "background: var(--signal-lt); border-color: #9BE8C6; color: #0A3F2C;",
+                                                        "indeterminate" or "equivocal" => "background: #FBEDD1; border-color: #EBD196; color: #6A4410;",
+                                                        _ => "background: var(--chalk); border-color: var(--hairline); color: var(--graphite);"
+                                                    };
+
+                                                    <div style="@resultStyle border: 1px solid; border-radius: 6px; padding: 12px; display: grid; grid-template-columns: 2fr 1fr 2fr; gap: 16px; align-items: center;">
+                                                        <!-- Left: Pathogen & Test Method -->
+                                                        <div>
+                                                            <div style="font-weight: 600; font-size: 14px; margin-bottom: 4px;">
+                                                                @(marker.Pathogen?.Name ?? "Unknown Pathogen")
+                                                            </div>
+                                                            @if (marker.TestMethod != null)
+                                                            {
+                                                                <div style="font-size: 12px; opacity: 0.8;">
+                                                                    @marker.TestMethod.Name
+                                                                </div>
+                                                            }
+                                                            @if (!string.IsNullOrEmpty(marker.LOINCCode))
+                                                            {
+                                                                <div class="text-mono" style="font-size: 11px; opacity: 0.7; margin-top: 4px;">@marker.LOINCCode</div>
+                                                            }
+                                                        </div>
+
+                                                        <!-- Middle: Result Status -->
+                                                        <div style="text-align: center;">
+                                                            @if (!string.IsNullOrEmpty(marker.QualitativeResultText))
+                                                            {
+                                                                <div style="font-weight: 700; font-size: 16px; letter-spacing: 0.5px;">
+                                                                    @marker.QualitativeResultText.ToUpper()
+                                                                </div>
+                                                            }
+                                                        </div>
+
+                                                        <!-- Right: Quantitative Values -->
+                                                        <div style="text-align: right;">
+                                                            @if (marker.QuantitativeValue.HasValue)
+                                                            {
+                                                                <div style="font-family: var(--f-mono); font-size: 14px;">
+                                                                    <strong style="font-size: 16px;">@marker.QuantitativeValue.Value</strong> 
+                                                                    <span style="opacity: 0.8;">@marker.QuantitativeUnit</span>
+                                                                </div>
+                                                                @if (marker.ReferenceRangeLow.HasValue || marker.ReferenceRangeHigh.HasValue)
+                                                                {
+                                                                    <div style="font-size: 11px; opacity: 0.7; margin-top: 2px;">
+                                                                        Ref: @(marker.ReferenceRangeLow?.ToString() ?? "—")–@(marker.ReferenceRangeHigh?.ToString() ?? "—")
+                                                                    </div>
+                                                                }
+                                                                @if (!string.IsNullOrEmpty(marker.InterpretationFlag))
+                                                                {
+                                                                    <div style="font-weight: 600; font-size: 12px; margin-top: 4px;">
+                                                                        [@marker.InterpretationFlag]
+                                                                    </div>
+                                                                }
+                                                            }
+                                                            else if (string.IsNullOrEmpty(marker.QualitativeResultText))
+                                                            {
+                                                                <div style="opacity: 0.6; font-style: italic;">No result</div>
+                                                            }
+                                                        </div>
+                                                    </div>
+
+                                                    @if (!string.IsNullOrEmpty(marker.Notes))
+                                                    {
+                                                        <div style="margin-top: -8px; margin-bottom: 4px; padding: 8px 12px; background: rgba(255,255,255,0.3); border-radius: 0 0 6px 6px; font-size: 12px; font-style: italic; opacity: 0.9;">
+                                                            <i class="bi bi-chat-left-text" style="margin-right: 4px;"></i>@marker.Notes
+                                                        </div>
+                                                    }
+                                                }
+                                            </div>
+
+                                            @if (!string.IsNullOrEmpty(labResult.LabInterpretation))
+                                            {
+                                                <div style="margin-top: 16px; padding: 12px; background: rgba(255,255,255,0.5); border-radius: 6px; border-left: 3px solid var(--signal-dk);">
+                                                    <div class="text-label" style="margin-bottom: 6px;">LAB INTERPRETATION</div>
+                                                    <div style="font-size: 13px; line-height: 1.5;">@labResult.LabInterpretation</div>
+                                                </div>
+                                            }
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
                         }
                     </tbody>
                 </table>
@@ -1062,7 +1297,9 @@
                 <div style="text-align: center; padding: var(--spacing-6) var(--spacing-4);">
                     <i class="bi bi-clipboard-pulse" style="font-size: 3rem; color: var(--hairline); display: block; margin-bottom: var(--spacing-3);"></i>
                     <p style="color: var(--graphite); margin-bottom: var(--spacing-3);">No lab results yet</p>
-                    <button type="button" class="btn btn-sentinel-secondary btn-sm" onclick="openAddLabResult()">Add Lab Result</button>
+                    <button type="button" class="sn-btn sn-btn--signal sn-btn--sm" onclick="openAddLabResult()">
+                        <i class="bi bi-plus-circle"></i> Add Lab Result
+                    </button>
                 </div>
             }
             </div>
@@ -2351,12 +2588,54 @@
     }
 
     function openAddLabResult() {
-        window.open('/Cases/AddLabResult?caseId=@Model.Case.Id', '_blank', 'width=1000,height=900,scrollbars=yes,resizable=yes');
+        window.open('/Cases/AddLabResult/@Model.Case.Id', '_blank', 'width=1200,height=900,scrollbars=yes,resizable=yes');
     }
 
     window.viewLabResult = function(labResultId) {
         window.open('/Cases/ViewLabResult?labResultId=' + labResultId, '_blank', 'width=1000,height=800,scrollbars=yes,resizable=yes');
     }
+
+    function toggleLabResultMarkers(rowId) {
+        const markerRow = document.getElementById('markers-' + rowId);
+        const icon = document.getElementById('icon-' + rowId);
+
+        if (!markerRow || !icon) {
+            console.error('Could not find marker row or icon for:', rowId);
+            return;
+        }
+
+        if (markerRow.style.display === 'none' || markerRow.style.display === '') {
+            markerRow.style.display = 'table-row';
+            icon.style.transform = 'rotate(90deg)';
+            icon.classList.remove('bi-chevron-right');
+            icon.classList.add('bi-chevron-down');
+        } else {
+            markerRow.style.display = 'none';
+            icon.style.transform = 'rotate(0deg)';
+            icon.classList.remove('bi-chevron-down');
+            icon.classList.add('bi-chevron-right');
+        }
+    }
+
+    // Add event delegation for expandable lab result rows
+    document.addEventListener('DOMContentLoaded', function() {
+        // Handle row clicks for lab results
+        document.addEventListener('click', function(e) {
+            // Find the closest expandable-row
+            const row = e.target.closest('.expandable-row');
+            if (!row) return;
+
+            // Don't expand if clicking on buttons or links
+            if (e.target.closest('button') || e.target.closest('a')) {
+                return;
+            }
+
+            const rowId = row.getAttribute('data-row-id');
+            if (rowId) {
+                toggleLabResultMarkers(rowId);
+            }
+        });
+    });
 
     function openEditExposure(exposureId) {
         window.open('/Cases/EditExposure?id=' + exposureId + '&caseId=@Model.Case.Id', '_blank', 'width=1000,height=800,scrollbars=yes,resizable=yes');

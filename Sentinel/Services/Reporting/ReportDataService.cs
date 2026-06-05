@@ -2247,12 +2247,12 @@ public class ReportDataService : IReportDataService
         {
             case "LabResults":
                 var labQuery = _context.LabResults
-                    .Include(lr => lr.TestResult)
-                    .Include(lr => lr.TestType)
                     .Include(lr => lr.SpecimenType)
+                    .Include(lr => lr.Markers).ThenInclude(m => m.Pathogen)
+                    .Include(lr => lr.Markers).ThenInclude(m => m.TestMethod)
                     .Where(lr => lr.CaseId == caseGuid);
                 return await ApplySubFiltersAndCheckAnyAsync(labQuery, query.SubFilters);
-                
+
             case "ExposureEvents":
             case "Exposures":
                 var exposureQuery = _context.ExposureEvents
@@ -2723,12 +2723,12 @@ public class ReportDataService : IReportDataService
         {
             case "LabResults":
                 var labQuery = _context.LabResults
-                    .Include(lr => lr.TestResult)
-                    .Include(lr => lr.TestType)
                     .Include(lr => lr.SpecimenType)
+                    .Include(lr => lr.Markers).ThenInclude(m => m.Pathogen)
+                    .Include(lr => lr.Markers).ThenInclude(m => m.TestMethod)
                     .Where(lr => lr.CaseId == caseGuid);
                 return await ApplySubFiltersAndCountAsync(labQuery, query.SubFilters);
-                
+
             case "ExposureEvents":
             case "Exposures":
                 var exposureQuery = _context.ExposureEvents
@@ -2736,7 +2736,7 @@ public class ReportDataService : IReportDataService
                     .Include(e => e.ExposureType)
                     .Where(e => e.ExposedCaseId == caseGuid);
                 return await ApplySubFiltersAndCountAsync(exposureQuery, query.SubFilters);
-                
+
             case "Tasks":
                 var taskQuery = _context.CaseTasks.Where(t => t.CaseId == caseGuid);
                 return await ApplySubFiltersAndCountAsync(taskQuery, query.SubFilters);
@@ -2952,12 +2952,10 @@ public class ReportDataService : IReportDataService
         switch (query.CollectionName)
         {
             case "LabResults":
-                if (query.AggregateField == "QuantitativeResult")
-                {
-                    var labQuery = _context.LabResults.Where(lr => lr.CaseId == caseGuid);
-                    return await labQuery.SumAsync(lr => lr.QuantitativeResult);
-                }
-                break;
+                // Note: Quantitative results are now in markers, not on LabResult directly
+                // This aggregation would need to specify which marker/pathogen to aggregate
+                // Returning null for now - needs redesign for marker-based quantitative values
+                return null;
         }
 
         return null;
@@ -2970,15 +2968,10 @@ public class ReportDataService : IReportDataService
         switch (query.CollectionName)
         {
             case "LabResults":
-                if (query.AggregateField == "QuantitativeResult")
-                {
-                    var labQuery = _context.LabResults.Where(lr => lr.CaseId == caseGuid && lr.QuantitativeResult.HasValue);
-                    
-                    if (!await labQuery.AnyAsync()) return null;
-                    
-                    return await labQuery.AverageAsync(lr => lr.QuantitativeResult!.Value);
-                }
-                break;
+                // Note: Quantitative results are now in markers, not on LabResult directly
+                // This aggregation would need to specify which marker/pathogen to aggregate
+                // Returning null for now - needs redesign for marker-based quantitative values
+                return null;
         }
 
         return null;
@@ -2999,7 +2992,7 @@ public class ReportDataService : IReportDataService
                 {
                     "SpecimenCollectionDate" => await labQuery.Where(lr => lr.SpecimenCollectionDate.HasValue).MinAsync(lr => lr.SpecimenCollectionDate),
                     "ResultDate" => await labQuery.Where(lr => lr.ResultDate.HasValue).MinAsync(lr => lr.ResultDate),
-                    "QuantitativeResult" => await labQuery.Where(lr => lr.QuantitativeResult.HasValue).MinAsync(lr => lr.QuantitativeResult),
+                    // Note: QuantitativeResult moved to markers - needs redesign
                     _ => null
                 };
 
@@ -3047,7 +3040,7 @@ public class ReportDataService : IReportDataService
                 {
                     "SpecimenCollectionDate" => await labQuery.Where(lr => lr.SpecimenCollectionDate.HasValue).MaxAsync(lr => lr.SpecimenCollectionDate),
                     "ResultDate" => await labQuery.Where(lr => lr.ResultDate.HasValue).MaxAsync(lr => lr.ResultDate),
-                    "QuantitativeResult" => await labQuery.Where(lr => lr.QuantitativeResult.HasValue).MaxAsync(lr => lr.QuantitativeResult),
+                    // Note: QuantitativeResult moved to markers - needs redesign
                     _ => null
                 };
 

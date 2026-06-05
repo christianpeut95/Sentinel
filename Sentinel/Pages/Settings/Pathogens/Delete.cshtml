@@ -1,0 +1,104 @@
+@page
+@model Sentinel.Pages.Settings.Pathogens.DeleteModel
+
+@{
+    ViewData["Title"] = "Delete Pathogen";
+    Layout = "~/Pages/Shared/_LayoutSentinel.cshtml";
+}
+
+<nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a asp-page="/Index">Home</a></li>
+        <li class="breadcrumb-item"><a asp-page="/Settings/Index">Settings</a></li>
+        <li class="breadcrumb-item"><a asp-page="./Index">Pathogens</a></li>
+        <li class="breadcrumb-item active" aria-current="page">Delete</li>
+    </ol>
+</nav>
+
+<div class="sentinel-page-header mb-4">
+    <div>
+        <div class="sentinel-eyebrow">Laboratory Reference Data</div>
+        <h1 class="sentinel-page-title">Delete Pathogen</h1>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-8">
+        <div class="sentinel-card">
+            <div class="sentinel-card-body">
+                @if (Model.CannotDelete)
+                {
+                    <div class="alert alert-danger" role="alert">
+                        <h4 class="alert-heading">
+                            <i class="bi bi-exclamation-triangle me-2"></i>
+                            Cannot Delete
+                        </h4>
+                        <p class="mb-0">
+                            This pathogen is referenced in <strong>@Model.UsageCount</strong> lab result(s) and cannot be deleted.
+                            Consider deactivating it instead to prevent new usage while preserving historical data.
+                        </p>
+                    </div>
+
+                    <div class="d-flex gap-2">
+                        <a asp-page="./Edit" asp-route-id="@Model.Pathogen?.Id" class="sn-btn sn-btn--primary">
+                            <i class="bi bi-pencil"></i>
+                            Deactivate Instead
+                        </a>
+                        <a asp-page="Index" class="sn-btn sn-btn--ghost">
+                            Back to List
+                        </a>
+                    </div>
+                }
+                else
+                {
+                    <div class="alert alert-warning" role="alert">
+                        <h4 class="alert-heading">
+                            <i class="bi bi-exclamation-triangle me-2"></i>
+                            Confirm Deletion
+                        </h4>
+                        <p class="mb-0">
+                            Are you sure you want to permanently delete this pathogen? This action cannot be undone.
+                        </p>
+                    </div>
+
+                    <dl class="row">
+                        <dt class="col-sm-3">Name</dt>
+                        <dd class="col-sm-9">@Model.Pathogen?.Name</dd>
+
+                        @if (!string.IsNullOrEmpty(Model.Pathogen?.ShortName))
+                        {
+                            <dt class="col-sm-3">Short Name</dt>
+                            <dd class="col-sm-9">@Model.Pathogen.ShortName</dd>
+                        }
+
+                        @if (!string.IsNullOrEmpty(Model.Pathogen?.LOINCCode))
+                        {
+                            <dt class="col-sm-3">LOINC Code</dt>
+                            <dd class="col-sm-9"><code class="sentinel-code">@Model.Pathogen.LOINCCode</code></dd>
+                        }
+
+                        <dt class="col-sm-3">Category</dt>
+                        <dd class="col-sm-9">@Model.Pathogen?.Category.ToString().Replace("_", " ")</dd>
+
+                        @if (Model.Pathogen?.Disease != null)
+                        {
+                            <dt class="col-sm-3">Disease</dt>
+                            <dd class="col-sm-9">@Model.Pathogen.Disease.Name</dd>
+                        }
+                    </dl>
+
+                    <form method="post" class="d-flex gap-2 pt-3 border-top">
+                        <input type="hidden" asp-for="Pathogen!.Id" />
+                        <button type="submit" class="sn-btn sn-btn--danger">
+                            <i class="bi bi-trash"></i>
+                            Delete Pathogen
+                        </button>
+                        <a asp-page="Index" class="sn-btn sn-btn--ghost">
+                            Cancel
+                        </a>
+                    </form>
+                }
+            </div>
+        </div>
+    </div>
+</div>

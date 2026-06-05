@@ -128,14 +128,16 @@ namespace Sentinel.Models.Lookups
         public int ReviewDefaultPriority { get; set; } = 1;
 
         public ICollection<Case> Cases { get; set; } = new List<Case>();
-        
+
         public ICollection<DiseaseCustomField> DiseaseCustomFields { get; set; } = new List<DiseaseCustomField>();
-        
+
         public ICollection<DiseaseSymptom> DiseaseSymptoms { get; set; } = new List<DiseaseSymptom>();
-        
+
         public ICollection<RoleDiseaseAccess> RoleDiseaseAccess { get; set; } = new List<RoleDiseaseAccess>();
-        
+
         public ICollection<UserDiseaseAccess> UserDiseaseAccess { get; set; } = new List<UserDiseaseAccess>();
+
+        public Models.HL7.DiseaseHL7MatchingConfig? HL7MatchingConfig { get; set; }
 
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
         public DateTime? ModifiedAt { get; set; }

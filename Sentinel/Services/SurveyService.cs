@@ -709,8 +709,8 @@ namespace Sentinel.Services
             // Load lab results
             var labResults = await _context.LabResults
                 .Where(l => l.CaseId == task.CaseId)
-                .Include(l => l.TestType)
-                .Include(l => l.TestResult)
+                .Include(l => l.Markers).ThenInclude(m => m.Pathogen)
+                .Include(l => l.Markers).ThenInclude(m => m.TestMethod)
                 .ToListAsync();
 
             return new SurveyDataContext

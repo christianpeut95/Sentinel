@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
 using Sentinel.Data;
 using Sentinel.Models;
+using System.Text.Json;
 
 namespace Sentinel.Pages.Cases
 {
@@ -24,24 +25,39 @@ namespace Sentinel.Pages.Cases
         [BindProperty]
         public IFormFile? LabResultAttachment { get; set; }
 
+        // JSON string to receive markers from client-side form
+        [BindProperty]
+        public string? MarkersJson { get; set; }
+
         public SelectList SpecimenTypesList { get; set; }
-        public SelectList TestTypesList { get; set; }
         public SelectList ResultUnitsList { get; set; }
+        public SelectList LaboratoriesList { get; set; }
+        public SelectList OrderingProvidersList { get; set; }
         public string CaseId { get; set; }
         public Case Case { get; set; }
 
         public async Task<IActionResult> OnGetAsync(string caseId)
         {
+            if (string.IsNullOrWhiteSpace(caseId))
+            {
+                return BadRequest($"Case ID is required. Received: '{caseId ?? "null"}'");
+            }
+
+            if (!Guid.TryParse(caseId, out var caseGuid))
+            {
+                return BadRequest($"Invalid case ID format. Received: '{caseId}'. Expected a valid GUID format (xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx).");
+            }
+
             CaseId = caseId;
 
             Case = await _context.Cases
                 .Include(c => c.Patient)
                 .Include(c => c.Disease)
-                .FirstOrDefaultAsync(c => c.Id == Guid.Parse(caseId));
+                .FirstOrDefaultAsync(c => c.Id == caseGuid);
 
             if (Case == null)
             {
-                return NotFound();
+                return NotFound($"Case with ID '{caseId}' not found.");
             }
 
             // Pre-populate with case disease
@@ -54,20 +70,72 @@ namespace Sentinel.Pages.Cases
 
         public async Task<IActionResult> OnPostAsync(string caseId)
         {
+            if (string.IsNullOrWhiteSpace(caseId))
+            {
+                return BadRequest($"Case ID is required. Received: '{caseId ?? "null"}'");
+            }
+
+            if (!Guid.TryParse(caseId, out var caseGuid))
+            {
+                return BadRequest($"Invalid case ID format. Received: '{caseId}'. Expected a valid GUID format.");
+            }
+
             CaseId = caseId;
 
             Case = await _context.Cases
                 .Include(c => c.Patient)
                 .Include(c => c.Disease)
-                .FirstOrDefaultAsync(c => c.Id == Guid.Parse(caseId));
+                .FirstOrDefaultAsync(c => c.Id == caseGuid);
 
             if (Case == null)
             {
-                return NotFound();
+                return NotFound($"Case with ID '{caseId}' not found.");
             }
 
-            if (!ModelState.IsValid)
+            // Parse markers from JSON
+            List<LabResultMarker> markers = new List<LabResultMarker>();
+            if (!string.IsNullOrWhiteSpace(MarkersJson))
             {
+                try
+                {
+                    var markerDtos = JsonSerializer.Deserialize<List<MarkerDto>>(MarkersJson);
+                    if (markerDtos != null && markerDtos.Any())
+                    {
+                        int order = 1;
+                        foreach (var dto in markerDtos)
+                        {
+                            var marker = new LabResultMarker
+                            {
+                                PathogenId = dto.PathogenId,
+                                TestMethodId = dto.TestMethodId,
+                                TestResultId = dto.TestResultId,
+                                QualitativeResultText = dto.QualitativeResult,
+                                QuantitativeValue = dto.QuantitativeValue,
+                                QuantitativeUnit = dto.QuantitativeUnit,
+                                ReferenceRangeLow = dto.ReferenceRangeLow,
+                                ReferenceRangeHigh = dto.ReferenceRangeHigh,
+                                InterpretationFlag = dto.InterpretationFlag,
+                                LOINCCode = dto.LOINCCode,
+                                Notes = dto.Notes,
+                                DisplayOrder = order++,
+                                CreatedAt = DateTime.UtcNow
+                            };
+                            markers.Add(marker);
+                        }
+                    }
+                }
+                catch (JsonException ex)
+                {
+                    ModelState.AddModelError("", $"Error parsing markers: {ex.Message}");
+                    await LoadSelectLists();
+                    return Page();
+                }
+            }
+
+            // Validate at least one marker
+            if (!markers.Any())
+            {
+                ModelState.AddModelError("", "Please add at least one pathogen/biomarker test result.");
                 await LoadSelectLists();
                 return Page();
             }
@@ -76,17 +144,7 @@ namespace Sentinel.Pages.Cases
             LabResult.CaseId = Case.Id;
             LabResult.CreatedAt = DateTime.UtcNow;
             LabResult.FriendlyId = await GenerateLabResultIdAsync();
-
-            // DIAGNOSTIC LOGGING
-            Console.WriteLine("=== ADD LAB RESULT DIAGNOSTIC ===");
-            Console.WriteLine($"Case ID: {LabResult.CaseId}");
-            Console.WriteLine($"Lab Result ID: {LabResult.Id}");
-            Console.WriteLine($"Friendly ID: {LabResult.FriendlyId}");
-            Console.WriteLine($"Test Type ID: {LabResult.TestTypeId}");
-            Console.WriteLine($"Specimen Type ID: {LabResult.SpecimenTypeId}");
-            Console.WriteLine($"Collection Date: {LabResult.SpecimenCollectionDate}");
-            Console.WriteLine($"Database: {_context.Database.GetConnectionString()}");
-            Console.WriteLine($"DbContext Hash: {_context.GetHashCode()}");
+            LabResult.Markers = markers;
 
             // Handle attachment upload
             if (LabResultAttachment != null && LabResultAttachment.Length > 0)
@@ -104,129 +162,31 @@ namespace Sentinel.Pages.Cases
 
                 LabResult.AttachmentPath = $"/uploads/lab-results/{uniqueFileName}";
                 LabResult.AttachmentFileName = LabResultAttachment.FileName;
+                LabResult.AttachmentSize = LabResultAttachment.Length;
             }
 
-            try
-            {
-                Console.WriteLine("About to add LabResult to context...");
-                _context.LabResults.Add(LabResult);
-                
-                Console.WriteLine("About to call SaveChangesAsync...");
-                var changeCount = await _context.SaveChangesAsync();
-                Console.WriteLine($"SaveChanges completed. Changes saved: {changeCount}");
-                Console.WriteLine($"Lab Result ID after save: {LabResult.Id}");
-                
-                // Verify it was actually saved
-                var verifyResult = await _context.LabResults
-                    .Where(lr => lr.Id == LabResult.Id)
-                    .FirstOrDefaultAsync();
-                Console.WriteLine($"Verification query result: {(verifyResult != null ? "FOUND" : "NOT FOUND")}");
-                
-                if (verifyResult == null)
-                {
-                    Console.WriteLine("ERROR: Lab result not found in database after save!");
-                }
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"EXCEPTION during save: {ex.Message}");
-                Console.WriteLine($"Stack trace: {ex.StackTrace}");
-                if (ex.InnerException != null)
-                {
-                    Console.WriteLine($"Inner exception: {ex.InnerException.Message}");
-                }
-                throw;
-            }
-            Console.WriteLine("=== END DIAGNOSTIC ===");
+            _context.LabResults.Add(LabResult);
+            await _context.SaveChangesAsync();
 
-            // Check if in iframe (check query parameter first, then referer)
-            var isInIframe = Request.Query.ContainsKey("iframe");
-            
-            if (!isInIframe)
-            {
-                var referer = Request.Headers["Referer"].ToString();
-                isInIframe = referer.Contains("/Cases/CreateNew");
-            }
-
-            if (isInIframe)
-            {
-                // Post message to parent window with success notification
-                return Content(
-                    @"<html>
-                    <head>
-                        <style>
-                            body {
-                                display: flex;
-                                align-items: center;
-                                justify-content: center;
-                                height: 100vh;
-                                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-                                background: #f0fdf4;
-                                margin: 0;
-                            }
-                            .success-message {
-                                text-align: center;
-                                padding: 2rem;
-                            }
-                            .success-icon {
-                                font-size: 4rem;
-                                color: #10b981;
-                                margin-bottom: 1rem;
-                            }
-                            .success-text {
-                                font-size: 1.25rem;
-                                color: #166534;
-                                font-weight: 600;
-                            }
-                        </style>
-                    </head>
-                    <body>
-                        <div class='success-message'>
-                            <div class='success-icon'>?</div>
-                            <div class='success-text'>Lab Result Saved Successfully!</div>
-                            <p style='color: #16a34a; margin-top: 0.5rem;'>This window will close automatically...</p>
-                        </div>
-                        <script>
-                            console.log('Lab result saved, posting message to parent');
-                            if (window.parent && window.parent !== window) {
-                                console.log('Posting message: labResultSaved');
-                                window.parent.postMessage('labResultSaved', '*');
-                            }
-                            setTimeout(function() {
-                                console.log('Attempting to trigger modal close');
-                                if (window.parent && window.parent !== window) {
-                                    window.parent.postMessage('labResultSaved', '*');
-                                }
-                            }, 500);
-                        </script>
-                    </body>
-                    </html>",
-                    "text/html"
-                );
-            }
-
-            // Close popup and refresh parent (traditional popup window)
-            return Content(
-                "<script>if(window.opener) { window.opener.location.reload(); } window.close();</script>",
-                "text/html"
-            );
+            TempData["SuccessMessage"] = $"Lab result {LabResult.FriendlyId} added successfully with {markers.Count} marker(s).";
+            return RedirectToPage("/Cases/Details", new { id = Case.Id });
         }
 
         private async Task<string> GenerateLabResultIdAsync()
         {
-            var year = DateTime.Now.Year;
-            var prefix = $"LAB{year}";
+            var prefix = "LR";
+            var today = DateTime.Today;
 
-            var lastId = await _context.LabResults
+            var lastResult = await _context.LabResults
                 .Where(lr => lr.FriendlyId.StartsWith(prefix))
-                .OrderByDescending(lr => lr.FriendlyId)
+                .OrderByDescending(lr => lr.CreatedAt)
                 .Select(lr => lr.FriendlyId)
                 .FirstOrDefaultAsync();
 
             int nextNumber = 1;
-            if (lastId != null)
+            if (lastResult != null && lastResult.Length > prefix.Length)
             {
-                var numberPart = lastId.Substring(prefix.Length);
+                var numberPart = lastResult.Substring(prefix.Length);
                 if (int.TryParse(numberPart, out int currentNumber))
                 {
                     nextNumber = currentNumber + 1;
@@ -242,13 +202,148 @@ namespace Sentinel.Pages.Cases
                 await _context.SpecimenTypes.OrderBy(s => s.Name).ToListAsync(),
                 "Id", "Name");
 
-            TestTypesList = new SelectList(
-                await _context.TestTypes.OrderBy(t => t.Name).ToListAsync(),
-                "Id", "Name");
-
             ResultUnitsList = new SelectList(
                 await _context.ResultUnits.OrderBy(r => r.Name).ToListAsync(),
                 "Id", "Name");
+
+            // Load all active organizations (both laboratories and providers)
+            LaboratoriesList = new SelectList(
+                await _context.Organizations
+                    .Where(o => o.IsActive)
+                    .OrderBy(o => o.Name)
+                    .ToListAsync(),
+                "Id", "Name");
+
+            // Use same list for ordering providers
+            OrderingProvidersList = new SelectList(
+                await _context.Organizations
+                    .Where(o => o.IsActive)
+                    .OrderBy(o => o.Name)
+                    .ToListAsync(),
+                "Id", "Name");
+        }
+
+        // API endpoint for searching pathogens
+        public async Task<JsonResult> OnGetSearchPathogensAsync(string? disease, string? term)
+        {
+            var query = _context.Pathogens
+                .Include(p => p.Disease)
+                .Where(p => p.IsActive);
+
+            if (Guid.TryParse(disease, out var diseaseId))
+            {
+                query = query.Where(p => p.DiseaseId == diseaseId);
+            }
+
+            if (!string.IsNullOrWhiteSpace(term))
+            {
+                query = query.Where(p => 
+                    p.Name.Contains(term) || 
+                    p.ShortName.Contains(term) ||
+                    (p.LOINCCode != null && p.LOINCCode.Contains(term)));
+            }
+
+            var pathogens = await query
+                .OrderBy(p => p.DisplayOrder)
+                .ThenBy(p => p.Name)
+                .Take(50)
+                .Select(p => new
+                {
+                    id = p.Id,
+                    name = p.Name,
+                    shortName = p.ShortName,
+                    loincCode = p.LOINCCode,
+                    category = p.Category.ToString(),
+                    resultType = p.ResultType.ToString(),
+                    defaultUnit = p.DefaultUnit,
+                    refLow = p.DefaultReferenceRangeLow,
+                    refHigh = p.DefaultReferenceRangeHigh,
+                    disease = p.Disease != null ? p.Disease.Name : null
+                })
+                .ToListAsync();
+
+            return new JsonResult(pathogens);
+        }
+
+        // API endpoint for searching organizations
+        public async Task<JsonResult> OnGetSearchOrganizationsAsync(string? term)
+        {
+            var query = _context.Organizations
+                .Where(o => o.IsActive);
+
+            if (!string.IsNullOrWhiteSpace(term))
+            {
+                query = query.Where(o => 
+                    o.Name.Contains(term) || 
+                    (o.FriendlyId != null && o.FriendlyId.Contains(term)));
+            }
+
+            var organizations = await query
+                .OrderBy(o => o.Name)
+                .Take(20)
+                .Select(o => new
+                {
+                    id = o.Id,
+                    name = o.Name
+                })
+                .ToListAsync();
+
+            return new JsonResult(organizations);
+        }
+
+        // API endpoint for getting test methods
+        public async Task<JsonResult> OnGetTestMethodsAsync()
+        {
+            var methods = await _context.TestMethods
+                .Where(tm => tm.IsActive)
+                .OrderBy(tm => tm.DisplayOrder)
+                .ThenBy(tm => tm.Name)
+                .Select(tm => new
+                {
+                    id = tm.Id,
+                    name = tm.Name,
+                    description = tm.Description,
+                    exportCode = tm.ExportCode
+                })
+                .ToListAsync();
+
+            return new JsonResult(methods);
+        }
+
+        // API endpoint for getting test results (qualitative values)
+        public async Task<JsonResult> OnGetTestResultsAsync()
+        {
+            var results = await _context.TestResults
+                .Where(tr => tr.IsActive)
+                .OrderBy(tr => tr.DisplayOrder)
+                .ThenBy(tr => tr.Name)
+                .Select(tr => new
+                {
+                    id = tr.Id,
+                    name = tr.Name,
+                    description = tr.Description,
+                    snomedCode = tr.SnomedCode,
+                    hl7Code = tr.Hl7Code
+                })
+                .ToListAsync();
+
+            return new JsonResult(results);
+        }
+
+        // DTO for receiving marker data from client
+        public class MarkerDto
+        {
+            public Guid PathogenId { get; set; }
+            public int? TestMethodId { get; set; }
+            public int? TestResultId { get; set; }
+            public string? QualitativeResult { get; set; }
+            public decimal? QuantitativeValue { get; set; }
+            public string? QuantitativeUnit { get; set; }
+            public decimal? ReferenceRangeLow { get; set; }
+            public decimal? ReferenceRangeHigh { get; set; }
+            public string? InterpretationFlag { get; set; }
+            public string? LOINCCode { get; set; }
+            public string? Notes { get; set; }
         }
     }
 }

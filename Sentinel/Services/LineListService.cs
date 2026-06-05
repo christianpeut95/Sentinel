@@ -181,18 +181,20 @@ public class LineListService : ILineListService
                     .ThenInclude(lr => lr.SpecimenType)
             .Include(oc => oc.Case)
                 .ThenInclude(c => c.LabResults)
-                    .ThenInclude(lr => lr.TestType)
+                    .ThenInclude(lr => lr.Markers)
+                        .ThenInclude(m => m.Pathogen)
             .Include(oc => oc.Case)
                 .ThenInclude(c => c.LabResults)
-                    .ThenInclude(lr => lr.TestResult)
+                    .ThenInclude(lr => lr.Markers)
+                        .ThenInclude(m => m.TestMethod)
             .AsSplitQuery() // CRITICAL: Use split queries to properly load all navigation properties
             .IgnoreQueryFilters() // CRITICAL: Ignore global query filters (soft delete, IsActive, etc.)
             .AsNoTracking();
-        
+
         // Apply sorting if provided (simplified - just use default sort for now)
         // TODO: Implement custom sorting logic if needed
         query = query.OrderBy(oc => oc.Case.DateOfOnset ?? oc.Case.DateOfNotification);
-        
+
         var outbreakCases = await query.ToListAsync();
         
         // Debug logging to verify data is loaded
@@ -452,19 +454,19 @@ public class LineListService : ILineListService
             Console.WriteLine($"[LineList Debug] Lab - CaseId: {caseData?.Id}, Latest lab is null");
             return null;
         }
-        
+
         var result = parts.Length > 1 ? parts[1] switch
         {
             "SpecimenDate" => latestLab.SpecimenCollectionDate?.ToString("yyyy-MM-dd"),
             "SpecimenType" => latestLab.SpecimenType?.Name,
-            "TestType" => latestLab.TestType?.Name,
-            "Result" => latestLab.TestResult?.Name,
+            "Markers" => latestLab.Markers.Any() ? $"{latestLab.Markers.Count} marker(s)" : "No markers",
+            "Result" => latestLab.Markers.Any() ? latestLab.Markers.First().QualitativeResultText : "No results",
             "ResultDate" => latestLab.ResultDate?.ToString("yyyy-MM-dd"),
             "Laboratory" => latestLab.Laboratory?.Name,
             "AccessionNumber" => latestLab.AccessionNumber,
             _ => null
         } : null;
-        
+
         Console.WriteLine($"[LineList Debug] Lab - CaseId: {caseData?.Id}, Field: {parts[1]}, LabId: {latestLab.Id}, Value: {result}");
         return result;
     }

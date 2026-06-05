@@ -1,0 +1,300 @@
+@page
+@model Sentinel.Pages.Settings.CaseDefinitions.IndexModel
+@using Sentinel.Models.CaseDefinitions
+@{
+    ViewData["Title"] = "Case Definitions";
+    ViewData["Subtitle"] = "Automated Case Classification Rules";
+    Layout = "~/Pages/Shared/_LayoutSentinel.cshtml";
+}
+
+<link rel="stylesheet" href="~/css/sentinel-design-system.css" />
+
+<div class="container-fluid px-4 py-4">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-start mb-4">
+        <div>
+            <div class="text-label mb-2">SETTINGS · CASE DEFINITIONS</div>
+            <h1 class="page-title mb-2">Case Definitions</h1>
+            <p class="text-muted" style="max-width: 60ch;">
+                Configure automated classification rules for diseases. Define criteria for Confirmed, Probable, and Suspect case classifications.
+            </p>
+        </div>
+        <a asp-page="./Create" class="sn-btn sn-btn-signal">
+            <i class="bi bi-plus-lg"></i>
+            Create Definition
+        </a>
+    </div>
+
+    <!-- Filters -->
+    <div class="sentinel-card mb-4">
+        <div class="row g-3 align-items-end">
+            <div class="col-md-3">
+                <label class="text-label">Disease</label>
+                <select class="sn-input" id="filterDisease">
+                    <option value="">All Diseases</option>
+                    @foreach (var disease in Model.Diseases)
+                    {
+                        <option value="@disease.Id">@disease.Name</option>
+                    }
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="text-label">Confirmation Status</label>
+                <select class="sn-input" id="filterStatus">
+                    <option value="">All Statuses</option>
+                    @foreach (var status in Model.CaseStatuses)
+                    {
+                        <option value="@status.Id">@status.Name</option>
+                    }
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="text-label">Definition Status</label>
+                <select class="sn-input" id="filterDefinitionStatus">
+                    <option value="">All</option>
+                    <option value="2" selected>Current Only</option>
+                    <option value="1">Draft</option>
+                    <option value="3">Archived</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <button type="button" class="sn-btn sn-btn-ghost w-100" onclick="clearFilters()">
+                    <i class="bi bi-x-lg"></i>
+                    Clear Filters
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Definitions List -->
+    <div id="definitionsContainer">
+        @if (!Model.CaseDefinitions.Any())
+        {
+            <div class="sentinel-card text-center py-5">
+                <div class="mb-4">
+                    <i class="bi bi-diagram-3" style="font-size: 4rem; color: var(--signal-dk); opacity: 0.3;"></i>
+                </div>
+                <h3 class="mb-3">No Case Definitions Yet</h3>
+                <p class="text-muted mb-4" style="max-width: 50ch; margin: 0 auto;">
+                    Get started by creating your first case definition. Define criteria for automatic case classification based on laboratory, clinical, and epidemiological evidence.
+                </p>
+                <a asp-page="./Create" class="sn-btn sn-btn-signal">
+                    <i class="bi bi-plus-lg"></i>
+                    Create First Definition
+                </a>
+            </div>
+        }
+        else
+        {
+            @foreach (var definition in Model.CaseDefinitions)
+            {
+                <div class="sentinel-card mb-3 definition-item" 
+                     data-disease-id="@definition.DiseaseId" 
+                     data-status-id="@definition.ConfirmationStatusId"
+                     data-definition-status="@((int)definition.Status)">
+
+                    <!-- Header Row -->
+                    <div class="d-flex justify-content-between align-items-start mb-3">
+                        <div class="flex-grow-1">
+                            <div class="d-flex align-items-center gap-2 mb-2">
+                                <h4 class="mb-0" style="font-size: 1.125rem; font-weight: 600;">@definition.Name</h4>
+                                @switch (definition.Status)
+                                {
+                                    case CaseDefinitionStatus.Current:
+                                        <span class="badge" style="background: var(--signal-lt); color: var(--signal-dk); border: 1px solid var(--signal-dk); font-family: var(--f-mono); font-size: 0.625rem; letter-spacing: 0.08em; padding: 0.25rem 0.5rem;">CURRENT</span>
+                                        break;
+                                    case CaseDefinitionStatus.Draft:
+                                        <span class="badge" style="background: var(--paper); color: var(--graphite); border: 1px solid var(--hairline); font-family: var(--f-mono); font-size: 0.625rem; letter-spacing: 0.08em; padding: 0.25rem 0.5rem;">DRAFT</span>
+                                        break;
+                                    case CaseDefinitionStatus.Archived:
+                                        <span class="badge" style="background: var(--paper); color: var(--slate); border: 1px solid var(--hairline); font-family: var(--f-mono); font-size: 0.625rem; letter-spacing: 0.08em; padding: 0.25rem 0.5rem;">ARCHIVED</span>
+                                        break;
+                                }
+                            </div>
+
+                            <!-- Metadata -->
+                            <div class="text-label mb-2">
+                                <i class="bi bi-virus"></i> @definition.Disease?.Name
+                                &nbsp;•&nbsp;
+                                <i class="bi bi-journal-check"></i> @definition.ConfirmationStatus?.Name
+                            </div>
+
+                            <!-- Active Dates -->
+                            <div class="text-muted" style="font-size: 0.875rem;">
+                                <i class="bi bi-calendar-check"></i>
+                                Active: @definition.DateActiveFrom.ToString("yyyy-MM-dd")
+                                @if (definition.DateActiveTo.HasValue)
+                                {
+                                    <span> to @definition.DateActiveTo.Value.ToString("yyyy-MM-dd")</span>
+                                }
+                                else
+                                {
+                                    <span> onwards</span>
+                                }
+                            </div>
+                        </div>
+
+                        <!-- Actions -->
+                        <div class="btn-group">
+                            <a asp-page="./View" asp-route-id="@definition.Id" class="sn-btn sn-btn-ghost sn-btn-sm">
+                                <i class="bi bi-eye"></i>
+                                View
+                            </a>
+                            <a asp-page="./Edit" asp-route-id="@definition.Id" class="sn-btn sn-btn-ghost sn-btn-sm">
+                                <i class="bi bi-pencil"></i>
+                                Edit
+                            </a>
+                            <button type="button" class="sn-btn sn-btn-ghost sn-btn-sm" onclick="duplicateDefinition(@definition.Id)">
+                                <i class="bi bi-files"></i>
+                                Duplicate
+                            </button>
+                            @if (definition.Status != CaseDefinitionStatus.Archived)
+                            {
+                                <button type="button" class="sn-btn sn-btn-ghost sn-btn-sm" onclick="archiveDefinition(@definition.Id)">
+                                    <i class="bi bi-archive"></i>
+                                    Archive
+                                </button>
+                            }
+                        </div>
+                    </div>
+
+                    <!-- Classification Behavior -->
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-4">
+                            <div class="text-label">CLASSIFICATION MODE</div>
+                            <div style="font-size: 0.875rem;">
+                                @if (definition.AllowAutoClassification)
+                                {
+                                    <i class="bi bi-lightning-charge-fill" style="color: var(--signal-dk);"></i>
+                                    <span>Auto-classify</span>
+                                }
+                                else
+                                {
+                                    <i class="bi bi-hand-index"></i>
+                                    <span>Manual only</span>
+                                }
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="text-label">REVIEW QUEUE</div>
+                            <div style="font-size: 0.875rem;">
+                                @if (definition.CreateReviewQueueOnChange)
+                                {
+                                    <i class="bi bi-check-circle-fill" style="color: var(--signal-dk);"></i>
+                                    <span>On status change</span>
+                                }
+                                else if (definition.CreateReviewQueueOnSuggestion)
+                                {
+                                    <i class="bi bi-check-circle" style="color: var(--signal-dk);"></i>
+                                    <span>On suggestion</span>
+                                }
+                                else
+                                {
+                                    <i class="bi bi-dash-circle"></i>
+                                    <span>None</span>
+                                }
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="text-label">CRITERIA</div>
+                            <div style="font-size: 0.875rem;">
+                                <i class="bi bi-diagram-3"></i>
+                                @{
+                                    var totalCriteria = definition.Criteria?.Count() ?? 0;
+                                    var rootCriteria = definition.Criteria?.Count(c => c.ParentCriteriaId == null) ?? 0;
+                                }
+                                @totalCriteria criteria (@rootCriteria @(rootCriteria == 1 ? "group" : "groups"))
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Statistics (if evaluated) -->
+                    @if (definition.Status == CaseDefinitionStatus.Current)
+                    {
+                        <div class="alert" style="background: var(--signal-lt); border: 1px solid var(--signal-dk); border-radius: 6px; padding: 0.75rem 1rem; margin: 0;">
+                            <div class="row g-3 align-items-center">
+                                <div class="col-auto">
+                                    <i class="bi bi-graph-up" style="font-size: 1.5rem; color: var(--signal-dk);"></i>
+                                </div>
+                                <div class="col">
+                                    <div class="text-label">STATISTICS</div>
+                                    <div style="font-size: 0.875rem;">
+                                        <strong>@Model.GetEvaluatedCaseCount(definition.Id)</strong> cases evaluated
+                                        •
+                                        <strong>@Model.GetMatchingCaseCount(definition.Id)</strong> cases match
+                                        •
+                                        Last evaluated: @Model.GetLastEvaluatedTime(definition.Id)
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    }
+                </div>
+            }
+        }
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        function clearFilters() {
+            document.getElementById('filterDisease').value = '';
+            document.getElementById('filterStatus').value = '';
+            document.getElementById('filterDefinitionStatus').value = '';
+            filterDefinitions();
+        }
+
+        function filterDefinitions() {
+            const diseaseId = document.getElementById('filterDisease').value;
+            const statusId = document.getElementById('filterStatus').value;
+            const defStatus = document.getElementById('filterDefinitionStatus').value;
+
+            document.querySelectorAll('.definition-item').forEach(item => {
+                let show = true;
+
+                if (diseaseId && item.dataset.diseaseId !== diseaseId) {
+                    show = false;
+                }
+                if (statusId && item.dataset.statusId !== statusId) {
+                    show = false;
+                }
+                if (defStatus && item.dataset.definitionStatus !== defStatus) {
+                    show = false;
+                }
+
+                item.style.display = show ? 'block' : 'none';
+            });
+        }
+
+        document.getElementById('filterDisease').addEventListener('change', filterDefinitions);
+        document.getElementById('filterStatus').addEventListener('change', filterDefinitions);
+        document.getElementById('filterDefinitionStatus').addEventListener('change', filterDefinitions);
+
+        function duplicateDefinition(id) {
+            if (confirm('Create a copy of this definition?')) {
+                window.location.href = `/Settings/CaseDefinitions/Create?duplicateFrom=${id}`;
+            }
+        }
+
+        function archiveDefinition(id) {
+            if (confirm('Archive this definition? It will no longer be used for case evaluation.')) {
+                fetch(`/Settings/CaseDefinitions/Archive?id=${id}`, {
+                    method: 'POST',
+                    headers: {
+                        'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]')?.value
+                    }
+                })
+                .then(response => {
+                    if (response.ok) {
+                        location.reload();
+                    } else {
+                        alert('Failed to archive definition');
+                    }
+                });
+            }
+        }
+
+        // Initialize filters on page load
+        filterDefinitions();
+    </script>
+}

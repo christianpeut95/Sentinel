@@ -1,0 +1,233 @@
+@page
+@model Sentinel.Pages.Settings.HL7.Configurations.EditModel
+
+@{
+    ViewData["Title"] = "Edit HL7 Configuration";
+    Layout = "~/Pages/Shared/_LayoutSentinel.cshtml";
+}
+
+<nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a asp-page="/Index">Home</a></li>
+        <li class="breadcrumb-item"><a asp-page="/Settings/Index">Settings</a></li>
+        <li class="breadcrumb-item"><a asp-page="./Index">HL7 Configurations</a></li>
+        <li class="breadcrumb-item active" aria-current="page">Edit</li>
+    </ol>
+</nav>
+
+<div class="sentinel-page-header mb-4">
+    <div>
+        <div class="sentinel-eyebrow">HL7 Interface</div>
+        <h1 class="sentinel-page-title">Edit Configuration: @Model.Configuration.ConfigurationName</h1>
+        <p class="sentinel-page-subtitle">Modify laboratory message processing settings</p>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-10">
+        <form method="post">
+            <input type="hidden" asp-for="Configuration.Id" />
+            <input type="hidden" asp-for="Configuration.CreatedAt" />
+            <div asp-validation-summary="ModelOnly" class="alert alert-danger" role="alert"></div>
+
+            <!-- Basic Information -->
+            <div class="sentinel-card mb-4">
+                <div class="sentinel-card-body">
+                    <h3 class="sentinel-section-title">Basic Information</h3>
+                    <div class="row g-3">
+                        <div class="col-md-8">
+                            <label asp-for="Configuration.ConfigurationName" class="sn-label"></label>
+                            <input asp-for="Configuration.ConfigurationName" class="sn-input" />
+                            <span asp-validation-for="Configuration.ConfigurationName" class="text-danger"></span>
+                        </div>
+                        <div class="col-md-4">
+                            <label asp-for="Configuration.Priority" class="sn-label"></label>
+                            <input asp-for="Configuration.Priority" class="sn-input" type="number" min="1" max="100" />
+                            <span asp-validation-for="Configuration.Priority" class="text-danger"></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- HL7 Source Identification -->
+            <div class="sentinel-card mb-4">
+                <div class="sentinel-card-body">
+                    <h3 class="sentinel-section-title">HL7 Source Identification</h3>
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label asp-for="Configuration.SendingFacility" class="sn-label"></label>
+                            <input asp-for="Configuration.SendingFacility" class="sn-input" style="font-family:var(--f-mono)" />
+                            <span asp-validation-for="Configuration.SendingFacility" class="text-danger"></span>
+                        </div>
+                        <div class="col-md-6">
+                            <label asp-for="Configuration.SendingApplication" class="sn-label"></label>
+                            <input asp-for="Configuration.SendingApplication" class="sn-input" style="font-family:var(--f-mono)" />
+                            <span asp-validation-for="Configuration.SendingApplication" class="text-danger"></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- File Monitoring -->
+            <div class="sentinel-card mb-4">
+                <div class="sentinel-card-body">
+                    <h3 class="sentinel-section-title">File Monitoring</h3>
+                    <div class="row g-3">
+                        <div class="col-md-8">
+                            <label asp-for="Configuration.FileDropPath" class="sn-label"></label>
+                            <input asp-for="Configuration.FileDropPath" class="sn-input" style="font-family:var(--f-mono)" />
+                            <span asp-validation-for="Configuration.FileDropPath" class="text-danger"></span>
+                        </div>
+                        <div class="col-md-4">
+                            <label asp-for="Configuration.FilePattern" class="sn-label"></label>
+                            <input asp-for="Configuration.FilePattern" class="sn-input" style="font-family:var(--f-mono)" />
+                            <span asp-validation-for="Configuration.FilePattern" class="text-danger"></span>
+                        </div>
+                        <div class="col-md-4">
+                            <label asp-for="Configuration.CharacterEncoding" class="sn-label"></label>
+                            <select asp-for="Configuration.CharacterEncoding" class="sn-input">
+                                <option value="UTF8">UTF-8</option>
+                                <option value="ASCII">ASCII</option>
+                                <option value="Unicode">Unicode</option>
+                                <option value="UTF7">UTF-7</option>
+                                <option value="UTF32">UTF-32</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="sn-label">
+                                <input asp-for="Configuration.ProcessOnReceipt" type="checkbox" style="margin-right:8px;width:auto" />
+                                Process immediately on file receipt
+                            </label>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="sn-label">
+                                <input asp-for="Configuration.ArchiveProcessedFiles" type="checkbox" style="margin-right:8px;width:auto" />
+                                Archive processed files
+                            </label>
+                        </div>
+                        @if (Model.Configuration.ArchiveProcessedFiles && !string.IsNullOrWhiteSpace(Model.Configuration.ArchivePath))
+                        {
+                            <div class="col-12">
+                                <label asp-for="Configuration.ArchivePath" class="sn-label"></label>
+                                <input asp-for="Configuration.ArchivePath" class="sn-input" style="font-family:var(--f-mono)" />
+                                <span asp-validation-for="Configuration.ArchivePath" class="text-danger"></span>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+
+            <!-- Patient Matching Strategy -->
+            <div class="sentinel-card mb-4">
+                <div class="sentinel-card-body">
+                    <h3 class="sentinel-section-title">Patient Matching Strategy</h3>
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label asp-for="Configuration.PatientMatchingStrategy" class="sn-label"></label>
+                            <select asp-for="Configuration.PatientMatchingStrategy" class="sn-input">
+                                @foreach (var strategy in Enum.GetValues<Sentinel.Models.PatientMatchingStrategy>())
+                                {
+                                    <option value="@strategy">@strategy.ToString().Replace("_", " ")</option>
+                                }
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="sn-label">
+                                <input asp-for="Configuration.AutoCreatePatients" type="checkbox" style="margin-right:8px;width:auto" />
+                                Auto-create patients if no match found
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Duplicate Detection -->
+            <div class="sentinel-card mb-4">
+                <div class="sentinel-card-body">
+                    <h3 class="sentinel-section-title">Duplicate Detection</h3>
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label asp-for="Configuration.DuplicateDetectionStrategy" class="sn-label"></label>
+                            <select asp-for="Configuration.DuplicateDetectionStrategy" class="sn-input">
+                                @foreach (var strategy in Enum.GetValues<Sentinel.Models.DuplicateDetectionStrategy>())
+                                {
+                                    <option value="@strategy">@strategy.ToString().Replace("_", " ")</option>
+                                }
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label asp-for="Configuration.DuplicateDetectionWindowHours" class="sn-label"></label>
+                            <input asp-for="Configuration.DuplicateDetectionWindowHours" class="sn-input" type="number" min="1" max="720" />
+                            <span asp-validation-for="Configuration.DuplicateDetectionWindowHours" class="text-danger"></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Laboratory Assignment -->
+            <div class="sentinel-card mb-4">
+                <div class="sentinel-card-body">
+                    <h3 class="sentinel-section-title">Laboratory Assignment</h3>
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label asp-for="Configuration.DefaultLaboratoryId" class="sn-label"></label>
+                            <select asp-for="Configuration.DefaultLaboratoryId" class="sn-input" asp-items="Model.LaboratorySelectList">
+                                <option value="">-- No default laboratory --</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="sn-label">
+                                <input asp-for="Configuration.AutoCreateOrganizations" type="checkbox" style="margin-right:8px;width:auto" />
+                                Auto-create laboratories from message
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Case Creation -->
+            <div class="sentinel-card mb-4">
+                <div class="sentinel-card-body">
+                    <h3 class="sentinel-section-title">Case Creation</h3>
+                    <div class="row g-3">
+                        <div class="col-md-12">
+                            <label class="sn-label">
+                                <input asp-for="Configuration.AutoCreateCases" type="checkbox" style="margin-right:8px;width:auto" />
+                                Automatically create cases from positive results
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Status -->
+            <div class="sentinel-card mb-4">
+                <div class="sentinel-card-body">
+                    <h3 class="sentinel-section-title">Status</h3>
+                    <div class="row g-3">
+                        <div class="col-md-12">
+                            <label class="sn-label">
+                                <input asp-for="Configuration.IsActive" type="checkbox" style="margin-right:8px;width:auto" />
+                                Configuration is active
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Form Actions -->
+            <div class="mt-4">
+                <button type="submit" class="sn-btn sn-btn--signal">
+                    <i class="bi bi-check-circle me-1"></i>Save Changes
+                </button>
+                <a asp-page="./Index" class="sn-btn sn-btn--ghost ms-2">
+                    <i class="bi bi-arrow-left me-1"></i>Cancel
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

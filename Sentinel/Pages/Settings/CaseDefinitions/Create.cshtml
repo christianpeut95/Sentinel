@@ -1,0 +1,353 @@
+@page
+@model Sentinel.Pages.Settings.CaseDefinitions.CreateModel
+@{
+    ViewData["Title"] = "Create Case Definition";
+    Layout = "~/Pages/Shared/_LayoutSentinel.cshtml";
+}
+
+<link rel="stylesheet" href="~/css/sentinel-design-system.css" />
+
+<style>
+    .wizard-container {
+        max-width: 900px;
+        margin: 0 auto;
+    }
+
+    .wizard-steps {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        margin-bottom: 3rem;
+        padding: 2rem 0;
+        border-bottom: 1px solid var(--hairline);
+    }
+
+    .wizard-step {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+    }
+
+    .wizard-step-circle {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 600;
+        font-size: 1rem;
+        background: var(--paper);
+        color: var(--graphite);
+        border: 2px solid var(--hairline);
+        transition: all 0.2s;
+    }
+
+    .wizard-step.active .wizard-step-circle {
+        background: var(--forest);
+        color: var(--signal);
+        border-color: var(--forest);
+    }
+
+    .wizard-step.completed .wizard-step-circle {
+        background: var(--signal-dk);
+        color: white;
+        border-color: var(--signal-dk);
+    }
+
+    .wizard-step-label {
+        font-size: 0.875rem;
+        color: var(--graphite);
+        font-weight: 500;
+    }
+
+    .wizard-step.active .wizard-step-label {
+        color: var(--forest);
+        font-weight: 600;
+    }
+
+    .wizard-connector {
+        width: 80px;
+        height: 2px;
+        background: var(--hairline);
+        margin: 0 1rem;
+    }
+
+    .wizard-step.completed + .wizard-connector {
+        background: var(--signal-dk);
+    }
+
+    .classification-mode-card {
+        padding: 1rem;
+        border: 2px solid var(--hairline);
+        border-radius: 8px;
+        cursor: pointer;
+        transition: all 0.2s;
+        background: var(--chalk);
+    }
+
+    .classification-mode-card:hover {
+        border-color: var(--signal-dk);
+        background: var(--signal-lt);
+    }
+
+    .classification-mode-card input[type="radio"]:checked + label {
+        border-color: var(--signal-dk);
+        background: var(--signal-lt);
+    }
+
+    .classification-mode-card label {
+        cursor: pointer;
+        margin: 0;
+    }
+
+    .classification-mode-title {
+        font-weight: 600;
+        font-size: 0.9375rem;
+        margin-bottom: 0.25rem;
+        color: var(--forest);
+    }
+
+    .classification-mode-desc {
+        font-size: 0.813rem;
+        color: var(--graphite);
+        line-height: 1.5;
+        margin: 0;
+    }
+</style>
+
+<div class="container-fluid px-4 py-4">
+    <div class="wizard-container">
+        <!-- Header -->
+        <div class="text-center mb-4">
+            <div class="text-label mb-2">CREATE CASE DEFINITION</div>
+            <h1 class="page-title mb-2">Basic Information</h1>
+            <p class="text-muted">Define the basic details for this case definition</p>
+        </div>
+
+        <!-- Wizard Steps -->
+        <div class="wizard-steps">
+            <div class="wizard-step active">
+                <div class="wizard-step-circle">●</div>
+                <div class="wizard-step-label">Basic Information</div>
+            </div>
+            <div class="wizard-connector"></div>
+            <div class="wizard-step">
+                <div class="wizard-step-circle">○</div>
+                <div class="wizard-step-label">Build Criteria</div>
+            </div>
+            <div class="wizard-connector"></div>
+            <div class="wizard-step">
+                <div class="wizard-step-circle">○</div>
+                <div class="wizard-step-label">Review & Save</div>
+            </div>
+        </div>
+
+        <!-- Form -->
+        <form method="post" id="definitionForm">
+            <div class="sentinel-card mb-4">
+                <h3 style="font-size: 1.125rem; font-weight: 600; margin-bottom: 1.5rem;">
+                    <i class="bi bi-info-circle"></i>
+                    Definition Details
+                </h3>
+
+                <!-- Definition Name -->
+                <div class="mb-4">
+                    <label asp-for="Input.Name" class="text-label">Definition Name *</label>
+                    <input asp-for="Input.Name" class="sn-input" placeholder="e.g. COVID-19 Confirmed Case - 2024 CDC Guidelines" />
+                    <span asp-validation-for="Input.Name" class="text-danger"></span>
+                    <div class="text-muted" style="font-size: 0.75rem; margin-top: 0.5rem;">
+                        Use a descriptive name that includes the disease, classification level, and guideline reference
+                    </div>
+                </div>
+
+                <!-- Disease and Status -->
+                <div class="row g-3 mb-4">
+                    <div class="col-md-6">
+                        <label asp-for="Input.DiseaseId" class="text-label">Disease *</label>
+                        <select asp-for="Input.DiseaseId" class="sn-input" asp-items="Model.DiseasesSelectList">
+                            <option value="">Select a disease...</option>
+                        </select>
+                        <span asp-validation-for="Input.DiseaseId" class="text-danger"></span>
+                    </div>
+                    <div class="col-md-6">
+                        <label asp-for="Input.ConfirmationStatusId" class="text-label">Classification Status *</label>
+                        <select asp-for="Input.ConfirmationStatusId" class="sn-input" asp-items="Model.CaseStatusesSelectList">
+                            <option value="">Select status...</option>
+                        </select>
+                        <span asp-validation-for="Input.ConfirmationStatusId" class="text-danger"></span>
+                    </div>
+                </div>
+
+                <!-- Active Dates -->
+                <div class="row g-3 mb-4">
+                    <div class="col-md-6">
+                        <label asp-for="Input.DateActiveFrom" class="text-label">Active From *</label>
+                        <input asp-for="Input.DateActiveFrom" type="date" class="sn-input" />
+                        <span asp-validation-for="Input.DateActiveFrom" class="text-danger"></span>
+                    </div>
+                    <div class="col-md-6">
+                        <label asp-for="Input.DateActiveTo" class="text-label">Active Until (optional)</label>
+                        <input asp-for="Input.DateActiveTo" type="date" class="sn-input" />
+                        <span asp-validation-for="Input.DateActiveTo" class="text-danger"></span>
+                        <div class="text-muted" style="font-size: 0.75rem; margin-top: 0.5rem;">
+                            Leave blank if this definition should remain active indefinitely
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Apply to Child Diseases -->
+                <div class="mb-4">
+                    <div class="form-check">
+                        <input asp-for="Input.ApplyToChildDiseases" type="checkbox" class="form-check-input" />
+                        <label asp-for="Input.ApplyToChildDiseases" class="form-check-label">
+                            Apply to all variants (child diseases)
+                        </label>
+                    </div>
+                    <div class="text-muted" style="font-size: 0.75rem; margin-top: 0.5rem; margin-left: 1.5rem;">
+                        If checked, this definition will also apply to all sub-diseases (e.g., COVID-19 variants)
+                    </div>
+                </div>
+            </div>
+
+            <!-- Classification Behavior -->
+            <div class="sentinel-card mb-4">
+                <h3 style="font-size: 1.125rem; font-weight: 600; margin-bottom: 1rem;">
+                    <i class="bi bi-lightning-charge"></i>
+                    Classification Behavior
+                </h3>
+                <p class="text-muted mb-4" style="font-size: 0.875rem;">
+                    Choose how the system should handle cases that meet this definition
+                </p>
+
+                <div class="row g-3">
+                    <!-- Manual Only -->
+                    <div class="col-12">
+                        <div class="classification-mode-card">
+                            <input type="radio" asp-for="Input.ClassificationMode" value="Manual" id="modeManual" class="form-check-input" />
+                            <label for="modeManual" class="d-block">
+                                <div class="d-flex align-items-start gap-3">
+                                    <div style="font-size: 1.5rem; color: var(--graphite);">
+                                        <i class="bi bi-hand-index"></i>
+                                    </div>
+                                    <div class="flex-grow-1">
+                                        <div class="classification-mode-title">Manual Classification Only</div>
+                                        <p class="classification-mode-desc">
+                                            This definition is for reference only. Cases must be classified manually by epidemiologists. No automation.
+                                        </p>
+                                    </div>
+                                </div>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Suggest -->
+                    <div class="col-12">
+                        <div class="classification-mode-card">
+                            <input type="radio" asp-for="Input.ClassificationMode" value="Suggest" id="modeSuggest" class="form-check-input" checked />
+                            <label for="modeSuggest" class="d-block">
+                                <div class="d-flex align-items-start gap-3">
+                                    <div style="font-size: 1.5rem; color: var(--signal-dk);">
+                                        <i class="bi bi-lightbulb"></i>
+                                    </div>
+                                    <div class="flex-grow-1">
+                                        <div class="classification-mode-title">Suggest Classification (Recommended)</div>
+                                        <p class="classification-mode-desc">
+                                            When criteria are met, create a review queue item suggesting the classification change. An epidemiologist must approve before the case status changes. Provides oversight while reducing manual effort.
+                                        </p>
+                                    </div>
+                                </div>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Auto-classify with Review -->
+                    <div class="col-12">
+                        <div class="classification-mode-card">
+                            <input type="radio" asp-for="Input.ClassificationMode" value="AutoWithReview" id="modeAutoReview" class="form-check-input" />
+                            <label for="modeAutoReview" class="d-block">
+                                <div class="d-flex align-items-start gap-3">
+                                    <div style="font-size: 1.5rem; color: var(--signal-dk);">
+                                        <i class="bi bi-lightning-charge-fill"></i>
+                                    </div>
+                                    <div class="flex-grow-1">
+                                        <div class="classification-mode-title">Auto-Classify with Review Queue</div>
+                                        <p class="classification-mode-desc">
+                                            Automatically change case status when criteria are met, but create a review queue item for audit. The epidemiologist can review the automatic decision after it's applied. Fastest processing with audit trail.
+                                        </p>
+                                    </div>
+                                </div>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Auto-classify Silent -->
+                    <div class="col-12">
+                        <div class="classification-mode-card">
+                            <input type="radio" asp-for="Input.ClassificationMode" value="AutoSilent" id="modeAutoSilent" class="form-check-input" />
+                            <label for="modeAutoSilent" class="d-block">
+                                <div class="d-flex align-items-start gap-3">
+                                    <div style="font-size: 1.5rem; color: var(--signal-dk);">
+                                        <i class="bi bi-robot"></i>
+                                    </div>
+                                    <div class="flex-grow-1">
+                                        <div class="classification-mode-title">Auto-Classify (No Review Queue)</div>
+                                        <p class="classification-mode-desc">
+                                            Automatically change case status without creating review items. Use only for well-established, high-confidence criteria. All changes are still logged in case classification history.
+                                        </p>
+                                    </div>
+                                </div>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Navigation -->
+            <div class="d-flex justify-content-between">
+                <a asp-page="./Index" class="sn-btn sn-btn-ghost">
+                    <i class="bi bi-x-lg"></i>
+                    Cancel
+                </a>
+                <button type="submit" class="sn-btn sn-btn-signal">
+                    Next: Add Criteria
+                    <i class="bi bi-arrow-right"></i>
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+
+    <script>
+        // Add interactivity to radio cards
+        document.querySelectorAll('.classification-mode-card').forEach(card => {
+            card.addEventListener('click', function() {
+                const radio = this.querySelector('input[type="radio"]');
+                radio.checked = true;
+
+                // Remove selected state from all cards
+                document.querySelectorAll('.classification-mode-card').forEach(c => {
+                    c.style.borderColor = 'var(--hairline)';
+                    c.style.background = 'var(--chalk)';
+                });
+
+                // Add selected state to clicked card
+                this.style.borderColor = 'var(--signal-dk)';
+                this.style.background = 'var(--signal-lt)';
+            });
+        });
+
+        // Set initial selected state
+        document.addEventListener('DOMContentLoaded', function() {
+            const checkedRadio = document.querySelector('.classification-mode-card input[type="radio"]:checked');
+            if (checkedRadio) {
+                const card = checkedRadio.closest('.classification-mode-card');
+                card.style.borderColor = 'var(--signal-dk)';
+                card.style.background = 'var(--signal-lt)';
+            }
+        });
+    </script>
+}

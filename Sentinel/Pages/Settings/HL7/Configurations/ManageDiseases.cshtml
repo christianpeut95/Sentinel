@@ -1,0 +1,272 @@
+@page "{id:guid}"
+@model Sentinel.Pages.Settings.HL7.Configurations.ManageDiseasesModel
+
+@{
+    ViewData["Title"] = "Manage Disease Mappings";
+    Layout = "~/Pages/Shared/_LayoutSentinel.cshtml";
+}
+
+<nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a asp-page="/Index">Home</a></li>
+        <li class="breadcrumb-item"><a asp-page="/Settings/Index">Settings</a></li>
+        <li class="breadcrumb-item"><a asp-page="./Index">HL7 Configurations</a></li>
+        <li class="breadcrumb-item active" aria-current="page">Disease Mappings</li>
+    </ol>
+</nav>
+
+<div class="sentinel-page-header mb-4">
+    <div>
+        <div class="sentinel-eyebrow">HL7 Configuration</div>
+        <h1 class="sentinel-page-title">@Model.Configuration.ConfigurationName</h1>
+        <p class="sentinel-page-subtitle">Disease associations and field mapping configuration</p>
+    </div>
+    <div>
+        <a asp-page="./Edit" asp-route-id="@Model.Configuration.Id" class="sn-btn sn-btn--ghost">
+            <i class="bi bi-gear"></i> Settings
+        </a>
+    </div>
+</div>
+
+<!-- Test Mode Banner -->
+@if (Model.Configuration.IsTestMode)
+{
+    <div class="alert" style="background:#FBEDD1;border:1px solid #EBD196;border-radius:6px;padding:16px;margin-bottom:24px;display:flex;align-items:center;gap:12px">
+        <div style="width:8px;height:8px;border-radius:50%;background:#E0A43A"></div>
+        <div style="flex:1">
+            <div style="font-size:14px;font-weight:500;color:#6A4410;margin-bottom:4px">
+                <i class="bi bi-shield-check"></i> Test Mode Active
+            </div>
+            <div style="font-size:13px;color:#6A4410">
+                HL7 messages will be staged but not committed to the database. Use this mode to verify mappings before going live.
+            </div>
+        </div>
+        <form method="post" asp-page-handler="DisableTestMode" style="margin:0">
+            <button type="submit" class="sn-btn sn-btn--sm" style="background:#E0A43A;color:#fff">
+                Disable Test Mode
+            </button>
+        </form>
+    </div>
+}
+else
+{
+    <div class="alert" style="background:#D9F2E5;border:1px solid #9BE8C6;border-radius:6px;padding:16px;margin-bottom:24px;display:flex;align-items:center;gap:12px">
+        <div style="width:8px;height:8px;border-radius:50%;background:#159C6E"></div>
+        <div style="flex:1">
+            <div style="font-size:14px;font-weight:500;color:#0A3F2C;margin-bottom:4px">
+                <i class="bi bi-check-circle"></i> Production Mode
+            </div>
+            <div style="font-size:13px;color:#0A3F2C">
+                HL7 messages are being processed and committed to the database.
+            </div>
+        </div>
+        <form method="post" asp-page-handler="EnableTestMode" style="margin:0">
+            <button type="submit" class="sn-btn sn-btn--ghost sn-btn--sm">
+                Enable Test Mode
+            </button>
+        </form>
+    </div>
+}
+
+<div class="row">
+    <div class="col-12">
+        <!-- Disease Associations -->
+        <div class="sentinel-card mb-4">
+            <div class="sentinel-card-body">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
+                    <div>
+                        <h3 class="sentinel-section-title" style="margin-bottom:4px">Disease Associations</h3>
+                        <p style="font-size:13px;color:var(--graphite);margin:0">
+                            Associate this configuration with diseases to enable disease-specific field mappings
+                        </p>
+                    </div>
+                    <button type="button" class="sn-btn sn-btn--signal" data-bs-toggle="modal" data-bs-target="#addDiseaseModal">
+                        <i class="bi bi-plus-lg"></i> Add Disease
+                    </button>
+                </div>
+
+                @if (Model.ConfigurationDiseases.Any())
+                {
+                    <div style="display:grid;gap:12px">
+                        @foreach (var cd in Model.ConfigurationDiseases.OrderByDescending(c => c.Priority))
+                        {
+                            <div class="card" style="padding:16px;border:1px solid var(--hairline);border-radius:8px;background:var(--chalk)">
+                                <div style="display:flex;align-items:center;gap:16px">
+                                    <div style="flex:1">
+                                        <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
+                                            <h5 style="font-size:16px;font-weight:600;margin:0">@cd.Disease?.Name</h5>
+                                            @if (cd.IsDefault)
+                                            {
+                                                <span class="chip" style="background:var(--signal-lt);color:#0A3F2C;border-color:#9BE8C6;font-size:10px;padding:3px 9px">
+                                                    <span class="dot" style="background:var(--signal-dk)"></span>Default
+                                                </span>
+                                            }
+                                        </div>
+                                        <div style="font-size:13px;color:var(--graphite)">
+                                            Priority: <span style="font-family:var(--f-mono)">@cd.Priority</span>
+                                            @if (!string.IsNullOrEmpty(cd.Notes))
+                                            {
+                                                <span> · @cd.Notes</span>
+                                            }
+                                        </div>
+                                    </div>
+                                    <div style="display:flex;gap:8px">
+                                        <a asp-page="/Settings/HL7/FieldMappings/Index" 
+                                           asp-route-configId="@Model.Configuration.Id" 
+                                           asp-route-diseaseId="@cd.DiseaseId"
+                                           class="sn-btn sn-btn--ghost sn-btn--sm">
+                                            <i class="bi bi-diagram-3"></i> Mappings
+                                        </a>
+                                        <form method="post" asp-page-handler="RemoveDisease" asp-route-diseaseId="@cd.DiseaseId" style="margin:0;display:inline">
+                                            <button type="submit" class="sn-btn sn-btn--ghost sn-btn--sm" 
+                                                    onclick="return confirm('Remove disease association?')">
+                                                <i class="bi bi-trash"></i>
+                                            </button>
+                                        </form>
+                                    </div>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                }
+                else
+                {
+                    <div style="text-align:center;padding:40px;color:var(--graphite)">
+                        <i class="bi bi-inbox" style="font-size:48px;opacity:.3"></i>
+                        <p style="margin-top:16px;font-size:14px">No disease associations configured yet.</p>
+                        <p style="font-size:13px">Add diseases to enable disease-specific field mappings.</p>
+                    </div>
+                }
+            </div>
+        </div>
+
+        <!-- Default Field Mappings -->
+        <div class="sentinel-card">
+            <div class="sentinel-card-body">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
+                    <div>
+                        <h3 class="sentinel-section-title" style="margin-bottom:4px">Default Field Mappings</h3>
+                        <p style="font-size:13px;color:var(--graphite);margin:0">
+                            These mappings apply to all diseases unless overridden by disease-specific mappings
+                        </p>
+                    </div>
+                    <a asp-page="/Settings/HL7/FieldMappings/Index" 
+                       asp-route-configId="@Model.Configuration.Id"
+                       class="sn-btn sn-btn--signal">
+                        <i class="bi bi-diagram-3"></i> Manage Mappings
+                    </a>
+                </div>
+
+                @if (Model.DefaultMappings.Any())
+                {
+                    <div class="sn-table-responsive">
+                        <table class="sn-table">
+                            <thead>
+                                <tr>
+                                    <th>Target Field</th>
+                                    <th>HL7 Location</th>
+                                    <th>Mapping Type</th>
+                                    <th>Priority</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var mapping in Model.DefaultMappings.OrderByDescending(m => m.Priority))
+                                {
+                                    <tr>
+                                        <td>
+                                            <div style="font-weight:500">@mapping.TargetEntity.@mapping.TargetProperty</div>
+                                            @if (!string.IsNullOrEmpty(mapping.FieldName))
+                                            {
+                                                <div style="font-size:12px;color:var(--graphite)">@mapping.FieldName</div>
+                                            }
+                                        </td>
+                                        <td style="font-family:var(--f-mono);font-size:12px">@mapping.FieldPath</td>
+                                        <td>
+                                            <span style="font-size:12px;color:var(--graphite)">@mapping.MappingType</span>
+                                        </td>
+                                        <td style="font-family:var(--f-mono);font-size:12px">@mapping.Priority</td>
+                                        <td>
+                                            @if (mapping.IsActive)
+                                            {
+                                                <span class="chip" style="background:var(--signal-lt);color:#0A3F2C;border-color:#9BE8C6;font-size:10px;padding:3px 9px">
+                                                    <span class="dot" style="background:var(--signal-dk)"></span>Active
+                                                </span>
+                                            }
+                                            else
+                                            {
+                                                <span style="font-size:12px;color:var(--slate)">Inactive</span>
+                                            }
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+                else
+                {
+                    <div style="text-align:center;padding:40px;color:var(--graphite)">
+                        <i class="bi bi-diagram-3" style="font-size:48px;opacity:.3"></i>
+                        <p style="margin-top:16px;font-size:14px">No default field mappings configured.</p>
+                        <p style="font-size:13px">Add mappings to define how HL7 fields are extracted.</p>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add Disease Modal -->
+<div class="modal fade" id="addDiseaseModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content" style="border-radius:8px;border:1px solid var(--hairline)">
+            <form method="post" asp-page-handler="AddDisease">
+                <div class="modal-header" style="border-bottom:1px solid var(--hairline)">
+                    <h5 class="modal-title" style="font-size:18px;font-weight:600">Add Disease Association</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body" style="padding:24px">
+                    <div class="form-field">
+                        <label class="sn-label">Disease</label>
+                        <select name="diseaseId" class="sn-input" required>
+                            <option value="">Select a disease...</option>
+                            @foreach (var disease in Model.AvailableDiseases)
+                            {
+                                <option value="@disease.Id">@disease.Name</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="form-field">
+                        <label class="sn-label">Priority</label>
+                        <input type="number" name="priority" class="sn-input" value="100" min="1" max="999" required />
+                        <small style="font-size:12px;color:var(--graphite);margin-top:4px;display:block">
+                            Higher priority diseases are checked first during processing
+                        </small>
+                    </div>
+                    <div class="form-field">
+                        <label class="sn-label">
+                            <input type="checkbox" name="isDefault" style="width:auto;margin-right:8px" />
+                            Set as default disease
+                        </label>
+                        <small style="font-size:12px;color:var(--graphite);margin-top:4px;display:block">
+                            Default disease is used when no specific disease can be identified
+                        </small>
+                    </div>
+                    <div class="form-field" style="margin-bottom:0">
+                        <label class="sn-label">Notes (optional)</label>
+                        <textarea name="notes" class="sn-textarea" rows="3" placeholder="Add any relevant notes..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer" style="border-top:1px solid var(--hairline);padding:16px 24px;display:flex;gap:10px">
+                    <button type="button" class="sn-btn sn-btn--ghost" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="sn-btn sn-btn--signal">Add Disease</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

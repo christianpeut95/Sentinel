@@ -1,0 +1,266 @@
+@page
+@model Sentinel.Pages.Settings.Pathogens.IndexModel
+
+@{
+    ViewData["Title"] = "Pathogens & Biomarkers";
+    ViewData["Subtitle"] = "Manage laboratory test pathogens and biomarkers";
+    Layout = "~/Pages/Shared/_LayoutSentinel.cshtml";
+}
+
+<nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a asp-page="/Index">Home</a></li>
+        <li class="breadcrumb-item"><a asp-page="/Settings/Index">Settings</a></li>
+        <li class="breadcrumb-item active" aria-current="page">Pathogens</li>
+    </ol>
+</nav>
+
+<div class="sentinel-page-header">
+    <div>
+        <div class="sentinel-eyebrow">Laboratory Reference Data</div>
+        <h1 class="sentinel-page-title">Pathogens & Biomarkers</h1>
+        <p class="sentinel-page-subtitle">Manage pathogen definitions, LOINC codes, and laboratory test parameters</p>
+    </div>
+    <div class="sentinel-page-actions">
+        <a asp-page="Create" class="sn-btn sn-btn--signal">
+            <i class="bi bi-plus-lg"></i>
+            Add Pathogen
+        </a>
+    </div>
+</div>
+
+<!-- Search & Filters -->
+<div class="sentinel-card mb-4">
+    <div class="sentinel-card-body">
+        <form method="get" class="row g-3">
+            <div class="col-md-4">
+                <label class="sn-label">Search</label>
+                <input type="text" 
+                       name="searchTerm" 
+                       value="@Model.SearchTerm" 
+                       class="sn-input" 
+                       placeholder="Search by name or LOINC code..." />
+            </div>
+            <div class="col-md-3">
+                <label class="sn-label">Disease</label>
+                <select name="diseaseId" class="sn-input">
+                    <option value="">All diseases</option>
+                    @foreach (var disease in Model.Diseases)
+                    {
+                        <option value="@disease.Id" selected="@(Model.DiseaseId == disease.Id)">@disease.Name</option>
+                    }
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="sn-label">Category</label>
+                <select name="category" class="sn-input">
+                    <option value="">All categories</option>
+                    @foreach (var cat in Enum.GetValues<Sentinel.Models.Pathogens.PathogenCategory>())
+                    {
+                        <option value="@cat" selected="@(Model.Category == cat.ToString())">
+                            @cat.ToString().Replace("_", " ")
+                        </option>
+                    }
+                </select>
+            </div>
+            <div class="col-md-2 d-flex align-items-end gap-2">
+                <button type="submit" class="sn-btn sn-btn--primary flex-fill">
+                    <i class="bi bi-search"></i>
+                    Filter
+                </button>
+                <a asp-page="Index" class="sn-btn sn-btn--ghost">
+                    <i class="bi bi-x-lg"></i>
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Summary KPIs -->
+<div class="row g-3 mb-4">
+    <div class="col-md-3">
+        <div class="sn-kpi">
+            <div class="sn-kpi-label">Total Pathogens</div>
+            <div class="sn-kpi-value">@Model.TotalCount</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="sn-kpi">
+            <div class="sn-kpi-label">Active</div>
+            <div class="sn-kpi-value"><em>@Model.ActiveCount</em></div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="sn-kpi">
+            <div class="sn-kpi-label">With LOINC</div>
+            <div class="sn-kpi-value"><em>@Model.WithLoincCount</em></div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="sn-kpi">
+            <div class="sn-kpi-label">Diseases Covered</div>
+            <div class="sn-kpi-value">@Model.DiseasesCount</div>
+        </div>
+    </div>
+</div>
+
+<!-- Pathogens Table -->
+<div class="sentinel-card">
+    <div class="sentinel-card-body p-0">
+        @if (!Model.Pathogens.Any())
+        {
+            <div class="p-5 text-center">
+                <i class="bi bi-inbox" style="font-size: 3rem; color: var(--sn-graphite); opacity: 0.4;"></i>
+                <p class="mt-3 mb-0" style="color: var(--sn-graphite);">
+                    No pathogens found. @(string.IsNullOrEmpty(Model.SearchTerm) ? "Add your first pathogen to get started." : "Try adjusting your filters.")
+                </p>
+            </div>
+        }
+        else
+        {
+            <div class="table-responsive">
+                <table class="sn-table">
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>LOINC Code</th>
+                            <th>Category</th>
+                            <th>Result Type</th>
+                            <th>Disease</th>
+                            <th>Status</th>
+                            <th class="text-end">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var pathogen in Model.Pathogens)
+                        {
+                            <tr>
+                                <td>
+                                    <div class="fw-semibold">@pathogen.Name</div>
+                                    @if (!string.IsNullOrEmpty(pathogen.ShortName))
+                                    {
+                                        <div class="sentinel-meta-text">@pathogen.ShortName</div>
+                                    }
+                                </td>
+                                <td>
+                                    @if (!string.IsNullOrEmpty(pathogen.LOINCCode))
+                                    {
+                                        <code class="sentinel-code">@pathogen.LOINCCode</code>
+                                    }
+                                    else
+                                    {
+                                        <span class="sentinel-meta-text">—</span>
+                                    }
+                                </td>
+                                <td>
+                                    <span class="sentinel-badge">
+                                        @pathogen.Category.ToString().Replace("_", " ")
+                                    </span>
+                                </td>
+                                <td>
+                                    <span class="sentinel-badge sentinel-badge--outline">
+                                        @pathogen.ResultType
+                                    </span>
+                                </td>
+                                <td>
+                                    @if (pathogen.Disease != null)
+                                    {
+                                        <span>@pathogen.Disease.Name</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="sentinel-meta-text">—</span>
+                                    }
+                                </td>
+                                <td>
+                                    @if (pathogen.IsActive)
+                                    {
+                                        <span class="sn-chip sn-chip--clear">
+                                            <span class="sn-chip__dot"></span>
+                                            Active
+                                        </span>
+                                    }
+                                    else
+                                    {
+                                        <span class="sn-chip sn-chip--info">
+                                            <span class="sn-chip__dot"></span>
+                                            Inactive
+                                        </span>
+                                    }
+                                </td>
+                                <td class="text-end">
+                                    <div class="btn-group btn-group-sm">
+                                        <a asp-page="./Edit" asp-route-id="@pathogen.Id" 
+                                           class="sn-btn sn-btn--ghost sn-btn--sm" 
+                                           title="Edit">
+                                            <i class="bi bi-pencil"></i>
+                                        </a>
+                                        <a asp-page="./Delete" asp-route-id="@pathogen.Id" 
+                                           class="sn-btn sn-btn--ghost sn-btn--sm" 
+                                           title="Delete">
+                                            <i class="bi bi-trash"></i>
+                                        </a>
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+
+            @if (Model.TotalPages > 1)
+            {
+                <div class="sentinel-card-footer d-flex justify-content-between align-items-center">
+                    <div class="sentinel-meta-text">
+                        Showing @((Model.PageNumber - 1) * Model.PageSize + 1) to @Math.Min(Model.PageNumber * Model.PageSize, Model.TotalCount) of @Model.TotalCount
+                    </div>
+                    <nav aria-label="Pagination">
+                        <ul class="pagination pagination-sm mb-0">
+                            <li class="page-item @(Model.PageNumber == 1 ? "disabled" : "")">
+                                <a class="page-link" asp-page="Index" 
+                                   asp-route-pageNumber="@(Model.PageNumber - 1)"
+                                   asp-route-searchTerm="@Model.SearchTerm"
+                                   asp-route-diseaseId="@Model.DiseaseId"
+                                   asp-route-category="@Model.Category">
+                                    Previous
+                                </a>
+                            </li>
+                            @for (int i = 1; i <= Model.TotalPages; i++)
+                            {
+                                <li class="page-item @(i == Model.PageNumber ? "active" : "")">
+                                    <a class="page-link" asp-page="Index" 
+                                       asp-route-pageNumber="@i"
+                                       asp-route-searchTerm="@Model.SearchTerm"
+                                       asp-route-diseaseId="@Model.DiseaseId"
+                                       asp-route-category="@Model.Category">
+                                        @i
+                                    </a>
+                                </li>
+                            }
+                            <li class="page-item @(Model.PageNumber == Model.TotalPages ? "disabled" : "")">
+                                <a class="page-link" asp-page="Index" 
+                                   asp-route-pageNumber="@(Model.PageNumber + 1)"
+                                   asp-route-searchTerm="@Model.SearchTerm"
+                                   asp-route-diseaseId="@Model.DiseaseId"
+                                   asp-route-category="@Model.Category">
+                                    Next
+                                </a>
+                            </li>
+                        </ul>
+                    </nav>
+                </div>
+            }
+        }
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        // Auto-submit form on filter change
+        document.querySelectorAll('select[name="diseaseId"], select[name="category"]').forEach(select => {
+            select.addEventListener('change', () => {
+                select.closest('form').submit();
+            });
+        });
+    </script>
+}

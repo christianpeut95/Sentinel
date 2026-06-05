@@ -15,6 +15,20 @@ namespace Sentinel.Models.Lookups
         [StringLength(500)]
         public string? Description { get; set; }
 
+        // SNOMED CT Standardization
+        [Display(Name = "SNOMED CT Code")]
+        [StringLength(20)]
+        [RegularExpression(@"^\d{6,18}$", ErrorMessage = "SNOMED CT code must be 6-18 digits")]
+        public string? SnomedCode { get; set; }
+
+        [Display(Name = "SNOMED CT Display")]
+        [StringLength(200)]
+        public string? SnomedDisplay { get; set; }
+
+        [Display(Name = "HL7 v2 Code")]
+        [StringLength(20)]
+        public string? Hl7Code { get; set; }
+
         [Display(Name = "Export Code")]
         [StringLength(50)]
         public string? ExportCode { get; set; }
@@ -31,6 +45,7 @@ namespace Sentinel.Models.Lookups
         public TestType? TestType { get; set; }
 
         public ICollection<LabResult> LabResults { get; set; } = new List<LabResult>();
+        public ICollection<LabResultMarker> LabResultMarkers { get; set; } = new List<LabResultMarker>();
     }
 }
 

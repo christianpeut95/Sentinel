@@ -27,6 +27,7 @@ namespace Sentinel.Pages.Cases
         private readonly IJurisdictionService _jurisdictionService;
         private readonly IPatientAddressService _patientAddressService;
         private readonly ILogger<DetailsModel> _logger;
+        private readonly Services.CaseDefinitionEvaluation.ICaseDefinitionEvaluationService? _evaluationService;
 
         public DetailsModel(
             ApplicationDbContext context, 
@@ -37,7 +38,8 @@ namespace Sentinel.Pages.Cases
             ITaskService taskService, 
             IJurisdictionService jurisdictionService,
             IPatientAddressService patientAddressService,
-            ILogger<DetailsModel> logger)
+            ILogger<DetailsModel> logger,
+            Services.CaseDefinitionEvaluation.ICaseDefinitionEvaluationService? evaluationService = null)
         {
             _context = context;
             _auditService = auditService;
@@ -48,6 +50,7 @@ namespace Sentinel.Pages.Cases
             _jurisdictionService = jurisdictionService;
             _patientAddressService = patientAddressService;
             _logger = logger;
+            _evaluationService = evaluationService;
         }
 
         public Case Case { get; set; } = default!;
@@ -76,6 +79,13 @@ namespace Sentinel.Pages.Cases
         // Address comparison properties
         public bool PatientHasDifferentAddress { get; set; }
         public bool PatientJurisdictionMappingInProgress { get; set; }
+
+        // Case Definition Evaluation
+        public List<Services.CaseDefinitionEvaluation.EvaluationResult> EvaluationResults { get; set; } = new();
+        public bool ShowEvaluationResults { get; set; }
+
+        // Manual Override properties
+        public string ManualOverrideByUserName { get; set; } = string.Empty;
 
         // Note properties - NOT bound automatically to avoid validation conflicts
         public Note NewNote { get; set; } = default!;
@@ -139,6 +149,20 @@ namespace Sentinel.Pages.Cases
 
             Case = caseEntity;
 
+            // Load manual override user name if applicable
+            if (Case.ConfirmationStatusManualOverride && !string.IsNullOrEmpty(Case.ConfirmationStatusManualOverrideByUserId))
+            {
+                var user = await _context.Users.FindAsync(Case.ConfirmationStatusManualOverrideByUserId);
+                if (user != null)
+                {
+                    ManualOverrideByUserName = !string.IsNullOrWhiteSpace(user.FirstName) && !string.IsNullOrWhiteSpace(user.LastName)
+                        ? $"{user.FirstName} {user.LastName}"
+                        : !string.IsNullOrWhiteSpace(user.Email)
+                            ? user.Email
+                            : user.UserName ?? "Unknown User";
+                }
+            }
+
             // Load notes for this case
             Notes = await _context.Notes
                 .Where(n => n.CaseId == id)
@@ -150,10 +174,12 @@ namespace Sentinel.Pages.Cases
                 .Include(lr => lr.Laboratory)
                 .Include(lr => lr.OrderingProvider)
                 .Include(lr => lr.SpecimenType)
-                .Include(lr => lr.TestType)
-                .Include(lr => lr.TestResult)
                 .Include(lr => lr.ResultUnits)
                 .Include(lr => lr.TestedDisease)
+                .Include(lr => lr.Markers)
+                    .ThenInclude(m => m.Pathogen)
+                .Include(lr => lr.Markers)
+                    .ThenInclude(m => m.TestMethod)
                 .Where(lr => lr.CaseId == id)
                 .OrderByDescending(lr => lr.ResultDate)
                 .ThenByDescending(lr => lr.SpecimenCollectionDate)
@@ -264,25 +290,29 @@ namespace Sentinel.Pages.Cases
                 "Name"
             );
 
-            TestTypesList = new SelectList(
-                await _context.TestTypes
-                    .Where(t => t.IsActive)
-                    .OrderBy(t => t.DisplayOrder)
-                    .ThenBy(t => t.Name)
-                    .ToListAsync(),
-                "Id",
-                "Name"
-            );
+            // LEGACY: TestTypes removed - use Pathogen/Markers system instead
+            TestTypesList = new SelectList(new List<object>()); // Empty list
+            // TestTypesList = new SelectList(
+            //     await _context.TestTypes
+            //         .Where(t => t.IsActive)
+            //         .OrderBy(t => t.DisplayOrder)
+            //         .ThenBy(t => t.Name)
+            //         .ToListAsync(),
+            //     "Id",
+            //     "Name"
+            // );
 
-            TestResultsList = new SelectList(
-                await _context.TestResults
-                    .Where(r => r.IsActive)
-                    .OrderBy(r => r.DisplayOrder)
-                    .ThenBy(r => r.Name)
-                    .ToListAsync(),
-                "Id",
-                "Name"
-            );
+            // LEGACY: TestResults removed - use Pathogen/Markers system instead
+            TestResultsList = new SelectList(new List<object>()); // Empty list
+            // TestResultsList = new SelectList(
+            //     await _context.TestResults
+            //         .Where(r => r.IsActive)
+            //         .OrderBy(r => r.DisplayOrder)
+            //         .ThenBy(r => r.Name)
+            //         .ToListAsync(),
+            //     "Id",
+            //     "Name"
+            // );
 
             ResultUnitsList = new SelectList(
                 await _context.ResultUnits
@@ -395,8 +425,6 @@ namespace Sentinel.Pages.Cases
             NewLabResult.Laboratory = null;
             NewLabResult.OrderingProvider = null;
             NewLabResult.SpecimenType = null;
-            NewLabResult.TestType = null;
-            NewLabResult.TestResult = null;
             NewLabResult.ResultUnits = null;
             NewLabResult.TestedDisease = null;
 
@@ -489,11 +517,8 @@ namespace Sentinel.Pages.Cases
             existingLabResult.AccessionNumber = NewLabResult.AccessionNumber;
             existingLabResult.SpecimenCollectionDate = NewLabResult.SpecimenCollectionDate;
             existingLabResult.SpecimenTypeId = NewLabResult.SpecimenTypeId;
-            existingLabResult.TestTypeId = NewLabResult.TestTypeId;
             existingLabResult.TestedDiseaseId = NewLabResult.TestedDiseaseId;
-            existingLabResult.TestResultId = NewLabResult.TestResultId;
             existingLabResult.ResultDate = NewLabResult.ResultDate;
-            existingLabResult.QuantitativeResult = NewLabResult.QuantitativeResult;
             existingLabResult.ResultUnitsId = NewLabResult.ResultUnitsId;
             existingLabResult.IsAmended = NewLabResult.IsAmended;
             existingLabResult.Notes = NewLabResult.Notes;
@@ -553,10 +578,10 @@ namespace Sentinel.Pages.Cases
                 .Include(lr => lr.Laboratory)
                 .Include(lr => lr.OrderingProvider)
                 .Include(lr => lr.SpecimenType)
-                .Include(lr => lr.TestType)
-                .Include(lr => lr.TestResult)
                 .Include(lr => lr.ResultUnits)
                 .Include(lr => lr.TestedDisease)
+                .Include(lr => lr.Markers).ThenInclude(m => m.Pathogen)
+                .Include(lr => lr.Markers).ThenInclude(m => m.TestMethod)
                 .FirstOrDefaultAsync(lr => lr.Id == labResultId);
 
             if (labResult == null)
@@ -579,14 +604,9 @@ namespace Sentinel.Pages.Cases
                     specimenCollectionDate = labResult.SpecimenCollectionDate?.ToString("yyyy-MM-dd"),
                     specimenTypeId = labResult.SpecimenTypeId,
                     specimenTypeName = labResult.SpecimenType?.Name,
-                    testTypeId = labResult.TestTypeId,
-                    testTypeName = labResult.TestType?.Name,
                     testedDiseaseId = labResult.TestedDiseaseId,
                     testedDiseaseName = labResult.TestedDisease?.Name,
-                    testResultId = labResult.TestResultId,
-                    testResultName = labResult.TestResult?.Name,
                     resultDate = labResult.ResultDate?.ToString("yyyy-MM-dd"),
-                    quantitativeResult = labResult.QuantitativeResult,
                     resultUnitsId = labResult.ResultUnitsId,
                     resultUnitsName = labResult.ResultUnits?.Name,
                     isAmended = labResult.IsAmended,
@@ -594,6 +614,22 @@ namespace Sentinel.Pages.Cases
                     labInterpretation = labResult.LabInterpretation,
                     attachmentPath = labResult.AttachmentPath,
                     attachmentFileName = labResult.AttachmentFileName,
+                    markers = labResult.Markers.Select(m => new
+                    {
+                        id = m.Id,
+                        pathogenId = m.PathogenId,
+                        pathogenName = m.Pathogen?.Name,
+                        testMethodId = m.TestMethodId,
+                        testMethodName = m.TestMethod?.Name,
+                        qualitativeResult = m.QualitativeResultText,
+                        quantitativeValue = m.QuantitativeValue,
+                        quantitativeUnit = m.QuantitativeUnit,
+                        referenceRangeLow = m.ReferenceRangeLow,
+                        referenceRangeHigh = m.ReferenceRangeHigh,
+                        interpretationFlag = m.InterpretationFlag,
+                        loincCode = m.LOINCCode,
+                        notes = m.Notes
+                    }).ToList(),
                     createdAt = labResult.CreatedAt.ToString("dd MMM yyyy HH:mm"),
                     modifiedAt = labResult.ModifiedAt?.ToString("dd MMM yyyy HH:mm")
                 }
@@ -636,28 +672,8 @@ namespace Sentinel.Pages.Cases
 
         public async Task<JsonResult> OnGetSearchTestResultsAsync(int? testTypeId, string term)
         {
-            var query = _context.TestResults.Where(tr => tr.IsActive);
-
-            // Filter by test type if provided
-            if (testTypeId.HasValue)
-            {
-                query = query.Where(tr => tr.TestTypeId == testTypeId.Value);
-            }
-
-            // Filter by search term if provided
-            if (!string.IsNullOrWhiteSpace(term))
-            {
-                query = query.Where(tr => tr.Name.Contains(term));
-            }
-
-            var testResults = await query
-                .OrderBy(tr => tr.DisplayOrder)
-                .ThenBy(tr => tr.Name)
-                .Take(20)
-                .Select(tr => new { id = tr.Id, text = tr.Name })
-                .ToListAsync();
-
-            return new JsonResult(testResults);
+            // LEGACY: TestResults removed - return empty list
+            return new JsonResult(new List<object>());
         }
 
         public async Task<IActionResult> OnPostDeleteNoteAsync(Guid id, Guid noteId)
@@ -1640,6 +1656,145 @@ namespace Sentinel.Pages.Cases
                     success = false,
                     message = $"Error copying address: {ex.Message}"
                 });
+            }
+        }
+
+        /// <summary>
+        /// Evaluates the case against all applicable case definitions
+        /// </summary>
+        [Authorize(Policy = "Permission.Case.View")]
+        public async Task<IActionResult> OnPostEvaluateDefinitionsAsync(Guid id)
+        {
+            try
+            {
+                if (_evaluationService == null)
+                {
+                    TempData["ErrorMessage"] = "Case definition evaluation service is not available.";
+                    return RedirectToPage(new { id });
+                }
+
+                // Evaluate all applicable definitions for this case
+                EvaluationResults = await _evaluationService.EvaluateAllDefinitionsForCaseAsync(id);
+                ShowEvaluationResults = true;
+
+                if (!EvaluationResults.Any())
+                {
+                    TempData["InfoMessage"] = "No active case definitions found for this disease.";
+                }
+                else
+                {
+                    var matchCount = EvaluationResults.Count(r => r.IsMatch);
+                    TempData["SuccessMessage"] = $"Evaluated {EvaluationResults.Count} definition(s). {matchCount} matched.";
+                }
+
+                // Reload the page with evaluation results
+                return await OnGetAsync(id);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error evaluating case definitions for case {CaseId}", id);
+                TempData["ErrorMessage"] = $"Error evaluating definitions: {ex.Message}";
+                return RedirectToPage(new { id });
+            }
+        }
+
+        /// <summary>
+        /// Applies a classification recommendation to the case
+        /// </summary>
+        [Authorize(Policy = "Permission.Case.Edit")]
+        public async Task<IActionResult> OnPostApplyClassificationAsync(Guid id, int definitionId)
+        {
+            try
+            {
+                if (_evaluationService == null)
+                {
+                    TempData["ErrorMessage"] = "Case definition evaluation service is not available.";
+                    return RedirectToPage(new { id });
+                }
+
+                // First evaluate the specific definition
+                var result = await _evaluationService.EvaluateCaseAsync(id, definitionId);
+
+                if (result == null || !result.IsMatch)
+                {
+                    TempData["ErrorMessage"] = "Case does not meet the definition criteria.";
+                    return RedirectToPage(new { id });
+                }
+
+                // Get current user ID
+                var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+                if (string.IsNullOrEmpty(userId))
+                {
+                    TempData["ErrorMessage"] = "User not authenticated.";
+                    return RedirectToPage(new { id });
+                }
+
+                // Apply the classification
+                await _evaluationService.ApplyClassificationAsync(id, result, userId);
+
+                TempData["SuccessMessage"] = $"Classification applied successfully: {result.CaseDefinitionName}";
+                return RedirectToPage(new { id });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error applying classification for case {CaseId}", id);
+                TempData["ErrorMessage"] = $"Error applying classification: {ex.Message}";
+                return RedirectToPage(new { id });
+            }
+        }
+
+        /// <summary>
+        /// Clears the manual override flag to re-enable automatic evaluation
+        /// </summary>
+        [Authorize(Policy = "Permission.Case.Edit")]
+        public async Task<IActionResult> OnPostClearManualOverrideAsync(Guid id)
+        {
+            try
+            {
+                var caseEntity = await _context.Cases.FindAsync(id);
+                if (caseEntity == null)
+                {
+                    TempData["ErrorMessage"] = "Case not found.";
+                    return RedirectToPage("./Index");
+                }
+
+                // Check disease access
+                if (caseEntity.DiseaseId.HasValue)
+                {
+                    var userId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
+                    var canAccess = await _diseaseAccessService.CanAccessDiseaseAsync(userId, caseEntity.DiseaseId.Value);
+
+                    if (!canAccess)
+                    {
+                        return Forbid();
+                    }
+                }
+
+                // Clear the manual override flags
+                caseEntity.ConfirmationStatusManualOverride = false;
+                caseEntity.ConfirmationStatusManualOverrideDate = null;
+                caseEntity.ConfirmationStatusManualOverrideByUserId = null;
+
+                await _context.SaveChangesAsync();
+
+                await _auditService.LogChangeAsync(
+                    entityType: "Case",
+                    entityId: id.ToString(),
+                    fieldName: "Confirmation Status Manual Override",
+                    oldValue: "True",
+                    newValue: "False",
+                    userId: User.FindFirstValue(ClaimTypes.NameIdentifier),
+                    ipAddress: HttpContext.Connection.RemoteIpAddress?.ToString()
+                );
+
+                TempData["SuccessMessage"] = "Automatic evaluation re-enabled successfully. The case will be evaluated automatically when data changes.";
+                return RedirectToPage(new { id });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error clearing manual override for case {CaseId}", id);
+                TempData["ErrorMessage"] = $"Error re-enabling automatic evaluation: {ex.Message}";
+                return RedirectToPage(new { id });
             }
         }
     }

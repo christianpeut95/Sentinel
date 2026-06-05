@@ -278,6 +278,34 @@ builder.Services.AddScoped<Sentinel.Services.Reporting.IReportFolderService, Sen
 builder.Services.AddScoped<Sentinel.Services.Reporting.ICollectionMetadataService, Sentinel.Services.Reporting.CollectionMetadataService>();
 builder.Services.AddScoped<Sentinel.Services.Reporting.IDynamicDateResolver, Sentinel.Services.Reporting.DynamicDateResolver>();
 builder.Services.AddScoped<Sentinel.Services.IDataReviewService, Sentinel.Services.DataReviewService>();
+
+// Case Definition Evaluation Services
+builder.Services.AddScoped<Sentinel.Services.CaseDefinitionEvaluation.OperatorEvaluator>();
+builder.Services.AddScoped<Sentinel.Services.CaseDefinitionEvaluation.FieldResolver>();
+builder.Services.AddScoped<Sentinel.Services.CaseDefinitionEvaluation.CriterionEvaluator>();
+builder.Services.AddScoped<Sentinel.Services.CaseDefinitionEvaluation.CriteriaGroupEvaluator>();
+builder.Services.AddScoped<Sentinel.Services.CaseDefinitionEvaluation.DefinitionEvaluator>();
+builder.Services.AddScoped<Sentinel.Services.CaseDefinitionEvaluation.ICaseDefinitionEvaluationService, Sentinel.Services.CaseDefinitionEvaluation.CaseDefinitionEvaluationService>();
+
+// HL7 Services
+builder.Services.AddScoped<Sentinel.Services.HL7.IHL7ParserService, Sentinel.Services.HL7.HL7ParserService>();
+builder.Services.AddScoped<Sentinel.Services.HL7.IDuplicateDetectionService, Sentinel.Services.HL7.DuplicateDetectionService>();
+builder.Services.AddScoped<Sentinel.Services.HL7.IHL7FieldMappingService, Sentinel.Services.HL7.HL7FieldMappingService>();
+builder.Services.AddScoped<Sentinel.Services.HL7.IHL7DataExtractionService, Sentinel.Services.HL7.HL7DataExtractionService>();
+builder.Services.AddScoped<Sentinel.Services.HL7.IHL7MarkerResolutionService, Sentinel.Services.HL7.HL7MarkerResolutionService>();
+builder.Services.AddScoped<Sentinel.Services.HL7.ICaseDefinitionMatchingService, Sentinel.Services.HL7.CaseDefinitionMatchingService>();
+builder.Services.AddScoped<Sentinel.Services.HL7.ICaseMatchingService, Sentinel.Services.HL7.CaseMatchingService>();
+builder.Services.AddScoped<Sentinel.Services.HL7.HL7DiagnosticService>();
+// HL7 File Monitor Service must be Singleton so all parts of app see the same monitoring state
+builder.Services.AddSingleton<Sentinel.Services.HL7.IHL7FileMonitorService, Sentinel.Services.HL7.HL7FileMonitorService>();
+
+// HL7 File Monitor Background Service
+builder.Services.AddHostedService<Sentinel.Services.HL7.HL7FileMonitorHostedService>();
+
+// Case Evaluation Queue and Background Worker
+builder.Services.AddSingleton<Sentinel.Services.CaseDefinitionEvaluation.ICaseEvaluationQueue, Sentinel.Services.CaseDefinitionEvaluation.CaseEvaluationQueue>();
+builder.Services.AddHostedService<Sentinel.Services.CaseDefinitionEvaluation.CaseEvaluationWorker>();
+
 builder.Services.AddScoped<Sentinel.Services.ISurveyMappingService, Sentinel.Services.SurveyMappingService>();
 builder.Services.AddScoped<Sentinel.Services.ICollectionMappingService, Sentinel.Services.CollectionMappingService>();
 builder.Services.AddScoped<Sentinel.Services.CollectionMappingValidationService>();
@@ -490,22 +518,30 @@ app.MapGet("/api/organizations/search", async (string term, ApplicationDbContext
 app.MapGet("/api/cases/{caseId}/lab-results", async (Guid caseId, ApplicationDbContext context) =>
 {
     var labResults = await context.LabResults
-        .Include(lr => lr.TestType)
-        .Include(lr => lr.TestResult)
         .Include(lr => lr.SpecimenType)
         .Include(lr => lr.ResultUnits)
+        .Include(lr => lr.TestedDisease)
+        .Include(lr => lr.Markers).ThenInclude(m => m.Pathogen)
+        .Include(lr => lr.Markers).ThenInclude(m => m.TestMethod)
         .Where(lr => lr.CaseId == caseId)
         .OrderByDescending(lr => lr.SpecimenCollectionDate)
         .Select(lr => new
         {
             Id = lr.Id,
             FriendlyId = lr.FriendlyId,
-            TestTypeName = lr.TestType != null ? lr.TestType.Name : null,
-            TestResultName = lr.TestResult != null ? lr.TestResult.Name : null,
+            TestedDiseaseName = lr.TestedDisease != null ? lr.TestedDisease.Name : null,
             SpecimenTypeName = lr.SpecimenType != null ? lr.SpecimenType.Name : null,
             SpecimenCollectionDate = lr.SpecimenCollectionDate,
-            QuantitativeResult = lr.QuantitativeResult,
-            ResultUnitsName = lr.ResultUnits != null ? lr.ResultUnits.Name : null
+            ResultUnitsName = lr.ResultUnits != null ? lr.ResultUnits.Name : null,
+            Markers = lr.Markers.Select(m => new
+            {
+                PathogenName = m.Pathogen != null ? m.Pathogen.Name : null,
+                TestMethodName = m.TestMethod != null ? m.TestMethod.Name : null,
+                QualitativeResult = m.QualitativeResultText,
+                QuantitativeValue = m.QuantitativeValue,
+                QuantitativeUnit = m.QuantitativeUnit,
+                InterpretationFlag = m.InterpretationFlag
+            }).ToList()
         })
         .ToListAsync();
 
@@ -611,7 +647,7 @@ app.MapGet("/api/diseases/{id:guid}/exposure-requirements", async (Guid id, IExp
 {
     var disease = await service.GetRequirementsForDiseaseAsync(id);
     var shouldPrompt = await service.ShouldPromptForExposureAsync(id);
-    
+
     return Results.Json(new 
     { 
         shouldPrompt = shouldPrompt,
@@ -623,6 +659,358 @@ app.MapGet("/api/diseases/{id:guid}/exposure-requirements", async (Guid id, IExp
         requireCoordinates = disease?.RequireGeographicCoordinates ?? false,
         allowDomestic = disease?.AllowDomesticAcquisition ?? true
     });
+});
+
+// API endpoint to reorder case definition criteria
+app.MapPatch("/api/case-definitions/{id:int}/criteria/{criterionId:int}/reorder", async (int id, int criterionId, ApplicationDbContext context, HttpRequest request, ILogger<Program> logger) =>
+{
+    using var reader = new StreamReader(request.Body);
+    var body = await reader.ReadToEndAsync();
+    var data = JsonSerializer.Deserialize<JsonElement>(body);
+
+    if (!data.TryGetProperty("direction", out var directionElement))
+        return Results.BadRequest("Direction is required");
+
+    var direction = directionElement.GetString();
+    if (direction != "up" && direction != "down")
+        return Results.BadRequest("Direction must be 'up' or 'down'");
+
+    logger.LogInformation("Reordering criterion {CriterionId} in definition {DefinitionId}, direction: {Direction}", criterionId, id, direction);
+
+    var criterion = await context.CaseDefinitionCriteria
+        .FirstOrDefaultAsync(c => c.Id == criterionId && c.CaseDefinitionId == id);
+
+    if (criterion == null)
+    {
+        logger.LogWarning("Criterion {CriterionId} not found", criterionId);
+        return Results.NotFound();
+    }
+
+    // Get all criteria at the same level (same parent and group)
+    var siblings = await context.CaseDefinitionCriteria
+        .Where(c => c.CaseDefinitionId == id && 
+                    c.ParentCriteriaId == criterion.ParentCriteriaId &&
+                    c.GroupNumber == criterion.GroupNumber)
+        .OrderBy(c => c.DisplayOrder)
+        .ThenBy(c => c.Id) // Secondary sort by ID for stability when DisplayOrders are equal
+        .ToListAsync();
+
+    logger.LogInformation("Found {Count} siblings. Current criterion DisplayOrder: {DisplayOrder}", siblings.Count, criterion.DisplayOrder);
+
+    var currentIndex = siblings.FindIndex(c => c.Id == criterionId);
+    if (currentIndex == -1)
+        return Results.NotFound();
+
+    // Calculate new index
+    var newIndex = direction == "up" ? currentIndex - 1 : currentIndex + 1;
+
+    // Check bounds
+    if (newIndex < 0 || newIndex >= siblings.Count)
+    {
+        logger.LogWarning("Cannot move beyond bounds. Current index: {CurrentIndex}, New index: {NewIndex}, Total: {Total}", currentIndex, newIndex, siblings.Count);
+        return Results.BadRequest("Cannot move criterion beyond bounds");
+    }
+
+    // Remove from current position and insert at new position
+    var item = siblings[currentIndex];
+    siblings.RemoveAt(currentIndex);
+    siblings.Insert(newIndex, item);
+
+    // Re-index all siblings with sequential DisplayOrder values
+    for (int i = 0; i < siblings.Count; i++)
+    {
+        siblings[i].DisplayOrder = i;
+        logger.LogInformation("Updated criterion {Id} DisplayOrder to {Order}", siblings[i].Id, i);
+    }
+
+    await context.SaveChangesAsync();
+
+    logger.LogInformation("Changes saved successfully");
+
+    return Results.Ok();
+});
+
+// API endpoint to move criteria to a different parent
+app.MapPatch("/api/case-definitions/{id:int}/criteria/{criterionId:int}/move-to-parent", async (int id, int criterionId, ApplicationDbContext context, HttpRequest request) =>
+{
+    using var reader = new StreamReader(request.Body);
+    var body = await reader.ReadToEndAsync();
+    var data = JsonSerializer.Deserialize<JsonElement>(body);
+
+    int? parentCriteriaId = null;
+    if (data.TryGetProperty("parentCriteriaId", out var parentElement) && 
+        parentElement.ValueKind != JsonValueKind.Null)
+    {
+        parentCriteriaId = parentElement.GetInt32();
+    }
+
+    var criterion = await context.CaseDefinitionCriteria
+        .FirstOrDefaultAsync(c => c.Id == criterionId && c.CaseDefinitionId == id);
+
+    if (criterion == null)
+        return Results.NotFound();
+
+    // Validate parent exists if specified
+    if (parentCriteriaId.HasValue)
+    {
+        var parentExists = await context.CaseDefinitionCriteria
+            .AnyAsync(c => c.Id == parentCriteriaId.Value && c.CaseDefinitionId == id);
+
+        if (!parentExists)
+            return Results.BadRequest("Parent criterion not found");
+    }
+
+    criterion.ParentCriteriaId = parentCriteriaId;
+    await context.SaveChangesAsync();
+
+    return Results.Ok();
+});
+
+// API endpoint to get a single criterion by ID
+app.MapGet("/api/case-definitions/{id:int}/criteria/{criterionId:int}", async (int id, int criterionId, ApplicationDbContext context) =>
+{
+    var criterion = await context.CaseDefinitionCriteria
+        .FirstOrDefaultAsync(c => c.Id == criterionId && c.CaseDefinitionId == id);
+
+    if (criterion == null)
+        return Results.NotFound();
+
+    return Results.Json(new
+    {
+        id = criterion.Id,
+        caseDefinitionId = criterion.CaseDefinitionId,
+        parentCriteriaId = criterion.ParentCriteriaId,
+        criterionType = (int)criterion.CriterionType,
+        logicalOperator = (int)criterion.LogicalOperator,
+        groupNumber = criterion.GroupNumber,
+        fieldPath = criterion.FieldPath,
+        @operator = (int)criterion.Operator,
+        valueJson = criterion.ValueJson,
+        displayText = criterion.DisplayText,
+        displayOrder = criterion.DisplayOrder
+    });
+});
+
+// API endpoint to update laboratory criterion
+app.MapPut("/api/case-definitions/{id:int}/criteria/{criterionId:int}/laboratory", async (int id, int criterionId, ApplicationDbContext context, HttpRequest request) =>
+{
+    using var reader = new StreamReader(request.Body);
+    var body = await reader.ReadToEndAsync();
+    var data = JsonSerializer.Deserialize<JsonElement>(body);
+
+    var criterion = await context.CaseDefinitionCriteria
+        .FirstOrDefaultAsync(c => c.Id == criterionId && c.CaseDefinitionId == id);
+
+    if (criterion == null)
+        return Results.NotFound();
+
+    // Extract data
+    var specimenTypeIds = data.GetProperty("specimenTypeIds").EnumerateArray()
+        .Select(e => e.GetInt32()).ToList();
+    var pathogenNames = data.GetProperty("pathogenNames").EnumerateArray()
+        .Select(e => e.GetString()!).ToList();
+    var testMethodIds = data.GetProperty("testMethodIds").EnumerateArray()
+        .Select(e => e.GetInt32()).ToList();
+    var resultValues = data.GetProperty("resultValues").EnumerateArray()
+        .Select(e => e.GetString()!).ToList();
+
+    object? timeConstraint = null;
+    if (data.TryGetProperty("timeConstraint", out var timeConstraintElement) && 
+        timeConstraintElement.ValueKind != JsonValueKind.Null)
+    {
+        timeConstraint = new
+        {
+            days = timeConstraintElement.GetProperty("days").GetInt32(),
+            relativeTo = timeConstraintElement.GetProperty("relativeTo").GetString(),
+            direction = timeConstraintElement.GetProperty("direction").GetString()
+        };
+    }
+
+    // Extract storage preferences
+    int? specimenStoragePreference = data.TryGetProperty("specimenStoragePreference", out var ssp) ? ssp.GetInt32() : (int?)null;
+    int? canonicalSpecimenTypeId = data.TryGetProperty("canonicalSpecimenTypeId", out var cst) && cst.ValueKind != JsonValueKind.Null ? cst.GetInt32() : (int?)null;
+    int? pathogenStoragePreference = data.TryGetProperty("pathogenStoragePreference", out var psp) ? psp.GetInt32() : (int?)null;
+    string? canonicalPathogenId = data.TryGetProperty("canonicalPathogenId", out var cpg) && cpg.ValueKind != JsonValueKind.Null ? cpg.GetString() : null;
+    int? testMethodStoragePreference = data.TryGetProperty("testMethodStoragePreference", out var tsp) ? tsp.GetInt32() : (int?)null;
+    int? canonicalTestMethodId = data.TryGetProperty("canonicalTestMethodId", out var ctm) && ctm.ValueKind != JsonValueKind.Null ? ctm.GetInt32() : (int?)null;
+    int? resultStoragePreference = data.TryGetProperty("resultStoragePreference", out var rsp) ? rsp.GetInt32() : (int?)null;
+    string? canonicalResultValue = data.TryGetProperty("canonicalResultValue", out var crv) && crv.ValueKind != JsonValueKind.Null ? crv.GetString() : null;
+
+    // Build ValueJson including storage preferences
+    var valueObj = new
+    {
+        specimenTypeIds,
+        pathogenNames,
+        testMethodIds,
+        resultValues,
+        timeConstraint,
+        specimenStoragePreference,
+        canonicalSpecimenTypeId,
+        pathogenStoragePreference,
+        canonicalPathogenId,
+        testMethodStoragePreference,
+        canonicalTestMethodId,
+        resultStoragePreference,
+        canonicalResultValue
+    };
+
+    // Update criterion
+    criterion.ValueJson = JsonSerializer.Serialize(valueObj);
+    criterion.DisplayText = data.GetProperty("displayText").GetString()!;
+    criterion.LogicalOperator = (Sentinel.Models.CaseDefinitions.LogicalOperator)data.GetProperty("logicalOperator").GetInt32();
+
+    // Update lab-specific fields directly on the criterion
+    criterion.AcceptableSpecimenTypesJson = JsonSerializer.Serialize(specimenTypeIds);
+    criterion.SpecimenStoragePreference = specimenStoragePreference.HasValue ? (Sentinel.Models.CaseDefinitions.DataStoragePreference)specimenStoragePreference.Value : Sentinel.Models.CaseDefinitions.DataStoragePreference.StoreAsReceived;
+    criterion.CanonicalSpecimenTypeId = canonicalSpecimenTypeId;
+    criterion.AcceptablePathogensJson = JsonSerializer.Serialize(pathogenNames);
+    criterion.BiomarkerStoragePreference = pathogenStoragePreference.HasValue ? (Sentinel.Models.CaseDefinitions.DataStoragePreference)pathogenStoragePreference.Value : Sentinel.Models.CaseDefinitions.DataStoragePreference.StoreAsReceived;
+    criterion.CanonicalPathogenId = canonicalPathogenId != null ? Guid.Parse(canonicalPathogenId) : (Guid?)null;
+    criterion.AcceptableTestMethodsJson = JsonSerializer.Serialize(testMethodIds);
+    criterion.TestMethodStoragePreference = testMethodStoragePreference.HasValue ? (Sentinel.Models.CaseDefinitions.DataStoragePreference)testMethodStoragePreference.Value : Sentinel.Models.CaseDefinitions.DataStoragePreference.StoreAsReceived;
+    criterion.CanonicalTestMethodId = canonicalTestMethodId;
+    criterion.AcceptableResultsJson = JsonSerializer.Serialize(resultValues);
+    criterion.ResultStoragePreference = resultStoragePreference.HasValue ? (Sentinel.Models.CaseDefinitions.DataStoragePreference)resultStoragePreference.Value : Sentinel.Models.CaseDefinitions.DataStoragePreference.StoreAsReceived;
+    criterion.Description = canonicalResultValue;
+
+    await context.SaveChangesAsync();
+
+    return Results.Ok(new { success = true, criterionId = criterion.Id });
+});
+
+// API endpoint to update clinical criterion
+app.MapPut("/api/case-definitions/{id:int}/criteria/{criterionId:int}/clinical", async (int id, int criterionId, ApplicationDbContext context, HttpRequest request) =>
+{
+    using var reader = new StreamReader(request.Body);
+    var body = await reader.ReadToEndAsync();
+    var data = JsonSerializer.Deserialize<JsonElement>(body);
+
+    var criterion = await context.CaseDefinitionCriteria
+        .FirstOrDefaultAsync(c => c.Id == criterionId && c.CaseDefinitionId == id);
+
+    if (criterion == null)
+        return Results.NotFound();
+
+    // Extract data
+    var symptomIds = data.GetProperty("symptomIds").EnumerateArray()
+        .Select(e => e.GetInt32()).ToList();
+    var requireAll = data.GetProperty("requireAll").GetBoolean();
+
+    int? minCount = null;
+    if (data.TryGetProperty("minCount", out var minCountElement) && 
+        minCountElement.ValueKind != JsonValueKind.Null)
+    {
+        minCount = minCountElement.GetInt32();
+    }
+
+    string? severityFilter = null;
+    if (data.TryGetProperty("severityFilter", out var severityElement) && 
+        severityElement.ValueKind != JsonValueKind.Null)
+    {
+        severityFilter = severityElement.GetString();
+    }
+
+    // Build ValueJson
+    var valueObj = new
+    {
+        symptomIds,
+        requireAll,
+        minCount,
+        severityFilter
+    };
+
+    // Update criterion
+    criterion.ValueJson = JsonSerializer.Serialize(valueObj);
+    criterion.DisplayText = data.GetProperty("displayText").GetString()!;
+    criterion.LogicalOperator = (Sentinel.Models.CaseDefinitions.LogicalOperator)data.GetProperty("logicalOperator").GetInt32();
+    criterion.Operator = requireAll ? Sentinel.Models.CaseDefinitions.ComparisonOperator.Equals : Sentinel.Models.CaseDefinitions.ComparisonOperator.InList;
+
+    await context.SaveChangesAsync();
+
+    return Results.Ok(new { success = true, criterionId = criterion.Id });
+});
+
+// API endpoint to update custom field criterion
+app.MapPut("/api/case-definitions/{id:int}/criteria/{criterionId:int}/custom-field", async (int id, int criterionId, ApplicationDbContext context, HttpRequest request) =>
+{
+    using var reader = new StreamReader(request.Body);
+    var body = await reader.ReadToEndAsync();
+    var data = JsonSerializer.Deserialize<JsonElement>(body);
+
+    var criterion = await context.CaseDefinitionCriteria
+        .FirstOrDefaultAsync(c => c.Id == criterionId && c.CaseDefinitionId == id);
+
+    if (criterion == null)
+        return Results.NotFound();
+
+    // Extract data
+    var customFieldId = data.GetProperty("customFieldId").GetInt32();
+    var operatorValue = data.GetProperty("operator").GetString()!;
+    var value = data.GetProperty("value").GetString()!;
+
+    // Load custom field to get details
+    var customField = await context.CustomFieldDefinitions
+        .FirstOrDefaultAsync(cf => cf.Id == customFieldId);
+
+    if (customField == null)
+        return Results.BadRequest("Custom field not found");
+
+    // Build ValueJson
+    var valueObj = new
+    {
+        customFieldId,
+        customFieldName = customField.Name,
+        customFieldLabel = customField.Label,
+        fieldType = customField.FieldType.ToString(),
+        value,
+        @operator = operatorValue
+    };
+
+    // Update criterion
+    criterion.ValueJson = JsonSerializer.Serialize(valueObj);
+    criterion.DisplayText = data.GetProperty("displayText").GetString()!;
+    criterion.LogicalOperator = (Sentinel.Models.CaseDefinitions.LogicalOperator)data.GetProperty("logicalOperator").GetInt32();
+
+    await context.SaveChangesAsync();
+
+    return Results.Ok(new { success = true, criterionId = criterion.Id });
+});
+
+// API endpoint to update case field criterion
+app.MapPut("/api/case-definitions/{id:int}/criteria/{criterionId:int}/case-field", async (int id, int criterionId, ApplicationDbContext context, HttpRequest request) =>
+{
+    using var reader = new StreamReader(request.Body);
+    var body = await reader.ReadToEndAsync();
+    var data = JsonSerializer.Deserialize<JsonElement>(body);
+
+    var criterion = await context.CaseDefinitionCriteria
+        .FirstOrDefaultAsync(c => c.Id == criterionId && c.CaseDefinitionId == id);
+
+    if (criterion == null)
+        return Results.NotFound();
+
+    // Extract data
+    var fieldPath = data.GetProperty("fieldPath").GetString()!;
+    var operatorValue = data.GetProperty("operator").GetString()!;
+    var value = data.GetProperty("value").GetString()!;
+
+    // Build ValueJson
+    var valueObj = new
+    {
+        fieldPath,
+        @operator = operatorValue,
+        value
+    };
+
+    // Update criterion
+    criterion.FieldPath = fieldPath;
+    criterion.ValueJson = JsonSerializer.Serialize(valueObj);
+    criterion.DisplayText = data.GetProperty("displayText").GetString()!;
+    criterion.LogicalOperator = (Sentinel.Models.CaseDefinitions.LogicalOperator)data.GetProperty("logicalOperator").GetInt32();
+
+    await context.SaveChangesAsync();
+
+    return Results.Ok(new { success = true, criterionId = criterion.Id });
 });
 
 // Apply migrations and seed data on startup with retry logic
@@ -754,6 +1142,15 @@ static async Task EnsureReportingViewsExistAsync(ApplicationDbContext dbContext,
     }
     
     logger.LogInformation("Successfully executed {Count} SQL batches to recreate reporting views", executedBatches);
+}
+
+// Wire up the evaluation queue to ApplicationDbContext instances
+// This allows the partial class to queue evaluations on SaveChangesAsync
+using (var scope = app.Services.CreateScope())
+{
+    var queue = scope.ServiceProvider.GetRequiredService<Sentinel.Services.CaseDefinitionEvaluation.ICaseEvaluationQueue>();
+    var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+    dbContext.SetEvaluationQueue(queue);
 }
 
 app.Run();

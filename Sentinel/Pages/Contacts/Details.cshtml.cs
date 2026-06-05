@@ -125,10 +125,10 @@ namespace Sentinel.Pages.Contacts
                 .Include(lr => lr.Laboratory)
                 .Include(lr => lr.OrderingProvider)
                 .Include(lr => lr.SpecimenType)
-                .Include(lr => lr.TestType)
-                .Include(lr => lr.TestResult)
                 .Include(lr => lr.ResultUnits)
                 .Include(lr => lr.TestedDisease)
+                .Include(lr => lr.Markers).ThenInclude(m => m.Pathogen)
+                .Include(lr => lr.Markers).ThenInclude(m => m.TestMethod)
                 .Where(lr => lr.CaseId == id)
                 .OrderByDescending(lr => lr.ResultDate)
                 .ThenByDescending(lr => lr.SpecimenCollectionDate)
@@ -326,8 +326,6 @@ namespace Sentinel.Pages.Contacts
             NewLabResult.Laboratory = null;
             NewLabResult.OrderingProvider = null;
             NewLabResult.SpecimenType = null;
-            NewLabResult.TestType = null;
-            NewLabResult.TestResult = null;
             NewLabResult.ResultUnits = null;
             NewLabResult.TestedDisease = null;
 
@@ -385,10 +383,10 @@ namespace Sentinel.Pages.Contacts
                 .Include(lr => lr.Laboratory)
                 .Include(lr => lr.OrderingProvider)
                 .Include(lr => lr.SpecimenType)
-                .Include(lr => lr.TestType)
-                .Include(lr => lr.TestResult)
                 .Include(lr => lr.ResultUnits)
                 .Include(lr => lr.TestedDisease)
+                .Include(lr => lr.Markers).ThenInclude(m => m.Pathogen)
+                .Include(lr => lr.Markers).ThenInclude(m => m.TestMethod)
                 .FirstOrDefaultAsync(lr => lr.Id == labResultId);
 
             if (labResult == null)
@@ -411,14 +409,9 @@ namespace Sentinel.Pages.Contacts
                     specimenCollectionDate = labResult.SpecimenCollectionDate?.ToString("yyyy-MM-dd"),
                     specimenTypeId = labResult.SpecimenTypeId,
                     specimenTypeName = labResult.SpecimenType?.Name,
-                    testTypeId = labResult.TestTypeId,
-                    testTypeName = labResult.TestType?.Name,
                     testedDiseaseId = labResult.TestedDiseaseId,
                     testedDiseaseName = labResult.TestedDisease?.Name,
-                    testResultId = labResult.TestResultId,
-                    testResultName = labResult.TestResult?.Name,
                     resultDate = labResult.ResultDate?.ToString("yyyy-MM-dd"),
-                    quantitativeResult = labResult.QuantitativeResult,
                     resultUnitsId = labResult.ResultUnitsId,
                     resultUnitsName = labResult.ResultUnits?.Name,
                     isAmended = labResult.IsAmended,
@@ -426,6 +419,22 @@ namespace Sentinel.Pages.Contacts
                     labInterpretation = labResult.LabInterpretation,
                     attachmentPath = labResult.AttachmentPath,
                     attachmentFileName = labResult.AttachmentFileName,
+                    markers = labResult.Markers.Select(m => new
+                    {
+                        id = m.Id,
+                        pathogenId = m.PathogenId,
+                        pathogenName = m.Pathogen?.Name,
+                        testMethodId = m.TestMethodId,
+                        testMethodName = m.TestMethod?.Name,
+                        qualitativeResult = m.QualitativeResultText,
+                        quantitativeValue = m.QuantitativeValue,
+                        quantitativeUnit = m.QuantitativeUnit,
+                        referenceRangeLow = m.ReferenceRangeLow,
+                        referenceRangeHigh = m.ReferenceRangeHigh,
+                        interpretationFlag = m.InterpretationFlag,
+                        loincCode = m.LOINCCode,
+                        notes = m.Notes
+                    }).ToList(),
                     createdAt = labResult.CreatedAt.ToString("dd MMM yyyy HH:mm"),
                     modifiedAt = labResult.ModifiedAt?.ToString("dd MMM yyyy HH:mm")
                 }
@@ -468,28 +477,8 @@ namespace Sentinel.Pages.Contacts
 
         public async Task<JsonResult> OnGetSearchTestResultsAsync(int? testTypeId, string term)
         {
-            var query = _context.TestResults.Where(tr => tr.IsActive);
-
-            // Filter by test type if provided
-            if (testTypeId.HasValue)
-            {
-                query = query.Where(tr => tr.TestTypeId == testTypeId.Value);
-            }
-
-            // Filter by search term if provided
-            if (!string.IsNullOrWhiteSpace(term))
-            {
-                query = query.Where(tr => tr.Name.Contains(term));
-            }
-
-            var testResults = await query
-                .OrderBy(tr => tr.DisplayOrder)
-                .ThenBy(tr => tr.Name)
-                .Take(20)
-                .Select(tr => new { id = tr.Id, text = tr.Name })
-                .ToListAsync();
-
-            return new JsonResult(testResults);
+            // LEGACY: TestResults removed - return empty list
+            return new JsonResult(new List<object>());
         }
 
         private async Task LoadLabResultDropdowns()
@@ -531,25 +520,11 @@ namespace Sentinel.Pages.Contacts
                 "Name"
             );
 
-            TestTypesList = new SelectList(
-                await _context.TestTypes
-                    .Where(t => t.IsActive)
-                    .OrderBy(t => t.DisplayOrder)
-                    .ThenBy(t => t.Name)
-                    .ToListAsync(),
-                "Id",
-                "Name"
-            );
+            // LEGACY: TestTypes removed - use Pathogen/Markers system instead  
+            TestTypesList = new SelectList(new List<object>()); // Empty list
 
-            TestResultsList = new SelectList(
-                await _context.TestResults
-                    .Where(r => r.IsActive)
-                    .OrderBy(r => r.DisplayOrder)
-                    .ThenBy(r => r.Name)
-                    .ToListAsync(),
-                "Id",
-                "Name"
-            );
+            // LEGACY: TestResults removed - use Pathogen/Markers system instead
+            TestResultsList = new SelectList(new List<object>()); // Empty list
 
             ResultUnitsList = new SelectList(
                 await _context.ResultUnits

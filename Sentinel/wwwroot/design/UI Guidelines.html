@@ -1,0 +1,2139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Sentinel — UI Guidelines</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700;800&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* ── Tokens ─────────────────────────────────────────── */
+:root {
+  --forest:       #0C2A20;
+  --forest-2:     #13382C;
+  --moss:         #1E5D44;
+  --signal:       #3DD598;
+  --signal-dk:    #159C6E;
+  --signal-lt:    #D9F2E5;
+  --lime:         #C9E86A;
+  --slate:        #6B7A78;
+  --slate-2:      #3E4A48;
+  --slate-lt:     #B8C0BE;
+  --bone:         #F5F3EC;
+  --paper:        #ECEAE1;
+  --chalk:        #FBFAF5;
+  --graphite:     #4A5A55;
+  --hairline:     #D8D4C4;
+  --hairline-dk:  #1E3329;
+  --outbreak:     #E04D2B;
+  --watch:        #E0A43A;
+  --clear:        #3DD598;
+  --info:         #6B8CF5;
+  --f-sans: "Geist", ui-sans-serif, system-ui, sans-serif;
+  --f-mono: "Geist Mono", ui-monospace, Menlo, monospace;
+}
+
+/* ── Reset ───────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; color-scheme: light; }
+body {
+  background: var(--bone);
+  color: var(--forest);
+  font-family: var(--f-sans);
+  font-size: 15px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  font-feature-settings: "ss01","ss02","cv11";
+  padding: 0;
+  margin: 0;
+}
+img, svg { display: block; max-width: 100%; }
+
+/* ── Layout shell ────────────────────────────────────── */
+.wrap {
+  max-width: 1160px;
+  margin: 0 auto;
+  padding: 0 48px 160px;
+}
+
+/* ── Sticky nav ──────────────────────────────────────── */
+.sidenav {
+  position: fixed;
+  top: 0; left: 0;
+  width: 220px;
+  height: 100vh;
+  background: var(--chalk);
+  border-right: 1px solid var(--hairline);
+  padding: 32px 20px 40px;
+  overflow-y: auto;
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.sidenav-logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 28px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid var(--hairline);
+}
+.sidenav-logo-wordmark {
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: -.03em;
+}
+.sidenav-tag {
+  font-family: var(--f-mono);
+  font-size: 9px;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: var(--graphite);
+  padding: 2px 7px;
+  background: var(--paper);
+  border-radius: 3px;
+  margin-top: 1px;
+}
+.nav-section-label {
+  font-family: var(--f-mono);
+  font-size: 9px;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--slate);
+  margin: 18px 0 6px 8px;
+}
+.nav-section-label:first-of-type { margin-top: 0; }
+.sidenav a {
+  display: block;
+  font-size: 13px;
+  color: var(--graphite);
+  text-decoration: none;
+  padding: 6px 10px;
+  border-radius: 4px;
+  transition: background .12s, color .12s;
+  letter-spacing: -.005em;
+}
+.sidenav a:hover { background: var(--paper); color: var(--forest); }
+.sidenav a.active { background: var(--forest); color: var(--signal); font-weight: 500; }
+
+/* ── Main content ────────────────────────────────────── */
+.main {
+  margin-left: 220px;
+  min-height: 100vh;
+}
+
+/* ── Section ─────────────────────────────────────────── */
+section {
+  padding: 80px 64px 0;
+  max-width: 940px;
+}
+section + section {
+  border-top: 1px solid var(--hairline);
+  margin-top: 80px;
+}
+
+.sec-eyebrow {
+  font-family: var(--f-mono);
+  font-size: 10px;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--graphite);
+  margin-bottom: 10px;
+}
+.sec-title {
+  font-size: 40px;
+  font-weight: 500;
+  letter-spacing: -.035em;
+  line-height: 1.05;
+  margin-bottom: 10px;
+}
+.sec-sub {
+  font-size: 15px;
+  color: var(--graphite);
+  max-width: 60ch;
+  line-height: 1.65;
+  margin-bottom: 40px;
+}
+
+/* ── Subsection ──────────────────────────────────────── */
+.sub-label {
+  font-family: var(--f-mono);
+  font-size: 10px;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: var(--graphite);
+  margin: 40px 0 14px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--hairline);
+}
+
+/* ── Grid helpers ────────────────────────────────────── */
+.grid { display: grid; gap: 12px; }
+.g2 { grid-template-columns: repeat(2, 1fr); }
+.g3 { grid-template-columns: repeat(3, 1fr); }
+.g4 { grid-template-columns: repeat(4, 1fr); }
+
+/* ── Card ────────────────────────────────────────────── */
+.card {
+  background: var(--chalk);
+  border: 1px solid var(--hairline);
+  border-radius: 8px;
+  padding: 28px;
+  position: relative;
+  overflow: hidden;
+}
+.card.dark {
+  background: var(--forest);
+  color: var(--bone);
+  border-color: var(--hairline-dk);
+}
+.card-label {
+  font-family: var(--f-mono);
+  font-size: 9px;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--graphite);
+  margin-bottom: 18px;
+}
+.card.dark .card-label { color: #8AA298; }
+
+/* ── Hero cover ──────────────────────────────────────── */
+#cover {
+  padding: 0;
+  border: none;
+  margin-top: 0;
+}
+.cover-block {
+  background:
+    radial-gradient(at 18% 22%, #5AE4B0 0%, transparent 42%),
+    radial-gradient(at 82% 18%, #3DD598 0%, transparent 48%),
+    radial-gradient(at 72% 82%, #3E4A48 0%, transparent 52%),
+    radial-gradient(at 12% 88%, #1E5D44 0%, transparent 58%),
+    radial-gradient(at 55% 55%, #6B7A78 0%, transparent 50%),
+    #0C2A20;
+  min-height: 480px;
+  padding: 64px;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  position: relative;
+  overflow: hidden;
+  color: var(--bone);
+}
+.cover-block .rings {
+  position: absolute;
+  top: -100px; right: -100px;
+  width: 600px;
+  opacity: .2;
+  pointer-events: none;
+}
+.cover-eyebrow {
+  font-family: var(--f-mono);
+  font-size: 11px;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  color: #BFE8D9;
+  margin-bottom: 24px;
+}
+.cover-title {
+  font-size: 88px;
+  font-weight: 600;
+  letter-spacing: -.055em;
+  line-height: .92;
+  margin-bottom: 20px;
+}
+.cover-title .dot {
+  display: inline-block;
+  width: 18px; height: 18px;
+  background: var(--signal);
+  border-radius: 50%;
+  vertical-align: 10px;
+  margin-left: 3px;
+  box-shadow: 0 0 40px rgba(61,213,152,.6);
+}
+.cover-desc {
+  font-size: 16px;
+  color: #BFE8D9;
+  max-width: 60ch;
+  line-height: 1.6;
+}
+.cover-meta {
+  position: absolute;
+  top: 32px; right: 32px;
+  font-family: var(--f-mono);
+  font-size: 10px;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: #BFE8D9;
+  background: rgba(255,255,255,.07);
+  border: 1px solid rgba(255,255,255,.18);
+  border-radius: 999px;
+  padding: 7px 14px;
+}
+
+/* ── Mark / Logo ─────────────────────────────────────── */
+.logo-stage {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 200px;
+  padding: 32px;
+}
+.logo-cap {
+  font-family: var(--f-mono);
+  font-size: 10px;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--graphite);
+  text-align: center;
+  margin-top: 10px;
+}
+
+/* ── Color swatches ──────────────────────────────────── */
+.swatch {
+  height: 180px;
+  border-radius: 8px;
+  border: 1px solid var(--hairline);
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  padding: 18px;
+  position: relative;
+  overflow: hidden;
+}
+.swatch-name {
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: -.02em;
+}
+.swatch-meta {
+  font-family: var(--f-mono);
+  font-size: 10px;
+  letter-spacing: .04em;
+  margin-top: 3px;
+  opacity: .7;
+}
+.swatch.on-dark { color: var(--bone); }
+.swatch.on-light { color: var(--forest); }
+
+/* Signal ramp */
+.ramp {
+  display: grid;
+  grid-template-columns: repeat(9, 1fr);
+  border: 1px solid var(--hairline);
+  border-radius: 6px;
+  overflow: hidden;
+}
+.ramp div {
+  height: 72px;
+  display: flex;
+  align-items: flex-end;
+  padding: 8px;
+  font-family: var(--f-mono);
+  font-size: 9px;
+  letter-spacing: .04em;
+}
+
+/* Status chips */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 12px;
+  border-radius: 4px;
+  font-family: var(--f-mono);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: .04em;
+  border: 1px solid transparent;
+}
+.chip .dot { width: 7px; height: 7px; border-radius: 50%; }
+.chip.outbreak { background: #FBE2D8; color: #7A2A15; border-color: #F2BBA4; }
+.chip.outbreak .dot { background: var(--outbreak); }
+.chip.watch { background: #FBEDD1; color: #6A4410; border-color: #EBD196; }
+.chip.watch .dot { background: var(--watch); }
+.chip.clear { background: var(--signal-lt); color: #0A3F2C; border-color: #9BE8C6; }
+.chip.clear .dot { background: var(--signal-dk); }
+.chip.info { background: #E3E9FB; color: #2A3970; border-color: #B7C4EE; }
+.chip.info .dot { background: var(--info); }
+.chip-row { display: flex; gap: 8px; flex-wrap: wrap; }
+
+/* Mesh tiles */
+.mesh-hero {
+  background:
+    radial-gradient(at 18% 22%, #5AE4B0 0%, transparent 42%),
+    radial-gradient(at 82% 18%, #3DD598 0%, transparent 48%),
+    radial-gradient(at 72% 82%, #3E4A48 0%, transparent 52%),
+    radial-gradient(at 12% 88%, #1E5D44 0%, transparent 58%),
+    radial-gradient(at 55% 55%, #6B7A78 0%, transparent 50%),
+    #0C2A20;
+}
+.mesh-feature {
+  background:
+    radial-gradient(at 75% 22%, #3DD598 0%, transparent 40%),
+    radial-gradient(at 18% 78%, #6B7A78 0%, transparent 52%),
+    radial-gradient(at 48% 52%, #13382C 28%, transparent 68%),
+    radial-gradient(at 92% 88%, #3E4A48 0%, transparent 50%),
+    #0C2A20;
+}
+.mesh-light {
+  background:
+    radial-gradient(at 28% 28%, #C9E86A 0%, transparent 38%),
+    radial-gradient(at 82% 72%, #3DD598 0%, transparent 48%),
+    radial-gradient(at 60% 12%, #D9F2E5 0%, transparent 52%),
+    radial-gradient(at 20% 90%, #B8C0BE 0%, transparent 55%),
+    #F5F3EC;
+}
+.mesh-tile {
+  border-radius: 8px;
+  min-height: 160px;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  padding: 20px;
+  position: relative;
+  overflow: hidden;
+}
+.mesh-tile-label {
+  font-family: var(--f-mono);
+  font-size: 10px;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  opacity: .7;
+}
+.mesh-tile-desc {
+  font-size: 15px;
+  font-weight: 500;
+  letter-spacing: -.02em;
+  margin-top: 8px;
+}
+
+/* ── Typography ──────────────────────────────────────── */
+.type-spec {
+  padding: 32px;
+  background: var(--chalk);
+  border: 1px solid var(--hairline);
+  border-radius: 8px;
+  margin-bottom: 10px;
+}
+.type-spec .tag {
+  font-family: var(--f-mono);
+  font-size: 9px;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--graphite);
+  margin-bottom: 14px;
+}
+.type-scale-row {
+  display: grid;
+  grid-template-columns: 100px 1fr 160px;
+  align-items: baseline;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--hairline);
+  gap: 12px;
+}
+.type-scale-row:last-child { border-bottom: none; }
+.type-scale-key {
+  font-family: var(--f-mono);
+  font-size: 10px;
+  letter-spacing: .08em;
+  color: var(--graphite);
+}
+.type-scale-meta {
+  font-family: var(--f-mono);
+  font-size: 10px;
+  color: var(--graphite);
+  letter-spacing: .04em;
+  text-align: right;
+  opacity: .8;
+}
+
+/* ── Spacing ─────────────────────────────────────────── */
+.spacing-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--hairline);
+}
+.spacing-bar {
+  background: var(--signal-lt);
+  border: 1px solid #9BE8C6;
+  border-radius: 2px;
+  height: 18px;
+  flex-shrink: 0;
+}
+.spacing-label {
+  font-family: var(--f-mono);
+  font-size: 11px;
+  color: var(--graphite);
+  letter-spacing: .04em;
+  min-width: 80px;
+}
+.spacing-val {
+  font-family: var(--f-mono);
+  font-size: 11px;
+  color: var(--signal-dk);
+}
+
+/* ── Radius ──────────────────────────────────────────── */
+.radius-grid {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.radius-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+.radius-box {
+  background: var(--signal-lt);
+  border: 1.5px solid #9BE8C6;
+  width: 72px;
+  height: 72px;
+}
+.radius-label {
+  font-family: var(--f-mono);
+  font-size: 9px;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--graphite);
+  text-align: center;
+}
+
+/* ── Shadow ──────────────────────────────────────────── */
+.shadow-grid { display: flex; gap: 24px; flex-wrap: wrap; align-items: flex-end; }
+.shadow-item {
+  width: 120px;
+  height: 80px;
+  background: var(--chalk);
+  border: 1px solid var(--hairline);
+  border-radius: 6px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+.shadow-name {
+  font-family: var(--f-mono);
+  font-size: 9px;
+  letter-spacing: .08em;
+  color: var(--graphite);
+  text-transform: uppercase;
+}
+
+/* ── Buttons ─────────────────────────────────────────── */
+.btn-demo { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+.sn-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  height: 36px;
+  padding: 0 16px;
+  font-family: var(--f-sans);
+  font-size: 14px;
+  font-weight: 500;
+  letter-spacing: -.005em;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--forest);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background .12s, border-color .12s, color .12s, box-shadow .12s;
+}
+.sn-btn:disabled { opacity: .45; cursor: not-allowed; }
+.sn-btn--primary { background: var(--forest); color: var(--bone); border-color: var(--forest); }
+.sn-btn--primary:hover { background: var(--forest-2); }
+.sn-btn--signal { background: var(--signal-dk); color: #fff; border-color: var(--signal-dk); }
+.sn-btn--signal:hover { background: #088960; }
+.sn-btn--ghost { background: transparent; border-color: var(--hairline); color: var(--forest); }
+.sn-btn--ghost:hover { background: var(--chalk); border-color: var(--slate-lt); }
+.sn-btn--danger { background: var(--outbreak); color: #fff; }
+.sn-btn--sm { height: 28px; padding: 0 12px; font-size: 13px; }
+.sn-btn--lg { height: 44px; padding: 0 24px; font-size: 15px; }
+
+/* ── Inputs ──────────────────────────────────────────── */
+.sn-input, .sn-textarea, .sn-select {
+  width: 100%;
+  height: 36px;
+  padding: 0 12px;
+  background: #fff;
+  border: 1px solid var(--hairline);
+  border-radius: 6px;
+  color: var(--forest);
+  font-family: var(--f-sans);
+  font-size: 14px;
+  transition: border-color .12s, box-shadow .12s;
+}
+.sn-textarea { height: auto; min-height: 80px; padding: 10px 12px; resize: vertical; }
+.sn-input::placeholder { color: var(--slate); }
+.sn-input:focus, .sn-textarea:focus {
+  outline: 0;
+  border-color: var(--signal-dk);
+  box-shadow: 0 0 0 3px rgba(61,213,152,.25);
+}
+.sn-label {
+  display: block;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--graphite);
+  margin-bottom: 6px;
+  letter-spacing: .01em;
+}
+.form-field { margin-bottom: 14px; }
+.input-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+
+/* ── KPI ─────────────────────────────────────────────── */
+.kpi {
+  padding: 20px;
+  background: #fff;
+  border: 1px solid var(--hairline);
+  border-radius: 6px;
+}
+.kpi-label {
+  font-family: var(--f-mono);
+  font-size: 10px;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--graphite);
+  font-weight: 500;
+}
+.kpi-value {
+  font-size: 40px;
+  font-weight: 500;
+  letter-spacing: -.04em;
+  margin-top: 4px;
+}
+.kpi-value em { font-style: normal; color: var(--signal-dk); }
+.kpi-delta {
+  font-family: var(--f-mono);
+  font-size: 10px;
+  color: var(--graphite);
+  margin-top: 4px;
+}
+.kpi-delta.up { color: var(--outbreak); }
+.kpi-delta.down { color: var(--signal-dk); }
+
+/* ── Table ───────────────────────────────────────────── */
+.sn-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+.sn-table th, .sn-table td {
+  padding: 11px 14px;
+  text-align: left;
+  border-bottom: 1px solid var(--hairline);
+}
+.sn-table th {
+  font-family: var(--f-mono);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--graphite);
+}
+.sn-table tbody tr:hover { background: var(--chalk); }
+
+/* ── Nav ─────────────────────────────────────────────── */
+.nav-demo {
+  background: var(--paper);
+  border-radius: 8px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.nav-group-label {
+  font-family: var(--f-mono);
+  font-size: 9px;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--graphite);
+  padding: 14px 10px 6px;
+  font-weight: 500;
+}
+.nav-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 7px 10px;
+  border-radius: 4px;
+  font-size: 13px;
+  color: var(--forest);
+  cursor: pointer;
+}
+.nav-item:hover { background: var(--chalk); }
+.nav-item.active { background: var(--forest); color: var(--signal); font-weight: 500; }
+.nav-count {
+  font-family: var(--f-mono);
+  font-size: 10px;
+  color: var(--graphite);
+}
+.nav-item.active .nav-count { color: var(--signal); }
+
+/* ── Motion ──────────────────────────────────────────── */
+.motion-card {
+  background: var(--chalk);
+  border: 1px solid var(--hairline);
+  border-radius: 8px;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.motion-row { display: flex; align-items: center; gap: 16px; }
+.motion-name { font-family: var(--f-mono); font-size: 11px; color: var(--graphite); letter-spacing: .04em; min-width: 80px; }
+.motion-track { flex: 1; height: 2px; background: var(--hairline); border-radius: 2px; position: relative; }
+.motion-dot {
+  position: absolute;
+  top: 50%; transform: translateY(-50%);
+  width: 10px; height: 10px;
+  background: var(--signal);
+  border-radius: 50%;
+  animation: motionPlay 2.4s infinite;
+}
+.motion-row:nth-child(2) .motion-dot { animation-timing-function: cubic-bezier(.16,1,.3,1); }
+.motion-row:nth-child(3) .motion-dot { animation-timing-function: cubic-bezier(.7,0,.84,0); }
+.motion-row:nth-child(4) .motion-dot { animation-timing-function: cubic-bezier(.65,0,.35,1); }
+@keyframes motionPlay {
+  0%   { left: 0; }
+  50%  { left: calc(100% - 10px); }
+  100% { left: 0; }
+}
+.motion-val { font-family: var(--f-mono); font-size: 10px; color: var(--signal-dk); min-width: 100px; text-align: right; }
+
+/* ── Do / Don't ──────────────────────────────────────── */
+.do-dont { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.do, .dont {
+  padding: 22px;
+  border: 1px solid var(--hairline);
+  border-radius: 8px;
+  background: var(--chalk);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.do-header, .dont-header {
+  font-family: var(--f-mono);
+  font-size: 10px;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  font-weight: 500;
+}
+.do-header { color: var(--signal-dk); }
+.dont-header { color: var(--outbreak); }
+.do-rule, .dont-rule {
+  font-size: 13px;
+  color: var(--graphite);
+  line-height: 1.6;
+}
+
+/* ── Voice ───────────────────────────────────────────── */
+.voice-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.voice-item {
+  padding: 24px;
+  background: var(--chalk);
+  border: 1px solid var(--hairline);
+  border-radius: 8px;
+}
+.voice-item h5 {
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: -.01em;
+  margin-bottom: 8px;
+}
+.voice-item p { font-size: 13px; color: var(--graphite); line-height: 1.6; }
+
+/* ── Token table ─────────────────────────────────────── */
+.token-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: var(--f-mono);
+  font-size: 12px;
+}
+.token-table th, .token-table td {
+  padding: 10px 14px;
+  text-align: left;
+  border-bottom: 1px solid var(--hairline);
+}
+.token-table th {
+  font-size: 10px;
+  letter-spacing: .08em;
+  color: var(--graphite);
+  text-transform: uppercase;
+  font-weight: 500;
+}
+.sw {
+  display: inline-block;
+  width: 13px; height: 13px;
+  border-radius: 3px;
+  border: 1px solid rgba(0,0,0,.08);
+  vertical-align: -2px;
+  margin-right: 8px;
+}
+
+/* ── App mock ────────────────────────────────────────── */
+.app-frame {
+  background: var(--chalk);
+  border: 1px solid var(--hairline);
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow: 0 12px 40px rgba(12,42,32,.1);
+}
+.app-topbar {
+  display: flex;
+  align-items: center;
+  padding: 0 24px;
+  height: 52px;
+  background: #fff;
+  border-bottom: 1px solid var(--hairline);
+  gap: 20px;
+}
+.app-topbar-logo { display: flex; align-items: center; gap: 9px; }
+.app-topbar-wordmark { font-size: 15px; font-weight: 600; letter-spacing: -.03em; }
+.app-topbar-nav { display: flex; gap: 20px; margin-left: 16px; }
+.app-topbar-nav a {
+  font-size: 13px;
+  color: var(--graphite);
+  text-decoration: none;
+  padding: 6px 0;
+  position: relative;
+}
+.app-topbar-nav a.active { color: var(--forest); font-weight: 500; }
+.app-topbar-nav a.active::after {
+  content: "";
+  position: absolute;
+  left: 0; right: 0; bottom: -17px;
+  height: 2px;
+  background: var(--signal-dk);
+  border-radius: 2px;
+}
+.app-topbar-spacer { flex: 1; }
+.app-body { display: grid; grid-template-columns: 220px 1fr; min-height: 360px; }
+.app-sidebar {
+  background: var(--paper);
+  border-right: 1px solid var(--hairline);
+  padding: 20px 16px;
+}
+.app-sidebar-label {
+  font-family: var(--f-mono);
+  font-size: 9px;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--graphite);
+  margin: 16px 0 6px 8px;
+}
+.app-sidebar-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 13px;
+  padding: 7px 10px;
+  border-radius: 4px;
+  color: var(--forest);
+  margin-bottom: 2px;
+  cursor: pointer;
+}
+.app-sidebar-item:hover { background: var(--chalk); }
+.app-sidebar-item.active { background: var(--forest); color: var(--signal); font-weight: 500; }
+.app-sidebar-count { font-family: var(--f-mono); font-size: 10px; color: var(--graphite); }
+.app-sidebar-item.active .app-sidebar-count { color: var(--signal); }
+.app-content { padding: 28px 32px; }
+.app-content-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+.app-content-title { font-size: 28px; font-weight: 500; letter-spacing: -.03em; }
+.app-kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 20px; }
+
+/* ── Ping animation ──────────────────────────────────── */
+@keyframes ping {
+  0%   { transform: scale(.4); opacity: 1; }
+  100% { transform: scale(1.8); opacity: 0; }
+}
+
+/* ── Footer ──────────────────────────────────────────── */
+footer {
+  margin-left: 220px;
+  padding: 32px 64px;
+  border-top: 1px solid var(--hairline);
+  display: flex;
+  justify-content: space-between;
+  font-family: var(--f-mono);
+  font-size: 11px;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--graphite);
+}
+</style>
+</head>
+<body>
+
+<!-- ── Side Navigation ──────────────────────────────── -->
+<nav class="sidenav">
+  <div class="sidenav-logo">
+    <svg viewBox="0 0 40 40" width="28">
+      <rect width="40" height="40" rx="9" fill="#0C2A20"/>
+      <g fill="none" stroke="#3DD598" stroke-width="1.4">
+        <circle cx="20" cy="20" r="7"/>
+        <circle cx="20" cy="20" r="12" opacity=".55"/>
+        <circle cx="20" cy="20" r="17" opacity=".22"/>
+      </g>
+      <circle cx="20" cy="20" r="3" fill="#3DD598"/>
+    </svg>
+    <div>
+      <div class="sidenav-logo-wordmark">Sentinel</div>
+      <div class="sidenav-tag">UI Guidelines</div>
+    </div>
+  </div>
+
+  <div class="nav-section-label">Identity</div>
+  <a href="#brand">Brand</a>
+  <a href="#mark">The Mark</a>
+
+  <div class="nav-section-label">Foundations</div>
+  <a href="#color">Color</a>
+  <a href="#typography">Typography</a>
+  <a href="#spacing">Spacing</a>
+  <a href="#elevation">Elevation</a>
+  <a href="#motion">Motion</a>
+
+  <div class="nav-section-label">Components</div>
+  <a href="#buttons">Buttons</a>
+  <a href="#chips">Chips & Status</a>
+  <a href="#inputs">Inputs</a>
+  <a href="#cards">Cards</a>
+  <a href="#kpi">KPI Tiles</a>
+  <a href="#tables">Tables</a>
+  <a href="#navigation">Navigation</a>
+
+  <div class="nav-section-label">Guidelines</div>
+  <a href="#appshell">App Shell</a>
+  <a href="#voice">Voice & Tone</a>
+  <a href="#usage">Do's & Don'ts</a>
+  <a href="#tokens">Tokens Reference</a>
+</nav>
+
+<!-- ── Main ─────────────────────────────────────────── -->
+<div class="main">
+
+  <!-- Cover -->
+  <section id="cover" style="padding:0;border:none;margin:0;max-width:100%">
+    <div class="cover-block">
+      <div class="cover-meta">v 0.2 · Alpha · 2026.04</div>
+      <svg class="rings" viewBox="0 0 600 600" aria-hidden="true">
+        <g fill="none" stroke="#3DD598" stroke-width="1">
+          <circle cx="300" cy="300" r="80"/>
+          <circle cx="300" cy="300" r="140"/>
+          <circle cx="300" cy="300" r="210"/>
+          <circle cx="300" cy="300" r="290"/>
+        </g>
+      </svg>
+      <div style="position:relative;z-index:2">
+        <div class="cover-eyebrow">Sentinel · UI Guidelines</div>
+        <div class="cover-title">Design<br>System<span class="dot"></span></div>
+        <div class="cover-desc">Tokens, components, patterns and principles for building Sentinel — watchful infrastructure for public health.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Brand ─────────────────────────────────────────── -->
+  <section id="brand">
+    <div class="sec-eyebrow">01 · Identity</div>
+    <div class="sec-title">Brand</div>
+    <div class="sec-sub">Sentinel is professional, quietly confident, and built for the people who stay up on the late shifts. The identity is clean, data-forward, and never alarmist — even when the data is alarming.</div>
+
+    <div class="sub-label">Mission & Voice</div>
+    <div class="voice-grid">
+      <div class="voice-item">
+        <h5>Professional, not clinical</h5>
+        <p>We work in healthcare but we don't talk like a hospital manual. Clear sentences, no jargon — the data does the talking.</p>
+      </div>
+      <div class="voice-item">
+        <h5>Watchful, not alarmist</h5>
+        <p>Signal Green means healthy. We reserve red for genuine escalation. The system earns trust by being calm when things are fine.</p>
+      </div>
+      <div class="voice-item">
+        <h5>Precise, not terse</h5>
+        <p>Every label, tooltip, and empty state is written with care. Precision matters when a number can mean a life.</p>
+      </div>
+      <div class="voice-item">
+        <h5>Confident, not corporate</h5>
+        <p>We don't pad copy with qualifiers. We state what we know, flag what we don't, and always give the user a next step.</p>
+      </div>
+    </div>
+
+    <div class="sub-label">Taglines</div>
+    <div class="grid g2">
+      <div class="card">
+        <div class="card-label">Primary</div>
+        <div style="font-size:30px;font-weight:500;letter-spacing:-.03em;line-height:1.1;margin-top:8px">Watchful infrastructure<br>for public health<span style="color:var(--signal-dk)">.</span></div>
+      </div>
+      <div class="card dark">
+        <div class="card-label">Campaign</div>
+        <div style="font-size:30px;font-weight:500;letter-spacing:-.03em;line-height:1.1;margin-top:8px;color:var(--bone)">Detect early.<br>Trace fast.<br><span style="color:var(--signal)">Respond together.</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- The Mark ──────────────────────────────────────── -->
+  <section id="mark">
+    <div class="sec-eyebrow">02 · Identity</div>
+    <div class="sec-title">The Mark</div>
+    <div class="sec-sub">A single beacon, pinging outward. One solid dot at the centre (the index case), three expanding rings (detection, trace, response). Reads as a radar sweep, a signal, a heartbeat.</div>
+
+    <div class="grid g2" style="margin-bottom:12px">
+      <div class="card logo-stage" style="flex-direction:column">
+        <div class="card-label">Primary · On Light</div>
+        <svg viewBox="0 0 480 120" width="100%">
+          <g transform="translate(10,10)">
+            <rect x="0" y="0" width="100" height="100" rx="10" fill="#0C2A20"/>
+            <g fill="none" stroke="#3DD598" stroke-width="1.5">
+              <circle cx="50" cy="50" r="15"/>
+              <circle cx="50" cy="50" r="26" opacity=".55"/>
+              <circle cx="50" cy="50" r="37" opacity=".22"/>
+            </g>
+            <circle cx="50" cy="50" r="6" fill="#3DD598"/>
+          </g>
+          <text x="130" y="74" font-family="Geist, sans-serif" font-size="60" font-weight="600" fill="#0C2A20" letter-spacing="-3">Sentinel</text>
+          <circle cx="436" cy="68" r="9" fill="#159C6E"/>
+        </svg>
+      </div>
+      <div class="card dark logo-stage" style="flex-direction:column">
+        <div class="card-label">Primary · On Forest</div>
+        <svg viewBox="0 0 480 120" width="100%">
+          <g transform="translate(10,10)">
+            <rect x="0" y="0" width="100" height="100" rx="10" fill="#F5F3EC"/>
+            <g fill="none" stroke="#0C2A20" stroke-width="1.5">
+              <circle cx="50" cy="50" r="15"/>
+              <circle cx="50" cy="50" r="26" opacity=".55"/>
+              <circle cx="50" cy="50" r="37" opacity=".22"/>
+            </g>
+            <circle cx="50" cy="50" r="6" fill="#0C2A20"/>
+          </g>
+          <text x="130" y="74" font-family="Geist, sans-serif" font-size="60" font-weight="600" fill="#F5F3EC" letter-spacing="-3">Sentinel</text>
+          <circle cx="436" cy="68" r="9" fill="#3DD598"/>
+        </svg>
+      </div>
+    </div>
+
+    <div class="grid g4">
+      <!-- App icon -->
+      <div class="card logo-stage" style="flex-direction:column;gap:12px;min-height:180px">
+        <svg viewBox="0 0 200 200" width="80">
+          <defs>
+            <radialGradient id="app-g" cx="30%" cy="25%" r="85%">
+              <stop offset="0%" stop-color="#5AE4B0"/>
+              <stop offset="40%" stop-color="#3DD598"/>
+              <stop offset="80%" stop-color="#1E5D44"/>
+              <stop offset="100%" stop-color="#0C2A20"/>
+            </radialGradient>
+          </defs>
+          <rect width="200" height="200" rx="44" fill="url(#app-g)"/>
+          <g fill="none" stroke="#F5F3EC" stroke-width="2" opacity=".95">
+            <circle cx="100" cy="100" r="22"/>
+            <circle cx="100" cy="100" r="40" opacity=".65"/>
+            <circle cx="100" cy="100" r="58" opacity=".3"/>
+          </g>
+          <circle cx="100" cy="100" r="9" fill="#F5F3EC"/>
+          <g style="transform-origin:100px 100px;animation:ping 2.6s ease-out infinite">
+            <circle cx="100" cy="100" r="22" fill="none" stroke="#F5F3EC" stroke-width="1.5"/>
+          </g>
+        </svg>
+        <div class="logo-cap">App icon · Mesh</div>
+      </div>
+
+      <!-- Mark only -->
+      <div class="card logo-stage" style="flex-direction:column;gap:12px;min-height:180px">
+        <svg viewBox="0 0 200 200" width="80">
+          <rect width="200" height="200" rx="44" fill="#0C2A20"/>
+          <g fill="none" stroke="#3DD598" stroke-width="2">
+            <circle cx="100" cy="100" r="26"/>
+            <circle cx="100" cy="100" r="46" opacity=".55"/>
+            <circle cx="100" cy="100" r="66" opacity=".25"/>
+          </g>
+          <circle cx="100" cy="100" r="10" fill="#3DD598"/>
+        </svg>
+        <div class="logo-cap">Mark only · Forest</div>
+      </div>
+
+      <!-- Inverse Signal -->
+      <div class="card logo-stage" style="background:var(--signal);flex-direction:column;gap:12px;min-height:180px">
+        <div class="card-label" style="color:#0A3F2C">Reversed · On Signal</div>
+        <svg viewBox="0 0 200 200" width="80">
+          <rect width="200" height="200" rx="44" fill="#0C2A20"/>
+          <g fill="none" stroke="#3DD598" stroke-width="2">
+            <circle cx="100" cy="100" r="26"/>
+            <circle cx="100" cy="100" r="46" opacity=".55"/>
+            <circle cx="100" cy="100" r="66" opacity=".25"/>
+          </g>
+          <circle cx="100" cy="100" r="10" fill="#3DD598"/>
+        </svg>
+      </div>
+
+      <!-- Monochrome -->
+      <div class="card logo-stage" style="flex-direction:column;gap:12px;min-height:180px">
+        <svg viewBox="0 0 200 200" width="80">
+          <rect x="4" y="4" width="192" height="192" rx="40" fill="none" stroke="#0C2A20" stroke-width="2"/>
+          <g fill="none" stroke="#0C2A20" stroke-width="2">
+            <circle cx="100" cy="100" r="26"/>
+            <circle cx="100" cy="100" r="46" opacity=".6"/>
+            <circle cx="100" cy="100" r="66" opacity=".28"/>
+          </g>
+          <circle cx="100" cy="100" r="10" fill="#0C2A20"/>
+        </svg>
+        <div class="logo-cap">Monochrome · 1-colour</div>
+      </div>
+    </div>
+
+    <div class="sub-label">Construction</div>
+    <div class="grid g2">
+      <div class="card">
+        <div class="card-label">Geometry</div>
+        <svg viewBox="0 0 360 360" width="100%">
+          <g stroke="#D8D4C4" stroke-width="1">
+            <line x1="0" y1="50" x2="360" y2="50"/>
+            <line x1="0" y1="310" x2="360" y2="310"/>
+            <line x1="50" y1="0" x2="50" y2="360"/>
+            <line x1="310" y1="0" x2="310" y2="360"/>
+            <line x1="180" y1="0" x2="180" y2="360" stroke-dasharray="2 4"/>
+            <line x1="0" y1="180" x2="360" y2="180" stroke-dasharray="2 4"/>
+          </g>
+          <rect x="50" y="50" width="260" height="260" rx="68" fill="#0C2A20"/>
+          <g fill="none" stroke="#3DD598" stroke-width="1.8">
+            <circle cx="180" cy="180" r="38"/>
+            <circle cx="180" cy="180" r="67" opacity=".55"/>
+            <circle cx="180" cy="180" r="96" opacity=".25"/>
+          </g>
+          <circle cx="180" cy="180" r="14" fill="#3DD598"/>
+          <g font-family="Geist Mono, monospace" font-size="10" fill="#6B7A78">
+            <text x="180" y="28" text-anchor="middle">corner R = 68</text>
+            <text x="180" y="346" text-anchor="middle">ring step = 29px · core Ø = 28px</text>
+          </g>
+        </svg>
+      </div>
+      <div class="card">
+        <div class="card-label">Clear space & sizing</div>
+        <div style="display:flex;flex-direction:column;justify-content:space-between;height:100%;gap:24px">
+          <svg viewBox="0 0 340 220" width="100%">
+            <rect x="10" y="10" width="320" height="200" fill="none" stroke="#D8D4C4" stroke-dasharray="3 4"/>
+            <rect x="55" y="50" width="230" height="120" fill="none" stroke="#3DD598" stroke-dasharray="2 3"/>
+            <g transform="translate(125,68)">
+              <rect x="0" y="0" width="90" height="84" rx="9" fill="#0C2A20"/>
+              <g fill="none" stroke="#3DD598" stroke-width="1.4">
+                <circle cx="45" cy="42" r="12"/><circle cx="45" cy="42" r="21" opacity=".55"/><circle cx="45" cy="42" r="30" opacity=".25"/>
+              </g>
+              <circle cx="45" cy="42" r="5" fill="#3DD598"/>
+            </g>
+            <text x="170" y="40" text-anchor="middle" font-family="Geist Mono, monospace" font-size="10" fill="#6B7A78">clear space = 1× corner radius</text>
+          </svg>
+          <div style="display:flex;align-items:flex-end;gap:16px;padding-top:14px;border-top:1px solid var(--hairline)">
+            <div style="text-align:center">
+              <svg viewBox="0 0 80 80" width="60"><rect width="80" height="80" rx="8" fill="#0C2A20"/><g fill="none" stroke="#3DD598" stroke-width="1.4"><circle cx="40" cy="40" r="11"/><circle cx="40" cy="40" r="20" opacity=".55"/></g><circle cx="40" cy="40" r="5" fill="#3DD598"/></svg>
+              <div style="font-family:var(--f-mono);font-size:9px;color:var(--graphite);margin-top:4px">64 px</div>
+            </div>
+            <div style="text-align:center">
+              <svg viewBox="0 0 80 80" width="40"><rect width="80" height="80" rx="8" fill="#0C2A20"/><g fill="none" stroke="#3DD598" stroke-width="1.6"><circle cx="40" cy="40" r="11"/><circle cx="40" cy="40" r="20" opacity=".55"/></g><circle cx="40" cy="40" r="5" fill="#3DD598"/></svg>
+              <div style="font-family:var(--f-mono);font-size:9px;color:var(--graphite);margin-top:4px">32 px</div>
+            </div>
+            <div style="text-align:center">
+              <svg viewBox="0 0 80 80" width="24"><rect width="80" height="80" rx="8" fill="#0C2A20"/><circle cx="40" cy="40" r="14" fill="none" stroke="#3DD598" stroke-width="2"/><circle cx="40" cy="40" r="5" fill="#3DD598"/></svg>
+              <div style="font-family:var(--f-mono);font-size:9px;color:var(--graphite);margin-top:4px">16 px</div>
+            </div>
+            <div style="text-align:center">
+              <svg viewBox="0 0 80 80" width="14"><rect width="80" height="80" rx="20" fill="#0C2A20"/><circle cx="40" cy="40" r="8" fill="#3DD598"/></svg>
+              <div style="font-family:var(--f-mono);font-size:9px;color:var(--graphite);margin-top:4px">min</div>
+            </div>
+            <div style="margin-left:auto;font-size:13px;color:var(--graphite);line-height:1.6">Digital min: <strong style="color:var(--forest)">16 px</strong><br>Print min: <strong style="color:var(--forest)">8 mm</strong></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Color ─────────────────────────────────────────── -->
+  <section id="color">
+    <div class="sec-eyebrow">03 · Foundations</div>
+    <div class="sec-title">Color</div>
+    <div class="sec-sub">Green-forward and professional. Signal Green is our native language for healthy, resolved, and on track. Reserve red for genuine escalation only.</div>
+
+    <div class="sub-label">Core Palette</div>
+    <div class="grid g4" style="margin-bottom:12px">
+      <div class="swatch on-dark" style="background:#0C2A20">
+        <div class="swatch-name">Forest</div>
+        <div class="swatch-meta">#0C2A20 · Primary</div>
+      </div>
+      <div class="swatch on-dark" style="background:#1E5D44">
+        <div class="swatch-name">Moss</div>
+        <div class="swatch-meta">#1E5D44 · Secondary</div>
+      </div>
+      <div class="swatch on-dark" style="background:#3DD598">
+        <div class="swatch-name">Signal</div>
+        <div class="swatch-meta">#3DD598 · Brand accent</div>
+      </div>
+      <div class="swatch on-light" style="background:#C9E86A">
+        <div class="swatch-name">Lime</div>
+        <div class="swatch-meta">#C9E86A · Sparingly</div>
+      </div>
+    </div>
+    <div class="grid g4">
+      <div class="swatch on-light" style="background:#F5F3EC">
+        <div class="swatch-name">Bone</div>
+        <div class="swatch-meta">#F5F3EC · Page bg</div>
+      </div>
+      <div class="swatch on-light" style="background:#ECEAE1">
+        <div class="swatch-name">Paper</div>
+        <div class="swatch-meta">#ECEAE1 · App bg</div>
+      </div>
+      <div class="swatch on-dark" style="background:#4A5A55">
+        <div class="swatch-name">Graphite</div>
+        <div class="swatch-meta">#4A5A55 · Secondary text</div>
+      </div>
+      <div class="swatch on-light" style="background:#D9F2E5">
+        <div class="swatch-name">Signal Tint</div>
+        <div class="swatch-meta">#D9F2E5 · Selected rows</div>
+      </div>
+    </div>
+
+    <div class="sub-label">Signal Green Ramp</div>
+    <div class="ramp">
+      <div style="background:#E9FBF2;color:#0C2A20">50</div>
+      <div style="background:#CFF7E1;color:#0C2A20">100</div>
+      <div style="background:#A5EFC8;color:#0C2A20">200</div>
+      <div style="background:#6EE6A8;color:#0C2A20">300</div>
+      <div style="background:#37E08D;color:#0C2A20">400</div>
+      <div style="background:#3DD598;color:#0C2A20">500</div>
+      <div style="background:#159C6E;color:#F5F3EC">600</div>
+      <div style="background:#088960;color:#F5F3EC">700</div>
+      <div style="background:#055B40;color:#F5F3EC">800</div>
+    </div>
+    <div style="font-family:var(--f-mono);font-size:10px;color:var(--graphite);margin-top:6px">Signal-500 (#3DD598) = primary brand. Signal-600 (#159C6E) = buttons on light bg. Signal-800 (#055B40) = deep data viz.</div>
+
+    <div class="sub-label">Status & Signalling</div>
+    <div class="card" style="padding:24px 28px">
+      <div class="chip-row" style="margin-bottom:16px">
+        <span class="chip outbreak"><span class="dot"></span>Outbreak</span>
+        <span class="chip watch"><span class="dot"></span>Under watch</span>
+        <span class="chip clear"><span class="dot"></span>Resolved</span>
+        <span class="chip info"><span class="dot"></span>Informational</span>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:20px">
+        <div>
+          <div style="width:100%;height:6px;background:#E04D2B;border-radius:2px;margin-bottom:8px"></div>
+          <div style="font-family:var(--f-mono);font-size:10px;color:var(--graphite);letter-spacing:.04em">OUTBREAK</div>
+          <div style="font-family:var(--f-mono);font-size:11px;color:var(--forest);margin-top:2px">#E04D2B</div>
+        </div>
+        <div>
+          <div style="width:100%;height:6px;background:#E0A43A;border-radius:2px;margin-bottom:8px"></div>
+          <div style="font-family:var(--f-mono);font-size:10px;color:var(--graphite);letter-spacing:.04em">WATCH</div>
+          <div style="font-family:var(--f-mono);font-size:11px;color:var(--forest);margin-top:2px">#E0A43A</div>
+        </div>
+        <div>
+          <div style="width:100%;height:6px;background:#3DD598;border-radius:2px;margin-bottom:8px"></div>
+          <div style="font-family:var(--f-mono);font-size:10px;color:var(--graphite);letter-spacing:.04em">RESOLVED</div>
+          <div style="font-family:var(--f-mono);font-size:11px;color:var(--forest);margin-top:2px">#3DD598</div>
+        </div>
+        <div>
+          <div style="width:100%;height:6px;background:#6B8CF5;border-radius:2px;margin-bottom:8px"></div>
+          <div style="font-family:var(--f-mono);font-size:10px;color:var(--graphite);letter-spacing:.04em">INFO</div>
+          <div style="font-family:var(--f-mono);font-size:11px;color:var(--forest);margin-top:2px">#6B8CF5</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sub-label">Mesh Backgrounds</div>
+    <div class="grid g3">
+      <div class="mesh-tile mesh-hero">
+        <div class="mesh-tile-label" style="color:#BFE8D9">Mesh 01 · Hero</div>
+        <div class="mesh-tile-desc" style="color:var(--bone)">Deep forest with signal bloom</div>
+      </div>
+      <div class="mesh-tile mesh-feature">
+        <div class="mesh-tile-label" style="color:#BFE8D9">Mesh 02 · Feature</div>
+        <div class="mesh-tile-desc" style="color:var(--bone)">Concentrated signal at centre</div>
+      </div>
+      <div class="mesh-tile mesh-light">
+        <div class="mesh-tile-label" style="color:var(--graphite)">Mesh 03 · Light</div>
+        <div class="mesh-tile-desc" style="color:var(--forest)">Soft mesh for editorial surfaces</div>
+      </div>
+    </div>
+    <div style="font-family:var(--f-mono);font-size:10px;color:var(--graphite);margin-top:8px;padding:10px 14px;background:var(--paper);border-radius:4px;border-left:2px solid var(--signal-dk)">
+      Mesh backgrounds are reserved for hero sections, marketing, login, and empty states. Never use behind data tables, forms, or dense content.
+    </div>
+  </section>
+
+  <!-- Typography ────────────────────────────────────── -->
+  <section id="typography">
+    <div class="sec-eyebrow">04 · Foundations</div>
+    <div class="sec-title">Typography</div>
+    <div class="sec-sub">Geist for all UI text — clean, neutral, and highly legible at data-dense sizes. Geist Mono for labels, codes, timestamps, and all tabular data.</div>
+
+    <div class="sub-label">Typefaces</div>
+    <div class="grid g2" style="margin-bottom:12px">
+      <div class="type-spec">
+        <div class="tag">Primary — Geist Sans</div>
+        <div style="font-size:64px;font-weight:500;letter-spacing:-.045em;line-height:1;margin:8px 0">Geist<span style="color:var(--signal-dk)">.</span></div>
+        <div style="font-size:15px;color:var(--graphite);line-height:1.6;max-width:42ch;margin-top:12px">All UI labels, headings, body copy, and buttons. Use weights 300–700 only.</div>
+        <div style="margin-top:16px;font-size:22px;font-weight:300;letter-spacing:-.02em;color:var(--graphite)">Light 300 · Regular 400 · Medium 500</div>
+        <div style="font-size:22px;font-weight:600;letter-spacing:-.02em">Semibold 600 · Bold 700</div>
+      </div>
+      <div class="type-spec" style="background:var(--forest);border-color:var(--hairline-dk)">
+        <div class="tag" style="color:#8AA298">Mono — Geist Mono</div>
+        <div style="font-family:var(--f-mono);font-size:44px;font-weight:500;letter-spacing:.01em;line-height:1;margin:8px 0;color:var(--bone)">01 · MONO</div>
+        <div style="font-family:var(--f-mono);font-size:13px;color:#8AA298;line-height:1.7;margin-top:12px">Case IDs · Timestamps · Labels<br>All tabular numeric data<br>Token & code references</div>
+        <div style="font-family:var(--f-mono);font-size:13px;color:var(--signal);margin-top:14px">CASE-2026-0417-A<br>--sn-signal: #3DD598;<br>↑ 14.2% · 7-day avg</div>
+      </div>
+    </div>
+
+    <div class="sub-label">Type Scale</div>
+    <div class="type-spec">
+      <div class="tag">Scale — all sizes use Geist unless noted</div>
+      <div class="type-scale-row">
+        <div class="type-scale-key">display</div>
+        <div style="font-size:80px;font-weight:600;letter-spacing:-.055em;line-height:.92">Sentinel</div>
+        <div class="type-scale-meta">112px / .92lh / −.055em</div>
+      </div>
+      <div class="type-scale-row">
+        <div class="type-scale-key">h1</div>
+        <div style="font-size:52px;font-weight:500;letter-spacing:-.045em;line-height:1">Active cases</div>
+        <div class="type-scale-meta">64px / 1.00lh / −.045em</div>
+      </div>
+      <div class="type-scale-row">
+        <div class="type-scale-key">h2</div>
+        <div style="font-size:34px;font-weight:500;letter-spacing:-.03em;line-height:1.1">Dashboard overview</div>
+        <div class="type-scale-meta">36px / 1.10lh / −.030em</div>
+      </div>
+      <div class="type-scale-row">
+        <div class="type-scale-key">h3</div>
+        <div style="font-size:20px;font-weight:600;letter-spacing:-.015em;line-height:1.3">Pertussis · Ward 4</div>
+        <div class="type-scale-meta">20px / 1.30lh / −.015em</div>
+      </div>
+      <div class="type-scale-row">
+        <div class="type-scale-key">body</div>
+        <div style="font-size:16px;line-height:1.55;letter-spacing:-.005em">The case was confirmed on 14 April and contacts are being traced.</div>
+        <div class="type-scale-meta">16px / 1.55lh / −.005em</div>
+      </div>
+      <div class="type-scale-row">
+        <div class="type-scale-key">meta</div>
+        <div style="font-size:13px;color:var(--graphite);line-height:1.45">Last updated · 2 hours ago · Epidemiologist on record: Dr. Yuen</div>
+        <div class="type-scale-meta">13px / 1.45lh / 0em</div>
+      </div>
+      <div class="type-scale-row">
+        <div class="type-scale-key">mono</div>
+        <div style="font-family:var(--f-mono);font-size:12px;letter-spacing:.03em;line-height:1.7;color:var(--forest)">CASE-2026-0417-A · 2026-04-17 08:42 UTC · Confirmed · Lab ref #PW-49201</div>
+        <div class="type-scale-meta">12px Mono / 1.70lh</div>
+      </div>
+      <div class="type-scale-row">
+        <div class="type-scale-key">micro</div>
+        <div style="font-family:var(--f-mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--graphite);font-weight:500">CASE STATUS · UNDER WATCH · REGION</div>
+        <div class="type-scale-meta">10px Mono / ALL CAPS</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Spacing ───────────────────────────────────────── -->
+  <section id="spacing">
+    <div class="sec-eyebrow">05 · Foundations</div>
+    <div class="sec-title">Spacing</div>
+    <div class="sec-sub">4px base grid. All layout measurements use the spacing scale. Prefer named tokens over arbitrary values in component code.</div>
+
+    <div class="sub-label">Space Scale</div>
+    <div class="card" style="padding:24px 28px">
+      <div class="spacing-row">
+        <div class="spacing-label">space-1</div>
+        <div class="spacing-bar" style="width:4px"></div>
+        <div class="spacing-val">4px</div>
+      </div>
+      <div class="spacing-row">
+        <div class="spacing-label">space-2</div>
+        <div class="spacing-bar" style="width:8px"></div>
+        <div class="spacing-val">8px</div>
+      </div>
+      <div class="spacing-row">
+        <div class="spacing-label">space-3</div>
+        <div class="spacing-bar" style="width:12px"></div>
+        <div class="spacing-val">12px</div>
+      </div>
+      <div class="spacing-row">
+        <div class="spacing-label">space-4</div>
+        <div class="spacing-bar" style="width:16px"></div>
+        <div class="spacing-val">16px · default gap</div>
+      </div>
+      <div class="spacing-row">
+        <div class="spacing-label">space-6</div>
+        <div class="spacing-bar" style="width:24px"></div>
+        <div class="spacing-val">24px</div>
+      </div>
+      <div class="spacing-row">
+        <div class="spacing-label">space-8</div>
+        <div class="spacing-bar" style="width:32px"></div>
+        <div class="spacing-val">32px · card padding</div>
+      </div>
+      <div class="spacing-row">
+        <div class="spacing-label">space-10</div>
+        <div class="spacing-bar" style="width:40px"></div>
+        <div class="spacing-val">40px</div>
+      </div>
+      <div class="spacing-row">
+        <div class="spacing-label">space-12</div>
+        <div class="spacing-bar" style="width:48px"></div>
+        <div class="spacing-val">48px</div>
+      </div>
+      <div class="spacing-row">
+        <div class="spacing-label">space-16</div>
+        <div class="spacing-bar" style="width:64px"></div>
+        <div class="spacing-val">64px · section padding</div>
+      </div>
+      <div class="spacing-row" style="border-bottom:none">
+        <div class="spacing-label">space-20</div>
+        <div class="spacing-bar" style="width:80px"></div>
+        <div class="spacing-val">80px</div>
+      </div>
+    </div>
+
+    <div class="sub-label">Layout Constants</div>
+    <div class="grid g3">
+      <div class="card" style="padding:22px">
+        <div class="card-label">Container</div>
+        <div style="font-size:28px;font-weight:500;letter-spacing:-.03em;margin-top:4px">1440px</div>
+        <div style="font-size:13px;color:var(--graphite);margin-top:4px">Max content width</div>
+      </div>
+      <div class="card" style="padding:22px">
+        <div class="card-label">Sidebar</div>
+        <div style="font-size:28px;font-weight:500;letter-spacing:-.03em;margin-top:4px">240px</div>
+        <div style="font-size:13px;color:var(--graphite);margin-top:4px">Primary nav width</div>
+      </div>
+      <div class="card" style="padding:22px">
+        <div class="card-label">Topbar</div>
+        <div style="font-size:28px;font-weight:500;letter-spacing:-.03em;margin-top:4px">56px</div>
+        <div style="font-size:13px;color:var(--graphite);margin-top:4px">App header height</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Elevation ─────────────────────────────────────── -->
+  <section id="elevation">
+    <div class="sec-eyebrow">06 · Foundations</div>
+    <div class="sec-title">Elevation</div>
+    <div class="sec-sub">Four shadow levels and a radius scale. Use the lowest elevation that communicates hierarchy — don't stack shadows needlessly.</div>
+
+    <div class="sub-label">Shadows</div>
+    <div class="shadow-grid" style="padding:28px 28px 24px;background:var(--chalk);border:1px solid var(--hairline);border-radius:8px">
+      <div style="text-align:center">
+        <div class="shadow-item" style="box-shadow:0 1px 2px rgba(12,42,32,.06)">
+          <div class="shadow-name">xs</div>
+        </div>
+        <div style="font-family:var(--f-mono);font-size:9px;color:var(--graphite);margin-top:8px">Inline elements</div>
+      </div>
+      <div style="text-align:center">
+        <div class="shadow-item" style="box-shadow:0 1px 3px rgba(12,42,32,.08),0 1px 2px rgba(12,42,32,.04)">
+          <div class="shadow-name">sm</div>
+        </div>
+        <div style="font-family:var(--f-mono);font-size:9px;color:var(--graphite);margin-top:8px">Cards, inputs</div>
+      </div>
+      <div style="text-align:center">
+        <div class="shadow-item" style="box-shadow:0 4px 12px rgba(12,42,32,.08),0 2px 4px rgba(12,42,32,.04)">
+          <div class="shadow-name">md</div>
+        </div>
+        <div style="font-family:var(--f-mono);font-size:9px;color:var(--graphite);margin-top:8px">Elevated cards</div>
+      </div>
+      <div style="text-align:center">
+        <div class="shadow-item" style="box-shadow:0 12px 32px rgba(12,42,32,.12),0 4px 8px rgba(12,42,32,.05)">
+          <div class="shadow-name">lg</div>
+        </div>
+        <div style="font-family:var(--f-mono);font-size:9px;color:var(--graphite);margin-top:8px">Modals, popovers</div>
+      </div>
+      <div style="text-align:center">
+        <div class="shadow-item" style="box-shadow:0 0 0 1px rgba(61,213,152,.3),0 4px 16px rgba(61,213,152,.25);border-color:transparent">
+          <div class="shadow-name" style="color:var(--signal-dk)">signal</div>
+        </div>
+        <div style="font-family:var(--f-mono);font-size:9px;color:var(--graphite);margin-top:8px">Active / focus</div>
+      </div>
+    </div>
+
+    <div class="sub-label">Border Radius</div>
+    <div class="radius-grid" style="padding:28px;background:var(--chalk);border:1px solid var(--hairline);border-radius:8px">
+      <div class="radius-item">
+        <div class="radius-box" style="border-radius:2px"></div>
+        <div class="radius-label">xs<br>2px</div>
+      </div>
+      <div class="radius-item">
+        <div class="radius-box" style="border-radius:4px"></div>
+        <div class="radius-label">sm<br>4px · chips</div>
+      </div>
+      <div class="radius-item">
+        <div class="radius-box" style="border-radius:6px"></div>
+        <div class="radius-label">md<br>6px · inputs</div>
+      </div>
+      <div class="radius-item">
+        <div class="radius-box" style="border-radius:8px"></div>
+        <div class="radius-label">lg<br>8px · cards</div>
+      </div>
+      <div class="radius-item">
+        <div class="radius-box" style="border-radius:12px"></div>
+        <div class="radius-label">xl<br>12px · panels</div>
+      </div>
+      <div class="radius-item">
+        <div class="radius-box" style="border-radius:999px;width:120px"></div>
+        <div class="radius-label">pill<br>999px · tags</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Motion ────────────────────────────────────────── -->
+  <section id="motion">
+    <div class="sec-eyebrow">07 · Foundations</div>
+    <div class="sec-title">Motion</div>
+    <div class="sec-sub">Motion is purposeful and restrained. Use ease-out for entering elements, ease-in for exits. Never animate for decoration alone.</div>
+
+    <div class="sub-label">Easing & Duration</div>
+    <div class="motion-card">
+      <div class="motion-row" style="padding-bottom:12px;border-bottom:1px solid var(--hairline)">
+        <div style="font-family:var(--f-mono);font-size:10px;color:var(--graphite);letter-spacing:.06em;text-transform:uppercase;min-width:80px">Name</div>
+        <div style="flex:1;font-family:var(--f-mono);font-size:10px;color:var(--graphite);letter-spacing:.06em;text-transform:uppercase">Preview</div>
+        <div style="font-family:var(--f-mono);font-size:10px;color:var(--graphite);letter-spacing:.06em;text-transform:uppercase;min-width:100px;text-align:right">Value</div>
+      </div>
+      <div class="motion-row">
+        <div class="motion-name">ease-out</div>
+        <div class="motion-track"><div class="motion-dot" style="animation-timing-function:cubic-bezier(.16,1,.3,1)"></div></div>
+        <div class="motion-val">(.16, 1, .3, 1)</div>
+      </div>
+      <div class="motion-row">
+        <div class="motion-name">ease-in</div>
+        <div class="motion-track"><div class="motion-dot" style="animation-timing-function:cubic-bezier(.7,0,.84,0)"></div></div>
+        <div class="motion-val">(.7, 0, .84, 0)</div>
+      </div>
+      <div class="motion-row">
+        <div class="motion-name">ease-in-out</div>
+        <div class="motion-track"><div class="motion-dot" style="animation-timing-function:cubic-bezier(.65,0,.35,1)"></div></div>
+        <div class="motion-val">(.65, 0, .35, 1)</div>
+      </div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:12px">
+      <div class="card" style="padding:20px">
+        <div class="card-label">Fast</div>
+        <div style="font-size:28px;font-weight:500;letter-spacing:-.03em">120ms</div>
+        <div style="font-size:13px;color:var(--graphite);margin-top:4px">Hover, focus states, chips</div>
+      </div>
+      <div class="card" style="padding:20px">
+        <div class="card-label">Base</div>
+        <div style="font-size:28px;font-weight:500;letter-spacing:-.03em">200ms</div>
+        <div style="font-size:13px;color:var(--graphite);margin-top:4px">Panels, reveals, toggles</div>
+      </div>
+      <div class="card" style="padding:20px">
+        <div class="card-label">Slow</div>
+        <div style="font-size:28px;font-weight:500;letter-spacing:-.03em">400ms</div>
+        <div style="font-size:13px;color:var(--graphite);margin-top:4px">Page transitions, overlays</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Buttons ───────────────────────────────────────── -->
+  <section id="buttons">
+    <div class="sec-eyebrow">08 · Components</div>
+    <div class="sec-title">Buttons</div>
+    <div class="sec-sub">Four variants covering the full intent range. Use Primary for default actions, Signal for constructive confirmations, Ghost for secondary actions, and Danger for destructive ones.</div>
+
+    <div class="sub-label">Variants</div>
+    <div class="card" style="padding:28px">
+      <div class="btn-demo" style="margin-bottom:20px">
+        <button class="sn-btn sn-btn--primary">Primary</button>
+        <button class="sn-btn sn-btn--signal">Signal</button>
+        <button class="sn-btn sn-btn--ghost">Ghost</button>
+        <button class="sn-btn sn-btn--danger">Danger</button>
+        <button class="sn-btn sn-btn--ghost" disabled>Disabled</button>
+      </div>
+      <div style="height:1px;background:var(--hairline);margin:16px 0"></div>
+      <div class="card-label">Sizes</div>
+      <div class="btn-demo">
+        <button class="sn-btn sn-btn--primary sn-btn--sm">Small</button>
+        <button class="sn-btn sn-btn--primary">Default</button>
+        <button class="sn-btn sn-btn--primary sn-btn--lg">Large</button>
+      </div>
+    </div>
+
+    <div class="sub-label">Usage</div>
+    <div class="do-dont">
+      <div class="do">
+        <div class="do-header">✓ Do</div>
+        <div class="do-rule">Use Signal for the primary call-to-action when the action is constructive — confirming a case, submitting a report, creating a contact.</div>
+      </div>
+      <div class="dont">
+        <div class="dont-header">✕ Don't</div>
+        <div class="dont-rule">Stack two filled buttons side-by-side at the same visual weight. One action should clearly be primary.</div>
+      </div>
+      <div class="do">
+        <div class="do-header">✓ Do</div>
+        <div class="do-rule">Use Ghost for cancel, dismiss, or any secondary option that appears alongside a filled button.</div>
+      </div>
+      <div class="dont">
+        <div class="dont-header">✕ Don't</div>
+        <div class="dont-rule">Use Danger for anything reversible. Reserve it only for permanent or high-consequence actions like "Delete case".</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Chips ─────────────────────────────────────────── -->
+  <section id="chips">
+    <div class="sec-eyebrow">09 · Components</div>
+    <div class="sec-title">Chips & Status</div>
+    <div class="sec-sub">Chips communicate case status at a glance. Every chip has a dot, a label, and a tinted background. Always use the semantic variant — don't invent custom colors.</div>
+
+    <div class="sub-label">Status Variants</div>
+    <div class="card" style="padding:28px;display:flex;flex-direction:column;gap:20px">
+      <div>
+        <div class="card-label" style="margin-bottom:12px">Contextual status chips</div>
+        <div class="chip-row">
+          <span class="chip outbreak"><span class="dot"></span>Confirmed Outbreak</span>
+          <span class="chip watch"><span class="dot"></span>Under Watch</span>
+          <span class="chip clear"><span class="dot"></span>Resolved</span>
+          <span class="chip info"><span class="dot"></span>Informational</span>
+        </div>
+      </div>
+      <div style="height:1px;background:var(--hairline)"></div>
+      <div>
+        <div class="card-label" style="margin-bottom:12px">In-table usage</div>
+        <table class="sn-table">
+          <thead>
+            <tr>
+              <th>Case ID</th>
+              <th>Disease</th>
+              <th>Status</th>
+              <th>Updated</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td style="font-family:var(--f-mono);font-size:12px">2026-0417-A</td>
+              <td>Pertussis</td>
+              <td><span class="chip outbreak" style="font-size:10px;padding:3px 9px"><span class="dot"></span>Outbreak</span></td>
+              <td style="font-family:var(--f-mono);font-size:12px;color:var(--graphite)">2 hrs ago</td>
+            </tr>
+            <tr>
+              <td style="font-family:var(--f-mono);font-size:12px">2026-0412-C</td>
+              <td>Measles</td>
+              <td><span class="chip watch" style="font-size:10px;padding:3px 9px"><span class="dot"></span>Watch</span></td>
+              <td style="font-family:var(--f-mono);font-size:12px;color:var(--graphite)">6 hrs ago</td>
+            </tr>
+            <tr>
+              <td style="font-family:var(--f-mono);font-size:12px">2026-0408-B</td>
+              <td>Hepatitis A</td>
+              <td><span class="chip clear" style="font-size:10px;padding:3px 9px"><span class="dot"></span>Resolved</span></td>
+              <td style="font-family:var(--f-mono);font-size:12px;color:var(--graphite)">1 day ago</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- Inputs ────────────────────────────────────────── -->
+  <section id="inputs">
+    <div class="sec-eyebrow">10 · Components</div>
+    <div class="sec-title">Inputs</div>
+    <div class="sec-sub">Text inputs, selects, and textareas. Signal Green focus ring reinforces the brand while providing a clear accessibility affordance.</div>
+
+    <div class="sub-label">Form Controls</div>
+    <div class="card" style="padding:28px">
+      <div class="input-grid">
+        <div class="form-field">
+          <label class="sn-label">First name</label>
+          <input class="sn-input" type="text" placeholder="e.g. Amara" />
+        </div>
+        <div class="form-field">
+          <label class="sn-label">Last name</label>
+          <input class="sn-input" type="text" placeholder="e.g. Osei" />
+        </div>
+        <div class="form-field">
+          <label class="sn-label">Disease</label>
+          <select class="sn-input" style="height:36px">
+            <option>Pertussis</option>
+            <option>Measles</option>
+            <option>Hepatitis A</option>
+          </select>
+        </div>
+        <div class="form-field">
+          <label class="sn-label">Case ID (auto)</label>
+          <input class="sn-input" type="text" value="2026-0427-D" style="font-family:var(--f-mono);font-size:13px;color:var(--graphite)" readonly />
+        </div>
+      </div>
+      <div class="form-field" style="margin-top:4px">
+        <label class="sn-label">Notes</label>
+        <textarea class="sn-textarea" placeholder="Add clinical or epidemiological notes…"></textarea>
+      </div>
+      <div style="display:flex;gap:10px;margin-top:8px">
+        <button class="sn-btn sn-btn--signal">Save case</button>
+        <button class="sn-btn sn-btn--ghost">Cancel</button>
+      </div>
+    </div>
+
+    <div class="sub-label">States</div>
+    <div class="grid g3">
+      <div>
+        <div class="card-label" style="margin-bottom:8px">Default</div>
+        <input class="sn-input" type="text" placeholder="Placeholder text" />
+      </div>
+      <div>
+        <div class="card-label" style="margin-bottom:8px">Focused</div>
+        <input class="sn-input" type="text" value="Focused input" style="border-color:var(--signal-dk);box-shadow:0 0 0 3px rgba(61,213,152,.25)" />
+      </div>
+      <div>
+        <div class="card-label" style="margin-bottom:8px">Error</div>
+        <input class="sn-input" type="text" value="Invalid entry" style="border-color:#E04D2B;box-shadow:0 0 0 3px rgba(224,77,43,.2)" />
+        <div style="font-size:12px;color:#E04D2B;margin-top:6px;font-family:var(--f-mono)">This field is required</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Cards ─────────────────────────────────────────── -->
+  <section id="cards">
+    <div class="sec-eyebrow">11 · Components</div>
+    <div class="sec-title">Cards</div>
+    <div class="sec-sub">Three card variants covering the hierarchy of content surfaces. Cards never overlap — use modals for layered content.</div>
+
+    <div class="sub-label">Variants</div>
+    <div class="grid g3">
+      <div class="card" style="padding:24px">
+        <div class="card-label">Default</div>
+        <div style="font-size:17px;font-weight:500;letter-spacing:-.02em;margin:8px 0 6px">Active Cases</div>
+        <div style="font-size:13px;color:var(--graphite);line-height:1.6">Background: Chalk (#FBFAF5). Border: Hairline. Radius: 8px. The most common surface in the app.</div>
+      </div>
+      <div class="card" style="padding:24px;box-shadow:0 4px 12px rgba(12,42,32,.08),0 2px 4px rgba(12,42,32,.04);border-color:transparent">
+        <div class="card-label">Elevated</div>
+        <div style="font-size:17px;font-weight:500;letter-spacing:-.02em;margin:8px 0 6px">Summary Panel</div>
+        <div style="font-size:13px;color:var(--graphite);line-height:1.6">Adds shadow-md. Use to float content above the baseline surface — detail panels, quick-stats sidebars.</div>
+      </div>
+      <div class="card dark" style="padding:24px">
+        <div class="card-label">Dark (Forest)</div>
+        <div style="font-size:17px;font-weight:500;letter-spacing:-.02em;margin:8px 0 6px;color:var(--bone)">Outbreak Alert</div>
+        <div style="font-size:13px;color:#8AA298;line-height:1.6">Background: Forest. Use sparingly for high-priority callouts, hero blocks, and status banners.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- KPI ───────────────────────────────────────────── -->
+  <section id="kpi">
+    <div class="sec-eyebrow">12 · Components</div>
+    <div class="sec-title">KPI Tiles</div>
+    <div class="sec-sub">The primary data surface. A mono label, a large numeral, and a delta line. Always use tabular numbers and mono font for the delta.</div>
+
+    <div class="sub-label">Tiles</div>
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px">
+      <div class="kpi">
+        <div class="kpi-label">Active cases</div>
+        <div class="kpi-value">247</div>
+        <div class="kpi-delta up">↑ 14 · past 7 days</div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-label">Under watch</div>
+        <div class="kpi-value">38</div>
+        <div class="kpi-delta up">↑ 3 · past 7 days</div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-label">Contacts traced</div>
+        <div class="kpi-value"><em>1.2k</em></div>
+        <div class="kpi-delta down">↓ 4.2% · avg</div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-label">Resolved</div>
+        <div class="kpi-value">894</div>
+        <div class="kpi-delta down">↑ 22 · past 7 days</div>
+      </div>
+    </div>
+
+    <div class="sub-label">Anatomy</div>
+    <div class="card" style="padding:24px;display:grid;grid-template-columns:1fr 1fr;gap:24px;align-items:center">
+      <div class="kpi" style="pointer-events:none;position:relative">
+        <!-- annotation arrows -->
+        <div style="font-family:var(--f-mono);font-size:9px;color:var(--signal-dk);position:absolute;top:-18px;left:0;letter-spacing:.06em;text-transform:uppercase">① Label</div>
+        <div class="kpi-label">Active cases</div>
+        <div class="kpi-value" style="position:relative">247
+          <span style="font-family:var(--f-mono);font-size:9px;color:var(--signal-dk);position:absolute;top:0;right:-60px;letter-spacing:.04em;text-transform:uppercase;white-space:nowrap">② Value</span>
+        </div>
+        <div class="kpi-delta up" style="position:relative">↑ 14 · past 7 days
+          <span style="font-family:var(--f-mono);font-size:9px;color:var(--signal-dk);position:absolute;bottom:-18px;right:0;letter-spacing:.04em;text-transform:uppercase;white-space:nowrap">③ Delta</span>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <div style="font-size:13px;color:var(--graphite)">① <strong style="color:var(--forest)">Label</strong> — Mono 10px, uppercase, letterspace .08em</div>
+        <div style="font-size:13px;color:var(--graphite)">② <strong style="color:var(--forest)">Value</strong> — 40px, weight 500, letterspace −.04em. Accent colour = Signal-dk for highlight.</div>
+        <div style="font-size:13px;color:var(--graphite)">③ <strong style="color:var(--forest)">Delta</strong> — Mono 10px. Red = up (bad), Signal-dk = down (good or contextual)</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Tables ────────────────────────────────────────── -->
+  <section id="tables">
+    <div class="sec-eyebrow">13 · Components</div>
+    <div class="sec-title">Tables</div>
+    <div class="sec-sub">The workhorse of Sentinel. Headers use mono micro labels. Rows are compact at 44px. Hover state uses Chalk to aid scanning.</div>
+
+    <div class="sub-label">Data Table</div>
+    <div class="card" style="padding:0;overflow:hidden">
+      <table class="sn-table">
+        <thead>
+          <tr>
+            <th>Case ID</th>
+            <th>Disease</th>
+            <th>Region</th>
+            <th>Reported</th>
+            <th>Contacts</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td style="font-family:var(--f-mono);font-size:12px">2026-0427-A</td>
+            <td>Pertussis</td>
+            <td>Wellington</td>
+            <td style="font-family:var(--f-mono);font-size:12px;color:var(--graphite)">2026-04-27</td>
+            <td style="font-family:var(--f-mono);font-size:13px">12</td>
+            <td><span class="chip outbreak" style="font-size:10px;padding:3px 9px"><span class="dot"></span>Outbreak</span></td>
+          </tr>
+          <tr>
+            <td style="font-family:var(--f-mono);font-size:12px">2026-0425-C</td>
+            <td>Measles</td>
+            <td>Auckland</td>
+            <td style="font-family:var(--f-mono);font-size:12px;color:var(--graphite)">2026-04-25</td>
+            <td style="font-family:var(--f-mono);font-size:13px">8</td>
+            <td><span class="chip watch" style="font-size:10px;padding:3px 9px"><span class="dot"></span>Watch</span></td>
+          </tr>
+          <tr style="background:var(--signal-lt)">
+            <td style="font-family:var(--f-mono);font-size:12px">2026-0420-B</td>
+            <td>Hepatitis A</td>
+            <td>Christchurch</td>
+            <td style="font-family:var(--f-mono);font-size:12px;color:var(--graphite)">2026-04-20</td>
+            <td style="font-family:var(--f-mono);font-size:13px">3</td>
+            <td><span class="chip clear" style="font-size:10px;padding:3px 9px"><span class="dot"></span>Resolved</span></td>
+          </tr>
+          <tr>
+            <td style="font-family:var(--f-mono);font-size:12px">2026-0418-D</td>
+            <td>Salmonella</td>
+            <td>Hamilton</td>
+            <td style="font-family:var(--f-mono);font-size:12px;color:var(--graphite)">2026-04-18</td>
+            <td style="font-family:var(--f-mono);font-size:13px">21</td>
+            <td><span class="chip info" style="font-size:10px;padding:3px 9px"><span class="dot"></span>Info</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <div style="font-family:var(--f-mono);font-size:10px;color:var(--graphite);margin-top:6px">Signal-lt row tint (#D9F2E5) used for selected rows. Never use solid fills for alternate rows.</div>
+  </section>
+
+  <!-- Navigation ────────────────────────────────────── -->
+  <section id="navigation">
+    <div class="sec-eyebrow">14 · Components</div>
+    <div class="sec-title">Navigation</div>
+    <div class="sec-sub">Sidebar navigation on a Paper (#ECEAE1) surface. Active items invert to Forest with Signal text. Groups use mono micro labels.</div>
+
+    <div class="sub-label">Sidebar Nav</div>
+    <div style="display:grid;grid-template-columns:240px 1fr;gap:24px">
+      <div>
+        <div class="nav-demo">
+          <div class="nav-group-label">Overview</div>
+          <div class="nav-item active">
+            Dashboard
+            <span class="nav-count">●</span>
+          </div>
+          <div class="nav-item">Cases <span class="nav-count">247</span></div>
+          <div class="nav-item">Contacts <span class="nav-count">1.2k</span></div>
+
+          <div class="nav-group-label">Surveillance</div>
+          <div class="nav-item">Outbreak map</div>
+          <div class="nav-item">Review queue <span class="nav-count">14</span></div>
+          <div class="nav-item">Report builder</div>
+
+          <div class="nav-group-label">Admin</div>
+          <div class="nav-item">Settings</div>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:10px;justify-content:center">
+        <div style="font-size:13px;color:var(--graphite);line-height:1.7">
+          <strong style="color:var(--forest)">Resting</strong> — full-width, 13px, 4px radius, no background<br>
+          <strong style="color:var(--forest)">Hover</strong> — Chalk (#FBFAF5) fill<br>
+          <strong style="color:var(--forest)">Active</strong> — Forest fill, Signal text, weight 500<br>
+          <strong style="color:var(--forest)">Counts</strong> — Mono 10px, right-aligned, dims on active
+        </div>
+        <div style="font-family:var(--f-mono);font-size:10px;color:var(--graphite);padding:10px 14px;background:var(--paper);border-radius:4px;border-left:2px solid var(--signal-dk);margin-top:4px">
+          Never show more than 2 levels of navigation. Use group labels to create visual sections, not nested expandables.
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- App Shell ─────────────────────────────────────── -->
+  <section id="appshell">
+    <div class="sec-eyebrow">15 · Patterns</div>
+    <div class="sec-title">App Shell</div>
+    <div class="sec-sub">The canonical layout: topbar + sidebar + content area. White topbar, Paper sidebar, Bone or Paper content background.</div>
+
+    <div class="sub-label">Full App Mock</div>
+    <div class="app-frame">
+      <div class="app-topbar">
+        <div class="app-topbar-logo">
+          <svg viewBox="0 0 32 32" width="24">
+            <rect width="32" height="32" rx="7" fill="#0C2A20"/>
+            <g fill="none" stroke="#3DD598" stroke-width="1.2">
+              <circle cx="16" cy="16" r="5.5"/><circle cx="16" cy="16" r="9.5" opacity=".55"/><circle cx="16" cy="16" r="13.5" opacity=".22"/>
+            </g>
+            <circle cx="16" cy="16" r="2.5" fill="#3DD598"/>
+          </svg>
+          <div class="app-topbar-wordmark">Sentinel</div>
+        </div>
+        <div class="app-topbar-nav">
+          <a href="#" class="active">Dashboard</a>
+          <a href="#">Cases</a>
+          <a href="#">Reports</a>
+        </div>
+        <div class="app-topbar-spacer"></div>
+        <span class="chip clear" style="font-size:10px;padding:3px 10px"><span class="dot"></span>Live</span>
+      </div>
+      <div class="app-body">
+        <div class="app-sidebar">
+          <div class="app-sidebar-label">Overview</div>
+          <div class="app-sidebar-item active">Dashboard <span class="app-sidebar-count">●</span></div>
+          <div class="app-sidebar-item">Cases <span class="app-sidebar-count">247</span></div>
+          <div class="app-sidebar-item">Contacts <span class="app-sidebar-count">1.2k</span></div>
+          <div class="app-sidebar-label">Surveillance</div>
+          <div class="app-sidebar-item">Outbreak map</div>
+          <div class="app-sidebar-item">Review queue <span class="app-sidebar-count">14</span></div>
+        </div>
+        <div class="app-content">
+          <div class="app-content-header">
+            <div>
+              <div style="font-family:var(--f-mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--graphite);margin-bottom:4px">Overview</div>
+              <div class="app-content-title">Dashboard</div>
+            </div>
+            <div style="display:flex;gap:8px">
+              <button class="sn-btn sn-btn--ghost sn-btn--sm">Export</button>
+              <button class="sn-btn sn-btn--signal sn-btn--sm">New case</button>
+            </div>
+          </div>
+          <div class="app-kpis">
+            <div class="kpi"><div class="kpi-label">Active</div><div class="kpi-value">247</div><div class="kpi-delta up">↑ 14</div></div>
+            <div class="kpi"><div class="kpi-label">Watch</div><div class="kpi-value">38</div><div class="kpi-delta up">↑ 3</div></div>
+            <div class="kpi"><div class="kpi-label">Contacts</div><div class="kpi-value"><em>1.2k</em></div><div class="kpi-delta">7-day avg</div></div>
+            <div class="kpi"><div class="kpi-label">Resolved</div><div class="kpi-value">894</div><div class="kpi-delta down">↑ 22</div></div>
+          </div>
+          <table class="sn-table" style="font-size:13px">
+            <thead><tr><th>Case ID</th><th>Disease</th><th>Status</th><th>Updated</th></tr></thead>
+            <tbody>
+              <tr><td style="font-family:var(--f-mono);font-size:11px">2026-0427-A</td><td>Pertussis</td><td><span class="chip outbreak" style="font-size:10px;padding:3px 8px"><span class="dot"></span>Outbreak</span></td><td style="font-family:var(--f-mono);font-size:11px;color:var(--graphite)">2h ago</td></tr>
+              <tr><td style="font-family:var(--f-mono);font-size:11px">2026-0425-C</td><td>Measles</td><td><span class="chip watch" style="font-size:10px;padding:3px 8px"><span class="dot"></span>Watch</span></td><td style="font-family:var(--f-mono);font-size:11px;color:var(--graphite)">6h ago</td></tr>
+              <tr><td style="font-family:var(--f-mono);font-size:11px">2026-0420-B</td><td>Hepatitis A</td><td><span class="chip clear" style="font-size:10px;padding:3px 8px"><span class="dot"></span>Resolved</span></td><td style="font-family:var(--f-mono);font-size:11px;color:var(--graphite)">1d ago</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Voice ─────────────────────────────────────────── -->
+  <section id="voice">
+    <div class="sec-eyebrow">16 · Guidelines</div>
+    <div class="sec-title">Voice & Tone</div>
+    <div class="sec-sub">Precision matters when a number can mean a life. Every word in the UI earns its place.</div>
+
+    <div class="voice-grid">
+      <div class="voice-item">
+        <h5>State what you know</h5>
+        <p>Don't hedge unnecessarily. "14 contacts identified" not "approximately 14 possible contacts may have been identified".</p>
+      </div>
+      <div class="voice-item">
+        <h5>Flag what you don't</h5>
+        <p>When data is incomplete or unverified, say so plainly. "Awaiting lab confirmation" is better than silence or an asterisk.</p>
+      </div>
+      <div class="voice-item">
+        <h5>Give a next step</h5>
+        <p>Empty states, errors, and confirmations always include one clear action. Never leave the user stranded.</p>
+      </div>
+      <div class="voice-item">
+        <h5>Prefer active voice</h5>
+        <p>"Contact Amara Osei" not "A contact should be made with Amara Osei". The system talks to a person doing a job.</p>
+      </div>
+    </div>
+
+    <div class="sub-label">Copy Examples</div>
+    <div class="card" style="padding:0;overflow:hidden">
+      <table class="sn-table">
+        <thead><tr><th>Context</th><th>✕ Don't write</th><th>✓ Write instead</th></tr></thead>
+        <tbody>
+          <tr>
+            <td style="font-size:13px;color:var(--graphite)">Button label</td>
+            <td style="font-size:13px;color:var(--outbreak)">Submit form</td>
+            <td style="font-size:13px;color:var(--signal-dk);font-weight:500">Save case</td>
+          </tr>
+          <tr>
+            <td style="font-size:13px;color:var(--graphite)">Empty state</td>
+            <td style="font-size:13px;color:var(--outbreak)">No data found.</td>
+            <td style="font-size:13px;color:var(--signal-dk);font-weight:500">No cases match your filters. Try broadening the date range.</td>
+          </tr>
+          <tr>
+            <td style="font-size:13px;color:var(--graphite)">Error</td>
+            <td style="font-size:13px;color:var(--outbreak)">An error occurred.</td>
+            <td style="font-size:13px;color:var(--signal-dk);font-weight:500">Couldn't save the case. Check your connection and try again.</td>
+          </tr>
+          <tr>
+            <td style="font-size:13px;color:var(--graphite)">Confirm delete</td>
+            <td style="font-size:13px;color:var(--outbreak)">Are you sure?</td>
+            <td style="font-size:13px;color:var(--signal-dk);font-weight:500">Delete Case 2026-0427-A? This cannot be undone.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- Do / Don't ────────────────────────────────────── -->
+  <section id="usage">
+    <div class="sec-eyebrow">17 · Guidelines</div>
+    <div class="sec-title">Do's & Don'ts</div>
+    <div class="sec-sub">Common mistakes and how to avoid them.</div>
+
+    <div class="do-dont" style="margin-bottom:12px">
+      <div class="do">
+        <div class="do-header">✓ Use mesh backgrounds for hero moments</div>
+        <div class="do-rule">Login screens, empty states, and marketing pages benefit from the mesh. It signals "you are entering a space".</div>
+      </div>
+      <div class="dont">
+        <div class="dont-header">✕ Never mesh behind data</div>
+        <div class="dont-rule">Tables, forms, and charts must always sit on Bone, Paper, or Chalk. Textured backgrounds destroy data legibility.</div>
+      </div>
+    </div>
+    <div class="do-dont" style="margin-bottom:12px">
+      <div class="do">
+        <div class="do-header">✓ Use Mono for all numeric data</div>
+        <div class="do-rule">Case counts, dates, percentages, and IDs should always render in Geist Mono so numbers align in tables.</div>
+      </div>
+      <div class="dont">
+        <div class="dont-header">✕ Don't use Lime as a primary action colour</div>
+        <div class="dont-rule">Lime is a tertiary pop colour for data visualisation accents. It's not suitable for buttons or status indicators.</div>
+      </div>
+    </div>
+    <div class="do-dont" style="margin-bottom:12px">
+      <div class="do">
+        <div class="do-header">✓ Respect the signal: green = healthy</div>
+        <div class="do-rule">Signal Green means "good news". Don't use it to flag a warning or neutral state — it will undermine trust.</div>
+      </div>
+      <div class="dont">
+        <div class="dont-header">✕ Don't stack more than 2 nav levels</div>
+        <div class="dont-rule">Sentinel's users are on duty, under time pressure. Deep nav hierarchies are a UX failure.</div>
+      </div>
+    </div>
+    <div class="do-dont">
+      <div class="do">
+        <div class="do-header">✓ Keep the mark clear</div>
+        <div class="do-rule">Never recolour, stretch, rotate, or add effects to the Sentinel mark. Use the approved lockups only.</div>
+      </div>
+      <div class="dont">
+        <div class="dont-header">✕ Don't invent new status colours</div>
+        <div class="dont-rule">The four status colours (Outbreak, Watch, Resolved, Info) are the complete set. Adding custom colours breaks the system's semantic trust.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Tokens Reference ──────────────────────────────── -->
+  <section id="tokens">
+    <div class="sec-eyebrow">18 · Reference</div>
+    <div class="sec-title">Token Reference</div>
+    <div class="sec-sub">All tokens are prefixed <code style="font-family:var(--f-mono);font-size:14px;color:var(--signal-dk)">--sn-</code> to avoid collisions. Import <code style="font-family:var(--f-mono);font-size:14px;color:var(--signal-dk)">css/sentinel.css</code> once at the app root.</div>
+
+    <div class="sub-label">Core Colour Tokens</div>
+    <div class="card" style="padding:0;overflow:hidden">
+      <table class="token-table">
+        <thead><tr><th>Token</th><th>Value</th><th>Role</th></tr></thead>
+        <tbody>
+          <tr><td><span class="sw" style="background:#0C2A20"></span>--sn-forest</td><td>#0C2A20</td><td>Primary dark / body text on light</td></tr>
+          <tr><td><span class="sw" style="background:#13382C"></span>--sn-forest-2</td><td>#13382C</td><td>Elevated dark surface</td></tr>
+          <tr><td><span class="sw" style="background:#1E5D44"></span>--sn-moss</td><td>#1E5D44</td><td>Secondary dark, data visualisation</td></tr>
+          <tr><td><span class="sw" style="background:#3DD598"></span>--sn-signal</td><td>#3DD598</td><td>Primary brand accent</td></tr>
+          <tr><td><span class="sw" style="background:#159C6E"></span>--sn-signal-dk</td><td>#159C6E</td><td>Buttons on light backgrounds</td></tr>
+          <tr><td><span class="sw" style="background:#D9F2E5"></span>--sn-signal-lt</td><td>#D9F2E5</td><td>Selected rows, chip backgrounds</td></tr>
+          <tr><td><span class="sw" style="background:#C9E86A"></span>--sn-lime</td><td>#C9E86A</td><td>Tertiary pop — use sparingly</td></tr>
+          <tr><td><span class="sw" style="background:#F5F3EC;border:1px solid #D8D4C4"></span>--sn-bone</td><td>#F5F3EC</td><td>Page background</td></tr>
+          <tr><td><span class="sw" style="background:#ECEAE1;border:1px solid #D8D4C4"></span>--sn-paper</td><td>#ECEAE1</td><td>App background</td></tr>
+          <tr><td><span class="sw" style="background:#FBFAF5;border:1px solid #D8D4C4"></span>--sn-chalk</td><td>#FBFAF5</td><td>Cards</td></tr>
+          <tr><td><span class="sw" style="background:#4A5A55"></span>--sn-graphite</td><td>#4A5A55</td><td>Secondary text</td></tr>
+          <tr><td><span class="sw" style="background:#D8D4C4"></span>--sn-hairline</td><td>#D8D4C4</td><td>Borders on light surfaces</td></tr>
+          <tr><td><span class="sw" style="background:#E04D2B"></span>--sn-status-outbreak</td><td>#E04D2B</td><td>Outbreak / critical</td></tr>
+          <tr><td><span class="sw" style="background:#E0A43A"></span>--sn-status-watch</td><td>#E0A43A</td><td>Under watch / warning</td></tr>
+          <tr><td><span class="sw" style="background:#6B8CF5"></span>--sn-status-info</td><td>#6B8CF5</td><td>Informational</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="sub-label">Z-Index Scale</div>
+    <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:10px">
+      <div class="card" style="padding:16px;text-align:center">
+        <div style="font-family:var(--f-mono);font-size:10px;color:var(--graphite);margin-bottom:6px">BASE</div>
+        <div style="font-size:22px;font-weight:500">0</div>
+      </div>
+      <div class="card" style="padding:16px;text-align:center">
+        <div style="font-family:var(--f-mono);font-size:10px;color:var(--graphite);margin-bottom:6px">STICKY</div>
+        <div style="font-size:22px;font-weight:500">100</div>
+      </div>
+      <div class="card" style="padding:16px;text-align:center">
+        <div style="font-family:var(--f-mono);font-size:10px;color:var(--graphite);margin-bottom:6px">OVERLAY</div>
+        <div style="font-size:22px;font-weight:500">800</div>
+      </div>
+      <div class="card" style="padding:16px;text-align:center">
+        <div style="font-family:var(--f-mono);font-size:10px;color:var(--graphite);margin-bottom:6px">MODAL</div>
+        <div style="font-size:22px;font-weight:500">900</div>
+      </div>
+      <div class="card" style="padding:16px;text-align:center">
+        <div style="font-family:var(--f-mono);font-size:10px;color:var(--graphite);margin-bottom:6px">TOAST</div>
+        <div style="font-size:22px;font-weight:500">1000</div>
+      </div>
+    </div>
+
+    <div class="sub-label">Getting Started</div>
+    <div class="card dark" style="padding:28px">
+      <div class="card-label">Implementation</div>
+      <pre style="font-family:var(--f-mono);font-size:13px;color:#BFE8D9;line-height:1.8;margin-top:8px;overflow-x:auto"><code>&lt;!-- 1. Import the stylesheet once --&gt;
+&lt;link rel="stylesheet" href="/css/sentinel.css" /&gt;
+
+&lt;!-- 2. Use component classes directly --&gt;
+&lt;button class="sn-btn sn-btn--signal"&gt;Confirm case&lt;/button&gt;
+&lt;span class="sn-chip sn-chip--outbreak"&gt;
+  &lt;span class="sn-chip__dot"&gt;&lt;/span&gt;Outbreak
+&lt;/span&gt;
+
+&lt;!-- 3. Or consume tokens in your own styles --&gt;
+&lt;style&gt;
+.my-panel {
+  background: var(--sn-bg-card);
+  border: 1px solid var(--sn-border);
+  border-radius: var(--sn-radius-lg);
+  padding: var(--sn-space-8);
+}
+&lt;/style&gt;</code></pre>
+    </div>
+  </section>
+
+</div><!-- /main -->
+
+<!-- ── Footer ────────────────────────────────────────── -->
+<footer>
+  <div>Sentinel · UI Guidelines · v 0.2</div>
+  <div>2026.04 · Watchful infrastructure for public health</div>
+</footer>
+
+<!-- Active nav highlight on scroll -->
+<script>
+const navLinks = document.querySelectorAll('.sidenav a');
+const sections = document.querySelectorAll('section[id]');
+
+const observer = new IntersectionObserver((entries) => {
+  entries.forEach(entry => {
+    if (entry.isIntersecting) {
+      navLinks.forEach(link => link.classList.remove('active'));
+      const active = document.querySelector(`.sidenav a[href="#${entry.target.id}"]`);
+      if (active) active.classList.add('active');
+    }
+  });
+}, { rootMargin: '-20% 0px -70% 0px' });
+
+sections.forEach(s => observer.observe(s));
+</script>
+</body>
+</html>

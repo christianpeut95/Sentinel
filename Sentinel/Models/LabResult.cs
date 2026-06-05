@@ -11,11 +11,15 @@ namespace Sentinel.Models
         [StringLength(20)]
         public string FriendlyId { get; set; } = string.Empty;
 
-        // Case relationship
-        [Required]
+        // Case relationship (nullable - HL7 creates LabResults before Case assignment)
         [Display(Name = "Case")]
-        public Guid CaseId { get; set; }
+        public Guid? CaseId { get; set; }
         public Case? Case { get; set; }
+
+        // Patient relationship (for HL7 processing before case creation)
+        [Display(Name = "Patient")]
+        public Guid? PatientId { get; set; }
+        public Patient? Patient { get; set; }
 
         // Laboratory (Organization)
         [Display(Name = "Laboratory")]
@@ -36,11 +40,6 @@ namespace Sentinel.Models
         public int? SpecimenTypeId { get; set; }
         public SpecimenType? SpecimenType { get; set; }
 
-        // Test Information
-        [Display(Name = "Test Type")]
-        public int? TestTypeId { get; set; }
-        public TestType? TestType { get; set; }
-
         [Display(Name = "Test For (Disease/Pathogen)")]
         public Guid? TestedDiseaseId { get; set; }
         public Disease? TestedDisease { get; set; }
@@ -50,17 +49,10 @@ namespace Sentinel.Models
         public Guid? OrderingProviderId { get; set; }
         public Organization? OrderingProvider { get; set; }
 
-        // Results
-        [Display(Name = "Test Result")]
-        public int? TestResultId { get; set; }
-        public TestResult? TestResult { get; set; }
-
+        // Results - Current System
         [Display(Name = "Result Date")]
         [DataType(DataType.Date)]
         public DateTime? ResultDate { get; set; }
-
-        [Display(Name = "Quantitative Result")]
-        public decimal? QuantitativeResult { get; set; }
 
         [Display(Name = "Result Units")]
         public int? ResultUnitsId { get; set; }
@@ -92,6 +84,9 @@ namespace Sentinel.Models
 
         [Display(Name = "Attachment Size (bytes)")]
         public long? AttachmentSize { get; set; }
+
+        // Pathogen/Biomarker Test Results (new system)
+        public ICollection<LabResultMarker> Markers { get; set; } = new List<LabResultMarker>();
 
         // Audit fields
         [Display(Name = "Created At")]

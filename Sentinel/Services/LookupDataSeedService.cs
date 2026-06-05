@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Sentinel.Data;
 using Sentinel.Models.Lookups;
+using Sentinel.Models.Pathogens;
 
 namespace Sentinel.Services
 {
@@ -24,7 +25,9 @@ namespace Sentinel.Services
             await SeedOrganizationTypesAsync(context, logger);
             await SeedSpecimenTypesAsync(context, logger);
             await SeedTestTypesAsync(context, logger);
+            await SeedTestMethodsAsync(context, logger);
             await SeedTestResultsAsync(context, logger);
+            await SeedPathogensAsync(context, logger);
             await SeedSymptomsAsync(context, logger);
             await SeedTaskTypesAsync(context, logger);
 
@@ -720,6 +723,7 @@ namespace Sentinel.Services
             var specimenTypes = new List<SpecimenType>
             {
                 new SpecimenType { Name = "Blood", Description = "Whole blood specimen", IsActive = true },
+                new SpecimenType { Name = "Serum", Description = "Serum specimen", SnomedCode = "119364003", SnomedDisplay = "Serum specimen", IsActive = true },
                 new SpecimenType { Name = "Urine", Description = "Urine specimen", IsActive = true },
                 new SpecimenType { Name = "Nasopharyngeal Swab", Description = "Swab from nasopharynx", IsActive = true },
                 new SpecimenType { Name = "CSF Fluid", Description = "Cerebrospinal fluid", IsActive = true },
@@ -736,9 +740,12 @@ namespace Sentinel.Services
             logger.LogInformation("Seeded {Count} specimen types successfully", specimenTypes.Count);
         }
 
+        // LEGACY: TestTypes removed - this seed method is no longer used
         private static async Task SeedTestTypesAsync(ApplicationDbContext context, ILogger logger)
         {
-            if (await context.TestTypes.AnyAsync())
+            logger.LogInformation("TestTypes seed method skipped - legacy system removed");
+            return;
+            // if (await context.TestTypes.AnyAsync())
             {
                 logger.LogInformation("TestTypes table already has data - skipping seeding");
                 return;
@@ -754,15 +761,18 @@ namespace Sentinel.Services
                 new TestType { Name = "Microscopy", Description = "Microscopic examination", IsActive = true }
             };
 
-            await context.TestTypes.AddRangeAsync(testTypes);
+            // await context.TestTypes.AddRangeAsync(testTypes);
             await context.SaveChangesAsync();
 
             logger.LogInformation("Seeded {Count} test types successfully", testTypes.Count);
         }
 
+        // LEGACY: TestResults removed - this seed method is no longer used
         private static async Task SeedTestResultsAsync(ApplicationDbContext context, ILogger logger)
         {
-            if (await context.TestResults.AnyAsync())
+            logger.LogInformation("TestResults seed method skipped - legacy system removed");
+            return;
+            // if (await context.TestResults.AnyAsync())
             {
                 logger.LogInformation("TestResults table already has data - skipping seeding");
                 return;
@@ -783,10 +793,320 @@ namespace Sentinel.Services
                 new TestResult { Name = "IgM Negative", Description = "Serology - IgM antibodies not detected", IsActive = true }
             };
 
-            await context.TestResults.AddRangeAsync(testResults);
+            // await context.TestResults.AddRangeAsync(testResults);
             await context.SaveChangesAsync();
 
             logger.LogInformation("Seeded {Count} test results successfully", testResults.Count);
+        }
+
+        private static async Task SeedTestMethodsAsync(ApplicationDbContext context, ILogger logger)
+        {
+            if (await context.TestMethods.AnyAsync())
+            {
+                logger.LogInformation("TestMethods table already has data - skipping seeding");
+                return;
+            }
+
+            logger.LogInformation("Seeding Test Methods...");
+
+            var testMethods = new List<TestMethod>
+            {
+                new TestMethod { Name = "PCR (Polymerase Chain Reaction)", Description = "Molecular amplification technique", DisplayOrder = 1, IsActive = true },
+                new TestMethod { Name = "RT-PCR (Reverse Transcription PCR)", Description = "PCR for RNA detection", DisplayOrder = 2, IsActive = true },
+                new TestMethod { Name = "NAAT (Nucleic Acid Amplification Test)", Description = "General molecular test", DisplayOrder = 3, IsActive = true },
+                new TestMethod { Name = "Culture - Bacterial", Description = "Bacterial culture and identification", DisplayOrder = 10, IsActive = true },
+                new TestMethod { Name = "Culture - Viral", Description = "Viral culture and identification", DisplayOrder = 11, IsActive = true },
+                new TestMethod { Name = "Culture - Fungal", Description = "Fungal culture and identification", DisplayOrder = 12, IsActive = true },
+                new TestMethod { Name = "Immunoassay", Description = "Antibody/antigen detection technique", SnomedCode = "414464004", SnomedDisplay = "Immunoassay technique", DisplayOrder = 19, IsActive = true },
+                new TestMethod { Name = "ELISA (Enzyme-Linked Immunosorbent Assay)", Description = "Antibody/antigen detection", DisplayOrder = 20, IsActive = true },
+                new TestMethod { Name = "EIA (Enzyme Immunoassay)", Description = "Immunological detection method", DisplayOrder = 21, IsActive = true },
+                new TestMethod { Name = "CLIA (Chemiluminescence Immunoassay)", Description = "Chemiluminescent detection", DisplayOrder = 22, IsActive = true },
+                new TestMethod { Name = "IFA (Immunofluorescence Assay)", Description = "Fluorescent antibody detection", DisplayOrder = 23, IsActive = true },
+                new TestMethod { Name = "Western Blot", Description = "Protein detection and confirmation", DisplayOrder = 24, IsActive = true },
+                new TestMethod { Name = "Rapid Antigen Test", Description = "Point-of-care antigen detection", DisplayOrder = 30, IsActive = true },
+                new TestMethod { Name = "Rapid Antibody Test", Description = "Point-of-care antibody detection", DisplayOrder = 31, IsActive = true },
+                new TestMethod { Name = "Microscopy", Description = "Direct microscopic examination", DisplayOrder = 40, IsActive = true },
+                new TestMethod { Name = "Gram Stain", Description = "Bacterial staining and microscopy", DisplayOrder = 41, IsActive = true },
+                new TestMethod { Name = "Serology - IgM", Description = "IgM antibody detection", DisplayOrder = 50, IsActive = true },
+                new TestMethod { Name = "Serology - IgG", Description = "IgG antibody detection", DisplayOrder = 51, IsActive = true },
+                new TestMethod { Name = "Serology - IgA", Description = "IgA antibody detection", DisplayOrder = 52, IsActive = true },
+                new TestMethod { Name = "Sequencing", Description = "Genetic sequencing", DisplayOrder = 60, IsActive = true },
+                new TestMethod { Name = "Other", Description = "Other laboratory method", DisplayOrder = 99, IsActive = true }
+            };
+
+            await context.TestMethods.AddRangeAsync(testMethods);
+            await context.SaveChangesAsync();
+
+            logger.LogInformation("Seeded {Count} test methods successfully", testMethods.Count);
+        }
+
+        private static async Task SeedPathogensAsync(ApplicationDbContext context, ILogger logger)
+        {
+            if (await context.Pathogens.AnyAsync())
+            {
+                logger.LogInformation("Pathogens table already has data - skipping seeding");
+                return;
+            }
+
+            logger.LogInformation("Seeding Pathogens/Biomarkers...");
+
+            var pathogens = new List<Pathogen>
+            {
+                // Hepatitis B Panel
+                new Pathogen 
+                { 
+                    Id = Guid.NewGuid(),
+                    Name = "Hepatitis B Surface Antigen",
+                    ShortName = "HBsAg",
+                    LOINCCode = "5196-1",
+                    LOINCDisplayName = "Hepatitis B virus surface Ag [Presence] in Serum",
+                    Category = PathogenCategory.Antigen,
+                    ResultType = ResultType.Both,
+                    Description = "Marker of acute or chronic HBV infection",
+                    DisplayOrder = 100,
+                    IsActive = true
+                },
+                new Pathogen 
+                { 
+                    Id = Guid.NewGuid(),
+                    Name = "Hepatitis B Surface Antibody",
+                    ShortName = "Anti-HBs",
+                    LOINCCode = "5193-8",
+                    LOINCDisplayName = "Hepatitis B virus surface Ab [Units/volume] in Serum",
+                    Category = PathogenCategory.Antibody_Total,
+                    ResultType = ResultType.Both,
+                    DefaultUnit = "mIU/mL",
+                    Description = "Marker of immunity to HBV",
+                    DisplayOrder = 101,
+                    IsActive = true
+                },
+                new Pathogen 
+                { 
+                    Id = Guid.NewGuid(),
+                    Name = "Hepatitis B Core Antibody IgM",
+                    ShortName = "Anti-HBc IgM",
+                    LOINCCode = "32019-7",
+                    LOINCDisplayName = "Hepatitis B virus core Ab IgM [Presence] in Serum",
+                    Category = PathogenCategory.Antibody_IgM,
+                    ResultType = ResultType.Qualitative,
+                    Description = "Marker of acute HBV infection",
+                    DisplayOrder = 102,
+                    IsActive = true
+                },
+                new Pathogen 
+                { 
+                    Id = Guid.NewGuid(),
+                    Name = "Hepatitis B Core Antibody Total",
+                    ShortName = "Anti-HBc Total",
+                    LOINCCode = "13952-2",
+                    LOINCDisplayName = "Hepatitis B virus core Ab [Presence] in Serum",
+                    Category = PathogenCategory.Antibody_Total,
+                    ResultType = ResultType.Qualitative,
+                    Description = "Marker of past or current HBV infection",
+                    DisplayOrder = 103,
+                    IsActive = true
+                },
+                new Pathogen 
+                { 
+                    Id = Guid.NewGuid(),
+                    Name = "Hepatitis B e Antigen",
+                    ShortName = "HBeAg",
+                    LOINCCode = "5195-3",
+                    LOINCDisplayName = "Hepatitis B virus e Ag [Presence] in Serum",
+                    Category = PathogenCategory.Antigen,
+                    ResultType = ResultType.Qualitative,
+                    Description = "Marker of viral replication",
+                    DisplayOrder = 104,
+                    IsActive = true
+                },
+                new Pathogen 
+                { 
+                    Id = Guid.NewGuid(),
+                    Name = "Hepatitis B e Antibody",
+                    ShortName = "Anti-HBe",
+                    LOINCCode = "5194-6",
+                    LOINCDisplayName = "Hepatitis B virus e Ab [Presence] in Serum",
+                    Category = PathogenCategory.Antibody_Total,
+                    ResultType = ResultType.Qualitative,
+                    Description = "Marker of decreased viral replication",
+                    DisplayOrder = 105,
+                    IsActive = true
+                },
+
+                // Influenza
+                new Pathogen 
+                { 
+                    Id = Guid.NewGuid(),
+                    Name = "Influenza A RNA",
+                    ShortName = "Flu A",
+                    LOINCCode = "92142-9",
+                    LOINCDisplayName = "Influenza virus A RNA [Presence] in Respiratory specimen by NAA",
+                    Category = PathogenCategory.NucleicAcid_RNA,
+                    ResultType = ResultType.Qualitative,
+                    Description = "Influenza A virus detection",
+                    DisplayOrder = 200,
+                    IsActive = true
+                },
+                new Pathogen 
+                { 
+                    Id = Guid.NewGuid(),
+                    Name = "Influenza B RNA",
+                    ShortName = "Flu B",
+                    LOINCCode = "92141-1",
+                    LOINCDisplayName = "Influenza virus B RNA [Presence] in Respiratory specimen by NAA",
+                    Category = PathogenCategory.NucleicAcid_RNA,
+                    ResultType = ResultType.Qualitative,
+                    Description = "Influenza B virus detection",
+                    DisplayOrder = 201,
+                    IsActive = true
+                },
+
+                // COVID-19
+                new Pathogen 
+                { 
+                    Id = Guid.NewGuid(),
+                    Name = "SARS-CoV-2 RNA",
+                    ShortName = "COVID-19",
+                    LOINCCode = "94500-6",
+                    LOINCDisplayName = "SARS-CoV-2 RNA [Presence] in Respiratory specimen by NAA",
+                    Category = PathogenCategory.NucleicAcid_RNA,
+                    ResultType = ResultType.Qualitative,
+                    Description = "COVID-19 virus detection",
+                    DisplayOrder = 210,
+                    IsActive = true
+                },
+                new Pathogen 
+                { 
+                    Id = Guid.NewGuid(),
+                    Name = "SARS-CoV-2 Nucleocapsid Antibody IgG",
+                    ShortName = "COVID IgG",
+                    LOINCCode = "94507-1",
+                    LOINCDisplayName = "SARS-CoV-2 N protein IgG Ab [Presence] in Serum",
+                    Category = PathogenCategory.Antibody_IgG,
+                    ResultType = ResultType.Both,
+                    Description = "COVID-19 IgG antibody",
+                    DisplayOrder = 211,
+                    IsActive = true
+                },
+                new Pathogen 
+                { 
+                    Id = Guid.NewGuid(),
+                    Name = "SARS-CoV-2 Nucleocapsid Antibody IgM",
+                    ShortName = "COVID IgM",
+                    LOINCCode = "94508-9",
+                    LOINCDisplayName = "SARS-CoV-2 N protein IgM Ab [Presence] in Serum",
+                    Category = PathogenCategory.Antibody_IgM,
+                    ResultType = ResultType.Both,
+                    Description = "COVID-19 IgM antibody",
+                    DisplayOrder = 212,
+                    IsActive = true
+                },
+
+                // Ross River Virus
+                new Pathogen 
+                { 
+                    Id = Guid.NewGuid(),
+                    Name = "Ross River Virus IgM",
+                    ShortName = "RRV IgM",
+                    Category = PathogenCategory.Antibody_IgM,
+                    ResultType = ResultType.Both,
+                    Description = "Ross River Virus IgM antibody",
+                    DisplayOrder = 300,
+                    IsActive = true
+                },
+                new Pathogen 
+                { 
+                    Id = Guid.NewGuid(),
+                    Name = "Ross River Virus IgG",
+                    ShortName = "RRV IgG",
+                    Category = PathogenCategory.Antibody_IgG,
+                    ResultType = ResultType.Both,
+                    Description = "Ross River Virus IgG antibody",
+                    DisplayOrder = 301,
+                    IsActive = true
+                },
+
+                // Barmah Forest Virus
+                new Pathogen 
+                { 
+                    Id = Guid.NewGuid(),
+                    Name = "Barmah Forest Virus IgM",
+                    ShortName = "BFV IgM",
+                    Category = PathogenCategory.Antibody_IgM,
+                    ResultType = ResultType.Both,
+                    Description = "Barmah Forest Virus IgM antibody",
+                    DisplayOrder = 310,
+                    IsActive = true
+                },
+                new Pathogen 
+                { 
+                    Id = Guid.NewGuid(),
+                    Name = "Barmah Forest Virus IgG",
+                    ShortName = "BFV IgG",
+                    Category = PathogenCategory.Antibody_IgG,
+                    ResultType = ResultType.Both,
+                    Description = "Barmah Forest Virus IgG antibody",
+                    DisplayOrder = 311,
+                    IsActive = true
+                },
+
+                // Pertussis
+                new Pathogen 
+                { 
+                    Id = Guid.NewGuid(),
+                    Name = "Bordetella pertussis DNA",
+                    ShortName = "Pertussis PCR",
+                    LOINCCode = "43883-8",
+                    LOINCDisplayName = "Bordetella pertussis DNA [Presence] in Specimen by NAA",
+                    Category = PathogenCategory.NucleicAcid_DNA,
+                    ResultType = ResultType.Qualitative,
+                    Description = "Pertussis (whooping cough) detection",
+                    DisplayOrder = 400,
+                    IsActive = true
+                },
+                new Pathogen 
+                { 
+                    Id = Guid.NewGuid(),
+                    Name = "Bordetella pertussis IgA",
+                    ShortName = "Pertussis IgA",
+                    Category = PathogenCategory.Antibody_IgA,
+                    ResultType = ResultType.Both,
+                    Description = "Pertussis IgA antibody",
+                    DisplayOrder = 401,
+                    IsActive = true
+                },
+
+                // Meningococcal
+                new Pathogen 
+                { 
+                    Id = Guid.NewGuid(),
+                    Name = "Neisseria meningitidis Culture",
+                    ShortName = "Meningococcal Culture",
+                    Category = PathogenCategory.Culture,
+                    ResultType = ResultType.Qualitative,
+                    Description = "Meningococcal bacterial culture",
+                    DisplayOrder = 500,
+                    IsActive = true
+                },
+                new Pathogen 
+                { 
+                    Id = Guid.NewGuid(),
+                    Name = "Neisseria meningitidis DNA",
+                    ShortName = "Meningococcal PCR",
+                    LOINCCode = "21415-5",
+                    LOINCDisplayName = "Neisseria meningitidis DNA [Presence] in Specimen by NAA",
+                    Category = PathogenCategory.NucleicAcid_DNA,
+                    ResultType = ResultType.Qualitative,
+                    Description = "Meningococcal PCR detection",
+                    DisplayOrder = 501,
+                    IsActive = true
+                }
+            };
+
+            await context.Pathogens.AddRangeAsync(pathogens);
+            await context.SaveChangesAsync();
+
+            logger.LogInformation("Seeded {Count} pathogens/biomarkers successfully", pathogens.Count);
         }
 
         private static async Task SeedSymptomsAsync(ApplicationDbContext context, ILogger logger)

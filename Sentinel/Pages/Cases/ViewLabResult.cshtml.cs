@@ -25,10 +25,10 @@ namespace Sentinel.Pages.Cases
                 .Include(lr => lr.Laboratory)
                 .Include(lr => lr.OrderingProvider)
                 .Include(lr => lr.SpecimenType)
-                .Include(lr => lr.TestType)
-                .Include(lr => lr.TestResult)
                 .Include(lr => lr.ResultUnits)
                 .Include(lr => lr.TestedDisease)
+                .Include(lr => lr.Markers).ThenInclude(m => m.Pathogen)
+                .Include(lr => lr.Markers).ThenInclude(m => m.TestMethod)
                 .FirstOrDefaultAsync(lr => lr.Id == labResultId);
 
             if (LabResult == null)

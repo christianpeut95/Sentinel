@@ -1,0 +1,199 @@
+@page
+@model Sentinel.Pages.Settings.HL7.FieldMappings.CreateModel
+
+@{
+    ViewData["Title"] = "Create Field Mapping";
+    Layout = "~/Pages/Shared/_LayoutSentinel.cshtml";
+}
+
+<nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a asp-page="/Index">Home</a></li>
+        <li class="breadcrumb-item"><a asp-page="/Settings/Index">Settings</a></li>
+        <li class="breadcrumb-item"><a asp-page="./Index">HL7 Field Mappings</a></li>
+        <li class="breadcrumb-item active" aria-current="page">Create</li>
+    </ol>
+</nav>
+
+<div class="sentinel-page-header mb-4">
+    <div>
+        <div class="sentinel-eyebrow">HL7 Interface</div>
+        <h1 class="sentinel-page-title">Create Field Mapping</h1>
+        <p class="sentinel-page-subtitle">Map HL7 test code to disease-specific custom field</p>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-8">
+        <form method="post">
+            <div asp-validation-summary="ModelOnly" class="alert alert-danger" role="alert"></div>
+
+            <!-- Disease Selection -->
+            <div class="sentinel-card mb-4">
+                <div class="sentinel-card-body">
+                    <h3 class="sentinel-section-title">Disease</h3>
+                    <div class="alert alert-info" role="alert">
+                        <i class="bi bi-info-circle me-2"></i>
+                        Each mapping is specific to a disease. The same test code can map to different fields for different diseases.
+                    </div>
+                    <div class="row g-3">
+                        <div class="col-12">
+                            <label asp-for="Mapping.DiseaseId" class="sn-label"></label>
+                            <select asp-for="Mapping.DiseaseId" class="sn-input" asp-items="Model.DiseaseSelectList">
+                                <option value="">-- Select Disease --</option>
+                            </select>
+                            <span asp-validation-for="Mapping.DiseaseId" class="text-danger"></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Test Code -->
+            <div class="sentinel-card mb-4">
+                <div class="sentinel-card-body">
+                    <h3 class="sentinel-section-title">HL7 Test Code</h3>
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label asp-for="Mapping.HL7TestCode" class="sn-label"></label>
+                            <input asp-for="Mapping.HL7TestCode" class="sn-input" 
+                                   placeholder="e.g. AB-AMP" style="font-family:var(--f-mono)" />
+                            <span asp-validation-for="Mapping.HL7TestCode" class="text-danger"></span>
+                            <small class="form-text" style="color:var(--graphite)">The test code from OBX-3 (Observation Identifier)</small>
+                        </div>
+                        <div class="col-md-6">
+                            <label asp-for="Mapping.Priority" class="sn-label"></label>
+                            <input asp-for="Mapping.Priority" class="sn-input" type="number" min="1" max="100" />
+                            <span asp-validation-for="Mapping.Priority" class="text-danger"></span>
+                            <small class="form-text" style="color:var(--graphite)">Lower numbers process first</small>
+                        </div>
+                        <div class="col-12">
+                            <label asp-for="Mapping.TestCodeDescription" class="sn-label"></label>
+                            <input asp-for="Mapping.TestCodeDescription" class="sn-input" 
+                                   placeholder="e.g. Ampicillin Susceptibility" />
+                            <span asp-validation-for="Mapping.TestCodeDescription" class="text-danger"></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Custom Field Target -->
+            <div class="sentinel-card mb-4">
+                <div class="sentinel-card-body">
+                    <h3 class="sentinel-section-title">Target Custom Field</h3>
+                    <div class="row g-3">
+                        <div class="col-12">
+                            <label asp-for="Mapping.CustomFieldDefinitionId" class="sn-label"></label>
+                            <select asp-for="Mapping.CustomFieldDefinitionId" class="sn-input" asp-items="Model.CustomFieldSelectList">
+                                <option value="">-- Select Custom Field --</option>
+                            </select>
+                            <span asp-validation-for="Mapping.CustomFieldDefinitionId" class="text-danger"></span>
+                            <small class="form-text" style="color:var(--graphite)">The custom field where this test result will be stored</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Extraction Options -->
+            <div class="sentinel-card mb-4">
+                <div class="sentinel-card-body">
+                    <h3 class="sentinel-section-title">Extraction Options</h3>
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="sn-label">
+                                <input asp-for="Mapping.ExtractQualitativeResult" type="checkbox" 
+                                       style="margin-right:8px;width:auto" checked />
+                                Extract qualitative result
+                            </label>
+                            <small class="form-text d-block" style="color:var(--graphite);margin-top:4px">
+                                Extract text values like POS/NEG, S/R/I, Detected/Not Detected
+                            </small>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="sn-label">
+                                <input asp-for="Mapping.ExtractQuantitativeResult" type="checkbox" 
+                                       style="margin-right:8px;width:auto" />
+                                Extract quantitative result
+                            </label>
+                            <small class="form-text d-block" style="color:var(--graphite);margin-top:4px">
+                                Extract numeric values and units (e.g., 450 mg/L)
+                            </small>
+                        </div>
+                        <div class="col-12">
+                            <label asp-for="Mapping.ValueTransformation" class="sn-label"></label>
+                            <input asp-for="Mapping.ValueTransformation" class="sn-input" 
+                                   placeholder="e.g. uppercase, lowercase, trim" style="font-family:var(--f-mono)" />
+                            <span asp-validation-for="Mapping.ValueTransformation" class="text-danger"></span>
+                            <small class="form-text" style="color:var(--graphite)">
+                                Optional transformation rules (comma-separated: uppercase, lowercase, trim, etc.)
+                            </small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Additional Settings -->
+            <div class="sentinel-card mb-4">
+                <div class="sentinel-card-body">
+                    <h3 class="sentinel-section-title">Additional Settings</h3>
+                    <div class="row g-3">
+                        <div class="col-12">
+                            <label asp-for="Mapping.Notes" class="sn-label"></label>
+                            <textarea asp-for="Mapping.Notes" class="sn-textarea" rows="3"
+                                      placeholder="Optional notes about this mapping"></textarea>
+                            <span asp-validation-for="Mapping.Notes" class="text-danger"></span>
+                        </div>
+                        <div class="col-12">
+                            <label class="sn-label">
+                                <input asp-for="Mapping.IsActive" type="checkbox" 
+                                       style="margin-right:8px;width:auto" checked />
+                                Mapping is active
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Form Actions -->
+            <div class="mt-4">
+                <button type="submit" class="sn-btn sn-btn--signal">
+                    <i class="bi bi-check-circle me-1"></i>Create Mapping
+                </button>
+                <a asp-page="./Index" class="sn-btn sn-btn--ghost ms-2">
+                    <i class="bi bi-arrow-left me-1"></i>Cancel
+                </a>
+            </div>
+        </form>
+    </div>
+
+    <div class="col-lg-4">
+        <div class="sentinel-card" style="background:var(--paper)">
+            <div class="sentinel-card-body">
+                <h5 style="font-weight:600;margin-bottom:12px">
+                    <i class="bi bi-lightbulb me-2" style="color:var(--signal-dk)"></i>Examples
+                </h5>
+                <div style="font-family:var(--f-mono);font-size:12px;line-height:1.8;color:var(--graphite)">
+                    <strong style="color:var(--forest)">Salmonella - Antibiotic Susceptibility:</strong><br>
+                    Test Code: AB-AMP<br>
+                    Field: Ampicillin<br>
+                    Qualitative: ✓ (S/R/I)<br>
+                    <hr style="margin:12px 0;border-color:var(--hairline)">
+
+                    <strong style="color:var(--forest)">Pertussis - PCR Result:</strong><br>
+                    Test Code: PCR-BP<br>
+                    Field: PCR Result<br>
+                    Qualitative: ✓ (POS/NEG)<br>
+                    <hr style="margin:12px 0;border-color:var(--hairline)">
+
+                    <strong style="color:var(--forest)">Hepatitis B - Titer:</strong><br>
+                    Test Code: HBsAg-QN<br>
+                    Field: HBsAg Titer<br>
+                    Quantitative: ✓ (value + units)
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

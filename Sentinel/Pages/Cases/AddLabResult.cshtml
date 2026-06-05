@@ -1,480 +1,683 @@
-@page
+@page "{caseId}"
 @model Sentinel.Pages.Cases.AddLabResultModel
 @{
+    ViewData["Title"] = $"Add Lab Result - Case {Model.Case?.FriendlyId}";
     Layout = null;
     var caseData = Model.Case;
 }
-@functions {
-    public string GetCspNonce()
-    {
-        if (HttpContext?.Items?.TryGetValue("csp-nonce", out var nonce) == true && nonce is string nonceStr)
-        {
-            return nonceStr;
-        }
-        return string.Empty;
-    }
-}
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Add Lab Result - @caseData.FriendlyId</title>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" />
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" />
+    <title>@ViewData["Title"]</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700;800&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/sentinel-design-system.css" asp-append-version="true" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
     <link href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css" rel="stylesheet" />
-    <link rel="stylesheet" href="~/css/sentinel-design-system.css" />
-    <style>
-        :root {
-            /* Import Sentinel variables for iframe context */
-            --forest: #0C2A20;
-            --signal-dk: #159C6E;
-            --signal-lt: #D9F2E5;
-            --chalk: #FBFAF5;
-            --bone: #F5F3EC;
-            --hairline: #D8D4C4;
-            --graphite: #4A5A55;
-            --slate: #6B7A78;
-            --status-outbreak: #E04D2B;
-            --f-sans: "Geist", ui-sans-serif, system-ui, -apple-system, sans-serif;
-        }
-        body {
-            background: var(--bone);
-            padding: 0.75rem;
-            font-family: var(--f-sans);
-            font-size: 0.875rem;
-            color: var(--forest);
-        }
-        .add-container {
-            background: var(--chalk);
-            border-radius: 8px;
-            padding: 1rem;
-            box-shadow: 0 2px 8px rgba(12, 42, 32, 0.08);
-            max-height: calc(100vh - 1.5rem);
-            overflow-y: auto;
-            border: 1px solid var(--hairline);
-        }
-        .header {
-            border-bottom: 2px solid var(--hairline);
-            padding-bottom: 0.6rem;
-            margin-bottom: 0.75rem;
-            position: sticky;
-            top: 0;
-            background: var(--chalk);
-            z-index: 10;
-        }
-        .header h1 {
-            font-size: 1.25rem;
-            font-weight: 600;
-            color: var(--forest);
-            margin-bottom: 0.25rem;
-            font-family: var(--f-sans);
-        }
-        .case-context {
-            background: var(--signal-lt);
-            border-radius: 6px;
-            padding: 0.6rem;
-            margin-bottom: 0.75rem;
-            font-size: 0.8rem;
-            border: 1px solid var(--signal-dk);
-            color: var(--forest);
-        }
-        .case-context .row > div {
-            margin-bottom: 0.25rem;
-        }
-        .form-label {
-            font-size: 0.75rem;
-            font-weight: 600;
-            color: var(--graphite);
-            margin-bottom: 0.25rem;
-            font-family: var(--f-sans);
-        }
-        .form-label .required {
-            color: var(--status-outbreak);
-        }
-        .form-control, .form-select {
-            font-size: 0.85rem;
-            padding: 0.4rem 0.6rem;
-            border: 1px solid var(--hairline);
-            background: var(--chalk);
-            color: var(--forest);
-            font-family: var(--f-sans);
-        }
-        .form-control:focus, .form-select:focus {
-            border-color: var(--signal-dk);
-            box-shadow: 0 0 0 0.2rem rgba(61, 213, 152, 0.25);
-            outline: none;
-        }
-        .btn {
-            font-size: 0.8rem;
-            padding: 0.4rem 0.85rem;
-            border-radius: 6px;
-            font-family: var(--f-sans);
-            font-weight: 600;
-        }
-        .btn-secondary {
-            background: var(--chalk);
-            color: var(--forest);
-            border: 1px solid var(--hairline);
-        }
-        .btn-secondary:hover {
-            background: var(--bone);
-            border-color: var(--signal-dk);
-            color: var(--forest);
-        }
-        .btn-success {
-            background: var(--signal-dk);
-            color: white;
-            border: none;
-        }
-        .btn-success:hover {
-            background: #0F7C56;
-            color: white;
-        }
-        .btn-toolbar {
-            margin-top: 0.75rem;
-            padding-top: 0.75rem;
-            border-top: 1px solid var(--hairline);
-            display: flex;
-            gap: 0.4rem;
-            justify-content: space-between;
-            position: sticky;
-            bottom: 0;
-            background: var(--chalk);
-            z-index: 10;
-        }
-        .section-title {
-            font-size: 0.85rem;
-            font-weight: 600;
-            color: var(--forest);
-            margin-bottom: 0.4rem;
-            margin-top: 0.75rem;
-            padding-bottom: 0.25rem;
-            border-bottom: 1px solid var(--hairline);
-            font-family: var(--f-sans);
-        }
-        .section-title i {
-            color: var(--signal-dk);
-            font-size: 0.9rem;
-            margin-right: 0.35rem;
-        }
-        .row {
-            margin-bottom: 0.5rem;
-        }
-        .form-text {
-            font-size: 0.7rem;
-        }
-        .select2-container {
-            font-size: 0.85rem;
-            width: 100% !important;
-        }
-
-        /* Single select dropdowns (Disease, Organizations, Test Results) */
-        .select2-container .select2-selection--single {
-            height: calc(1.5em + 0.75rem + 2px) !important;
-            border: 1px solid var(--hairline) !important;
-            border-radius: 0.375rem !important;
-            background: var(--chalk) !important;
-            display: flex !important;
-            align-items: center !important;
-        }
-
-        .select2-container .select2-selection--single .select2-selection__rendered {
-            padding-left: 0.6rem !important;
-            padding-right: 2rem !important;
-            line-height: 1.5 !important;
-            color: var(--forest) !important;
-            overflow: hidden !important;
-            text-overflow: ellipsis !important;
-            white-space: nowrap !important;
-            flex: 1 !important;
-            min-width: 0 !important;
-            font-family: var(--f-sans) !important;
-        }
-
-        .select2-container .select2-selection--single .select2-selection__arrow {
-            height: calc(1.5em + 0.75rem) !important;
-            top: 1px !important;
-            right: 1px !important;
-        }
-
-        /* Focus states */
-        .select2-container--bootstrap-5.select2-container--focus .select2-selection--single,
-        .select2-container--bootstrap-5.select2-container--open .select2-selection--single {
-            border-color: var(--signal-dk) !important;
-            box-shadow: 0 0 0 0.2rem rgba(61, 213, 152, 0.25) !important;
-        }
-        .alert {
-            font-size: 0.8rem;
-            padding: 0.5rem;
-            margin-bottom: 0.5rem;
-            border-radius: 6px;
-            font-family: var(--f-sans);
-        }
-        .text-muted {
-            color: var(--graphite) !important;
-        }
-        .form-text {
-            color: var(--slate);
-            font-family: var(--f-sans);
-        }
-    </style>
 </head>
-<body>
-    <div class="add-container">
-        <div class="header">
-            <h1><i class="bi bi-clipboard-plus me-2"></i>Add Lab Result</h1>
-            <small class="text-muted">Case: <strong>@caseData.FriendlyId</strong></small>
+<body style="padding: 24px;">
+
+<div style="max-width: 940px; margin: 0 auto 32px; display: flex; justify-content: space-between; align-items: flex-start; padding-bottom: 20px; border-bottom: 1px solid var(--hairline);">
+    <div>
+        <div class="text-label" style="margin-bottom: 8px;">
+            Case @caseData?.FriendlyId · @caseData?.Disease?.Name
         </div>
+        <h1 class="text-h2" style="margin: 0;">
+            <i class="bi bi-file-earmark-medical" style="color: var(--signal-dk);"></i>
+            Add Lab Result
+        </h1>
+        <p class="text-meta" style="margin: 8px 0 0;">
+            @caseData?.Patient?.GivenName @caseData?.Patient?.FamilyName
+        </p>
+    </div>
+    <div>
+        <a asp-page="/Cases/Details" asp-route-id="@Model.CaseId" class="sn-btn sn-btn--ghost">
+            <i class="bi bi-x-lg"></i> Cancel
+        </a>
+    </div>
+</div>
 
-        <!-- Case Context -->
-        <div class="case-context">
-            <div class="row g-2">
-                <div class="col-md-4">
-                    <strong>Patient:</strong> @caseData.Patient?.GivenName @caseData.Patient?.FamilyName
-                </div>
-                <div class="col-md-4">
-                    <strong>DOB:</strong> @(caseData.Patient?.DateOfBirth?.ToString("dd MMM yyyy") ?? "Unknown")
-                </div>
-                <div class="col-md-4">
-                    <strong>Disease:</strong> @caseData.Disease?.Name
-                </div>
+<div style="max-width: 940px; margin: 0 auto;">
+
+@if (!ViewData.ModelState.IsValid)
+{
+    <div style="background: #FBE2D8; border: 1px solid #F2BBA4; border-radius: 6px; padding: 16px 20px; margin-bottom: 20px; color: #7A2A15;">
+        <div style="display: flex; align-items: flex-start; gap: 12px;">
+            <i class="bi bi-exclamation-triangle-fill" style="font-size: 18px; margin-top: 2px;"></i>
+            <div style="flex: 1;">
+                <strong style="font-weight: 600;">Please correct the following errors:</strong>
+                <ul style="margin: 8px 0 0; padding-left: 20px;">
+                    @foreach (var error in ViewData.ModelState.Values.SelectMany(v => v.Errors))
+                    {
+                        <li style="margin: 4px 0;">@error.ErrorMessage</li>
+                    }
+                </ul>
             </div>
         </div>
+    </div>
+}
 
-        <form method="post" enctype="multipart/form-data">
-            <input type="hidden" name="caseId" value="@Model.CaseId" />
+<form method="post" enctype="multipart/form-data" id="labResultForm">
+    <input type="hidden" asp-for="LabResult.CaseId" />
+    <input type="hidden" asp-for="LabResult.TestedDiseaseId" />
+    <input type="hidden" asp-for="MarkersJson" id="markersJsonInput" />
 
-            <!-- Test Information -->
-            <div class="section-title">
-                <i class="bi bi-clipboard2-pulse"></i>Test Information
-            </div>
-            <div class="row g-2">
-                <div class="col-md-6">
-                    <label asp-for="LabResult.TestedDiseaseId" class="form-label">
-                        Test For (Disease) <span class="required">*</span>
-                    </label>
-                    <select asp-for="LabResult.TestedDiseaseId" class="form-select select2-disease" required>
-                        <option value="">Select Disease</option>
-                        @if (caseData.Disease != null)
-                        {
-                            <option value="@caseData.DiseaseId" selected>@caseData.Disease.Name</option>
-                        }
-                    </select>
-                    <small class="form-text text-muted">Pre-filled with case disease</small>
+    <!-- Single Column Layout -->
+    <div class="row">
+        <div class="col-12">
+            <!-- Pathogen/Biomarker Tests Section -->
+            <div class="card mb-3">
+                <div class="card-header" style="background: var(--signal); color: white;">
+                    <h5 class="mb-0">
+                        <i class="bi bi-virus"></i> Pathogen/Biomarker Test Results
+                    </h5>
                 </div>
-                <div class="col-md-6">
-                    <label asp-for="LabResult.TestTypeId" class="form-label">
-                        Test Type <span class="required">*</span>
-                    </label>
-                    <select asp-for="LabResult.TestTypeId" asp-items="Model.TestTypesList" class="form-select" required>
-                        <option value="">Select Test Type</option>
-                    </select>
-                </div>
-            </div>
-            <div class="row g-2">
-                <div class="col-md-6">
-                    <label asp-for="LabResult.SpecimenTypeId" class="form-label">
-                        Specimen Type <span class="required">*</span>
-                    </label>
-                    <select asp-for="LabResult.SpecimenTypeId" asp-items="Model.SpecimenTypesList" class="form-select" required>
-                        <option value="">Select Specimen Type</option>
-                    </select>
-                </div>
-                <div class="col-md-6">
-                    <label asp-for="LabResult.TestResultId" class="form-label">
-                        Test Result <span class="required">*</span>
-                    </label>
-                    <select asp-for="LabResult.TestResultId" class="form-select select2-result" required>
-                        <option value="">Select Test Type First</option>
-                    </select>
-                    <small class="form-text text-muted">Filtered by test type</small>
-                </div>
-            </div>
+                <div class="card-body">
+                    <div class="alert alert-info">
+                        <i class="bi bi-info-circle"></i>
+                        <strong>Multi-Marker Testing:</strong> Add one or more pathogen/biomarker tests. For panel tests (e.g., Hepatitis B Panel), add each marker separately.
+                    </div>
 
-            <!-- Dates -->
-            <div class="section-title">
-                <i class="bi bi-calendar-event"></i>Dates
-            </div>
-            <div class="row g-2">
-                <div class="col-md-6">
-                    <label asp-for="LabResult.SpecimenCollectionDate" class="form-label">
-                        Collection Date <span class="required">*</span>
-                    </label>
-                    <input asp-for="LabResult.SpecimenCollectionDate" type="date" class="form-control" required />
-                </div>
-                <div class="col-md-6">
-                    <label asp-for="LabResult.ResultDate" class="form-label">
-                        Result Date <span class="required">*</span>
-                    </label>
-                    <input asp-for="LabResult.ResultDate" type="date" class="form-control" required />
-                </div>
-            </div>
+                    <!-- Search and Add Pathogen -->
+                    <div class="row g-2 mb-3">
+                        <div class="col-md-8">
+                            <label class="form-label"><strong>Search Pathogen/Biomarker</strong></label>
+                            <select id="pathogenSearch" class="form-select">
+                                <option value="">Start typing to search...</option>
+                            </select>
+                            <small class="text-muted">Search by name, short name, or LOINC code</small>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label"><strong>Test Method</strong></label>
+                            <select id="testMethodSelect" class="form-select">
+                                <option value="">Select method...</option>
+                            </select>
+                        </div>
+                    </div>
 
-            <!-- Organizations -->
-            <div class="section-title">
-                <i class="bi bi-building"></i>Organizations
-            </div>
-            <div class="row g-2">
-                <div class="col-md-6">
-                    <label asp-for="LabResult.LaboratoryId" class="form-label">Laboratory</label>
-                    <select asp-for="LabResult.LaboratoryId" class="form-select select2-org">
-                        <option value="">Select Laboratory</option>
-                    </select>
-                </div>
-                <div class="col-md-6">
-                    <label asp-for="LabResult.OrderingProviderId" class="form-label">Ordering Provider</label>
-                    <select asp-for="LabResult.OrderingProviderId" class="form-select select2-org">
-                        <option value="">Select Provider</option>
-                    </select>
-                </div>
-            </div>
-            <div class="row g-2">
-                <div class="col-md-12">
-                    <label asp-for="LabResult.AccessionNumber" class="form-label">Accession Number</label>
-                    <input asp-for="LabResult.AccessionNumber" class="form-control" placeholder="Lab reference number" />
+                    <div class="d-grid gap-2 mb-3">
+                        <button type="button" id="addMarkerBtn" class="sn-btn sn-btn--signal" disabled style="width: 100%;">
+                            <i class="bi bi-plus-circle"></i> Add Marker to Lab Result
+                        </button>
+                    </div>
+
+                    <!-- Markers Table -->
+                    <div id="markersContainer">
+                        <h6 class="mb-2">Added Markers <span id="markerCount" class="badge bg-secondary">0</span></h6>
+                        <div class="table-responsive">
+                            <table class="table table-sm sn-table" id="markersTable">
+                                <thead>
+                                    <tr>
+                                        <th>Pathogen/Biomarker</th>
+                                        <th>Test Method</th>
+                                        <th>Result Type</th>
+                                        <th>Result</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="markersTableBody">
+                                    <tr id="emptyMarkersRow">
+                                        <td colspan="5" class="text-center text-muted">
+                                            <i class="bi bi-inbox"></i> No markers added yet
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
                 </div>
             </div>
 
-            <!-- Quantitative Results -->
-            <div class="section-title">
-                <i class="bi bi-graph-up"></i>Quantitative Results (Optional)
-            </div>
-            <div class="row g-2">
-                <div class="col-md-6">
-                    <label asp-for="LabResult.QuantitativeResult" class="form-label">Quantitative Result</label>
-                    <input asp-for="LabResult.QuantitativeResult" type="number" step="0.01" class="form-control" placeholder="e.g., 5.2" />
+            <!-- Specimen Information -->
+            <div class="card mb-3">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="bi bi-eyedropper"></i> Specimen Information</h5>
                 </div>
-                <div class="col-md-6">
-                    <label asp-for="LabResult.ResultUnitsId" class="form-label">Units</label>
-                    <select asp-for="LabResult.ResultUnitsId" asp-items="Model.ResultUnitsList" class="form-select">
-                        <option value="">Select Units</option>
-                    </select>
+                <div class="card-body">
+                    <div class="row g-2">
+                        <div class="col-md-6">
+                            <label asp-for="LabResult.SpecimenCollectionDate" class="form-label">
+                                Collection Date <span class="text-danger">*</span>
+                            </label>
+                            <input asp-for="LabResult.SpecimenCollectionDate" type="date" class="form-control" required />
+                        </div>
+                        <div class="col-md-6">
+                            <label asp-for="LabResult.SpecimenTypeId" class="form-label">
+                                Specimen Type <span class="text-danger">*</span>
+                            </label>
+                            <select asp-for="LabResult.SpecimenTypeId" asp-items="Model.SpecimenTypesList" class="form-select" required>
+                                <option value="">Select Type</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="row g-2 mt-2">
+                        <div class="col-md-6">
+                            <label asp-for="LabResult.AccessionNumber" class="form-label">Accession Number</label>
+                            <input asp-for="LabResult.AccessionNumber" class="form-control" />
+                        </div>
+                        <div class="col-md-6">
+                            <label asp-for="LabResult.ResultDate" class="form-label">
+                                Result Date <span class="text-danger">*</span>
+                            </label>
+                            <input asp-for="LabResult.ResultDate" type="date" class="form-control" required />
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Laboratory & Provider Information -->
+            <div class="card mb-3">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="bi bi-building"></i> Laboratory & Provider</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row g-2">
+                        <div class="col-md-6">
+                            <label asp-for="LabResult.LaboratoryId" class="form-label">Laboratory</label>
+                            <select asp-for="LabResult.LaboratoryId" class="form-select select2-laboratory" id="laboratorySelect">
+                                <option value="">Type to search...</option>
+                            </select>
+                            <small class="text-muted">Start typing to search laboratories</small>
+                        </div>
+                        <div class="col-md-6">
+                            <label asp-for="LabResult.OrderingProviderId" class="form-label">Ordering Provider</label>
+                            <select asp-for="LabResult.OrderingProviderId" class="form-select select2-provider" id="orderingProviderSelect">
+                                <option value="">Type to search...</option>
+                            </select>
+                            <small class="text-muted">Start typing to search providers</small>
+                        </div>
+                    </div>
                 </div>
             </div>
 
             <!-- Notes -->
-            <div class="section-title">
-                <i class="bi bi-chat-dots"></i>Additional Information
-            </div>
-            <div class="row g-2">
-                <div class="col-md-6">
-                    <label asp-for="LabResult.Notes" class="form-label">Internal Notes</label>
-                    <textarea asp-for="LabResult.Notes" class="form-control" rows="2" placeholder="Internal notes..."></textarea>
+            <div class="card mb-3">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="bi bi-chat-left-text"></i> Notes & Interpretation</h5>
                 </div>
-                <div class="col-md-6">
-                    <label asp-for="LabResult.LabInterpretation" class="form-label">Lab Interpretation</label>
-                    <textarea asp-for="LabResult.LabInterpretation" class="form-control" rows="2" placeholder="Lab interpretation..."></textarea>
-                </div>
-            </div>
-            <div class="row g-2">
-                <div class="col-md-12">
-                    <div class="form-check">
-                        <input asp-for="LabResult.IsAmended" class="form-check-input" type="checkbox" />
-                        <label asp-for="LabResult.IsAmended" class="form-check-label">Amended Result</label>
+                <div class="card-body">
+                    <div class="mb-2">
+                        <label asp-for="LabResult.LabInterpretation" class="form-label">Lab Interpretation</label>
+                        <textarea asp-for="LabResult.LabInterpretation" class="form-control" rows="3"></textarea>
+                    </div>
+                    <div>
+                        <label asp-for="LabResult.Notes" class="form-label">Additional Notes</label>
+                        <textarea asp-for="LabResult.Notes" class="form-control" rows="3"></textarea>
                     </div>
                 </div>
             </div>
 
             <!-- Attachment -->
-            <div class="section-title">
-                <i class="bi bi-paperclip"></i>Attachment
-            </div>
-            <div class="row g-2">
-                <div class="col-md-12">
-                    <label asp-for="LabResultAttachment" class="form-label">Upload Lab Report</label>
-                    <input asp-for="LabResultAttachment" type="file" class="form-control" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.gif" />
-                    <small class="form-text text-muted">PDF, Word, or image files</small>
+            <div class="card mb-3">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="bi bi-paperclip"></i> Attachment</h5>
+                </div>
+                <div class="card-body">
+                    <label asp-for="LabResultAttachment" class="form-label">Upload Lab Report (PDF, Image)</label>
+                    <input asp-for="LabResultAttachment" type="file" class="form-control" accept=".pdf,.jpg,.jpeg,.png" />
                 </div>
             </div>
 
-            <!-- Action Buttons -->
-            <div class="btn-toolbar">
-                <div>
-                    <button type="button" class="btn btn-secondary" onclick="window.close()">
-                        <i class="bi bi-x-circle me-1"></i>Cancel
-                    </button>
-                </div>
-                <div>
-                    <button type="submit" class="btn btn-success">
-                        <i class="bi bi-save me-1"></i>Save Lab Result
+            <!-- Submit -->
+            <div class="card">
+                <div class="card-body text-end">
+                    <a asp-page="/Cases/Details" asp-route-id="@Model.CaseId" class="sn-btn sn-btn-ghost me-2">
+                        Cancel
+                    </a>
+                    <button type="submit" class="sn-btn sn-btn--signal" id="submitBtn">
+                        <i class="bi bi-save"></i> Save Lab Result
                     </button>
                 </div>
             </div>
-        </form>
+        </div>
     </div>
+</form>
 
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
-    <script>
-        $(document).ready(function() {
-            // Initialize Select2 for Organizations
-            $('.select2-org').select2({
-                theme: 'bootstrap-5',
-                placeholder: 'Type to search...',
-                allowClear: true,
-                minimumInputLength: 2,
-                ajax: {
-                    url: '/Cases/Details?handler=SearchOrganizations',
-                    dataType: 'json',
-                    delay: 250,
-                    data: function(params) {
-                        return { term: params.term };
-                    },
-                    processResults: function(data) {
-                        return { results: data };
-                    }
-                }
-            });
+<!-- Marker Details Modal -->
+<div class="modal fade" id="markerDetailsModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header" style="background: var(--signal); color: white;">
+                <h5 class="modal-title">
+                    <i class="bi bi-pencil-square"></i> 
+                    <span id="modalPathogenName">Marker Details</span>
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="modalMarkerIndex" />
+                <input type="hidden" id="modalPathogenId" />
+                <input type="hidden" id="modalPathogenResultType" />
 
-            // Initialize Select2 for Diseases
-            $('.select2-disease').select2({
-                theme: 'bootstrap-5',
-                placeholder: 'Type to search...',
-                allowClear: true,
-                minimumInputLength: 2,
-                ajax: {
-                    url: '/Cases/Details?handler=SearchDiseases',
-                    dataType: 'json',
-                    delay: 250,
-                    data: function(params) {
-                        return { term: params.term };
-                    },
-                    processResults: function(data) {
-                        return { results: data };
-                    }
-                }
-            });
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label class="form-label"><strong>Pathogen/Biomarker</strong></label>
+                        <input type="text" id="modalPathogenDisplay" class="form-control" readonly />
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label"><strong>Test Method</strong></label>
+                        <select id="modalTestMethod" class="form-select"></select>
+                    </div>
+                </div>
 
-            // Initialize Select2 for Test Results
-            $('.select2-result').select2({
-                theme: 'bootstrap-5',
-                placeholder: 'Select test type first...',
-                allowClear: true,
-                ajax: {
-                    url: '/Cases/Details?handler=SearchTestResults',
-                    dataType: 'json',
-                    delay: 250,
-                    data: function(params) {
-                        var testTypeId = $('select[name="LabResult.TestTypeId"]').val();
-                        return {
-                            testTypeId: testTypeId,
-                            term: params.term
-                        };
-                    },
-                    processResults: function(data) {
-                        return { results: data };
-                    }
-                }
-            });
+                <div class="row g-3 mt-1">
+                    <div class="col-md-6">
+                        <label class="form-label"><strong>Result Type</strong></label>
+                        <select id="modalResultType" class="form-select">
+                            <option value="qualitative">Qualitative (Positive/Negative)</option>
+                            <option value="quantitative">Quantitative (Numeric Value)</option>
+                        </select>
+                    </div>
+                </div>
 
-            // Refresh test results when test type changes
-            $('select[name="LabResult.TestTypeId"]').on('change', function() {
-                $('.select2-result').val(null).trigger('change');
+                <!-- Qualitative Result -->
+                <div id="qualitativeSection" class="row g-3 mt-1">
+                    <div class="col-md-6">
+                        <label class="form-label"><strong>Qualitative Result</strong></label>
+                        <select id="modalQualitativeResult" class="form-select">
+                            <option value="">Select Result</option>
+                            <!-- Loaded dynamically from TestResults lookup -->
+                        </select>
+                        <small class="text-muted">Standardized values (SNOMED CT)</small>
+                    </div>
+                </div>
+
+                <!-- Quantitative Result -->
+                <div id="quantitativeSection" class="row g-3 mt-1" style="display: none;">
+                    <div class="col-md-4">
+                        <label class="form-label"><strong>Quantitative Value</strong></label>
+                        <input type="number" id="modalQuantitativeValue" class="form-control" step="0.01" />
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label"><strong>Unit</strong></label>
+                        <input type="text" id="modalQuantitativeUnit" class="form-control" placeholder="e.g., IU/mL" />
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label"><strong>Interpretation</strong></label>
+                        <select id="modalInterpretationFlag" class="form-select">
+                            <option value="">Normal</option>
+                            <option value="H">High</option>
+                            <option value="L">Low</option>
+                            <option value="HH">Critical High</option>
+                            <option value="LL">Critical Low</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="row g-3 mt-1" id="referenceRangeSection" style="display: none;">
+                    <div class="col-md-6">
+                        <label class="form-label"><strong>Reference Range Low</strong></label>
+                        <input type="number" id="modalReferenceRangeLow" class="form-control" step="0.01" />
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label"><strong>Reference Range High</strong></label>
+                        <input type="number" id="modalReferenceRangeHigh" class="form-control" step="0.01" />
+                    </div>
+                </div>
+
+                <div class="mt-3">
+                    <label class="form-label"><strong>LOINC Code</strong></label>
+                    <input type="text" id="modalLOINCCode" class="form-control" readonly />
+                    <small class="text-muted">Auto-populated from pathogen data</small>
+                </div>
+
+                <div class="mt-3">
+                    <label class="form-label"><strong>Notes</strong></label>
+                    <textarea id="modalNotes" class="form-control" rows="2"></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="sn-btn sn-btn-ghost" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="sn-btn sn-btn-primary" id="saveMarkerBtn">
+                    <i class="bi bi-check-lg"></i> Save Marker
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+</div> <!-- Close container-fluid -->
+
+<script src="~/lib/jquery/dist/jquery.min.js"></script>
+<script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+
+<script>
+    let markers = [];
+    let pathogens = [];
+    let testMethods = [];
+    let testResults = [];
+    let selectedPathogen = null;
+    let selectedTestMethod = null;
+
+    $(document).ready(function() {
+        loadTestMethods();
+        loadTestResults();
+        initializePathogenSearch();
+        initializeLaboratorySearch();
+        initializeProviderSearch();
+        setupEventHandlers();
+    });
+
+    function loadTestMethods() {
+        $.get('@Url.Page("/Cases/AddLabResult", "TestMethods")', function(data) {
+            testMethods = data;
+            const $select = $('#testMethodSelect, #modalTestMethod');
+            $select.empty().append('<option value="">Select method...</option>');
+            data.forEach(method => {
+                $select.append(`<option value="${method.id}">${method.name}</option>`);
             });
         });
-    </script>
+    }
+
+    function loadTestResults() {
+        $.get('@Url.Page("/Cases/AddLabResult", "TestResults")', function(data) {
+            testResults = data;
+            const $select = $('#modalQualitativeResult');
+            $select.empty().append('<option value="">Select Result</option>');
+            data.forEach(result => {
+                $select.append(`<option value="${result.id}" data-name="${result.name}">${result.name}</option>`);
+            });
+        });
+    }
+
+    function initializePathogenSearch() {
+        $('#pathogenSearch').select2({
+            theme: 'bootstrap-5',
+            placeholder: 'Start typing to search pathogens...',
+            allowClear: true,
+            ajax: {
+                url: '@Url.Page("/Cases/AddLabResult", "SearchPathogens")',
+                dataType: 'json',
+                delay: 250,
+                data: function(params) {
+                    return {
+                        disease: '@Model.LabResult.TestedDiseaseId',
+                        term: params.term
+                    };
+                },
+                processResults: function(data) {
+                    pathogens = data;
+                    return {
+                        results: data.map(p => ({
+                            id: p.id,
+                            text: `${p.name} ${p.loincCode ? '(' + p.loincCode + ')' : ''}`,
+                            pathogen: p
+                        }))
+                    };
+                },
+                cache: true
+            },
+            minimumInputLength: 1
+        });
+
+        $('#pathogenSearch').on('select2:select', function(e) {
+            selectedPathogen = e.params.data.pathogen;
+            $('#addMarkerBtn').prop('disabled', false);
+        });
+
+        $('#pathogenSearch').on('select2:clear', function() {
+            selectedPathogen = null;
+            $('#addMarkerBtn').prop('disabled', true);
+        });
+    }
+
+    function initializeLaboratorySearch() {
+        $('#laboratorySelect').select2({
+            theme: 'bootstrap-5',
+            placeholder: 'Start typing to search laboratories...',
+            allowClear: true,
+            ajax: {
+                url: '@Url.Page("/Cases/AddLabResult", "SearchOrganizations")',
+                dataType: 'json',
+                delay: 250,
+                data: function(params) {
+                    return {
+                        term: params.term
+                    };
+                },
+                processResults: function(data) {
+                    return {
+                        results: data.map(org => ({
+                            id: org.id,
+                            text: org.name
+                        }))
+                    };
+                },
+                cache: true
+            },
+            minimumInputLength: 1
+        });
+    }
+
+    function initializeProviderSearch() {
+        $('#orderingProviderSelect').select2({
+            theme: 'bootstrap-5',
+            placeholder: 'Start typing to search providers...',
+            allowClear: true,
+            ajax: {
+                url: '@Url.Page("/Cases/AddLabResult", "SearchOrganizations")',
+                dataType: 'json',
+                delay: 250,
+                data: function(params) {
+                    return {
+                        term: params.term
+                    };
+                },
+                processResults: function(data) {
+                    return {
+                        results: data.map(org => ({
+                            id: org.id,
+                            text: org.name
+                        }))
+                    };
+                },
+                cache: true
+            },
+            minimumInputLength: 1
+        });
+    }
+
+    function setupEventHandlers() {
+        $('#addMarkerBtn').click(function() {
+            if (!selectedPathogen) {
+                alert('Please select a pathogen/biomarker');
+                return;
+            }
+
+            const testMethodId = $('#testMethodSelect').val();
+            if (!testMethodId) {
+                alert('Please select a test method');
+                return;
+            }
+
+            selectedTestMethod = testMethods.find(tm => tm.id == testMethodId);
+            openMarkerDetailsModal();
+        });
+
+        $('#modalResultType').change(function() {
+            const resultType = $(this).val();
+            if (resultType === 'quantitative') {
+                $('#quantitativeSection').show();
+                $('#referenceRangeSection').show();
+                $('#qualitativeSection').hide();
+            } else {
+                $('#quantitativeSection').hide();
+                $('#referenceRangeSection').hide();
+                $('#qualitativeSection').show();
+            }
+        });
+
+        $('#saveMarkerBtn').click(saveMarker);
+
+        $('#labResultForm').submit(function(e) {
+            if (markers.length === 0) {
+                e.preventDefault();
+                alert('Please add at least one pathogen/biomarker test result');
+                return false;
+            }
+            $('#markersJsonInput').val(JSON.stringify(markers));
+            return true;
+        });
+    }
+
+    function openMarkerDetailsModal() {
+        $('#modalMarkerIndex').val('-1');
+        $('#modalPathogenId').val(selectedPathogen.id);
+        $('#modalPathogenName').text(selectedPathogen.name);
+        $('#modalPathogenDisplay').val(`${selectedPathogen.name} (${selectedPathogen.shortName || 'N/A'})`);
+        $('#modalPathogenResultType').val(selectedPathogen.resultType);
+        $('#modalTestMethod').val($('#testMethodSelect').val());
+        $('#modalLOINCCode').val(selectedPathogen.loincCode || 'N/A');
+
+        // Set default result type
+        if (selectedPathogen.resultType === 'Quantitative') {
+            $('#modalResultType').val('quantitative').trigger('change');
+            $('#modalQuantitativeUnit').val(selectedPathogen.defaultUnit || '');
+            $('#modalReferenceRangeLow').val(selectedPathogen.refLow || '');
+            $('#modalReferenceRangeHigh').val(selectedPathogen.refHigh || '');
+        } else {
+            $('#modalResultType').val('qualitative').trigger('change');
+        }
+
+        // Clear previous values
+        $('#modalQualitativeResult').val('');
+        $('#modalQuantitativeValue').val('');
+        $('#modalInterpretationFlag').val('');
+        $('#modalNotes').val('');
+
+        $('#markerDetailsModal').modal('show');
+    }
+
+    function saveMarker() {
+        const markerIndex = parseInt($('#modalMarkerIndex').val());
+        const pathogenId = $('#modalPathogenId').val();
+        const testMethodId = $('#modalTestMethod').val();
+        const resultType = $('#modalResultType').val();
+
+        let qualitativeResult = null;
+        let testResultId = null;
+        let quantitativeValue = null;
+        let quantitativeUnit = null;
+        let interpretationFlag = null;
+        let refLow = null;
+        let refHigh = null;
+
+        if (resultType === 'qualitative') {
+            testResultId = $('#modalQualitativeResult').val();
+            if (!testResultId) {
+                alert('Please select a qualitative result');
+                return;
+            }
+            // Get the display name from the selected option
+            qualitativeResult = $('#modalQualitativeResult option:selected').data('name');
+        } else {
+            quantitativeValue = parseFloat($('#modalQuantitativeValue').val());
+            if (isNaN(quantitativeValue)) {
+                alert('Please enter a quantitative value');
+                return;
+            }
+            quantitativeUnit = $('#modalQuantitativeUnit').val();
+            interpretationFlag = $('#modalInterpretationFlag').val();
+            refLow = parseFloat($('#modalReferenceRangeLow').val()) || null;
+            refHigh = parseFloat($('#modalReferenceRangeHigh').val()) || null;
+        }
+
+        const marker = {
+            PathogenId: pathogenId,
+            TestMethodId: parseInt(testMethodId),
+            TestResultId: testResultId ? parseInt(testResultId) : null,
+            QualitativeResult: qualitativeResult,
+            QuantitativeValue: quantitativeValue,
+            QuantitativeUnit: quantitativeUnit,
+            ReferenceRangeLow: refLow,
+            ReferenceRangeHigh: refHigh,
+            InterpretationFlag: interpretationFlag,
+            LOINCCode: $('#modalLOINCCode').val(),
+            Notes: $('#modalNotes').val(),
+            // Display info
+            _pathogenName: selectedPathogen.name,
+            _testMethodName: selectedTestMethod?.name || '',
+            _resultType: resultType
+        };
+
+        if (markerIndex === -1) {
+            markers.push(marker);
+        } else {
+            markers[markerIndex] = marker;
+        }
+
+        updateMarkersTable();
+        $('#markerDetailsModal').modal('hide');
+
+        // Clear selections
+        $('#pathogenSearch').val(null).trigger('change');
+        $('#testMethodSelect').val('');
+        selectedPathogen = null;
+        selectedTestMethod = null;
+        $('#addMarkerBtn').prop('disabled', true);
+    }
+
+    function updateMarkersTable() {
+        const $tbody = $('#markersTableBody');
+        $tbody.empty();
+
+        if (markers.length === 0) {
+            $tbody.append(`
+                <tr id="emptyMarkersRow">
+                    <td colspan="5" class="text-center text-muted">
+                        <i class="bi bi-inbox"></i> No markers added yet
+                    </td>
+                </tr>
+            `);
+        } else {
+            markers.forEach((marker, index) => {
+                let resultDisplay = '';
+                if (marker._resultType === 'qualitative') {
+                    resultDisplay = marker.QualitativeResult;
+                } else {
+                    resultDisplay = `${marker.QuantitativeValue} ${marker.QuantitativeUnit || ''}`;
+                    if (marker.InterpretationFlag) {
+                        resultDisplay += ` <span class="badge bg-warning">${marker.InterpretationFlag}</span>`;
+                    }
+                }
+
+                $tbody.append(`
+                    <tr>
+                        <td>
+                            <strong>${marker._pathogenName}</strong>
+                            ${marker.LOINCCode && marker.LOINCCode !== 'N/A' ? `<br/><small class="text-muted">${marker.LOINCCode}</small>` : ''}
+                        </td>
+                        <td>${marker._testMethodName}</td>
+                        <td><span class="badge bg-info">${marker._resultType}</span></td>
+                        <td>${resultDisplay}</td>
+                        <td>
+                            <button type="button" class="btn btn-sm btn-danger" onclick="removeMarker(${index})">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </td>
+                    </tr>
+                `);
+            });
+        }
+
+        $('#markerCount').text(markers.length);
+    }
+
+    function removeMarker(index) {
+        if (confirm('Remove this marker from the lab result?')) {
+            markers.splice(index, 1);
+            updateMarkersTable();
+        }
+    }
+</script>
+
 </body>
 </html>

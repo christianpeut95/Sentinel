@@ -1,11 +1,12 @@
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using Sentinel.Models;
+using Sentinel.Models.CaseDefinitions;
 using Sentinel.Models.Lookups;
 
 namespace Sentinel.Data
 {
-    public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
+    public partial class ApplicationDbContext : IdentityDbContext<ApplicationUser>
     {
         private readonly IHttpContextAccessor? _httpContextAccessor;
 
@@ -69,12 +70,33 @@ namespace Sentinel.Data
 
         // Laboratory Results System
         public DbSet<LabResult> LabResults { get; set; }
+        public DbSet<LabResultMarker> LabResultMarkers { get; set; }
+        public DbSet<LabResultMarkerHistory> LabResultMarkerHistories { get; set; }
         public DbSet<Organization> Organizations { get; set; }
         public DbSet<OrganizationType> OrganizationTypes { get; set; }
         public DbSet<SpecimenType> SpecimenTypes { get; set; }
-        public DbSet<TestType> TestTypes { get; set; }
+
+        // HL7 Integration System
+        public DbSet<HL7Message> HL7Messages { get; set; }
+        public DbSet<HL7MessageSegment> HL7MessageSegments { get; set; }
+        public DbSet<HL7ParsingIssue> HL7ParsingIssues { get; set; }
+        public DbSet<HL7Configuration> HL7Configurations { get; set; }
+        public DbSet<HL7FieldMapping> HL7FieldMappings { get; set; }
+        public DbSet<HL7ConfigurationDisease> HL7ConfigurationDiseases { get; set; }
+        public DbSet<Models.HL7.HL7CustomFieldMapping> HL7CustomFieldMappings { get; set; }
+        public DbSet<Models.HL7.DiseaseHL7MatchingConfig> DiseaseHL7MatchingConfigs { get; set; }
+        public DbSet<DiseaseReinfectionRule> DiseaseReinfectionRules { get; set; }
+
+        // REMOVED: TestTypes table dropped
+        // [Obsolete("Legacy table - Use Pathogens and TestMethods instead. Will be removed in future version.")]
+        // public DbSet<TestType> TestTypes { get; set; }
+
+        public DbSet<TestMethod> TestMethods { get; set; }
         public DbSet<TestResult> TestResults { get; set; }
         public DbSet<ResultUnits> ResultUnits { get; set; }
+
+        // Pathogen/Biomarker System
+        public DbSet<Sentinel.Models.Pathogens.Pathogen> Pathogens { get; set; }
 
         // Symptom Tracking System
         public DbSet<Symptom> Symptoms { get; set; }
@@ -110,6 +132,11 @@ namespace Sentinel.Data
         public DbSet<OutbreakTimeline> OutbreakTimelines { get; set; }
         public DbSet<OutbreakSearchQuery> OutbreakSearchQueries { get; set; }
         public DbSet<OutbreakLineListConfiguration> OutbreakLineListConfigurations { get; set; }
+
+        // Case Definition System
+        public DbSet<CaseDefinition> CaseDefinitions { get; set; }
+        public DbSet<CaseDefinitionCriteria> CaseDefinitionCriteria { get; set; }
+        public DbSet<CaseClassificationHistory> CaseClassificationHistory { get; set; }
 
         // Jurisdiction System
         public DbSet<JurisdictionType> JurisdictionTypes { get; set; }
@@ -179,9 +206,12 @@ namespace Sentinel.Data
                 .WithMany(p => p.UserPermissions)
                 .HasForeignKey(up => up.PermissionId);
 
+            // Filtered unique index: only enforce uniqueness on non-deleted patients
+            // This allows reusing FriendlyIds from soft-deleted patients
             builder.Entity<Patient>()
                 .HasIndex(p => p.FriendlyId)
-                .IsUnique();
+                .IsUnique()
+                .HasFilter("[IsDeleted] = 0 AND [FriendlyId] IS NOT NULL");
 
             builder.Entity<AuditLog>()
                 .HasIndex(a => new { a.EntityType, a.EntityId });
@@ -319,6 +349,12 @@ namespace Sentinel.Data
                 .OnDelete(DeleteBehavior.Restrict);
 
             builder.Entity<Disease>()
+                .HasOne(d => d.HL7MatchingConfig)
+                .WithOne(c => c.Disease)
+                .HasForeignKey<Models.HL7.DiseaseHL7MatchingConfig>(c => c.DiseaseId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            builder.Entity<Disease>()
                 .HasIndex(d => d.Code)
                 .IsUnique();
 
@@ -398,18 +434,6 @@ namespace Sentinel.Data
                 .OnDelete(DeleteBehavior.Restrict);
 
             builder.Entity<LabResult>()
-                .HasOne(lr => lr.TestType)
-                .WithMany(tt => tt.LabResults)
-                .HasForeignKey(lr => lr.TestTypeId)
-                .OnDelete(DeleteBehavior.Restrict);
-
-            builder.Entity<LabResult>()
-                .HasOne(lr => lr.TestResult)
-                .WithMany(tr => tr.LabResults)
-                .HasForeignKey(lr => lr.TestResultId)
-                .OnDelete(DeleteBehavior.Restrict);
-
-            builder.Entity<LabResult>()
                 .HasOne(lr => lr.ResultUnits)
                 .WithMany(ru => ru.LabResults)
                 .HasForeignKey(lr => lr.ResultUnitsId)
@@ -426,6 +450,59 @@ namespace Sentinel.Data
 
             builder.Entity<LabResult>()
                 .HasIndex(lr => lr.ResultDate);
+
+            // LabResultMarker Configuration
+            builder.Entity<LabResultMarker>()
+                .HasOne(lrm => lrm.LabResult)
+                .WithMany(lr => lr.Markers)
+                .HasForeignKey(lrm => lrm.LabResultId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            builder.Entity<LabResultMarker>()
+                .HasOne(lrm => lrm.Pathogen)
+                .WithMany(p => p.LabResultMarkers)
+                .HasForeignKey(lrm => lrm.PathogenId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            builder.Entity<LabResultMarker>()
+                .HasOne(lrm => lrm.TestMethod)
+                .WithMany(tm => tm.LabResultMarkers)
+                .HasForeignKey(lrm => lrm.TestMethodId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            builder.Entity<LabResultMarker>()
+                .HasIndex(lrm => lrm.LabResultId);
+
+            builder.Entity<LabResultMarker>()
+                .HasIndex(lrm => lrm.PathogenId);
+
+            builder.Entity<LabResultMarker>()
+                .HasIndex(lrm => lrm.LOINCCode);
+
+            // Pathogen Configuration
+            builder.Entity<Sentinel.Models.Pathogens.Pathogen>()
+                .HasOne(p => p.Disease)
+                .WithMany()
+                .HasForeignKey(p => p.DiseaseId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            builder.Entity<Sentinel.Models.Pathogens.Pathogen>()
+                .HasIndex(p => p.LOINCCode)
+                .IsUnique()
+                .HasFilter("[LOINCCode] IS NOT NULL");
+
+            builder.Entity<Sentinel.Models.Pathogens.Pathogen>()
+                .HasIndex(p => new { p.DiseaseId, p.DisplayOrder });
+
+            builder.Entity<Sentinel.Models.Pathogens.Pathogen>()
+                .HasIndex(p => p.IsActive);
+
+            // TestMethod Configuration
+            builder.Entity<TestMethod>()
+                .HasIndex(tm => tm.Name);
+
+            builder.Entity<TestMethod>()
+                .HasIndex(tm => new { tm.IsActive, tm.DisplayOrder });
 
             // Organization Configuration
             builder.Entity<Organization>()
@@ -1015,6 +1092,33 @@ namespace Sentinel.Data
                 .HasIndex(rq => rq.TaskId)
                 .HasDatabaseName("IX_ReviewQueue_TaskId");
 
+            // HL7 Configuration Disease Mapping
+            builder.Entity<HL7ConfigurationDisease>()
+                .HasOne(hcd => hcd.Configuration)
+                .WithMany(hc => hc.ConfigurationDiseases)
+                .HasForeignKey(hcd => hcd.ConfigurationId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            builder.Entity<HL7ConfigurationDisease>()
+                .HasOne(hcd => hcd.Disease)
+                .WithMany()
+                .HasForeignKey(hcd => hcd.DiseaseId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            builder.Entity<HL7ConfigurationDisease>()
+                .HasIndex(hcd => new { hcd.ConfigurationId, hcd.DiseaseId })
+                .IsUnique();
+
+            builder.Entity<HL7ConfigurationDisease>()
+                .HasIndex(hcd => hcd.IsDefault);
+
+            // HL7 Field Mapping Disease Association
+            builder.Entity<HL7FieldMapping>()
+                .HasOne(hfm => hfm.Disease)
+                .WithMany()
+                .HasForeignKey(hfm => hfm.DiseaseId)
+                .OnDelete(DeleteBehavior.Restrict);
+
             // Global Query Filters for Soft Delete
             builder.Entity<Patient>().HasQueryFilter(p => !p.IsDeleted);
             builder.Entity<LabResult>().HasQueryFilter(lr => !lr.IsDeleted);
@@ -1066,6 +1170,292 @@ namespace Sentinel.Data
             builder.Entity<Models.Views.ContactListSimple>()
                 .HasNoKey()
                 .ToView("vw_ContactsListSimple");
+
+            // Case Definition System Configuration
+            builder.Entity<CaseDefinition>()
+                .HasOne(cd => cd.Disease)
+                .WithMany()
+                .HasForeignKey(cd => cd.DiseaseId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            builder.Entity<CaseDefinition>()
+                .HasOne(cd => cd.ConfirmationStatus)
+                .WithMany()
+                .HasForeignKey(cd => cd.ConfirmationStatusId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            builder.Entity<CaseDefinition>()
+                .HasMany(cd => cd.Criteria)
+                .WithOne(cdc => cdc.CaseDefinition)
+                .HasForeignKey(cdc => cdc.CaseDefinitionId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            builder.Entity<CaseDefinition>()
+                .HasMany(cd => cd.ClassificationHistories)
+                .WithOne(cch => cch.CaseDefinition)
+                .HasForeignKey(cch => cch.CaseDefinitionId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            builder.Entity<CaseDefinition>()
+                .HasIndex(cd => cd.Status);
+
+            builder.Entity<CaseDefinition>()
+                .HasIndex(cd => new { cd.DiseaseId, cd.ConfirmationStatusId });
+
+            builder.Entity<CaseDefinition>()
+                .HasIndex(cd => cd.DateActiveFrom);
+
+            builder.Entity<CaseDefinition>()
+                .HasIndex(cd => cd.DateActiveTo);
+
+            // Case Definition Criteria Configuration (self-referencing for parent-child)
+            builder.Entity<CaseDefinitionCriteria>()
+                .HasOne(cdc => cdc.ParentCriteria)
+                .WithMany(cdc => cdc.ChildCriteria)
+                .HasForeignKey(cdc => cdc.ParentCriteriaId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            builder.Entity<CaseDefinitionCriteria>()
+                .HasIndex(cdc => cdc.CaseDefinitionId);
+
+            builder.Entity<CaseDefinitionCriteria>()
+                .HasIndex(cdc => cdc.ParentCriteriaId);
+
+            builder.Entity<CaseDefinitionCriteria>()
+                .HasIndex(cdc => new { cdc.CaseDefinitionId, cdc.GroupNumber });
+
+            // Case Classification History Configuration
+            builder.Entity<CaseClassificationHistory>()
+                .HasOne(cch => cch.Case)
+                .WithMany(c => c.ClassificationHistory)
+                .HasForeignKey(cch => cch.CaseId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            builder.Entity<CaseClassificationHistory>()
+                .HasOne(cch => cch.FromConfirmationStatus)
+                .WithMany()
+                .HasForeignKey(cch => cch.FromConfirmationStatusId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            builder.Entity<CaseClassificationHistory>()
+                .HasOne(cch => cch.ToConfirmationStatus)
+                .WithMany()
+                .HasForeignKey(cch => cch.ToConfirmationStatusId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            builder.Entity<CaseClassificationHistory>()
+                .HasIndex(cch => cch.CaseId);
+
+            builder.Entity<CaseClassificationHistory>()
+                .HasIndex(cch => cch.ClassifiedDate);
+
+            builder.Entity<CaseClassificationHistory>()
+                .HasIndex(cch => new { cch.CaseId, cch.IsCurrent });
+
+            builder.Entity<CaseClassificationHistory>()
+                .HasIndex(cch => cch.IsAutoClassified);
+
+            // HL7 Integration System Configuration
+            builder.Entity<HL7Message>()
+                .HasOne(h => h.Patient)
+                .WithMany()
+                .HasForeignKey(h => h.PatientId)
+                .OnDelete(DeleteBehavior.NoAction);
+
+            builder.Entity<HL7Message>()
+                .HasOne(h => h.Case)
+                .WithMany()
+                .HasForeignKey(h => h.CaseId)
+                .OnDelete(DeleteBehavior.NoAction);
+
+            builder.Entity<HL7Message>()
+                .HasOne(h => h.LabResult)
+                .WithMany()
+                .HasForeignKey(h => h.LabResultId)
+                .OnDelete(DeleteBehavior.NoAction);
+
+            builder.Entity<HL7Message>()
+                .HasOne(h => h.LaboratoryOrganization)
+                .WithMany()
+                .HasForeignKey(h => h.LaboratoryOrganizationId)
+                .OnDelete(DeleteBehavior.NoAction);
+
+            builder.Entity<HL7Message>()
+                .HasOne(h => h.OrderingProviderOrganization)
+                .WithMany()
+                .HasForeignKey(h => h.OrderingProviderOrganizationId)
+                .OnDelete(DeleteBehavior.NoAction);
+
+            builder.Entity<HL7Message>()
+                .HasOne(h => h.Configuration)
+                .WithMany(c => c.Messages)
+                .HasForeignKey(h => h.ConfigurationId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            builder.Entity<HL7Message>()
+                .HasOne(h => h.DuplicateOfMessage)
+                .WithMany()
+                .HasForeignKey(h => h.DuplicateOfMessageId)
+                .OnDelete(DeleteBehavior.NoAction);
+
+            builder.Entity<HL7Message>()
+                .HasOne(h => h.ProcessedByUser)
+                .WithMany()
+                .HasForeignKey(h => h.ProcessedByUserId)
+                .OnDelete(DeleteBehavior.NoAction);
+
+            builder.Entity<HL7Message>()
+                .HasOne(h => h.ManualReviewByUser)
+                .WithMany()
+                .HasForeignKey(h => h.ManualReviewByUserId)
+                .OnDelete(DeleteBehavior.NoAction);
+
+            builder.Entity<HL7Message>()
+                .HasIndex(h => h.MessageControlId);
+
+            builder.Entity<HL7Message>()
+                .HasIndex(h => h.Status);
+
+            builder.Entity<HL7Message>()
+                .HasIndex(h => h.ReceivedAt);
+
+            builder.Entity<HL7Message>()
+                .HasIndex(h => new { h.SendingFacility, h.MessageControlId });
+
+            builder.Entity<HL7Message>()
+                .HasIndex(h => h.PatientId);
+
+            builder.Entity<HL7Message>()
+                .HasIndex(h => h.CaseId);
+
+            builder.Entity<HL7Message>()
+                .HasIndex(h => h.IsDuplicate);
+
+            builder.Entity<HL7Message>()
+                .HasIndex(h => h.RequiresManualReview);
+
+            // HL7MessageSegment Configuration
+            builder.Entity<HL7MessageSegment>()
+                .HasOne(s => s.HL7Message)
+                .WithMany(m => m.Segments)
+                .HasForeignKey(s => s.HL7MessageId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            builder.Entity<HL7MessageSegment>()
+                .HasIndex(s => new { s.HL7MessageId, s.SequenceNumber });
+
+            builder.Entity<HL7MessageSegment>()
+                .HasIndex(s => new { s.HL7MessageId, s.SegmentType });
+
+            // HL7ParsingIssue Configuration
+            builder.Entity<HL7ParsingIssue>()
+                .HasOne(i => i.HL7Message)
+                .WithMany(m => m.ParsingIssues)
+                .HasForeignKey(i => i.HL7MessageId)
+                .OnDelete(DeleteBehavior.NoAction);
+
+            builder.Entity<HL7ParsingIssue>()
+                .HasOne(i => i.MessageSegment)
+                .WithMany()
+                .HasForeignKey(i => i.MessageSegmentId)
+                .OnDelete(DeleteBehavior.NoAction);
+
+            builder.Entity<HL7ParsingIssue>()
+                .HasOne(i => i.ResolvedByUser)
+                .WithMany()
+                .HasForeignKey(i => i.ResolvedByUserId)
+                .OnDelete(DeleteBehavior.NoAction);
+
+            builder.Entity<HL7ParsingIssue>()
+                .HasOne(i => i.FieldMapping)
+                .WithMany()
+                .HasForeignKey(i => i.FieldMappingId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            builder.Entity<HL7ParsingIssue>()
+                .HasIndex(i => i.HL7MessageId);
+
+            builder.Entity<HL7ParsingIssue>()
+                .HasIndex(i => new { i.IsResolved, i.IssueType });
+
+            builder.Entity<HL7ParsingIssue>()
+                .HasIndex(i => i.CreatedAt);
+
+            // HL7Configuration Configuration
+            builder.Entity<HL7Configuration>()
+                .HasOne(c => c.DefaultLaboratory)
+                .WithMany()
+                .HasForeignKey(c => c.DefaultLaboratoryId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            builder.Entity<HL7Configuration>()
+                .HasIndex(c => c.SendingFacility);
+
+            builder.Entity<HL7Configuration>()
+                .HasIndex(c => c.IsActive);
+
+            // HL7FieldMapping Configuration
+            builder.Entity<HL7FieldMapping>()
+                .HasOne(f => f.Configuration)
+                .WithMany(c => c.FieldMappings)
+                .HasForeignKey(f => f.ConfigurationId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            builder.Entity<HL7FieldMapping>()
+                .HasOne(f => f.CreatedFromIssue)
+                .WithMany()
+                .HasForeignKey(f => f.CreatedFromIssueId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            builder.Entity<HL7FieldMapping>()
+                .HasIndex(f => new { f.ConfigurationId, f.SegmentType, f.FieldPath });
+
+            builder.Entity<HL7FieldMapping>()
+                .HasIndex(f => new { f.IsActive, f.Priority });
+
+            // DiseaseReinfectionRule Configuration
+            builder.Entity<DiseaseReinfectionRule>()
+                .HasOne(r => r.Disease)
+                .WithMany()
+                .HasForeignKey(r => r.DiseaseId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            builder.Entity<DiseaseReinfectionRule>()
+                .HasIndex(r => r.DiseaseId);
+
+            builder.Entity<DiseaseReinfectionRule>()
+                .HasIndex(r => r.IsActive);
+
+            // LabResultMarkerHistory Configuration (Audit Trail)
+            builder.Entity<LabResultMarkerHistory>()
+                .HasOne(h => h.LabResultMarker)
+                .WithMany(m => m.History)
+                .HasForeignKey(h => h.LabResultMarkerId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            builder.Entity<LabResultMarkerHistory>()
+                .HasOne(h => h.HL7Message)
+                .WithMany()
+                .HasForeignKey(h => h.HL7MessageId)
+                .OnDelete(DeleteBehavior.NoAction);
+
+            builder.Entity<LabResultMarkerHistory>()
+                .HasOne(h => h.ChangedByUser)
+                .WithMany()
+                .HasForeignKey(h => h.ChangedByUserId)
+                .OnDelete(DeleteBehavior.NoAction);
+
+            builder.Entity<LabResultMarkerHistory>()
+                .HasIndex(h => h.LabResultMarkerId);
+
+            builder.Entity<LabResultMarkerHistory>()
+                .HasIndex(h => h.ChangedAt);
+
+            builder.Entity<LabResultMarkerHistory>()
+                .HasIndex(h => new { h.LabResultMarkerId, h.ChangedAt });
+
+            // Soft Delete for HL7Message
+            builder.Entity<HL7Message>().HasQueryFilter(h => !h.IsDeleted);
         }
 
         public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
@@ -1087,22 +1477,30 @@ namespace Sentinel.Data
             var auditEntries = OnBeforeSaveChanges();
             
             System.Diagnostics.Debug.WriteLine($"[REVIEW:{saveId}] About to detect review queue items...");
-            
+
             // Detect items for review queue BEFORE saving
             var reviewQueueEntries = await DetectReviewQueueItemsAsync();
-            
+
             System.Diagnostics.Debug.WriteLine($"[REVIEW:{saveId}] Detection complete. Found {reviewQueueEntries.Count} candidates");
-            
+
+            // Detect case evaluation changes BEFORE saving
+            var caseEvaluationChanges = DetectCaseEvaluationChanges();
+            System.Diagnostics.Debug.WriteLine($"[EVAL:{saveId}] Detected {caseEvaluationChanges.Count} cases for evaluation");
+
             var result = await base.SaveChangesAsync(cancellationToken);
-            
+
             await OnAfterSaveChanges(auditEntries);
-            
+
             System.Diagnostics.Debug.WriteLine($"[REVIEW:{saveId}] Queueing {reviewQueueEntries.Count} review items...");
-            
+
             // Queue review items AFTER successful save
             await QueueReviewItemsAsync(reviewQueueEntries);
-            
+
             System.Diagnostics.Debug.WriteLine($"[REVIEW:{saveId}] Queueing complete");
+
+            // Queue case evaluations AFTER successful save
+            await QueueCaseEvaluationsAsync(caseEvaluationChanges);
+            System.Diagnostics.Debug.WriteLine($"[EVAL:{saveId}] Queued {caseEvaluationChanges.Count} case evaluations");
             System.Diagnostics.Debug.WriteLine("====================================");
             
             return result;
@@ -1139,6 +1537,7 @@ namespace Sentinel.Data
             
             // Get the last assigned ID from database
             var lastPatient = await Patients
+                .IgnoreQueryFilters()  // Include soft-deleted - need highest ID ever assigned
                 .Where(p => p.FriendlyId.StartsWith(prefix))
                 .OrderByDescending(p => p.FriendlyId)
                 .FirstOrDefaultAsync();
@@ -1183,6 +1582,7 @@ namespace Sentinel.Data
             var prefix = $"P-{year}-";
             
             var lastPatient = Patients
+                .IgnoreQueryFilters()  // Include soft-deleted - need highest ID ever assigned
                 .Where(p => p.FriendlyId.StartsWith(prefix))
                 .OrderByDescending(p => p.FriendlyId)
                 .FirstOrDefault();
@@ -1227,6 +1627,7 @@ namespace Sentinel.Data
             
             // Get the last assigned ID from database
             var lastCase = await Cases
+                .IgnoreQueryFilters()  // System operation - bypass access control and soft delete filters
                 .Where(c => c.FriendlyId.StartsWith(prefix))
                 .OrderByDescending(c => c.FriendlyId)
                 .FirstOrDefaultAsync();
@@ -1271,6 +1672,7 @@ namespace Sentinel.Data
             var prefix = $"C-{year}-";
             
             var lastCase = Cases
+                .IgnoreQueryFilters()  // System operation - bypass access control and soft delete filters
                 .Where(c => c.FriendlyId.StartsWith(prefix))
                 .OrderByDescending(c => c.FriendlyId)
                 .FirstOrDefault();
@@ -1315,6 +1717,7 @@ namespace Sentinel.Data
             
             // Get the last assigned ID from database
             var lastLabResult = await LabResults
+                .IgnoreQueryFilters()  // Include soft-deleted - need highest ID ever assigned
                 .Where(lr => lr.FriendlyId.StartsWith(prefix))
                 .OrderByDescending(lr => lr.FriendlyId)
                 .FirstOrDefaultAsync();
@@ -1359,6 +1762,7 @@ namespace Sentinel.Data
             var prefix = $"LAB-{year}-";
             
             var lastLabResult = LabResults
+                .IgnoreQueryFilters()  // Include soft-deleted - need highest ID ever assigned
                 .Where(lr => lr.FriendlyId.StartsWith(prefix))
                 .OrderByDescending(lr => lr.FriendlyId)
                 .FirstOrDefault();
@@ -1440,6 +1844,7 @@ namespace Sentinel.Data
             var prefix = $"O-{year}-";
             
             var lastOrganization = await Organizations
+                .IgnoreQueryFilters()  // System operation - bypass any filters
                 .Where(o => o.FriendlyId.StartsWith(prefix))
                 .OrderByDescending(o => o.FriendlyId)
                 .FirstOrDefaultAsync();
@@ -1463,6 +1868,7 @@ namespace Sentinel.Data
             var prefix = $"O-{year}-";
             
             var lastOrganization = Organizations
+                .IgnoreQueryFilters()  // System operation - bypass any filters
                 .Where(o => o.FriendlyId.StartsWith(prefix))
                 .OrderByDescending(o => o.FriendlyId)
                 .FirstOrDefault();
@@ -1492,6 +1898,7 @@ namespace Sentinel.Data
                 if (disease.ParentDiseaseId.HasValue)
                 {
                     var parent = await Diseases
+                        .IgnoreQueryFilters()  // Called from SaveChangesAsync - no HTTP context
                         .AsNoTracking()
                         .FirstOrDefaultAsync(d => d.Id == disease.ParentDiseaseId.Value);
                     
@@ -1521,6 +1928,7 @@ namespace Sentinel.Data
                 if (disease.ParentDiseaseId.HasValue)
                 {
                     var parent = Diseases
+                        .IgnoreQueryFilters()  // Called from SaveChanges - no HTTP context
                         .AsNoTracking()
                         .FirstOrDefault(d => d.Id == disease.ParentDiseaseId.Value);
                     
@@ -1915,9 +2323,16 @@ namespace Sentinel.Data
                 if (entry.State == EntityState.Added && entry.Entity is LabResult labResult)
                 {
                     System.Diagnostics.Debug.WriteLine($"[REVIEW] Detected new LabResult for CaseId: {labResult.CaseId}");
-                    
+
+                    // Skip if lab result is not yet associated with a case (e.g., from HL7 processing)
+                    if (labResult.CaseId == null)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"[REVIEW] LabResult has no CaseId, skipping review queue check");
+                        continue;
+                    }
+
                     var caseEntity = await Cases
-                        .Where(c => c.Id == labResult.CaseId)
+                        .Where(c => c.Id == labResult.CaseId.Value)
                         .Include(c => c.Disease)
                         .FirstOrDefaultAsync();
 
@@ -2134,6 +2549,7 @@ namespace Sentinel.Data
                             if (diseaseProp.OriginalValue != null)
                             {
                                 var oldDisease = await Diseases
+                                    .IgnoreQueryFilters()  // Called from SaveChangesAsync - no HTTP context
                                     .FirstOrDefaultAsync(d => d.Id == (Guid)diseaseProp.OriginalValue);
                                 oldDiseaseName = oldDisease?.Name;
                             }
@@ -2141,6 +2557,7 @@ namespace Sentinel.Data
                             if (diseaseProp.CurrentValue != null)
                             {
                                 var newDisease = await Diseases
+                                    .IgnoreQueryFilters()  // Called from SaveChangesAsync - no HTTP context
                                     .FirstOrDefaultAsync(d => d.Id == (Guid)diseaseProp.CurrentValue);
                                 newDiseaseName = newDisease?.Name;
                             }
@@ -2285,6 +2702,7 @@ namespace Sentinel.Data
         private async Task<DiseaseReviewSettings> GetDiseaseReviewSettingsAsync(Guid diseaseId)
         {
             var disease = await Diseases
+                .IgnoreQueryFilters()  // Called from SaveChangesAsync - no HTTP context
                 .Where(d => d.Id == diseaseId)
                 .Select(d => new
                 {

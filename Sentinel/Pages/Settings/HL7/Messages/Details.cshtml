@@ -1,0 +1,414 @@
+@page
+@model Sentinel.Pages.Settings.HL7.Messages.DetailsModel
+
+@{
+    ViewData["Title"] = "HL7 Message Details";
+    Layout = "~/Pages/Shared/_LayoutSentinel.cshtml";
+}
+
+<nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a asp-page="/Index">Home</a></li>
+        <li class="breadcrumb-item"><a asp-page="/Settings/Index">Settings</a></li>
+        <li class="breadcrumb-item"><a asp-page="./Index">HL7 Messages</a></li>
+        <li class="breadcrumb-item active" aria-current="page">Details</li>
+    </ol>
+</nav>
+
+<div class="sentinel-page-header mb-4">
+    <div>
+        <div class="sentinel-eyebrow">HL7 Interface</div>
+        <h1 class="sentinel-page-title">Message Details</h1>
+        <p class="sentinel-page-subtitle">@Model.Message.MessageControlId</p>
+    </div>
+    <div>
+        @if (Model.Message.Status == Sentinel.Models.HL7ProcessingStatus.ProcessingFailed || 
+             Model.Message.Status == Sentinel.Models.HL7ProcessingStatus.AwaitingManualReview)
+        {
+            <form method="post" asp-page-handler="Reprocess" style="display:inline">
+                <input type="hidden" name="id" value="@Model.Message.Id" />
+                <button type="submit" class="sn-btn sn-btn--signal">
+                    <i class="bi bi-arrow-clockwise me-1"></i>Reprocess
+                </button>
+            </form>
+        }
+        @if (Model.Message.LabResultId.HasValue)
+        {
+            <a asp-page="/Settings/HL7/Diagnostics" asp-route-labResultId="@Model.Message.LabResultId" class="sn-btn sn-btn--primary ms-2">
+                <i class="bi bi-tools me-1"></i>Diagnose
+            </a>
+        }
+        <a asp-page="./Index" class="sn-btn sn-btn--ghost ms-2">
+            <i class="bi bi-arrow-left me-1"></i>Back to List
+        </a>
+    </div>
+</div>
+
+@if (TempData["SuccessMessage"] != null)
+{
+    <div class="alert alert-success alert-dismissible fade show" role="alert">
+        <i class="bi bi-check-circle me-2"></i>@TempData["SuccessMessage"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+
+<!-- Message Overview -->
+<div class="row g-3 mb-4">
+    <div class="col-md-3">
+        <div class="kpi">
+            <div class="kpi-label">Status</div>
+            <div class="kpi-value" style="font-size:18px">
+                @switch (Model.Message.Status)
+                {
+                    case Sentinel.Models.HL7ProcessingStatus.ProcessedSuccessfully:
+                        <span class="chip clear" style="font-size:14px;padding:6px 14px">
+                            <span class="dot"></span>Processed
+                        </span>
+                        break;
+                    case Sentinel.Models.HL7ProcessingStatus.ProcessingFailed:
+                        <span class="chip outbreak" style="font-size:14px;padding:6px 14px">
+                            <span class="dot"></span>Error
+                        </span>
+                        break;
+                    case Sentinel.Models.HL7ProcessingStatus.DuplicateDetected:
+                        <span class="chip watch" style="font-size:14px;padding:6px 14px">
+                            <span class="dot"></span>Duplicate
+                        </span>
+                        break;
+                    case Sentinel.Models.HL7ProcessingStatus.AwaitingManualReview:
+                        <span class="chip info" style="font-size:14px;padding:6px 14px">
+                            <span class="dot"></span>Review
+                        </span>
+                        break;
+                    default:
+                        <span class="chip" style="background:#E3E9FB;color:#2A3970;font-size:14px;padding:6px 14px">
+                            <span class="dot" style="background:#6B8CF5"></span>@Model.Message.Status
+                        </span>
+                        break;
+                }
+            </div>
+            <div class="kpi-delta">@Model.Message.MessageType</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="kpi">
+            <div class="kpi-label">Received</div>
+            <div class="kpi-value" style="font-size:16px;font-family:var(--f-mono)">
+                @Model.Message.ReceivedAt.ToLocalTime().ToString("MM/dd/yyyy")
+            </div>
+            <div class="kpi-delta">@Model.Message.ReceivedAt.ToLocalTime().ToString("HH:mm:ss")</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="kpi">
+            <div class="kpi-label">Patient</div>
+            <div class="kpi-value" style="font-size:16px">
+                @if (Model.Message.Patient != null)
+                {
+                    <a asp-page="/Patients/Details" asp-route-id="@Model.Message.Patient.Id" 
+                       style="color:var(--forest);text-decoration:none">
+                        @Model.Message.Patient.GivenName @Model.Message.Patient.FamilyName
+                    </a>
+                }
+                else
+                {
+                    <span style="color:var(--graphite)">None</span>
+                }
+            </div>
+            <div class="kpi-delta">
+                @if (Model.Message.Patient != null && !string.IsNullOrWhiteSpace(Model.Message.Patient.FriendlyId))
+                {
+                    @Model.Message.Patient.FriendlyId
+                }
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="kpi">
+            <div class="kpi-label">Case</div>
+            <div class="kpi-value" style="font-size:16px">
+                @if (Model.Message.Case != null)
+                {
+                    <a asp-page="/Cases/Details" asp-route-id="@Model.Message.Case.Id" 
+                       style="color:var(--signal-dk);text-decoration:none;font-weight:500">
+                        @Model.Message.Case.FriendlyId
+                    </a>
+                }
+                else
+                {
+                    <span style="color:var(--graphite)">None</span>
+                }
+            </div>
+            <div class="kpi-delta">
+                @if (Model.Message.Case != null)
+                {
+                    @Model.Message.Case.Disease?.Name
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Error Details -->
+@if (!string.IsNullOrWhiteSpace(Model.Message.ErrorMessage))
+{
+    <div class="alert alert-danger mb-4" role="alert">
+        <h6 class="alert-heading"><i class="bi bi-exclamation-triangle me-2"></i>Error Details</h6>
+        <pre style="margin:0;font-family:var(--f-mono);font-size:12px;white-space:pre-wrap">@Model.Message.ErrorMessage</pre>
+    </div>
+}
+
+<!-- Processing Diagnostics -->
+@if (!string.IsNullOrWhiteSpace(Model.Message.ProcessingNotes))
+{
+    <div class="alert alert-info mb-4" role="alert" style="background:var(--signal-lt);border-color:var(--signal-dk);color:var(--forest)">
+        <h6 class="alert-heading"><i class="bi bi-info-circle me-2"></i>Processing Diagnostics</h6>
+        <div style="font-size:13px;line-height:1.8">
+            <strong>What happened during processing:</strong>
+            <pre style="margin:8px 0 0 0;font-family:var(--f-mono);font-size:12px;white-space:pre-wrap;color:var(--graphite);background:var(--chalk);padding:12px;border-radius:8px;border:1px solid var(--hairline)">@Model.Message.ProcessingNotes</pre>
+        </div>
+    </div>
+}
+
+<!-- Lab Result Link -->
+@if (Model.Message.LabResultId.HasValue)
+{
+    <div class="alert alert-success mb-4" role="alert" style="background:#d1fae5;border-color:var(--signal-dk);color:var(--forest)">
+        <div class="d-flex align-items-center justify-content-between">
+            <div>
+                <h6 class="alert-heading mb-1"><i class="bi bi-flask me-2"></i>Lab Result Created</h6>
+                <p class="mb-0" style="font-size:13px">A laboratory result was successfully created from this message.</p>
+            </div>
+            <a asp-page="/Cases/ViewLabResult" asp-route-id="@Model.Message.LabResultId" class="sn-btn sn-btn--signal">
+                <i class="bi bi-box-arrow-up-right me-1"></i>View Lab Result
+            </a>
+        </div>
+    </div>
+}
+
+<!-- No Case Warning -->
+@if (Model.Message.Status == Sentinel.Models.HL7ProcessingStatus.ProcessedSuccessfully && Model.Message.CaseId == null && Model.Message.LabResultId.HasValue)
+{
+    <div class="alert alert-warning mb-4" role="alert" style="background:#fff3cd;border-color:#ffc107;color:#856404">
+        <h6 class="alert-heading"><i class="bi bi-exclamation-circle me-2"></i>No Case Created</h6>
+        <div style="font-size:13px">
+            <p class="mb-2">The lab result was created but no case was automatically created. This could be because:</p>
+            <ul class="mb-2" style="padding-left:20px">
+                <li><strong>No LOINC Mapping:</strong> The test code in this message isn't mapped to a disease</li>
+                <li><strong>Auto-Create Disabled:</strong> Configuration has "Auto-create Cases" turned off</li>
+                <li><strong>Negative Result:</strong> Case creation rules may not create cases for negative results</li>
+                <li><strong>Reinfection Window:</strong> Patient has an existing case and is within the reinfection window</li>
+            </ul>
+            <div style="background:var(--chalk);padding:12px;border-radius:8px;border:1px solid var(--hairline);margin-top:12px">
+                <strong style="color:var(--forest)">To fix this:</strong>
+                <ol style="margin:8px 0 0 20px;padding:0;font-size:13px">
+                    <li>Check <a asp-page="/Settings/Pathogens/Index" style="color:var(--signal-dk)">LOINC Mappings</a> - ensure test codes are mapped to diseases</li>
+                    <li>Check <a asp-page="/Settings/HL7/Configurations/Edit" asp-route-id="@Model.Message.ConfigurationId" style="color:var(--signal-dk)">Configuration Settings</a> - ensure "Auto-create Cases" is enabled</li>
+                    <li>Check <a asp-page="/Settings/Diseases/ReinfectionRules" style="color:var(--signal-dk)">Reinfection Rules</a> - review case matching rules</li>
+                    <li>Check the <strong>Processing Diagnostics</strong> above for specific details</li>
+                </ol>
+                <div style="margin-top:16px">
+                    <a asp-page="/Settings/HL7/Diagnostics" asp-route-labResultId="@Model.Message.LabResultId" class="sn-btn sn-btn--signal sn-btn--sm">
+                        <i class="bi bi-tools me-1"></i>Run Diagnostics
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- Message Details -->
+<div class="row g-4">
+    <div class="col-lg-6">
+        <div class="sentinel-card">
+            <div class="sentinel-card-body">
+                <h3 class="sentinel-section-title">Message Information</h3>
+                <table class="table table-sm">
+                    <tbody>
+                        <tr>
+                            <th style="width:200px;color:var(--graphite)">Message Control ID</th>
+                            <td style="font-family:var(--f-mono);font-size:12px">@Model.Message.MessageControlId</td>
+                        </tr>
+                        <tr>
+                            <th style="color:var(--graphite)">Message Type</th>
+                            <td style="font-family:var(--f-mono)">@Model.Message.MessageType</td>
+                        </tr>
+                        <tr>
+                            <th style="color:var(--graphite)">Message Date/Time</th>
+                            <td style="font-family:var(--f-mono);font-size:12px">@Model.Message.MessageDateTime.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss")</td>
+                        </tr>
+                        <tr>
+                            <th style="color:var(--graphite)">HL7 Version</th>
+                            <td style="font-family:var(--f-mono)">@Model.Message.HL7Version</td>
+                        </tr>
+                        <tr>
+                            <th style="color:var(--graphite)">Configuration</th>
+                            <td>
+                                @if (Model.Message.Configuration != null)
+                                {
+                                    <a asp-page="/Settings/HL7/Configurations/Edit" asp-route-id="@Model.Message.Configuration.Id">
+                                        @Model.Message.Configuration.ConfigurationName
+                                    </a>
+                                }
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="sentinel-card mt-4">
+            <div class="sentinel-card-body">
+                <h3 class="sentinel-section-title">Source Information</h3>
+                <table class="table table-sm">
+                    <tbody>
+                        <tr>
+                            <th style="width:200px;color:var(--graphite)">Sending Facility</th>
+                            <td style="font-family:var(--f-mono)">@Model.Message.SendingFacility</td>
+                        </tr>
+                        <tr>
+                            <th style="color:var(--graphite)">Sending Application</th>
+                            <td style="font-family:var(--f-mono)">@Model.Message.SendingApplication</td>
+                        </tr>
+                        <tr>
+                            <th style="color:var(--graphite)">Receiving Facility</th>
+                            <td style="font-family:var(--f-mono)">@Model.Message.ReceivingFacility</td>
+                        </tr>
+                        <tr>
+                            <th style="color:var(--graphite)">Receiving Application</th>
+                            <td style="font-family:var(--f-mono)">@Model.Message.ReceivingApplication</td>
+                        </tr>
+                        <tr>
+                            <th style="color:var(--graphite)">File Name</th>
+                            <td style="font-family:var(--f-mono);font-size:11px">@Model.Message.FileName</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-6">
+        <div class="sentinel-card">
+            <div class="sentinel-card-body">
+                <h3 class="sentinel-section-title">Processing Timeline</h3>
+                <div style="position:relative;padding-left:24px">
+                    @if (Model.Message.ReceivedAt != default)
+                    {
+                        <div style="margin-bottom:20px;position:relative">
+                            <div style="position:absolute;left:-24px;width:12px;height:12px;background:var(--signal);border-radius:50%;border:2px solid var(--chalk)"></div>
+                            <div style="font-weight:500;color:var(--forest)">Received</div>
+                            <div style="font-family:var(--f-mono);font-size:11px;color:var(--graphite)">
+                                @Model.Message.ReceivedAt.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss")
+                            </div>
+                        </div>
+                        <div style="position:absolute;left:5px;top:12px;width:2px;height:calc(100% - 24px);background:var(--hairline)"></div>
+                    }
+                    @if (Model.Message.ParsedAt.HasValue)
+                    {
+                        <div style="margin-bottom:20px;position:relative">
+                            <div style="position:absolute;left:-24px;width:12px;height:12px;background:var(--signal);border-radius:50%;border:2px solid var(--chalk)"></div>
+                            <div style="font-weight:500;color:var(--forest)">Parsed</div>
+                            <div style="font-family:var(--f-mono);font-size:11px;color:var(--graphite)">
+                                @Model.Message.ParsedAt.Value.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss")
+                            </div>
+                        </div>
+                    }
+                    @if (Model.Message.ProcessedAt.HasValue)
+                    {
+                        <div style="margin-bottom:0;position:relative">
+                            <div style="position:absolute;left:-24px;width:12px;height:12px;background:var(--signal);border-radius:50%;border:2px solid var(--chalk)"></div>
+                            <div style="font-weight:500;color:var(--forest)">Processed</div>
+                            <div style="font-family:var(--f-mono);font-size:11px;color:var(--graphite)">
+                                @Model.Message.ProcessedAt.Value.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss")
+                            </div>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+
+        @if (Model.Message.IsDuplicate && Model.Message.DuplicateOfMessage != null)
+        {
+            <div class="alert alert-warning mt-4" role="alert">
+                <h6 class="alert-heading"><i class="bi bi-exclamation-triangle me-2"></i>Duplicate Detected</h6>
+                <div style="font-size:13px">
+                    This message is a duplicate of 
+                    <a asp-page="./Details" asp-route-id="@Model.Message.DuplicateOfMessage.Id" class="alert-link">
+                        @Model.Message.DuplicateOfMessage.MessageControlId
+                    </a>
+                </div>
+                @if (!string.IsNullOrWhiteSpace(Model.Message.DuplicateDetectionMethod))
+                {
+                    <div style="font-family:var(--f-mono);font-size:11px;margin-top:8px">
+                        Method: @Model.Message.DuplicateDetectionMethod
+                    </div>
+                }
+            </div>
+        }
+    </div>
+</div>
+
+<!-- Segments -->
+<div class="sentinel-card mt-4">
+    <div class="sentinel-card-body">
+        <h3 class="sentinel-section-title">HL7 Segments</h3>
+        @if (Model.Message.Segments?.Any() == true)
+        {
+            <table class="sn-table">
+                <thead>
+                    <tr>
+                        <th style="width:60px">#</th>
+                        <th style="width:80px">Type</th>
+                        <th style="width:80px">Set ID</th>
+                        <th>Segment Data</th>
+                        <th style="width:100px">Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var segment in Model.Message.Segments.OrderBy(s => s.SequenceNumber))
+                    {
+                        <tr>
+                            <td style="font-family:var(--f-mono);text-align:center">@segment.SequenceNumber</td>
+                            <td style="font-family:var(--f-mono);font-weight:500">@segment.SegmentType</td>
+                            <td style="font-family:var(--f-mono);text-align:center">
+                                @(segment.SetId.HasValue ? segment.SetId.Value.ToString() : "—")
+                            </td>
+                            <td style="font-family:var(--f-mono);font-size:11px">
+                                @segment.RawSegment.Substring(0, Math.Min(100, segment.RawSegment.Length))@(segment.RawSegment.Length > 100 ? "..." : "")
+                            </td>
+                            <td>
+                                @if (segment.IsParsed)
+                                {
+                                    <span class="chip clear" style="font-size:9px;padding:2px 6px">
+                                        <span class="dot"></span>Parsed
+                                    </span>
+                                }
+                                @if (segment.HasIssues)
+                                {
+                                    <span class="chip outbreak" style="font-size:9px;padding:2px 6px">
+                                        <span class="dot"></span>Issues
+                                    </span>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        }
+        else
+        {
+            <div class="text-center py-4" style="color:var(--graphite)">
+                No segments parsed
+            </div>
+        }
+    </div>
+</div>
+
+<!-- Raw Message -->
+<div class="sentinel-card mt-4">
+    <div class="sentinel-card-body">
+        <h3 class="sentinel-section-title">Raw HL7 Message</h3>
+        <pre style="font-family:var(--f-mono);font-size:11px;line-height:1.6;background:var(--paper);padding:16px;border-radius:4px;overflow-x:auto">@Model.Message.RawMessage</pre>
+    </div>
+</div>

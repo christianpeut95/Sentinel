@@ -19,8 +19,9 @@ namespace Sentinel.Services
         public async Task<List<TaskTemplateWithSource>> GetApplicableTaskTemplates(Guid diseaseId)
         {
             System.Diagnostics.Debug.WriteLine($"?? GetApplicableTaskTemplates called for diseaseId: {diseaseId}");
-            
+
             var disease = await _context.Diseases
+                .IgnoreQueryFilters()
                 .Include(d => d.ParentDisease)
                 .FirstOrDefaultAsync(d => d.Id == diseaseId);
 
@@ -61,6 +62,7 @@ namespace Sentinel.Services
             {
                 var ancestorIds = disease.PathIds
                     .Split(new[] { '/' }, StringSplitOptions.RemoveEmptyEntries)
+                    .Where(segment => Guid.TryParse(segment, out _))
                     .Select(Guid.Parse)
                     .Reverse() // Start from immediate parent
                     .ToList();
@@ -211,6 +213,7 @@ namespace Sentinel.Services
 
             // Get all child diseases
             var children = await _context.Diseases
+                .IgnoreQueryFilters()
                 .Where(d => d.PathIds.Contains($"/{diseaseId}/"))
                 .ToListAsync();
 
@@ -309,6 +312,7 @@ namespace Sentinel.Services
         public async Task<List<CaseTask>> CreateTasksForCase(Guid caseId, TaskTrigger trigger)
         {
             var caseEntity = await _context.Cases
+                .IgnoreQueryFilters()
                 .Include(c => c.Disease)
                 .Include(c => c.Patient)
                 .FirstOrDefaultAsync(c => c.Id == caseId);
@@ -358,6 +362,7 @@ namespace Sentinel.Services
         public async Task<List<CaseTask>> AutoCreateTasksForNewCase(Guid caseId)
         {
             var caseEntity = await _context.Cases
+                .IgnoreQueryFilters()
                 .Include(c => c.Disease)
                 .Include(c => c.Patient)
                 .FirstOrDefaultAsync(c => c.Id == caseId);
@@ -463,6 +468,7 @@ namespace Sentinel.Services
             string? assignedToUserId = null)
         {
             var caseEntity = await _context.Cases
+                .IgnoreQueryFilters()
                 .Include(c => c.Disease)
                 .Include(c => c.Patient)
                 .FirstOrDefaultAsync(c => c.Id == caseId);

@@ -6,196 +6,96 @@
     var caseId = Request.Query["caseId"].ToString();
     var saved = Request.Query["saved"].ToString();
 }
-@functions {
-    public string GetCspNonce()
-    {
-        if (HttpContext?.Items?.TryGetValue("csp-nonce", out var nonce) == true && nonce is string nonceStr)
-        {
-            return nonceStr;
-        }
-        return string.Empty;
-    }
-}
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Lab Result - @labResult.FriendlyId</title>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" />
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" />
-    <style>
-        body {
-            background: #f8f9fa;
-            padding: 0.75rem;
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-            font-size: 0.875rem;
-        }
-        .lab-result-container {
-            background: white;
-            border-radius: 8px;
-            padding: 1rem;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-        }
-        .header {
-            border-bottom: 2px solid #e9ecef;
-            padding-bottom: 0.6rem;
-            margin-bottom: 0.75rem;
-        }
-        .header h1 {
-            font-size: 1.25rem;
-            font-weight: 600;
-            color: #2d3748;
-            margin-bottom: 0.25rem;
-        }
-        .header .subtitle {
-            color: #718096;
-            font-size: 0.8rem;
-        }
-        .section-title {
-            font-size: 0.9rem;
-            font-weight: 600;
-            color: #2d3748;
-            margin-bottom: 0.4rem;
-            margin-top: 0.75rem;
-            padding-bottom: 0.25rem;
-            border-bottom: 1px solid #e9ecef;
-        }
-        .section-title i {
-            color: #4299e1;
-            margin-right: 0.35rem;
-            font-size: 0.85rem;
-        }
-        .field-label {
-            font-size: 0.65rem;
-            font-weight: 600;
-            color: #718096;
-            text-transform: uppercase;
-            letter-spacing: 0.3px;
-            margin-bottom: 0.1rem;
-        }
-        .field-value {
-            font-size: 0.85rem;
-            color: #2d3748;
-            margin-bottom: 0.5rem;
-            line-height: 1.3;
-        }
-        .field-value.empty {
-            color: #a0aec0;
-            font-style: italic;
-        }
-        .field-value strong {
-            color: #1a202c;
-            font-weight: 600;
-        }
-        .badge {
-            font-size: 0.7rem;
-            padding: 0.2rem 0.5rem;
-        }
-        .alert {
-            border-radius: 6px;
-            border: none;
-            padding: 0.5rem;
-            margin-bottom: 0.4rem;
-            font-size: 0.8rem;
-        }
-        .btn-toolbar {
-            margin-top: 0.75rem;
-            padding-top: 0.75rem;
-            border-top: 1px solid #e9ecef;
-            display: flex;
-            gap: 0.4rem;
-            justify-content: space-between;
-        }
-        .btn-toolbar .left-buttons,
-        .btn-toolbar .right-buttons {
-            display: flex;
-            gap: 0.4rem;
-        }
-        .btn {
-            border-radius: 6px;
-            font-weight: 500;
-            padding: 0.35rem 0.75rem;
-            font-size: 0.8rem;
-        }
-        .btn i {
-            font-size: 0.85rem;
-        }
-        .row {
-            margin-bottom: 0.3rem;
-        }
-        .col-md-6, .col-md-4, .col-md-12 {
-            padding-left: 0.4rem;
-            padding-right: 0.4rem;
-        }
-        @@media print {
-            body {
-                background: white;
-                padding: 0;
-            }
-            .btn-toolbar {
-                display: none;
-            }
-        }
-    </style>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700;800&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/sentinel-design-system.css" asp-append-version="true" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
 </head>
-<body>
-<div class="lab-result-container">
+<body style="padding: 24px; background: var(--bone);">
+
+<div style="max-width: 940px; margin: 0 auto 32px; display: flex; justify-content: space-between; align-items: flex-start; padding-bottom: 20px; border-bottom: 1px solid var(--hairline);">
+    <div>
+        <div class="text-label" style="margin-bottom: 8px;">
+            Lab Result Details
+        </div>
+        <h1 class="text-h2" style="margin: 0;">
+            <i class="bi bi-clipboard-pulse" style="color: var(--signal-dk);"></i>
+            @labResult.FriendlyId
+        </h1>
+        @if (labResult.IsAmended)
+        {
+            <span class="chip" style="background: #FBEDD1; color: #6A4410; font-size: 11px; padding: 4px 10px; border: 1px solid #EBD196; margin-top: 8px; display: inline-block;">
+                <i class="bi bi-pencil-square"></i> AMENDED
+            </span>
+        }
+    </div>
+    <div>
+        <button type="button" class="sn-btn sn-btn--ghost sn-btn--sm" onclick="window.close()">
+            <i class="bi bi-x-lg"></i> Close
+        </button>
+        <button type="button" class="sn-btn sn-btn--ghost sn-btn--sm" onclick="window.print()" style="margin-left: 8px;">
+            <i class="bi bi-printer"></i> Print
+        </button>
+    </div>
+</div>
+
+<div style="max-width: 940px; margin: 0 auto;">
     @if (saved == "true")
     {
-        <div class="alert alert-success alert-dismissible fade show" role="alert" style="font-size: 0.85rem; padding: 0.5rem;">
-            <i class="bi bi-check-circle-fill me-2"></i><strong>Changes saved successfully!</strong>
-            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close" style="font-size: 0.7rem; padding: 0.3rem;"></button>
+        <div style="background: var(--signal-lt); border: 1px solid #9BE8C6; border-radius: 6px; padding: 16px 20px; margin-bottom: 20px; color: #0A3F2C;">
+            <i class="bi bi-check-circle-fill"></i> <strong>Changes saved successfully!</strong>
         </div>
     }
-    <div class="header">
-        <h1><i class="bi bi-clipboard-pulse me-2"></i>Lab Result</h1>
-        <div class="subtitle">
-            <strong>ID:</strong> <span class="badge bg-secondary">@labResult.FriendlyId</span>
-            @if (labResult.IsAmended)
-            {
-                <span class="badge bg-info ms-1">Amended</span>
-            }
-        </div>
-    </div>
 
     <!-- Organizations -->
-    <div class="section-title">
-        <i class="bi bi-building"></i>Organizations
-    </div>
-    <div class="row">
-        <div class="col-md-6">
-            <div class="field-label">Laboratory</div>
-            <div class="field-value @(labResult.Laboratory == null ? "empty" : "")">
-                @(labResult.Laboratory?.Name ?? "-")
-            </div>
+    <div class="sentinel-card" style="margin-bottom: 20px;">
+        <div class="sentinel-card-header">
+            <h3 class="text-h3" style="margin: 0;">
+                <i class="bi bi-building" style="color: var(--signal-dk);"></i> Organizations
+            </h3>
         </div>
-        <div class="col-md-6">
-            <div class="field-label">Ordering Provider</div>
-            <div class="field-value @(labResult.OrderingProvider == null ? "empty" : "")">
-                @(labResult.OrderingProvider?.Name ?? "-")
+        <div style="padding: 20px;">
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="text-label" style="margin-bottom: 6px;">Laboratory</div>
+                    <div style="font-size: 14px;">@(labResult.Laboratory?.Name ?? "-")</div>
+                </div>
+                <div class="col-md-6">
+                    <div class="text-label" style="margin-bottom: 6px;">Ordering Provider</div>
+                    <div style="font-size: 14px;">@(labResult.OrderingProvider?.Name ?? "-")</div>
+                </div>
             </div>
         </div>
     </div>
 
     <!-- Specimen & Test -->
-    <div class="section-title">
-        <i class="bi bi-clipboard2-pulse"></i>Specimen & Test
-    </div>
-    <div class="row">
-        <div class="col-md-4">
-            <div class="field-label">Collection Date</div>
-            <div class="field-value @(!labResult.SpecimenCollectionDate.HasValue ? "empty" : "")">
-                @(labResult.SpecimenCollectionDate?.ToString("dd MMM yy") ?? "-")
-            </div>
+    <div class="sentinel-card" style="margin-bottom: 20px;">
+        <div class="sentinel-card-header">
+            <h3 class="text-h3" style="margin: 0;">
+                <i class="bi bi-clipboard2-pulse" style="color: var(--signal-dk);"></i> Specimen & Test
+            </h3>
         </div>
-        <div class="col-md-4">
-            <div class="field-label">Specimen Type</div>
-            <div class="field-value @(labResult.SpecimenType == null ? "empty" : "")">
-                @(labResult.SpecimenType?.Name ?? "-")
-            </div>
-        </div>
-        <div class="col-md-4">
+        <div style="padding: 20px;">
+            <div class="row">
+                <div class="col-md-4">
+                    <div class="text-label" style="margin-bottom: 6px;">Collection Date</div>
+                    <div style="font-size: 14px;">@(labResult.SpecimenCollectionDate?.ToString("dd MMM yyyy") ?? "-")</div>
+                </div>
+                <div class="col-md-4">
+                    <div class="text-label" style="margin-bottom: 6px;">Specimen Type</div>
+                    <div style="font-size: 14px;">@(labResult.SpecimenType?.Name ?? "-")</div>
+                </div>
+                <div class="col-md-4">
             <div class="field-label">Accession #</div>
             <div class="field-value @(string.IsNullOrEmpty(labResult.AccessionNumber) ? "empty" : "")">
                 @(labResult.AccessionNumber ?? "-")
@@ -203,44 +103,126 @@
         </div>
     </div>
     <div class="row">
-        <div class="col-md-4">
-            <div class="field-label">Test Type</div>
-            <div class="field-value @(labResult.TestType == null ? "empty" : "")">
-                @(labResult.TestType?.Name ?? "-")
-            </div>
-        </div>
-        <div class="col-md-4">
-            <div class="field-label">Test Result</div>
-            <div class="field-value @(labResult.TestResult == null ? "empty" : "")">
-                <strong>@(labResult.TestResult?.Name ?? "-")</strong>
-            </div>
-        </div>
-        <div class="col-md-4">
+        <div class="col-md-6">
             <div class="field-label">Tested For</div>
             <div class="field-value @(labResult.TestedDisease == null ? "empty" : "")">
                 @(labResult.TestedDisease?.Name ?? "-")
             </div>
         </div>
-    </div>
+        <div class="col-md-6">
+                            <div class="text-label" style="margin-bottom: 6px;">Result Date</div>
+                            <div style="font-size: 14px;">@(labResult.ResultDate?.ToString("dd MMM yyyy") ?? "-")</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
 
-    <!-- Results -->
-    <div class="section-title">
-        <i class="bi bi-graph-up"></i>Results
-    </div>
-    <div class="row">
-        <div class="col-md-4">
-            <div class="field-label">Result Date</div>
-            <div class="field-value @(!labResult.ResultDate.HasValue ? "empty" : "")">
-                @(labResult.ResultDate?.ToString("dd MMM yy") ?? "-")
-            </div>
-        </div>
-        <div class="col-md-4">
-            <div class="field-label">Quantitative</div>
-            <div class="field-value @(!labResult.QuantitativeResult.HasValue ? "empty" : "")">
-                @(labResult.QuantitativeResult?.ToString() ?? "-")
-            </div>
-        </div>
-        <div class="col-md-4">
+            <!-- Test Markers/Results -->
+            <div class="sentinel-card" style="margin-bottom: 20px;">
+                <div class="sentinel-card-header">
+                    <h3 class="text-h3" style="margin: 0;">
+                        <i class="bi bi-virus" style="color: var(--signal-dk);"></i> Test Results (@labResult.Markers.Count Markers)
+                    </h3>
+                </div>
+                <div style="padding: 20px;">
+                    @if (labResult.Markers.Any())
+                    {
+                        <div style="display: flex; flex-direction: column; gap: 12px;">
+                            @foreach (var marker in labResult.Markers.OrderBy(m => m.DisplayOrder))
+                            {
+                                var resultStyle = marker.QualitativeResultText?.ToLower() switch
+                                {
+                                    "detected" or "positive" or "reactive" => "background: #FBE2D8; border-color: #F2BBA4; color: #7A2A15;",
+                                    "not detected" or "negative" or "non-reactive" => "background: var(--signal-lt); border-color: #9BE8C6; color: #0A3F2C;",
+                                    "indeterminate" or "equivocal" => "background: #FBEDD1; border-color: #EBD196; color: #6A4410;",
+                                    _ => "background: var(--chalk); border-color: var(--hairline); color: var(--graphite);"
+                                };
+
+                                <div style="@resultStyle border: 1px solid; border-radius: 6px; padding: 12px; display: grid; grid-template-columns: 2fr 1fr 2fr; gap: 16px; align-items: center;">
+                                    <!-- Left: Pathogen & Test Method -->
+                                    <div>
+                                        <div style="font-weight: 600; font-size: 14px; margin-bottom: 4px;">
+                                            @(marker.Pathogen?.Name ?? "Unknown Pathogen")
+                                        </div>
+                                        @if (marker.TestMethod != null)
+                                        {
+                                            <div style="font-size: 12px; opacity: 0.8;">
+                                                @marker.TestMethod.Name
+                                            </div>
+                                        }
+                                        @if (!string.IsNullOrEmpty(marker.LOINCCode))
+                                        {
+                                            <div class="text-mono" style="font-size: 11px; opacity: 0.7; margin-top: 4px;">@marker.LOINCCode</div>
+                                        }
+                                    </div>
+
+                                    <!-- Middle: Result Status -->
+                                    <div style="text-align: center;">
+                                        @if (!string.IsNullOrEmpty(marker.QualitativeResultText))
+                                        {
+                                            <div style="font-weight: 700; font-size: 16px; letter-spacing: 0.5px;">
+                                                @marker.QualitativeResultText.ToUpper()
+                                            </div>
+                                        }
+                                    </div>
+
+                                    <!-- Right: Quantitative Values -->
+                                    <div style="text-align: right;">
+                                        @if (marker.QuantitativeValue.HasValue)
+                                        {
+                                            <div style="font-family: var(--f-mono); font-size: 14px;">
+                                                <strong style="font-size: 16px;">@marker.QuantitativeValue.Value</strong> 
+                                                <span style="opacity: 0.8;">@marker.QuantitativeUnit</span>
+                                            </div>
+                                            @if (marker.ReferenceRangeLow.HasValue || marker.ReferenceRangeHigh.HasValue)
+                                            {
+                                                <div style="font-size: 11px; opacity: 0.7; margin-top: 2px;">
+                                                    Ref: @(marker.ReferenceRangeLow?.ToString() ?? "—")–@(marker.ReferenceRangeHigh?.ToString() ?? "—")
+                                                </div>
+                                            }
+                                            @if (!string.IsNullOrEmpty(marker.InterpretationFlag))
+                                            {
+                                                <div style="font-weight: 600; font-size: 12px; margin-top: 4px;">
+                                                    [@marker.InterpretationFlag]
+                                                </div>
+                                            }
+                                        }
+                                        else if (string.IsNullOrEmpty(marker.QualitativeResultText))
+                                        {
+                                            <div style="opacity: 0.6; font-style: italic;">No result</div>
+                                        }
+                                    </div>
+                                </div>
+
+                                @if (!string.IsNullOrEmpty(marker.Notes))
+                                {
+                                    <div style="margin-top: -8px; margin-bottom: 4px; padding: 8px 12px; background: rgba(255,255,255,0.3); border-radius: 0 0 6px 6px; font-size: 12px; font-style: italic; opacity: 0.9;">
+                                        <i class="bi bi-chat-left-text" style="margin-right: 4px;"></i>@marker.Notes
+                                    </div>
+                                }
+                            }
+                        </div>
+                    }
+                    else
+                    {
+                        <div style="text-align: center; padding: 40px; color: var(--graphite);">
+                            <i class="bi bi-inbox" style="font-size: 48px; opacity: 0.3; display: block; margin-bottom: 12px;"></i>
+                            <p>No test markers recorded</p>
+                                        </div>
+                                    }
+                                </div>
+                            </div>
+
+                        <!-- Additional Information -->
+                        <div class="sentinel-card" style="margin-bottom: 20px;">
+                            <div class="sentinel-card-header">
+                                <h3 class="text-h3" style="margin: 0;">
+                                    <i class="bi bi-journal-text" style="color: var(--signal-dk);"></i> Additional Information
+                                </h3>
+                            </div>
+                            <div style="padding: 20px;">
+                                <div class="row">
+        <div class="col-md-12">
             <div class="field-label">Units</div>
             <div class="field-value @(labResult.ResultUnits == null ? "empty" : "")">
                 @(labResult.ResultUnits?.Name ?? "-")
@@ -286,37 +268,52 @@
             <div class="col-md-6">
                 <div class="field-label">Created</div>
                 <div class="field-value">@labResult.CreatedAt.ToString("dd MMM yy HH:mm")</div>
-            </div>
-            @if (labResult.ModifiedAt.HasValue)
-            {
-                <div class="col-md-6">
-                    <div class="field-label">Modified</div>
-                    <div class="field-value">@labResult.ModifiedAt.Value.ToString("dd MMM yy HH:mm")</div>
+                            <div class="col-md-6">
+                                <div class="text-label" style="margin-bottom: 6px;">Lab Interpretation</div>
+                                <div style="font-size: 14px;">@(labResult.LabInterpretation ?? "-")</div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="text-label" style="margin-bottom: 6px;">Notes</div>
+                                <div style="font-size: 14px;">@(labResult.Notes ?? "-")</div>
+                            </div>
+                        </div>
+                        @if (labResult.ModifiedAt.HasValue)
+                        {
+                            <div style="margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--hairline);">
+                                <div class="text-label" style="margin-bottom: 6px;">Last Modified</div>
+                                <div style="font-size: 14px;">@labResult.ModifiedAt.Value.ToString("dd MMM yyyy HH:mm")</div>
+                            </div>
+                        }
+                    </div>
                 </div>
-            }
-        </div>
 
-        <!-- Action Buttons -->
-        <div class="btn-toolbar">
-            <div class="left-buttons">
-                @if (!string.IsNullOrEmpty(caseId))
+                <!-- Attachment Section (if exists) -->
+                @if (!string.IsNullOrEmpty(labResult.AttachmentPath))
                 {
-                    <a href="/Cases/EditLabResult?labResultId=@labResult.Id&caseId=@caseId" class="btn btn-primary">
-                        <i class="bi bi-pencil me-1"></i>Edit
-                    </a>
+                    <div class="sentinel-card" style="margin-bottom: 20px;">
+                        <div class="sentinel-card-header">
+                            <h3 class="text-h3" style="margin: 0;">
+                                <i class="bi bi-paperclip" style="color: var(--signal-dk);"></i> Attachment
+                            </h3>
+                        </div>
+                        <div style="padding: 20px;">
+                            <div style="display: flex; align-items: center; gap: 12px;">
+                                <i class="bi bi-file-earmark-pdf" style="font-size: 32px; color: var(--signal-dk);"></i>
+                                <div style="flex: 1;">
+                                    <div style="font-weight: 600; margin-bottom: 4px;">@labResult.AttachmentFileName</div>
+                                    <div class="text-meta">@(labResult.AttachmentSize.HasValue ? $"{labResult.AttachmentSize.Value / 1024:N0} KB" : "Unknown size")</div>
+                                </div>
+                                <a href="@labResult.AttachmentPath" target="_blank" class="sn-btn sn-btn--ghost sn-btn--sm">
+                                    <i class="bi bi-download"></i> Download
+                                </a>
+                            </div>
+                        </div>
+                    </div>
                 }
-                <button type="button" class="btn btn-secondary" onclick="window.print()">
-                    <i class="bi bi-printer me-1"></i>Print
-                </button>
+
             </div>
-            <div class="right-buttons">
-                <button type="button" class="btn btn-outline-secondary" onclick="window.close()">
-                    <i class="bi bi-x-circle me-1"></i>Close
-                </button>
-            </div>
-        </div>
-    </div>
-    
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-</body>
-</html>
+
+            <script src="~/lib/jquery/dist/jquery.min.js"></script>
+            <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+            </body>
+            </html>

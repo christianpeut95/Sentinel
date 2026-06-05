@@ -28,6 +28,7 @@
     <PackageReference Include="NetTopologySuite" Version="2.5.0" />
     <PackageReference Include="NetTopologySuite.IO.GeoJSON" Version="4.0.0" />
     <PackageReference Include="NetTopologySuite.IO.ShapeFile" Version="2.1.0" />
+    <PackageReference Include="nhapi" Version="3.2.0" />
     <PackageReference Include="System.Linq.Dynamic.Core" Version="1.7.1" />
   </ItemGroup>
 
@@ -41,6 +42,7 @@
     <Folder Include="Pages\ReviewQueue\" />
     <Folder Include="Sentinel\Pages\Admin\" />
     <Folder Include="Sentinel\Pages\Cases\Exposures\" />
+    <Folder Include="Tests\Services\HL7\" />
   </ItemGroup>
 
   <ItemGroup>

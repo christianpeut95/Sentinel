@@ -330,7 +330,7 @@
                 </div>
                 <div class="card-body">
                     <div class="alert alert-warning border-warning">
-                        <strong>? Review Required:</strong> A new patient record was submitted, but our system found an existing patient 
+                        <strong><i class="bi bi-info-circle-fill me-1"></i>Review Required:</strong> A new patient record was submitted, but our system found an existing patient
                         that might be the same person. Please compare both records carefully and decide:
                         <ul class="mb-0 mt-2">
                             <li><strong>Same Person:</strong> If they're the same, choose "Merge Records" to avoid duplicates</li>
@@ -376,7 +376,7 @@
                         <div class="col-md-4">
                             <div class="card border-primary h-100">
                                 <div class="card-header bg-primary text-white">
-                                    <strong>?? NEW Patient from Survey</strong>
+                                    <strong><i class="bi bi-person-plus-fill me-2"></i>NEW Patient from Survey</strong>
                                 </div>
                                 <div class="card-body">
                                     @if (duplicateData.NewPatient != null)
@@ -428,7 +428,7 @@
                         <div class="col-md-8">
                             <div class="card border-warning h-100">
                                 <div class="card-header bg-warning text-dark">
-                                    <strong>?? Potential Matches Found (@duplicateData.PotentialMatches.Count)</strong>
+                                    <strong><i class="bi bi-exclamation-triangle-fill me-2"></i>Potential Matches Found (@duplicateData.PotentialMatches.Count)</strong>
                                 </div>
                                 <div class="card-body">
                                     @if (duplicateData.PotentialMatches.Any())
@@ -573,7 +573,7 @@
                 </div>
                 <div class="card-body">
                     <div class="alert alert-info border-info">
-                        <strong>? Manual Review Required:</strong> This collection row requires manual review before 
+                        <strong><i class="bi bi-clipboard-check-fill me-1"></i>Manual Review Required:</strong> This collection row requires manual review before
                         creating the patient record. No duplicates were detected, but verification is required before 
                         creating related entities (contacts, exposures, etc.).
                     </div>
@@ -853,7 +853,7 @@
                                             @if (impact != "low")
                                             {
                                                 <span class="impact-badge impact-@impact">
-                                                    @(impact == "high" ? "??" : "!")
+                                                    <i class="bi bi-@(impact == "high" ? "exclamation-triangle-fill" : "exclamation-circle-fill")"></i>
                                                 </span>
                                             }
                                         </td>
@@ -996,13 +996,13 @@
                     <div class="row g-3 mt-2">
                         <div class="col-md-6">
                             <div class="p-2 bg-light rounded">
-                                <small class="text-muted">?? Symptom Onset</small>
+                                <small class="text-muted"><i class="bi bi-thermometer-half me-1"></i>Symptom Onset</small>
                                 <div>@(Model.ReviewDetail.Case.DateOfOnset?.ToString("MMM dd, yyyy") ?? "Not recorded")</div>
                             </div>
                         </div>
                         <div class="col-md-6">
                             <div class="p-2 bg-light rounded">
-                                <small class="text-muted">?? Notification Date</small>
+                                <small class="text-muted"><i class="bi bi-calendar-event me-1"></i>Notification Date</small>
                                 <div>@(Model.ReviewDetail.Case.DateOfNotification?.ToString("MMM dd, yyyy") ?? "Not recorded")</div>
                             </div>
                         </div>
@@ -1142,7 +1142,7 @@
                             <button type="submit" class="btn btn-success w-100 mb-2 py-2" 
                                     onclick="return confirm('Confirm this review?')">
                                 <i class="bi bi-check-lg me-2"></i> 
-                                <strong>? Approve Changes</strong>
+                                <strong>Approve Changes</strong>
                             </button>
                         </form>
 
@@ -1151,7 +1151,7 @@
                             <button type="submit" class="btn btn-outline-danger w-100 mb-3 py-2" 
                                     onclick="return confirm('Reject this review?')">
                                 <i class="bi bi-x-lg me-2"></i> 
-                                <strong>? Reject Changes</strong>
+                                <strong>Reject Changes</strong>
                             </button>
                         </form>
                     }
@@ -1245,12 +1245,12 @@
     {
         return item.EntityType switch
         {
-            "LabResult" => "?? Laboratory Result Review",
-            "Exposure" => "?? Exposure Event Review",
-            "Contact" => "?? Contact Person Review",
-            "NewCase" => "?? New Case Review",
-            "CaseChange" => "?? Case Update Review",
-            "ClinicalNotification" => "?? Clinical Notification Review",
+            "LabResult" => "Laboratory Result Review",
+            "Exposure" => "Exposure Event Review",
+            "Contact" => "Contact Person Review",
+            "NewCase" => "New Case Review",
+            "CaseChange" => "Case Update Review",
+            "ClinicalNotification" => "Clinical Notification Review",
             _ => $"{item.EntityType} Review"
         };
     }
@@ -1378,7 +1378,7 @@
             "New" when item.EntityType == "Exposure" => "Review a newly reported exposure event",
             "New" when item.EntityType == "Contact" => "Review a newly identified contact person",
             "Updated" => $"Review updates made to an existing {item.EntityType}",
-            "FieldChanged" => "Review important field changes that require verification",
+            "FieldChanged" => "Review field changes",
             "DuplicateDetected" => "Review a potential duplicate record that was automatically detected",
             _ => $"Review this {item.EntityType} change"
         };
@@ -1398,7 +1398,7 @@
         {
             "New" => $"This new record was automatically created and needs your verification before it's finalized. Please review all the information to ensure it's accurate and complete.",
             "Updated" when changeCount > 0 => $"The following fields were modified: {fieldList}. Please verify these changes are correct and authorized.",
-            "FieldChanged" when changeCount > 0 => $"Critical fields ({fieldList}) have been changed. These changes may impact case management, reporting, or contact tracing.",
+            "FieldChanged" when changeCount > 0 => $"The following fields were changed: {fieldList}.",
             "DuplicateDetected" => "Our system detected this might be a duplicate of an existing record. Please review both records and decide if they should be merged or kept separate.",
             _ => "Please review the changes below and decide whether to accept or reject them."
         };
@@ -1505,8 +1505,15 @@
                 (changeSnapshot.ContainsKey("oldValue") || changeSnapshot.ContainsKey("newValue")))
             {
                 var fieldName = changeSnapshot["field"]?.ToString() ?? "";
-                var oldValue = changeSnapshot.ContainsKey("oldValue") ? changeSnapshot["oldValue"]?.ToString() ?? "" : "";
-                var newValue = changeSnapshot.ContainsKey("newValue") ? changeSnapshot["newValue"]?.ToString() ?? "" : "";
+
+                // Prefer display values over raw IDs
+                var oldValue = changeSnapshot.ContainsKey("oldValueDisplay") && changeSnapshot["oldValueDisplay"] != null
+                    ? changeSnapshot["oldValueDisplay"]?.ToString() ?? ""
+                    : (changeSnapshot.ContainsKey("oldValue") ? changeSnapshot["oldValue"]?.ToString() ?? "" : "");
+
+                var newValue = changeSnapshot.ContainsKey("newValueDisplay") && changeSnapshot["newValueDisplay"] != null
+                    ? changeSnapshot["newValueDisplay"]?.ToString() ?? ""
+                    : (changeSnapshot.ContainsKey("newValue") ? changeSnapshot["newValue"]?.ToString() ?? "" : "");
                 
                 // Clean up field name
                 var cleanFieldName = fieldName;
@@ -1732,10 +1739,10 @@
                                     {
                                         foreach (var field in fields.Keys)
                                         {
-                                            if (field.Contains("GivenName")) reasons.Add("? Same first name");
-                                            if (field.Contains("FamilyName")) reasons.Add("? Same last name");
-                                            if (field.Contains("DateOfBirth")) reasons.Add("? Same date of birth");
-                                            if (field.Contains("Phone")) reasons.Add("? Same phone number");
+                                            if (field.Contains("GivenName")) reasons.Add("Same first name");
+                                            if (field.Contains("FamilyName")) reasons.Add("Same last name");
+                                            if (field.Contains("DateOfBirth")) reasons.Add("Same date of birth");
+                                            if (field.Contains("Phone")) reasons.Add("Same phone number");
                                         }
                                     }
                                 }
@@ -2088,7 +2095,7 @@
             if (newPat.GivenName.Equals(existingPat.GivenName, StringComparison.OrdinalIgnoreCase))
             {
                 score += 30;
-                reasons.Add("? Same first name");
+                reasons.Add("Same first name");
             }
         }
         
@@ -2097,7 +2104,7 @@
             if (newPat.FamilyName.Equals(existingPat.FamilyName, StringComparison.OrdinalIgnoreCase))
             {
                 score += 30;
-                reasons.Add("? Same last name");
+                reasons.Add("Same last name");
             }
         }
         
@@ -2107,7 +2114,7 @@
             if (newPat.DateOfBirth.Value.Date == existingPat.DateOfBirth.Value.Date)
             {
                 score += 30;
-                reasons.Add("? Same date of birth");
+                reasons.Add("Same date of birth");
             }
         }
         
@@ -2117,7 +2124,7 @@
             if (newPat.MobilePhone.Replace(" ", "").Replace("-", "") == existingPat.MobilePhone.Replace(" ", "").Replace("-", ""))
             {
                 score += 20;
-                reasons.Add("? Same phone number");
+                reasons.Add("Same phone number");
             }
         }
         
@@ -2128,7 +2135,7 @@
                 existingPat.Address.Contains(newPat.Address, StringComparison.OrdinalIgnoreCase))
             {
                 score += 15;
-                reasons.Add("? Similar address");
+                reasons.Add("Similar address");
             }
         }
         

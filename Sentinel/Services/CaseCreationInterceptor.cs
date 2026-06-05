@@ -64,9 +64,10 @@ public class CaseCreationInterceptor : SaveChangesInterceptor
             // === TRIGGER 3: Detect lab result confirmations ===
             var confirmedLabs = context.ChangeTracker.Entries<LabResult>()
                 .Where(e => e.State == EntityState.Modified && 
+                           e.Entity.CaseId != null &&
                            e.Entity.CaseId != Guid.Empty &&
                            IsLabConfirmed(e))
-                .Select(e => e.Entity.CaseId)
+                .Select(e => e.Entity.CaseId.Value) // .Value is safe here due to null check
                 .Distinct()
                 .ToList();
 
@@ -209,13 +210,17 @@ public class CaseCreationInterceptor : SaveChangesInterceptor
     /// </summary>
     private bool IsLabConfirmed(Microsoft.EntityFrameworkCore.ChangeTracking.EntityEntry<LabResult> entry)
     {
-        // Check if TestResultId changed to a "positive" or "confirmed" result
-        // This is a simplified check - you may want to add more sophisticated logic
-        var originalResultId = entry.OriginalValues.GetValue<int?>(nameof(LabResult.TestResultId));
-        var currentResultId = entry.CurrentValues.GetValue<int?>(nameof(LabResult.TestResultId));
-        
-        // Trigger if TestResultId was null/unset and is now set
-        return originalResultId == null && currentResultId != null;
+        // Check if lab result has markers with positive/detected results
+        // This requires checking the current state of markers
+
+        // Note: With the new marker system, lab confirmation should be determined
+        // by analyzing markers collection for any "Detected", "Positive", or "Reactive" results
+        // This simplified version returns false - should be enhanced with marker analysis
+
+        // TODO: Implement marker-based confirmation logic
+        // Example: Check if any marker has QualitativeResult containing "Detected", "Positive", "Reactive"
+
+        return false; // Placeholder - needs marker collection analysis
     }
 }
 

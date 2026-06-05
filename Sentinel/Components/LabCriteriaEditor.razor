@@ -1,0 +1,256 @@
+@using Sentinel.Models.CaseDefinitions
+@using Sentinel.Models.Lookups
+@using Sentinel.Models.Pathogens
+@using System.Text.Json
+
+<div class="card sn-card" style="margin-bottom: 16px;">
+    <div class="card-label">Lab Criterion #@(Criteria.DisplayOrder + 1)</div>
+
+    @if (!string.IsNullOrEmpty(Criteria.Description))
+    {
+        <p class="form-text" style="margin-bottom: 16px;">@Criteria.Description</p>
+    }
+
+    <!-- ============================================ -->
+    <!-- SPECIMEN TYPE SECTION -->
+    <!-- ============================================ -->
+    <div class="form-field">
+        <label class="sn-label">Acceptable Specimen Types</label>
+        <select class="sn-input" @bind="SelectedSpecimenTypes" multiple size="4">
+            @foreach (var specimen in AvailableSpecimens)
+            {
+                <option value="@specimen.Id">@specimen.Name</option>
+            }
+        </select>
+        <small class="form-text text-muted">Hold Ctrl/Cmd to select multiple</small>
+    </div>
+
+    <div class="form-field" style="padding-left: 20px; border-left: 2px solid var(--sn-hairline);">
+        <div class="form-check">
+            <input class="form-check-input" type="radio" 
+                   name="specimen-storage-@Criteria.Id" 
+                   id="specimen-received-@Criteria.Id"
+                   checked="@(Criteria.SpecimenStoragePreference == DataStoragePreference.StoreAsReceived)"
+                   @onchange="@(() => Criteria.SpecimenStoragePreference = DataStoragePreference.StoreAsReceived)">
+            <label class="form-check-label" for="specimen-received-@Criteria.Id">
+                Store as received from HL7
+            </label>
+        </div>
+
+        <div class="form-check">
+            <input class="form-check-input" type="radio" 
+                   name="specimen-storage-@Criteria.Id" 
+                   id="specimen-canonical-@Criteria.Id"
+                   checked="@(Criteria.SpecimenStoragePreference == DataStoragePreference.StoreAsCanonical)"
+                   @onchange="@(() => Criteria.SpecimenStoragePreference = DataStoragePreference.StoreAsCanonical)">
+            <label class="form-check-label" for="specimen-canonical-@Criteria.Id">
+                Always store as:
+            </label>
+            <select class="sn-input" style="display: inline-block; width: auto; margin-left: 8px;" 
+                    @bind="Criteria.CanonicalSpecimenTypeId"
+                    disabled="@(Criteria.SpecimenStoragePreference == DataStoragePreference.StoreAsReceived)">
+                <option value="">-- Select canonical value --</option>
+                @foreach (var specimen in AvailableSpecimens)
+                {
+                    <option value="@specimen.Id">@specimen.Name</option>
+                }
+            </select>
+        </div>
+    </div>
+
+    <!-- ============================================ -->
+    <!-- BIOMARKER/PATHOGEN SECTION -->
+    <!-- ============================================ -->
+    <div class="form-field" style="margin-top: 24px;">
+        <label class="sn-label">Acceptable Biomarkers/Pathogens</label>
+        <select class="sn-input" @bind="SelectedPathogens" multiple size="4">
+            @foreach (var pathogen in AvailablePathogens)
+            {
+                <option value="@pathogen.Id">@pathogen.Name</option>
+            }
+        </select>
+        <small class="form-text text-muted">Hold Ctrl/Cmd to select multiple</small>
+    </div>
+
+    <div class="form-field" style="padding-left: 20px; border-left: 2px solid var(--sn-hairline);">
+        <div class="form-check">
+            <input class="form-check-input" type="radio" 
+                   name="biomarker-storage-@Criteria.Id" 
+                   id="biomarker-received-@Criteria.Id"
+                   checked="@(Criteria.BiomarkerStoragePreference == DataStoragePreference.StoreAsReceived)"
+                   @onchange="@(() => Criteria.BiomarkerStoragePreference = DataStoragePreference.StoreAsReceived)">
+            <label class="form-check-label" for="biomarker-received-@Criteria.Id">
+                Store as received from HL7
+            </label>
+        </div>
+
+        <div class="form-check">
+            <input class="form-check-input" type="radio" 
+                   name="biomarker-storage-@Criteria.Id" 
+                   id="biomarker-canonical-@Criteria.Id"
+                   checked="@(Criteria.BiomarkerStoragePreference == DataStoragePreference.StoreAsCanonical)"
+                   @onchange="@(() => Criteria.BiomarkerStoragePreference = DataStoragePreference.StoreAsCanonical)">
+            <label class="form-check-label" for="biomarker-canonical-@Criteria.Id">
+                Always store as:
+            </label>
+            <select class="sn-input" style="display: inline-block; width: auto; margin-left: 8px;" 
+                    @bind="Criteria.CanonicalPathogenId"
+                    disabled="@(Criteria.BiomarkerStoragePreference == DataStoragePreference.StoreAsReceived)">
+                <option value="">-- Select canonical value --</option>
+                @foreach (var pathogen in AvailablePathogens)
+                {
+                    <option value="@pathogen.Id">@pathogen.Name</option>
+                }
+            </select>
+        </div>
+    </div>
+
+    <!-- ============================================ -->
+    <!-- TEST METHOD SECTION -->
+    <!-- ============================================ -->
+    <div class="form-field" style="margin-top: 24px;">
+        <label class="sn-label">Acceptable Test Methods</label>
+        <select class="sn-input" @bind="SelectedTestMethods" multiple size="4">
+            @foreach (var method in AvailableTestMethods)
+            {
+                <option value="@method.Id">@method.Name</option>
+            }
+        </select>
+        <small class="form-text text-muted">Hold Ctrl/Cmd to select multiple</small>
+    </div>
+
+    <div class="form-field" style="padding-left: 20px; border-left: 2px solid var(--sn-hairline);">
+        <div class="form-check">
+            <input class="form-check-input" type="radio" 
+                   name="method-storage-@Criteria.Id" 
+                   id="method-received-@Criteria.Id"
+                   checked="@(Criteria.TestMethodStoragePreference == DataStoragePreference.StoreAsReceived)"
+                   @onchange="@(() => Criteria.TestMethodStoragePreference = DataStoragePreference.StoreAsReceived)">
+            <label class="form-check-label" for="method-received-@Criteria.Id">
+                Store as received from HL7
+            </label>
+        </div>
+
+        <div class="form-check">
+            <input class="form-check-input" type="radio" 
+                   name="method-storage-@Criteria.Id" 
+                   id="method-canonical-@Criteria.Id"
+                   checked="@(Criteria.TestMethodStoragePreference == DataStoragePreference.StoreAsCanonical)"
+                   @onchange="@(() => Criteria.TestMethodStoragePreference = DataStoragePreference.StoreAsCanonical)">
+            <label class="form-check-label" for="method-canonical-@Criteria.Id">
+                Always store as:
+            </label>
+            <select class="sn-input" style="display: inline-block; width: auto; margin-left: 8px;" 
+                    @bind="Criteria.CanonicalTestMethodId"
+                    disabled="@(Criteria.TestMethodStoragePreference == DataStoragePreference.StoreAsReceived)">
+                <option value="">-- Select canonical value --</option>
+                @foreach (var method in AvailableTestMethods)
+                {
+                    <option value="@method.Id">@method.Name</option>
+                }
+            </select>
+        </div>
+    </div>
+
+    <!-- ============================================ -->
+    <!-- TEST RESULT SECTION -->
+    <!-- ============================================ -->
+    <div class="form-field" style="margin-top: 24px;">
+        <label class="sn-label">Acceptable Test Results</label>
+        <select class="sn-input" @bind="SelectedResults" multiple size="4">
+            @foreach (var result in AvailableResults)
+            {
+                <option value="@result.Id">@result.Name</option>
+            }
+        </select>
+        <small class="form-text text-muted">Hold Ctrl/Cmd to select multiple (e.g., Positive, Detected, Cultured)</small>
+    </div>
+
+    <div class="form-field" style="padding-left: 20px; border-left: 2px solid var(--sn-hairline);">
+        <div class="form-check">
+            <input class="form-check-input" type="radio" 
+                   name="result-storage-@Criteria.Id" 
+                   id="result-received-@Criteria.Id"
+                   checked="@(Criteria.ResultStoragePreference == DataStoragePreference.StoreAsReceived)"
+                   @onchange="@(() => Criteria.ResultStoragePreference = DataStoragePreference.StoreAsReceived)">
+            <label class="form-check-label" for="result-received-@Criteria.Id">
+                Store as received from HL7
+            </label>
+        </div>
+
+        <div class="form-check">
+            <input class="form-check-input" type="radio" 
+                   name="result-storage-@Criteria.Id" 
+                   id="result-canonical-@Criteria.Id"
+                   checked="@(Criteria.ResultStoragePreference == DataStoragePreference.StoreAsCanonical)"
+                   @onchange="@(() => Criteria.ResultStoragePreference = DataStoragePreference.StoreAsCanonical)">
+            <label class="form-check-label" for="result-canonical-@Criteria.Id">
+                Always store as:
+            </label>
+            <select class="sn-input" style="display: inline-block; width: auto; margin-left: 8px;" 
+                    @bind="Criteria.CanonicalTestResultId"
+                    disabled="@(Criteria.ResultStoragePreference == DataStoragePreference.StoreAsReceived)">
+                <option value="">-- Select canonical value --</option>
+                @foreach (var result in AvailableResults)
+                {
+                    <option value="@result.Id">@result.Name</option>
+                }
+            </select>
+        </div>
+    </div>
+
+    <!-- ============================================ -->
+    <!-- ACTIONS -->
+    <!-- ============================================ -->
+    <div style="margin-top: 24px; padding-top: 16px; border-top: 1px solid var(--sn-hairline);">
+        <button type="button" class="sn-btn sn-btn--ghost sn-btn--sm" @onclick="OnRemove">
+            Remove Criterion
+        </button>
+    </div>
+</div>
+
+@code {
+    [Parameter] public CaseDefinitionCriteria Criteria { get; set; } = new();
+    [Parameter] public List<SpecimenType> AvailableSpecimens { get; set; } = new();
+    [Parameter] public List<Pathogen> AvailablePathogens { get; set; } = new();
+    [Parameter] public List<TestMethod> AvailableTestMethods { get; set; } = new();
+    [Parameter] public List<TestResult> AvailableResults { get; set; } = new();
+    [Parameter] public EventCallback OnRemove { get; set; }
+
+    private string SelectedSpecimenTypes
+    {
+        get => string.Join(",", GetListFromJson<int>(Criteria.AcceptableSpecimenTypesJson ?? "[]"));
+        set => Criteria.AcceptableSpecimenTypesJson = JsonSerializer.Serialize(value.Split(',').Where(s => !string.IsNullOrEmpty(s)).Select(int.Parse).ToList());
+    }
+
+    private string SelectedPathogens
+    {
+        get => string.Join(",", GetListFromJson<Guid>(Criteria.AcceptablePathogensJson ?? "[]"));
+        set => Criteria.AcceptablePathogensJson = JsonSerializer.Serialize(value.Split(',').Where(s => !string.IsNullOrEmpty(s)).Select(Guid.Parse).ToList());
+    }
+
+    private string SelectedTestMethods
+    {
+        get => string.Join(",", GetListFromJson<int>(Criteria.AcceptableTestMethodsJson ?? "[]"));
+        set => Criteria.AcceptableTestMethodsJson = JsonSerializer.Serialize(value.Split(',').Where(s => !string.IsNullOrEmpty(s)).Select(int.Parse).ToList());
+    }
+
+    private string SelectedResults
+    {
+        get => string.Join(",", GetListFromJson<int>(Criteria.AcceptableResultsJson ?? "[]"));
+        set => Criteria.AcceptableResultsJson = JsonSerializer.Serialize(value.Split(',').Where(s => !string.IsNullOrEmpty(s)).Select(int.Parse).ToList());
+    }
+
+    private List<T> GetListFromJson<T>(string json)
+    {
+        try
+        {
+            if (string.IsNullOrEmpty(json)) return new List<T>();
+            return JsonSerializer.Deserialize<List<T>>(json) ?? new List<T>();
+        }
+        catch
+        {
+            return new List<T>();
+        }
+    }
+}

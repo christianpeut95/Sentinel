@@ -1,0 +1,218 @@
+@page
+@model Sentinel.Pages.Settings.HL7.DiseaseMatching.IndexModel
+
+@{
+    ViewData["Title"] = "HL7 Disease Matching Rules";
+    Layout = "~/Pages/Shared/_LayoutSentinel.cshtml";
+}
+
+<nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a asp-page="/Index">Home</a></li>
+        <li class="breadcrumb-item"><a asp-page="/Settings/Index">Settings</a></li>
+        <li class="breadcrumb-item"><a asp-page="/Settings/HL7/Configurations/Index">HL7 Configurations</a></li>
+        <li class="breadcrumb-item active" aria-current="page">Disease Matching Rules</li>
+    </ol>
+</nav>
+
+<div class="sentinel-page-header mb-4">
+    <div>
+        <div class="sentinel-eyebrow">HL7 Interface</div>
+        <h1 class="sentinel-page-title">Disease Matching Rules</h1>
+        <p class="sentinel-page-subtitle">Configure how HL7 messages match to diseases using LOINC/SNOMED codes and text fallback</p>
+    </div>
+</div>
+
+@if (TempData["SuccessMessage"] != null)
+{
+    <div class="alert alert-success alert-dismissible fade show" role="alert">
+        <i class="bi bi-check-circle me-2"></i>@TempData["SuccessMessage"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+
+<div class="sn-card mb-4">
+    <div class="sn-card-body">
+        <h5 class="mb-3">About Disease Matching</h5>
+        <p class="mb-2">
+            HL7 messages are matched to diseases by comparing test methods, specimen types, pathogens, and test results.
+            By default, matching uses LOINC and SNOMED codes. You can enable text-based fallback matching for diseases
+            where standardized codes are not consistently used by laboratories.
+        </p>
+        <ul class="mb-0">
+            <li><strong>Override Parent Rules:</strong> Child diseases inherit parent settings unless explicitly overridden</li>
+            <li><strong>Use Text Matching (Fallback):</strong> Enable fuzzy text matching when codes don't match</li>
+            <li><strong>Normalize Whitespace:</strong> Treat multiple spaces/tabs as single space</li>
+            <li><strong>Ignore Punctuation:</strong> Remove punctuation before comparing</li>
+            <li><strong>Case Insensitive:</strong> Ignore letter casing differences</li>
+        </ul>
+    </div>
+</div>
+
+<div class="sn-card">
+    <div class="sn-card-body">
+        <div class="row mb-3">
+            <div class="col-md-6">
+                <div class="input-group">
+                    <span class="input-group-text"><i class="bi bi-search"></i></span>
+                    <input type="text" id="searchInput" class="sn-input" placeholder="Search diseases...">
+                </div>
+            </div>
+            <div class="col-md-6 text-end">
+                <button class="sn-btn sn-btn--ghost" id="expandAll">
+                    <i class="bi bi-arrows-expand"></i> Expand All
+                </button>
+                <button class="sn-btn sn-btn--ghost" id="collapseAll">
+                    <i class="bi bi-arrows-collapse"></i> Collapse All
+                </button>
+            </div>
+        </div>
+
+        <div class="table-responsive">
+            <table class="sn-table" id="diseaseTable">
+                <thead>
+                    <tr>
+                        <th style="width: 40%">Disease</th>
+                        <th style="width: 15%">Override Parent</th>
+                        <th style="width: 15%">Test Method</th>
+                        <th style="width: 15%">Specimen Type</th>
+                        <th style="width: 10%">Pathogen</th>
+                        <th style="width: 5%">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var disease in Model.Diseases)
+                    {
+                        var config = disease.HL7MatchingConfig;
+                        var hasConfig = config != null;
+                        var indent = disease.Level * 20;
+
+                        <tr data-disease-id="@disease.Id" data-level="@disease.Level" class="disease-row">
+                            <td style="padding-left: @(indent)px">
+                                @if (disease.SubDiseases.Any())
+                                {
+                                    <i class="bi bi-chevron-right toggle-icon me-2" style="cursor: pointer;"></i>
+                                }
+                                else
+                                {
+                                    <span style="width: 24px; display: inline-block;"></span>
+                                }
+                                <strong>@disease.Name</strong>
+                                @if (disease.ParentDiseaseId.HasValue && !hasConfig)
+                                {
+                                    <small class="text-muted">(inherits from parent)</small>
+                                }
+                            </td>
+                            <td>
+                                @if (hasConfig)
+                                {
+                                    <span class="badge @(config.OverrideParentRules ? "bg-success" : "bg-secondary")">
+                                        @(config.OverrideParentRules ? "Yes" : "No")
+                                    </span>
+                                }
+                                else
+                                {
+                                    <span class="text-muted">—</span>
+                                }
+                            </td>
+                            <td>
+                                @if (hasConfig && config.TestMethod_UseTextFallback)
+                                {
+                                    <i class="bi bi-check-circle text-success" title="Text fallback enabled"></i>
+                                    @if (config.TestMethod_NormalizeWhitespace) { <small class="badge bg-secondary">WS</small> }
+                                    @if (config.TestMethod_IgnorePunctuation) { <small class="badge bg-secondary">Punc</small> }
+                                    @if (config.TestMethod_CaseInsensitive) { <small class="badge bg-secondary">CI</small> }
+                                }
+                                else
+                                {
+                                    <span class="text-muted">Code only</span>
+                                }
+                            </td>
+                            <td>
+                                @if (hasConfig && config.SpecimenType_UseTextFallback)
+                                {
+                                    <i class="bi bi-check-circle text-success" title="Text fallback enabled"></i>
+                                    @if (config.SpecimenType_NormalizeWhitespace) { <small class="badge bg-secondary">WS</small> }
+                                    @if (config.SpecimenType_IgnorePunctuation) { <small class="badge bg-secondary">Punc</small> }
+                                    @if (config.SpecimenType_CaseInsensitive) { <small class="badge bg-secondary">CI</small> }
+                                }
+                                else
+                                {
+                                    <span class="text-muted">Code only</span>
+                                }
+                            </td>
+                            <td>
+                                @if (hasConfig && config.Pathogen_UseTextFallback)
+                                {
+                                    <i class="bi bi-check-circle text-success" title="Text fallback enabled"></i>
+                                }
+                                else
+                                {
+                                    <span class="text-muted">Code only</span>
+                                }
+                            </td>
+                            <td>
+                                <a asp-page="./Edit" asp-route-diseaseId="@disease.Id" class="sn-btn sn-btn--sm sn-btn--ghost" title="Edit">
+                                    <i class="bi bi-pencil"></i>
+                                </a>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        $(document).ready(function () {
+            // Search functionality
+            $('#searchInput').on('keyup', function () {
+                var value = $(this).val().toLowerCase();
+                $('#diseaseTable tbody tr').filter(function () {
+                    $(this).toggle($(this).text().toLowerCase().indexOf(value) > -1);
+                });
+            });
+
+            // Expand/collapse hierarchy
+            $('.toggle-icon').on('click', function () {
+                var $row = $(this).closest('tr');
+                var diseaseId = $row.data('disease-id');
+                var level = $row.data('level');
+                var $icon = $(this);
+
+                // Toggle icon
+                $icon.toggleClass('bi-chevron-right bi-chevron-down');
+
+                // Show/hide child rows
+                var $nextRow = $row.next();
+                while ($nextRow.length && $nextRow.data('level') > level) {
+                    $nextRow.toggle();
+                    $nextRow = $nextRow.next();
+                }
+            });
+
+            $('#expandAll').on('click', function () {
+                $('.toggle-icon').removeClass('bi-chevron-right').addClass('bi-chevron-down');
+                $('#diseaseTable tbody tr').show();
+            });
+
+            $('#collapseAll').on('click', function () {
+                $('.toggle-icon').removeClass('bi-chevron-down').addClass('bi-chevron-right');
+                $('#diseaseTable tbody tr').each(function () {
+                    if ($(this).data('level') > 0) {
+                        $(this).hide();
+                    }
+                });
+            });
+
+            // Initially collapse child rows
+            $('#diseaseTable tbody tr').each(function () {
+                if ($(this).data('level') > 0) {
+                    $(this).hide();
+                }
+            });
+        });
+    </script>
+}

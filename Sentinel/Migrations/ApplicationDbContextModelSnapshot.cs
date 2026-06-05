@@ -401,8 +401,25 @@ namespace Sentinel.Migrations
                         .HasMaxLength(200)
                         .HasColumnType("nvarchar(200)");
 
+                    b.Property<string>("ConfirmationStatusClassifiedBy")
+                        .HasMaxLength(450)
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<DateTime?>("ConfirmationStatusClassifiedDate")
+                        .HasColumnType("datetime2");
+
                     b.Property<int?>("ConfirmationStatusId")
                         .HasColumnType("int");
+
+                    b.Property<bool>("ConfirmationStatusManualOverride")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("ConfirmationStatusManualOverrideByUserId")
+                        .HasMaxLength(450)
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<DateTime?>("ConfirmationStatusManualOverrideDate")
+                        .HasColumnType("datetime2");
 
                     b.Property<DateTime?>("DateOfAdmission")
                         .HasColumnType("datetime2");
@@ -439,6 +456,9 @@ namespace Sentinel.Migrations
                     b.Property<int?>("Hospitalised")
                         .HasColumnType("int");
 
+                    b.Property<bool>("IsAutoClassified")
+                        .HasColumnType("bit");
+
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("bit");
 
@@ -456,6 +476,12 @@ namespace Sentinel.Migrations
 
                     b.Property<int?>("Jurisdiction5Id")
                         .HasColumnType("int");
+
+                    b.Property<DateTime?>("LastEvaluatedDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("LastEvaluatedDefinitionIds")
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<Guid>("PatientId")
                         .HasColumnType("uniqueidentifier");
@@ -644,6 +670,259 @@ namespace Sentinel.Migrations
                         .IsUnique();
 
                     b.ToTable("CaseCustomFieldStrings");
+                });
+
+            modelBuilder.Entity("Sentinel.Models.CaseDefinitions.CaseClassificationHistory", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int?>("CaseDefinitionId")
+                        .HasColumnType("int");
+
+                    b.Property<Guid>("CaseId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("ClassifiedByUserId")
+                        .HasMaxLength(450)
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<DateTime?>("ClassifiedDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CriteriaResultJson")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("EvaluationDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int?>("FromConfirmationStatusId")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("IsAutoClassified")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsCurrent")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsMatch")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Rationale")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("RecommendedAction")
+                        .HasColumnType("int");
+
+                    b.Property<int>("ToConfirmationStatusId")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("WasApplied")
+                        .HasColumnType("bit");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CaseDefinitionId");
+
+                    b.HasIndex("CaseId");
+
+                    b.HasIndex("ClassifiedDate");
+
+                    b.HasIndex("FromConfirmationStatusId");
+
+                    b.HasIndex("IsAutoClassified");
+
+                    b.HasIndex("ToConfirmationStatusId");
+
+                    b.HasIndex("CaseId", "IsCurrent");
+
+                    b.ToTable("CaseClassificationHistory");
+                });
+
+            modelBuilder.Entity("Sentinel.Models.CaseDefinitions.CaseDefinition", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<bool>("AllowAutoClassification")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("ApplyToChildDiseases")
+                        .HasColumnType("bit");
+
+                    b.Property<int>("ConfirmationStatusId")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("CreateReviewQueueOnChange")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("CreateReviewQueueOnSuggestion")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CreatedBy")
+                        .HasMaxLength(450)
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<DateTime>("DateActiveFrom")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("DateActiveTo")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid>("DiseaseId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<bool>("EnableAutoEvaluation")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime?>("ModifiedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("ModifiedBy")
+                        .HasMaxLength(450)
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ConfirmationStatusId");
+
+                    b.HasIndex("DateActiveFrom");
+
+                    b.HasIndex("DateActiveTo");
+
+                    b.HasIndex("Status");
+
+                    b.HasIndex("DiseaseId", "ConfirmationStatusId");
+
+                    b.ToTable("CaseDefinitions");
+                });
+
+            modelBuilder.Entity("Sentinel.Models.CaseDefinitions.CaseDefinitionCriteria", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("AcceptablePathogensJson")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("AcceptableResultsJson")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("AcceptableSpecimenTypesJson")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("AcceptableTestMethodsJson")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int?>("BiomarkerStoragePreference")
+                        .HasColumnType("int");
+
+                    b.Property<Guid?>("CanonicalPathogenId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int?>("CanonicalSpecimenTypeId")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("CanonicalTestMethodId")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("CanonicalTestResultId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("CaseDefinitionId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("CriterionType")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<int>("DisplayOrder")
+                        .HasColumnType("int");
+
+                    b.Property<string>("DisplayText")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<string>("FieldPath")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<int>("GroupNumber")
+                        .HasColumnType("int");
+
+                    b.Property<bool?>("IsRequired")
+                        .HasColumnType("bit");
+
+                    b.Property<int>("LogicalOperator")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("ModifiedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int?>("Operator")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("ParentCriteriaId")
+                        .HasColumnType("int");
+
+                    b.Property<bool?>("RequireAllElementsMatch")
+                        .HasColumnType("bit");
+
+                    b.Property<int?>("ResultStoragePreference")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("SpecimenStoragePreference")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("TestMethodStoragePreference")
+                        .HasColumnType("int");
+
+                    b.Property<string>("ValueJson")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CanonicalPathogenId");
+
+                    b.HasIndex("CanonicalSpecimenTypeId");
+
+                    b.HasIndex("CanonicalTestMethodId");
+
+                    b.HasIndex("CanonicalTestResultId");
+
+                    b.HasIndex("CaseDefinitionId");
+
+                    b.HasIndex("ParentCriteriaId");
+
+                    b.HasIndex("CaseDefinitionId", "GroupNumber");
+
+                    b.ToTable("CaseDefinitionCriteria");
                 });
 
             modelBuilder.Entity("Sentinel.Models.CaseSymptom", b =>
@@ -1324,6 +1603,733 @@ namespace Sentinel.Migrations
                     b.ToTable("Groups");
                 });
 
+            modelBuilder.Entity("Sentinel.Models.HL7.DiseaseHL7MatchingConfig", b =>
+                {
+                    b.Property<Guid>("DiseaseId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<bool>("OverrideParentRules")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("Pathogen_CaseInsensitive")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("Pathogen_IgnorePunctuation")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("Pathogen_NormalizeWhitespace")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("Pathogen_UseTextFallback")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("SpecimenType_CaseInsensitive")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("SpecimenType_IgnorePunctuation")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("SpecimenType_NormalizeWhitespace")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("SpecimenType_UseTextFallback")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("TestMethod_CaseInsensitive")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("TestMethod_IgnorePunctuation")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("TestMethod_NormalizeWhitespace")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("TestMethod_UseTextFallback")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("TestResult_CaseInsensitive")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("TestResult_IgnorePunctuation")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("TestResult_NormalizeWhitespace")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("TestResult_UseTextFallback")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("UpdatedBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("DiseaseId");
+
+                    b.ToTable("DiseaseHL7MatchingConfigs");
+                });
+
+            modelBuilder.Entity("Sentinel.Models.HL7.HL7CustomFieldMapping", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("CustomFieldDefinitionId")
+                        .HasColumnType("int");
+
+                    b.Property<Guid>("DiseaseId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<bool>("ExtractQualitativeResult")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("ExtractQuantitativeResult")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("HL7TestCode")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime?>("ModifiedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<int>("Priority")
+                        .HasColumnType("int");
+
+                    b.Property<string>("TestCodeDescription")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("ValueTransformation")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CustomFieldDefinitionId");
+
+                    b.HasIndex("DiseaseId");
+
+                    b.ToTable("HL7CustomFieldMappings");
+                });
+
+            modelBuilder.Entity("Sentinel.Models.HL7Configuration", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("ArchivePath")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<bool>("ArchiveProcessedFiles")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("AutoCreateCases")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("AutoCreateOrganizations")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("AutoCreatePatients")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("CharacterEncoding")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("ConfigurationName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("DefaultDateFormat")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<Guid?>("DefaultLaboratoryId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<bool>("DeleteAfterArchive")
+                        .HasColumnType("bit");
+
+                    b.Property<int>("DuplicateDetectionStrategy")
+                        .HasColumnType("int");
+
+                    b.Property<int>("DuplicateDetectionWindowHours")
+                        .HasColumnType("int");
+
+                    b.Property<string>("FieldMappingConfig")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("FileDropPath")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<string>("FilePattern")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsTestMode")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime?>("ModifiedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Notes")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("NotificationEmailAddresses")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<int>("PatientMatchingStrategy")
+                        .HasColumnType("int");
+
+                    b.Property<int>("Priority")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("ProcessOnReceipt")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("RequirePatientIdentifier")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("RequireResultDate")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("RequireSpecimenCollectionDate")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("SendNotificationsOnError")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("SendingApplication")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("SendingFacility")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("TestModeDescription")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<string>("TimezoneOffset")
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DefaultLaboratoryId");
+
+                    b.HasIndex("IsActive");
+
+                    b.HasIndex("SendingFacility");
+
+                    b.ToTable("HL7Configurations");
+                });
+
+            modelBuilder.Entity("Sentinel.Models.HL7ConfigurationDisease", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("ConfigurationId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid>("DiseaseId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<bool>("IsDefault")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime?>("ModifiedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<int>("Priority")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DiseaseId");
+
+                    b.HasIndex("IsDefault");
+
+                    b.HasIndex("ConfigurationId", "DiseaseId")
+                        .IsUnique();
+
+                    b.ToTable("HL7ConfigurationDiseases");
+                });
+
+            modelBuilder.Entity("Sentinel.Models.HL7FieldMapping", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("CodeMappingJson")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<Guid>("ConfigurationId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid?>("CreatedFromIssueId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("DefaultValue")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<Guid?>("DiseaseId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("ExampleHL7Value")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<string>("ExampleMappedValue")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<string>("FieldName")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("FieldPath")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsRequired")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime?>("LastUsedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("LookupTable")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<int>("MappingType")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("ModifiedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<int>("Priority")
+                        .HasColumnType("int");
+
+                    b.Property<string>("SampleMessage")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("SegmentType")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("nvarchar(10)");
+
+                    b.Property<string>("TargetEntity")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("TargetProperty")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<int>("TimesFailed")
+                        .HasColumnType("int");
+
+                    b.Property<int>("TimesUsed")
+                        .HasColumnType("int");
+
+                    b.Property<string>("TransformationRule")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<string>("ValidationRegex")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedFromIssueId");
+
+                    b.HasIndex("DiseaseId");
+
+                    b.HasIndex("IsActive", "Priority");
+
+                    b.HasIndex("ConfigurationId", "SegmentType", "FieldPath");
+
+                    b.ToTable("HL7FieldMappings");
+                });
+
+            modelBuilder.Entity("Sentinel.Models.HL7Message", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid?>("CaseId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid?>("ConfigurationId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("DeletedByUserId")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("DuplicateDetectionMethod")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<Guid?>("DuplicateOfMessageId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("ErrorMessage")
+                        .HasMaxLength(4000)
+                        .HasColumnType("nvarchar(4000)");
+
+                    b.Property<string>("FileName")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<string>("FilePath")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<long?>("FileSizeBytes")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("HL7Version")
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsDuplicate")
+                        .HasColumnType("bit");
+
+                    b.Property<Guid?>("LabResultId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid?>("LaboratoryOrganizationId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("ManualReviewByUserId")
+                        .HasMaxLength(450)
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<bool>("ManualReviewCompleted")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime?>("ManualReviewDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("ManualReviewNotes")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("MessageControlId")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<DateTime>("MessageDateTime")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("MessageType")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<DateTime?>("ModifiedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid?>("OrderingProviderOrganizationId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime?>("ParsedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid?>("PatientId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime?>("ProcessedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("ProcessedByUserId")
+                        .HasMaxLength(450)
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<string>("ProcessingNotes")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("RawMessage")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("ReceivedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("ReceivingApplication")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("ReceivingFacility")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<bool>("RequiresManualReview")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("SendingApplication")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("SendingFacility")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CaseId");
+
+                    b.HasIndex("ConfigurationId");
+
+                    b.HasIndex("DuplicateOfMessageId");
+
+                    b.HasIndex("IsDuplicate");
+
+                    b.HasIndex("LabResultId");
+
+                    b.HasIndex("LaboratoryOrganizationId");
+
+                    b.HasIndex("ManualReviewByUserId");
+
+                    b.HasIndex("MessageControlId");
+
+                    b.HasIndex("OrderingProviderOrganizationId");
+
+                    b.HasIndex("PatientId");
+
+                    b.HasIndex("ProcessedByUserId");
+
+                    b.HasIndex("ReceivedAt");
+
+                    b.HasIndex("RequiresManualReview");
+
+                    b.HasIndex("Status");
+
+                    b.HasIndex("SendingFacility", "MessageControlId");
+
+                    b.ToTable("HL7Messages");
+                });
+
+            modelBuilder.Entity("Sentinel.Models.HL7MessageSegment", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("ErrorDetails")
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
+
+                    b.Property<int?>("FieldCount")
+                        .HasColumnType("int");
+
+                    b.Property<Guid>("HL7MessageId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<bool>("HasIssues")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsParsed")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<DateTime?>("ParsedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("ParsedData")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("RawSegment")
+                        .IsRequired()
+                        .HasMaxLength(4000)
+                        .HasColumnType("nvarchar(4000)");
+
+                    b.Property<string>("SegmentType")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("nvarchar(10)");
+
+                    b.Property<int>("SequenceNumber")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("SetId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("HL7MessageId", "SegmentType");
+
+                    b.HasIndex("HL7MessageId", "SequenceNumber");
+
+                    b.ToTable("HL7MessageSegments");
+                });
+
+            modelBuilder.Entity("Sentinel.Models.HL7ParsingIssue", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
+
+                    b.Property<string>("ExpectedFormat")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<Guid?>("FieldMappingId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("FieldName")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("FieldPath")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<Guid>("HL7MessageId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<bool>("IgnoreFutureOccurrences")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsResolved")
+                        .HasColumnType("bit");
+
+                    b.Property<int>("IssueType")
+                        .HasColumnType("int");
+
+                    b.Property<Guid?>("MessageSegmentId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("RawValue")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<string>("ResolutionNotes")
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
+
+                    b.Property<DateTime?>("ResolvedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("ResolvedByUserId")
+                        .HasMaxLength(450)
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<string>("SegmentType")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("nvarchar(10)");
+
+                    b.Property<int>("Severity")
+                        .HasColumnType("int");
+
+                    b.Property<string>("SuggestedMapping")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedAt");
+
+                    b.HasIndex("FieldMappingId");
+
+                    b.HasIndex("HL7MessageId");
+
+                    b.HasIndex("MessageSegmentId");
+
+                    b.HasIndex("ResolvedByUserId");
+
+                    b.HasIndex("IsResolved", "IssueType");
+
+                    b.ToTable("HL7ParsingIssues");
+                });
+
             modelBuilder.Entity("Sentinel.Models.LabResult", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1345,7 +2351,7 @@ namespace Sentinel.Migrations
                     b.Property<long?>("AttachmentSize")
                         .HasColumnType("bigint");
 
-                    b.Property<Guid>("CaseId")
+                    b.Property<Guid?>("CaseId")
                         .HasColumnType("uniqueidentifier");
 
                     b.Property<DateTime>("CreatedAt")
@@ -1385,8 +2391,8 @@ namespace Sentinel.Migrations
                     b.Property<Guid?>("OrderingProviderId")
                         .HasColumnType("uniqueidentifier");
 
-                    b.Property<decimal?>("QuantitativeResult")
-                        .HasColumnType("decimal(18,2)");
+                    b.Property<Guid?>("PatientId")
+                        .HasColumnType("uniqueidentifier");
 
                     b.Property<DateTime?>("ResultDate")
                         .HasColumnType("datetime2");
@@ -1422,6 +2428,8 @@ namespace Sentinel.Migrations
 
                     b.HasIndex("OrderingProviderId");
 
+                    b.HasIndex("PatientId");
+
                     b.HasIndex("ResultDate");
 
                     b.HasIndex("ResultUnitsId");
@@ -1437,6 +2445,171 @@ namespace Sentinel.Migrations
                     b.HasIndex("TestedDiseaseId");
 
                     b.ToTable("LabResults");
+                });
+
+            modelBuilder.Entity("Sentinel.Models.LabResultMarker", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("DeletedByUserId")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("DisplayOrder")
+                        .HasColumnType("int");
+
+                    b.Property<string>("InterpretationFlag")
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("LOINCCode")
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<Guid>("LabResultId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime?>("ModifiedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<Guid?>("PathogenId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("QualitativeResultText")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<string>("QuantitativeUnit")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<decimal?>("QuantitativeValue")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal?>("ReferenceRangeHigh")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal?>("ReferenceRangeLow")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<DateTime?>("ResultFinalizedDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("ResultStatus")
+                        .HasMaxLength(10)
+                        .HasColumnType("nvarchar(10)");
+
+                    b.Property<string>("TestCode")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<int?>("TestMethodId")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("TestResultId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("LOINCCode");
+
+                    b.HasIndex("LabResultId");
+
+                    b.HasIndex("PathogenId");
+
+                    b.HasIndex("TestMethodId");
+
+                    b.HasIndex("TestResultId");
+
+                    b.ToTable("LabResultMarkers");
+                });
+
+            modelBuilder.Entity("Sentinel.Models.LabResultMarkerHistory", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("ChangeReason")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<int>("ChangeType")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("ChangedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("ChangedBySystem")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("ChangedByUserId")
+                        .HasMaxLength(450)
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<Guid>("HL7MessageId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("LabResultMarkerId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("NewAbnormalFlag")
+                        .HasMaxLength(10)
+                        .HasColumnType("nvarchar(10)");
+
+                    b.Property<string>("NewQualitativeValue")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<decimal?>("NewQuantitativeValue")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("NewResultStatus")
+                        .HasMaxLength(10)
+                        .HasColumnType("nvarchar(10)");
+
+                    b.Property<string>("PreviousAbnormalFlag")
+                        .HasMaxLength(10)
+                        .HasColumnType("nvarchar(10)");
+
+                    b.Property<string>("PreviousQualitativeValue")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<decimal?>("PreviousQuantitativeValue")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("PreviousResultStatus")
+                        .HasMaxLength(10)
+                        .HasColumnType("nvarchar(10)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ChangedAt");
+
+                    b.HasIndex("ChangedByUserId");
+
+                    b.HasIndex("HL7MessageId");
+
+                    b.HasIndex("LabResultMarkerId");
+
+                    b.HasIndex("LabResultMarkerId", "ChangedAt");
+
+                    b.ToTable("LabResultMarkerHistories");
                 });
 
             modelBuilder.Entity("Sentinel.Models.Location", b =>
@@ -1902,6 +3075,69 @@ namespace Sentinel.Migrations
                     b.ToTable("DiseaseCategories");
                 });
 
+            modelBuilder.Entity("Sentinel.Models.Lookups.DiseaseReinfectionRule", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<bool>("AlwaysCreateNewCase")
+                        .HasColumnType("bit");
+
+                    b.Property<int>("CaseMatchingStrategy")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
+
+                    b.Property<Guid>("DiseaseId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsChronic")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("MatchOnResultType")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("MatchOnTestType")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime?>("ModifiedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
+
+                    b.Property<string>("NotificationMessage")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<int?>("ReinfectionWindowDays")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("RequireConfirmationForNewCase")
+                        .HasColumnType("bit");
+
+                    b.Property<int>("RuleType")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DiseaseId");
+
+                    b.HasIndex("IsActive");
+
+                    b.ToTable("DiseaseReinfectionRules");
+                });
+
             modelBuilder.Entity("Sentinel.Models.Lookups.EventType", b =>
                 {
                     b.Property<int>("Id")
@@ -2257,6 +3493,17 @@ namespace Sentinel.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
+                    b.Property<string>("BodySite")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("CollectionMethod")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
                     b.Property<string>("Description")
                         .HasMaxLength(500)
                         .HasColumnType("nvarchar(500)");
@@ -2268,16 +3515,38 @@ namespace Sentinel.Migrations
                         .HasMaxLength(50)
                         .HasColumnType("nvarchar(50)");
 
+                    b.Property<string>("Hl7Code")
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
                     b.Property<bool>("IsActive")
                         .HasColumnType("bit");
 
                     b.Property<bool>("IsInvasive")
                         .HasColumnType("bit");
 
+                    b.Property<bool>("IsSterileSite")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("LoincSystemCode")
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<DateTime?>("ModifiedAt")
+                        .HasColumnType("datetime2");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("SnomedCode")
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<string>("SnomedDisplay")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
 
                     b.HasKey("Id");
 
@@ -2416,7 +3685,7 @@ namespace Sentinel.Migrations
                     b.ToTable("TaskTypes");
                 });
 
-            modelBuilder.Entity("Sentinel.Models.Lookups.TestResult", b =>
+            modelBuilder.Entity("Sentinel.Models.Lookups.TestMethod", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -2438,10 +3707,70 @@ namespace Sentinel.Migrations
                     b.Property<bool>("IsActive")
                         .HasColumnType("bit");
 
+                    b.Property<string>("LoincMethodCode")
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("SnomedCode")
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<string>("SnomedDisplay")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Name");
+
+                    b.HasIndex("IsActive", "DisplayOrder");
+
+                    b.ToTable("TestMethods");
+                });
+
+            modelBuilder.Entity("Sentinel.Models.Lookups.TestResult", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<int?>("DisplayOrder")
+                        .HasColumnType("int");
+
+                    b.Property<string>("ExportCode")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("Hl7Code")
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("SnomedCode")
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<string>("SnomedDisplay")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
 
                     b.Property<int?>("TestTypeId")
                         .HasColumnType("int");
@@ -2482,7 +3811,7 @@ namespace Sentinel.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("TestTypes");
+                    b.ToTable("TestType");
                 });
 
             modelBuilder.Entity("Sentinel.Models.Note", b =>
@@ -3027,6 +4356,77 @@ namespace Sentinel.Migrations
                     b.ToTable("OutbreakTimelines");
                 });
 
+            modelBuilder.Entity("Sentinel.Models.Pathogens.Pathogen", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("Category")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<decimal?>("DefaultReferenceRangeHigh")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal?>("DefaultReferenceRangeLow")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("DefaultUnit")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<Guid?>("DiseaseId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("DisplayOrder")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("LOINCCode")
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<string>("LOINCDisplayName")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<DateTime?>("ModifiedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<int>("ResultType")
+                        .HasColumnType("int");
+
+                    b.Property<string>("ShortName")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("IsActive");
+
+                    b.HasIndex("LOINCCode")
+                        .IsUnique()
+                        .HasFilter("[LOINCCode] IS NOT NULL");
+
+                    b.HasIndex("DiseaseId", "DisplayOrder");
+
+                    b.ToTable("Pathogens");
+                });
+
             modelBuilder.Entity("Sentinel.Models.Patient", b =>
                 {
                     b.Property<Guid>("Id")
@@ -3144,7 +4544,8 @@ namespace Sentinel.Migrations
                     b.HasIndex("CreatedByUserId");
 
                     b.HasIndex("FriendlyId")
-                        .IsUnique();
+                        .IsUnique()
+                        .HasFilter("[IsDeleted] = 0 AND [FriendlyId] IS NOT NULL");
 
                     b.HasIndex("GenderId");
 
@@ -5082,6 +6483,100 @@ namespace Sentinel.Migrations
                     b.Navigation("FieldDefinition");
                 });
 
+            modelBuilder.Entity("Sentinel.Models.CaseDefinitions.CaseClassificationHistory", b =>
+                {
+                    b.HasOne("Sentinel.Models.CaseDefinitions.CaseDefinition", "CaseDefinition")
+                        .WithMany("ClassificationHistories")
+                        .HasForeignKey("CaseDefinitionId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("Sentinel.Models.Case", "Case")
+                        .WithMany("ClassificationHistory")
+                        .HasForeignKey("CaseId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Sentinel.Models.Lookups.CaseStatus", "FromConfirmationStatus")
+                        .WithMany()
+                        .HasForeignKey("FromConfirmationStatusId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("Sentinel.Models.Lookups.CaseStatus", "ToConfirmationStatus")
+                        .WithMany()
+                        .HasForeignKey("ToConfirmationStatusId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Case");
+
+                    b.Navigation("CaseDefinition");
+
+                    b.Navigation("FromConfirmationStatus");
+
+                    b.Navigation("ToConfirmationStatus");
+                });
+
+            modelBuilder.Entity("Sentinel.Models.CaseDefinitions.CaseDefinition", b =>
+                {
+                    b.HasOne("Sentinel.Models.Lookups.CaseStatus", "ConfirmationStatus")
+                        .WithMany()
+                        .HasForeignKey("ConfirmationStatusId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Sentinel.Models.Lookups.Disease", "Disease")
+                        .WithMany()
+                        .HasForeignKey("DiseaseId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("ConfirmationStatus");
+
+                    b.Navigation("Disease");
+                });
+
+            modelBuilder.Entity("Sentinel.Models.CaseDefinitions.CaseDefinitionCriteria", b =>
+                {
+                    b.HasOne("Sentinel.Models.Pathogens.Pathogen", "CanonicalPathogen")
+                        .WithMany()
+                        .HasForeignKey("CanonicalPathogenId");
+
+                    b.HasOne("Sentinel.Models.Lookups.SpecimenType", "CanonicalSpecimenType")
+                        .WithMany()
+                        .HasForeignKey("CanonicalSpecimenTypeId");
+
+                    b.HasOne("Sentinel.Models.Lookups.TestMethod", "CanonicalTestMethod")
+                        .WithMany()
+                        .HasForeignKey("CanonicalTestMethodId");
+
+                    b.HasOne("Sentinel.Models.Lookups.TestResult", "CanonicalTestResult")
+                        .WithMany()
+                        .HasForeignKey("CanonicalTestResultId");
+
+                    b.HasOne("Sentinel.Models.CaseDefinitions.CaseDefinition", "CaseDefinition")
+                        .WithMany("Criteria")
+                        .HasForeignKey("CaseDefinitionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Sentinel.Models.CaseDefinitions.CaseDefinitionCriteria", "ParentCriteria")
+                        .WithMany("ChildCriteria")
+                        .HasForeignKey("ParentCriteriaId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("CanonicalPathogen");
+
+                    b.Navigation("CanonicalSpecimenType");
+
+                    b.Navigation("CanonicalTestMethod");
+
+                    b.Navigation("CanonicalTestResult");
+
+                    b.Navigation("CaseDefinition");
+
+                    b.Navigation("ParentCriteria");
+                });
+
             modelBuilder.Entity("Sentinel.Models.CaseSymptom", b =>
                 {
                     b.HasOne("Sentinel.Models.Case", "Case")
@@ -5282,13 +6777,205 @@ namespace Sentinel.Migrations
                     b.Navigation("SourceCase");
                 });
 
+            modelBuilder.Entity("Sentinel.Models.HL7.DiseaseHL7MatchingConfig", b =>
+                {
+                    b.HasOne("Sentinel.Models.Lookups.Disease", "Disease")
+                        .WithOne("HL7MatchingConfig")
+                        .HasForeignKey("Sentinel.Models.HL7.DiseaseHL7MatchingConfig", "DiseaseId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Disease");
+                });
+
+            modelBuilder.Entity("Sentinel.Models.HL7.HL7CustomFieldMapping", b =>
+                {
+                    b.HasOne("Sentinel.Models.CustomFieldDefinition", "CustomFieldDefinition")
+                        .WithMany()
+                        .HasForeignKey("CustomFieldDefinitionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Sentinel.Models.Lookups.Disease", "Disease")
+                        .WithMany()
+                        .HasForeignKey("DiseaseId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("CustomFieldDefinition");
+
+                    b.Navigation("Disease");
+                });
+
+            modelBuilder.Entity("Sentinel.Models.HL7Configuration", b =>
+                {
+                    b.HasOne("Sentinel.Models.Organization", "DefaultLaboratory")
+                        .WithMany()
+                        .HasForeignKey("DefaultLaboratoryId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("DefaultLaboratory");
+                });
+
+            modelBuilder.Entity("Sentinel.Models.HL7ConfigurationDisease", b =>
+                {
+                    b.HasOne("Sentinel.Models.HL7Configuration", "Configuration")
+                        .WithMany("ConfigurationDiseases")
+                        .HasForeignKey("ConfigurationId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Sentinel.Models.Lookups.Disease", "Disease")
+                        .WithMany()
+                        .HasForeignKey("DiseaseId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Configuration");
+
+                    b.Navigation("Disease");
+                });
+
+            modelBuilder.Entity("Sentinel.Models.HL7FieldMapping", b =>
+                {
+                    b.HasOne("Sentinel.Models.HL7Configuration", "Configuration")
+                        .WithMany("FieldMappings")
+                        .HasForeignKey("ConfigurationId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Sentinel.Models.HL7ParsingIssue", "CreatedFromIssue")
+                        .WithMany()
+                        .HasForeignKey("CreatedFromIssueId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("Sentinel.Models.Lookups.Disease", "Disease")
+                        .WithMany()
+                        .HasForeignKey("DiseaseId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("Configuration");
+
+                    b.Navigation("CreatedFromIssue");
+
+                    b.Navigation("Disease");
+                });
+
+            modelBuilder.Entity("Sentinel.Models.HL7Message", b =>
+                {
+                    b.HasOne("Sentinel.Models.Case", "Case")
+                        .WithMany()
+                        .HasForeignKey("CaseId")
+                        .OnDelete(DeleteBehavior.NoAction);
+
+                    b.HasOne("Sentinel.Models.HL7Configuration", "Configuration")
+                        .WithMany("Messages")
+                        .HasForeignKey("ConfigurationId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("Sentinel.Models.HL7Message", "DuplicateOfMessage")
+                        .WithMany()
+                        .HasForeignKey("DuplicateOfMessageId")
+                        .OnDelete(DeleteBehavior.NoAction);
+
+                    b.HasOne("Sentinel.Models.LabResult", "LabResult")
+                        .WithMany()
+                        .HasForeignKey("LabResultId")
+                        .OnDelete(DeleteBehavior.NoAction);
+
+                    b.HasOne("Sentinel.Models.Organization", "LaboratoryOrganization")
+                        .WithMany()
+                        .HasForeignKey("LaboratoryOrganizationId")
+                        .OnDelete(DeleteBehavior.NoAction);
+
+                    b.HasOne("Sentinel.Models.ApplicationUser", "ManualReviewByUser")
+                        .WithMany()
+                        .HasForeignKey("ManualReviewByUserId")
+                        .OnDelete(DeleteBehavior.NoAction);
+
+                    b.HasOne("Sentinel.Models.Organization", "OrderingProviderOrganization")
+                        .WithMany()
+                        .HasForeignKey("OrderingProviderOrganizationId")
+                        .OnDelete(DeleteBehavior.NoAction);
+
+                    b.HasOne("Sentinel.Models.Patient", "Patient")
+                        .WithMany()
+                        .HasForeignKey("PatientId")
+                        .OnDelete(DeleteBehavior.NoAction);
+
+                    b.HasOne("Sentinel.Models.ApplicationUser", "ProcessedByUser")
+                        .WithMany()
+                        .HasForeignKey("ProcessedByUserId")
+                        .OnDelete(DeleteBehavior.NoAction);
+
+                    b.Navigation("Case");
+
+                    b.Navigation("Configuration");
+
+                    b.Navigation("DuplicateOfMessage");
+
+                    b.Navigation("LabResult");
+
+                    b.Navigation("LaboratoryOrganization");
+
+                    b.Navigation("ManualReviewByUser");
+
+                    b.Navigation("OrderingProviderOrganization");
+
+                    b.Navigation("Patient");
+
+                    b.Navigation("ProcessedByUser");
+                });
+
+            modelBuilder.Entity("Sentinel.Models.HL7MessageSegment", b =>
+                {
+                    b.HasOne("Sentinel.Models.HL7Message", "HL7Message")
+                        .WithMany("Segments")
+                        .HasForeignKey("HL7MessageId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("HL7Message");
+                });
+
+            modelBuilder.Entity("Sentinel.Models.HL7ParsingIssue", b =>
+                {
+                    b.HasOne("Sentinel.Models.HL7FieldMapping", "FieldMapping")
+                        .WithMany()
+                        .HasForeignKey("FieldMappingId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("Sentinel.Models.HL7Message", "HL7Message")
+                        .WithMany("ParsingIssues")
+                        .HasForeignKey("HL7MessageId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.HasOne("Sentinel.Models.HL7MessageSegment", "MessageSegment")
+                        .WithMany()
+                        .HasForeignKey("MessageSegmentId")
+                        .OnDelete(DeleteBehavior.NoAction);
+
+                    b.HasOne("Sentinel.Models.ApplicationUser", "ResolvedByUser")
+                        .WithMany()
+                        .HasForeignKey("ResolvedByUserId")
+                        .OnDelete(DeleteBehavior.NoAction);
+
+                    b.Navigation("FieldMapping");
+
+                    b.Navigation("HL7Message");
+
+                    b.Navigation("MessageSegment");
+
+                    b.Navigation("ResolvedByUser");
+                });
+
             modelBuilder.Entity("Sentinel.Models.LabResult", b =>
                 {
                     b.HasOne("Sentinel.Models.Case", "Case")
                         .WithMany("LabResults")
                         .HasForeignKey("CaseId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
+                        .OnDelete(DeleteBehavior.Restrict);
 
                     b.HasOne("Sentinel.Models.Organization", "Laboratory")
                         .WithMany("LabResultsAsLaboratory")
@@ -5300,6 +6987,10 @@ namespace Sentinel.Migrations
                         .HasForeignKey("OrderingProviderId")
                         .OnDelete(DeleteBehavior.Restrict);
 
+                    b.HasOne("Sentinel.Models.Patient", "Patient")
+                        .WithMany()
+                        .HasForeignKey("PatientId");
+
                     b.HasOne("Sentinel.Models.Lookups.ResultUnits", "ResultUnits")
                         .WithMany("LabResults")
                         .HasForeignKey("ResultUnitsId")
@@ -5310,15 +7001,13 @@ namespace Sentinel.Migrations
                         .HasForeignKey("SpecimenTypeId")
                         .OnDelete(DeleteBehavior.Restrict);
 
-                    b.HasOne("Sentinel.Models.Lookups.TestResult", "TestResult")
+                    b.HasOne("Sentinel.Models.Lookups.TestResult", null)
                         .WithMany("LabResults")
-                        .HasForeignKey("TestResultId")
-                        .OnDelete(DeleteBehavior.Restrict);
+                        .HasForeignKey("TestResultId");
 
-                    b.HasOne("Sentinel.Models.Lookups.TestType", "TestType")
+                    b.HasOne("Sentinel.Models.Lookups.TestType", null)
                         .WithMany("LabResults")
-                        .HasForeignKey("TestTypeId")
-                        .OnDelete(DeleteBehavior.Restrict);
+                        .HasForeignKey("TestTypeId");
 
                     b.HasOne("Sentinel.Models.Lookups.Disease", "TestedDisease")
                         .WithMany()
@@ -5331,15 +7020,70 @@ namespace Sentinel.Migrations
 
                     b.Navigation("OrderingProvider");
 
+                    b.Navigation("Patient");
+
                     b.Navigation("ResultUnits");
 
                     b.Navigation("SpecimenType");
 
-                    b.Navigation("TestResult");
-
-                    b.Navigation("TestType");
-
                     b.Navigation("TestedDisease");
+                });
+
+            modelBuilder.Entity("Sentinel.Models.LabResultMarker", b =>
+                {
+                    b.HasOne("Sentinel.Models.LabResult", "LabResult")
+                        .WithMany("Markers")
+                        .HasForeignKey("LabResultId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Sentinel.Models.Pathogens.Pathogen", "Pathogen")
+                        .WithMany("LabResultMarkers")
+                        .HasForeignKey("PathogenId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("Sentinel.Models.Lookups.TestMethod", "TestMethod")
+                        .WithMany("LabResultMarkers")
+                        .HasForeignKey("TestMethodId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("Sentinel.Models.Lookups.TestResult", "TestResult")
+                        .WithMany("LabResultMarkers")
+                        .HasForeignKey("TestResultId");
+
+                    b.Navigation("LabResult");
+
+                    b.Navigation("Pathogen");
+
+                    b.Navigation("TestMethod");
+
+                    b.Navigation("TestResult");
+                });
+
+            modelBuilder.Entity("Sentinel.Models.LabResultMarkerHistory", b =>
+                {
+                    b.HasOne("Sentinel.Models.ApplicationUser", "ChangedByUser")
+                        .WithMany()
+                        .HasForeignKey("ChangedByUserId")
+                        .OnDelete(DeleteBehavior.NoAction);
+
+                    b.HasOne("Sentinel.Models.HL7Message", "HL7Message")
+                        .WithMany()
+                        .HasForeignKey("HL7MessageId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.HasOne("Sentinel.Models.LabResultMarker", "LabResultMarker")
+                        .WithMany("History")
+                        .HasForeignKey("LabResultMarkerId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("ChangedByUser");
+
+                    b.Navigation("HL7Message");
+
+                    b.Navigation("LabResultMarker");
                 });
 
             modelBuilder.Entity("Sentinel.Models.Location", b =>
@@ -5385,6 +7129,17 @@ namespace Sentinel.Migrations
                     b.Navigation("DiseaseCategory");
 
                     b.Navigation("ParentDisease");
+                });
+
+            modelBuilder.Entity("Sentinel.Models.Lookups.DiseaseReinfectionRule", b =>
+                {
+                    b.HasOne("Sentinel.Models.Lookups.Disease", "Disease")
+                        .WithMany()
+                        .HasForeignKey("DiseaseId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Disease");
                 });
 
             modelBuilder.Entity("Sentinel.Models.Lookups.Jurisdiction", b =>
@@ -5590,6 +7345,16 @@ namespace Sentinel.Migrations
                         .IsRequired();
 
                     b.Navigation("Outbreak");
+                });
+
+            modelBuilder.Entity("Sentinel.Models.Pathogens.Pathogen", b =>
+                {
+                    b.HasOne("Sentinel.Models.Lookups.Disease", "Disease")
+                        .WithMany()
+                        .HasForeignKey("DiseaseId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("Disease");
                 });
 
             modelBuilder.Entity("Sentinel.Models.Patient", b =>
@@ -6136,6 +7901,8 @@ namespace Sentinel.Migrations
                 {
                     b.Navigation("CaseSymptoms");
 
+                    b.Navigation("ClassificationHistory");
+
                     b.Navigation("CustomFieldBooleans");
 
                     b.Navigation("CustomFieldDates");
@@ -6153,6 +7920,18 @@ namespace Sentinel.Migrations
                     b.Navigation("Notes");
 
                     b.Navigation("Tasks");
+                });
+
+            modelBuilder.Entity("Sentinel.Models.CaseDefinitions.CaseDefinition", b =>
+                {
+                    b.Navigation("ClassificationHistories");
+
+                    b.Navigation("Criteria");
+                });
+
+            modelBuilder.Entity("Sentinel.Models.CaseDefinitions.CaseDefinitionCriteria", b =>
+                {
+                    b.Navigation("ChildCriteria");
                 });
 
             modelBuilder.Entity("Sentinel.Models.CaseTask", b =>
@@ -6175,6 +7954,32 @@ namespace Sentinel.Migrations
             modelBuilder.Entity("Sentinel.Models.Group", b =>
                 {
                     b.Navigation("UserGroups");
+                });
+
+            modelBuilder.Entity("Sentinel.Models.HL7Configuration", b =>
+                {
+                    b.Navigation("ConfigurationDiseases");
+
+                    b.Navigation("FieldMappings");
+
+                    b.Navigation("Messages");
+                });
+
+            modelBuilder.Entity("Sentinel.Models.HL7Message", b =>
+                {
+                    b.Navigation("ParsingIssues");
+
+                    b.Navigation("Segments");
+                });
+
+            modelBuilder.Entity("Sentinel.Models.LabResult", b =>
+                {
+                    b.Navigation("Markers");
+                });
+
+            modelBuilder.Entity("Sentinel.Models.LabResultMarker", b =>
+                {
+                    b.Navigation("History");
                 });
 
             modelBuilder.Entity("Sentinel.Models.Location", b =>
@@ -6201,6 +8006,8 @@ namespace Sentinel.Migrations
                     b.Navigation("DiseaseCustomFields");
 
                     b.Navigation("DiseaseSymptoms");
+
+                    b.Navigation("HL7MatchingConfig");
 
                     b.Navigation("RoleDiseaseAccess");
 
@@ -6261,8 +8068,15 @@ namespace Sentinel.Migrations
                     b.Navigation("TaskTemplates");
                 });
 
+            modelBuilder.Entity("Sentinel.Models.Lookups.TestMethod", b =>
+                {
+                    b.Navigation("LabResultMarkers");
+                });
+
             modelBuilder.Entity("Sentinel.Models.Lookups.TestResult", b =>
                 {
+                    b.Navigation("LabResultMarkers");
+
                     b.Navigation("LabResults");
                 });
 
@@ -6293,6 +8107,11 @@ namespace Sentinel.Migrations
                     b.Navigation("TeamMembers");
 
                     b.Navigation("TimelineEvents");
+                });
+
+            modelBuilder.Entity("Sentinel.Models.Pathogens.Pathogen", b =>
+                {
+                    b.Navigation("LabResultMarkers");
                 });
 
             modelBuilder.Entity("Sentinel.Models.Patient", b =>

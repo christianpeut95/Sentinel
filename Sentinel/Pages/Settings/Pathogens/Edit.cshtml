@@ -1,0 +1,222 @@
+@page
+@model Sentinel.Pages.Settings.Pathogens.EditModel
+
+@{
+    ViewData["Title"] = "Edit Pathogen";
+    Layout = "~/Pages/Shared/_LayoutSentinel.cshtml";
+}
+
+<nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a asp-page="/Index">Home</a></li>
+        <li class="breadcrumb-item"><a asp-page="/Settings/Index">Settings</a></li>
+        <li class="breadcrumb-item"><a asp-page="./Index">Pathogens</a></li>
+        <li class="breadcrumb-item active" aria-current="page">Edit</li>
+    </ol>
+</nav>
+
+<div class="sentinel-page-header mb-4">
+    <div>
+        <div class="sentinel-eyebrow">Laboratory Reference Data</div>
+        <h1 class="sentinel-page-title">Edit Pathogen</h1>
+        <p class="sentinel-page-subtitle">@Model.Pathogen?.Name</p>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-8">
+        <div class="sentinel-card">
+            <div class="sentinel-card-body">
+                <form method="post">
+                    <input type="hidden" asp-for="Pathogen.Id" />
+                    <input type="hidden" asp-for="Pathogen.CreatedAt" />
+                    <div asp-validation-summary="ModelOnly" class="alert alert-danger" role="alert"></div>
+
+                    <!-- Basic Information -->
+                    <div class="mb-4">
+                        <h3 class="sentinel-section-title">Basic Information</h3>
+                        <div class="row g-3">
+                            <div class="col-md-8">
+                                <label asp-for="Pathogen.Name" class="sn-label"></label>
+                                <input asp-for="Pathogen.Name" class="sn-input" />
+                                <span asp-validation-for="Pathogen.Name" class="text-danger"></span>
+                            </div>
+                            <div class="col-md-4">
+                                <label asp-for="Pathogen.ShortName" class="sn-label"></label>
+                                <input asp-for="Pathogen.ShortName" class="sn-input" />
+                                <span asp-validation-for="Pathogen.ShortName" class="text-danger"></span>
+                            </div>
+                            <div class="col-12">
+                                <label asp-for="Pathogen.Description" class="sn-label"></label>
+                                <textarea asp-for="Pathogen.Description" class="sn-textarea" rows="3"></textarea>
+                                <span asp-validation-for="Pathogen.Description" class="text-danger"></span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- LOINC Mapping -->
+                    <div class="mb-4">
+                        <h3 class="sentinel-section-title">LOINC Mapping</h3>
+                        <div class="row g-3">
+                            <div class="col-md-5">
+                                <label asp-for="Pathogen.LOINCCode" class="sn-label"></label>
+                                <input asp-for="Pathogen.LOINCCode" class="sn-input" />
+                                <span asp-validation-for="Pathogen.LOINCCode" class="text-danger"></span>
+                            </div>
+                            <div class="col-md-7">
+                                <label asp-for="Pathogen.LOINCDisplayName" class="sn-label"></label>
+                                <input asp-for="Pathogen.LOINCDisplayName" class="sn-input" />
+                                <span asp-validation-for="Pathogen.LOINCDisplayName" class="text-danger"></span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Classification -->
+                    <div class="mb-4">
+                        <h3 class="sentinel-section-title">Classification</h3>
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label asp-for="Pathogen.DiseaseId" class="sn-label"></label>
+                                <select asp-for="Pathogen.DiseaseId" class="sn-input" asp-items="Model.DiseaseSelectList">
+                                    <option value="">-- Select Disease (Optional) --</option>
+                                </select>
+                                <span asp-validation-for="Pathogen.DiseaseId" class="text-danger"></span>
+                            </div>
+                            <div class="col-md-6">
+                                <label asp-for="Pathogen.Category" class="sn-label"></label>
+                                <select asp-for="Pathogen.Category" class="sn-input">
+                                    @foreach (var cat in Enum.GetValues<Sentinel.Models.Pathogens.PathogenCategory>())
+                                    {
+                                        <option value="@cat">@cat.ToString().Replace("_", " ")</option>
+                                    }
+                                </select>
+                                <span asp-validation-for="Pathogen.Category" class="text-danger"></span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Result Type -->
+                    <div class="mb-4">
+                        <h3 class="sentinel-section-title">Result Type</h3>
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label asp-for="Pathogen.ResultType" class="sn-label"></label>
+                                <select asp-for="Pathogen.ResultType" class="sn-input" id="resultTypeSelect">
+                                    @foreach (var type in Enum.GetValues<Sentinel.Models.Pathogens.ResultType>())
+                                    {
+                                        <option value="@type">@type</option>
+                                    }
+                                </select>
+                                <span asp-validation-for="Pathogen.ResultType" class="text-danger"></span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Quantitative Parameters -->
+                    <div class="mb-4" id="quantitativeParams">
+                        <h3 class="sentinel-section-title">Quantitative Parameters</h3>
+                        <div class="row g-3">
+                            <div class="col-md-4">
+                                <label asp-for="Pathogen.DefaultUnit" class="sn-label"></label>
+                                <input asp-for="Pathogen.DefaultUnit" class="sn-input" />
+                                <span asp-validation-for="Pathogen.DefaultUnit" class="text-danger"></span>
+                            </div>
+                            <div class="col-md-4">
+                                <label asp-for="Pathogen.DefaultReferenceRangeLow" class="sn-label"></label>
+                                <input asp-for="Pathogen.DefaultReferenceRangeLow" type="number" step="0.01" class="sn-input" />
+                                <span asp-validation-for="Pathogen.DefaultReferenceRangeLow" class="text-danger"></span>
+                            </div>
+                            <div class="col-md-4">
+                                <label asp-for="Pathogen.DefaultReferenceRangeHigh" class="sn-label"></label>
+                                <input asp-for="Pathogen.DefaultReferenceRangeHigh" type="number" step="0.01" class="sn-input" />
+                                <span asp-validation-for="Pathogen.DefaultReferenceRangeHigh" class="text-danger"></span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Display Options -->
+                    <div class="mb-4">
+                        <h3 class="sentinel-section-title">Display Options</h3>
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label asp-for="Pathogen.DisplayOrder" class="sn-label"></label>
+                                <input asp-for="Pathogen.DisplayOrder" type="number" class="sn-input" />
+                                <span asp-validation-for="Pathogen.DisplayOrder" class="text-danger"></span>
+                            </div>
+                            <div class="col-md-6 d-flex align-items-end">
+                                <div class="form-check">
+                                    <input asp-for="Pathogen.IsActive" class="form-check-input" type="checkbox" />
+                                    <label asp-for="Pathogen.IsActive" class="form-check-label">
+                                        Active (visible in lab result entry)
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Usage Stats -->
+                    @if (Model.UsageCount > 0)
+                    {
+                        <div class="alert alert-info" role="alert">
+                            <i class="bi bi-info-circle me-2"></i>
+                            This pathogen is referenced in <strong>@Model.UsageCount</strong> lab result(s).
+                        </div>
+                    }
+
+                    <!-- Actions -->
+                    <div class="d-flex gap-2 pt-3 border-top">
+                        <button type="submit" class="sn-btn sn-btn--signal">
+                            <i class="bi bi-check-lg"></i>
+                            Save Changes
+                        </button>
+                        <a asp-page="Index" class="sn-btn sn-btn--ghost">
+                            Cancel
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Metadata Panel -->
+    <div class="col-lg-4">
+        <div class="sentinel-card mb-3">
+            <div class="sentinel-card-body">
+                <h3 class="sentinel-section-title">
+                    <i class="bi bi-clock-history me-2"></i>
+                    Metadata
+                </h3>
+                <dl class="row small mb-0">
+                    <dt class="col-sm-5 text-muted">Created</dt>
+                    <dd class="col-sm-7 sentinel-code">@Model.Pathogen?.CreatedAt.ToString("yyyy-MM-dd HH:mm")</dd>
+
+                    <dt class="col-sm-5 text-muted">Modified</dt>
+                    <dd class="col-sm-7 sentinel-code">@Model.Pathogen?.ModifiedAt?.ToString("yyyy-MM-dd HH:mm")</dd>
+
+                    <dt class="col-sm-5 text-muted">ID</dt>
+                    <dd class="col-sm-7 sentinel-code" style="word-break: break-all;">@Model.Pathogen?.Id</dd>
+                </dl>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+    <script>
+        const resultTypeSelect = document.getElementById('resultTypeSelect');
+        const quantitativeParams = document.getElementById('quantitativeParams');
+
+        function updateQuantitativeVisibility() {
+            const selectedType = resultTypeSelect.value;
+            if (selectedType === 'Quantitative' || selectedType === 'Both' || selectedType === 'Semiquantitative') {
+                quantitativeParams.style.display = 'block';
+            } else {
+                quantitativeParams.style.display = 'none';
+            }
+        }
+
+        resultTypeSelect.addEventListener('change', updateQuantitativeVisibility);
+        updateQuantitativeVisibility();
+    </script>
+}

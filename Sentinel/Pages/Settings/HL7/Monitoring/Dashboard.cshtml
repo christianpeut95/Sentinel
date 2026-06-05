@@ -1,0 +1,319 @@
+@page
+@model Sentinel.Pages.Settings.HL7.Monitoring.DashboardModel
+
+@{
+    ViewData["Title"] = "HL7 Monitoring Dashboard";
+    Layout = "~/Pages/Shared/_LayoutSentinel.cshtml";
+}
+
+<nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a asp-page="/Index">Home</a></li>
+        <li class="breadcrumb-item"><a asp-page="/Settings/Index">Settings</a></li>
+        <li class="breadcrumb-item"><a asp-page="/Settings/HL7/Configurations/Index">HL7 Configurations</a></li>
+        <li class="breadcrumb-item active" aria-current="page">Monitoring Dashboard</li>
+    </ol>
+</nav>
+
+<div class="sentinel-page-header mb-4">
+    <div>
+        <div class="sentinel-eyebrow">HL7 Interface</div>
+        <h1 class="sentinel-page-title">Monitoring Dashboard</h1>
+        <p class="sentinel-page-subtitle">Real-time HL7 file processing status and statistics</p>
+    </div>
+    <div>
+        <a asp-page="/Settings/HL7/Messages/Index" class="sn-btn sn-btn--ghost">
+            <i class="bi bi-list-ul me-1"></i>View Messages
+        </a>
+        <a asp-page="/Settings/HL7/Configurations/Index" class="sn-btn sn-btn--ghost ms-2">
+            <i class="bi bi-gear me-1"></i>Configurations
+        </a>
+    </div>
+</div>
+
+<!-- KPI Tiles -->
+<div class="row g-3 mb-4">
+    <div class="col-md-3">
+        <div class="kpi">
+            <div class="kpi-label">Monitoring Status</div>
+            <div class="kpi-value" style="font-size:20px">
+                @if (Model.MonitoringStatus.IsMonitoring)
+                {
+                    <span class="chip clear" style="font-size:14px;padding:6px 14px">
+                        <span class="dot"></span>Active
+                    </span>
+                }
+                else
+                {
+                    <span class="chip outbreak" style="font-size:14px;padding:6px 14px">
+                        <span class="dot"></span>Stopped
+                    </span>
+                }
+            </div>
+            <div class="kpi-delta">@Model.MonitoringStatus.ActiveWatchers active watchers</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="kpi">
+            <div class="kpi-label">Files Today</div>
+            <div class="kpi-value"><em>@Model.MonitoringStatus.FilesProcessedToday</em></div>
+            <div class="kpi-delta">
+                @if (Model.MonitoringStatus.FilesFailedToday > 0)
+                {
+                    <span class="up">↑ @Model.MonitoringStatus.FilesFailedToday errors</span>
+                }
+                else
+                {
+                    <span style="color:var(--signal-dk)">No errors</span>
+                }
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="kpi">
+            <div class="kpi-label">Errors Today</div>
+            <div class="kpi-value" style="color:@(Model.MonitoringStatus.FilesFailedToday > 0 ? "var(--outbreak)" : "inherit")"><em>@Model.MonitoringStatus.FilesFailedToday</em></div>
+            <div class="kpi-delta">@(Model.MonitoringStatus.FilesFailedToday > 0 ? "Requires attention" : "All good")</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="kpi">
+            <div class="kpi-label">Last File</div>
+            <div class="kpi-value" style="font-size:24px;font-family:var(--f-mono)">
+                @if (Model.MonitoringStatus.LastFileProcessedAt != null)
+                {
+                    @Model.MonitoringStatus.LastFileProcessedAt.Value.ToLocalTime().ToString("HH:mm:ss")
+                }
+                else
+                {
+                    <span style="color:var(--graphite)">—</span>
+                }
+            </div>
+            <div class="kpi-delta">
+                @if (Model.MonitoringStatus.LastFileProcessedAt != null)
+                {
+                    var elapsed = DateTime.UtcNow - Model.MonitoringStatus.LastFileProcessedAt.Value;
+                    if (elapsed.TotalMinutes < 1)
+                    {
+                        <text>Just now</text>
+                    }
+                    else if (elapsed.TotalMinutes < 60)
+                    {
+                        @($"{(int)elapsed.TotalMinutes}m ago")
+                    }
+                    else if (elapsed.TotalHours < 24)
+                    {
+                        @($"{(int)elapsed.TotalHours}h ago")
+                    }
+                    else
+                    {
+                        @($"{(int)elapsed.TotalDays}d ago")
+                    }
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Recent Messages -->
+<div class="sentinel-card mb-4">
+    <div class="sentinel-card-body">
+        <h3 class="sentinel-section-title">Recent Messages (Last 50)</h3>
+
+        @if (!Model.RecentMessages.Any())
+        {
+            <div class="text-center py-5">
+                <div style="font-size:48px;color:var(--graphite);opacity:0.3;margin-bottom:20px">
+                    <i class="bi bi-inbox"></i>
+                </div>
+                <h5 style="color:var(--graphite);margin-bottom:8px">No messages processed yet</h5>
+                <p style="color:var(--graphite);font-size:14px">Messages will appear here as they are processed.</p>
+            </div>
+        }
+        else
+        {
+            <table class="sn-table">
+                <thead>
+                    <tr>
+                        <th>Received</th>
+                        <th>Message ID</th>
+                        <th>Facility</th>
+                        <th>Patient</th>
+                        <th>Status</th>
+                        <th>Cases</th>
+                        <th style="width:100px">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var msg in Model.RecentMessages)
+                    {
+                        <tr>
+                            <td style="font-family:var(--f-mono);font-size:12px">
+                                @msg.ReceivedAt.ToLocalTime().ToString("MM/dd HH:mm")
+                            </td>
+                            <td style="font-family:var(--f-mono);font-size:11px">
+                                @msg.MessageControlId
+                            </td>
+                            <td style="font-size:13px">@msg.SendingFacility</td>
+                            <td style="font-size:13px">
+                                @if (msg.Patient != null)
+                                {
+                                    <text>@msg.Patient.GivenName @msg.Patient.FamilyName</text>
+                                }
+                                else
+                                {
+                                    <span style="color:var(--graphite)">—</span>
+                                }
+                            </td>
+                            <td>
+                                @switch (msg.Status)
+                                {
+                                    case Sentinel.Models.HL7ProcessingStatus.ProcessedSuccessfully:
+                                        <span class="chip clear" style="font-size:10px;padding:3px 8px">
+                                            <span class="dot"></span>Processed
+                                        </span>
+                                        break;
+                                    case Sentinel.Models.HL7ProcessingStatus.ProcessingFailed:
+                                        <span class="chip outbreak" style="font-size:10px;padding:3px 8px">
+                                            <span class="dot"></span>Error
+                                        </span>
+                                        break;
+                                    case Sentinel.Models.HL7ProcessingStatus.DuplicateDetected:
+                                        <span class="chip watch" style="font-size:10px;padding:3px 8px">
+                                            <span class="dot"></span>Duplicate
+                                        </span>
+                                        break;
+                                    case Sentinel.Models.HL7ProcessingStatus.AwaitingManualReview:
+                                        <span class="chip info" style="font-size:10px;padding:3px 8px">
+                                            <span class="dot"></span>Review
+                                        </span>
+                                        break;
+                                    default:
+                                        <span class="chip" style="background:#E3E9FB;color:#2A3970;font-size:10px;padding:3px 8px">
+                                            <span class="dot" style="background:#6B8CF5"></span>@msg.Status
+                                        </span>
+                                        break;
+                                }
+                            </td>
+                            <td style="font-family:var(--f-mono);font-size:13px;text-align:center">
+                                @if (msg.Case != null)
+                                {
+                                    <span>1</span>
+                                }
+                                else
+                                {
+                                    <span style="color:var(--graphite)">—</span>
+                                }
+                            </td>
+                            <td>
+                                <a asp-page="/Settings/HL7/Messages/Details" asp-route-id="@msg.Id" 
+                                   class="sn-btn sn-btn--ghost sn-btn--sm" title="View Details">
+                                    <i class="bi bi-eye"></i>
+                                </a>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+
+            <div class="mt-3 text-end">
+                <a asp-page="/Settings/HL7/Messages/Index" class="sn-btn sn-btn--ghost sn-btn--sm">
+                    View all messages <i class="bi bi-arrow-right ms-1"></i>
+                </a>
+            </div>
+        }
+    </div>
+</div>
+
+<!-- Active Configurations -->
+<div class="sentinel-card">
+    <div class="sentinel-card-body">
+        <h3 class="sentinel-section-title">Active Configurations</h3>
+
+        @if (!Model.ActiveConfigurations.Any())
+        {
+            <div class="alert alert-warning" role="alert">
+                <i class="bi bi-exclamation-triangle me-2"></i>
+                No active configurations. <a asp-page="/Settings/HL7/Configurations/Create" class="alert-link">Create a configuration</a> to start monitoring.
+            </div>
+        }
+        else
+        {
+            <table class="sn-table">
+                <thead>
+                    <tr>
+                        <th>Configuration</th>
+                        <th>File Drop Path</th>
+                        <th>Priority</th>
+                        <th>Last Activity</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var config in Model.ActiveConfigurations)
+                    {
+                        var lastMessage = Model.RecentMessages.FirstOrDefault(m => m.ConfigurationId == config.Id);
+                        <tr>
+                            <td>
+                                <div style="font-weight:500">@config.ConfigurationName</div>
+                                <div style="font-family:var(--f-mono);font-size:11px;color:var(--graphite);margin-top:2px">
+                                    @config.SendingFacility
+                                </div>
+                            </td>
+                            <td>
+                                <code style="font-size:11px;color:var(--graphite)">@config.FileDropPath</code>
+                                @if (System.IO.Directory.Exists(config.FileDropPath))
+                                {
+                                    var pendingFiles = System.IO.Directory.GetFiles(config.FileDropPath, config.FilePattern).Length;
+                                    if (pendingFiles > 0)
+                                    {
+                                        <span class="chip info" style="font-size:9px;padding:2px 6px;margin-left:6px">
+                                            <span class="dot"></span>@pendingFiles pending
+                                        </span>
+                                    }
+                                }
+                            </td>
+                            <td style="font-family:var(--f-mono);font-size:13px;text-align:center">@config.Priority</td>
+                            <td style="font-family:var(--f-mono);font-size:12px">
+                                @if (lastMessage != null)
+                                {
+                                    var elapsed = DateTime.UtcNow - lastMessage.ReceivedAt;
+                                    if (elapsed.TotalMinutes < 60)
+                                    {
+                                        @($"{(int)elapsed.TotalMinutes}m ago")
+                                    }
+                                    else if (elapsed.TotalHours < 24)
+                                    {
+                                        @($"{(int)elapsed.TotalHours}h ago")
+                                    }
+                                    else
+                                    {
+                                        @lastMessage.ReceivedAt.ToLocalTime().ToString("MM/dd")
+                                    }
+                                }
+                                else
+                                {
+                                    <span style="color:var(--graphite)">No activity</span>
+                                }
+                            </td>
+                            <td>
+                                <span class="chip clear" style="font-size:10px;padding:3px 8px">
+                                    <span class="dot"></span>Monitoring
+                                </span>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        }
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        // Auto-refresh every 30 seconds
+        setTimeout(function() {
+            location.reload();
+        }, 30000);
+    </script>
+}

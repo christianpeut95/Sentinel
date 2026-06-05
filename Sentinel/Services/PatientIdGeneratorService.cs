@@ -43,9 +43,11 @@ namespace Sentinel.Services
             // Get current year
             int currentYear = DateTime.UtcNow.Year;
             string yearPrefix = $"P-{currentYear}-";
-            
+
             // Query with explicit no tracking and fresh read
+            // IMPORTANT: Include soft-deleted records to avoid ID conflicts
             var existingIds = await _context.Patients
+                .IgnoreQueryFilters() // Include soft-deleted records
                 .AsNoTracking()
                 .Where(p => !string.IsNullOrEmpty(p.FriendlyId) && p.FriendlyId.StartsWith(yearPrefix))
                 .Select(p => p.FriendlyId)
@@ -93,7 +95,9 @@ namespace Sentinel.Services
                 }
                 
                 // Double-check with a fresh query to the database
+                // IMPORTANT: Include soft-deleted records to avoid ID conflicts
                 bool exists = await _context.Patients
+                    .IgnoreQueryFilters() // Include soft-deleted records
                     .AsNoTracking()
                     .AnyAsync(p => p.FriendlyId == candidateId);
                 

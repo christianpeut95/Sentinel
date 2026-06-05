@@ -664,6 +664,386 @@ html, body {
 }
 
 /* ========================================
+   Buttons (Sentinel Design)
+   ======================================== */
+.sn-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  height: 36px;
+  padding: 0 16px;
+  font-family: var(--f-sans);
+  font-size: 14px;
+  font-weight: 500;
+  letter-spacing: -0.005em;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--forest);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 120ms ease-in-out;
+  text-decoration: none;
+}
+
+.sn-btn:hover {
+  text-decoration: none;
+}
+
+.sn-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.sn-btn--primary {
+  background: var(--forest);
+  color: var(--bone);
+  border-color: var(--forest);
+}
+
+.sn-btn--primary:hover {
+  background: var(--forest-2);
+  color: var(--bone);
+}
+
+.sn-btn--signal {
+  background: var(--signal-dk);
+  color: #fff;
+  border-color: var(--signal-dk);
+}
+
+.sn-btn--signal:hover {
+  background: var(--signal-700);
+  color: #fff;
+}
+
+.sn-btn--ghost {
+  background: transparent;
+  border-color: var(--hairline);
+  color: var(--forest);
+}
+
+.sn-btn--ghost:hover {
+  background: var(--chalk);
+  border-color: var(--slate-lt);
+  color: var(--forest);
+}
+
+.sn-btn--danger {
+  background: var(--status-outbreak);
+  color: #fff;
+  border-color: var(--status-outbreak);
+}
+
+.sn-btn--danger:hover {
+  background: #c43e23;
+  color: #fff;
+}
+
+.sn-btn--sm {
+  height: 28px;
+  padding: 0 12px;
+  font-size: 13px;
+}
+
+.sn-btn--lg {
+  height: 44px;
+  padding: 0 24px;
+  font-size: 15px;
+}
+
+/* ========================================
+   Inputs (Sentinel Design)
+   ======================================== */
+.sn-input,
+.sn-textarea,
+.sn-select {
+  width: 100%;
+  padding: 0 12px;
+  height: 36px;
+  background: #fff;
+  border: 1px solid var(--hairline);
+  border-radius: 6px;
+  color: var(--forest);
+  font-family: var(--f-sans);
+  font-size: 14px;
+  transition: border-color 120ms, box-shadow 120ms;
+}
+
+.sn-textarea {
+  height: auto;
+  min-height: 80px;
+  padding: 10px 12px;
+  resize: vertical;
+}
+
+.sn-input::placeholder,
+.sn-textarea::placeholder {
+  color: var(--slate);
+}
+
+.sn-input:focus,
+.sn-textarea:focus,
+.sn-select:focus {
+  outline: 0;
+  border-color: var(--signal-dk);
+  box-shadow: 0 0 0 3px rgba(61, 213, 152, 0.25);
+}
+
+.sn-label {
+  display: block;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--graphite);
+  margin-bottom: 6px;
+  letter-spacing: 0.01em;
+}
+
+/* ========================================
+   Chips & Status
+   ======================================== */
+.sn-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 4px 10px;
+  border-radius: 4px;
+  font-family: var(--f-mono);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  border: 1px solid transparent;
+}
+
+.sn-chip__dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+}
+
+.sn-chip--outbreak {
+  background: #FBE2D8;
+  color: #7A2A15;
+  border-color: #F2BBA4;
+}
+
+.sn-chip--outbreak .sn-chip__dot {
+  background: var(--status-outbreak);
+}
+
+.sn-chip--watch {
+  background: #FBEDD1;
+  color: #6A4410;
+  border-color: #EBD196;
+}
+
+.sn-chip--watch .sn-chip__dot {
+  background: var(--status-watch);
+}
+
+.sn-chip--clear {
+  background: var(--signal-lt);
+  color: #0A3F2C;
+  border-color: #9BE8C6;
+}
+
+.sn-chip--clear .sn-chip__dot {
+  background: var(--signal-dk);
+}
+
+.sn-chip--info {
+  background: #E3E9FB;
+  color: #2A3970;
+  border-color: #B7C4EE;
+}
+
+.sn-chip--info .sn-chip__dot {
+  background: var(--status-info);
+}
+
+/* ========================================
+   KPI Tiles
+   ======================================== */
+.sn-kpi {
+  padding: 20px;
+  background: #fff;
+  border: 1px solid var(--hairline);
+  border-radius: 6px;
+}
+
+.sn-kpi-label {
+  font-family: var(--f-mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--graphite);
+  font-weight: 500;
+}
+
+.sn-kpi-value {
+  font-size: 40px;
+  font-weight: 500;
+  letter-spacing: -0.04em;
+  margin-top: 4px;
+  line-height: 1;
+}
+
+.sn-kpi-value em {
+  font-style: normal;
+  color: var(--signal-dk);
+}
+
+.sn-kpi-delta {
+  font-family: var(--f-mono);
+  font-size: 10px;
+  color: var(--graphite);
+  margin-top: 4px;
+}
+
+.sn-kpi-delta.up {
+  color: var(--status-outbreak);
+}
+
+.sn-kpi-delta.down {
+  color: var(--signal-dk);
+}
+
+/* ========================================
+   Table (Sentinel Design)
+   ======================================== */
+.sn-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.sn-table th,
+.sn-table td {
+  padding: 11px 14px;
+  text-align: left;
+  border-bottom: 1px solid var(--hairline);
+}
+
+.sn-table th {
+  font-family: var(--f-mono);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--graphite);
+  background: var(--bone);
+}
+
+.sn-table tbody tr:hover {
+  background: var(--chalk);
+}
+
+/* ========================================
+   Badges & Tags
+   ======================================== */
+.sentinel-badge {
+  display: inline-block;
+  padding: 4px 10px;
+  font-family: var(--f-mono);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  background: var(--signal-lt);
+  color: var(--forest);
+  border-radius: 4px;
+  border: 1px solid transparent;
+}
+
+.sentinel-badge--outline {
+  background: transparent;
+  border-color: var(--hairline);
+  color: var(--graphite);
+}
+
+.sentinel-code {
+  font-family: var(--f-mono);
+  font-size: 12px;
+  padding: 2px 6px;
+  background: var(--paper);
+  border-radius: 3px;
+  color: var(--forest);
+  letter-spacing: 0.02em;
+}
+
+.sentinel-meta-text {
+  font-size: 12px;
+  color: var(--graphite);
+}
+
+/* ========================================
+   Section Titles
+   ======================================== */
+.sentinel-section-title {
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: -0.015em;
+  margin-bottom: 12px;
+  color: var(--forest);
+}
+
+.sentinel-eyebrow {
+  font-family: var(--f-mono);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--graphite);
+  margin-bottom: 8px;
+}
+
+/* ========================================
+   Page Header
+   ======================================== */
+.sentinel-page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 24px;
+}
+
+.sentinel-page-title {
+  font-size: 36px;
+  font-weight: 500;
+  letter-spacing: -0.03em;
+  line-height: 1.1;
+  margin-bottom: 6px;
+}
+
+.sentinel-page-subtitle {
+  font-size: 15px;
+  color: var(--graphite);
+  line-height: 1.55;
+  max-width: 60ch;
+}
+
+.sentinel-page-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+/* ========================================
+   Card Footer
+   ======================================== */
+.sentinel-card-footer {
+  padding: var(--spacing-4);
+  border-top: 1px solid var(--hairline);
+  background: var(--bone);
+}
+
+/* ========================================
+   Utilities
+   ======================================== */
+.text-end {
+  text-align: right !important;
+}
+
+/* ========================================
    Mesh Gradients (for hero sections)
    ======================================== */
 .mesh-1 {

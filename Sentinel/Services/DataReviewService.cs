@@ -1113,17 +1113,17 @@ public class DataReviewService : IDataReviewService
             {
                 case ReviewEntityTypes.LabResult:
                     var lab = await _context.LabResults
-                        .Include(l => l.TestType)
                         .Include(l => l.SpecimenType)
-                        .Include(l => l.TestResult)
                         .Include(l => l.Laboratory)
+                        .Include(l => l.Markers).ThenInclude(m => m.Pathogen)
+                        .Include(l => l.Markers).ThenInclude(m => m.TestMethod)
                         .Where(l => l.Id.ToString() == entityId.ToString())
                         .FirstOrDefaultAsync();
 
                     if (lab != null)
                     {
-                        data["TestType"] = lab.TestType?.Name;
-                        data["Result"] = lab.TestResult?.Name;
+                        data["Markers"] = lab.Markers.Count + " marker(s)";
+                        data["Result"] = lab.Markers.Any() ? lab.Markers.First().QualitativeResultText : "No results";
                         data["SpecimenType"] = lab.SpecimenType?.Name;
                         data["CollectionDate"] = lab.SpecimenCollectionDate;
                         data["Laboratory"] = lab.Laboratory?.Name;
@@ -1180,19 +1180,23 @@ public class DataReviewService : IDataReviewService
             // Load recent lab results for this case
             var labs = await _context.LabResults
                 .Where(l => l.CaseId == caseId)
-                .Include(l => l.TestType)
-                .Include(l => l.TestResult)
+                .Include(l => l.Markers).ThenInclude(m => m.Pathogen)
+                .Include(l => l.Markers).ThenInclude(m => m.TestMethod)
                 .OrderByDescending(l => l.SpecimenCollectionDate ?? l.CreatedAt)
                 .Take(5)
                 .ToListAsync();
 
             foreach (var lab in labs)
             {
+                var markerSummary = lab.Markers.Any() 
+                    ? $"{lab.Markers.Count} marker(s) - {lab.Markers.First().QualitativeResultText ?? "Pending"}"
+                    : "No markers";
+
                 relatedItems.Add(new RelatedItem
                 {
                     Type = "Lab Result",
                     Id = lab.Id.ToString(),
-                    Description = $"{lab.TestType?.Name ?? "Unknown Test"} - {lab.TestResult?.Name ?? "Pending"}",
+                    Description = markerSummary,
                     Date = lab.SpecimenCollectionDate ?? lab.CreatedAt
                 });
             }

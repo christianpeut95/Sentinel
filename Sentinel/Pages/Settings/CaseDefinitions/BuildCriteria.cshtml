@@ -1,0 +1,2259 @@
+@page
+@model Sentinel.Pages.Settings.CaseDefinitions.BuildCriteriaModel
+@using Sentinel.Models.CaseDefinitions
+@{
+    ViewData["Title"] = "Build Criteria";
+    Layout = "~/Pages/Shared/_LayoutSentinel.cshtml";
+}
+
+<link rel="stylesheet" href="~/css/sentinel-design-system.css" />
+
+<style>
+    .wizard-container {
+        max-width: 1000px;
+        margin: 0 auto;
+    }
+
+    .wizard-steps {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        margin-bottom: 3rem;
+        padding: 2rem 0;
+        border-bottom: 1px solid var(--hairline);
+    }
+
+    .wizard-step {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+    }
+
+    .wizard-step-circle {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 600;
+        font-size: 1rem;
+        background: var(--paper);
+        color: var(--graphite);
+        border: 2px solid var(--hairline);
+        transition: all 0.2s;
+    }
+
+    .wizard-step.active .wizard-step-circle {
+        background: var(--forest);
+        color: var(--signal);
+        border-color: var(--forest);
+    }
+
+    .wizard-step.completed .wizard-step-circle {
+        background: var(--signal-dk);
+        color: white;
+        border-color: var(--signal-dk);
+    }
+
+    .wizard-step-label {
+        font-size: 0.875rem;
+        color: var(--graphite);
+        font-weight: 500;
+    }
+
+    .wizard-step.active .wizard-step-label {
+        color: var(--forest);
+        font-weight: 600;
+    }
+
+    .wizard-connector {
+        width: 80px;
+        height: 2px;
+        background: var(--hairline);
+        margin: 0 1rem;
+    }
+
+    .wizard-step.completed + .wizard-connector {
+        background: var(--signal-dk);
+    }
+
+    .criterion-card {
+        background: var(--chalk);
+        border: 1px solid var(--hairline);
+        border-radius: 8px;
+        padding: 1.25rem;
+        margin-bottom: 0.75rem;
+        transition: all 0.2s;
+    }
+
+    .criterion-card:hover {
+        border-color: var(--signal-dk);
+        box-shadow: 0 2px 8px rgba(61, 213, 152, 0.15);
+    }
+
+    .criterion-card.has-children {
+        background: var(--signal-lt);
+        border-color: var(--signal-dk);
+        border-width: 2px;
+    }
+
+    .criterion-card[data-level="1"],
+    .criterion-card[data-level="2"] {
+        background: #fff;
+        margin-top: 0.5rem;
+        margin-bottom: 0.5rem;
+    }
+
+    .criterion-type-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-family: var(--f-mono);
+        font-size: 0.625rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        padding: 0.25rem 0.625rem;
+        border-radius: 4px;
+        font-weight: 500;
+    }
+
+    .criterion-type-laboratory {
+        background: #e0f2fe;
+        color: #075985;
+        border: 1px solid #bae6fd;
+    }
+
+    .criterion-type-clinical {
+        background: #fce7f3;
+        color: #9f1239;
+        border: 1px solid #fbcfe8;
+    }
+
+    .criterion-type-customfield {
+        background: var(--signal-lt);
+        color: var(--signal-dk);
+        border: 1px solid var(--signal-dk);
+    }
+
+    .criterion-type-demographic {
+        background: #fef3c7;
+        color: #92400e;
+        border: 1px solid #fde68a;
+    }
+
+    .add-criterion-btn {
+        width: 100%;
+        padding: 1.25rem;
+        background: var(--chalk);
+        border: 2px dashed var(--hairline);
+        border-radius: 8px;
+        color: var(--graphite);
+        font-size: 0.9375rem;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.75rem;
+    }
+
+    .add-criterion-btn:hover {
+        border-color: var(--signal-dk);
+        color: var(--signal-dk);
+        background: var(--signal-lt);
+    }
+
+    .specimen-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+        gap: 0.5rem;
+        max-height: 300px;
+        overflow-y: auto;
+        padding: 0.5rem;
+        border: 1px solid var(--hairline);
+        border-radius: 6px;
+        background: var(--chalk);
+    }
+
+    .specimen-item {
+        padding: 0.625rem;
+        border: 1px solid var(--hairline);
+        border-radius: 6px;
+        cursor: pointer;
+        transition: all 0.2s;
+        background: white;
+    }
+
+    .specimen-item:hover {
+        border-color: var(--signal-dk);
+        background: var(--signal-lt);
+    }
+
+    .specimen-item.selected {
+        border-color: var(--signal-dk);
+        background: var(--signal-lt);
+        font-weight: 500;
+    }
+
+    .specimen-item-name {
+        font-size: 0.875rem;
+        color: var(--forest);
+        margin-bottom: 0.25rem;
+    }
+
+    .specimen-item-code {
+        font-family: var(--f-mono);
+        font-size: 0.75rem;
+        color: var(--graphite);
+    }
+
+    .selected-items-list {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        margin-top: 0.75rem;
+    }
+
+    .selected-item-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.375rem 0.75rem;
+        background: var(--signal-lt);
+        border: 1px solid var(--signal-dk);
+        border-radius: 999px;
+        font-size: 0.813rem;
+        color: var(--forest);
+    }
+
+    .selected-item-chip button {
+        background: none;
+        border: none;
+        color: var(--signal-dk);
+        cursor: pointer;
+        padding: 0;
+        font-size: 1rem;
+        line-height: 1;
+    }
+
+    .logical-operator-toggle {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.25rem;
+        padding: 0.375rem 0.875rem;
+        background: var(--paper);
+        border: 1px solid var(--hairline);
+        border-radius: 999px;
+        font-family: var(--f-mono);
+        font-size: 0.75rem;
+        font-weight: 600;
+        letter-spacing: 0.08em;
+        color: var(--forest);
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .logical-operator-toggle:hover {
+        background: var(--signal-lt);
+        border-color: var(--signal-dk);
+        color: var(--signal-dk);
+    }
+
+    .operator-label {
+        min-width: 28px;
+        text-align: center;
+    }
+</style>
+
+<div class="container-fluid px-4 py-4">
+    <div class="wizard-container">
+        <!-- Header -->
+        <div class="text-center mb-4">
+            <div class="text-label mb-2">CREATE CASE DEFINITION</div>
+            <h1 class="page-title mb-2">Build Criteria</h1>
+            <p class="text-muted">Define the conditions that must be met for case classification</p>
+        </div>
+
+        <!-- Wizard Steps -->
+        <div class="wizard-steps">
+            <div class="wizard-step completed">
+                <div class="wizard-step-circle">✓</div>
+                <div class="wizard-step-label">Basic Information</div>
+            </div>
+            <div class="wizard-connector"></div>
+            <div class="wizard-step active">
+                <div class="wizard-step-circle">●</div>
+                <div class="wizard-step-label">Build Criteria</div>
+            </div>
+            <div class="wizard-connector"></div>
+            <div class="wizard-step">
+                <div class="wizard-step-circle">○</div>
+                <div class="wizard-step-label">Review & Save</div>
+            </div>
+        </div>
+
+        <!-- Definition Summary -->
+        <div class="sentinel-card mb-4" style="background: var(--signal-lt); border-color: var(--signal-dk);">
+            <div class="row g-2 align-items-center">
+                <div class="col-auto">
+                    <i class="bi bi-info-circle" style="font-size: 1.5rem; color: var(--signal-dk);"></i>
+                </div>
+                <div class="col">
+                    <div class="text-label">DEFINING</div>
+                    <div style="font-weight: 600; font-size: 1rem;">
+                        @Model.Definition.Disease?.Name — @Model.Definition.ConfirmationStatus?.Name
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Criteria List -->
+        <div class="sentinel-card mb-4">
+            <h3 style="font-size: 1.125rem; font-weight: 600; margin-bottom: 1rem;">
+                <i class="bi bi-list-check"></i>
+                Criteria Rules
+            </h3>
+            <p class="text-muted mb-3" style="font-size: 0.875rem;">
+                A case meets this definition when:
+            </p>
+
+            <div id="criteriaContainer">
+                @if (!Model.Criteria.Any())
+                {
+                    <div class="text-center py-5" style="color: var(--graphite);">
+                        <i class="bi bi-diagram-3" style="font-size: 3rem; opacity: 0.3;"></i>
+                        <p class="mt-3 mb-0">No criteria added yet. Start by adding your first criterion below.</p>
+                    </div>
+                }
+                else
+                {
+                    var rootCriteria = Model.Criteria.Where(c => c.ParentCriteriaId == null).OrderBy(c => c.DisplayOrder).ToList();
+
+                    for (int i = 0; i < rootCriteria.Count; i++)
+                    {
+                        var criterion = rootCriteria[i];
+                        var isFirst = i == 0;
+                        var isLast = i == rootCriteria.Count - 1;
+                        var hasChildren = criterion.ChildCriteria?.Any() == true;
+                        var nextCriterion = !isLast ? rootCriteria[i + 1] : null;
+                        var previousCriterion = !isFirst ? rootCriteria[i - 1] : null;
+
+                        @* Show logical operator toggle between root criteria (only if not grouped) *@
+                        @* The toggle shows BEFORE this criterion, so it updates the PREVIOUS criterion's operator *@
+                        @if (!isFirst && !hasChildren)
+                        {
+                            <div style="text-align: center; margin: -0.5rem 0;">
+                                <div class="logical-operator-toggle" 
+                                     data-criterion-id="@previousCriterion.Id" 
+                                     data-operator="@((int)previousCriterion.LogicalOperator)"
+                                     onclick="toggleLogicalOperator(@previousCriterion.Id, @((int)previousCriterion.LogicalOperator))">
+                                    <span class="operator-label">@(previousCriterion.LogicalOperator == LogicalOperator.AND ? "AND" : "OR")</span>
+                                    <i class="bi bi-arrow-down-up" style="font-size: 0.75rem; margin-left: 0.25rem;"></i>
+                                </div>
+                            </div>
+                        }
+
+                        @* Group container start *@
+                        @if (hasChildren)
+                        {
+                            var children = criterion.ChildCriteria.OrderBy(c => c.DisplayOrder).ToList();
+                            <div style="border: 2px solid var(--signal-dk); border-radius: 8px; padding: 1rem; background: var(--signal-lt); margin-bottom: 1rem;">
+                                @* Show operator before group if not first *@
+                                @* The toggle shows BEFORE this group, so it updates the PREVIOUS criterion's operator *@
+                                @if (!isFirst)
+                                {
+                                    <div style="text-align: center; margin: -2rem 0 1rem 0;">
+                                        <div class="logical-operator-toggle" 
+                                             data-criterion-id="@previousCriterion.Id" 
+                                             data-operator="@((int)previousCriterion.LogicalOperator)"
+                                             onclick="toggleLogicalOperator(@previousCriterion.Id, @((int)previousCriterion.LogicalOperator))"
+                                             style="background: white;">
+                                            <span class="operator-label">@(previousCriterion.LogicalOperator == LogicalOperator.AND ? "AND" : "OR")</span>
+                                            <i class="bi bi-arrow-down-up" style="font-size: 0.75rem; margin-left: 0.25rem;"></i>
+                                        </div>
+                                    </div>
+                                }
+
+                                <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.75rem; color: var(--signal-dk); font-weight: 600; font-size: 0.875rem;">
+                                    <i class="bi bi-braces"></i> GROUP START
+                                </div>
+
+                                @* Parent criterion *@
+                                <div class="criterion-card" 
+                                     data-criterion-id="@criterion.Id" 
+                                     data-order="@criterion.DisplayOrder"
+                                     data-level="0"
+                                     style="background: white; margin-bottom: 0.75rem;">
+                                    <div class="d-flex justify-content-between align-items-start mb-2">
+                                        <div class="d-flex align-items-start gap-2 flex-grow-1">
+                                            @* Reorder buttons *@
+                                            <div class="d-flex flex-column" style="gap: 2px;">
+                                                <button type="button" 
+                                                        class="sn-btn sn-btn-ghost" 
+                                                        style="padding: 2px 6px; font-size: 0.75rem; @(isFirst ? "visibility: hidden;" : "")"
+                                                        onclick="moveCriterion(@criterion.Id, 'up')"
+                                                        title="Move up">
+                                                    <i class="bi bi-chevron-up"></i>
+                                                </button>
+                                                <button type="button" 
+                                                        class="sn-btn sn-btn-ghost" 
+                                                        style="padding: 2px 6px; font-size: 0.75rem; @(isLast ? "visibility: hidden;" : "")"
+                                                        onclick="moveCriterion(@criterion.Id, 'down')"
+                                                        title="Move down">
+                                                    <i class="bi bi-chevron-down"></i>
+                                                </button>
+                                            </div>
+
+                                            <div class="flex-grow-1">
+                                                <div class="d-flex align-items-center gap-2 mb-2">
+                                                    @switch (criterion.CriterionType)
+                                                    {
+                                                        case CriterionType.Laboratory:
+                                                            <span class="criterion-type-badge criterion-type-laboratory">
+                                                                <i class="bi bi-clipboard-pulse"></i> Laboratory
+                                                            </span>
+                                                            break;
+                                                        case CriterionType.Clinical:
+                                                            <span class="criterion-type-badge criterion-type-clinical">
+                                                                <i class="bi bi-heart-pulse"></i> Clinical
+                                                            </span>
+                                                            break;
+                                                        case CriterionType.CustomField:
+                                                            <span class="criterion-type-badge criterion-type-customfield">
+                                                                <i class="bi bi-ui-checks"></i> Custom Field
+                                                            </span>
+                                                            break;
+                                                        case CriterionType.Demographic:
+                                                            <span class="criterion-type-badge criterion-type-demographic">
+                                                                <i class="bi bi-person"></i> Case Data
+                                                            </span>
+                                                            break;
+                                                    }
+                                                </div>
+
+                                                <div style="font-size: 0.9375rem; line-height: 1.6;">
+                                                    @Html.Raw(criterion.DisplayText)
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div class="btn-group btn-group-sm">
+                                            <button type="button" class="sn-btn sn-btn-ghost sn-btn-sm" onclick="editCriterion(@criterion.Id)" title="Edit">
+                                                <i class="bi bi-pencil"></i>
+                                            </button>
+                                            <button type="button" class="sn-btn sn-btn-ghost sn-btn-sm" onclick="deleteCriterion(@criterion.Id)" title="Delete">
+                                                <i class="bi bi-trash"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                @* Child criteria within group *@
+                                @for (int j = 0; j < children.Count; j++)
+                                {
+                                    var child = children[j];
+                                    var childIsFirst = j == 0;
+                                    var childIsLast = j == children.Count - 1;
+                                    var previousChild = !childIsFirst ? children[j - 1] : null;
+
+                                    @* Toggle shows BEFORE this child, so it updates either the parent (if first child) or previous child *@
+                                    <div style="text-align: center; margin: 0.5rem 0;">
+                                        @if (childIsFirst)
+                                        {
+                                            @* First child: toggle updates the PARENT criterion's operator *@
+                                            <div class="logical-operator-toggle" 
+                                                 data-criterion-id="@criterion.Id" 
+                                                 data-operator="@((int)criterion.LogicalOperator)"
+                                                 onclick="toggleLogicalOperator(@criterion.Id, @((int)criterion.LogicalOperator))">
+                                                <span class="operator-label">@(criterion.LogicalOperator == LogicalOperator.AND ? "AND" : "OR")</span>
+                                                <i class="bi bi-arrow-down-up" style="font-size: 0.75rem; margin-left: 0.25rem;"></i>
+                                            </div>
+                                        }
+                                        else
+                                        {
+                                            @* Subsequent children: toggle updates the PREVIOUS child's operator *@
+                                            <div class="logical-operator-toggle" 
+                                                 data-criterion-id="@previousChild.Id" 
+                                                 data-operator="@((int)previousChild.LogicalOperator)"
+                                                 onclick="toggleLogicalOperator(@previousChild.Id, @((int)previousChild.LogicalOperator))">
+                                                <span class="operator-label">@(previousChild.LogicalOperator == LogicalOperator.AND ? "AND" : "OR")</span>
+                                                <i class="bi bi-arrow-down-up" style="font-size: 0.75rem; margin-left: 0.25rem;"></i>
+                                            </div>
+                                        }
+                                    </div>
+
+                                    <div class="criterion-card" 
+                                         data-criterion-id="@child.Id" 
+                                         data-order="@child.DisplayOrder"
+                                         data-level="1"
+                                         style="background: white; @(childIsLast ? "" : "margin-bottom: 0.75rem;")">
+                                        <div class="d-flex justify-content-between align-items-start mb-2">
+                                            <div class="d-flex align-items-start gap-2 flex-grow-1">
+                                                @* Reorder buttons for children *@
+                                                <div class="d-flex flex-column" style="gap: 2px;">
+                                                    <button type="button" 
+                                                            class="sn-btn sn-btn-ghost" 
+                                                            style="padding: 2px 6px; font-size: 0.75rem; @(j == 0 ? "visibility: hidden;" : "")"
+                                                            onclick="moveCriterion(@child.Id, 'up')"
+                                                            title="Move up">
+                                                        <i class="bi bi-chevron-up"></i>
+                                                    </button>
+                                                    <button type="button" 
+                                                            class="sn-btn sn-btn-ghost" 
+                                                            style="padding: 2px 6px; font-size: 0.75rem; @(childIsLast ? "visibility: hidden;" : "")"
+                                                            onclick="moveCriterion(@child.Id, 'down')"
+                                                            title="Move down">
+                                                        <i class="bi bi-chevron-down"></i>
+                                                    </button>
+                                                </div>
+
+                                                <div class="flex-grow-1">
+                                                    <div class="d-flex align-items-center gap-2 mb-2">
+                                                        @switch (child.CriterionType)
+                                                        {
+                                                            case CriterionType.Laboratory:
+                                                                <span class="criterion-type-badge criterion-type-laboratory">
+                                                                    <i class="bi bi-clipboard-pulse"></i> Laboratory
+                                                                </span>
+                                                                break;
+                                                            case CriterionType.Clinical:
+                                                                <span class="criterion-type-badge criterion-type-clinical">
+                                                                    <i class="bi bi-heart-pulse"></i> Clinical
+                                                                </span>
+                                                                break;
+                                                            case CriterionType.CustomField:
+                                                                <span class="criterion-type-badge criterion-type-customfield">
+                                                                    <i class="bi bi-ui-checks"></i> Custom Field
+                                                                </span>
+                                                                break;
+                                                            case CriterionType.Demographic:
+                                                                <span class="criterion-type-badge criterion-type-demographic">
+                                                                    <i class="bi bi-person"></i> Case Data
+                                                                </span>
+                                                                break;
+                                                        }
+                                                    </div>
+
+                                                    <div style="font-size: 0.9375rem; line-height: 1.6;">
+                                                        @Html.Raw(child.DisplayText)
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <div class="btn-group btn-group-sm">
+                                                <button type="button" class="sn-btn sn-btn-ghost sn-btn-sm" onclick="moveCriterionToParent(@child.Id, null)" title="Ungroup">
+                                                    <i class="bi bi-box-arrow-up-right"></i>
+                                                </button>
+                                                <button type="button" class="sn-btn sn-btn-ghost sn-btn-sm" onclick="editCriterion(@child.Id)" title="Edit">
+                                                    <i class="bi bi-pencil"></i>
+                                                </button>
+                                                <button type="button" class="sn-btn sn-btn-ghost sn-btn-sm" onclick="deleteCriterion(@child.Id)" title="Delete">
+                                                    <i class="bi bi-trash"></i>
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                }
+
+                                @* Add criteria to group buttons *@
+                                <div style="margin-top: 1rem; padding-top: 0.75rem; border-top: 1px dashed var(--signal-dk);">
+                                    <div style="font-size: 0.75rem; color: var(--graphite); margin-bottom: 0.5rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">
+                                        <i class="bi bi-plus-circle"></i> Add to Group
+                                    </div>
+                                    <div class="row g-2">
+                                        <div class="col-6">
+                                            <button type="button" class="add-criterion-btn" style="padding: 0.625rem; font-size: 0.8125rem;" onclick="openAddToGroupModal(@criterion.Id, 'laboratory')">
+                                                <i class="bi bi-clipboard-pulse"></i>
+                                                <span>Lab Test</span>
+                                            </button>
+                                        </div>
+                                        <div class="col-6">
+                                            <button type="button" class="add-criterion-btn" style="padding: 0.625rem; font-size: 0.8125rem;" onclick="openAddToGroupModal(@criterion.Id, 'clinical')">
+                                                <i class="bi bi-heart-pulse"></i>
+                                                <span>Clinical</span>
+                                            </button>
+                                        </div>
+                                        <div class="col-6">
+                                            <button type="button" class="add-criterion-btn" style="padding: 0.625rem; font-size: 0.8125rem;" onclick="openAddToGroupModal(@criterion.Id, 'customfield')">
+                                                <i class="bi bi-ui-checks"></i>
+                                                <span>Custom Field</span>
+                                            </button>
+                                        </div>
+                                        <div class="col-6">
+                                            <button type="button" class="add-criterion-btn" style="padding: 0.625rem; font-size: 0.8125rem;" onclick="openAddToGroupModal(@criterion.Id, 'demographic')">
+                                                <i class="bi bi-person"></i>
+                                                <span>Case Data</span>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div style="display: flex; align-items: center; gap: 0.5rem; margin-top: 0.75rem; color: var(--signal-dk); font-weight: 600; font-size: 0.875rem;">
+                                    <i class="bi bi-braces"></i> GROUP END
+                                </div>
+                            </div>
+                        }
+                        else
+                        {
+                            @* Regular criterion (not grouped) *@
+                            <div class="criterion-card" 
+                                 data-criterion-id="@criterion.Id" 
+                                 data-order="@criterion.DisplayOrder"
+                                 data-level="0">
+                                <div class="d-flex justify-content-between align-items-start mb-2">
+                                    <div class="d-flex align-items-start gap-2 flex-grow-1">
+                                        @* Reorder buttons *@
+                                        <div class="d-flex flex-column" style="gap: 2px;">
+                                            <button type="button" 
+                                                    class="sn-btn sn-btn-ghost" 
+                                                    style="padding: 2px 6px; font-size: 0.75rem; @(isFirst ? "visibility: hidden;" : "")"
+                                                    onclick="moveCriterion(@criterion.Id, 'up')"
+                                                    title="Move up">
+                                                <i class="bi bi-chevron-up"></i>
+                                            </button>
+                                            <button type="button" 
+                                                    class="sn-btn sn-btn-ghost" 
+                                                    style="padding: 2px 6px; font-size: 0.75rem; @(isLast ? "visibility: hidden;" : "")"
+                                                    onclick="moveCriterion(@criterion.Id, 'down')"
+                                                    title="Move down">
+                                                <i class="bi bi-chevron-down"></i>
+                                            </button>
+                                        </div>
+
+                                        <div class="flex-grow-1">
+                                            <div class="d-flex align-items-center gap-2 mb-2">
+                                                @switch (criterion.CriterionType)
+                                                {
+                                                    case CriterionType.Laboratory:
+                                                        <span class="criterion-type-badge criterion-type-laboratory">
+                                                            <i class="bi bi-clipboard-pulse"></i> Laboratory
+                                                        </span>
+                                                        break;
+                                                    case CriterionType.Clinical:
+                                                        <span class="criterion-type-badge criterion-type-clinical">
+                                                            <i class="bi bi-heart-pulse"></i> Clinical
+                                                        </span>
+                                                        break;
+                                                    case CriterionType.CustomField:
+                                                        <span class="criterion-type-badge criterion-type-customfield">
+                                                            <i class="bi bi-ui-checks"></i> Custom Field
+                                                        </span>
+                                                        break;
+                                                    case CriterionType.Demographic:
+                                                        <span class="criterion-type-badge criterion-type-demographic">
+                                                            <i class="bi bi-person"></i> Case Data
+                                                        </span>
+                                                        break;
+                                                }
+                                            </div>
+
+                                            <div style="font-size: 0.9375rem; line-height: 1.6;">
+                                                @Html.Raw(criterion.DisplayText)
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="btn-group btn-group-sm">
+                                        @if (!isLast && nextCriterion?.ParentCriteriaId == null)
+                                        {
+                                            <button type="button" class="sn-btn sn-btn-ghost sn-btn-sm" onclick="moveCriterionToParent(@nextCriterion.Id, @criterion.Id)" title="Group with below">
+                                                <i class="bi bi-braces"></i>
+                                            </button>
+                                        }
+                                        <button type="button" class="sn-btn sn-btn-ghost sn-btn-sm" onclick="editCriterion(@criterion.Id)" title="Edit">
+                                            <i class="bi bi-pencil"></i>
+                                        </button>
+                                        <button type="button" class="sn-btn sn-btn-ghost sn-btn-sm" onclick="deleteCriterion(@criterion.Id)" title="Delete">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        }
+                    }
+                }
+            </div>
+        </div>
+
+        <!-- Add Criterion Buttons -->
+        <div class="row g-3 mb-4">
+            <div class="col-md-6">
+                <button type="button" class="add-criterion-btn" data-bs-toggle="modal" data-bs-target="#labCriterionModal" onclick="resetToRootLevel()">
+                    <i class="bi bi-clipboard-pulse" style="font-size: 1.25rem;"></i>
+                    <span>Add Laboratory Test Criterion</span>
+                </button>
+            </div>
+            <div class="col-md-6">
+                <button type="button" class="add-criterion-btn" data-bs-toggle="modal" data-bs-target="#clinicalCriterionModal" onclick="resetToRootLevel()">
+                    <i class="bi bi-heart-pulse" style="font-size: 1.25rem;"></i>
+                    <span>Add Clinical Symptom Criterion</span>
+                </button>
+            </div>
+            <div class="col-md-6">
+                <button type="button" class="add-criterion-btn" data-bs-toggle="modal" data-bs-target="#customFieldModal" onclick="resetToRootLevel()">
+                    <i class="bi bi-ui-checks" style="font-size: 1.25rem;"></i>
+                    <span>Add Custom Field Criterion</span>
+                </button>
+            </div>
+            <div class="col-md-6">
+                <button type="button" class="add-criterion-btn" data-bs-toggle="modal" data-bs-target="#caseFieldModal" onclick="resetToRootLevel()">
+                    <i class="bi bi-person" style="font-size: 1.25rem;"></i>
+                    <span>Add Case Data Criterion</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Navigation -->
+        <div class="d-flex justify-content-between">
+            <a asp-page="./Create" asp-route-id="@Model.DefinitionId" class="sn-btn sn-btn-ghost">
+                <i class="bi bi-arrow-left"></i>
+                Back
+            </a>
+            <div class="d-flex gap-2">
+                <a asp-page="./Index" class="sn-btn sn-btn-ghost">
+                    <i class="bi bi-x-lg"></i>
+                    Save as Draft
+                </a>
+                <a asp-page="./Review" asp-route-id="@Model.DefinitionId" class="sn-btn sn-btn-signal">
+                    Next: Review & Save
+                    <i class="bi bi-arrow-right"></i>
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Lab Criterion Modal -->
+<div class="modal fade" id="labCriterionModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header" style="background: var(--signal-lt); border-bottom: 2px solid var(--signal-dk);">
+                <h5 class="modal-title">
+                    <i class="bi bi-clipboard-pulse"></i>
+                    Laboratory Test Criterion
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="labCriterionForm">
+                    <input type="hidden" id="labDefinitionId" value="@Model.DefinitionId" />
+
+                    <!-- Specimen Types -->
+                    <div class="mb-4">
+                        <label class="text-label">Specimen Types *</label>
+                        <input type="text" class="sn-input mb-2" id="specimenSearch" placeholder="Search specimens..." />
+                        <div class="specimen-grid" id="specimenGrid">
+                            @foreach (var specimen in Model.SpecimenTypes)
+                            {
+                                <div class="specimen-item" data-id="@specimen.Id" onclick="toggleSpecimen(this)">
+                                    <div class="specimen-item-name">@specimen.Name</div>
+                                    @if (!string.IsNullOrEmpty(specimen.SnomedCode))
+                                    {
+                                        <div class="specimen-item-code">SNOMED: @specimen.SnomedCode</div>
+                                    }
+                                </div>
+                            }
+                        </div>
+                        <div class="selected-items-list" id="selectedSpecimens"></div>
+
+                        <!-- Storage Preference for Specimen -->
+                        <div class="mt-3" style="padding: 0.75rem; background: var(--chalk); border: 1px solid var(--hairline); border-radius: 6px;">
+                            <label class="text-label" style="font-size: 0.75rem; color: var(--graphite);">HOW TO STORE MATCHED VALUES</label>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="specimenStoragePreference" id="specimenStoreAsReceived" value="1" checked>
+                                <label class="form-check-label" for="specimenStoreAsReceived">
+                                    Store as originally sent in HL7 message
+                                </label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="specimenStoragePreference" id="specimenStoreAsCanonical" value="2">
+                                <label class="form-check-label" for="specimenStoreAsCanonical">
+                                    Store as canonical value:
+                                </label>
+                                <select class="sn-input mt-2" id="canonicalSpecimenType" style="font-size: 0.875rem;" disabled>
+                                    <option value="">Select canonical specimen type...</option>
+                                    @foreach (var specimen in Model.SpecimenTypes)
+                                    {
+                                        <option value="@specimen.Id">@specimen.Name</option>
+                                    }
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Pathogens -->
+                    <div class="mb-4">
+                        <label class="text-label">Detected Pathogens/Biomarkers *</label>
+                        <input type="text" class="sn-input mb-2" id="pathogenSearch" placeholder="Search pathogens..." />
+                        <div class="specimen-grid" id="pathogenGrid">
+                            @foreach (var pathogen in Model.Pathogens)
+                            {
+                                <div class="specimen-item" data-id="@pathogen.Id" data-name="@pathogen.Name" onclick="togglePathogen(this)">
+                                    <div class="specimen-item-name">@pathogen.Name</div>
+                                </div>
+                            }
+                        </div>
+                        <div class="selected-items-list" id="selectedPathogens"></div>
+
+                        <!-- Storage Preference for Pathogen/Biomarker -->
+                        <div class="mt-3" style="padding: 0.75rem; background: var(--chalk); border: 1px solid var(--hairline); border-radius: 6px;">
+                            <label class="text-label" style="font-size: 0.75rem; color: var(--graphite);">HOW TO STORE MATCHED VALUES</label>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="pathogenStoragePreference" id="pathogenStoreAsReceived" value="1" checked>
+                                <label class="form-check-label" for="pathogenStoreAsReceived">
+                                    Store as originally sent in HL7 message
+                                </label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="pathogenStoragePreference" id="pathogenStoreAsCanonical" value="2">
+                                <label class="form-check-label" for="pathogenStoreAsCanonical">
+                                    Store as canonical value:
+                                </label>
+                                <select class="sn-input mt-2" id="canonicalPathogen" style="font-size: 0.875rem;" disabled>
+                                    <option value="">Select canonical pathogen/biomarker...</option>
+                                    @foreach (var pathogen in Model.Pathogens)
+                                    {
+                                        <option value="@pathogen.Id">@pathogen.Name</option>
+                                    }
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Test Methods -->
+                    <div class="mb-4">
+                        <label class="text-label">Test Methods</label>
+                        <input type="text" class="sn-input mb-2" id="testMethodSearch" placeholder="Search test methods..." />
+                        <div class="specimen-grid" id="testMethodGrid">
+                            @foreach (var method in Model.TestMethods)
+                            {
+                                <div class="specimen-item" data-id="@method.Id" data-name="@method.Name" onclick="toggleTestMethod(this)">
+                                    <div class="specimen-item-name">@method.Name</div>
+                                </div>
+                            }
+                        </div>
+                        <div class="selected-items-list" id="selectedTestMethods"></div>
+
+                        <!-- Storage Preference for Test Method -->
+                        <div class="mt-3" style="padding: 0.75rem; background: var(--chalk); border: 1px solid var(--hairline); border-radius: 6px;">
+                            <label class="text-label" style="font-size: 0.75rem; color: var(--graphite);">HOW TO STORE MATCHED VALUES</label>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="testMethodStoragePreference" id="testMethodStoreAsReceived" value="1" checked>
+                                <label class="form-check-label" for="testMethodStoreAsReceived">
+                                    Store as originally sent in HL7 message
+                                </label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="testMethodStoragePreference" id="testMethodStoreAsCanonical" value="2">
+                                <label class="form-check-label" for="testMethodStoreAsCanonical">
+                                    Store as canonical value:
+                                </label>
+                                <select class="sn-input mt-2" id="canonicalTestMethod" style="font-size: 0.875rem;" disabled>
+                                    <option value="">Select canonical test method...</option>
+                                    @foreach (var method in Model.TestMethods)
+                                    {
+                                        <option value="@method.Id">@method.Name</option>
+                                    }
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Result Values -->
+                    <div class="mb-4">
+                        <label class="text-label">Result Values *</label>
+                        <div class="text-muted" style="font-size: 0.75rem; margin-bottom: 0.5rem;">
+                            Select common values or add custom ones
+                        </div>
+                        <input type="text" class="sn-input mb-2" id="resultValueSearch" placeholder="Search or type custom value..." />
+                        <button type="button" class="btn btn-sm sn-btn-secondary mb-2" onclick="addCustomResultValue()" style="width: 100%;">
+                            <i class="bi bi-plus-circle"></i> Add Custom Value from Search Box
+                        </button>
+                        <div class="specimen-grid" id="resultValueGrid">
+                            <div class="specimen-item" data-value="Positive" onclick="toggleResultValue(this)">
+                                <div class="specimen-item-name">Positive</div>
+                            </div>
+                            <div class="specimen-item" data-value="Negative" onclick="toggleResultValue(this)">
+                                <div class="specimen-item-name">Negative</div>
+                            </div>
+                            <div class="specimen-item" data-value="Detected" onclick="toggleResultValue(this)">
+                                <div class="specimen-item-name">Detected</div>
+                            </div>
+                            <div class="specimen-item" data-value="Not Detected" onclick="toggleResultValue(this)">
+                                <div class="specimen-item-name">Not Detected</div>
+                            </div>
+                            <div class="specimen-item" data-value="Reactive" onclick="toggleResultValue(this)">
+                                <div class="specimen-item-name">Reactive</div>
+                            </div>
+                            <div class="specimen-item" data-value="Non-Reactive" onclick="toggleResultValue(this)">
+                                <div class="specimen-item-name">Non-Reactive</div>
+                            </div>
+                            <div class="specimen-item" data-value="Indeterminate" onclick="toggleResultValue(this)">
+                                <div class="specimen-item-name">Indeterminate</div>
+                            </div>
+                            <div class="specimen-item" data-value="Equivocal" onclick="toggleResultValue(this)">
+                                <div class="specimen-item-name">Equivocal</div>
+                            </div>
+                            <div class="specimen-item" data-value="Inconclusive" onclick="toggleResultValue(this)">
+                                <div class="specimen-item-name">Inconclusive</div>
+                            </div>
+                        </div>
+                        <div class="selected-items-list" id="selectedResultValues"></div>
+
+                        <!-- Storage Preference for Result Values -->
+                        <div class="mt-3" style="padding: 0.75rem; background: var(--chalk); border: 1px solid var(--hairline); border-radius: 6px;">
+                            <label class="text-label" style="font-size: 0.75rem; color: var(--graphite);">HOW TO STORE MATCHED VALUES</label>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="resultStoragePreference" id="resultStoreAsReceived" value="1" checked>
+                                <label class="form-check-label" for="resultStoreAsReceived">
+                                    Store as originally sent in HL7 message
+                                </label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="resultStoragePreference" id="resultStoreAsCanonical" value="2">
+                                <label class="form-check-label" for="resultStoreAsCanonical">
+                                    Store as canonical value:
+                                </label>
+                                <input type="text" class="sn-input mt-2" id="canonicalResultValue" placeholder="Enter canonical result value..." style="font-size: 0.875rem;" disabled />
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Time Constraint -->
+                    <div class="mb-4">
+                        <div class="form-check mb-2">
+                            <input class="form-check-input" type="checkbox" id="enableTimeConstraint">
+                            <label class="form-check-label" for="enableTimeConstraint">
+                                Add time constraint
+                            </label>
+                        </div>
+                        <div id="timeConstraintFields" style="display: none;">
+                            <div class="row g-2">
+                                <div class="col-md-4">
+                                    <label class="text-label">Within</label>
+                                    <input type="number" class="sn-input" id="timeConstraintDays" value="14" min="1" />
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="text-label">Days</label>
+                                    <select class="sn-input" id="timeConstraintDirection">
+                                        <option value="before">Before</option>
+                                        <option value="after">After</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="text-label">Relative To</label>
+                                    <select class="sn-input" id="timeConstraintRelativeTo">
+                                        <option value="OnsetDate">Symptom Onset</option>
+                                        <option value="ReportDate">Report Date</option>
+                                        <option value="DiagnosisDate">Diagnosis Date</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="sn-btn sn-btn-ghost" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="sn-btn sn-btn-signal" onclick="saveLabCriterion()">Add Criterion</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Clinical Criterion Modal -->
+<div class="modal fade" id="clinicalCriterionModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header" style="background: #fce7f3; border-bottom: 2px solid #f9a8d4;">
+                <h5 class="modal-title">
+                    <i class="bi bi-heart-pulse"></i>
+                    Clinical Symptoms/Signs
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="clinicalCriterionForm">
+                    <!-- Requirement Mode -->
+                    <div class="mb-4">
+                        <label class="text-label">Patient Must Have</label>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="clinicalMode" id="clinicalAll" value="all" checked>
+                            <label class="form-check-label" for="clinicalAll">
+                                <strong>All</strong> of the following (AND)
+                            </label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="clinicalMode" id="clinicalAny" value="any">
+                            <label class="form-check-label" for="clinicalAny">
+                                <strong>Any</strong> of the following (OR)
+                            </label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="clinicalMode" id="clinicalMin" value="min">
+                            <label class="form-check-label" for="clinicalMin">
+                                <strong>At least</strong> 
+                                <input type="number" class="form-control d-inline-block" id="clinicalMinCount" 
+                                       style="width: 60px; height: 28px; font-size: 0.875rem; margin: 0 0.25rem;" value="2" min="1" />
+                                of the following
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Symptoms -->
+                    <div class="mb-4">
+                        <label class="text-label">Select Symptoms *</label>
+                        <input type="text" class="sn-input mb-2" id="symptomSearch" placeholder="Search symptoms..." />
+                        <div class="specimen-grid" id="symptomGrid">
+                            @foreach (var symptom in Model.Symptoms)
+                            {
+                                <div class="specimen-item" data-id="@symptom.Id" onclick="toggleSymptom(this)">
+                                    <div class="specimen-item-name">@symptom.Name</div>
+                                </div>
+                            }
+                        </div>
+                        <div class="selected-items-list" id="selectedSymptoms"></div>
+                    </div>
+
+                    <!-- Severity Filter -->
+                    <div class="mb-4">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="enableSeverity">
+                            <label class="form-check-label" for="enableSeverity">
+                                Filter by severity
+                            </label>
+                        </div>
+                        <div id="severityFields" style="display: none; margin-top: 0.75rem;">
+                            <select class="sn-input" id="severityFilter">
+                                <option value="">Any severity</option>
+                                <option value="Mild">Mild only</option>
+                                <option value="Moderate">Moderate or higher</option>
+                                <option value="Severe">Severe only</option>
+                            </select>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="sn-btn sn-btn-ghost" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="sn-btn sn-btn-signal" onclick="saveClinicalCriterion()">Add Criterion</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Custom Field Modal -->
+<div class="modal fade" id="customFieldModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header" style="background: var(--signal-lt); border-bottom: 2px solid var(--signal-dk);">
+                <h5 class="modal-title">
+                    <i class="bi bi-ui-checks"></i>
+                    Custom Field Condition
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="customFieldForm">
+                    <!-- Field Selection -->
+                    <div class="mb-4">
+                        <label class="text-label">Custom Field *</label>
+                        <select class="sn-input" id="customFieldSelect" onchange="updateCustomFieldOperators()">
+                            <option value="">Select a field...</option>
+                            @foreach (var field in Model.CustomFields.GroupBy(f => f.Category))
+                            {
+                                <optgroup label="@field.Key">
+                                    @foreach (var cf in field.OrderBy(f => f.DisplayOrder))
+                                    {
+                                        <option value="@cf.Id" data-type="@cf.FieldType">@cf.Label</option>
+                                    }
+                                </optgroup>
+                            }
+                        </select>
+                    </div>
+
+                    <!-- Operator -->
+                    <div class="mb-4">
+                        <label class="text-label">Condition *</label>
+                        <select class="sn-input" id="customFieldOperator">
+                            <option value="Equals">Equals</option>
+                            <option value="NotEquals">Does not equal</option>
+                            <option value="Contains">Contains</option>
+                            <option value="GreaterThan">Greater than</option>
+                            <option value="LessThan">Less than</option>
+                            <option value="IsPresent">Is present (has any value)</option>
+                            <option value="IsEmpty">Is empty (no value)</option>
+                        </select>
+                    </div>
+
+                    <!-- Value -->
+                    <div class="mb-4" id="customFieldValueContainer">
+                        <label class="text-label">Value *</label>
+                        <input type="text" class="sn-input" id="customFieldValue" placeholder="Enter value..." />
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="sn-btn sn-btn-ghost" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="sn-btn sn-btn-signal" onclick="saveCustomFieldCriterion()">Add Criterion</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Case Field Modal -->
+<div class="modal fade" id="caseFieldModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header" style="background: #fef3c7; border-bottom: 2px solid #fde68a;">
+                <h5 class="modal-title">
+                    <i class="bi bi-person"></i>
+                    Case Data Condition
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="caseFieldForm">
+                    <!-- Field Selection -->
+                    <div class="mb-4">
+                        <label class="text-label">Case Field *</label>
+                        <select class="sn-input" id="caseFieldSelect" asp-items="Model.FieldPathsForCaseData">
+                            <option value="">Select a field...</option>
+                        </select>
+                    </div>
+
+                    <!-- Operator -->
+                    <div class="mb-4">
+                        <label class="text-label">Condition *</label>
+                        <select class="sn-input" id="caseFieldOperator">
+                            <option value="Equals">Equals</option>
+                            <option value="NotEquals">Does not equal</option>
+                            <option value="GreaterThan">Greater than</option>
+                            <option value="LessThan">Less than</option>
+                            <option value="Between">Between</option>
+                            <option value="IsPresent">Is present (has value)</option>
+                            <option value="IsEmpty">Is empty (no value)</option>
+                        </select>
+                    </div>
+
+                    <!-- Value -->
+                    <div class="mb-4" id="caseFieldValueContainer">
+                        <label class="text-label">Value *</label>
+                        <input type="text" class="sn-input" id="caseFieldValue" placeholder="Enter value..." />
+                        <div class="text-muted" style="font-size: 0.75rem; margin-top: 0.5rem;">
+                            For dates, use YYYY-MM-DD format. For booleans, use true/false.
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="sn-btn sn-btn-ghost" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="sn-btn sn-btn-signal" onclick="saveCaseFieldCriterion()">Add Criterion</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+    <script>
+        // Selected items tracking
+        let selectedSpecimenIds = [];
+        let selectedSymptomIds = [];
+        let selectedPathogenIds = []; // Changed from selectedPathogenNames to selectedPathogenIds
+        let selectedTestMethodIds = [];
+        let selectedResultValues = [];
+        window.currentParentCriterionId = null; // Track which group we're adding to (null = root level)
+
+        // Toggle specimen selection
+        function toggleSpecimen(element) {
+            const id = parseInt(element.dataset.id);
+            const name = element.querySelector('.specimen-item-name').textContent;
+
+            if (selectedSpecimenIds.includes(id)) {
+                selectedSpecimenIds = selectedSpecimenIds.filter(x => x !== id);
+                element.classList.remove('selected');
+            } else {
+                selectedSpecimenIds.push(id);
+                element.classList.add('selected');
+            }
+
+            updateSelectedSpecimens();
+        }
+
+        function updateSelectedSpecimens() {
+            const container = document.getElementById('selectedSpecimens');
+            container.innerHTML = '';
+
+            selectedSpecimenIds.forEach(id => {
+                const item = document.querySelector(`[data-id="${id}"]`);
+                const name = item.querySelector('.specimen-item-name').textContent;
+
+                const chip = document.createElement('div');
+                chip.className = 'selected-item-chip';
+                chip.innerHTML = `
+                    <span>${name}</span>
+                    <button type="button" onclick="removeSpecimen(${id})">×</button>
+                `;
+                container.appendChild(chip);
+            });
+        }
+
+        function removeSpecimen(id) {
+            selectedSpecimenIds = selectedSpecimenIds.filter(x => x !== id);
+            document.querySelector(`[data-id="${id}"]`).classList.remove('selected');
+            updateSelectedSpecimens();
+        }
+
+        // Toggle symptom selection
+        function toggleSymptom(element) {
+            const id = parseInt(element.dataset.id);
+            const name = element.querySelector('.specimen-item-name').textContent;
+
+            if (selectedSymptomIds.includes(id)) {
+                selectedSymptomIds = selectedSymptomIds.filter(x => x !== id);
+                element.classList.remove('selected');
+            } else {
+                selectedSymptomIds.push(id);
+                element.classList.add('selected');
+            }
+
+            updateSelectedSymptoms();
+        }
+
+        function updateSelectedSymptoms() {
+            const container = document.getElementById('selectedSymptoms');
+            container.innerHTML = '';
+
+            selectedSymptomIds.forEach(id => {
+                const item = document.querySelector(`#symptomGrid [data-id="${id}"]`);
+                const name = item.querySelector('.specimen-item-name').textContent;
+
+                const chip = document.createElement('div');
+                chip.className = 'selected-item-chip';
+                chip.innerHTML = `
+                    <span>${name}</span>
+                    <button type="button" onclick="removeSymptom(${id})">×</button>
+                `;
+                container.appendChild(chip);
+            });
+        }
+
+        function removeSymptom(id) {
+            selectedSymptomIds = selectedSymptomIds.filter(x => x !== id);
+            document.querySelector(`#symptomGrid [data-id="${id}"]`).classList.remove('selected');
+            updateSelectedSymptoms();
+        }
+
+        // Toggle pathogen selection
+        function togglePathogen(element) {
+            const id = element.dataset.id;
+            const name = element.dataset.name;
+
+            if (selectedPathogenIds.includes(id)) {
+                selectedPathogenIds = selectedPathogenIds.filter(x => x !== id);
+                element.classList.remove('selected');
+            } else {
+                selectedPathogenIds.push(id);
+                element.classList.add('selected');
+            }
+
+            updateSelectedPathogens();
+        }
+
+        function updateSelectedPathogens() {
+            const container = document.getElementById('selectedPathogens');
+            container.innerHTML = '';
+
+            selectedPathogenIds.forEach(id => {
+                const item = document.querySelector(`#pathogenGrid [data-id="${id}"]`);
+                const name = item.dataset.name;
+
+                const chip = document.createElement('div');
+                chip.className = 'selected-item-chip';
+                chip.innerHTML = `
+                    <span>${name}</span>
+                    <button type="button" onclick="removePathogen('${id}')">×</button>
+                `;
+                container.appendChild(chip);
+            });
+        }
+
+        function removePathogen(id) {
+            selectedPathogenIds = selectedPathogenIds.filter(x => x !== id);
+            const item = document.querySelector(`#pathogenGrid [data-id="${id}"]`);
+            if (item) {
+                item.classList.remove('selected');
+            }
+            updateSelectedPathogens();
+        }
+
+        // Toggle test method selection
+        function toggleTestMethod(element) {
+            const id = parseInt(element.dataset.id);
+            const name = element.dataset.name;
+
+            if (selectedTestMethodIds.includes(id)) {
+                selectedTestMethodIds = selectedTestMethodIds.filter(x => x !== id);
+                element.classList.remove('selected');
+            } else {
+                selectedTestMethodIds.push(id);
+                element.classList.add('selected');
+            }
+
+            updateSelectedTestMethods();
+        }
+
+        function updateSelectedTestMethods() {
+            const container = document.getElementById('selectedTestMethods');
+            container.innerHTML = '';
+
+            selectedTestMethodIds.forEach(id => {
+                const item = document.querySelector(`#testMethodGrid [data-id="${id}"]`);
+                const name = item.dataset.name;
+
+                const chip = document.createElement('div');
+                chip.className = 'selected-item-chip';
+                chip.innerHTML = `
+                    <span>${name}</span>
+                    <button type="button" onclick="removeTestMethod(${id})">×</button>
+                `;
+                container.appendChild(chip);
+            });
+        }
+
+        function removeTestMethod(id) {
+            selectedTestMethodIds = selectedTestMethodIds.filter(x => x !== id);
+            document.querySelector(`#testMethodGrid [data-id="${id}"]`).classList.remove('selected');
+            updateSelectedTestMethods();
+        }
+
+        // Toggle result value selection
+        function toggleResultValue(element) {
+            const value = element.dataset.value;
+
+            if (selectedResultValues.includes(value)) {
+                selectedResultValues = selectedResultValues.filter(x => x !== value);
+                element.classList.remove('selected');
+            } else {
+                selectedResultValues.push(value);
+                element.classList.add('selected');
+            }
+
+            updateSelectedResultValues();
+        }
+
+        function updateSelectedResultValues() {
+            const container = document.getElementById('selectedResultValues');
+            container.innerHTML = '';
+
+            selectedResultValues.forEach(value => {
+                const chip = document.createElement('div');
+                chip.className = 'selected-item-chip';
+                chip.innerHTML = `
+                    <span>${value}</span>
+                    <button type="button" onclick="removeResultValue('${value}')">×</button>
+                `;
+                container.appendChild(chip);
+            });
+        }
+
+        function removeResultValue(value) {
+            selectedResultValues = selectedResultValues.filter(x => x !== value);
+            const item = document.querySelector(`#resultValueGrid [data-value="${value}"]`);
+            if (item) {
+                item.classList.remove('selected');
+            }
+            updateSelectedResultValues();
+        }
+
+        function addCustomResultValue() {
+            const searchBox = document.getElementById('resultValueSearch');
+            const customValue = searchBox.value.trim();
+
+            if (!customValue) {
+                alert('Please enter a value in the search box first');
+                return;
+            }
+
+            if (selectedResultValues.includes(customValue)) {
+                alert('This value is already selected');
+                return;
+            }
+
+            selectedResultValues.push(customValue);
+            updateSelectedResultValues();
+            searchBox.value = '';
+        }
+
+        // Search filtering
+        document.getElementById('specimenSearch')?.addEventListener('input', function(e) {
+            const search = e.target.value.toLowerCase();
+            document.querySelectorAll('#specimenGrid .specimen-item').forEach(item => {
+                const name = item.querySelector('.specimen-item-name').textContent.toLowerCase();
+                item.style.display = name.includes(search) ? 'block' : 'none';
+            });
+        });
+
+        document.getElementById('symptomSearch')?.addEventListener('input', function(e) {
+            const search = e.target.value.toLowerCase();
+            document.querySelectorAll('#symptomGrid .specimen-item').forEach(item => {
+                const name = item.querySelector('.specimen-item-name').textContent.toLowerCase();
+                item.style.display = name.includes(search) ? 'block' : 'none';
+            });
+        });
+
+        document.getElementById('pathogenSearch')?.addEventListener('input', function(e) {
+            const search = e.target.value.toLowerCase();
+            document.querySelectorAll('#pathogenGrid .specimen-item').forEach(item => {
+                const name = item.querySelector('.specimen-item-name').textContent.toLowerCase();
+                item.style.display = name.includes(search) ? 'block' : 'none';
+            });
+        });
+
+        document.getElementById('testMethodSearch')?.addEventListener('input', function(e) {
+            const search = e.target.value.toLowerCase();
+            document.querySelectorAll('#testMethodGrid .specimen-item').forEach(item => {
+                const name = item.querySelector('.specimen-item-name').textContent.toLowerCase();
+                item.style.display = name.includes(search) ? 'block' : 'none';
+            });
+        });
+
+        document.getElementById('resultValueSearch')?.addEventListener('input', function(e) {
+            const search = e.target.value.toLowerCase();
+            document.querySelectorAll('#resultValueGrid .specimen-item').forEach(item => {
+                const name = item.querySelector('.specimen-item-name').textContent.toLowerCase();
+                item.style.display = name.includes(search) ? 'block' : 'none';
+            });
+        });
+
+        // Time constraint toggle
+        document.getElementById('enableTimeConstraint')?.addEventListener('change', function(e) {
+            document.getElementById('timeConstraintFields').style.display = e.target.checked ? 'block' : 'none';
+        });
+
+        // Severity toggle
+        document.getElementById('enableSeverity')?.addEventListener('change', function(e) {
+            document.getElementById('severityFields').style.display = e.target.checked ? 'block' : 'none';
+        });
+
+        // Storage preference radio button handlers
+        document.querySelectorAll('input[name="specimenStoragePreference"]').forEach(radio => {
+            radio.addEventListener('change', function() {
+                document.getElementById('canonicalSpecimenType').disabled = this.value === '1';
+            });
+        });
+
+        document.querySelectorAll('input[name="pathogenStoragePreference"]').forEach(radio => {
+            radio.addEventListener('change', function() {
+                document.getElementById('canonicalPathogen').disabled = this.value === '1';
+            });
+        });
+
+        document.querySelectorAll('input[name="testMethodStoragePreference"]').forEach(radio => {
+            radio.addEventListener('change', function() {
+                document.getElementById('canonicalTestMethod').disabled = this.value === '1';
+            });
+        });
+
+        document.querySelectorAll('input[name="resultStoragePreference"]').forEach(radio => {
+            radio.addEventListener('change', function() {
+                document.getElementById('canonicalResultValue').disabled = this.value === '1';
+            });
+        });
+
+        // Function to open modal for adding criterion to a specific group
+        function openAddToGroupModal(parentCriterionId, criterionType) {
+            window.currentParentCriterionId = parentCriterionId;
+
+            // Clear any previous selections
+            clearAllSelections();
+
+            // Open the appropriate modal
+            const modalMap = {
+                'laboratory': 'labCriterionModal',
+                'clinical': 'clinicalCriterionModal',
+                'customfield': 'customFieldModal',
+                'demographic': 'caseFieldModal'
+            };
+
+            const modalId = modalMap[criterionType];
+            if (modalId) {
+                const modal = new bootstrap.Modal(document.getElementById(modalId));
+                modal.show();
+            }
+        }
+
+        // Function to clear modal and reset to root level
+        function resetToRootLevel() {
+            window.currentParentCriterionId = null;
+        }
+
+        // Clear all selections helper
+        function clearAllSelections() {
+            selectedSpecimenIds = [];
+            selectedSymptomIds = [];
+            selectedPathogenIds = []; // Changed from selectedPathogenNames
+            selectedTestMethodIds = [];
+            selectedResultValues = [];
+
+            // Clear UI
+            document.querySelectorAll('.specimen-item.selected').forEach(el => el.classList.remove('selected'));
+            document.querySelectorAll('.selected-items-list').forEach(el => el.innerHTML = '');
+        }
+
+        // Save Lab Criterion
+        async function saveLabCriterion() {
+            console.log('saveLabCriterion called, editingCriterionId:', window.editingCriterionId);
+
+            if (selectedSpecimenIds.length === 0) {
+                alert('Please select at least one specimen type');
+                return;
+            }
+
+            if (selectedPathogenIds.length === 0) {
+                alert('Please select at least one pathogen/biomarker');
+                return;
+            }
+
+            if (selectedResultValues.length === 0) {
+                alert('Please enter at least one result value');
+                return;
+            }
+
+            const pathogenIds = selectedPathogenIds; // Now sending IDs instead of names
+            const testMethods = selectedTestMethodIds;
+            const resultValues = selectedResultValues;
+
+            // Capture storage preferences
+            const specimenStoragePref = parseInt(document.querySelector('input[name="specimenStoragePreference"]:checked').value);
+            const pathogenStoragePref = parseInt(document.querySelector('input[name="pathogenStoragePreference"]:checked').value);
+            const testMethodStoragePref = parseInt(document.querySelector('input[name="testMethodStoragePreference"]:checked').value);
+            const resultStoragePref = parseInt(document.querySelector('input[name="resultStoragePreference"]:checked').value);
+
+            const canonicalSpecimenTypeId = specimenStoragePref === 2 ? parseInt(document.getElementById('canonicalSpecimenType').value) || null : null;
+            const canonicalPathogenIdValue = pathogenStoragePref === 2 ? document.getElementById('canonicalPathogen').value || null : null;
+            const canonicalTestMethodId = testMethodStoragePref === 2 ? parseInt(document.getElementById('canonicalTestMethod').value) || null : null;
+            const canonicalResultValue = resultStoragePref === 2 ? document.getElementById('canonicalResultValue').value.trim() || null : null;
+
+            console.log('Storage preferences:', {
+                specimenStoragePref,
+                canonicalSpecimenTypeId,
+                pathogenStoragePref,
+                canonicalPathogenIdValue,
+                testMethodStoragePref,
+                canonicalTestMethodId,
+                resultStoragePref,
+                canonicalResultValue
+            });
+
+            // Validate canonical selections if storage preference is set to canonical
+            if (specimenStoragePref === 2 && !canonicalSpecimenTypeId) {
+                alert('Please select a canonical specimen type');
+                return;
+            }
+            if (pathogenStoragePref === 2 && !canonicalPathogenIdValue) {
+                alert('Please select a canonical pathogen/biomarker');
+                return;
+            }
+            if (testMethodStoragePref === 2 && testMethods.length > 0 && !canonicalTestMethodId) {
+                alert('Please select a canonical test method');
+                return;
+            }
+            if (resultStoragePref === 2 && !canonicalResultValue) {
+                alert('Please enter a canonical result value');
+                return;
+            }
+
+            let timeConstraint = null;
+            if (document.getElementById('enableTimeConstraint').checked) {
+                timeConstraint = {
+                    days: parseInt(document.getElementById('timeConstraintDays').value),
+                    relativeTo: document.getElementById('timeConstraintRelativeTo').value,
+                    direction: document.getElementById('timeConstraintDirection').value
+                };
+            }
+
+            // Build display text
+            const specimenNames = selectedSpecimenIds.map(id => {
+                const item = document.querySelector(`#specimenGrid [data-id="${id}"]`);
+                return item.querySelector('.specimen-item-name').textContent;
+            });
+
+            const pathogenNames = pathogenIds.map(id => {
+                const item = document.querySelector(`#pathogenGrid [data-id="${id}"]`);
+                return item.dataset.name;
+            });
+
+            let displayText = `<strong>Laboratory:</strong> ${pathogenNames.join(' OR ')} detected in ${specimenNames.join(' OR ')}`;
+            if (testMethods.length > 0) {
+                const methodNames = testMethods.map(id => {
+                    const item = document.querySelector(`#testMethodGrid [data-id="${id}"]`);
+                    return item.dataset.name;
+                });
+                displayText += ` by ${methodNames.join(' OR ')}`;
+            }
+            displayText += `, result: ${resultValues.join(' OR ')}`;
+            if (timeConstraint) {
+                displayText += ` (within ${timeConstraint.days} days ${timeConstraint.direction} ${timeConstraint.relativeTo})`;
+            }
+
+            const data = {
+                logicalOperator: 2, // OR (default for lab criteria - allows multiple result types)
+                groupNumber: 1,
+                parentCriteriaId: window.currentParentCriterionId || null,
+                specimenTypeIds: selectedSpecimenIds,
+                pathogenNames: pathogenIds, // Now sending pathogen GUIDs (as strings)
+                testMethodIds: testMethods,
+                resultValues: resultValues,
+                timeConstraint: timeConstraint,
+                displayText: displayText,
+                // Storage preferences (ensure correct types)
+                specimenStoragePreference: specimenStoragePref,
+                canonicalSpecimenTypeId: canonicalSpecimenTypeId,
+                pathogenStoragePreference: pathogenStoragePref,
+                canonicalPathogenId: canonicalPathogenIdValue, // This is a Guid string
+                testMethodStoragePreference: testMethodStoragePref,
+                canonicalTestMethodId: canonicalTestMethodId,
+                resultStoragePreference: resultStoragePref,
+                canonicalResultValue: canonicalResultValue
+            };
+
+            console.log('Sending data:', JSON.stringify(data, null, 2));
+
+            try {
+                const isEditing = window.editingCriterionId !== null && window.editingCriterionId !== undefined;
+                const url = isEditing 
+                    ? `/api/case-definitions/@Model.DefinitionId/criteria/${window.editingCriterionId}/laboratory`
+                    : '/api/case-definitions/@Model.DefinitionId/criteria/laboratory';
+                const method = isEditing ? 'PUT' : 'POST';
+
+                console.log(`Making ${method} request to:`, url);
+
+                const response = await fetch(url, {
+                    method: method,
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(data)
+                });
+
+                console.log('Response status:', response.status);
+
+                if (response.ok) {
+                    const responseData = await response.json();
+                    console.log('Response data:', responseData);
+                    window.currentParentCriterionId = null;
+                    window.editingCriterionId = null;
+                    location.reload();
+                } else {
+                    const errorText = await response.text();
+                    console.error('Failed to save criterion:', errorText);
+                    alert('Failed to save criterion: ' + errorText);
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('An error occurred while saving: ' + error.message);
+            }
+        }
+
+        // Save Clinical Criterion
+        async function saveClinicalCriterion() {
+            if (selectedSymptomIds.length === 0) {
+                alert('Please select at least one symptom');
+                return;
+            }
+
+            const mode = document.querySelector('input[name="clinicalMode"]:checked').value;
+            const requireAll = mode === 'all';
+            const minCount = mode === 'min' ? parseInt(document.getElementById('clinicalMinCount').value) : null;
+
+            const severityFilter = document.getElementById('enableSeverity').checked 
+                ? document.getElementById('severityFilter').value 
+                : null;
+
+            // Build display text
+            const symptomNames = selectedSymptomIds.map(id => {
+                const item = document.querySelector(`#symptomGrid [data-id="${id}"]`);
+                return item.querySelector('.specimen-item-name').textContent;
+            });
+
+            let displayText = '<strong>Clinical:</strong> Patient must have ';
+            if (requireAll) {
+                displayText += `<strong>ALL</strong> of: ${symptomNames.join(', ')}`;
+            } else if (minCount) {
+                displayText += `<strong>at least ${minCount}</strong> of: ${symptomNames.join(', ')}`;
+            } else {
+                displayText += `<strong>ANY</strong> of: ${symptomNames.join(', ')}`;
+            }
+
+            if (severityFilter) {
+                displayText += ` (severity: ${severityFilter})`;
+            }
+
+            const data = {
+                logicalOperator: requireAll ? 1 : 2, // AND if all required, OR if any
+                groupNumber: 1,
+                parentCriteriaId: window.currentParentCriterionId || null,
+                symptomIds: selectedSymptomIds,
+                requireAll: requireAll,
+                minCount: minCount,
+                severityFilter: severityFilter,
+                displayText: displayText
+            };
+
+            try {
+                const isEditing = window.editingCriterionId !== null && window.editingCriterionId !== undefined;
+                const url = isEditing 
+                    ? `/api/case-definitions/@Model.DefinitionId/criteria/${window.editingCriterionId}/clinical`
+                    : '/api/case-definitions/@Model.DefinitionId/criteria/clinical';
+                const method = isEditing ? 'PUT' : 'POST';
+
+                const response = await fetch(url, {
+                    method: method,
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(data)
+                });
+
+                if (response.ok) {
+                    window.currentParentCriterionId = null;
+                    window.editingCriterionId = null;
+                    location.reload();
+                } else {
+                    alert('Failed to save criterion');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('An error occurred while saving');
+            }
+        }
+
+        // Save Custom Field Criterion
+        async function saveCustomFieldCriterion() {
+            const fieldId = document.getElementById('customFieldSelect').value;
+            if (!fieldId) {
+                alert('Please select a custom field');
+                return;
+            }
+
+            const operator = document.getElementById('customFieldOperator').value;
+            const value = document.getElementById('customFieldValue').value;
+
+            if (!value && operator !== 'IsPresent' && operator !== 'IsEmpty') {
+                alert('Please enter a value');
+                return;
+            }
+
+            const fieldLabel = document.querySelector(`#customFieldSelect option[value="${fieldId}"]`).textContent;
+            const displayText = `<strong>Custom Field:</strong> ${fieldLabel} ${operator.toLowerCase()} "${value}"`;
+
+            const data = {
+                logicalOperator: 1, // AND (default for custom field criteria)
+                groupNumber: 1,
+                parentCriteriaId: window.currentParentCriterionId || null,
+                customFieldId: parseInt(fieldId),
+                operator: operator,
+                value: value,
+                displayText: displayText
+            };
+
+            try {
+                const isEditing = window.editingCriterionId !== null && window.editingCriterionId !== undefined;
+                const url = isEditing 
+                    ? `/api/case-definitions/@Model.DefinitionId/criteria/${window.editingCriterionId}/custom-field`
+                    : '/api/case-definitions/@Model.DefinitionId/criteria/custom-field';
+                const method = isEditing ? 'PUT' : 'POST';
+
+                const response = await fetch(url, {
+                    method: method,
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(data)
+                });
+
+                if (response.ok) {
+                    window.currentParentCriterionId = null;
+                    window.editingCriterionId = null;
+                    location.reload();
+                } else {
+                    alert('Failed to save criterion');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('An error occurred while saving');
+            }
+        }
+
+        // Save Case Field Criterion
+        async function saveCaseFieldCriterion() {
+            const fieldPath = document.getElementById('caseFieldSelect').value;
+            if (!fieldPath) {
+                alert('Please select a case field');
+                return;
+            }
+
+            const operator = document.getElementById('caseFieldOperator').value;
+            const value = document.getElementById('caseFieldValue').value;
+
+            if (!value && operator !== 'IsPresent' && operator !== 'IsEmpty') {
+                alert('Please enter a value');
+                return;
+            }
+
+            const fieldLabel = document.querySelector(`#caseFieldSelect option[value="${fieldPath}"]`).textContent;
+            const displayText = `<strong>Case Data:</strong> ${fieldLabel} ${operator.toLowerCase()} "${value}"`;
+
+            const data = {
+                logicalOperator: 1, // AND (default for case data criteria)
+                groupNumber: 1,
+                parentCriteriaId: window.currentParentCriterionId || null,
+                fieldPath: fieldPath,
+                operator: operator,
+                value: value,
+                displayText: displayText
+            };
+
+            try {
+                const isEditing = window.editingCriterionId !== null && window.editingCriterionId !== undefined;
+                const url = isEditing 
+                    ? `/api/case-definitions/@Model.DefinitionId/criteria/${window.editingCriterionId}/case-field`
+                    : '/api/case-definitions/@Model.DefinitionId/criteria/case-field';
+                const method = isEditing ? 'PUT' : 'POST';
+
+                const response = await fetch(url, {
+                    method: method,
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(data)
+                });
+
+                if (response.ok) {
+                    window.currentParentCriterionId = null;
+                    window.editingCriterionId = null;
+                    location.reload();
+                } else {
+                    alert('Failed to save criterion');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('An error occurred while saving');
+            }
+        }
+
+        // Delete criterion
+        async function deleteCriterion(id) {
+            if (!confirm('Remove this criterion?')) {
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/case-definitions/@Model.DefinitionId/criteria/' + id, {
+                    method: 'DELETE'
+                });
+
+                if (response.ok) {
+                    location.reload();
+                } else {
+                    alert('Failed to delete criterion');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('An error occurred while deleting');
+            }
+        }
+
+        function editCriterion(id) {
+            // TODO: Implement edit functionality
+            alert('Edit functionality coming soon');
+        }
+
+        // Move criterion to a different parent (or to root level if parentId is null)
+        async function moveCriterionToParent(criterionId, parentId) {
+            try {
+                const response = await fetch(`/api/case-definitions/@Model.DefinitionId/criteria/${criterionId}/move-to-parent`, {
+                    method: 'PATCH',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ parentCriteriaId: parentId })
+                });
+
+                if (response.ok) {
+                    location.reload();
+                } else {
+                    const error = await response.text();
+                    alert('Failed to move criterion: ' + error);
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('An error occurred while moving criterion');
+            }
+        }
+
+        // Toggle logical operator (AND/OR) for a criterion
+        async function toggleLogicalOperator(criterionId, currentOperator) {
+            // LogicalOperator enum: AND=1, OR=2, NOT=3
+            // Fix invalid values (0 or anything else) to default to AND (1)
+            let validOperator = currentOperator;
+            if (currentOperator !== 1 && currentOperator !== 2) {
+                console.warn(`Invalid operator ${currentOperator} for criterion ${criterionId}, defaulting to AND (1)`);
+                validOperator = 1; // Default to AND
+            }
+
+            // Toggle between AND (1) and OR (2)
+            const newOperator = validOperator === 1 ? 2 : 1;
+            const newOperatorLabel = newOperator === 1 ? 'AND' : 'OR';
+
+            console.log(`Toggling criterion ${criterionId}: ${validOperator} → ${newOperator} (${newOperatorLabel})`);
+
+            try {
+                const response = await fetch(`/api/case-definitions/@Model.DefinitionId/criteria/${criterionId}/operator`, {
+                    method: 'PATCH',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ logicalOperator: newOperator })
+                });
+
+                if (response.ok) {
+                    location.reload();
+                } else {
+                    alert('Failed to update operator');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('An error occurred while updating operator');
+            }
+        }
+
+        // Move criterion up or down in display order
+        async function moveCriterion(criterionId, direction) {
+            console.log('moveCriterion called:', criterionId, direction);
+            try {
+                const response = await fetch(`/api/case-definitions/@Model.DefinitionId/criteria/${criterionId}/reorder`, {
+                    method: 'PATCH',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ direction: direction })
+                });
+
+                console.log('Response status:', response.status);
+
+                if (response.ok) {
+                    location.reload();
+                } else {
+                    const errorText = await response.text();
+                    console.error('Reorder failed:', errorText);
+                    alert('Failed to reorder criterion: ' + errorText);
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('An error occurred while reordering: ' + error.message);
+            }
+        }
+
+        // Update custom field operators based on field type
+        function updateCustomFieldOperators() {
+            const select = document.getElementById('customFieldSelect');
+            const selectedOption = select.options[select.selectedIndex];
+            const fieldType = selectedOption?.dataset.type;
+
+            const operatorSelect = document.getElementById('customFieldOperator');
+
+            // Reset to default options
+            operatorSelect.innerHTML = `
+                <option value="Equals">Equals</option>
+                <option value="NotEquals">Does not equal</option>
+                <option value="IsPresent">Is present (has any value)</option>
+                <option value="IsEmpty">Is empty (no value)</option>
+            `;
+
+            // Add type-specific operators
+            if (fieldType === 'Text' || fieldType === 'TextArea') {
+                operatorSelect.insertAdjacentHTML('beforeend', '<option value="Contains">Contains</option>');
+            }
+
+            if (fieldType === 'Number' || fieldType === 'Date') {
+                operatorSelect.insertAdjacentHTML('beforeend', '<option value="GreaterThan">Greater than</option>');
+                operatorSelect.insertAdjacentHTML('beforeend', '<option value="LessThan">Less than</option>');
+                operatorSelect.insertAdjacentHTML('beforeend', '<option value="Between">Between</option>');
+            }
+        }
+
+        // Edit Criterion - Load existing data and open appropriate modal
+        async function editCriterion(criterionId) {
+            try {
+                const response = await fetch(`/api/case-definitions/@Model.DefinitionId/criteria/${criterionId}`);
+                if (!response.ok) {
+                    alert('Failed to load criterion data');
+                    return;
+                }
+
+                const criterion = await response.json();
+                console.log('Loaded criterion for editing:', criterion);
+                console.log('Storage preferences from API:', criterion.storagePreferences);
+
+                window.editingCriterionId = criterionId;
+
+                // Clear existing selections
+                clearAllSelections();
+
+                // Parse the ValueJson
+                const valueData = JSON.parse(criterion.valueJson);
+                console.log('Parsed valueData:', valueData);
+
+                // Open the appropriate modal based on criterion type
+                switch (criterion.criterionType) {
+                    case 2: // Laboratory
+                        await loadLabCriterionForEdit(valueData, criterion.storagePreferences);
+                        const labModal = new bootstrap.Modal(document.getElementById('labCriterionModal'));
+                        document.querySelector('#labCriterionModal .modal-footer button.sn-btn-signal').textContent = 'Update Criterion';
+                        labModal.show();
+                        break;
+
+                    case 1: // Clinical
+                        loadClinicalCriterionForEdit(valueData);
+                        const clinicalModal = new bootstrap.Modal(document.getElementById('clinicalCriterionModal'));
+                        document.querySelector('#clinicalCriterionModal .modal-footer button.sn-btn-signal').textContent = 'Update Criterion';
+                        clinicalModal.show();
+                        break;
+
+                    case 5: // CustomField
+                        loadCustomFieldCriterionForEdit(valueData);
+                        const customModal = new bootstrap.Modal(document.getElementById('customFieldModal'));
+                        document.querySelector('#customFieldModal .modal-footer button.sn-btn-signal').textContent = 'Update Criterion';
+                        customModal.show();
+                        break;
+
+                    case 4: // Demographic (Case Data)
+                        loadCaseDataCriterionForEdit(valueData, criterion.fieldPath);
+                        const caseModal = new bootstrap.Modal(document.getElementById('caseFieldModal'));
+                        document.querySelector('#caseFieldModal .modal-footer button.sn-btn-signal').textContent = 'Update Criterion';
+                        caseModal.show();
+                        break;
+                }
+            } catch (error) {
+                console.error('Error loading criterion:', error);
+                alert('An error occurred while loading the criterion');
+            }
+        }
+
+        // Load lab criterion data into the modal for editing
+        async function loadLabCriterionForEdit(valueData, storagePreferences) {
+            console.log('loadLabCriterionForEdit called with:', { valueData, storagePreferences });
+
+            // Set specimen types
+            if (valueData.specimenTypeIds) {
+                selectedSpecimenIds = [...valueData.specimenTypeIds];
+                selectedSpecimenIds.forEach(id => {
+                    const element = document.querySelector(`#specimenGrid [data-id="${id}"]`);
+                    if (element) element.classList.add('selected');
+                });
+                updateSelectedSpecimens();
+            }
+
+            // Set pathogens
+            if (valueData.pathogenNames) {
+                selectedPathogenNames = [...valueData.pathogenNames];
+                selectedPathogenNames.forEach(name => {
+                    const element = Array.from(document.querySelectorAll('#pathogenGrid .specimen-item')).find(el => 
+                        el.querySelector('.specimen-item-name').textContent === name
+                    );
+                    if (element) element.classList.add('selected');
+                });
+                updateSelectedPathogens();
+            }
+
+            // Set test methods
+            if (valueData.testMethodIds) {
+                selectedTestMethodIds = [...valueData.testMethodIds];
+                selectedTestMethodIds.forEach(id => {
+                    const element = document.querySelector(`#testMethodGrid [data-id="${id}"]`);
+                    if (element) element.classList.add('selected');
+                });
+                updateSelectedTestMethods();
+            }
+
+            // Set result values
+            if (valueData.resultValues) {
+                selectedResultValues = [...valueData.resultValues];
+                updateSelectedResultValues();
+            }
+
+            // Set time constraint
+            if (valueData.timeConstraint) {
+                document.getElementById('enableTimeConstraint').checked = true;
+                document.getElementById('timeConstraintFields').style.display = 'block';
+                document.getElementById('timeConstraintDays').value = valueData.timeConstraint.days;
+                document.getElementById('timeConstraintRelativeTo').value = valueData.timeConstraint.relativeTo;
+                document.getElementById('timeConstraintDirection').value = valueData.timeConstraint.direction;
+            }
+
+            // Determine which source to use for storage preferences
+            // Priority: storagePreferences (from separate table) > valueData (from JSON)
+            let prefs;
+            let source;
+
+            if (storagePreferences && (
+                storagePreferences.specimenStoragePreference || 
+                storagePreferences.pathogenStoragePreference || 
+                storagePreferences.testMethodStoragePreference || 
+                storagePreferences.resultStoragePreference
+            )) {
+                // Use storagePreferences from the CaseDefinitionLabCriteria table
+                prefs = storagePreferences;
+                source = 'storagePreferences (CaseDefinitionLabCriteria table)';
+            } else if (valueData.specimenStoragePreference || valueData.pathogenStoragePreference || 
+                       valueData.testMethodStoragePreference || valueData.resultStoragePreference) {
+                // Use storage preferences from valueData (stored in ValueJson)
+                prefs = valueData;
+                source = 'valueData (ValueJson field)';
+            } else {
+                // No storage preferences found, use defaults
+                prefs = {};
+                source = 'defaults (none found)';
+            }
+
+            console.log('Using preferences from:', source, prefs);
+
+            // Specimen storage preference
+            const specimenPref = prefs.specimenStoragePreference || 1;
+            console.log('Setting specimen storage preference to:', specimenPref, 'canonical:', prefs.canonicalSpecimenTypeId);
+            const specimenRadio = document.querySelector(`input[name="specimenStoragePreference"][value="${specimenPref}"]`);
+            if (specimenRadio) {
+                specimenRadio.checked = true;
+                if (specimenPref === 2 && prefs.canonicalSpecimenTypeId) {
+                    document.getElementById('canonicalSpecimenType').disabled = false;
+                    document.getElementById('canonicalSpecimenType').value = prefs.canonicalSpecimenTypeId;
+                }
+            }
+
+            // Pathogen storage preference
+            const pathogenPref = prefs.pathogenStoragePreference || 1;
+            console.log('Setting pathogen storage preference to:', pathogenPref, 'canonical:', prefs.canonicalPathogenId);
+            const pathogenRadio = document.querySelector(`input[name="pathogenStoragePreference"][value="${pathogenPref}"]`);
+            if (pathogenRadio) {
+                pathogenRadio.checked = true;
+                if (pathogenPref === 2 && prefs.canonicalPathogenId) {
+                    document.getElementById('canonicalPathogen').disabled = false;
+                    document.getElementById('canonicalPathogen').value = prefs.canonicalPathogenId;
+                }
+            }
+
+            // Test method storage preference
+            const testMethodPref = prefs.testMethodStoragePreference || 1;
+            console.log('Setting test method storage preference to:', testMethodPref, 'canonical:', prefs.canonicalTestMethodId);
+            const testMethodRadio = document.querySelector(`input[name="testMethodStoragePreference"][value="${testMethodPref}"]`);
+            if (testMethodRadio) {
+                testMethodRadio.checked = true;
+                if (testMethodPref === 2 && prefs.canonicalTestMethodId) {
+                    document.getElementById('canonicalTestMethod').disabled = false;
+                    document.getElementById('canonicalTestMethod').value = prefs.canonicalTestMethodId;
+                }
+            }
+
+            // Result storage preference
+            const resultPref = prefs.resultStoragePreference || 1;
+            console.log('Setting result storage preference to:', resultPref, 'canonical:', prefs.canonicalResultValue);
+            const resultRadio = document.querySelector(`input[name="resultStoragePreference"][value="${resultPref}"]`);
+            if (resultRadio) {
+                resultRadio.checked = true;
+                if (resultPref === 2 && prefs.canonicalResultValue) {
+                    document.getElementById('canonicalResultValue').disabled = false;
+                    document.getElementById('canonicalResultValue').value = prefs.canonicalResultValue;
+                }
+            }
+
+            console.log('Finished loading lab criterion for edit');
+        }
+
+        // Load clinical criterion data into the modal for editing
+        function loadClinicalCriterionForEdit(valueData) {
+            // Set symptoms
+            if (valueData.symptomIds) {
+                selectedSymptomIds = [...valueData.symptomIds];
+                selectedSymptomIds.forEach(id => {
+                    const element = document.querySelector(`#symptomGrid [data-id="${id}"]`);
+                    if (element) element.classList.add('selected');
+                });
+                updateSelectedSymptoms();
+            }
+
+            // Set mode (all/any/min)
+            if (valueData.requireAll) {
+                document.getElementById('clinicalAll').checked = true;
+            } else if (valueData.minCount) {
+                document.getElementById('clinicalMin').checked = true;
+                document.getElementById('clinicalMinCount').value = valueData.minCount;
+            } else {
+                document.getElementById('clinicalAny').checked = true;
+            }
+
+            // Set severity
+            if (valueData.severityFilter) {
+                document.getElementById('enableSeverity').checked = true;
+                document.getElementById('severityFields').style.display = 'block';
+                document.getElementById('severityFilter').value = valueData.severityFilter;
+            }
+        }
+
+        // Load custom field criterion data into the modal for editing
+        function loadCustomFieldCriterionForEdit(valueData) {
+            if (valueData.customFieldId) {
+                document.getElementById('customFieldSelect').value = valueData.customFieldId;
+                updateCustomFieldOperators();
+            }
+
+            if (valueData.operator) {
+                document.getElementById('customFieldOperator').value = valueData.operator;
+            }
+
+            if (valueData.value) {
+                document.getElementById('customFieldValue').value = valueData.value;
+            }
+        }
+
+        // Load case data criterion into the modal for editing
+        function loadCaseDataCriterionForEdit(valueData, fieldPath) {
+            if (fieldPath) {
+                document.getElementById('caseFieldPath').value = fieldPath;
+            }
+
+            if (valueData.operator) {
+                document.getElementById('caseFieldOperator').value = valueData.operator;
+            }
+
+            if (valueData.value) {
+                document.getElementById('caseFieldValue').value = valueData.value;
+            }
+        }
+
+        // Reset modal button text when closing
+        document.querySelectorAll('.modal').forEach(modal => {
+            modal.addEventListener('hidden.bs.modal', function() {
+                const saveButton = this.querySelector('.modal-footer button.sn-btn-signal');
+                if (saveButton) {
+                    const modalId = this.id;
+                    if (modalId === 'labCriterionModal') {
+                        saveButton.textContent = 'Add Criterion';
+                    } else if (modalId === 'clinicalCriterionModal') {
+                        saveButton.textContent = 'Add Criterion';
+                    } else if (modalId === 'customFieldModal') {
+                        saveButton.textContent = 'Add Criterion';
+                    } else if (modalId === 'caseFieldModal') {
+                        saveButton.textContent = 'Add Criterion';
+                    }
+                }
+                window.editingCriterionId = null;
+            });
+        });
+    </script>
+}

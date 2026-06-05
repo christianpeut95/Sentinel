@@ -1,0 +1,89 @@
+@page
+@model Sentinel.Pages.Settings.HL7.FieldMappings.CreateLabConfigurationModel
+
+@{
+    ViewData["Title"] = "Create Lab Configuration";
+    Layout = "~/Pages/Shared/_LayoutSentinel.cshtml";
+}
+
+<nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a asp-page="/Index">Home</a></li>
+        <li class="breadcrumb-item"><a asp-page="/Settings/Index">Settings</a></li>
+        <li class="breadcrumb-item"><a asp-page="/Settings/HL7/FieldMappings/SelectLab">Lab Configurations</a></li>
+        <li class="breadcrumb-item active" aria-current="page">Create Lab Configuration</li>
+    </ol>
+</nav>
+
+<div class="sentinel-page-header mb-4">
+    <div>
+        <div class="sentinel-eyebrow">HL7 Integration</div>
+        <h1 class="sentinel-page-title">Create Lab Configuration</h1>
+        <p class="sentinel-page-subtitle">Set up a new laboratory sender before configuring field mappings</p>
+    </div>
+</div>
+
+<div class="sentinel-card" style="max-width:600px">
+    <div class="sentinel-card-body">
+        <form method="post">
+            <div asp-validation-summary="All" class="alert alert-danger" role="alert"></div>
+
+            <div class="form-field">
+                <label class="sn-label" for="ConfigurationName">
+                    Lab name <span style="color:var(--outbreak)">*</span>
+                </label>
+                <input type="text" 
+                       id="ConfigurationName"
+                       name="ConfigurationName"
+                       asp-for="ConfigurationName"
+                       class="sn-input" 
+                       placeholder="e.g., LabCorp, Quest Diagnostics, Auckland Lab"
+                       required 
+                       autofocus />
+                <span asp-validation-for="ConfigurationName" class="text-danger"></span>
+                <div class="sn-hint">
+                    A friendly name to identify this laboratory sender. This will appear in your configuration list.
+                </div>
+            </div>
+
+            <div class="form-field">
+                <label class="sn-label" for="Notes">
+                    Description <span style="color:var(--graphite);font-weight:400">(optional)</span>
+                </label>
+                <textarea id="Notes"
+                          name="Notes"
+                          asp-for="Notes"
+                          class="sn-textarea" 
+                          rows="3"
+                          placeholder="e.g., Primary COVID-19 testing provider for Auckland region"></textarea>
+                <div class="sn-hint">
+                    Additional notes about this lab, such as which diseases they test for or which regions they serve.
+                </div>
+            </div>
+
+            <div class="divider" style="margin:24px 0"></div>
+
+            <div style="display:flex;gap:10px;align-items:center">
+                <button type="submit" class="sn-btn sn-btn--signal">
+                    <i class="bi bi-check-lg"></i> Create configuration
+                </button>
+                <a asp-page="/Settings/HL7/FieldMappings/SelectLab" class="sn-btn sn-btn--ghost">
+                    Cancel
+                </a>
+            </div>
+
+            <div style="margin-top:20px;padding:14px;background:var(--chalk);border:0.5px solid var(--hairline);border-radius:6px">
+                <div style="font-size:13px;color:var(--graphite);line-height:1.6">
+                    <strong style="color:var(--forest)">What happens next:</strong><br/>
+                    After creating this configuration, you'll upload a sample HL7 message from this lab. 
+                    Sentinel will analyze it and help you map each field (patient name, test result, etc.) 
+                    so messages from this lab can be processed automatically.
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

@@ -1,0 +1,392 @@
+@page
+@model Sentinel.Pages.Settings.HL7.DiseaseMatching.EditModel
+
+@{
+    ViewData["Title"] = $"HL7 Matching - {Model.Disease?.Name}";
+    Layout = "~/Pages/Shared/_LayoutSentinel.cshtml";
+}
+
+<style>
+    /* Breadcrumb fix */
+    .sn-breadcrumb {
+        list-style: none;
+        padding-left: 0;
+    }
+
+    /* Matching sections */
+    .matching-section-card {
+        background: var(--sn-chalk, #FBFAF5);
+        border: 1px solid var(--sn-hairline, #D8D4C4);
+        border-radius: 8px;
+        padding: 24px;
+        margin-bottom: 16px;
+    }
+    .matching-section-header {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 12px;
+    }
+    .matching-section-icon {
+        width: 20px;
+        height: 20px;
+        color: var(--sn-signal-dk, #159C6E);
+    }
+    .matching-section-title {
+        font-size: 17px;
+        font-weight: 600;
+        letter-spacing: -0.02em;
+        margin: 0;
+    }
+    .matching-section-desc {
+        font-size: 13px;
+        color: var(--sn-graphite, #4A5A55);
+        line-height: 1.6;
+        margin-bottom: 16px;
+    }
+    .fallback-options {
+        padding-left: 28px;
+        border-left: 2px solid var(--sn-signal-lt, #D9F2E5);
+        margin-top: 14px;
+    }
+    .fallback-options .sn-checkbox {
+        margin-bottom: 8px;
+    }
+    .fallback-options .sn-checkbox-label small {
+        font-size: 12px;
+        color: var(--sn-graphite, #4A5A55);
+        margin-top: 2px;
+    }
+    .info-panel {
+        position: sticky;
+        top: 24px;
+    }
+    .info-panel-section {
+        margin-bottom: 20px;
+    }
+    .info-panel-section h6 {
+        font-size: 13px;
+        font-weight: 600;
+        letter-spacing: -0.01em;
+        margin-bottom: 8px;
+    }
+    .info-panel-section p,
+    .info-panel-section ul {
+        font-size: 13px;
+        line-height: 1.6;
+        color: var(--sn-graphite, #4A5A55);
+    }
+    .info-panel-section ul {
+        padding-left: 18px;
+        margin-bottom: 0;
+    }
+    .info-panel-section ul li {
+        margin-bottom: 4px;
+    }
+</style>
+
+<nav aria-label="breadcrumb" class="mb-4">
+    <ol class="sn-breadcrumb">
+        <li class="sn-breadcrumb-item"><a asp-page="/Index">Home</a></li>
+        <li class="sn-breadcrumb-item"><a asp-page="/Settings/Index">Settings</a></li>
+        <li class="sn-breadcrumb-item"><a asp-page="/Settings/HL7/Configurations/Index">HL7 Configurations</a></li>
+        <li class="sn-breadcrumb-item"><a asp-page="./Index">Disease Matching Rules</a></li>
+        <li class="sn-breadcrumb-item sn-breadcrumb-item--active" aria-current="page">@Model.Disease?.Name</li>
+    </ol>
+</nav>
+
+<div class="sentinel-page-header mb-5">
+    <div>
+        <div class="sentinel-eyebrow">HL7 Interface Configuration</div>
+        <h1 class="sentinel-page-title">@Model.Disease?.Name <span style="color:var(--sn-signal-dk,#159C6E)">.</span></h1>
+        <p class="sentinel-page-subtitle">Configure text-based fallback matching when standardized codes are unavailable</p>
+    </div>
+</div>
+
+@if (TempData["ErrorMessage"] != null)
+{
+    <div class="sn-alert sn-alert--danger mb-4" role="alert">
+        <i class="bi bi-exclamation-triangle me-2"></i>@TempData["ErrorMessage"]
+    </div>
+}
+
+<form method="post">
+    <input type="hidden" asp-for="DiseaseId" />
+    <div asp-validation-summary="ModelOnly" class="sn-alert sn-alert--error mb-4"></div>
+
+    <div class="row">
+        <div class="col-lg-8">
+            <!-- General Settings -->
+            <div class="sn-card mb-4">
+                <div class="sn-card-body">
+                    @if (Model.Disease?.ParentDiseaseId.HasValue == true)
+                    {
+                        <div class="sn-alert sn-alert--info mb-4">
+                            <i class="bi bi-info-circle me-2"></i>
+                            This disease inherits matching rules from <strong>@Model.ParentDiseaseName</strong>.
+                            Enable override below to customize settings specifically for @Model.Disease.Name.
+                        </div>
+
+                        <div class="sn-toggle">
+                            <input class="sn-toggle-input" type="checkbox" asp-for="Config.OverrideParentRules" id="overrideRules">
+                            <label class="sn-toggle-label" for="overrideRules">
+                                <strong>Override Parent Rules</strong>
+                                <small class="d-block" style="color:var(--sn-graphite,#4A5A55);margin-top:2px">Use custom matching rules instead of inheriting from parent disease</small>
+                            </label>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="sn-alert sn-alert--info">
+                            <i class="bi bi-diagram-3 me-2"></i>
+                            This is a root disease. Settings configured here will be inherited by child diseases unless they override them.
+                        </div>
+                    }
+                </div>
+            </div>
+
+            <!-- Test Method Matching -->
+            <div class="matching-section-card">
+                <div class="matching-section-header">
+                    <i class="bi bi-flask matching-section-icon"></i>
+                    <h2 class="matching-section-title">Test Method Matching</h2>
+                </div>
+                <p class="matching-section-desc">
+                    Configure text-based fallback when LOINC codes are unavailable or don't match existing test methods.
+                </p>
+
+                <div class="sn-toggle">
+                    <input class="sn-toggle-input" type="checkbox" asp-for="Config.TestMethod_UseTextFallback" id="testMethodFallback">
+                    <label class="sn-toggle-label" for="testMethodFallback">
+                        <strong>Enable Text Fallback</strong>
+                        <small class="d-block" style="color:var(--sn-graphite,#4A5A55);margin-top:2px">Match test methods by name when LOINC codes are missing</small>
+                    </label>
+                </div>
+
+                <div id="testMethodOptions" class="fallback-options" style="@(Model.Config?.TestMethod_UseTextFallback != true ? "display:none" : "")">
+                    <div class="sn-checkbox">
+                        <input class="sn-checkbox-input" type="checkbox" asp-for="Config.TestMethod_NormalizeWhitespace" id="testMethodWhitespace">
+                        <label class="sn-checkbox-label" for="testMethodWhitespace">
+                            Normalize Whitespace
+                            <small class="d-block">Treat multiple spaces/tabs as single space</small>
+                        </label>
+                    </div>
+                    <div class="sn-checkbox">
+                        <input class="sn-checkbox-input" type="checkbox" asp-for="Config.TestMethod_IgnorePunctuation" id="testMethodPunctuation">
+                        <label class="sn-checkbox-label" for="testMethodPunctuation">
+                            Ignore Punctuation
+                            <small class="d-block">Remove punctuation before comparing</small>
+                        </label>
+                    </div>
+                    <div class="sn-checkbox">
+                        <input class="sn-checkbox-input" type="checkbox" asp-for="Config.TestMethod_CaseInsensitive" id="testMethodCase">
+                        <label class="sn-checkbox-label" for="testMethodCase">
+                            Case Insensitive
+                            <small class="d-block">Ignore letter casing differences</small>
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Specimen Type Matching -->
+            <div class="matching-section-card">
+                <div class="matching-section-header">
+                    <i class="bi bi-droplet matching-section-icon"></i>
+                    <h2 class="matching-section-title">Specimen Type Matching</h2>
+                </div>
+                <p class="matching-section-desc">
+                    Configure text-based fallback when SNOMED CT codes are unavailable or don't match existing specimen types.
+                </p>
+
+                <div class="sn-toggle">
+                    <input class="sn-toggle-input" type="checkbox" asp-for="Config.SpecimenType_UseTextFallback" id="specimenFallback">
+                    <label class="sn-toggle-label" for="specimenFallback">
+                        <strong>Enable Text Fallback</strong>
+                        <small class="d-block" style="color:var(--sn-graphite,#4A5A55);margin-top:2px">Match specimen types by name when SNOMED codes are missing</small>
+                    </label>
+                </div>
+
+                <div id="specimenOptions" class="fallback-options" style="@(Model.Config?.SpecimenType_UseTextFallback != true ? "display:none" : "")">
+                    <div class="sn-checkbox">
+                        <input class="sn-checkbox-input" type="checkbox" asp-for="Config.SpecimenType_NormalizeWhitespace" id="specimenWhitespace">
+                        <label class="sn-checkbox-label" for="specimenWhitespace">
+                            Normalize Whitespace
+                        </label>
+                    </div>
+                    <div class="sn-checkbox">
+                        <input class="sn-checkbox-input" type="checkbox" asp-for="Config.SpecimenType_IgnorePunctuation" id="specimenPunctuation">
+                        <label class="sn-checkbox-label" for="specimenPunctuation">
+                            Ignore Punctuation
+                        </label>
+                    </div>
+                    <div class="sn-checkbox">
+                        <input class="sn-checkbox-input" type="checkbox" asp-for="Config.SpecimenType_CaseInsensitive" id="specimenCase">
+                        <label class="sn-checkbox-label" for="specimenCase">
+                            Case Insensitive
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Pathogen Matching -->
+            <div class="matching-section-card">
+                <div class="matching-section-header">
+                    <i class="bi bi-virus matching-section-icon"></i>
+                    <h2 class="matching-section-title">Pathogen Matching</h2>
+                </div>
+                <p class="matching-section-desc">
+                    Configure text-based fallback when SNOMED CT codes are unavailable or don't match existing pathogens.
+                </p>
+
+                <div class="sn-toggle">
+                    <input class="sn-toggle-input" type="checkbox" asp-for="Config.Pathogen_UseTextFallback" id="pathogenFallback">
+                    <label class="sn-toggle-label" for="pathogenFallback">
+                        <strong>Enable Text Fallback</strong>
+                        <small class="d-block" style="color:var(--sn-graphite,#4A5A55);margin-top:2px">Match pathogens by name when SNOMED codes are missing</small>
+                    </label>
+                </div>
+
+                <div id="pathogenOptions" class="fallback-options" style="@(Model.Config?.Pathogen_UseTextFallback != true ? "display:none" : "")">
+                    <div class="sn-checkbox">
+                        <input class="sn-checkbox-input" type="checkbox" asp-for="Config.Pathogen_NormalizeWhitespace" id="pathogenWhitespace">
+                        <label class="sn-checkbox-label" for="pathogenWhitespace">
+                            Normalize Whitespace
+                        </label>
+                    </div>
+                    <div class="sn-checkbox">
+                        <input class="sn-checkbox-input" type="checkbox" asp-for="Config.Pathogen_IgnorePunctuation" id="pathogenPunctuation">
+                        <label class="sn-checkbox-label" for="pathogenPunctuation">
+                            Ignore Punctuation
+                        </label>
+                    </div>
+                    <div class="sn-checkbox">
+                        <input class="sn-checkbox-input" type="checkbox" asp-for="Config.Pathogen_CaseInsensitive" id="pathogenCase">
+                        <label class="sn-checkbox-label" for="pathogenCase">
+                            Case Insensitive
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Test Result Matching -->
+            <div class="matching-section-card">
+                <div class="matching-section-header">
+                    <i class="bi bi-check-circle matching-section-icon"></i>
+                    <h2 class="matching-section-title">Test Result Matching</h2>
+                </div>
+                <p class="matching-section-desc">
+                    Configure text-based fallback when SNOMED CT codes are unavailable or don't match existing qualitative results.
+                </p>
+
+                <div class="sn-toggle">
+                    <input class="sn-toggle-input" type="checkbox" asp-for="Config.TestResult_UseTextFallback" id="resultFallback">
+                    <label class="sn-toggle-label" for="resultFallback">
+                        <strong>Enable Text Fallback</strong>
+                        <small class="d-block" style="color:var(--sn-graphite,#4A5A55);margin-top:2px">Match results by text when SNOMED codes are missing</small>
+                    </label>
+                </div>
+
+                <div id="resultOptions" class="fallback-options" style="@(Model.Config?.TestResult_UseTextFallback != true ? "display:none" : "")">
+                    <div class="sn-checkbox">
+                        <input class="sn-checkbox-input" type="checkbox" asp-for="Config.TestResult_NormalizeWhitespace" id="resultWhitespace">
+                        <label class="sn-checkbox-label" for="resultWhitespace">
+                            Normalize Whitespace
+                        </label>
+                    </div>
+                    <div class="sn-checkbox">
+                        <input class="sn-checkbox-input" type="checkbox" asp-for="Config.TestResult_IgnorePunctuation" id="resultPunctuation">
+                        <label class="sn-checkbox-label" for="resultPunctuation">
+                            Ignore Punctuation
+                        </label>
+                    </div>
+                    <div class="sn-checkbox">
+                        <input class="sn-checkbox-input" type="checkbox" asp-for="Config.TestResult_CaseInsensitive" id="resultCase">
+                        <label class="sn-checkbox-label" for="resultCase">
+                            Case Insensitive
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Actions -->
+            <div class="d-flex gap-2 mb-4">
+                <button type="submit" class="sn-btn sn-btn--signal">
+                    <i class="bi bi-check-circle me-1"></i>Save Configuration
+                </button>
+                <a asp-page="./Index" class="sn-btn sn-btn--ghost">
+                    Cancel
+                </a>
+                @if (Model.Config != null)
+                {
+                    <button type="submit" asp-page-handler="Delete" class="sn-btn sn-btn--danger ms-auto"
+                            onclick="return confirm('Delete this configuration? @Model.Disease?.Name will inherit rules from its parent.')">
+                        <i class="bi bi-trash me-1"></i>Delete Configuration
+                    </button>
+                }
+            </div>
+        </div>
+
+        <!-- Info Panel -->
+        <div class="col-lg-4">
+            <div class="info-panel">
+                <div class="sn-card">
+                    <div class="sn-card-body">
+                        <div class="info-panel-section">
+                            <h6>Primary Matching</h6>
+                            <p>
+                                HL7 messages are always matched using standardized codes first:
+                            </p>
+                            <ul>
+                                <li>LOINC codes for test methods</li>
+                                <li>SNOMED CT codes for specimen types</li>
+                                <li>SNOMED CT codes for pathogens</li>
+                                <li>SNOMED CT codes for test results</li>
+                            </ul>
+                        </div>
+
+                        <div class="info-panel-section">
+                            <h6>Text Fallback</h6>
+                            <p>
+                                When enabled, if code matching fails, the system attempts to match using text descriptions.
+                                Useful when laboratories use non-standard or missing codes.
+                            </p>
+                        </div>
+
+                        <div class="info-panel-section">
+                            <h6>Normalization Examples</h6>
+                            <ul style="margin-bottom:0">
+                                <li><strong>Whitespace:</strong> "COVID  19" → "COVID 19"</li>
+                                <li><strong>Punctuation:</strong> "COVID-19" → "COVID19"</li>
+                                <li><strong>Case:</strong> "covid" → "COVID"</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</form>
+
+@section Scripts {
+    <script>
+        $(document).ready(function () {
+            // Show/hide text matching options based on checkbox state
+            function toggleOptions(checkbox, optionsDiv) {
+                $(checkbox).on('change', function () {
+                    $(optionsDiv).toggle(this.checked);
+                });
+            }
+
+            toggleOptions('#testMethodFallback', '#testMethodOptions');
+            toggleOptions('#specimenFallback', '#specimenOptions');
+            toggleOptions('#pathogenFallback', '#pathogenOptions');
+            toggleOptions('#resultFallback', '#resultOptions');
+        });
+    </script>
+}
+
+            toggleOptions('#pathogenFallback', '#pathogenOptions');
+            toggleOptions('#resultFallback', '#resultOptions');
+        });
+    </script>
+}

@@ -1,0 +1,266 @@
+@page
+@model Sentinel.Pages.Settings.HL7.DiagnosticsModel
+
+@{
+    ViewData["Title"] = "HL7 Case Creation Diagnostics";
+    Layout = "~/Pages/Shared/_LayoutSentinel.cshtml";
+}
+
+<nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a asp-page="/Index">Home</a></li>
+        <li class="breadcrumb-item"><a asp-page="/Settings/Index">Settings</a></li>
+        <li class="breadcrumb-item"><a asp-page="/Settings/HL7/Configurations/Index">HL7 Configurations</a></li>
+        <li class="breadcrumb-item active" aria-current="page">Diagnostics</li>
+    </ol>
+</nav>
+
+<div class="sentinel-page-header mb-4">
+    <div>
+        <div class="sentinel-eyebrow">HL7 Interface</div>
+        <h1 class="sentinel-page-title">Case Creation Diagnostics</h1>
+        <p class="sentinel-page-subtitle">Troubleshoot why cases are not being created from HL7 messages</p>
+    </div>
+    <div>
+        <a asp-page="/Settings/HL7/Messages/Index" class="sn-btn sn-btn--ghost">
+            <i class="bi bi-list-ul me-1"></i>View Messages
+        </a>
+    </div>
+</div>
+
+<!-- Pathogen Mappings Section -->
+<div class="sentinel-card mb-4">
+    <div class="sentinel-card-body">
+        <h3 class="sentinel-section-title">Pathogen to Disease Mappings</h3>
+        <p style="color:var(--graphite);margin-bottom:20px">
+            <i class="bi bi-info-circle me-2"></i>
+            For cases to be created automatically, LOINC codes in your HL7 messages must match active pathogens that are linked to diseases.
+        </p>
+
+        <button id="loadMappingsBtn" class="sn-btn sn-btn--signal mb-3">
+            <i class="bi bi-arrow-clockwise me-1"></i>Load Pathogen Mappings
+        </button>
+
+        <div id="mappingsLoading" style="display:none;text-align:center;padding:40px">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <p style="margin-top:12px;color:var(--graphite)">Loading mappings...</p>
+        </div>
+
+        <div id="mappingsContainer" style="display:none">
+            <table class="sn-table">
+                <thead>
+                    <tr>
+                        <th>Pathogen Name</th>
+                        <th>LOINC Code</th>
+                        <th>Mapped Disease</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody id="mappingsTableBody">
+                </tbody>
+            </table>
+        </div>
+
+        <div id="mappingsEmpty" style="display:none;text-align:center;padding:40px">
+            <div style="font-size:48px;color:var(--graphite);opacity:0.3;margin-bottom:20px">
+                <i class="bi bi-exclamation-triangle"></i>
+            </div>
+            <h5 style="color:var(--graphite);margin-bottom:8px">No Active Pathogens Found</h5>
+            <p style="color:var(--graphite);font-size:14px;margin-bottom:20px">
+                You need to configure pathogens with LOINC codes to enable automatic case creation.
+            </p>
+            <a asp-page="/Settings/Pathogens/Index" class="sn-btn sn-btn--signal">
+                <i class="bi bi-plus-circle me-1"></i>Configure Pathogens
+            </a>
+        </div>
+    </div>
+</div>
+
+<!-- Lab Result Diagnostics Section -->
+<div class="sentinel-card">
+    <div class="sentinel-card-body">
+        <h3 class="sentinel-section-title">Lab Result Diagnostic</h3>
+        <p style="color:var(--graphite);margin-bottom:20px">
+            <i class="bi bi-info-circle me-2"></i>
+            Enter a Lab Result ID to diagnose why a case was not created.
+        </p>
+
+        <div class="row g-3 mb-3">
+            <div class="col-md-8">
+                <label class="sn-label">Lab Result ID (GUID)</label>
+                <input type="text" id="labResultIdInput" class="sn-input" 
+                       placeholder="e.g., 12345678-1234-1234-1234-123456789012"
+                       value="@(Model.LabResultId?.ToString() ?? "")" />
+            </div>
+            <div class="col-md-4" style="display:flex;align-items:end">
+                <button id="diagnoseBtn" class="sn-btn sn-btn--signal" style="width:100%">
+                    <i class="bi bi-search me-1"></i>Diagnose
+                </button>
+            </div>
+        </div>
+
+        <div id="diagnosticsLoading" style="display:none;text-align:center;padding:40px">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <p style="margin-top:12px;color:var(--graphite)">Running diagnostics...</p>
+        </div>
+
+        <div id="diagnosticsResult" style="display:none">
+            <!-- Results will be injected here -->
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const loadMappingsBtn = document.getElementById('loadMappingsBtn');
+    const diagnoseBtn = document.getElementById('diagnoseBtn');
+    const labResultIdInput = document.getElementById('labResultIdInput');
+
+    // Load Pathogen Mappings
+    loadMappingsBtn.addEventListener('click', async function() {
+        document.getElementById('mappingsLoading').style.display = 'block';
+        document.getElementById('mappingsContainer').style.display = 'none';
+        document.getElementById('mappingsEmpty').style.display = 'none';
+
+        try {
+            const response = await fetch('/api/hl7/diagnostics/pathogen-mappings');
+            const mappings = await response.json();
+
+            document.getElementById('mappingsLoading').style.display = 'none';
+
+            if (mappings.length === 0) {
+                document.getElementById('mappingsEmpty').style.display = 'block';
+                return;
+            }
+
+            const tbody = document.getElementById('mappingsTableBody');
+            tbody.innerHTML = '';
+
+            mappings.forEach(mapping => {
+                const row = document.createElement('tr');
+
+                const statusChip = mapping.diseaseName === '⚠️ Not mapped'
+                    ? '<span class="chip outbreak" style="font-size:10px;padding:3px 8px"><span class="dot"></span>Not Mapped</span>'
+                    : mapping.diseaseIsActive
+                        ? '<span class="chip clear" style="font-size:10px;padding:3px 8px"><span class="dot"></span>Active</span>'
+                        : '<span class="chip watch" style="font-size:10px;padding:3px 8px"><span class="dot"></span>Inactive</span>';
+
+                row.innerHTML = `
+                    <td style="font-weight:500">${mapping.pathogenName}</td>
+                    <td style="font-family:var(--f-mono);font-size:12px">${mapping.loincCode}</td>
+                    <td>${mapping.diseaseName}</td>
+                    <td>${statusChip}</td>
+                `;
+                tbody.appendChild(row);
+            });
+
+            document.getElementById('mappingsContainer').style.display = 'block';
+        } catch (error) {
+            console.error('Error loading mappings:', error);
+            alert('Error loading pathogen mappings. Check console for details.');
+            document.getElementById('mappingsLoading').style.display = 'none';
+        }
+    });
+
+    // Diagnose Lab Result
+    diagnoseBtn.addEventListener('click', async function() {
+        const labResultId = labResultIdInput.value.trim();
+
+        if (!labResultId) {
+            alert('Please enter a Lab Result ID');
+            return;
+        }
+
+        document.getElementById('diagnosticsLoading').style.display = 'block';
+        document.getElementById('diagnosticsResult').style.display = 'none';
+
+        try {
+            const response = await fetch(`/api/hl7/diagnostics/lab-result/${labResultId}`);
+            const report = await response.json();
+
+            document.getElementById('diagnosticsLoading').style.display = 'none';
+
+            // Build results HTML
+            let html = `
+                <div class="alert alert-info mb-3">
+                    <h6 class="alert-heading"><i class="bi bi-info-circle me-2"></i>Lab Result Information</h6>
+                    <div style="font-family:var(--f-mono);font-size:13px">
+                        <strong>Lab Result:</strong> ${report.labResultFriendlyId || 'N/A'}<br>
+                        <strong>Patient:</strong> ${report.patientFriendlyId || 'N/A'}<br>
+                        <strong>Case:</strong> ${report.caseFriendlyId || 'None created'}<br>
+                        <strong>Markers:</strong> ${report.markersCount}
+                    </div>
+                </div>
+            `;
+
+            // Issues
+            if (report.issues && report.issues.length > 0) {
+                html += '<div class="mb-3"><h6 style="margin-bottom:12px">Diagnostic Results:</h6><ul class="list-group">';
+                report.issues.forEach(issue => {
+                    const isError = issue.startsWith('❌');
+                    const isWarning = issue.includes('⚠️');
+                    const isSuccess = issue.startsWith('✅');
+
+                    const bgClass = isError ? 'list-group-item-danger' : isWarning ? 'list-group-item-warning' : isSuccess ? 'list-group-item-success' : '';
+
+                    html += `<li class="list-group-item ${bgClass}" style="font-size:14px">${issue}</li>`;
+                });
+                html += '</ul></div>';
+            }
+
+            // Marker Details
+            if (report.markers && report.markers.length > 0) {
+                html += '<div class="mb-3"><h6 style="margin-bottom:12px">Marker Details:</h6>';
+                html += '<table class="sn-table"><thead><tr><th>Test Code</th><th>Result</th><th>Pathogen</th><th>Disease</th><th>Status</th></tr></thead><tbody>';
+
+                report.markers.forEach(marker => {
+                    html += `
+                        <tr>
+                            <td style="font-family:var(--f-mono);font-size:12px">${marker.testCode}</td>
+                            <td style="font-size:13px">${marker.result}</td>
+                            <td style="font-size:13px">${marker.pathogenName || '—'}</td>
+                            <td style="font-size:13px">${marker.diseaseName || '—'}</td>
+                            <td style="font-size:13px">${marker.issue || '—'}</td>
+                        </tr>
+                    `;
+                });
+
+                html += '</tbody></table></div>';
+            }
+
+            // Recommendation
+            if (report.recommendation) {
+                html += `
+                    <div class="alert alert-primary">
+                        <h6 class="alert-heading"><i class="bi bi-lightbulb me-2"></i>Recommendation</h6>
+                        <p style="margin:0;font-size:14px">${report.recommendation}</p>
+                    </div>
+                `;
+            }
+
+            document.getElementById('diagnosticsResult').innerHTML = html;
+            document.getElementById('diagnosticsResult').style.display = 'block';
+        } catch (error) {
+            console.error('Error running diagnostics:', error);
+            document.getElementById('diagnosticsLoading').style.display = 'none';
+            alert('Error running diagnostics. Check console for details.');
+        }
+    });
+
+    // Auto-run diagnostics if labResultId is provided in URL
+    const urlParams = new URLSearchParams(window.location.search);
+    const labResultIdFromUrl = urlParams.get('labResultId');
+    if (labResultIdFromUrl && labResultIdInput.value) {
+        // Wait a moment for page to fully load, then trigger diagnostic
+        setTimeout(() => {
+            diagnoseBtn.click();
+        }, 500);
+    }
+});
+</script>
+}

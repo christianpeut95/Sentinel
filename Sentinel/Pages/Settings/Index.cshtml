@@ -245,6 +245,9 @@
             <a asp-page="/Settings/Diseases/Index" class="quick-link-btn">
                 <i class="bi bi-virus"></i> Diseases
             </a>
+            <a asp-page="/Settings/HL7/Monitoring/Dashboard" class="quick-link-btn">
+                <i class="bi bi-activity"></i> HL7 Monitoring
+            </a>
             <a asp-page="/Settings/DiseaseAccess/Index" class="quick-link-btn">
                 <i class="bi bi-shield-lock"></i> Disease Access
             </a>
@@ -364,6 +367,26 @@
                     <a asp-page="/Settings/CaseStatuses/Index" class="stretched-link"></a>
                 </div>
             </div>
+            <div class="col-lg-3 col-md-4 col-sm-6">
+                <div class="setting-card setting-card-highlight">
+                    <div class="setting-card-icon">
+                        <i class="bi bi-diagram-3"></i>
+                    </div>
+                    <h5>Case Definitions</h5>
+                    <p>Build automated classification rules for case confirmation criteria</p>
+                    <a asp-page="/Settings/CaseDefinitions/Index" class="stretched-link"></a>
+                </div>
+            </div>
+            <div class="col-lg-3 col-md-4 col-sm-6">
+                <div class="setting-card">
+                    <div class="setting-card-icon">
+                        <i class="bi bi-arrow-repeat"></i>
+                    </div>
+                    <h5>Reinfection Rules</h5>
+                    <p>Configure case matching and reinfection detection rules per disease</p>
+                    <a asp-page="/Settings/Diseases/ReinfectionRules" class="stretched-link"></a>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -379,6 +402,16 @@
             </div>
         </div>
         <div class="row g-4">
+            <div class="col-lg-3 col-md-4 col-sm-6">
+                <div class="setting-card">
+                    <div class="setting-card-icon">
+                        <i class="bi bi-bug"></i>
+                    </div>
+                    <h5>Pathogens & Biomarkers</h5>
+                    <p>Manage laboratory test targets with LOINC codes for HL7 integration</p>
+                    <a asp-page="/Settings/Pathogens/Index" class="stretched-link"></a>
+                </div>
+            </div>
             <div class="col-lg-3 col-md-4 col-sm-6">
                 <div class="setting-card">
                     <div class="setting-card-icon">
@@ -402,21 +435,11 @@
             <div class="col-lg-3 col-md-4 col-sm-6">
                 <div class="setting-card">
                     <div class="setting-card-icon">
-                        <i class="bi bi-clipboard2-pulse"></i>
+                        <i class="bi bi-clipboard-pulse"></i>
                     </div>
-                    <h5>Test Types</h5>
-                    <p>Manage laboratory test types and diagnostic procedures</p>
-                    <a asp-page="/Settings/Lookups/TestTypes" class="stretched-link"></a>
-                </div>
-            </div>
-            <div class="col-lg-3 col-md-4 col-sm-6">
-                <div class="setting-card">
-                    <div class="setting-card-icon">
-                        <i class="bi bi-check2-square"></i>
-                    </div>
-                    <h5>Test Results</h5>
-                    <p>Define result classifications (positive, negative, inconclusive, etc.)</p>
-                    <a asp-page="/Settings/Lookups/TestResults" class="stretched-link"></a>
+                    <h5>Test Methods</h5>
+                    <p>Laboratory test methodologies (PCR, ELISA, Culture, etc.)</p>
+                    <a asp-page="/Settings/Lookups/TestMethods" class="stretched-link"></a>
                 </div>
             </div>
             <div class="col-lg-3 col-md-4 col-sm-6">
@@ -427,6 +450,71 @@
                     <h5>Result Units</h5>
                     <p>Configure measurement units for quantitative test results</p>
                     <a asp-page="/Settings/Lookups/ResultUnits" class="stretched-link"></a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- HL7 Interface & Integration -->
+    <div class="category-section">
+        <div class="category-header">
+            <div class="category-header-icon" style="background: linear-gradient(135deg, var(--signal-dk) 0%, var(--forest) 100%);">
+                <i class="bi bi-hdd-network"></i>
+            </div>
+            <div>
+                <h3>HL7 Interface & Integration</h3>
+                <p class="category-description">Electronic laboratory results integration, file monitoring, and message processing</p>
+            </div>
+        </div>
+        <div class="row g-4">
+            <div class="col-lg-3 col-md-4 col-sm-6">
+                <div class="setting-card setting-card-highlight">
+                    <div class="setting-card-icon">
+                        <i class="bi bi-activity"></i>
+                    </div>
+                    <h5>HL7 Monitoring Dashboard</h5>
+                    <p>Real-time monitoring of file processing, message status, and system health</p>
+                    <a asp-page="/Settings/HL7/Monitoring/Dashboard" class="stretched-link"></a>
+                </div>
+            </div>
+            <div class="col-lg-3 col-md-4 col-sm-6">
+                <div class="setting-card">
+                    <div class="setting-card-icon">
+                        <i class="bi bi-gear-wide-connected"></i>
+                    </div>
+                    <h5>HL7 Configurations</h5>
+                    <p>Configure file drop locations, parsing rules, and automatic processing</p>
+                    <a asp-page="/Settings/HL7/Configurations/Index" class="stretched-link"></a>
+                </div>
+            </div>
+            <div class="col-lg-3 col-md-4 col-sm-6">
+                <div class="setting-card">
+                    <div class="setting-card-icon">
+                        <i class="bi bi-envelope"></i>
+                    </div>
+                    <h5>HL7 Messages</h5>
+                    <p>View, search, and reprocess incoming HL7 laboratory messages</p>
+                    <a asp-page="/Settings/HL7/Messages/Index" class="stretched-link"></a>
+                </div>
+            </div>
+            <div class="col-lg-3 col-md-4 col-sm-6">
+                <div class="setting-card">
+                    <div class="setting-card-icon">
+                        <i class="bi bi-diagram-2"></i>
+                    </div>
+                    <h5>Field Mappings</h5>
+                    <p>Map HL7 test codes to custom fields for disease-specific data extraction</p>
+                    <a asp-page="/Settings/HL7/FieldMappings/Index" class="stretched-link"></a>
+                </div>
+            </div>
+            <div class="col-lg-3 col-md-4 col-sm-6">
+                <div class="setting-card">
+                    <div class="setting-card-icon">
+                        <i class="bi bi-virus"></i>
+                    </div>
+                    <h5>Disease Matching Rules</h5>
+                    <p>Configure how HL7 messages match to diseases using LOINC/SNOMED codes and text fallback</p>
+                    <a asp-page="/Settings/HL7/DiseaseMatching/Index" class="stretched-link"></a>
                 </div>
             </div>
         </div>

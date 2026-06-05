@@ -1,0 +1,156 @@
+@page
+@model Sentinel.Pages.Settings.HL7.FieldMappings.SelectLabModel
+
+@{
+    ViewData["Title"] = "Lab Message Configurations";
+    Layout = "~/Pages/Shared/_LayoutSentinel.cshtml";
+}
+
+<nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a asp-page="/Index">Home</a></li>
+        <li class="breadcrumb-item"><a asp-page="/Settings/Index">Settings</a></li>
+        <li class="breadcrumb-item active" aria-current="page">Lab Message Configurations</li>
+    </ol>
+</nav>
+
+<div class="sentinel-page-header mb-4">
+    <div>
+        <div class="sentinel-eyebrow">HL7 Integration</div>
+        <h1 class="sentinel-page-title">Lab Message Configurations</h1>
+        <p class="sentinel-page-subtitle">Teach Sentinel how to read messages from each laboratory sender</p>
+    </div>
+    <div>
+        <a asp-page="/Settings/HL7/FieldMappings/CreateLabConfiguration" class="sn-btn sn-btn--signal">
+            <i class="bi bi-plus-lg"></i> Add new lab
+        </a>
+    </div>
+</div>
+
+<!-- Configuration Cards Grid -->
+<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:16px">
+    @foreach (var config in Model.Configurations)
+    {
+        <div class="sentinel-card" 
+             style="@(GetStatusBorderStyle(config.Status))">
+            <div class="sentinel-card-body">
+                <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:12px">
+                    <div style="flex:1">
+                        <h4 style="font-size:18px;font-weight:600;letter-spacing:-.02em;margin-bottom:6px">@config.ConfigurationName</h4>
+                        <p style="font-size:13px;color:var(--graphite);margin:0">@config.Description</p>
+                    </div>
+                    @if (config.Status == "Active")
+                    {
+                        <span class="chip clear" style="font-size:10px;padding:3px 9px">
+                            <span class="dot"></span>Active
+                        </span>
+                    }
+                    else if (config.Status == "NeedsAttention")
+                    {
+                        <span class="chip watch" style="font-size:10px;padding:3px 9px">
+                            <span class="dot"></span>Needs setup
+                        </span>
+                    }
+                    else
+                    {
+                        <span class="chip" style="background:var(--paper);color:var(--graphite);font-size:10px;padding:3px 9px">
+                            <span class="dot"></span>Not configured
+                        </span>
+                    }
+                </div>
+
+                <!-- Status details -->
+                @if (!string.IsNullOrEmpty(config.StatusMessage))
+                {
+                    <div style="padding:10px;background:@(config.Status == "Active" ? "var(--signal-lt)" : "var(--paper)");border-radius:4px;margin-bottom:12px">
+                        <div style="font-size:12px;color:var(--graphite)">@config.StatusMessage</div>
+                    </div>
+                }
+
+                <!-- Quick stats -->
+                @if (config.Status == "Active")
+                {
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;padding-top:12px;border-top:1px solid var(--hairline)">
+                        <div>
+                            <div style="font-family:var(--f-mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--graphite)">Fields mapped</div>
+                            <div style="font-size:20px;font-weight:500;letter-spacing:-.02em">@config.MappedFieldCount</div>
+                        </div>
+                        <div>
+                            <div style="font-family:var(--f-mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--graphite)">Messages</div>
+                            <div style="font-size:20px;font-weight:500;letter-spacing:-.02em">@config.MessageCount</div>
+                        </div>
+                    </div>
+                }
+
+                <!-- Actions -->
+                <div style="display:flex;gap:8px;padding-top:12px;border-top:1px solid var(--hairline)">
+                    @if (config.Status == "Active")
+                    {
+                        <a asp-page="/Settings/HL7/FieldMappings/ConfigureLab" asp-route-configId="@config.Id" 
+                           class="sn-btn sn-btn--ghost sn-btn--sm" style="flex:1">
+                            <i class="bi bi-sliders"></i> Review mappings
+                        </a>
+                        <button type="button" 
+                                class="sn-btn sn-btn--ghost sn-btn--sm"
+                                onclick="testConfiguration('@config.Id')">
+                            <i class="bi bi-flask"></i> Test
+                        </button>
+                    }
+                    else if (config.Status == "NeedsAttention")
+                    {
+                        <a asp-page="/Settings/HL7/FieldMappings/ConfigureLab" asp-route-configId="@config.Id" 
+                           class="sn-btn sn-btn--signal sn-btn--sm" style="flex:1">
+                            <i class="bi bi-arrow-right"></i> Continue setup
+                        </a>
+                    }
+                    else
+                    {
+                        <a asp-page="/Settings/HL7/FieldMappings/ConfigureLab" asp-route-configId="@config.Id" 
+                           class="sn-btn sn-btn--signal sn-btn--sm" style="flex:1">
+                            <i class="bi bi-play-fill"></i> Start configuration
+                        </a>
+                    }
+                </div>
+            </div>
+        </div>
+    }
+
+    @if (!Model.Configurations.Any())
+    {
+        <div class="sentinel-card" style="grid-column:1/-1">
+            <div class="sentinel-card-body" style="text-align:center;padding:48px 24px">
+                <div style="font-size:40px;color:var(--hairline);margin-bottom:16px">
+                    <i class="bi bi-inbox"></i>
+                </div>
+                <h4 style="font-size:18px;font-weight:500;letter-spacing:-.02em;margin-bottom:8px">No lab configurations yet</h4>
+                <p style="font-size:14px;color:var(--graphite);max-width:50ch;margin:0 auto 20px">
+                    Get started by adding your first laboratory sender. You'll teach Sentinel how to read their messages without any coding.
+                </p>
+                <a asp-page="/Settings/HL7/FieldMappings/ConfigureLab" class="sn-btn sn-btn--signal">
+                    <i class="bi bi-plus-lg"></i> Add your first lab
+                </a>
+            </div>
+        </div>
+    }
+</div>
+
+@section Scripts {
+<script>
+    function testConfiguration(configId) {
+        // Open test modal or navigate to test page
+        alert('Test mode coming soon — paste a message and see how Sentinel reads it.');
+    }
+</script>
+}
+
+@functions {
+    string GetStatusBorderStyle(string status)
+    {
+        return status switch
+        {
+            "Active" => "border-left:3px solid var(--signal-dk)",
+            "NeedsAttention" => "border-left:3px solid var(--watch)",
+            _ => "border-left:3px solid var(--hairline)"
+        };
+    }
+}

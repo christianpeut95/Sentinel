@@ -1,0 +1,495 @@
+@page "{id:int}"
+@model Sentinel.Pages.Settings.CaseDefinitions.ReviewModel
+@using Sentinel.Models.CaseDefinitions
+@{
+    ViewData["Title"] = "Review & Activate";
+    Layout = "~/Pages/Shared/_LayoutSentinel.cshtml";
+}
+
+<link rel="stylesheet" href="~/css/sentinel-design-system.css" />
+
+<style>
+    .wizard-container {
+        max-width: 1000px;
+        margin: 0 auto;
+    }
+
+    .wizard-steps {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        margin-bottom: 3rem;
+        padding: 2rem 0;
+        border-bottom: 1px solid var(--hairline);
+    }
+
+    .wizard-step {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+    }
+
+    .wizard-step-circle {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 600;
+        font-size: 1rem;
+        background: var(--paper);
+        color: var(--graphite);
+        border: 2px solid var(--hairline);
+        transition: all 0.2s;
+    }
+
+    .wizard-step.active .wizard-step-circle {
+        background: var(--forest);
+        color: var(--signal);
+        border-color: var(--forest);
+    }
+
+    .wizard-step.completed .wizard-step-circle {
+        background: var(--signal-dk);
+        color: white;
+        border-color: var(--signal-dk);
+    }
+
+    .wizard-step-label {
+        font-size: 0.875rem;
+        color: var(--graphite);
+        font-weight: 500;
+    }
+
+    .wizard-step.active .wizard-step-label {
+        color: var(--forest);
+        font-weight: 600;
+    }
+
+    .wizard-connector {
+        width: 80px;
+        height: 2px;
+        background: var(--hairline);
+        margin: 0 1rem;
+    }
+
+    .wizard-step.completed + .wizard-connector {
+        background: var(--signal-dk);
+    }
+
+    .criterion-card {
+        background: var(--chalk);
+        border: 1px solid var(--hairline);
+        border-radius: 8px;
+        padding: 1.25rem;
+        margin-bottom: 0.75rem;
+    }
+
+    .criterion-card.has-children {
+        background: var(--signal-lt);
+        border-color: var(--signal-dk);
+        border-width: 2px;
+    }
+
+    .criterion-type-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-family: var(--f-mono);
+        font-size: 0.625rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        padding: 0.25rem 0.625rem;
+        border-radius: 4px;
+        font-weight: 500;
+    }
+
+    .criterion-type-laboratory {
+        background: #e0f2fe;
+        color: #075985;
+        border: 1px solid #bae6fd;
+    }
+
+    .criterion-type-clinical {
+        background: #fce7f3;
+        color: #9f1239;
+        border: 1px solid #fbcfe8;
+    }
+
+    .criterion-type-customfield {
+        background: var(--signal-lt);
+        color: var(--signal-dk);
+        border: 1px solid var(--signal-dk);
+    }
+
+    .criterion-type-demographic {
+        background: #fef3c7;
+        color: #92400e;
+        border: 1px solid #fde68a;
+    }
+
+    .logical-operator-badge {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.25rem 0.75rem;
+        background: var(--paper);
+        border: 1px solid var(--hairline);
+        border-radius: 999px;
+        font-family: var(--f-mono);
+        font-size: 0.75rem;
+        font-weight: 600;
+        letter-spacing: 0.08em;
+        color: var(--forest);
+    }
+
+    .summary-row {
+        display: flex;
+        justify-content: space-between;
+        padding: 0.75rem 0;
+        border-bottom: 1px solid var(--hairline);
+    }
+
+    .summary-row:last-child {
+        border-bottom: none;
+    }
+
+    .summary-label {
+        font-weight: 600;
+        color: var(--graphite);
+    }
+
+    .summary-value {
+        color: var(--forest);
+    }
+</style>
+
+<div class="container-fluid px-4 py-4">
+    <div class="wizard-container">
+        <!-- Header -->
+        <div class="text-center mb-4">
+            <div class="text-label mb-2">CREATE CASE DEFINITION</div>
+            <h1 class="page-title mb-2">Review & Activate</h1>
+            <p class="text-muted">Review your case definition and activate it to start automatic case classification</p>
+        </div>
+
+        <!-- Wizard Steps -->
+        <div class="wizard-steps">
+            <div class="wizard-step completed">
+                <div class="wizard-step-circle">✓</div>
+                <div class="wizard-step-label">Basic Information</div>
+            </div>
+            <div class="wizard-connector"></div>
+            <div class="wizard-step completed">
+                <div class="wizard-step-circle">✓</div>
+                <div class="wizard-step-label">Build Criteria</div>
+            </div>
+            <div class="wizard-connector"></div>
+            <div class="wizard-step active">
+                <div class="wizard-step-circle">●</div>
+                <div class="wizard-step-label">Review & Save</div>
+            </div>
+        </div>
+
+        <!-- Summary Card -->
+        <div class="sentinel-card mb-4">
+            <h3 style="font-size: 1.125rem; font-weight: 600; margin-bottom: 1.5rem;">
+                <i class="bi bi-info-circle"></i>
+                Definition Summary
+            </h3>
+
+            <div class="summary-row">
+                <span class="summary-label">Definition Name</span>
+                <span class="summary-value">@Model.Definition.Name</span>
+            </div>
+
+            <div class="summary-row">
+                <span class="summary-label">Disease</span>
+                <span class="summary-value">@Model.Definition.Disease?.Name</span>
+            </div>
+
+            <div class="summary-row">
+                <span class="summary-label">Classification Status</span>
+                <span class="summary-value">@Model.Definition.ConfirmationStatus?.Name</span>
+            </div>
+
+            <div class="summary-row">
+                <span class="summary-label">Apply to Child Diseases</span>
+                <span class="summary-value">@(Model.Definition.ApplyToChildDiseases ? "Yes" : "No")</span>
+            </div>
+
+            <div class="summary-row">
+                <span class="summary-label">Active Period</span>
+                <span class="summary-value">
+                    @Model.Definition.DateActiveFrom.ToString("yyyy-MM-dd")
+                    @if (Model.Definition.DateActiveTo.HasValue)
+                    {
+                        <span> to @Model.Definition.DateActiveTo.Value.ToString("yyyy-MM-dd")</span>
+                    }
+                    else
+                    {
+                        <span> onwards</span>
+                    }
+                </span>
+            </div>
+
+            <div class="summary-row">
+                <span class="summary-label">Classification Mode</span>
+                <span class="summary-value">
+                    @if (Model.Definition.AllowAutoClassification)
+                    {
+                        <i class="bi bi-lightning-charge-fill" style="color: var(--signal-dk);"></i>
+                        <span>Auto-classify</span>
+                        @if (Model.Definition.CreateReviewQueueOnChange)
+                        {
+                            <span> (with review queue)</span>
+                        }
+                        else if (Model.Definition.CreateReviewQueueOnSuggestion)
+                        {
+                            <span> (suggestions only)</span>
+                        }
+                        else
+                        {
+                            <span> (silent)</span>
+                        }
+                    }
+                    else
+                    {
+                        <i class="bi bi-hand-index"></i>
+                        <span>Manual only</span>
+                    }
+                </span>
+            </div>
+
+            <div class="summary-row">
+                <span class="summary-label">Total Criteria</span>
+                <span class="summary-value">
+                    @{
+                        var totalCriteria = Model.Criteria.Count;
+                        var rootCriteria = Model.Criteria.Count(c => c.ParentCriteriaId == null);
+                    }
+                    @totalCriteria criteria (@rootCriteria @(rootCriteria == 1 ? "group" : "groups"))
+                </span>
+            </div>
+        </div>
+
+        <!-- Criteria Review -->
+        <div class="sentinel-card mb-4">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h3 style="font-size: 1.125rem; font-weight: 600; margin: 0;">
+                    <i class="bi bi-list-check"></i>
+                    Criteria Configuration
+                </h3>
+                <a asp-page="./BuildCriteria" asp-route-id="@Model.Definition.Id" class="sn-btn sn-btn-ghost sn-btn-sm">
+                    <i class="bi bi-pencil"></i>
+                    Edit Criteria
+                </a>
+            </div>
+
+            <p class="text-muted mb-3" style="font-size: 0.875rem;">
+                A case meets this definition when:
+            </p>
+
+            @if (!Model.Criteria.Any())
+            {
+                <div class="text-center py-5" style="color: var(--graphite);">
+                    <i class="bi bi-exclamation-triangle" style="font-size: 3rem; opacity: 0.3;"></i>
+                    <p class="mt-3 mb-0">
+                        <strong>No criteria defined.</strong><br />
+                        A case definition requires at least one criterion. Please add criteria before activating.
+                    </p>
+                </div>
+            }
+            else
+            {
+                var rootCriteriaList = Model.Criteria.Where(c => c.ParentCriteriaId == null).OrderBy(c => c.DisplayOrder).ToList();
+
+                for (int i = 0; i < rootCriteriaList.Count; i++)
+                {
+                    var criterion = rootCriteriaList[i];
+                    var isFirst = i == 0;
+                    var hasChildren = criterion.ChildCriteria?.Any() == true;
+
+                    @if (!isFirst)
+                    {
+                        <div style="text-align: center; margin: -0.5rem 0;">
+                            <div class="logical-operator-badge">
+                                @(criterion.LogicalOperator == LogicalOperator.AND ? "AND" : "OR")
+                            </div>
+                        </div>
+                    }
+
+                    @if (hasChildren)
+                    {
+                        var children = criterion.ChildCriteria.OrderBy(c => c.DisplayOrder).ToList();
+                        <div style="border: 2px solid var(--signal-dk); border-radius: 8px; padding: 1rem; background: var(--signal-lt); margin-bottom: 1rem;">
+                            <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.75rem; color: var(--signal-dk); font-weight: 600; font-size: 0.875rem;">
+                                <i class="bi bi-braces"></i> GROUP START
+                            </div>
+
+                            @* Parent criterion *@
+                            <div class="criterion-card" style="background: white; margin-bottom: 0.75rem;">
+                                <div class="d-flex align-items-center gap-2 mb-2">
+                                    @switch (criterion.CriterionType)
+                                    {
+                                        case CriterionType.Laboratory:
+                                            <span class="criterion-type-badge criterion-type-laboratory">
+                                                <i class="bi bi-clipboard-pulse"></i> Laboratory
+                                            </span>
+                                            break;
+                                        case CriterionType.Clinical:
+                                            <span class="criterion-type-badge criterion-type-clinical">
+                                                <i class="bi bi-heart-pulse"></i> Clinical
+                                            </span>
+                                            break;
+                                        case CriterionType.CustomField:
+                                            <span class="criterion-type-badge criterion-type-customfield">
+                                                <i class="bi bi-ui-checks"></i> Custom Field
+                                            </span>
+                                            break;
+                                        case CriterionType.Demographic:
+                                            <span class="criterion-type-badge criterion-type-demographic">
+                                                <i class="bi bi-person"></i> Case Data
+                                            </span>
+                                            break;
+                                    }
+                                </div>
+                                <div style="font-size: 0.9375rem; line-height: 1.6;">
+                                    @Html.Raw(criterion.DisplayText)
+                                </div>
+                            </div>
+
+                            @* Child criteria *@
+                            @for (int j = 0; j < children.Count; j++)
+                            {
+                                var child = children[j];
+
+                                <div style="text-align: center; margin: 0.5rem 0;">
+                                    <div class="logical-operator-badge">
+                                        @(child.LogicalOperator == LogicalOperator.AND ? "AND" : "OR")
+                                    </div>
+                                </div>
+
+                                <div class="criterion-card" style="background: white;">
+                                    <div class="d-flex align-items-center gap-2 mb-2">
+                                        @switch (child.CriterionType)
+                                        {
+                                            case CriterionType.Laboratory:
+                                                <span class="criterion-type-badge criterion-type-laboratory">
+                                                    <i class="bi bi-clipboard-pulse"></i> Laboratory
+                                                </span>
+                                                break;
+                                            case CriterionType.Clinical:
+                                                <span class="criterion-type-badge criterion-type-clinical">
+                                                    <i class="bi bi-heart-pulse"></i> Clinical
+                                                </span>
+                                                break;
+                                            case CriterionType.CustomField:
+                                                <span class="criterion-type-badge criterion-type-customfield">
+                                                    <i class="bi bi-ui-checks"></i> Custom Field
+                                                </span>
+                                                break;
+                                            case CriterionType.Demographic:
+                                                <span class="criterion-type-badge criterion-type-demographic">
+                                                    <i class="bi bi-person"></i> Case Data
+                                                </span>
+                                                break;
+                                        }
+                                    </div>
+                                    <div style="font-size: 0.9375rem; line-height: 1.6;">
+                                        @Html.Raw(child.DisplayText)
+                                    </div>
+                                </div>
+                            }
+
+                            <div style="display: flex; align-items: center; gap: 0.5rem; margin-top: 0.75rem; color: var(--signal-dk); font-weight: 600; font-size: 0.875rem;">
+                                <i class="bi bi-braces"></i> GROUP END
+                            </div>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="criterion-card">
+                            <div class="d-flex align-items-center gap-2 mb-2">
+                                @switch (criterion.CriterionType)
+                                {
+                                    case CriterionType.Laboratory:
+                                        <span class="criterion-type-badge criterion-type-laboratory">
+                                            <i class="bi bi-clipboard-pulse"></i> Laboratory
+                                        </span>
+                                        break;
+                                    case CriterionType.Clinical:
+                                        <span class="criterion-type-badge criterion-type-clinical">
+                                            <i class="bi bi-heart-pulse"></i> Clinical
+                                        </span>
+                                        break;
+                                    case CriterionType.CustomField:
+                                        <span class="criterion-type-badge criterion-type-customfield">
+                                            <i class="bi bi-ui-checks"></i> Custom Field
+                                        </span>
+                                        break;
+                                    case CriterionType.Demographic:
+                                        <span class="criterion-type-badge criterion-type-demographic">
+                                            <i class="bi bi-person"></i> Case Data
+                                        </span>
+                                        break;
+                                }
+                            </div>
+                            <div style="font-size: 0.9375rem; line-height: 1.6;">
+                                @Html.Raw(criterion.DisplayText)
+                            </div>
+                        </div>
+                    }
+                }
+            }
+        </div>
+
+        <!-- Important Notice -->
+        <div class="alert" style="background: var(--signal-lt); border-left: 4px solid var(--signal-dk); margin-bottom: 2rem; padding: 1rem 1.25rem;">
+            <div style="display: flex; align-items: start; gap: 0.75rem;">
+                <i class="bi bi-info-circle-fill" style="color: var(--signal-dk); font-size: 1.5rem; margin-top: 0.125rem;"></i>
+                <div>
+                    <strong style="color: var(--signal-dk); display: block; margin-bottom: 0.5rem;">Ready to Activate?</strong>
+                    <ul style="margin: 0; padding-left: 1.25rem; font-size: 0.875rem; line-height: 1.6;">
+                        <li>Once activated, this definition will be <strong>Current</strong> and ready to evaluate cases</li>
+                        <li>You can edit the definition later, but changes may affect case classification</li>
+                        <li>Alternatively, save as <strong>Draft</strong> to continue working on it later</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- Navigation -->
+        <div class="d-flex justify-content-between">
+            <a asp-page="./BuildCriteria" asp-route-id="@Model.Definition.Id" class="sn-btn sn-btn-ghost">
+                <i class="bi bi-arrow-left"></i>
+                Back to Criteria
+            </a>
+            <div class="d-flex gap-2">
+                <form method="post" asp-page-handler="SaveDraft" style="display: inline;">
+                    <button type="submit" class="sn-btn sn-btn-ghost" @(Model.Criteria.Count == 0 ? "disabled" : "")>
+                        <i class="bi bi-file-earmark"></i>
+                        Save as Draft
+                    </button>
+                </form>
+                <form method="post" asp-page-handler="Activate" style="display: inline;">
+                    <button type="submit" class="sn-btn sn-btn-signal" @(Model.Criteria.Count == 0 ? "disabled" : "")>
+                        <i class="bi bi-check-circle"></i>
+                        Activate Definition
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        // Show confirmation before activating
+        document.querySelector('form[asp-page-handler="Activate"]')?.addEventListener('submit', function(e) {
+            if (!confirm('Activate this case definition? It will become active and start evaluating cases.')) {
+                e.preventDefault();
+            }
+        });
+    </script>
+}

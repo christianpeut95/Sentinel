@@ -1,0 +1,216 @@
+@page
+@model Sentinel.Pages.Settings.HL7.FieldMappings.IndexModel
+
+@{
+    ViewData["Title"] = "HL7 Field Mappings";
+    Layout = "~/Pages/Shared/_LayoutSentinel.cshtml";
+}
+
+<nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a asp-page="/Index">Home</a></li>
+        <li class="breadcrumb-item"><a asp-page="/Settings/Index">Settings</a></li>
+        <li class="breadcrumb-item active" aria-current="page">HL7 Field Mappings</li>
+    </ol>
+</nav>
+
+<div class="sentinel-page-header mb-4">
+    <div>
+        <div class="sentinel-eyebrow">HL7 Interface</div>
+        <h1 class="sentinel-page-title">HL7 Custom Field Mappings</h1>
+        <p class="sentinel-page-subtitle">Map HL7 test codes to disease-specific custom fields for automatic data extraction</p>
+    </div>
+    <div>
+        <a asp-page="./Create" class="sn-btn sn-btn--signal">
+            <i class="bi bi-plus-circle me-1"></i>Add Mapping
+        </a>
+    </div>
+</div>
+
+@if (TempData["SuccessMessage"] != null)
+{
+    <div class="alert alert-success alert-dismissible fade show" role="alert">
+        <i class="bi bi-check-circle me-2"></i>@TempData["SuccessMessage"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+
+<!-- Filter by Disease -->
+<div class="sentinel-card mb-4">
+    <div class="sentinel-card-body">
+        <form method="get" class="row g-3 align-items-end">
+            <div class="col-md-6">
+                <label for="diseaseFilter" class="sn-label">Filter by Disease</label>
+                <select name="diseaseId" id="diseaseFilter" class="sn-input" onchange="this.form.submit()">
+                    <option value="">-- All Diseases --</option>
+                    @foreach (var disease in Model.Diseases)
+                    {
+                        <option value="@disease.Id" selected="@(disease.Id.ToString() == Model.SelectedDiseaseId)">
+                            @disease.Name
+                        </option>
+                    }
+                </select>
+            </div>
+            <div class="col-md-6">
+                <button type="submit" class="sn-btn sn-btn--ghost">
+                    <i class="bi bi-funnel me-1"></i>Filter
+                </button>
+                @if (!string.IsNullOrWhiteSpace(Model.SelectedDiseaseId))
+                {
+                    <a asp-page="./Index" class="sn-btn sn-btn--ghost ms-2">
+                        <i class="bi bi-x-circle me-1"></i>Clear
+                    </a>
+                }
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Mappings Table -->
+<div class="card">
+    @if (!Model.Mappings.Any())
+    {
+        <div class="card-body text-center py-5">
+            <div style="font-size:48px;color:var(--graphite);opacity:0.3;margin-bottom:20px">
+                <i class="bi bi-diagram-2"></i>
+            </div>
+            <h5 style="color:var(--graphite);margin-bottom:8px">
+                @if (string.IsNullOrWhiteSpace(Model.SelectedDiseaseId))
+                {
+                    <text>No field mappings configured</text>
+                }
+                else
+                {
+                    <text>No field mappings for selected disease</text>
+                }
+            </h5>
+            <p style="color:var(--graphite);font-size:14px;margin-bottom:24px">
+                Create mappings to automatically extract lab results into custom fields.
+            </p>
+            <a asp-page="./Create" asp-route-diseaseId="@Model.SelectedDiseaseId" class="sn-btn sn-btn--signal">
+                <i class="bi bi-plus-circle me-1"></i>Create mapping
+            </a>
+        </div>
+    }
+    else
+    {
+        <table class="sn-table">
+            <thead>
+                <tr>
+                    <th>Disease</th>
+                    <th>HL7 Test Code</th>
+                    <th>Custom Field</th>
+                    <th>Extraction</th>
+                    <th>Status</th>
+                    <th>Priority</th>
+                    <th style="width:150px">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var mapping in Model.Mappings)
+                {
+                    <tr>
+                        <td style="font-size:13px">@mapping.Disease?.Name</td>
+                        <td>
+                            <div style="font-family:var(--f-mono);font-size:13px;font-weight:500">
+                                @mapping.HL7TestCode
+                            </div>
+                            @if (!string.IsNullOrWhiteSpace(mapping.TestCodeDescription))
+                            {
+                                <div style="font-size:12px;color:var(--graphite);margin-top:2px">
+                                    @mapping.TestCodeDescription
+                                </div>
+                            }
+                        </td>
+                        <td style="font-size:13px">
+                            @mapping.CustomFieldDefinition?.Label
+                        </td>
+                        <td>
+                            @if (mapping.ExtractQualitativeResult)
+                            {
+                                <span class="chip info" style="font-size:10px;padding:3px 8px;margin-right:4px;margin-bottom:4px">
+                                    <span class="dot"></span>Qualitative
+                                </span>
+                            }
+                            @if (mapping.ExtractQuantitativeResult)
+                            {
+                                <span class="chip info" style="font-size:10px;padding:3px 8px;margin-bottom:4px">
+                                    <span class="dot"></span>Quantitative
+                                </span>
+                            }
+                        </td>
+                        <td>
+                            @if (mapping.IsActive)
+                            {
+                                <span class="chip clear">
+                                    <span class="dot"></span>Active
+                                </span>
+                            }
+                            else
+                            {
+                                <span class="chip" style="background:#E3E9FB;color:#2A3970">
+                                    <span class="dot" style="background:#6B8CF5"></span>Inactive
+                                </span>
+                            }
+                        </td>
+                        <td style="font-family:var(--f-mono);font-size:13px;text-align:center">@mapping.Priority</td>
+                        <td>
+                            <div class="btn-group btn-group-sm" role="group">
+                                <a asp-page="./Edit" asp-route-id="@mapping.Id" class="sn-btn sn-btn--ghost sn-btn--sm" title="Edit">
+                                    <i class="bi bi-pencil"></i>
+                                </a>
+                                <button type="button" class="sn-btn sn-btn--ghost sn-btn--sm" 
+                                        onclick="confirmDelete('@mapping.Id', '@mapping.HL7TestCode')" title="Delete">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+</div>
+
+<!-- Example Info Box -->
+<div class="alert alert-info mt-4" role="alert">
+    <h6 class="alert-heading"><i class="bi bi-lightbulb me-2"></i>Example Mappings</h6>
+    <div style="font-family:var(--f-mono);font-size:12px;line-height:1.8">
+        <strong>Salmonella:</strong> Test code "AB-AMP" → Custom field "Ampicillin" (Qualitative S/R/I)<br>
+        <strong>Pertussis:</strong> Test code "PCR-BP" → Custom field "PCR Result" (Qualitative POS/NEG)<br>
+        <strong>Hepatitis B:</strong> Test code "HBsAg-QN" → Custom field "HBsAg Titer" (Quantitative value + units)
+    </div>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div class="modal fade" id="deleteModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content" style="background:var(--chalk);border:1px solid var(--hairline)">
+            <div class="modal-header" style="border-bottom:1px solid var(--hairline)">
+                <h5 class="modal-title" style="color:var(--forest)">Confirm Delete</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p style="color:var(--graphite)">Delete mapping for test code <strong id="deleteTestCode"></strong>?</p>
+                <p style="color:var(--graphite);font-size:14px">This mapping will no longer extract data from future HL7 messages.</p>
+            </div>
+            <div class="modal-footer" style="border-top:1px solid var(--hairline)">
+                <form method="post" id="deleteForm">
+                    <input type="hidden" name="id" id="deleteMappingId" />
+                    <button type="button" class="sn-btn sn-btn--ghost" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="sn-btn sn-btn--danger">Delete</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        function confirmDelete(id, testCode) {
+            document.getElementById('deleteMappingId').value = id;
+            document.getElementById('deleteTestCode').textContent = testCode;
+            new bootstrap.Modal(document.getElementById('deleteModal')).show();
+        }
+    </script>
+}

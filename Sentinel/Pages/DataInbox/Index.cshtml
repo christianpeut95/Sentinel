@@ -392,7 +392,7 @@
             <div class="text-center py-5 text-muted">
                 <i class="bi bi-inbox display-1 opacity-25"></i>
                 <p class="mt-3 fw-medium">No items to review</p>
-                <p class="small">All caught up! ??</p>
+                <p class="small"><i class="bi bi-check-circle-fill text-success me-1"></i>All caught up!</p>
             </div>
         }
         else
@@ -483,7 +483,8 @@
                                     @if (item.Priority >= 2)
                                     {
                                         <span class="badge @(item.Priority == 3 ? "bg-danger" : "bg-warning text-dark")">
-                                            @(item.Priority == 3 ? "?? Urgent" : "? High")
+                                            <i class="bi bi-@(item.Priority == 3 ? "exclamation-triangle-fill" : "exclamation-circle-fill") me-1"></i>
+                                            @(item.Priority == 3 ? "Urgent" : "High")
                                         </span>
                                     }
                                 </div>
@@ -1148,15 +1149,15 @@ string GetChangeSummary(ReviewQueueItem item)
                         // Handle different field types with appropriate language
                         if (item.TriggerField.Contains("Status"))
                         {
-                            return $"?? Change {fieldDisplay} from \"{oldVal}\" to \"{newVal}\"";
+                            return $"Change {fieldDisplay} from \"{oldVal}\" to \"{newVal}\"";
                         }
                         else if (item.TriggerField.Contains("Date"))
                         {
-                            return $"?? Update {fieldDisplay} from {oldVal} to {newVal}";
+                            return $"Update {fieldDisplay} from {oldVal} to {newVal}";
                         }
                         else
                         {
-                            return $"?? Update {fieldDisplay}: \"{oldVal}\" ? \"{newVal}\"";
+                            return $"Update {fieldDisplay}: \"{oldVal}\" ? \"{newVal}\"";
                         }
                     }
                     else if (!string.IsNullOrEmpty(newVal))
@@ -1165,31 +1166,31 @@ string GetChangeSummary(ReviewQueueItem item)
                     }
                     else if (!string.IsNullOrEmpty(oldVal))
                     {
-                        return $"??? Clear {fieldDisplay} (was \"{oldVal}\")";
+                        return $"Clear {fieldDisplay} (was \"{oldVal}\")";
                     }
                 }
             }
-            return $"?? Update {GetFieldDisplayName(item.TriggerField)}";
+            return $"Update {GetFieldDisplayName(item.TriggerField)}";
         }
         catch
         {
-            return $"?? {item.TriggerField} changed";
+            return $"{item.TriggerField} changed";
         }
     }
     
     // Enhanced descriptions for other entity types
     return item.ChangeType switch
     {
-        "New" when item.EntityType == "NewCase" => "?? New case from survey submission",
-        "New" when item.EntityType == "Contact" => "?? New contact person identified",
-        "New" when item.EntityType == "Exposure" => "?? New exposure event recorded",
-        "New" when item.EntityType == "LabResult" => "?? New laboratory result received",
-        "New" when item.EntityType == "ClinicalNotification" => "?? New clinical notification",
-        "New" => $"? New {item.EntityType} added",
-        "Updated" => $"?? {item.EntityType} information updated",
-        "FieldChanged" => "?? Field value changed",
-        "DuplicateDetected" => "?? Potential duplicate found - review needed",
-        "MergeRequest" => "?? Merge request pending approval",
+        "New" when item.EntityType == "NewCase" => "New case from survey submission",
+        "New" when item.EntityType == "Contact" => "New contact person identified",
+        "New" when item.EntityType == "Exposure" => "New exposure event recorded",
+        "New" when item.EntityType == "LabResult" => "New laboratory result received",
+        "New" when item.EntityType == "ClinicalNotification" => "New clinical notification",
+        "New" => $"New {item.EntityType} added",
+        "Updated" => $"{item.EntityType} information updated",
+        "FieldChanged" => "Field value changed",
+        "DuplicateDetected" => "Potential duplicate found - review needed",
+        "MergeRequest" => "Merge request pending approval",
         _ => item.ChangeType
     };
 }

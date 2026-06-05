@@ -325,6 +325,18 @@ namespace Sentinel.Pages.Cases
             // This way EF Core can properly track what changed
             caseToUpdate.PatientId = Case.PatientId;
             caseToUpdate.DiseaseId = Case.DiseaseId;
+
+            // Check if ConfirmationStatus was manually changed by user
+            bool confirmationStatusChanged = caseToUpdate.ConfirmationStatusId != Case.ConfirmationStatusId;
+            if (confirmationStatusChanged && !caseToUpdate.IsAutoClassified)
+            {
+                // User manually changed the confirmation status - set manual override
+                caseToUpdate.ConfirmationStatusManualOverride = true;
+                caseToUpdate.ConfirmationStatusManualOverrideDate = DateTime.UtcNow;
+                caseToUpdate.ConfirmationStatusManualOverrideByUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+                caseToUpdate.IsAutoClassified = false;
+            }
+
             caseToUpdate.ConfirmationStatusId = Case.ConfirmationStatusId;
             caseToUpdate.DateOfOnset = Case.DateOfOnset;
             caseToUpdate.DateOfNotification = Case.DateOfNotification;

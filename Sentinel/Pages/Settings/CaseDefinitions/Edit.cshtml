@@ -1,0 +1,709 @@
+@page "{id:int}"
+@model Sentinel.Pages.Settings.CaseDefinitions.EditModel
+@using Sentinel.Models.CaseDefinitions
+@{
+    ViewData["Title"] = "Edit Case Definition";
+    Layout = "~/Pages/Shared/_LayoutSentinel.cshtml";
+}
+
+<link rel="stylesheet" href="~/css/sentinel-design-system.css" />
+
+<style>
+    .classification-mode-card {
+        padding: 1rem;
+        border: 2px solid var(--hairline);
+        border-radius: 8px;
+        cursor: pointer;
+        transition: all 0.2s;
+        background: var(--chalk);
+    }
+
+    .classification-mode-card:hover {
+        border-color: var(--signal-dk);
+        background: var(--signal-lt);
+    }
+
+    .classification-mode-card input[type="radio"]:checked ~ label {
+        border-color: var(--signal-dk);
+        background: var(--signal-lt);
+    }
+
+    .classification-mode-card label {
+        cursor: pointer;
+        margin: 0;
+    }
+
+    .classification-mode-title {
+        font-weight: 600;
+        font-size: 0.9375rem;
+        margin-bottom: 0.25rem;
+        color: var(--forest);
+    }
+
+    .classification-mode-desc {
+        font-size: 0.813rem;
+        color: var(--graphite);
+        line-height: 1.5;
+        margin: 0;
+    }
+
+    /* Criteria Display Styles */
+    .criterion-card {
+        background: var(--chalk);
+        border: 1px solid var(--hairline);
+        border-radius: 8px;
+        padding: 1.25rem;
+        margin-bottom: 0.75rem;
+        transition: all 0.2s;
+    }
+
+    .criterion-card:hover {
+        border-color: var(--signal-dk);
+        box-shadow: 0 2px 8px rgba(61, 213, 152, 0.15);
+    }
+
+    .criterion-card.has-children {
+        background: var(--signal-lt);
+        border-color: var(--signal-dk);
+        border-width: 2px;
+    }
+
+    .criterion-card[data-level="1"],
+    .criterion-card[data-level="2"] {
+        background: #fff;
+        margin-top: 0.5rem;
+        margin-bottom: 0.5rem;
+    }
+
+    .criterion-type-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-family: var(--f-mono);
+        font-size: 0.625rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        padding: 0.25rem 0.625rem;
+        border-radius: 4px;
+        font-weight: 500;
+    }
+
+    .criterion-type-laboratory {
+        background: #e0f2fe;
+        color: #075985;
+        border: 1px solid #bae6fd;
+    }
+
+    .criterion-type-clinical {
+        background: #fce7f3;
+        color: #9f1239;
+        border: 1px solid #fbcfe8;
+    }
+
+    .criterion-type-customfield {
+        background: var(--signal-lt);
+        color: var(--signal-dk);
+        border: 1px solid var(--signal-dk);
+    }
+
+    .criterion-type-demographic {
+        background: #fef3c7;
+        color: #92400e;
+        border: 1px solid #fde68a;
+    }
+
+    .logical-operator-toggle {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.25rem;
+        padding: 0.375rem 0.875rem;
+        background: var(--paper);
+        border: 1px solid var(--hairline);
+        border-radius: 999px;
+        font-family: var(--f-mono);
+        font-size: 0.75rem;
+        font-weight: 600;
+        letter-spacing: 0.08em;
+        color: var(--forest);
+    }
+
+    .operator-label {
+        min-width: 28px;
+        text-align: center;
+    }
+</style>
+
+<div class="container-fluid px-4 py-4">
+    <div style="max-width: 900px; margin: 0 auto;">
+        <!-- Header -->
+        <div class="mb-4">
+            <div class="text-label mb-2">
+                <a asp-page="./Index" class="text-decoration-none">CASE DEFINITIONS</a> · EDIT
+            </div>
+            <h1 class="page-title mb-2">Edit Case Definition</h1>
+            <p class="text-muted">Update the basic details and behavior for this case definition</p>
+        </div>
+
+        <!-- Form -->
+        <form method="post" id="definitionForm">
+            <div class="sentinel-card mb-4">
+                <h3 style="font-size: 1.125rem; font-weight: 600; margin-bottom: 1.5rem;">
+                    <i class="bi bi-info-circle"></i>
+                    Definition Details
+                </h3>
+
+                <!-- Definition Name -->
+                <div class="mb-4">
+                    <label asp-for="Input.Name" class="text-label">Definition Name *</label>
+                    <input asp-for="Input.Name" class="sn-input" placeholder="e.g. COVID-19 Confirmed Case - 2024 CDC Guidelines" />
+                    <span asp-validation-for="Input.Name" class="text-danger"></span>
+                    <div class="text-muted" style="font-size: 0.75rem; margin-top: 0.5rem;">
+                        Use a descriptive name that includes the disease, classification level, and guideline reference
+                    </div>
+                </div>
+
+                <!-- Disease and Status -->
+                <div class="row g-3 mb-4">
+                    <div class="col-md-6">
+                        <label asp-for="Input.DiseaseId" class="text-label">Disease *</label>
+                        <select asp-for="Input.DiseaseId" class="sn-input" asp-items="Model.DiseasesSelectList">
+                            <option value="">Select a disease...</option>
+                        </select>
+                        <span asp-validation-for="Input.DiseaseId" class="text-danger"></span>
+                    </div>
+                    <div class="col-md-6">
+                        <label asp-for="Input.ConfirmationStatusId" class="text-label">Classification Status *</label>
+                        <select asp-for="Input.ConfirmationStatusId" class="sn-input" asp-items="Model.CaseStatusesSelectList">
+                            <option value="">Select status...</option>
+                        </select>
+                        <span asp-validation-for="Input.ConfirmationStatusId" class="text-danger"></span>
+                    </div>
+                </div>
+
+                <!-- Active Dates -->
+                <div class="row g-3 mb-4">
+                    <div class="col-md-6">
+                        <label asp-for="Input.DateActiveFrom" class="text-label">Active From *</label>
+                        <input asp-for="Input.DateActiveFrom" type="date" class="sn-input" />
+                        <span asp-validation-for="Input.DateActiveFrom" class="text-danger"></span>
+                    </div>
+                    <div class="col-md-6">
+                        <label asp-for="Input.DateActiveTo" class="text-label">Active Until (optional)</label>
+                        <input asp-for="Input.DateActiveTo" type="date" class="sn-input" />
+                        <span asp-validation-for="Input.DateActiveTo" class="text-danger"></span>
+                        <div class="text-muted" style="font-size: 0.75rem; margin-top: 0.5rem;">
+                            Leave blank if this definition should remain active indefinitely
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Classification Behavior -->
+            <div class="sentinel-card mb-4">
+                <h3 style="font-size: 1.125rem; font-weight: 600; margin-bottom: 1rem;">
+                    <i class="bi bi-lightning-charge"></i>
+                    Classification Behavior
+                </h3>
+                <p class="text-muted mb-4" style="font-size: 0.875rem;">
+                    Choose how the system should handle cases that meet this definition
+                </p>
+
+                <div class="row g-3">
+                    <!-- Manual Only -->
+                    <div class="col-12">
+                        <div class="classification-mode-card">
+                            <input type="radio" asp-for="Input.ClassificationMode" value="manual" id="modeManual" class="form-check-input" />
+                            <label for="modeManual" class="d-block">
+                                <div class="d-flex align-items-start gap-3">
+                                    <div style="font-size: 1.5rem; color: var(--graphite);">
+                                        <i class="bi bi-hand-index"></i>
+                                    </div>
+                                    <div class="flex-grow-1">
+                                        <div class="classification-mode-title">Manual Classification Only</div>
+                                        <p class="classification-mode-desc">
+                                            This definition is for reference only. Cases must be classified manually by epidemiologists. No automation.
+                                        </p>
+                                    </div>
+                                </div>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Suggest -->
+                    <div class="col-12">
+                        <div class="classification-mode-card">
+                            <input type="radio" asp-for="Input.ClassificationMode" value="suggest" id="modeSuggest" class="form-check-input" />
+                            <label for="modeSuggest" class="d-block">
+                                <div class="d-flex align-items-start gap-3">
+                                    <div style="font-size: 1.5rem; color: var(--signal-dk);">
+                                        <i class="bi bi-lightbulb"></i>
+                                    </div>
+                                    <div class="flex-grow-1">
+                                        <div class="classification-mode-title">Suggest Classification (Recommended)</div>
+                                        <p class="classification-mode-desc">
+                                            When criteria are met, create a review queue item suggesting the classification change. An epidemiologist must approve before the case status changes. Provides oversight while reducing manual effort.
+                                        </p>
+                                    </div>
+                                </div>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Auto-classify with Review -->
+                    <div class="col-12">
+                        <div class="classification-mode-card">
+                            <input type="radio" asp-for="Input.ClassificationMode" value="auto-review" id="modeAutoReview" class="form-check-input" />
+                            <label for="modeAutoReview" class="d-block">
+                                <div class="d-flex align-items-start gap-3">
+                                    <div style="font-size: 1.5rem; color: var(--signal-dk);">
+                                        <i class="bi bi-lightning-charge-fill"></i>
+                                    </div>
+                                    <div class="flex-grow-1">
+                                        <div class="classification-mode-title">Auto-Classify with Review Queue</div>
+                                        <p class="classification-mode-desc">
+                                            Automatically change case status when criteria are met, but create a review queue item for audit. The epidemiologist can review the automatic decision after it's applied. Fastest processing with audit trail.
+                                        </p>
+                                    </div>
+                                </div>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Auto-classify Silent -->
+                    <div class="col-12">
+                        <div class="classification-mode-card">
+                            <input type="radio" asp-for="Input.ClassificationMode" value="auto-silent" id="modeAutoSilent" class="form-check-input" />
+                            <label for="modeAutoSilent" class="d-block">
+                                <div class="d-flex align-items-start gap-3">
+                                    <div style="font-size: 1.5rem; color: var(--signal-dk);">
+                                        <i class="bi bi-robot"></i>
+                                    </div>
+                                    <div class="flex-grow-1">
+                                        <div class="classification-mode-title">Auto-Classify (No Review Queue)</div>
+                                        <p class="classification-mode-desc">
+                                            Automatically change case status without creating review items. Use only for well-established, high-confidence criteria. All changes are still logged in case classification history.
+                                        </p>
+                                    </div>
+                                </div>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Auto-Evaluation Trigger Settings -->
+            <div class="sentinel-card mb-4">
+                <h3 style="font-size: 1.125rem; font-weight: 600; margin-bottom: 1rem;">
+                    <i class="bi bi-gear-fill"></i>
+                    Automatic Evaluation Settings
+                </h3>
+                <p class="text-muted mb-4" style="font-size: 0.875rem;">
+                    Control when this definition is automatically evaluated
+                </p>
+
+                <div class="form-check mb-3" style="padding-left: 0;">
+                    <div style="background: var(--signal-lt); border: 2px solid var(--signal-dk); border-radius: 8px; padding: 1rem;">
+                        <div class="d-flex align-items-start gap-3">
+                            <input asp-for="Input.EnableAutoEvaluation" class="form-check-input mt-1" type="checkbox" id="enableAutoEval" style="width: 1.25rem; height: 1.25rem;" />
+                            <label class="form-check-label flex-grow-1" for="enableAutoEval" style="cursor: pointer;">
+                                <div style="font-weight: 600; font-size: 0.9375rem; color: var(--forest); margin-bottom: 0.5rem;">
+                                    <i class="bi bi-toggle-on"></i> Enable Automatic Evaluation
+                                </div>
+                                <p style="font-size: 0.8125rem; color: var(--graphite); margin-bottom: 0.5rem; line-height: 1.6;">
+                                    When enabled, this definition will be automatically evaluated whenever case data changes (lab results, symptoms, clinical information, etc.).
+                                    Evaluations happen in the background without blocking user operations.
+                                </p>
+                                <div style="background: white; border-left: 3px solid var(--signal-dk); padding: 0.75rem; font-size: 0.75rem; color: var(--forest-2); border-radius: 4px;">
+                                    <strong>Note:</strong> Even with auto-evaluation enabled, users can manually override the classification status.
+                                    Manual overrides will temporarily block automatic evaluation until the user re-enables it.
+                                </div>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="alert alert-info" style="background: #e0f2fe; border-left: 4px solid #0284c7; font-size: 0.8125rem;">
+                    <i class="bi bi-info-circle-fill me-2" style="color: #0284c7;"></i>
+                    <strong>Best Practice:</strong> Enable auto-evaluation for well-defined criteria with clear thresholds (e.g., lab-confirmed cases).
+                    Keep it disabled for definitions that require clinical judgment or manual interpretation.
+                </div>
+            </div>
+
+            <!-- Criteria Summary -->
+            <div class="sentinel-card mb-4">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h3 style="font-size: 1.125rem; font-weight: 600; margin: 0;">
+                        <i class="bi bi-list-check"></i>
+                        Criteria (@Model.Definition.Criteria.Count)
+                    </h3>
+                    <a asp-page="./BuildCriteria" asp-route-id="@Model.Definition.Id" class="sn-btn sn-btn-secondary sn-btn-sm">
+                        <i class="bi bi-pencil"></i>
+                        Edit Criteria
+                    </a>
+                </div>
+
+                <div id="criteriaContainer">
+                    @if (!Model.Definition.Criteria.Any())
+                    {
+                        <div class="text-center py-4 text-muted">
+                            <i class="bi bi-inbox" style="font-size: 2rem; opacity: 0.3;"></i>
+                            <p class="mb-0 mt-2">No criteria defined yet</p>
+                        </div>
+                    }
+                    else
+                    {
+                        var rootCriteria = Model.Definition.Criteria.Where(c => c.ParentCriteriaId == null).OrderBy(c => c.DisplayOrder).ToList();
+
+                        for (int i = 0; i < rootCriteria.Count; i++)
+                        {
+                            var criterion = rootCriteria[i];
+                            var isFirst = i == 0;
+                            var isLast = i == rootCriteria.Count - 1;
+                            var hasChildren = criterion.ChildCriteria?.Any() == true;
+
+                            @* Show logical operator between root criteria *@
+                                            @if (!isFirst)
+                                            {
+                                                <div style="text-align: center; margin: -0.5rem 0;">
+                                                    <div class="logical-operator-toggle" style="cursor: default;">
+                                                        <span class="operator-label">@(criterion.LogicalOperator == LogicalOperator.AND ? "AND" : "OR")</span>
+                                                    </div>
+                                                </div>
+                                            }
+
+                                            <div class="criterion-card @(hasChildren ? "has-children" : "")" 
+                                                 data-criterion-id="@criterion.Id" 
+                                                 data-order="@criterion.DisplayOrder"
+                                                 data-level="0">
+                                                <div class="d-flex justify-content-between align-items-start mb-2">
+                                                    <div class="flex-grow-1">
+                                                        <div class="d-flex align-items-center gap-2 mb-2">
+                                                            @switch (criterion.CriterionType)
+                                                            {
+                                                                case CriterionType.Laboratory:
+                                                                    <span class="criterion-type-badge criterion-type-laboratory">
+                                                                        <i class="bi bi-clipboard-pulse"></i> Laboratory
+                                                                    </span>
+                                                                    break;
+                                                                case CriterionType.Clinical:
+                                                                    <span class="criterion-type-badge criterion-type-clinical">
+                                                                        <i class="bi bi-heart-pulse"></i> Clinical
+                                                                    </span>
+                                                                    break;
+                                                                case CriterionType.CustomField:
+                                                                    <span class="criterion-type-badge criterion-type-customfield">
+                                                                        <i class="bi bi-ui-checks"></i> Custom Field
+                                                                    </span>
+                                                                    break;
+                                                                case CriterionType.Demographic:
+                                                                    <span class="criterion-type-badge criterion-type-demographic">
+                                                                        <i class="bi bi-person"></i> Case Data
+                                                                    </span>
+                                                                    break;
+                                                            }
+
+                                                            @if (hasChildren)
+                                                            {
+                                                                <span class="badge" style="background: var(--signal-lt); color: var(--signal-dk); font-size: 0.625rem; padding: 0.25rem 0.5rem;">
+                                                                    <i class="bi bi-braces"></i> GROUP
+                                                                </span>
+                                                            }
+                                                        </div>
+
+                                                        <div style="font-size: 0.9375rem; line-height: 1.6;">
+                                                            @Html.Raw(criterion.DisplayText)
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                            @* Render child criteria *@
+                            @if (hasChildren)
+                            {
+                                var children = criterion.ChildCriteria.OrderBy(c => c.DisplayOrder).ToList();
+                                for (int j = 0; j < children.Count; j++)
+                                {
+                                    var child = children[j];
+
+                                    @if (j > 0)
+                                    {
+                                        <div style="text-align: center; margin: -0.5rem 0; margin-left: 2rem;">
+                                            <div class="logical-operator-toggle" style="cursor: default;">
+                                                <span class="operator-label">@(child.LogicalOperator == LogicalOperator.AND ? "AND" : "OR")</span>
+                                            </div>
+                                        </div>
+                                    }
+
+                                    <div class="criterion-card" 
+                                         data-criterion-id="@child.Id" 
+                                         data-order="@child.DisplayOrder"
+                                         data-level="1"
+                                         style="margin-left: 2rem; border-left: 3px solid var(--signal-dk); padding-left: 1rem;">
+                                        <div class="d-flex justify-content-between align-items-start mb-2">
+                                            <div class="flex-grow-1">
+                                                <div class="d-flex align-items-center gap-2 mb-2">
+                                                    @switch (child.CriterionType)
+                                                    {
+                                                        case CriterionType.Laboratory:
+                                                            <span class="criterion-type-badge criterion-type-laboratory">
+                                                                <i class="bi bi-clipboard-pulse"></i> Laboratory
+                                                            </span>
+                                                            break;
+                                                        case CriterionType.Clinical:
+                                                            <span class="criterion-type-badge criterion-type-clinical">
+                                                                <i class="bi bi-heart-pulse"></i> Clinical
+                                                            </span>
+                                                            break;
+                                                        case CriterionType.CustomField:
+                                                            <span class="criterion-type-badge criterion-type-customfield">
+                                                                <i class="bi bi-ui-checks"></i> Custom Field
+                                                            </span>
+                                                            break;
+                                                        case CriterionType.Demographic:
+                                                            <span class="criterion-type-badge criterion-type-demographic">
+                                                                <i class="bi bi-person"></i> Case Data
+                                                            </span>
+                                                            break;
+                                                    }
+                                                </div>
+
+                                                <div style="font-size: 0.9375rem; line-height: 1.6;">
+                                                    @Html.Raw(child.DisplayText)
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                }
+                            }
+                        }
+                    }
+                </div>
+            </div>
+
+            <!-- Lab Criteria Summary -->
+            <div class="sentinel-card mb-4">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h3 style="font-size: 1.125rem; font-weight: 600; margin: 0;">
+                        <i class="bi bi-clipboard-pulse"></i>
+                        Lab Criteria (@Model.Definition.Criteria.Count(c => c.CriterionType == CriterionType.Laboratory))
+                    </h3>
+                </div>
+
+                <div id="labCriteriaContainer">
+                    @if (!Model.Definition.Criteria.Any(c => c.CriterionType == CriterionType.Laboratory))
+                    {
+                        <div class="text-center py-4 text-muted">
+                            <i class="bi bi-inbox" style="font-size: 2rem; opacity: 0.3;"></i>
+                            <p class="mb-0 mt-2">No lab criteria defined yet</p>
+                        </div>
+                    }
+                    else
+                    {
+                        var labCriteria = Model.Definition.Criteria.Where(c => c.CriterionType == CriterionType.Laboratory).OrderBy(lc => lc.GroupNumber).ThenBy(lc => lc.DisplayOrder).ToList();
+
+                        for (int i = 0; i < labCriteria.Count; i++)
+                        {
+                            var criterion = labCriteria[i];
+                            var isFirst = i == 0;
+
+                            @if (!isFirst)
+                            {
+                                <div style="text-align: center; margin: -0.5rem 0;">
+                                    <div class="logical-operator-toggle" style="cursor: default;">
+                                        <span class="operator-label">@(criterion.LogicalOperator == LogicalOperator.AND ? "AND" : "OR")</span>
+                                    </div>
+                                </div>
+                            }
+
+                            <div class="criterion-card" data-criterion-id="@criterion.Id" data-order="@criterion.DisplayOrder" data-level="0">
+                                <div class="d-flex justify-content-between align-items-start mb-2">
+                                    <div class="flex-grow-1">
+                                        <div class="d-flex align-items-center gap-2 mb-2">
+                                            <span class="criterion-type-badge criterion-type-laboratory">
+                                                <i class="bi bi-clipboard-pulse"></i> Laboratory
+                                            </span>
+                                            @if (criterion.IsRequired ?? false)
+                                            {
+                                                <span class="badge" style="background: #fef3c7; color: #92400e; font-size: 0.625rem; padding: 0.25rem 0.5rem;">
+                                                    <i class="bi bi-exclamation-circle"></i> REQUIRED
+                                                </span>
+                                            }
+                                            @if (criterion.RequireAllElementsMatch ?? false)
+                                            {
+                                                <span class="badge" style="background: #e0f2fe; color: #075985; font-size: 0.625rem; padding: 0.25rem 0.5rem;">
+                                                    <i class="bi bi-check-all"></i> ALL MATCH
+                                                </span>
+                                            }
+                                        </div>
+
+                                        <div style="font-size: 0.9375rem; line-height: 1.6; margin-bottom: 1rem;">
+                                            @if (!string.IsNullOrEmpty(criterion.Description))
+                                            {
+                                                <strong>@criterion.Description</strong>
+                                            }
+                                            else
+                                            {
+                                                <strong>Lab Result Criteria (Group @criterion.GroupNumber)</strong>
+                                            }
+                                        </div>
+
+                                        <div class="row g-2">
+                                            @if (criterion.CanonicalSpecimenType != null)
+                                            {
+                                                <div class="col-md-6">
+                                                    <div style="background: #f1f5f9; border-radius: 6px; padding: 0.75rem;">
+                                                        <div style="font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; color: #64748b; font-weight: 600; margin-bottom: 0.25rem;">Specimen</div>
+                                                        <div style="font-size: 0.875rem; color: #1e293b;">@criterion.CanonicalSpecimenType.Name</div>
+                                                    </div>
+                                                </div>
+                                            }
+                                            @if (criterion.CanonicalPathogen != null)
+                                            {
+                                                <div class="col-md-6">
+                                                    <div style="background: #f1f5f9; border-radius: 6px; padding: 0.75rem;">
+                                                        <div style="font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; color: #64748b; font-weight: 600; margin-bottom: 0.25rem;">Pathogen</div>
+                                                        <div style="font-size: 0.875rem; color: #1e293b;">@criterion.CanonicalPathogen.Name</div>
+                                                    </div>
+                                                </div>
+                                            }
+                                            @if (criterion.CanonicalTestMethod != null)
+                                            {
+                                                <div class="col-md-6">
+                                                    <div style="background: #f1f5f9; border-radius: 6px; padding: 0.75rem;">
+                                                        <div style="font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; color: #64748b; font-weight: 600; margin-bottom: 0.25rem;">Test Method</div>
+                                                        <div style="font-size: 0.875rem; color: #1e293b;">@criterion.CanonicalTestMethod.Name</div>
+                                                    </div>
+                                                </div>
+                                            }
+                                            @if (criterion.CanonicalTestResult != null)
+                                            {
+                                                <div class="col-md-6">
+                                                    <div style="background: #f1f5f9; border-radius: 6px; padding: 0.75rem;">
+                                                        <div style="font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; color: #64748b; font-weight: 600; margin-bottom: 0.25rem;">Result</div>
+                                                        <div style="font-size: 0.875rem; color: #1e293b;">@criterion.CanonicalTestResult.Name</div>
+                                                    </div>
+                                                </div>
+                                            }
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        }
+                    }
+                </div>
+            </div>
+
+            <!-- Actions -->
+            <div class="d-flex gap-3 justify-content-end">
+                <a asp-page="./Index" class="sn-btn sn-btn-ghost">
+                    <i class="bi bi-x-lg"></i>
+                    Cancel
+                </a>
+                <button type="submit" class="sn-btn sn-btn-signal">
+                    <i class="bi bi-check-lg"></i>
+                    Save Changes
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+
+    <script>
+        // Highlight selected classification mode card
+        document.querySelectorAll('input[name="Input.ClassificationMode"]').forEach(radio => {
+            radio.addEventListener('change', function() {
+                document.querySelectorAll('.classification-mode-card').forEach(card => {
+                    card.style.borderColor = 'var(--hairline)';
+                    card.style.background = 'var(--chalk)';
+                });
+
+                if (this.checked) {
+                    const card = this.closest('.classification-mode-card');
+                    card.style.borderColor = 'var(--signal-dk)';
+                    card.style.background = 'var(--signal-lt)';
+                }
+            });
+        });
+
+        // Trigger on page load to highlight pre-selected mode
+        const selectedRadio = document.querySelector('input[name="Input.ClassificationMode"]:checked');
+        if (selectedRadio) {
+            const card = selectedRadio.closest('.classification-mode-card');
+            card.style.borderColor = 'var(--signal-dk)';
+            card.style.background = 'var(--signal-lt)';
+        }
+
+        // Criteria management functions
+
+        // Delete criterion
+        async function deleteCriterion(id) {
+            if (!confirm('Remove this criterion?')) {
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/case-definitions/@Model.Definition.Id/criteria/' + id, {
+                    method: 'DELETE'
+                });
+
+                if (response.ok) {
+                    location.reload();
+                } else {
+                    alert('Failed to delete criterion');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('An error occurred while deleting');
+            }
+        }
+
+        // Toggle logical operator (AND/OR) for a criterion
+        async function toggleLogicalOperator(criterionId, currentOperator) {
+            const newOperator = currentOperator === 0 ? 1 : 0; // Toggle between AND (0) and OR (1)
+
+            try {
+                const response = await fetch(`/api/case-definitions/@Model.Definition.Id/criteria/${criterionId}/operator`, {
+                    method: 'PATCH',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ logicalOperator: newOperator })
+                });
+
+                if (response.ok) {
+                    location.reload();
+                } else {
+                    alert('Failed to update operator');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('An error occurred while updating operator');
+            }
+        }
+
+        // Move criterion up or down in display order
+        async function moveCriterion(criterionId, direction) {
+            try {
+                const response = await fetch(`/api/case-definitions/@Model.Definition.Id/criteria/${criterionId}/reorder`, {
+                    method: 'PATCH',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ direction: direction })
+                });
+
+                if (response.ok) {
+                    location.reload();
+                } else {
+                    alert('Failed to reorder criterion');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('An error occurred while reordering');
+            }
+        }
+    </script>
+}
