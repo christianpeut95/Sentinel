@@ -1127,9 +1127,9 @@
                 alert('Please complete the case details first.');
                 return;
             }
-            
+
             // Open the lab result modal with iframe=true parameter
-            const url = `/Cases/AddLabResult?caseId=${createdCaseId}&iframe=true`;
+            const url = `/Cases/AddLabResult/${createdCaseId}?iframe=true`;
             
             // Use Bootstrap modal if available
             if (typeof bootstrap !== 'undefined') {
@@ -1329,9 +1329,9 @@
                 alert('Please complete the case details first.');
                 return;
             }
-            
+
             // Open the exposure modal with iframe=true parameter
-            const url = `/Cases/Exposures/Create?caseId=${createdCaseId}&iframe=true`;
+            const url = `/Cases/AddExposure?caseId=${createdCaseId}`;
             
             // Use Bootstrap modal if available
             if (typeof bootstrap !== 'undefined') {

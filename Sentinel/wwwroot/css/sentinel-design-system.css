@@ -449,6 +449,52 @@ html, body {
   letter-spacing: 0.02em;
 }
 
+/* ── KPI Tiles (from UI Guidelines) ────────────────── */
+.kpi {
+  padding: 20px;
+  background: #fff;
+  border: 1px solid var(--hairline);
+  border-radius: 6px;
+}
+
+.kpi-label {
+  font-family: var(--f-mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--graphite);
+  font-weight: 500;
+}
+
+.kpi-value {
+  font-size: 40px;
+  font-weight: 500;
+  letter-spacing: -0.04em;
+  margin-top: 4px;
+  color: var(--forest);
+}
+
+.kpi-value em {
+  font-style: normal;
+  color: var(--signal-dk);
+}
+
+.kpi-delta {
+  font-family: var(--f-mono);
+  font-size: 10px;
+  color: var(--graphite);
+  margin-top: 4px;
+  letter-spacing: 0.02em;
+}
+
+.kpi-delta.up {
+  color: var(--outbreak);
+}
+
+.kpi-delta.down {
+  color: var(--signal-dk);
+}
+
 /* ========================================
    Buttons
    ======================================== */
@@ -1103,9 +1149,10 @@ html, body {
 }
 
 /* ========================================
-   Responsive
+   Responsive - Enhanced Mobile Optimizations
    ======================================== */
 @media (max-width: 768px) {
+  /* Sidebar - existing styles */
   .sentinel-sidebar {
     transform: translateX(-100%);
   }
@@ -1116,6 +1163,7 @@ html, body {
 
   .sentinel-main {
     margin-left: 0;
+    padding: var(--spacing-4); /* Reduce from spacing-6 */
   }
 
   .sidebar-toggle {
@@ -1124,17 +1172,182 @@ html, body {
     justify-content: center;
   }
 
+  /* Header - more compact on mobile */
   .sentinel-header {
+    padding: var(--spacing-3) var(--spacing-4);
     padding-left: 60px;
   }
 
-  .sentinel-kpi-grid {
-    grid-template-columns: 1fr;
+  .sentinel-header .page-title {
+    font-size: 18px; /* Slightly smaller */
   }
 
+  .sentinel-header .page-meta {
+    font-size: 10px;
+  }
+
+  /* Container - reduce padding on mobile */
+  .sentinel-container {
+    padding: 0;
+  }
+
+  /* Cards - reduce padding */
+  .sentinel-card {
+    padding: var(--spacing-4);
+    margin-bottom: var(--spacing-4);
+    border-radius: var(--radius-sm);
+  }
+
+  /* KPI tiles - stack and reduce size */
+  .sentinel-kpi-grid {
+    grid-template-columns: 1fr;
+    gap: var(--spacing-3);
+  }
+
+  .sentinel-kpi .kpi-value,
+  .sn-kpi-value {
+    font-size: 32px; /* Reduce from 40px */
+  }
+
+  /* Grids stack on mobile */
   .grid-2,
   .grid-3,
   .grid-4 {
     grid-template-columns: 1fr;
+    gap: var(--spacing-3);
+  }
+
+  /* Tables - responsive scroll */
+  .sentinel-table,
+  .sn-table {
+    display: block;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
+  }
+
+  .sentinel-table thead,
+  .sn-table thead {
+    display: table;
+    width: 100%;
+    table-layout: fixed;
+  }
+
+  .sentinel-table tbody,
+  .sn-table tbody {
+    display: table;
+    width: 100%;
+  }
+
+  /* Buttons - full width on mobile for better touch targets */
+  .sentinel-page-actions {
+    width: 100%;
+    flex-direction: column;
+  }
+
+  .sentinel-page-actions .sn-btn,
+  .sentinel-page-actions .btn-sentinel-primary,
+  .sentinel-page-actions .btn-sentinel-secondary {
+    width: 100%;
+  }
+
+  /* Form inputs - ensure they're touch-friendly */
+  .sentinel-input,
+  .sentinel-select,
+  .sn-input,
+  .sn-select {
+    height: 44px; /* Increase from 36px for better touch targets */
+    font-size: 16px; /* Prevents zoom on iOS */
+  }
+
+  .sn-btn {
+    height: 44px; /* Better touch target */
+    font-size: 15px;
+  }
+
+  /* Dropdown user menu - position better on mobile */
+  .dropdown-menu {
+    min-width: 180px;
+    left: auto !important;
+    right: 0 !important;
+  }
+
+  /* Page header - stack elements */
+  .sentinel-page-header {
+    flex-direction: column;
+    gap: var(--spacing-3);
+  }
+
+  .sentinel-page-title {
+    font-size: 28px; /* Reduce from 36px */
+  }
+
+  /* Sidebar overlay for mobile */
+  .sentinel-sidebar::after {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 280px;
+    right: 0;
+    bottom: 0;
+    background: rgba(12, 42, 32, 0.5);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity var(--transition-normal);
+  }
+
+  .sentinel-sidebar.open::after {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  /* Typography - reduce sizes slightly for mobile */
+  .text-h1 {
+    font-size: 40px;
+    letter-spacing: -0.03em;
+  }
+
+  .text-h2 {
+    font-size: 28px;
+  }
+
+  .text-h3 {
+    font-size: 18px;
+  }
+}
+
+/* Extra small devices (phones in portrait) */
+@media (max-width: 480px) {
+  .sentinel-main {
+    padding: var(--spacing-3);
+  }
+
+  .sentinel-header {
+    padding: var(--spacing-2) var(--spacing-3);
+    padding-left: 56px;
+  }
+
+  .sentinel-card {
+    padding: var(--spacing-3);
+  }
+
+  .sentinel-page-title,
+  .sentinel-card-title {
+    font-size: 20px;
+  }
+
+  .kpi-value,
+  .sn-kpi-value {
+    font-size: 28px;
+  }
+
+  /* Sidebar slightly narrower on very small screens */
+  .sentinel-sidebar {
+    width: 260px;
+  }
+
+  .sidebar-toggle {
+    width: 36px;
+    height: 36px;
+    font-size: 18px;
   }
 }

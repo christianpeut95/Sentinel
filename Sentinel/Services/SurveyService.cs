@@ -847,7 +847,22 @@ namespace Sentinel.Services
                     }
                 }
 
-                _logger.LogInformation("Auto-populated {Count} data fields for Task {TaskId}", 
+                // ASSIGNED USER DATA (First Name Only)
+                if (!string.IsNullOrEmpty(task?.AssignedToUserId))
+                {
+                    var assignedUser = await _context.Users
+                        .AsNoTracking()
+                        .Where(u => u.Id == task.AssignedToUserId)
+                        .Select(u => new { u.FirstName })
+                        .FirstOrDefaultAsync();
+
+                    if (assignedUser != null)
+                    {
+                        AddIfNotNull(data, "user_first_name", assignedUser.FirstName);
+                    }
+                }
+
+                _logger.LogInformation("Auto-populated {Count} data fields for Task {TaskId}",
                     data.Count, task.Id);
             }
             catch (Exception ex)

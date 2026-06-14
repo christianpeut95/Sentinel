@@ -1,0 +1,28 @@
+<svg viewBox="0 0 1024 256" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <style>
+      .logo-mark-bg { fill: #0C2A20; }
+      .logo-mark-rings { fill: none; stroke: #3DD598; stroke-width: 1.4; }
+      .logo-mark-dot { fill: #3DD598; }
+      .logo-wordmark { fill: #0C2A20; }
+      .logo-dot { fill: #159C6E; }
+    </style>
+  </defs>
+
+  <!-- Mark -->
+  <g transform="translate(0, 0)">
+    <rect class="logo-mark-bg" width="256" height="256" rx="56"/>
+    <g class="logo-mark-rings" opacity="1">
+      <circle cx="128" cy="128" r="45"/>
+      <circle cx="128" cy="128" r="77" opacity="0.55"/>
+      <circle cx="128" cy="128" r="109" opacity="0.22"/>
+    </g>
+    <circle class="logo-mark-dot" cx="128" cy="128" r="19"/>
+  </g>
+
+  <!-- Wordmark -->
+  <text class="logo-wordmark" x="300" y="180" font-family="Geist, -apple-system, system-ui, sans-serif" font-size="140" font-weight="600" letter-spacing="-6">Sentinel</text>
+
+  <!-- Dot accent -->
+  <circle class="logo-dot" cx="990" cy="168" r="17"/>
+</svg>

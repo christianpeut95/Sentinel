@@ -5,6 +5,14 @@
     ViewData["Title"] = "View Survey Result";
 }
 
+@section Styles {
+    <!-- SurveyJS Styles -->
+    <link href="~/lib/survey-core/defaultV2.min.css" rel="stylesheet" />
+
+    <!-- Sentinel Theme Override - Must load AFTER default SurveyJS styles -->
+    <link href="~/css/sentinel-survey-theme.css" rel="stylesheet" />
+}
+
 <style nonce="@GetCspNonce()">
     /* Breadcrumb styling */
     .breadcrumb {

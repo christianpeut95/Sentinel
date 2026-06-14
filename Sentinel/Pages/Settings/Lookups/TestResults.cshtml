@@ -1,0 +1,221 @@
+@page
+@model Sentinel.Pages.Settings.Lookups.TestResultsModel
+
+@{
+    ViewData["Title"] = "Test Results";
+    ViewData["Subtitle"] = "Manage qualitative test result options";
+    Layout = "~/Pages/Shared/_LayoutSentinel.cshtml";
+}
+
+<nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a asp-page="/Index">Home</a></li>
+        <li class="breadcrumb-item"><a asp-page="/Settings/Index">Settings</a></li>
+        <li class="breadcrumb-item active" aria-current="page">Test Results</li>
+    </ol>
+</nav>
+
+<div class="sentinel-page-header">
+    <div>
+        <h1 class="sentinel-page-title">Test Results</h1>
+        <p class="sentinel-page-subtitle">Qualitative test result options (Positive, Negative, Indeterminate, etc.)</p>
+    </div>
+    <div class="sentinel-page-actions">
+        <a asp-page="CreateTestResult" class="sn-btn sn-btn--signal">
+            <i class="bi bi-plus-lg"></i>
+            Add Test Result
+        </a>
+    </div>
+</div>
+
+<!-- Search & Filter -->
+<div class="sentinel-card mb-4">
+    <div class="sentinel-card-body">
+        <form method="get" class="row g-3">
+            <div class="col-md-8">
+                <label class="sn-label">Search</label>
+                <input type="text" 
+                       name="searchTerm" 
+                       value="@Model.SearchTerm" 
+                       class="sn-input" 
+                       placeholder="Search by name or description..." />
+            </div>
+            <div class="col-md-2">
+                <label class="sn-label">Status</label>
+                <select name="isActive" class="sn-input">
+                    <option value="">All</option>
+                    <option value="true" selected="@(Model.IsActive == true)">Active</option>
+                    <option value="false" selected="@(Model.IsActive == false)">Inactive</option>
+                </select>
+            </div>
+            <div class="col-md-2 d-flex align-items-end gap-2">
+                <button type="submit" class="sn-btn sn-btn--primary flex-fill">
+                    <i class="bi bi-search"></i>
+                    Filter
+                </button>
+                <a asp-page="TestResults" class="sn-btn sn-btn--ghost">
+                    <i class="bi bi-x-lg"></i>
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Test Results Table -->
+<div class="sentinel-card">
+    <div class="sentinel-card-body p-0">
+        @if (!Model.TestResults.Any())
+        {
+            <div class="p-5 text-center">
+                <i class="bi bi-inbox" style="font-size: 3rem; color: var(--sn-graphite); opacity: 0.4;"></i>
+                <p class="mt-3 mb-0" style="color: var(--sn-graphite);">
+                    No test results found. @(string.IsNullOrEmpty(Model.SearchTerm) ? "Add your first test result to get started." : "Try adjusting your search.")
+                </p>
+            </div>
+        }
+        else
+        {
+            <div class="table-responsive">
+                <table class="sn-table">
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Description</th>
+                            <th>SNOMED CT</th>
+                            <th>HL7 Code</th>
+                            <th>Export Code</th>
+                            <th>Display Order</th>
+                            <th>Status</th>
+                            <th>Usage</th>
+                            <th class="text-end">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var result in Model.TestResults)
+                        {
+                            <tr>
+                                <td>
+                                    <span class="fw-semibold">@result.Name</span>
+                                </td>
+                                <td>
+                                    @if (!string.IsNullOrEmpty(result.Description))
+                                    {
+                                        <span class="sentinel-meta-text">@result.Description</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="sentinel-meta-text">—</span>
+                                    }
+                                </td>
+                                <td>
+                                    @if (!string.IsNullOrEmpty(result.SnomedCode))
+                                    {
+                                        <div>
+                                            <code class="sentinel-code">@result.SnomedCode</code>
+                                            @if (!string.IsNullOrEmpty(result.SnomedDisplay))
+                                            {
+                                                <br/><small class="sentinel-meta-text">@result.SnomedDisplay</small>
+                                            }
+                                        </div>
+                                    }
+                                    else
+                                    {
+                                        <span class="sentinel-meta-text">—</span>
+                                    }
+                                </td>
+                                <td>
+                                    @if (!string.IsNullOrEmpty(result.Hl7Code))
+                                    {
+                                        <code class="sentinel-code">@result.Hl7Code</code>
+                                    }
+                                    else
+                                    {
+                                        <span class="sentinel-meta-text">—</span>
+                                    }
+                                </td>
+                                <td>
+                                    @if (!string.IsNullOrEmpty(result.ExportCode))
+                                    {
+                                        <code class="sentinel-code">@result.ExportCode</code>
+                                    }
+                                    else
+                                    {
+                                        <span class="sentinel-meta-text">—</span>
+                                    }
+                                </td>
+                                <td>
+                                    <span class="sentinel-code">@(result.DisplayOrder?.ToString() ?? "—")</span>
+                                </td>
+                                <td>
+                                    @if (result.IsActive)
+                                    {
+                                        <span class="sn-chip sn-chip--clear">
+                                            <span class="sn-chip__dot"></span>
+                                            Active
+                                        </span>
+                                    }
+                                    else
+                                    {
+                                        <span class="sn-chip sn-chip--info">
+                                            <span class="sn-chip__dot"></span>
+                                            Inactive
+                                        </span>
+                                    }
+                                </td>
+                                <td>
+                                    @if (Model.LabResultCounts.TryGetValue(result.Id, out var count) && count > 0)
+                                    {
+                                        <span class="sentinel-badge">@count results</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="sentinel-meta-text">Not used</span>
+                                    }
+                                </td>
+                                <td class="text-end">
+                                    <div class="btn-group btn-group-sm">
+                                        <a asp-page="EditTestResult" asp-route-id="@result.Id" 
+                                           class="sn-btn sn-btn--ghost sn-btn--sm" 
+                                           title="Edit">
+                                            <i class="bi bi-pencil"></i>
+                                        </a>
+                                        @if (!Model.LabResultCounts.ContainsKey(result.Id) || Model.LabResultCounts[result.Id] == 0)
+                                        {
+                                            <button type="button" 
+                                                    class="sn-btn sn-btn--ghost sn-btn--sm" 
+                                                    title="Delete"
+                                                    onclick="confirmDelete('@result.Id', '@result.Name')">
+                                                <i class="bi bi-trash"></i>
+                                            </button>
+                                        }
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </div>
+</div>
+
+<!-- Delete Confirmation Form (hidden) -->
+<form method="post" id="deleteForm" style="display: none;">
+    <input type="hidden" name="id" id="deleteId" />
+</form>
+
+@section Scripts {
+    <script>
+        function confirmDelete(id, name) {
+            if (confirm(`Are you sure you want to delete "${name}"?\n\nThis action cannot be undone.`)) {
+                document.getElementById('deleteId').value = id;
+                document.getElementById('deleteForm').submit();
+            }
+        }
+
+        // Auto-submit on status change
+        document.querySelector('select[name="isActive"]').addEventListener('change', (e) => {
+            e.target.closest('form').submit();
+        });
+    </script>
+}

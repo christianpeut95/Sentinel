@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sentinel Survey Theme - Demo</title>
+
+    <!-- Geist Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700;800&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+    <!-- SurveyJS Core CSS (MUST load first) -->
+    <link href="../lib/survey-core/defaultV2.min.css" rel="stylesheet" />
+
+    <!-- Sentinel Theme Override (MUST load after) -->
+    <link href="../css/sentinel-survey-theme.css" rel="stylesheet" />
+
+    <style>
+        body {
+            margin: 0;
+            padding: 40px 20px;
+            background: #F5F3EC; /* --sn-bone */
+            font-family: "Geist", sans-serif;
+        }
+
+        .demo-header {
+            max-width: 940px;
+            margin: 0 auto 40px;
+            text-align: center;
+        }
+
+        .demo-header h1 {
+            font-size: 48px;
+            font-weight: 600;
+            letter-spacing: -0.045em;
+            color: #0C2A20;
+            margin-bottom: 12px;
+        }
+
+        .demo-header p {
+            font-size: 16px;
+            color: #4A5A55;
+            line-height: 1.6;
+        }
+
+        .demo-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-family: "Geist Mono", monospace;
+            font-size: 10px;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            color: #0A3F2C;
+            background: #D9F2E5;
+            border: 1px solid #9BE8C6;
+            border-radius: 4px;
+            padding: 4px 10px;
+            margin-bottom: 20px;
+        }
+
+        .demo-badge::before {
+            content: "";
+            width: 7px;
+            height: 7px;
+            background: #159C6E;
+            border-radius: 50%;
+        }
+
+        #surveyContainer {
+            max-width: 940px;
+            margin: 0 auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="demo-header">
+        <div class="demo-badge">Live Demo</div>
+        <h1>Sentinel Survey Theme</h1>
+        <p>This demo showcases how SurveyJS components are styled to match the Sentinel Design System. All colors, typography, spacing, and interactions follow the brand guidelines.</p>
+    </div>
+
+    <div id="surveyContainer"></div>
+
+    <!-- jQuery (required by SurveyJS Knockout) -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
+    <!-- Knockout.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/knockout/3.5.1/knockout-min.js"></script>
+
+    <!-- SurveyJS Core -->
+    <script src="../lib/survey-core/survey.core.min.js"></script>
+
+    <!-- SurveyJS Knockout UI -->
+    <script src="../lib/survey-knockout-ui/survey-knockout-ui.min.js"></script>
+
+    <script>
+        // Demo survey definition showcasing all question types
+        const surveyJson = {
+            title: "Public Health Case Investigation",
+            description: "Complete this form to document case details and exposures. All fields marked with * are required.",
+            showProgressBar: "top",
+            progressBarType: "buttons",
+            pages: [
+                {
+                    name: "demographics",
+                    title: "Patient Demographics",
+                    description: "Basic information about the case",
+                    elements: [
+                        {
+                            type: "text",
+                            name: "caseId",
+                            title: "Case ID",
+                            isRequired: true,
+                            readOnly: true,
+                            defaultValue: "CASE-2026-0427-A"
+                        },
+                        {
+                            type: "text",
+                            name: "givenName",
+                            title: "Given Name",
+                            isRequired: true,
+                            placeHolder: "e.g. Amara"
+                        },
+                        {
+                            type: "text",
+                            name: "familyName",
+                            title: "Family Name",
+                            isRequired: true,
+                            placeHolder: "e.g. Osei"
+                        },
+                        {
+                            type: "dropdown",
+                            name: "gender",
+                            title: "Gender",
+                            isRequired: true,
+                            choices: [
+                                "Male",
+                                "Female",
+                                "Non-binary",
+                                "Prefer not to say"
+                            ]
+                        },
+                        {
+                            type: "text",
+                            inputType: "date",
+                            name: "dateOfBirth",
+                            title: "Date of Birth",
+                            isRequired: true
+                        },
+                        {
+                            type: "text",
+                            inputType: "email",
+                            name: "email",
+                            title: "Email Address",
+                            placeHolder: "patient@example.com",
+                            validators: [
+                                {
+                                    type: "email"
+                                }
+                            ]
+                        },
+                        {
+                            type: "text",
+                            inputType: "tel",
+                            name: "phone",
+                            title: "Phone Number",
+                            placeHolder: "+64 21 123 4567"
+                        }
+                    ]
+                },
+                {
+                    name: "clinical",
+                    title: "Clinical Information",
+                    elements: [
+                        {
+                            type: "radiogroup",
+                            name: "diseaseType",
+                            title: "Disease Type",
+                            isRequired: true,
+                            choices: [
+                                "Pertussis",
+                                "Measles",
+                                "Hepatitis A",
+                                "Salmonella",
+                                "COVID-19",
+                                "Other"
+                            ]
+                        },
+                        {
+                            type: "checkbox",
+                            name: "symptoms",
+                            title: "Reported Symptoms (select all that apply)",
+                            isRequired: true,
+                            choices: [
+                                "Fever",
+                                "Cough",
+                                "Shortness of breath",
+                                "Fatigue",
+                                "Body aches",
+                                "Nausea/vomiting",
+                                "Diarrhea",
+                                "Loss of taste/smell"
+                            ]
+                        },
+                        {
+                            type: "text",
+                            inputType: "date",
+                            name: "symptomOnsetDate",
+                            title: "Date of Symptom Onset",
+                            isRequired: true
+                        },
+                        {
+                            type: "comment",
+                            name: "clinicalNotes",
+                            title: "Additional Clinical Notes",
+                            description: "Provide any relevant clinical observations or test results",
+                            placeHolder: "Enter detailed clinical information here...",
+                            rows: 4
+                        },
+                        {
+                            type: "boolean",
+                            name: "hospitalized",
+                            title: "Was the patient hospitalized?",
+                            labelTrue: "Yes",
+                            labelFalse: "No"
+                        },
+                        {
+                            type: "text",
+                            name: "hospitalName",
+                            title: "Hospital Name",
+                            visibleIf: "{hospitalized} = true",
+                            placeHolder: "e.g. Wellington Regional Hospital"
+                        }
+                    ]
+                },
+                {
+                    name: "exposure",
+                    title: "Exposure & Risk Factors",
+                    elements: [
+                        {
+                            type: "rating",
+                            name: "riskLevel",
+                            title: "Overall Risk Assessment",
+                            description: "Rate the overall transmission risk on a scale of 1-5",
+                            rateMin: 1,
+                            rateMax: 5,
+                            minRateDescription: "Low risk",
+                            maxRateDescription: "High risk"
+                        },
+                        {
+                            type: "matrix",
+                            name: "exposureHistory",
+                            title: "Exposure History (14 days prior to symptom onset)",
+                            isRequired: true,
+                            columns: [
+                                { value: "yes", text: "Yes" },
+                                { value: "no", text: "No" },
+                                { value: "unknown", text: "Unknown" }
+                            ],
+                            rows: [
+                                { value: "travel", text: "International travel" },
+                                { value: "healthcare", text: "Healthcare facility visit" },
+                                { value: "gathering", text: "Large gathering/event" },
+                                { value: "closeContact", text: "Close contact with confirmed case" },
+                                { value: "foodService", text: "Food service/restaurant work" }
+                            ]
+                        },
+                        {
+                            type: "comment",
+                            name: "exposureDetails",
+                            title: "Exposure Details",
+                            description: "Describe any known exposures in detail",
+                            placeHolder: "List locations, dates, and potential contacts...",
+                            rows: 5
+                        }
+                    ]
+                },
+                {
+                    name: "contacts",
+                    title: "Contact Tracing",
+                    elements: [
+                        {
+                            type: "text",
+                            inputType: "number",
+                            name: "contactCount",
+                            title: "Estimated Number of Close Contacts",
+                            description: "Close contact = within 2 metres for >15 minutes",
+                            placeHolder: "e.g. 12",
+                            min: 0
+                        },
+                        {
+                            type: "imagepicker",
+                            name: "contactSetting",
+                            title: "Primary Contact Settings",
+                            description: "Select all settings where close contacts occurred",
+                            multiSelect: true,
+                            choices: [
+                                {
+                                    value: "home",
+                                    text: "Household",
+                                    imageLink: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100'%3E%3Crect fill='%23D9F2E5' width='100' height='100' rx='8'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' font-size='40' fill='%230C2A20'%3E🏠%3C/text%3E%3C/svg%3E"
+                                },
+                                {
+                                    value: "work",
+                                    text: "Workplace",
+                                    imageLink: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100'%3E%3Crect fill='%23D9F2E5' width='100' height='100' rx='8'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' font-size='40' fill='%230C2A20'%3E💼%3C/text%3E%3C/svg%3E"
+                                },
+                                {
+                                    value: "school",
+                                    text: "School",
+                                    imageLink: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100'%3E%3Crect fill='%23D9F2E5' width='100' height='100' rx='8'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' font-size='40' fill='%230C2A20'%3E🎓%3C/text%3E%3C/svg%3E"
+                                },
+                                {
+                                    value: "social",
+                                    text: "Social Event",
+                                    imageLink: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100'%3E%3Crect fill='%23D9F2E5' width='100' height='100' rx='8'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' font-size='40' fill='%230C2A20'%3E🎉%3C/text%3E%3C/svg%3E"
+                                },
+                                {
+                                    value: "healthcare",
+                                    text: "Healthcare",
+                                    imageLink: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100'%3E%3Crect fill='%23D9F2E5' width='100' height='100' rx='8'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' font-size='40' fill='%230C2A20'%3E🏥%3C/text%3E%3C/svg%3E"
+                                },
+                                {
+                                    value: "transport",
+                                    text: "Public Transport",
+                                    imageLink: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100'%3E%3Crect fill='%23D9F2E5' width='100' height='100' rx='8'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' font-size='40' fill='%230C2A20'%3E🚌%3C/text%3E%3C/svg%3E"
+                                }
+                            ],
+                            imageFit: "cover"
+                        },
+                        {
+                            type: "file",
+                            name: "contactList",
+                            title: "Contact List Upload (Optional)",
+                            description: "Upload a CSV or Excel file with contact details",
+                            acceptedTypes: ".csv,.xlsx,.xls",
+                            maxSize: 5242880
+                        }
+                    ]
+                },
+                {
+                    name: "confirmation",
+                    title: "Review & Submit",
+                    elements: [
+                        {
+                            type: "html",
+                            name: "reviewInstructions",
+                            html: "<div style='background:#D9F2E5;border:1px solid #9BE8C6;border-radius:8px;padding:20px;margin-bottom:20px'><h4 style='color:#0C2A20;font-weight:600;margin-bottom:10px'>⚠️ Final Review</h4><p style='color:#0A3F2C;margin:0'>Please review all information before submitting. Once submitted, this case will be added to the surveillance system and contact tracing will begin.</p></div>"
+                        },
+                        {
+                            type: "boolean",
+                            name: "dataAccuracy",
+                            title: "I confirm that the information provided is accurate to the best of my knowledge",
+                            isRequired: true,
+                            labelTrue: "Yes, I confirm",
+                            labelFalse: "No"
+                        },
+                        {
+                            type: "signaturepad",
+                            name: "investigatorSignature",
+                            title: "Investigator Signature",
+                            isRequired: true
+                        },
+                        {
+                            type: "comment",
+                            name: "additionalComments",
+                            title: "Additional Comments or Instructions",
+                            placeHolder: "Any additional notes for the epidemiology team...",
+                            rows: 3
+                        }
+                    ]
+                }
+            ],
+            showQuestionNumbers: "on",
+            questionsOrder: "initial",
+            completeText: "Submit Case Investigation",
+            completedHtml: "<div style='background:#D9F2E5;border:1px solid #9BE8C6;border-radius:12px;padding:40px;text-align:center;max-width:600px;margin:0 auto'><div style='width:60px;height:60px;background:#159C6E;border-radius:50%;margin:0 auto 20px;display:flex;align-items:center;justify-content:center;font-size:32px;color:white'>✓</div><h2 style='color:#0C2A20;font-weight:600;font-size:28px;margin-bottom:12px'>Case Investigation Submitted</h2><p style='color:#0A3F2C;font-size:16px;line-height:1.6'>Your case investigation has been successfully recorded. The contact tracing team will begin follow-up within 24 hours.</p><p style='font-family:Geist Mono,monospace;font-size:13px;color:#159C6E;margin-top:20px;letter-spacing:0.04em'>CASE-2026-0427-A · Submitted · " + new Date().toLocaleString() + "</p></div>",
+            showPrevButton: true,
+            firstPageIsStarted: false
+        };
+
+        // Create and render survey
+        const survey = new Survey.Model(surveyJson);
+
+        // Log completion
+        survey.onComplete.add(function(sender) {
+            console.log("Survey completed!");
+            console.log(JSON.stringify(sender.data, null, 2));
+        });
+
+        // Render
+        $("#surveyContainer").Survey({ model: survey });
+    </script>
+</body>
+</html>

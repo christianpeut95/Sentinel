@@ -26,6 +26,9 @@ namespace Sentinel.Pages
         public int ActiveOutbreaks { get; set; }
         public int WatchOutbreaks { get; set; }
 
+        // User display name
+        public string UserDisplayName { get; set; } = string.Empty;
+
         public class RecentlyViewedItem
         {
             public string EntityType { get; set; } = string.Empty;
@@ -40,6 +43,21 @@ namespace Sentinel.Pages
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             if (userId == null) return;
+
+            // Get user's display name
+            var currentUser = await _context.Users.FindAsync(userId);
+            if (currentUser != null)
+            {
+                if (!string.IsNullOrWhiteSpace(currentUser.FirstName))
+                {
+                    UserDisplayName = currentUser.FirstName;
+                }
+                else if (!string.IsNullOrWhiteSpace(currentUser.Email))
+                {
+                    // Extract from email (before @)
+                    UserDisplayName = currentUser.Email.Split('@')[0];
+                }
+            }
 
             // KPI calculations (kept for potential future use, but not displayed)
             TotalActiveCases = await _context.Cases

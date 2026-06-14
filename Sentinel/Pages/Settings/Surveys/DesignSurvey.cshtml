@@ -18,6 +18,9 @@
     <!-- SurveyJS Styles - BOTH Core and Creator CSS Required -->
     <link href="~/lib/survey-core/defaultV2.min.css" rel="stylesheet" />
     <link href="~/lib/survey-creator-core/survey-creator-core.min.css" rel="stylesheet" />
+
+    <!-- Sentinel Theme Override - Must load AFTER default SurveyJS styles -->
+    <link href="~/css/sentinel-survey-theme.css" rel="stylesheet" />
     
     <style>
         body {
@@ -301,7 +304,7 @@
                             <button class="nav-link" id="task-fields-tab" data-bs-toggle="pill" 
                                     data-bs-target="#task-fields" type="button" style="font-size: 0.875rem; padding: 8px 10px;">
                                 <i class="bi bi-check2-square me-1"></i>Task
-                                <span class="badge bg-primary ms-1">7</span>
+                                <span class="badge bg-primary ms-1">8</span>
                             </button>
                         </li>
                         <li class="nav-item" role="presentation">
@@ -541,7 +544,8 @@
                 { path: 'task_status', desc: 'Task status', variable: 'task_status' },
                 { path: 'task_priority', desc: 'Task priority', variable: 'task_priority' },
                 { path: 'task_due_date', desc: 'Due date', variable: 'task_due_date' },
-                { path: 'task_created_at', desc: 'Created date', variable: 'task_created_at' }
+                { path: 'task_created_at', desc: 'Created date', variable: 'task_created_at' },
+                { path: 'user_first_name', desc: 'Assigned user first name', variable: 'user_first_name' }
             ];
             
             // Populate lists

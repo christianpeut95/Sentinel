@@ -5,6 +5,11 @@
     ViewData["Title"] = "Complete Survey";
 }
 
+@section Styles {
+    <!-- Note: SurveyJS core + Sentinel theme are loaded in _Layout.cshtml -->
+    <!-- This section is for any page-specific style overrides only -->
+}
+
 <style nonce="@GetCspNonce()">
 /* Pinned Header Bar */
 .pinned-header {
@@ -193,15 +198,15 @@
                     }
                     @if (Model.Task.Case.Patient?.SexAtBirth != null)
                     {
-                        <span>• @Model.Task.Case.Patient.SexAtBirth.Name</span>
+                        <span>&nbsp;•&nbsp;Sex: @Model.Task.Case.Patient.SexAtBirth.Name</span>
                     }
                     @if (Model.Task.Case.Patient?.Gender != null)
                     {
-                        <span>• Gender: @Model.Task.Case.Patient.Gender.Name</span>
+                        <span>&nbsp;•&nbsp;Gender: @Model.Task.Case.Patient.Gender.Name</span>
                     }
                     @if (!string.IsNullOrEmpty(Model.Task.Case.Patient?.FriendlyId))
                     {
-                        <span>• ID: @Model.Task.Case.Patient.FriendlyId</span>
+                        <span>&nbsp;•&nbsp;ID: @Model.Task.Case.Patient.FriendlyId</span>
                     }
                 </div>
                 <div class="header-patient-details">
@@ -211,15 +216,15 @@
                     }
                     @if (Model.Task.Case.Patient?.LanguageSpokenAtHome != null)
                     {
-                        <span>• Language: @Model.Task.Case.Patient.LanguageSpokenAtHome.Name</span>
+                        <span>&nbsp;•&nbsp;Language: @Model.Task.Case.Patient.LanguageSpokenAtHome.Name</span>
                     }
                     @if (Model.Task.Case.Patient?.Occupation != null)
                     {
-                        <span>• @Model.Task.Case.Patient.Occupation.Name</span>
+                        <span>&nbsp;•&nbsp;@Model.Task.Case.Patient.Occupation.Name</span>
                     }
                     @if (!string.IsNullOrEmpty(Model.Task.Case.Patient?.City))
                     {
-                        <span>• @Model.Task.Case.Patient.City</span>
+                        <span>&nbsp;•&nbsp;@Model.Task.Case.Patient.City</span>
                     }
                 </div>
             </div>
@@ -246,11 +251,11 @@
                     }
                     @if (Model.Task.Case.DateOfNotification != null)
                     {
-                        <span>• Notified: @Model.Task.Case.DateOfNotification.Value.ToString("dd/MM/yyyy")</span>
+                        <span>&nbsp;•&nbsp;Notified: @Model.Task.Case.DateOfNotification.Value.ToString("dd/MM/yyyy")</span>
                     }
                     @if (!string.IsNullOrEmpty(Model.SurveyName))
                     {
-                        <span>• Survey: @Model.SurveyName v@(Model.SurveyVersionNumber)</span>
+                        <span>&nbsp;•&nbsp;Survey: @Model.SurveyName v@(Model.SurveyVersionNumber)</span>
                     }
                 </div>
             </div>
@@ -309,12 +314,52 @@
                 
                 // Create survey
                 const survey = new Survey.Model(surveyJson);
-                
+
                 // Configure survey BEFORE setting data
                 survey.showCompletedPage = false;
                 survey.showProgressBar = "top";
                 survey.progressBarType = "pages";
-                
+
+                // Enable dynamic text replacement for {field_name} patterns in question text
+                survey.onTextMarkdown.add(function(survey, options) {
+                    let text = options.text;
+
+                    // Replace {field_name} patterns with actual values
+                    const pattern = /\{([a-zA-Z0-9_]+)\}/g;
+                    text = text.replace(pattern, function(match, fieldName) {
+                        // Get value from survey data (prepopulated or answered)
+                        let value = survey.getValue(fieldName);
+
+                        // Handle null/undefined gracefully
+                        if (value === null || value === undefined) {
+                            return `[${fieldName}]`; // Show field name if no value
+                        }
+
+                        // Format dates if it looks like a date (YYYY-MM-DD or ISO format)
+                        if (typeof value === 'string' && value.match(/^\d{4}-\d{2}-\d{2}/)) {
+                            const date = new Date(value);
+                            if (!isNaN(date.getTime())) {
+                                return date.toLocaleDateString('en-AU', { 
+                                    day: '2-digit', 
+                                    month: '2-digit', 
+                                    year: 'numeric' 
+                                });
+                            }
+                        }
+
+                        // Format boolean values
+                        if (typeof value === 'boolean') {
+                            return value ? 'Yes' : 'No';
+                        }
+
+                        return value;
+                    });
+
+                    options.html = text;
+                });
+
+                console.log('Dynamic text replacement enabled for survey questions');
+
                 // DEBUG: Log survey structure
                 console.log('=== SURVEY EXPRESSION DEBUG ===');
                 console.log('Pre-populated data to apply:', prePopulatedData);
@@ -356,17 +401,17 @@
                 // Enable complete button only when survey is valid
                 const completeBtn = document.getElementById('completeSurveyBtnTop');
                 survey.onValueChanged.add(function(sender) {
-                    const isComplete = !sender.hasErrors(true, true);
+                    const isComplete = !sender.hasErrors(false, false);
                     completeBtn.disabled = !isComplete;
                 });
 
                 // Initial validation check
-                const isInitiallyComplete = !survey.hasErrors(true, true);
+                const isInitiallyComplete = !survey.hasErrors(false, false);
                 completeBtn.disabled = !isInitiallyComplete;
                 
                 // Handle survey completion function
                 async function handleSurveyCompletion() {                    // Validate all questions
-                    if (survey.hasErrors(true, true)) {
+                    if (survey.hasErrors(false, false)) {
                         alert('Please complete all required fields before submitting.');
                         return;
                     }

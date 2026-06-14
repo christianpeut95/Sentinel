@@ -17,7 +17,12 @@
     <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
     <link rel="stylesheet" href="~/lib/bootstrap-icons/font/bootstrap-icons.min.css" />
 
-    <!-- Google Font -->
+    <!-- Sentinel Design System Fonts (Geist Sans + Mono) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700;800&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+    <!-- Google Font (Legacy - Inter) -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
 
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
@@ -33,10 +38,16 @@
     <!-- Select2 for enhanced dropdowns -->
     <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
     <link href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css" rel="stylesheet" />
-    
+
     <!-- SurveyJS for survey rendering (local library) -->
     <link href="~/lib/survey-core/defaultV2.min.css" rel="stylesheet" />
-    
+
+    <!-- Sentinel Theme Override for SurveyJS - Must load AFTER defaultV2.css -->
+    <link href="~/css/sentinel-survey-theme.css" rel="stylesheet" />
+
+    <!-- Page-specific styles -->
+    @RenderSection("Styles", required: false)
+
     <style>
         body {
             font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;

@@ -336,8 +336,18 @@
 
                     <div class="mb-3">
                         <label class="form-label">Specific Criteria (Optional)</label>
-                        <textarea name="Definition.CriteriaJson" class="form-control" id="criteriaJson" rows="4"
-                                  placeholder="Enter structured criteria in JSON format or leave blank"></textarea>
+                        <div id="criteriaBuilder" class="border rounded p-3 bg-light">
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <h6 class="mb-0">Criteria Rules</h6>
+                                <button type="button" class="btn btn-sm btn-success" onclick="openAddCriterionModal()">
+                                    <i class="bi bi-plus-circle"></i> Add Criterion
+                                </button>
+                            </div>
+                            <div id="criteriaList" class="mb-2">
+                                <p class="text-muted mb-0"><em>No criteria defined yet. Click "Add Criterion" to start.</em></p>
+                            </div>
+                        </div>
+                        <textarea name="Definition.CriteriaJson" class="form-control d-none" id="criteriaJson" rows="4"></textarea>
                         <small class="text-muted">Define specific measurable criteria for classification (optional).</small>
                     </div>
 
@@ -358,8 +368,64 @@
     </div>
 </div>
 
+<!-- Add Criterion Modal -->
+<div class="modal fade" id="addCriterionModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Add Criterion</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label">Custom Field <span class="text-danger">*</span></label>
+                    <select class="form-select" id="criterionCustomField" required>
+                        <option value="">-- Select a custom field --</option>
+                    </select>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Operator <span class="text-danger">*</span></label>
+                    <select class="form-select" id="criterionOperator" required>
+                        <option value="1">Equals</option>
+                        <option value="2">Not Equals</option>
+                        <option value="3">Contains</option>
+                        <option value="4">Does Not Contain</option>
+                        <option value="5">Greater Than</option>
+                        <option value="6">Less Than</option>
+                        <option value="7">Between</option>
+                        <option value="8">In List</option>
+                        <option value="9">Is Present</option>
+                        <option value="10">Is Absent</option>
+                    </select>
+                </div>
+
+                <div id="criterionInputContainer" class="mb-3">
+                    <label class="form-label">Value <span class="text-danger">*</span></label>
+                    <input type="text" class="form-control" id="criterionInput" placeholder="Enter value..." required>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Logic Operator</label>
+                    <select class="form-select" id="criterionLogicOperator">
+                        <option value="AND">AND</option>
+                        <option value="OR">OR</option>
+                    </select>
+                    <small class="text-muted">How this criterion combines with others</small>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="addCriterion()">
+                    <i class="bi bi-plus-circle"></i> Add Criterion
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 @section Scripts {
-    <script>
+    <script nonce="@GetCspNonce()">
         // Serialize only the needed properties to avoid circular reference
         const definitions = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(
             Model.Definitions.Select(d => new {
@@ -372,7 +438,25 @@
                 d.Version
             })
         ));
-        
+
+        let currentCriteria = [];
+        let customFieldsCache = [];
+
+        // Load custom fields on page load
+        document.addEventListener('DOMContentLoaded', async function() {
+            await loadCustomFields();
+        });
+
+        async function loadCustomFields() {
+            try {
+                const response = await fetch('/api/CustomFields/ForCaseDefinitions');
+                if (!response.ok) throw new Error('Failed to load custom fields');
+                customFieldsCache = await response.json();
+            } catch (error) {
+                console.error('Error loading custom fields:', error);
+            }
+        }
+
         function openDefinitionModal(classification, definitionId) {
             const modal = new bootstrap.Modal(document.getElementById('definitionModal'));
             const classificationNames = {
@@ -381,27 +465,289 @@
                 3: 'Suspect',
                 4: 'Not a Case'
             };
-            
+
             const form = document.getElementById('definitionForm');
             form.reset();
-            
+            currentCriteria = [];
+
             document.getElementById('modalTitle').textContent = 
                 (definitionId ? 'Edit ' : 'Create ') + classificationNames[classification] + ' Case Definition';
             document.getElementById('definitionClassification').value = classification;
             document.getElementById('editingDefinitionId').value = definitionId || '';
-            
+
             // Load existing definition data if editing
             if (definitionId) {
                 const definition = definitions.find(d => d.Id === definitionId);
                 if (definition) {
                     document.getElementById('definitionName').value = definition.DefinitionName || '';
                     document.getElementById('definitionText').value = definition.DefinitionText || '';
-                    document.getElementById('criteriaJson').value = definition.CriteriaJson === '{}' ? '' : (definition.CriteriaJson || '');
                     document.getElementById('definitionNotes').value = definition.Notes || '';
+
+                    // Parse existing criteria
+                    if (definition.CriteriaJson && definition.CriteriaJson !== '{}') {
+                        try {
+                            const parsedCriteria = JSON.parse(definition.CriteriaJson);
+                            if (parsedCriteria.criteria && Array.isArray(parsedCriteria.criteria)) {
+                                currentCriteria = parsedCriteria.criteria;
+                                updateCriteriaDisplay();
+                            }
+                        } catch (e) {
+                            console.error('Error parsing criteria JSON:', e);
+                        }
+                    }
                 }
             }
-            
+
+            updateCriteriaDisplay();
             modal.show();
+        }
+
+        async function openAddCriterionModal() {
+            const modal = new bootstrap.Modal(document.getElementById('addCriterionModal'));
+
+            // Populate custom fields dropdown
+            const select = document.getElementById('criterionCustomField');
+            select.innerHTML = '<option value="">-- Select a custom field --</option>';
+
+            customFieldsCache.forEach(field => {
+                const option = document.createElement('option');
+                option.value = field.id;
+                option.textContent = `${field.label} (${field.fieldType})`;
+                option.dataset.fieldType = field.fieldType;
+                option.dataset.hasLookup = field.hasLookupTable;
+                select.appendChild(option);
+            });
+
+            // Reset form
+            document.getElementById('criterionCustomField').value = '';
+            document.getElementById('criterionOperator').value = '1';
+            document.getElementById('criterionInput').value = '';
+            document.getElementById('criterionLogicOperator').value = 'AND';
+
+            modal.show();
+        }
+
+        // Handle custom field selection change
+        document.getElementById('criterionCustomField')?.addEventListener('change', async function() {
+            const customFieldId = this.value;
+            if (!customFieldId) return;
+
+            const selectedOption = this.options[this.selectedIndex];
+            const fieldType = selectedOption.dataset.fieldType;
+            const hasLookup = selectedOption.dataset.hasLookup === 'true';
+
+            if (hasLookup) {
+                await loadCustomFieldWithLookup(customFieldId);
+            } else {
+                showRegularInput(fieldType);
+            }
+
+            updateOperatorOptions(fieldType, hasLookup);
+        });
+
+        async function loadCustomFieldWithLookup(customFieldId) {
+            try {
+                const response = await fetch(`/api/CustomFields/${customFieldId}`);
+                if (!response.ok) throw new Error('Failed to load custom field details');
+
+                const customField = await response.json();
+                const inputContainer = document.getElementById('criterionInputContainer');
+
+                if (customField.hasLookupTable && customField.lookupValues) {
+                    inputContainer.innerHTML = `
+                        <label class="form-label">Select Value <span class="text-danger">*</span></label>
+                        <select class="form-select" id="criterionInput" required>
+                            <option value="">-- Select ${customField.label} --</option>
+                            ${customField.lookupValues.map(v => `
+                                <option value="${v.id}">${v.displayText}</option>
+                            `).join('')}
+                        </select>
+                    `;
+                } else {
+                    showRegularInput(customField.fieldType);
+                }
+            } catch (error) {
+                console.error('Error loading custom field:', error);
+                alert('Failed to load custom field details');
+            }
+        }
+
+        function showRegularInput(fieldType) {
+            const inputContainer = document.getElementById('criterionInputContainer');
+            let inputHtml = '';
+
+            switch (fieldType) {
+                case 'Number':
+                    inputHtml = `
+                        <label class="form-label">Value <span class="text-danger">*</span></label>
+                        <input type="number" class="form-control" id="criterionInput" placeholder="Enter number..." required>
+                    `;
+                    break;
+                case 'Date':
+                    inputHtml = `
+                        <label class="form-label">Date <span class="text-danger">*</span></label>
+                        <input type="date" class="form-control" id="criterionInput" required>
+                    `;
+                    break;
+                case 'Boolean':
+                    inputHtml = `
+                        <label class="form-label">Value <span class="text-danger">*</span></label>
+                        <select class="form-select" id="criterionInput" required>
+                            <option value="">-- Select --</option>
+                            <option value="true">Yes</option>
+                            <option value="false">No</option>
+                        </select>
+                    `;
+                    break;
+                default: // Text
+                    inputHtml = `
+                        <label class="form-label">Value <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="criterionInput" placeholder="Enter value..." required>
+                    `;
+                    break;
+            }
+
+            inputContainer.innerHTML = inputHtml;
+        }
+
+        function updateOperatorOptions(fieldType, hasLookup) {
+            const operatorSelect = document.getElementById('criterionOperator');
+
+            if (hasLookup) {
+                operatorSelect.innerHTML = `
+                    <option value="1">Equals</option>
+                    <option value="2">Not Equals</option>
+                    <option value="8">In List</option>
+                    <option value="9">Is Present</option>
+                    <option value="10">Is Absent</option>
+                `;
+            } else if (fieldType === 'Number' || fieldType === 'Date') {
+                operatorSelect.innerHTML = `
+                    <option value="1">Equals</option>
+                    <option value="2">Not Equals</option>
+                    <option value="5">Greater Than</option>
+                    <option value="6">Less Than</option>
+                    <option value="7">Between</option>
+                    <option value="9">Is Present</option>
+                    <option value="10">Is Absent</option>
+                `;
+            } else if (fieldType === 'Boolean') {
+                operatorSelect.innerHTML = `
+                    <option value="1">Equals</option>
+                    <option value="2">Not Equals</option>
+                    <option value="9">Is Present</option>
+                    <option value="10">Is Absent</option>
+                `;
+            } else {
+                operatorSelect.innerHTML = `
+                    <option value="1">Equals</option>
+                    <option value="2">Not Equals</option>
+                    <option value="3">Contains</option>
+                    <option value="4">Does Not Contain</option>
+                    <option value="9">Is Present</option>
+                    <option value="10">Is Absent</option>
+                `;
+            }
+        }
+
+        function addCriterion() {
+            const customFieldId = document.getElementById('criterionCustomField').value;
+            const operator = parseInt(document.getElementById('criterionOperator').value);
+            const input = document.getElementById('criterionInput').value;
+            const logicOperator = document.getElementById('criterionLogicOperator').value;
+
+            if (!customFieldId) {
+                alert('Please select a custom field');
+                return;
+            }
+
+            if (!operator) {
+                alert('Please select an operator');
+                return;
+            }
+
+            // Input not required for "Is Present" or "Is Absent" operators
+            if (operator !== 9 && operator !== 10 && !input) {
+                alert('Please provide a value');
+                return;
+            }
+
+            const selectedField = customFieldsCache.find(f => f.id == customFieldId);
+            if (!selectedField) {
+                alert('Invalid custom field selected');
+                return;
+            }
+
+            const criterion = {
+                type: 'CustomField',
+                customFieldId: parseInt(customFieldId),
+                customFieldLabel: selectedField.label,
+                operator: operator,
+                operatorText: getOperatorText(operator),
+                input: input || '',
+                logicOperator: currentCriteria.length === 0 ? null : logicOperator
+            };
+
+            currentCriteria.push(criterion);
+            updateCriteriaDisplay();
+
+            // Close modal
+            bootstrap.Modal.getInstance(document.getElementById('addCriterionModal')).hide();
+        }
+
+        function getOperatorText(operator) {
+            const operators = {
+                1: 'Equals',
+                2: 'Not Equals',
+                3: 'Contains',
+                4: 'Does Not Contain',
+                5: 'Greater Than',
+                6: 'Less Than',
+                7: 'Between',
+                8: 'In List',
+                9: 'Is Present',
+                10: 'Is Absent'
+            };
+            return operators[operator] || 'Unknown';
+        }
+
+        function updateCriteriaDisplay() {
+            const criteriaList = document.getElementById('criteriaList');
+
+            if (currentCriteria.length === 0) {
+                criteriaList.innerHTML = '<p class="text-muted mb-0"><em>No criteria defined yet. Click "Add Criterion" to start.</em></p>';
+            } else {
+                criteriaList.innerHTML = currentCriteria.map((criterion, index) => `
+                    <div class="card mb-2">
+                        <div class="card-body py-2">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div>
+                                    ${criterion.logicOperator ? `<span class="badge bg-secondary me-2">${criterion.logicOperator}</span>` : ''}
+                                    <strong>${criterion.customFieldLabel}</strong>
+                                    <span class="text-muted">${criterion.operatorText}</span>
+                                    ${criterion.input ? `<strong>${criterion.input}</strong>` : ''}
+                                </div>
+                                <button type="button" class="btn btn-sm btn-danger" onclick="removeCriterion(${index})">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                `).join('');
+            }
+
+            // Update hidden JSON field
+            const criteriaJson = currentCriteria.length > 0 ? JSON.stringify({ criteria: currentCriteria }) : '{}';
+            document.getElementById('criteriaJson').value = criteriaJson;
+        }
+
+        function removeCriterion(index) {
+            currentCriteria.splice(index, 1);
+            // Update logic operators - first criterion should have null
+            if (currentCriteria.length > 0) {
+                currentCriteria[0].logicOperator = null;
+            }
+            updateCriteriaDisplay();
         }
     </script>
 }

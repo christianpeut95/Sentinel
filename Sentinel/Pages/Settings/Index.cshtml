@@ -9,865 +9,1094 @@
 }
 
 <style>
-    /* Settings Page Styling - Consistent with Dashboard */
-    .settings-container {
-        max-width: 1440px;
-        margin: 0 auto;
-    }
-
-    .settings-hero {
-        background: linear-gradient(135deg, var(--signal-lt) 0%, var(--chalk) 100%);
-        border-radius: 16px;
-        padding: 2.5rem;
-        color: var(--forest);
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+    /* iOS-Style Settings Layout */
+    .settings-shell {
+        display: grid;
+        grid-template-columns: 280px 1fr;
+        gap: 0;
+        min-height: calc(100vh - 180px);
+        background: var(--bone);
+        border-radius: 12px;
+        overflow: hidden;
+        box-shadow: 0 2px 8px rgba(12, 42, 32, 0.06);
         border: 1px solid var(--hairline);
-        margin-bottom: 2.5rem;
     }
 
-    .settings-hero h1 {
-        font-size: 2rem;
+    /* Sidebar */
+    .settings-sidebar {
+        background: var(--paper);
+        border-right: 1px solid var(--hairline);
+        overflow-y: auto;
+        padding: 0;
+    }
+
+    .settings-sidebar-header {
+        padding: 24px 20px 16px;
+        border-bottom: 1px solid var(--hairline);
+        background: linear-gradient(135deg, var(--signal-lt) 0%, var(--paper) 100%);
+    }
+
+    .settings-sidebar-header h1 {
+        font-size: 1.5rem;
         font-weight: 600;
-        margin-bottom: 0.5rem;
         color: var(--forest);
+        margin: 0 0 4px;
         letter-spacing: -0.5px;
     }
 
-    .settings-hero p {
-        color: var(--graphite);
-        font-size: 1rem;
-        margin: 0;
-    }
-
-    .category-section {
-        margin-bottom: 3rem;
-    }
-
-    .category-header {
-        display: flex;
-        align-items: center;
-        margin-bottom: 1.25rem;
-        padding-bottom: 0.75rem;
-        border-bottom: 2px solid #e2e8f0;
-    }
-
-    .category-header-icon {
-        width: 40px;
-        height: 40px;
-        border-radius: 10px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 1.25rem;
-        color: white;
-        margin-right: 1rem;
-    }
-
-    .category-header h3 {
-        margin: 0;
-        font-size: 1.25rem;
-        font-weight: 600;
-        color: var(--forest);
-        flex: 1;
-    }
-
-    .category-header .category-description {
-        font-size: 0.875rem;
-        color: var(--graphite);
-        margin: 0;
-        margin-top: 0.25rem;
-    }
-
-    /* Color Schemes for Categories - Sentinel Green Variants */
-    .category-system { background: linear-gradient(135deg, var(--slate) 0%, var(--slate-2) 100%); }
-    .category-disease { background: linear-gradient(135deg, var(--signal-dk) 0%, var(--moss) 100%); }
-    .category-lab { background: linear-gradient(135deg, var(--signal-dk) 0%, var(--forest-2) 100%); }
-    .category-exposure { background: linear-gradient(135deg, var(--signal) 0%, var(--signal-dk) 100%); }
-    .category-contact { background: linear-gradient(135deg, var(--moss) 0%, var(--forest-2) 100%); }
-    .category-task { background: linear-gradient(135deg, var(--signal-dk) 0%, var(--moss) 100%); }
-    .category-demo { background: linear-gradient(135deg, var(--signal-dk) 0%, var(--forest) 100%); }
-    .category-security { background: linear-gradient(135deg, var(--forest) 0%, var(--forest-2) 100%); }
-    .category-admin { background: linear-gradient(135deg, var(--moss) 0%, var(--forest-2) 100%); }
-    .category-outbreak { background: linear-gradient(135deg, var(--status-outbreak) 0%, #991b1b 100%); }
-
-    .setting-card {
-        background: var(--chalk);
-        border-radius: 12px;
-        padding: 1.5rem;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
-        transition: all 0.3s ease;
-        border: 1px solid var(--hairline);
-        height: 100%;
-        position: relative;
-        display: flex;
-        flex-direction: column;
-    }
-
-    .setting-card:hover {
-        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
-        transform: translateY(-3px);
-        border-color: var(--signal-dk);
-    }
-
-    .setting-card-icon {
-        width: 50px;
-        height: 50px;
-        border-radius: 10px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 1.5rem;
-        margin-bottom: 1rem;
-        background: var(--signal-lt);
-        color: var(--signal-dk);
-    }
-
-    .setting-card h5 {
-        color: var(--forest);
-        font-weight: 600;
-        margin-bottom: 0.5rem;
-        font-size: 1rem;
-    }
-
-    .setting-card p {
-        color: var(--graphite);
+    .settings-sidebar-header p {
         font-size: 0.813rem;
-        line-height: 1.5;
+        color: var(--graphite);
         margin: 0;
+    }
+
+    .settings-category-group {
+        padding: 12px 0;
+        border-bottom: 1px solid rgba(216, 212, 196, 0.5);
+    }
+
+    .settings-category-group:last-child {
+        border-bottom: none;
+    }
+
+    .settings-category-label {
+        font-family: var(--f-mono);
+        font-size: 10px;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        color: var(--graphite);
+        padding: 8px 20px 6px;
+        font-weight: 500;
+    }
+
+    .settings-category-item {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 10px 20px;
+        color: var(--forest);
+        text-decoration: none;
+        transition: background 0.12s ease;
+        cursor: pointer;
+        border-left: 3px solid transparent;
+    }
+
+    .settings-category-item:hover {
+        background: var(--chalk);
+    }
+
+    .settings-category-item.active {
+        background: var(--chalk);
+        border-left-color: var(--signal-dk);
+        color: var(--forest);
+        font-weight: 500;
+    }
+
+    .settings-category-icon {
+        font-size: 18px;
+        width: 24px;
+        text-align: center;
+        color: var(--signal-dk);
+        opacity: 0.8;
+    }
+
+    .settings-category-item.active .settings-category-icon {
+        opacity: 1;
+    }
+
+    .settings-category-info {
         flex: 1;
     }
 
-    .setting-card .stretched-link {
-        text-decoration: none;
+    .settings-category-name {
+        font-size: 0.875rem;
+        line-height: 1.4;
+        letter-spacing: -0.01em;
     }
 
-    .setting-card-highlight {
-        border: 2px solid var(--signal-dk);
-        background: linear-gradient(135deg, var(--chalk) 0%, var(--signal-lt) 100%);
+    .settings-category-count {
+        font-family: var(--f-mono);
+        font-size: 10px;
+        color: var(--slate);
+        margin-left: auto;
     }
 
-    .setting-card-highlight .setting-card-icon {
-        background: linear-gradient(135deg, var(--signal-dk) 0%, var(--moss) 100%);
-        color: white;
+    /* Content Area */
+    .settings-content {
+        background: var(--bone);
+        overflow-y: auto;
+        padding: 32px 40px 60px;
     }
 
-    /* Quick Links Section */
-    .quick-links {
-        background: var(--chalk);
-        border-radius: 12px;
-        padding: 1.5rem;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
-        border: 1px solid var(--hairline);
-        margin-bottom: 2.5rem;
+    .settings-content-header {
+        margin-bottom: 28px;
+        padding-bottom: 20px;
+        border-bottom: 1px solid var(--hairline);
     }
 
-    .quick-links h4 {
-        font-size: 1.125rem;
+    .settings-content-eyebrow {
+        font-family: var(--f-mono);
+        font-size: 10px;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: var(--graphite);
+        margin-bottom: 8px;
+    }
+
+    .settings-content-title {
+        font-size: 2rem;
         font-weight: 600;
         color: var(--forest);
-        margin-bottom: 1rem;
+        margin: 0 0 8px;
+        letter-spacing: -0.5px;
     }
 
-    .quick-link-btn {
-        display: inline-flex;
-        align-items: center;
-        gap: 0.5rem;
-        padding: 0.5rem 1rem;
-        background: var(--signal-lt);
+    .settings-content-subtitle {
+        font-size: 0.938rem;
+        color: var(--graphite);
+        margin: 0;
+        line-height: 1.6;
+    }
+
+    /* Settings Grid */
+    .settings-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+        gap: 12px;
+    }
+
+    .setting-row {
+        background: var(--chalk);
         border: 1px solid var(--hairline);
         border-radius: 8px;
-        color: var(--forest);
+        padding: 18px 20px;
+        display: flex;
+        align-items: center;
+        gap: 14px;
         text-decoration: none;
-        font-size: 0.875rem;
-        font-weight: 500;
-        transition: all 0.2s;
+        transition: all 0.15s ease;
     }
 
-    .quick-link-btn:hover {
-        background: var(--signal-dk);
-        color: white;
+    .setting-row:hover {
+        background: white;
         border-color: var(--signal-dk);
+        box-shadow: 0 2px 8px rgba(12, 42, 32, 0.08);
+        transform: translateX(2px);
+    }
+
+    .setting-row-icon {
+        width: 40px;
+        height: 40px;
+        border-radius: 8px;
+        background: var(--signal-lt);
+        color: var(--signal-dk);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 18px;
+        flex-shrink: 0;
+    }
+
+    .setting-row-info {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .setting-row-title {
+        font-size: 0.938rem;
+        font-weight: 500;
+        color: var(--forest);
+        margin: 0 0 2px;
+        letter-spacing: -0.01em;
+    }
+
+    .setting-row-desc {
+        font-size: 0.813rem;
+        color: var(--graphite);
+        margin: 0;
+        line-height: 1.4;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+    }
+
+    .setting-row-chevron {
+        font-size: 14px;
+        color: var(--slate-lt);
+        flex-shrink: 0;
+    }
+
+    /* Search bar */
+    .settings-search {
+        padding: 16px 20px 12px;
+        border-bottom: 1px solid var(--hairline);
+        background: var(--paper);
+    }
+
+    .settings-search input {
+        width: 100%;
+        padding: 8px 12px 8px 36px;
+        border: 1px solid var(--hairline);
+        border-radius: 8px;
+        background: var(--chalk);
+        font-size: 0.875rem;
+        transition: all 0.12s;
+    }
+
+    .settings-search input:focus {
+        outline: none;
+        border-color: var(--signal-dk);
+        box-shadow: 0 0 0 3px rgba(61, 213, 152, 0.15);
+    }
+
+    .settings-search-wrapper {
+        position: relative;
+    }
+
+    .settings-search-icon {
+        position: absolute;
+        left: 12px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: var(--graphite);
+        font-size: 14px;
+        pointer-events: none;
+    }
+
+    /* Responsive */
+    @@media (max-width: 1024px) {
+        .settings-shell {
+            grid-template-columns: 240px 1fr;
+        }
+
+        .settings-content {
+            padding: 24px 28px;
+        }
     }
 
     @@media (max-width: 768px) {
-        .settings-hero {
-            padding: 1.5rem;
+        .settings-shell {
+            grid-template-columns: 1fr;
         }
 
-        .settings-hero h1 {
-            font-size: 1.5rem;
+        .settings-sidebar {
+            border-right: none;
+            border-bottom: 1px solid var(--hairline);
+            max-height: 300px;
         }
 
-        .category-header {
-            flex-direction: column;
-            align-items: flex-start;
-        }
-
-        .category-header-icon {
-            margin-bottom: 0.75rem;
+        .settings-grid {
+            grid-template-columns: 1fr;
         }
     }
 </style>
 
-<div class="container-fluid settings-container">
+<div class="container-fluid px-4">
     <!-- Breadcrumb -->
-    <nav aria-label="breadcrumb" class="mb-4">
+    <nav aria-label="breadcrumb" class="mb-3">
         <ol class="breadcrumb">
             <li class="breadcrumb-item"><a asp-page="/Index">Home</a></li>
             <li class="breadcrumb-item active" aria-current="page">Settings</li>
         </ol>
     </nav>
 
-    <!-- Hero Section -->
-    <div class="settings-hero">
-        <div class="d-flex justify-content-between align-items-start flex-wrap">
-            <div>
-                <h1><i class="bi bi-gear-fill me-2"></i>System Settings & Configuration</h1>
-                <p>Configure system-wide settings, manage lookup tables, and customize your surveillance system</p>
+    <!-- iOS-Style Settings Shell -->
+    <div class="settings-shell">
+        <!-- Sidebar -->
+        <div class="settings-sidebar">
+            <div class="settings-sidebar-header">
+                <h1>Settings</h1>
+                <p>@AppVersion.ProductName @AppVersion.FullVersionString</p>
             </div>
-            <div class="text-end" style="color: #718096;">
-                <div style="font-size: 0.875rem; font-weight: 500;">@AppVersion.ProductName @AppVersion.FullVersionString</div>
-                <div style="font-size: 0.75rem; margin-top: 2px;">@AppVersion.ReleaseDate</div>
+
+            <!-- Search -->
+            <div class="settings-search">
+                <div class="settings-search-wrapper">
+                    <i class="bi bi-search settings-search-icon"></i>
+                    <input type="search" placeholder="Search settings..." id="settingsSearchInput">
+                </div>
+            </div>
+
+            <!-- Categories -->
+            <div class="settings-category-group">
+                <div class="settings-category-label">System</div>
+                <a href="#" class="settings-category-item active" data-category="system">
+                    <i class="bi bi-gear-fill settings-category-icon"></i>
+                    <div class="settings-category-info">
+                        <div class="settings-category-name">System Configuration</div>
+                    </div>
+                    <span class="settings-category-count">5</span>
+                </a>
+            </div>
+
+            <div class="settings-category-group">
+                <div class="settings-category-label">Clinical</div>
+                <a href="#" class="settings-category-item" data-category="disease">
+                    <i class="bi bi-virus settings-category-icon"></i>
+                    <div class="settings-category-info">
+                        <div class="settings-category-name">Disease & Case Management</div>
+                    </div>
+                    <span class="settings-category-count">5</span>
+                </a>
+                <a href="#" class="settings-category-item" data-category="lab">
+                    <i class="bi bi-hospital settings-category-icon"></i>
+                    <div class="settings-category-info">
+                        <div class="settings-category-name">Laboratory & Testing</div>
+                    </div>
+                    <span class="settings-category-count">5</span>
+                </a>
+                <a href="#" class="settings-category-item" data-category="hl7">
+                    <i class="bi bi-hdd-network settings-category-icon"></i>
+                    <div class="settings-category-info">
+                        <div class="settings-category-name">HL7 Interface</div>
+                    </div>
+                    <span class="settings-category-count">5</span>
+                </a>
+            </div>
+
+            <div class="settings-category-group">
+                <div class="settings-category-label">Surveillance</div>
+                <a href="#" class="settings-category-item" data-category="exposure">
+                    <i class="bi bi-geo-alt-fill settings-category-icon"></i>
+                    <div class="settings-category-info">
+                        <div class="settings-category-name">Exposure & Location</div>
+                    </div>
+                    <span class="settings-category-count">6</span>
+                </a>
+                <a href="#" class="settings-category-item" data-category="contact">
+                    <i class="bi bi-people-fill settings-category-icon"></i>
+                    <div class="settings-category-info">
+                        <div class="settings-category-name">Contact Tracing</div>
+                    </div>
+                    <span class="settings-category-count">1</span>
+                </a>
+                <a href="#" class="settings-category-item" data-category="task">
+                    <i class="bi bi-check2-square settings-category-icon"></i>
+                    <div class="settings-category-info">
+                        <div class="settings-category-name">Tasks & Workflows</div>
+                    </div>
+                    <span class="settings-category-count">4</span>
+                </a>
+            </div>
+
+            <div class="settings-category-group">
+                <div class="settings-category-label">Data</div>
+                <a href="#" class="settings-category-item" data-category="demographics">
+                    <i class="bi bi-person-vcard settings-category-icon"></i>
+                    <div class="settings-category-info">
+                        <div class="settings-category-name">Demographics</div>
+                    </div>
+                    <span class="settings-category-count">8</span>
+                </a>
+            </div>
+
+            <div class="settings-category-group">
+                <div class="settings-category-label">Administration</div>
+                <a href="#" class="settings-category-item" data-category="security">
+                    <i class="bi bi-shield-lock-fill settings-category-icon"></i>
+                    <div class="settings-category-info">
+                        <div class="settings-category-name">Security & Access</div>
+                    </div>
+                    <span class="settings-category-count">3</span>
+                </a>
+                <a href="#" class="settings-category-item" data-category="admin">
+                    <i class="bi bi-tools settings-category-icon"></i>
+                    <div class="settings-category-info">
+                        <div class="settings-category-name">System Administration</div>
+                    </div>
+                    <span class="settings-category-count">4</span>
+                </a>
+            </div>
+        </div>
+
+        <!-- Content Area -->
+        <div class="settings-content">
+            <!-- System Configuration Content -->
+            <div class="settings-content-section" id="system-content">
+                <div class="settings-content-header">
+                    <div class="settings-content-eyebrow">System</div>
+                    <h2 class="settings-content-title">System Configuration</h2>
+                    <p class="settings-content-subtitle">Core system settings, API integrations, and custom field management</p>
+                </div>
+
+                <div class="settings-grid">
+                    <a asp-page="/Settings/Organization" class="setting-row">
+                        <div class="setting-row-icon">
+                            <i class="bi bi-building"></i>
+                        </div>
+                        <div class="setting-row-info">
+                            <div class="setting-row-title">Organization Details</div>
+                            <div class="setting-row-desc">Configure your organization name, logo, and contact information</div>
+                        </div>
+                        <i class="bi bi-chevron-right setting-row-chevron"></i>
+                    </a>
+
+                    <a asp-page="/Settings/CustomFields/Index" class="setting-row">
+                        <div class="setting-row-icon">
+                            <i class="bi bi-sliders"></i>
+                        </div>
+                        <div class="setting-row-info">
+                            <div class="setting-row-title">Custom Fields</div>
+                            <div class="setting-row-desc">Create and manage custom data fields for patients, cases, and contacts</div>
+                        </div>
+                        <i class="bi bi-chevron-right setting-row-chevron"></i>
+                    </a>
+
+                    <a asp-page="/Settings/CustomFields/Visibility" class="setting-row">
+                        <div class="setting-row-icon">
+                            <i class="bi bi-eye"></i>
+                        </div>
+                        <div class="setting-row-info">
+                            <div class="setting-row-title">Field Visibility</div>
+                            <div class="setting-row-desc">Control which fields are visible or required throughout the system</div>
+                        </div>
+                        <i class="bi bi-chevron-right setting-row-chevron"></i>
+                    </a>
+
+                    <a asp-page="/Settings/Backups/Index" class="setting-row">
+                        <div class="setting-row-icon">
+                            <i class="bi bi-hdd-stack"></i>
+                        </div>
+                        <div class="setting-row-info">
+                            <div class="setting-row-title">Database Backups</div>
+                            <div class="setting-row-desc">Create, restore, and manage automated database backups</div>
+                        </div>
+                        <i class="bi bi-chevron-right setting-row-chevron"></i>
+                    </a>
+
+                    <a asp-page="/Settings/About" class="setting-row">
+                        <div class="setting-row-icon">
+                            <i class="bi bi-info-circle"></i>
+                        </div>
+                        <div class="setting-row-info">
+                            <div class="setting-row-title">About Sentinel</div>
+                            <div class="setting-row-desc">Version information, system details, and product information</div>
+                        </div>
+                        <i class="bi bi-chevron-right setting-row-chevron"></i>
+                    </a>
+                </div>
+            </div>
+
+            <!-- Disease & Case Management Content (Hidden by default) -->
+            <div class="settings-content-section" id="disease-content" style="display:none;">
+                <div class="settings-content-header">
+                    <div class="settings-content-eyebrow">Clinical</div>
+                    <h2 class="settings-content-title">Disease & Case Management</h2>
+                    <p class="settings-content-subtitle">Manage diseases, symptoms, case classifications, and clinical data</p>
+                </div>
+
+                <div class="settings-grid">
+                    <a asp-page="/Settings/Diseases/Index" class="setting-row">
+                        <div class="setting-row-icon">
+                            <i class="bi bi-virus"></i>
+                        </div>
+                        <div class="setting-row-info">
+                            <div class="setting-row-title">Diseases</div>
+                            <div class="setting-row-desc">Configure notifiable diseases, ICD codes, and disease-specific settings</div>
+                        </div>
+                        <i class="bi bi-chevron-right setting-row-chevron"></i>
+                    </a>
+
+                    <a asp-page="/Settings/Lookups/Symptoms" class="setting-row">
+                        <div class="setting-row-icon">
+                            <i class="bi bi-heart-pulse"></i>
+                        </div>
+                        <div class="setting-row-info">
+                            <div class="setting-row-title">Symptoms</div>
+                            <div class="setting-row-desc">Manage symptom types for disease surveillance and case investigation</div>
+                        </div>
+                        <i class="bi bi-chevron-right setting-row-chevron"></i>
+                    </a>
+
+                    <a asp-page="/Settings/CaseStatuses/Index" class="setting-row">
+                        <div class="setting-row-icon">
+                            <i class="bi bi-journal-check"></i>
+                        </div>
+                        <div class="setting-row-info">
+                            <div class="setting-row-title">Case Statuses</div>
+                            <div class="setting-row-desc">Define case investigation statuses and classification categories</div>
+                        </div>
+                        <i class="bi bi-chevron-right setting-row-chevron"></i>
+                    </a>
+
+                    <a asp-page="/Settings/CaseDefinitions/Index" class="setting-row">
+                        <div class="setting-row-icon">
+                            <i class="bi bi-diagram-3"></i>
+                        </div>
+                        <div class="setting-row-info">
+                            <div class="setting-row-title">Case Definitions</div>
+                            <div class="setting-row-desc">Build automated classification rules for case confirmation criteria</div>
+                        </div>
+                        <i class="bi bi-chevron-right setting-row-chevron"></i>
+                    </a>
+
+                    <a asp-page="/Settings/Diseases/ReinfectionRules" class="setting-row">
+                        <div class="setting-row-icon">
+                            <i class="bi bi-arrow-repeat"></i>
+                        </div>
+                        <div class="setting-row-info">
+                            <div class="setting-row-title">Reinfection Rules</div>
+                            <div class="setting-row-desc">Configure case matching and reinfection detection rules per disease</div>
+                        </div>
+                        <i class="bi bi-chevron-right setting-row-chevron"></i>
+                    </a>
+                </div>
+            </div>
+
+            <!-- Lab Content (Hidden) -->
+            <div class="settings-content-section" id="lab-content" style="display:none;">
+                <div class="settings-content-header">
+                    <div class="settings-content-eyebrow">Clinical</div>
+                    <h2 class="settings-content-title">Laboratory & Testing</h2>
+                    <p class="settings-content-subtitle">Configure laboratory settings, specimen types, test types, and result classifications</p>
+                </div>
+
+                <div class="settings-grid">
+                    <a asp-page="/Settings/Pathogens/Index" class="setting-row">
+                        <div class="setting-row-icon">
+                            <i class="bi bi-bug"></i>
+                        </div>
+                        <div class="setting-row-info">
+                            <div class="setting-row-title">Pathogens & Biomarkers</div>
+                            <div class="setting-row-desc">Manage laboratory test targets with LOINC codes for HL7 integration</div>
+                        </div>
+                        <i class="bi bi-chevron-right setting-row-chevron"></i>
+                    </a>
+
+                    <a asp-page="/Settings/Lookups/OrganizationTypes" class="setting-row">
+                        <div class="setting-row-icon">
+                            <i class="bi bi-building"></i>
+                        </div>
+                        <div class="setting-row-info">
+                            <div class="setting-row-title">Organization Types</div>
+                            <div class="setting-row-desc">Define types of laboratories and healthcare organizations</div>
+                        </div>
+                        <i class="bi bi-chevron-right setting-row-chevron"></i>
+                    </a>
+
+                    <a asp-page="/Settings/Lookups/SpecimenTypes" class="setting-row">
+                        <div class="setting-row-icon">
+                            <i class="bi bi-droplet"></i>
+                        </div>
+                        <div class="setting-row-info">
+                            <div class="setting-row-title">Specimen Types</div>
+                            <div class="setting-row-desc">Configure specimen collection types (blood, swab, urine, etc.)</div>
+                        </div>
+                        <i class="bi bi-chevron-right setting-row-chevron"></i>
+                    </a>
+
+                    <a asp-page="/Settings/Lookups/TestMethods" class="setting-row">
+                        <div class="setting-row-icon">
+                            <i class="bi bi-clipboard-pulse"></i>
+                        </div>
+                        <div class="setting-row-info">
+                            <div class="setting-row-title">Test Methods</div>
+                            <div class="setting-row-desc">Laboratory test methodologies (PCR, ELISA, Culture, etc.)</div>
+                        </div>
+                        <i class="bi bi-chevron-right setting-row-chevron"></i>
+                    </a>
+
+                    <a asp-page="/Settings/Lookups/TestResults" class="setting-row">
+                        <div class="setting-row-icon">
+                            <i class="bi bi-check-circle"></i>
+                        </div>
+                        <div class="setting-row-info">
+                            <div class="setting-row-title">Test Results</div>
+                            <div class="setting-row-desc">Configure qualitative test result options (Positive, Negative, Indeterminate, etc.)</div>
+                        </div>
+                        <i class="bi bi-chevron-right setting-row-chevron"></i>
+                    </a>
+
+                    <a asp-page="/Settings/Lookups/ResultUnits" class="setting-row">
+                        <div class="setting-row-icon">
+                            <i class="bi bi-rulers"></i>
+                        </div>
+                        <div class="setting-row-info">
+                            <div class="setting-row-title">Result Units</div>
+                            <div class="setting-row-desc">Configure measurement units for quantitative test results</div>
+                        </div>
+                        <i class="bi bi-chevron-right setting-row-chevron"></i>
+                    </a>
+                </div>
+            </div>
+
+            <!-- HL7 Content (Hidden) -->
+            <div class="settings-content-section" id="hl7-content" style="display:none;">
+                <div class="settings-content-header">
+                    <div class="settings-content-eyebrow">Clinical</div>
+                    <h2 class="settings-content-title">HL7 Interface & Integration</h2>
+                    <p class="settings-content-subtitle">Electronic laboratory results integration, file monitoring, and message processing</p>
+                </div>
+
+                <div class="settings-grid">
+                    <a asp-page="/Settings/HL7/Monitoring/Dashboard" class="setting-row">
+                        <div class="setting-row-icon">
+                            <i class="bi bi-activity"></i>
+                        </div>
+                        <div class="setting-row-info">
+                            <div class="setting-row-title">HL7 Monitoring Dashboard</div>
+                            <div class="setting-row-desc">Real-time monitoring of file processing, message status, and system health</div>
+                        </div>
+                        <i class="bi bi-chevron-right setting-row-chevron"></i>
+                    </a>
+
+                    <a asp-page="/Settings/HL7/Configurations/Index" class="setting-row">
+                        <div class="setting-row-icon">
+                            <i class="bi bi-gear-wide-connected"></i>
+                        </div>
+                        <div class="setting-row-info">
+                            <div class="setting-row-title">HL7 Configurations</div>
+                            <div class="setting-row-desc">Configure file drop locations, parsing rules, and automatic processing</div>
+                        </div>
+                        <i class="bi bi-chevron-right setting-row-chevron"></i>
+                    </a>
+
+                    <a asp-page="/Settings/HL7/Messages/Index" class="setting-row">
+                        <div class="setting-row-icon">
+                            <i class="bi bi-envelope"></i>
+                        </div>
+                        <div class="setting-row-info">
+                            <div class="setting-row-title">HL7 Messages</div>
+                            <div class="setting-row-desc">View, search, and reprocess incoming HL7 laboratory messages</div>
+                        </div>
+                        <i class="bi bi-chevron-right setting-row-chevron"></i>
+                    </a>
+
+                    <a asp-page="/Settings/HL7/FieldMappings/Index" class="setting-row">
+                        <div class="setting-row-icon">
+                            <i class="bi bi-diagram-2"></i>
+                        </div>
+                        <div class="setting-row-info">
+                            <div class="setting-row-title">Field Mappings</div>
+                            <div class="setting-row-desc">Map HL7 test codes to custom fields for disease-specific data extraction</div>
+                        </div>
+                        <i class="bi bi-chevron-right setting-row-chevron"></i>
+                    </a>
+
+                    <a asp-page="/Settings/HL7/DiseaseMatching/Index" class="setting-row">
+                        <div class="setting-row-icon">
+                            <i class="bi bi-virus"></i>
+                        </div>
+                        <div class="setting-row-info">
+                            <div class="setting-row-title">Disease Matching Rules</div>
+                            <div class="setting-row-desc">Configure how HL7 messages match to diseases using LOINC/SNOMED codes</div>
+                        </div>
+                        <i class="bi bi-chevron-right setting-row-chevron"></i>
+                    </a>
+                </div>
+            </div>
+
+            <!-- Exposure Content (Hidden) -->
+            <div class="settings-content-section" id="exposure-content" style="display:none;">
+                <div class="settings-content-header">
+                    <div class="settings-content-eyebrow">Surveillance</div>
+                    <h2 class="settings-content-title">Exposure & Location Tracking</h2>
+                    <p class="settings-content-subtitle">Manage locations, events, and exposure site classification for contact tracing</p>
+                </div>
+
+                <div class="settings-grid">
+                    <a asp-page="/Locations/Index" class="setting-row">
+                        <div class="setting-row-icon">
+                            <i class="bi bi-geo-alt"></i>
+                        </div>
+                        <div class="setting-row-info">
+                            <div class="setting-row-title">Locations</div>
+                            <div class="setting-row-desc">Manage registered locations and exposure sites in your jurisdiction</div>
+                        </div>
+                        <i class="bi bi-chevron-right setting-row-chevron"></i>
+                    </a>
+
+                    <a asp-page="/Settings/Lookups/LocationTypes" class="setting-row">
+                        <div class="setting-row-icon">
+                            <i class="bi bi-tags"></i>
+                        </div>
+                        <div class="setting-row-info">
+                            <div class="setting-row-title">Location Types</div>
+                            <div class="setting-row-desc">Define location categories (schools, hospitals, restaurants, etc.)</div>
+                        </div>
+                        <i class="bi bi-chevron-right setting-row-chevron"></i>
+                    </a>
+
+                    <a asp-page="/Events/Index" class="setting-row">
+                        <div class="setting-row-icon">
+                            <i class="bi bi-calendar-event"></i>
+                        </div>
+                        <div class="setting-row-info">
+                            <div class="setting-row-title">Events</div>
+                            <div class="setting-row-desc">Manage recorded events and gatherings for exposure tracking</div>
+                        </div>
+                        <i class="bi bi-chevron-right setting-row-chevron"></i>
+                    </a>
+
+                    <a asp-page="/Settings/Lookups/EventTypes" class="setting-row">
+                        <div class="setting-row-icon">
+                            <i class="bi bi-tags"></i>
+                        </div>
+                        <div class="setting-row-info">
+                            <div class="setting-row-title">Event Types</div>
+                            <div class="setting-row-desc">Classify events (conferences, weddings, sporting events, etc.)</div>
+                        </div>
+                        <i class="bi bi-chevron-right setting-row-chevron"></i>
+                    </a>
+
+                    <a asp-page="/Settings/JurisdictionTypes/Index" class="setting-row">
+                        <div class="setting-row-icon">
+                            <i class="bi bi-map"></i>
+                        </div>
+                        <div class="setting-row-info">
+                            <div class="setting-row-title">Jurisdiction Types</div>
+                            <div class="setting-row-desc">Configure the 5 jurisdiction field names (LHD, LGA, Statistical Areas, etc.)</div>
+                        </div>
+                        <i class="bi bi-chevron-right setting-row-chevron"></i>
+                    </a>
+
+                    <a asp-page="/Settings/Jurisdictions/Index" class="setting-row">
+                        <div class="setting-row-icon">
+                            <i class="bi bi-pin-map"></i>
+                        </div>
+                        <div class="setting-row-info">
+                            <div class="setting-row-title">Jurisdictions</div>
+                            <div class="setting-row-desc">Manage jurisdiction values and upload boundary shapefiles for geocoding</div>
+                        </div>
+                        <i class="bi bi-chevron-right setting-row-chevron"></i>
+                    </a>
+                </div>
+            </div>
+
+            <!-- Contact Content (Hidden) -->
+            <div class="settings-content-section" id="contact-content" style="display:none;">
+                <div class="settings-content-header">
+                    <div class="settings-content-eyebrow">Surveillance</div>
+                    <h2 class="settings-content-title">Contact Tracing</h2>
+                    <p class="settings-content-subtitle">Configure contact classifications and manage contact investigation settings</p>
+                </div>
+
+                <div class="settings-grid">
+                    <a asp-page="/Settings/Lookups/ContactClassifications" class="setting-row">
+                        <div class="setting-row-icon">
+                            <i class="bi bi-diagram-3"></i>
+                        </div>
+                        <div class="setting-row-info">
+                            <div class="setting-row-title">Contact Classifications</div>
+                            <div class="setting-row-desc">Define contact types (household, close, casual contact, etc.)</div>
+                        </div>
+                        <i class="bi bi-chevron-right setting-row-chevron"></i>
+                    </a>
+                </div>
+            </div>
+
+            <!-- Task Content (Hidden) -->
+            <div class="settings-content-section" id="task-content" style="display:none;">
+                <div class="settings-content-header">
+                    <div class="settings-content-eyebrow">Surveillance</div>
+                    <h2 class="settings-content-title">Task Management & Workflows</h2>
+                    <p class="settings-content-subtitle">Configure task types, templates, and survey forms for case investigations</p>
+                </div>
+
+                <div class="settings-grid">
+                    <a asp-page="/Settings/Lookups/TaskTypes" class="setting-row">
+                        <div class="setting-row-icon">
+                            <i class="bi bi-tags"></i>
+                        </div>
+                        <div class="setting-row-info">
+                            <div class="setting-row-title">Task Types</div>
+                            <div class="setting-row-desc">Define task categories for case and contact management workflows</div>
+                        </div>
+                        <i class="bi bi-chevron-right setting-row-chevron"></i>
+                    </a>
+
+                    <a asp-page="/Settings/Lookups/TaskTemplates" class="setting-row">
+                        <div class="setting-row-icon">
+                            <i class="bi bi-clipboard-check"></i>
+                        </div>
+                        <div class="setting-row-info">
+                            <div class="setting-row-title">Task Templates</div>
+                            <div class="setting-row-desc">Create reusable task templates for common investigation procedures</div>
+                        </div>
+                        <i class="bi bi-chevron-right setting-row-chevron"></i>
+                    </a>
+
+                    <a asp-page="/Settings/Surveys/SurveyTemplates" class="setting-row">
+                        <div class="setting-row-icon">
+                            <i class="bi bi-collection"></i>
+                        </div>
+                        <div class="setting-row-info">
+                            <div class="setting-row-title">Survey Templates</div>
+                            <div class="setting-row-desc">Design custom survey forms for epidemiological data collection</div>
+                        </div>
+                        <i class="bi bi-chevron-right setting-row-chevron"></i>
+                    </a>
+
+                    <a asp-page="./Surveys/SubmissionLog" class="setting-row">
+                        <div class="setting-row-icon">
+                            <i class="bi bi-activity"></i>
+                        </div>
+                        <div class="setting-row-info">
+                            <div class="setting-row-title">Survey Activity Log</div>
+                            <div class="setting-row-desc">Record of completed interviews and data collection status</div>
+                        </div>
+                        <i class="bi bi-chevron-right setting-row-chevron"></i>
+                    </a>
+                </div>
+            </div>
+
+            <!-- Demographics Content (Hidden) -->
+            <div class="settings-content-section" id="demographics-content" style="display:none;">
+                <div class="settings-content-header">
+                    <div class="settings-content-eyebrow">Data</div>
+                    <h2 class="settings-content-title">Demographics & Reference Data</h2>
+                    <p class="settings-content-subtitle">Manage patient demographic lookups including countries, languages, and identity data</p>
+                </div>
+
+                <div class="settings-grid">
+                    <a asp-page="/Settings/Countries/Index" class="setting-row">
+                        <div class="setting-row-icon">
+                            <i class="bi bi-globe"></i>
+                        </div>
+                        <div class="setting-row-info">
+                            <div class="setting-row-title">Countries</div>
+                            <div class="setting-row-desc">Manage country codes and names for travel history tracking</div>
+                        </div>
+                        <i class="bi bi-chevron-right setting-row-chevron"></i>
+                    </a>
+
+                    <a asp-page="/Settings/Languages/Index" class="setting-row">
+                        <div class="setting-row-icon">
+                            <i class="bi bi-translate"></i>
+                        </div>
+                        <div class="setting-row-info">
+                            <div class="setting-row-title">Languages</div>
+                            <div class="setting-row-desc">Configure languages for patient communication preferences</div>
+                        </div>
+                        <i class="bi bi-chevron-right setting-row-chevron"></i>
+                    </a>
+
+                    <a asp-page="/Settings/Ancestries/Index" class="setting-row">
+                        <div class="setting-row-icon">
+                            <i class="bi bi-people"></i>
+                        </div>
+                        <div class="setting-row-info">
+                            <div class="setting-row-title">Ancestries</div>
+                            <div class="setting-row-desc">Manage ancestry classifications for demographic reporting</div>
+                        </div>
+                        <i class="bi bi-chevron-right setting-row-chevron"></i>
+                    </a>
+
+                    <a asp-page="/Settings/AtsiStatuses/Index" class="setting-row">
+                        <div class="setting-row-icon">
+                            <i class="bi bi-list-check"></i>
+                        </div>
+                        <div class="setting-row-info">
+                            <div class="setting-row-title">ATSI Status</div>
+                            <div class="setting-row-desc">Aboriginal and Torres Strait Islander status classifications</div>
+                        </div>
+                        <i class="bi bi-chevron-right setting-row-chevron"></i>
+                    </a>
+
+                    <a asp-page="/Settings/SexAtBirths/Index" class="setting-row">
+                        <div class="setting-row-icon">
+                            <i class="bi bi-gender-ambiguous"></i>
+                        </div>
+                        <div class="setting-row-info">
+                            <div class="setting-row-title">Sex at Birth</div>
+                            <div class="setting-row-desc">Configure biological sex classifications for medical records</div>
+                        </div>
+                        <i class="bi bi-chevron-right setting-row-chevron"></i>
+                    </a>
+
+                    <a asp-page="/Settings/Genders/Index" class="setting-row">
+                        <div class="setting-row-icon">
+                            <i class="bi bi-gender-trans"></i>
+                        </div>
+                        <div class="setting-row-info">
+                            <div class="setting-row-title">Gender Identity</div>
+                            <div class="setting-row-desc">Manage gender identity options for inclusive patient records</div>
+                        </div>
+                        <i class="bi bi-chevron-right setting-row-chevron"></i>
+                    </a>
+
+                    <a asp-page="/Settings/States/Index" class="setting-row">
+                        <div class="setting-row-icon">
+                            <i class="bi bi-map"></i>
+                        </div>
+                        <div class="setting-row-info">
+                            <div class="setting-row-title">States</div>
+                            <div class="setting-row-desc">Manage states and sub-national administrative regions</div>
+                        </div>
+                        <i class="bi bi-chevron-right setting-row-chevron"></i>
+                    </a>
+
+                    <a asp-page="/Settings/Occupations/Index" class="setting-row">
+                        <div class="setting-row-icon">
+                            <i class="bi bi-briefcase"></i>
+                        </div>
+                        <div class="setting-row-info">
+                            <div class="setting-row-title">Occupations</div>
+                            <div class="setting-row-desc">Define occupation categories for epidemiological analysis</div>
+                        </div>
+                        <i class="bi bi-chevron-right setting-row-chevron"></i>
+                    </a>
+                </div>
+            </div>
+
+            <!-- Security Content (Hidden) -->
+            <div class="settings-content-section" id="security-content" style="display:none;">
+                <div class="settings-content-header">
+                    <div class="settings-content-eyebrow">Administration</div>
+                    <h2 class="settings-content-title">Security & Access Control</h2>
+                    <p class="settings-content-subtitle">Manage users, roles, permissions, and disease-specific access controls</p>
+                </div>
+
+                <div class="settings-grid">
+                    <a asp-page="/Settings/Users/Index" class="setting-row">
+                        <div class="setting-row-icon">
+                            <i class="bi bi-person-gear"></i>
+                        </div>
+                        <div class="setting-row-info">
+                            <div class="setting-row-title">User Management</div>
+                            <div class="setting-row-desc">Add, edit, and manage system users and their profiles</div>
+                        </div>
+                        <i class="bi bi-chevron-right setting-row-chevron"></i>
+                    </a>
+
+                    <a asp-page="/Settings/Roles/Index" class="setting-row">
+                        <div class="setting-row-icon">
+                            <i class="bi bi-shield-check"></i>
+                        </div>
+                        <div class="setting-row-info">
+                            <div class="setting-row-title">Roles & Permissions</div>
+                            <div class="setting-row-desc">Configure user roles and system permission levels</div>
+                        </div>
+                        <i class="bi bi-chevron-right setting-row-chevron"></i>
+                    </a>
+
+                    <a asp-page="/Settings/DiseaseAccess/Index" class="setting-row">
+                        <div class="setting-row-icon">
+                            <i class="bi bi-shield-lock"></i>
+                        </div>
+                        <div class="setting-row-info">
+                            <div class="setting-row-title">Disease Access Control</div>
+                            <div class="setting-row-desc">Assign disease-specific access permissions to users and teams</div>
+                        </div>
+                        <i class="bi bi-chevron-right setting-row-chevron"></i>
+                    </a>
+                </div>
+            </div>
+
+            <!-- Admin Content (Hidden) -->
+            <div class="settings-content-section" id="admin-content" style="display:none;">
+                <div class="settings-content-header">
+                    <div class="settings-content-eyebrow">Administration</div>
+                    <h2 class="settings-content-title">System Administration</h2>
+                    <p class="settings-content-subtitle">Advanced system management tools for data maintenance and recovery</p>
+                </div>
+
+                <div class="settings-grid">
+                    <a asp-page="/Settings/DeletedRecords" class="setting-row">
+                        <div class="setting-row-icon">
+                            <i class="bi bi-trash"></i>
+                        </div>
+                        <div class="setting-row-info">
+                            <div class="setting-row-title">Deleted Records</div>
+                            <div class="setting-row-desc">View, restore, or permanently delete soft-deleted records</div>
+                        </div>
+                        <i class="bi bi-chevron-right setting-row-chevron"></i>
+                    </a>
+
+                    <a asp-page="/Settings/LookupTables/Index" class="setting-row">
+                        <div class="setting-row-icon">
+                            <i class="bi bi-table"></i>
+                        </div>
+                        <div class="setting-row-info">
+                            <div class="setting-row-title">Lookup Tables</div>
+                            <div class="setting-row-desc">Browse and manage all system lookup and reference tables</div>
+                        </div>
+                        <i class="bi bi-chevron-right setting-row-chevron"></i>
+                    </a>
+
+                    <a asp-page="/Tools/GenerateFieldInventory" class="setting-row">
+                        <div class="setting-row-icon">
+                            <i class="bi bi-database"></i>
+                        </div>
+                        <div class="setting-row-info">
+                            <div class="setting-row-title">Field Inventory</div>
+                            <div class="setting-row-desc">Generate complete database field inventory for reporting system</div>
+                        </div>
+                        <i class="bi bi-chevron-right setting-row-chevron"></i>
+                    </a>
+
+                    <a href="/tools/test-data-generator" class="setting-row">
+                        <div class="setting-row-icon">
+                            <i class="bi bi-flask"></i>
+                        </div>
+                        <div class="setting-row-info">
+                            <div class="setting-row-title">Test Data Generator</div>
+                            <div class="setting-row-desc">Generate realistic test patients with geocoding and jurisdiction assignment</div>
+                        </div>
+                        <i class="bi bi-chevron-right setting-row-chevron"></i>
+                    </a>
+                </div>
             </div>
         </div>
     </div>
-
-    <!-- Quick Access Section -->
-    <div class="quick-links">
-        <h4><i class="bi bi-lightning-fill me-2"></i>Quick Access</h4>
-        <div class="d-flex flex-wrap gap-2">
-            <a asp-page="/Settings/Organization" class="quick-link-btn">
-                <i class="bi bi-building"></i> Organization
-            </a>
-            <a asp-page="/Settings/Users/Index" class="quick-link-btn">
-                <i class="bi bi-person-gear"></i> User Management
-            </a>
-            <a asp-page="/Settings/Diseases/Index" class="quick-link-btn">
-                <i class="bi bi-virus"></i> Diseases
-            </a>
-            <a asp-page="/Settings/HL7/Monitoring/Dashboard" class="quick-link-btn">
-                <i class="bi bi-activity"></i> HL7 Monitoring
-            </a>
-            <a asp-page="/Settings/DiseaseAccess/Index" class="quick-link-btn">
-                <i class="bi bi-shield-lock"></i> Disease Access
-            </a>
-            <a asp-page="/Locations/Index" class="quick-link-btn">
-                <i class="bi bi-geo-alt"></i> Locations
-            </a>
-            <a asp-page="/Settings/CustomFields/Index" class="quick-link-btn">
-                <i class="bi bi-sliders"></i> Custom Fields
-            </a>
-        </div>
-    </div>
-
-    <!-- System Configuration -->
-    <div class="category-section">
-        <div class="category-header">
-            <div class="category-header-icon category-system">
-                <i class="bi bi-gear-fill"></i>
-            </div>
-            <div>
-                <h3>System Configuration</h3>
-                <p class="category-description">Core system settings, API integrations, and custom field management</p>
-            </div>
-        </div>
-        <div class="row g-4">
-            <div class="col-lg-3 col-md-4 col-sm-6">
-                <div class="setting-card">
-                    <div class="setting-card-icon">
-                        <i class="bi bi-building"></i>
-                    </div>
-                    <h5>Organization Details</h5>
-                    <p>Configure your organization name, logo, and contact information</p>
-                    <a asp-page="/Settings/Organization" class="stretched-link"></a>
-                </div>
-            </div>
-            <div class="col-lg-3 col-md-4 col-sm-6">
-                <div class="setting-card">
-                    <div class="setting-card-icon">
-                        <i class="bi bi-sliders"></i>
-                    </div>
-                    <h5>Custom Fields</h5>
-                    <p>Create and manage custom data fields for patients, cases, and contacts</p>
-                    <a asp-page="/Settings/CustomFields/Index" class="stretched-link"></a>
-                </div>
-            </div>
-            <div class="col-lg-3 col-md-4 col-sm-6">
-                <div class="setting-card">
-                    <div class="setting-card-icon">
-                        <i class="bi bi-eye"></i>
-                    </div>
-                    <h5>Field Visibility</h5>
-                    <p>Control which fields are visible or required throughout the system</p>
-                    <a asp-page="/Settings/CustomFields/Visibility" class="stretched-link"></a>
-                </div>
-            </div>
-            <div class="col-lg-3 col-md-4 col-sm-6">
-                <div class="setting-card">
-                    <div class="setting-card-icon">
-                        <i class="bi bi-hdd-stack"></i>
-                    </div>
-                    <h5>Database Backups</h5>
-                    <p>Create, restore, and manage automated database backups and disaster recovery</p>
-                    <a asp-page="/Settings/Backups/Index" class="stretched-link"></a>
-                </div>
-            </div>
-            <div class="col-lg-3 col-md-4 col-sm-6">
-                <div class="setting-card">
-                    <div class="setting-card-icon">
-                        <i class="bi bi-info-circle"></i>
-                    </div>
-                    <h5>About Sentinel</h5>
-                    <p>Version information, system details, and product information</p>
-                    <a asp-page="/Settings/About" class="stretched-link"></a>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Disease & Case Management -->
-    <div class="category-section">
-        <div class="category-header">
-            <div class="category-header-icon category-disease">
-                <i class="bi bi-virus"></i>
-            </div>
-            <div>
-                <h3>Disease & Case Management</h3>
-                <p class="category-description">Manage diseases, symptoms, case classifications, and clinical data</p>
-            </div>
-        </div>
-        <div class="row g-4">
-            <div class="col-lg-3 col-md-4 col-sm-6">
-                <div class="setting-card">
-                    <div class="setting-card-icon">
-                        <i class="bi bi-virus"></i>
-                    </div>
-                    <h5>Diseases</h5>
-                    <p>Configure notifiable diseases, ICD codes, and disease-specific settings</p>
-                    <a asp-page="/Settings/Diseases/Index" class="stretched-link"></a>
-                </div>
-            </div>
-            <div class="col-lg-3 col-md-4 col-sm-6">
-                <div class="setting-card">
-                    <div class="setting-card-icon">
-                        <i class="bi bi-heart-pulse"></i>
-                    </div>
-                    <h5>Symptoms</h5>
-                    <p>Manage symptom types for disease surveillance and case investigation</p>
-                    <a asp-page="/Settings/Lookups/Symptoms" class="stretched-link"></a>
-                </div>
-            </div>
-            <div class="col-lg-3 col-md-4 col-sm-6">
-                <div class="setting-card">
-                    <div class="setting-card-icon">
-                        <i class="bi bi-journal-check"></i>
-                    </div>
-                    <h5>Case Statuses</h5>
-                    <p>Define case investigation statuses and classification categories</p>
-                    <a asp-page="/Settings/CaseStatuses/Index" class="stretched-link"></a>
-                </div>
-            </div>
-            <div class="col-lg-3 col-md-4 col-sm-6">
-                <div class="setting-card setting-card-highlight">
-                    <div class="setting-card-icon">
-                        <i class="bi bi-diagram-3"></i>
-                    </div>
-                    <h5>Case Definitions</h5>
-                    <p>Build automated classification rules for case confirmation criteria</p>
-                    <a asp-page="/Settings/CaseDefinitions/Index" class="stretched-link"></a>
-                </div>
-            </div>
-            <div class="col-lg-3 col-md-4 col-sm-6">
-                <div class="setting-card">
-                    <div class="setting-card-icon">
-                        <i class="bi bi-arrow-repeat"></i>
-                    </div>
-                    <h5>Reinfection Rules</h5>
-                    <p>Configure case matching and reinfection detection rules per disease</p>
-                    <a asp-page="/Settings/Diseases/ReinfectionRules" class="stretched-link"></a>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Laboratory Management -->
-    <div class="category-section">
-        <div class="category-header">
-            <div class="category-header-icon category-lab">
-                <i class="bi bi-hospital"></i>
-            </div>
-            <div>
-                <h3>Laboratory & Testing</h3>
-                <p class="category-description">Configure laboratory settings, specimen types, test types, and result classifications</p>
-            </div>
-        </div>
-        <div class="row g-4">
-            <div class="col-lg-3 col-md-4 col-sm-6">
-                <div class="setting-card">
-                    <div class="setting-card-icon">
-                        <i class="bi bi-bug"></i>
-                    </div>
-                    <h5>Pathogens & Biomarkers</h5>
-                    <p>Manage laboratory test targets with LOINC codes for HL7 integration</p>
-                    <a asp-page="/Settings/Pathogens/Index" class="stretched-link"></a>
-                </div>
-            </div>
-            <div class="col-lg-3 col-md-4 col-sm-6">
-                <div class="setting-card">
-                    <div class="setting-card-icon">
-                        <i class="bi bi-building"></i>
-                    </div>
-                    <h5>Organization Types</h5>
-                    <p>Define types of laboratories and healthcare organizations</p>
-                    <a asp-page="/Settings/Lookups/OrganizationTypes" class="stretched-link"></a>
-                </div>
-            </div>
-            <div class="col-lg-3 col-md-4 col-sm-6">
-                <div class="setting-card">
-                    <div class="setting-card-icon">
-                        <i class="bi bi-droplet"></i>
-                    </div>
-                    <h5>Specimen Types</h5>
-                    <p>Configure specimen collection types (blood, swab, urine, etc.)</p>
-                    <a asp-page="/Settings/Lookups/SpecimenTypes" class="stretched-link"></a>
-                </div>
-            </div>
-            <div class="col-lg-3 col-md-4 col-sm-6">
-                <div class="setting-card">
-                    <div class="setting-card-icon">
-                        <i class="bi bi-clipboard-pulse"></i>
-                    </div>
-                    <h5>Test Methods</h5>
-                    <p>Laboratory test methodologies (PCR, ELISA, Culture, etc.)</p>
-                    <a asp-page="/Settings/Lookups/TestMethods" class="stretched-link"></a>
-                </div>
-            </div>
-            <div class="col-lg-3 col-md-4 col-sm-6">
-                <div class="setting-card">
-                    <div class="setting-card-icon">
-                        <i class="bi bi-rulers"></i>
-                    </div>
-                    <h5>Result Units</h5>
-                    <p>Configure measurement units for quantitative test results</p>
-                    <a asp-page="/Settings/Lookups/ResultUnits" class="stretched-link"></a>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- HL7 Interface & Integration -->
-    <div class="category-section">
-        <div class="category-header">
-            <div class="category-header-icon" style="background: linear-gradient(135deg, var(--signal-dk) 0%, var(--forest) 100%);">
-                <i class="bi bi-hdd-network"></i>
-            </div>
-            <div>
-                <h3>HL7 Interface & Integration</h3>
-                <p class="category-description">Electronic laboratory results integration, file monitoring, and message processing</p>
-            </div>
-        </div>
-        <div class="row g-4">
-            <div class="col-lg-3 col-md-4 col-sm-6">
-                <div class="setting-card setting-card-highlight">
-                    <div class="setting-card-icon">
-                        <i class="bi bi-activity"></i>
-                    </div>
-                    <h5>HL7 Monitoring Dashboard</h5>
-                    <p>Real-time monitoring of file processing, message status, and system health</p>
-                    <a asp-page="/Settings/HL7/Monitoring/Dashboard" class="stretched-link"></a>
-                </div>
-            </div>
-            <div class="col-lg-3 col-md-4 col-sm-6">
-                <div class="setting-card">
-                    <div class="setting-card-icon">
-                        <i class="bi bi-gear-wide-connected"></i>
-                    </div>
-                    <h5>HL7 Configurations</h5>
-                    <p>Configure file drop locations, parsing rules, and automatic processing</p>
-                    <a asp-page="/Settings/HL7/Configurations/Index" class="stretched-link"></a>
-                </div>
-            </div>
-            <div class="col-lg-3 col-md-4 col-sm-6">
-                <div class="setting-card">
-                    <div class="setting-card-icon">
-                        <i class="bi bi-envelope"></i>
-                    </div>
-                    <h5>HL7 Messages</h5>
-                    <p>View, search, and reprocess incoming HL7 laboratory messages</p>
-                    <a asp-page="/Settings/HL7/Messages/Index" class="stretched-link"></a>
-                </div>
-            </div>
-            <div class="col-lg-3 col-md-4 col-sm-6">
-                <div class="setting-card">
-                    <div class="setting-card-icon">
-                        <i class="bi bi-diagram-2"></i>
-                    </div>
-                    <h5>Field Mappings</h5>
-                    <p>Map HL7 test codes to custom fields for disease-specific data extraction</p>
-                    <a asp-page="/Settings/HL7/FieldMappings/Index" class="stretched-link"></a>
-                </div>
-            </div>
-            <div class="col-lg-3 col-md-4 col-sm-6">
-                <div class="setting-card">
-                    <div class="setting-card-icon">
-                        <i class="bi bi-virus"></i>
-                    </div>
-                    <h5>Disease Matching Rules</h5>
-                    <p>Configure how HL7 messages match to diseases using LOINC/SNOMED codes and text fallback</p>
-                    <a asp-page="/Settings/HL7/DiseaseMatching/Index" class="stretched-link"></a>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Exposure & Location Tracking -->
-    <div class="category-section">
-        <div class="category-header">
-            <div class="category-header-icon category-exposure">
-                <i class="bi bi-geo-alt-fill"></i>
-            </div>
-            <div>
-                <h3>Exposure & Location Tracking</h3>
-                <p class="category-description">Manage locations, events, and exposure site classification for contact tracing</p>
-            </div>
-        </div>
-        <div class="row g-4">
-            <div class="col-lg-3 col-md-4 col-sm-6">
-                <div class="setting-card">
-                    <div class="setting-card-icon">
-                        <i class="bi bi-geo-alt"></i>
-                    </div>
-                    <h5>Locations</h5>
-                    <p>Manage registered locations and exposure sites in your jurisdiction</p>
-                    <a asp-page="/Locations/Index" class="stretched-link"></a>
-                </div>
-            </div>
-            <div class="col-lg-3 col-md-4 col-sm-6">
-                <div class="setting-card">
-                    <div class="setting-card-icon">
-                        <i class="bi bi-tags"></i>
-                    </div>
-                    <h5>Location Types</h5>
-                    <p>Define location categories (schools, hospitals, restaurants, etc.)</p>
-                    <a asp-page="/Settings/Lookups/LocationTypes" class="stretched-link"></a>
-                </div>
-            </div>
-            <div class="col-lg-3 col-md-4 col-sm-6">
-                <div class="setting-card">
-                    <div class="setting-card-icon">
-                        <i class="bi bi-calendar-event"></i>
-                    </div>
-                    <h5>Events</h5>
-                    <p>Manage recorded events and gatherings for exposure tracking</p>
-                    <a asp-page="/Events/Index" class="stretched-link"></a>
-                </div>
-            </div>
-            <div class="col-lg-3 col-md-4 col-sm-6">
-                <div class="setting-card">
-                    <div class="setting-card-icon">
-                        <i class="bi bi-tags"></i>
-                    </div>
-                    <h5>Event Types</h5>
-                    <p>Classify events (conferences, weddings, sporting events, etc.)</p>
-                    <a asp-page="/Settings/Lookups/EventTypes" class="stretched-link"></a>
-                </div>
-            </div>
-            <div class="col-lg-3 col-md-4 col-sm-6">
-                <div class="setting-card">
-                    <div class="setting-card-icon">
-                        <i class="bi bi-map"></i>
-                    </div>
-                    <h5>Jurisdiction Types</h5>
-                    <p>Configure the 5 jurisdiction field names (LHD, LGA, Statistical Areas, etc.)</p>
-                    <a asp-page="/Settings/JurisdictionTypes/Index" class="stretched-link"></a>
-                </div>
-            </div>
-            <div class="col-lg-3 col-md-4 col-sm-6">
-                <div class="setting-card">
-                    <div class="setting-card-icon">
-                        <i class="bi bi-pin-map"></i>
-                    </div>
-                    <h5>Jurisdictions</h5>
-                    <p>Manage jurisdiction values and upload boundary shapefiles for geocoding</p>
-                    <a asp-page="/Settings/Jurisdictions/Index" class="stretched-link"></a>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Contact Tracing -->
-    <div class="category-section">
-        <div class="category-header">
-            <div class="category-header-icon category-contact">
-                <i class="bi bi-people-fill"></i>
-            </div>
-            <div>
-                <h3>Contact Tracing</h3>
-                <p class="category-description">Configure contact classifications and manage contact investigation settings</p>
-            </div>
-        </div>
-        <div class="row g-4">
-            <div class="col-lg-3 col-md-4 col-sm-6">
-                <div class="setting-card">
-                    <div class="setting-card-icon">
-                        <i class="bi bi-diagram-3"></i>
-                    </div>
-                    <h5>Contact Classifications</h5>
-                    <p>Define contact types (household, close, casual contact, etc.)</p>
-                    <a asp-page="/Settings/Lookups/ContactClassifications" class="stretched-link"></a>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Task Management & Workflows -->
-    <div class="category-section">
-        <div class="category-header">
-            <div class="category-header-icon category-task">
-                <i class="bi bi-check2-square"></i>
-            </div>
-            <div>
-                <h3>Task Management & Workflows</h3>
-                <p class="category-description">Configure task types, templates, and survey forms for case investigations</p>
-            </div>
-        </div>
-        <div class="row g-4">
-            <div class="col-lg-3 col-md-4 col-sm-6">
-                <div class="setting-card">
-                    <div class="setting-card-icon">
-                        <i class="bi bi-tags"></i>
-                    </div>
-                    <h5>Task Types</h5>
-                    <p>Define task categories for case and contact management workflows</p>
-                    <a asp-page="/Settings/Lookups/TaskTypes" class="stretched-link"></a>
-                </div>
-            </div>
-            <div class="col-lg-3 col-md-4 col-sm-6">
-                <div class="setting-card">
-                    <div class="setting-card-icon">
-                        <i class="bi bi-clipboard-check"></i>
-                    </div>
-                    <h5>Task Templates</h5>
-                    <p>Create reusable task templates for common investigation procedures</p>
-                    <a asp-page="/Settings/Lookups/TaskTemplates" class="stretched-link"></a>
-                </div>
-            </div>
-            <div class="col-lg-3 col-md-4 col-sm-6">
-                <div class="setting-card">
-                    <div class="setting-card-icon">
-                        <i class="bi bi-collection"></i>
-                    </div>
-                    <h5>Survey Templates</h5>
-                    <p>Design custom survey forms for epidemiological data collection</p>
-                    <a asp-page="/Settings/Surveys/SurveyTemplates" class="stretched-link"></a>
-                </div>
-            </div>
-            <div class="col-lg-3 col-md-4 col-sm-6">
-                <div class="setting-card">
-                    <div class="setting-card-icon">
-                        <i class="bi bi-activity"></i>
-                    </div>
-                    <h5>Survey Activity Log</h5>
-                    <p>See a record of every completed interview — what data was saved, what needs review, and any problems</p>
-                    <a asp-page="./Surveys/SubmissionLog" class="stretched-link"></a>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Demographics & Reference Data -->
-    <div class="category-section">
-        <div class="category-header">
-            <div class="category-header-icon category-demo">
-                <i class="bi bi-person-vcard"></i>
-            </div>
-            <div>
-                <h3>Demographics & Reference Data</h3>
-                <p class="category-description">Manage patient demographic lookups including countries, languages, and identity data</p>
-            </div>
-        </div>
-        <div class="row g-4">
-            <div class="col-lg-3 col-md-4 col-sm-6">
-                <div class="setting-card">
-                    <div class="setting-card-icon">
-                        <i class="bi bi-globe"></i>
-                    </div>
-                    <h5>Countries</h5>
-                    <p>Manage country codes and names for travel history tracking</p>
-                    <a asp-page="/Settings/Countries/Index" class="stretched-link"></a>
-                </div>
-            </div>
-            <div class="col-lg-3 col-md-4 col-sm-6">
-                <div class="setting-card">
-                    <div class="setting-card-icon">
-                        <i class="bi bi-translate"></i>
-                    </div>
-                    <h5>Languages</h5>
-                    <p>Configure languages for patient communication preferences</p>
-                    <a asp-page="/Settings/Languages/Index" class="stretched-link"></a>
-                </div>
-            </div>
-            <div class="col-lg-3 col-md-4 col-sm-6">
-                <div class="setting-card">
-                    <div class="setting-card-icon">
-                        <i class="bi bi-people"></i>
-                    </div>
-                    <h5>Ancestries</h5>
-                    <p>Manage ancestry classifications for demographic reporting</p>
-                    <a asp-page="/Settings/Ancestries/Index" class="stretched-link"></a>
-                </div>
-            </div>
-            <div class="col-lg-3 col-md-4 col-sm-6">
-                <div class="setting-card">
-                    <div class="setting-card-icon">
-                        <i class="bi bi-list-check"></i>
-                    </div>
-                    <h5>ATSI Status</h5>
-                    <p>Aboriginal and Torres Strait Islander status classifications</p>
-                    <a asp-page="/Settings/AtsiStatuses/Index" class="stretched-link"></a>
-                </div>
-            </div>
-            <div class="col-lg-3 col-md-4 col-sm-6">
-                <div class="setting-card">
-                    <div class="setting-card-icon">
-                        <i class="bi bi-gender-ambiguous"></i>
-                    </div>
-                    <h5>Sex at Birth</h5>
-                    <p>Configure biological sex classifications for medical records</p>
-                    <a asp-page="/Settings/SexAtBirths/Index" class="stretched-link"></a>
-                </div>
-            </div>
-            <div class="col-lg-3 col-md-4 col-sm-6">
-                <div class="setting-card">
-                    <div class="setting-card-icon">
-                        <i class="bi bi-gender-trans"></i>
-                    </div>
-                    <h5>Gender Identity</h5>
-                    <p>Manage gender identity options for inclusive patient records</p>
-                    <a asp-page="/Settings/Genders/Index" class="stretched-link"></a>
-                </div>
-            </div>
-            <div class="col-lg-3 col-md-4 col-sm-6">
-                <div class="setting-card">
-                    <div class="setting-card-icon">
-                        <i class="bi bi-map"></i>
-                    </div>
-                    <h5>States</h5>
-                    <p>Manage states and sub-national administrative regions for address validation</p>
-                    <a asp-page="/Settings/States/Index" class="stretched-link"></a>
-                </div>
-            </div>
-            <div class="col-lg-3 col-md-4 col-sm-6">
-                <div class="setting-card">
-                    <div class="setting-card-icon">
-                        <i class="bi bi-briefcase"></i>
-                    </div>
-                    <h5>Occupations</h5>
-                    <p>Define occupation categories for epidemiological analysis</p>
-                    <a asp-page="/Settings/Occupations/Index" class="stretched-link"></a>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Security & Access Control -->
-    <div class="category-section">
-        <div class="category-header">
-            <div class="category-header-icon category-security">
-                <i class="bi bi-shield-lock-fill"></i>
-            </div>
-            <div>
-                <h3>Security & Access Control</h3>
-                <p class="category-description">Manage users, roles, permissions, and disease-specific access controls</p>
-            </div>
-        </div>
-        <div class="row g-4">
-            <div class="col-lg-3 col-md-4 col-sm-6">
-                <div class="setting-card">
-                    <div class="setting-card-icon">
-                        <i class="bi bi-person-gear"></i>
-                    </div>
-                    <h5>User Management</h5>
-                    <p>Add, edit, and manage system users and their profiles</p>
-                    <a asp-page="/Settings/Users/Index" class="stretched-link"></a>
-                </div>
-            </div>
-            <div class="col-lg-3 col-md-4 col-sm-6">
-                <div class="setting-card">
-                    <div class="setting-card-icon">
-                        <i class="bi bi-shield-check"></i>
-                    </div>
-                    <h5>Roles & Permissions</h5>
-                    <p>Configure user roles and system permission levels</p>
-                    <a asp-page="/Settings/Roles/Index" class="stretched-link"></a>
-                </div>
-            </div>
-            <div class="col-lg-3 col-md-4 col-sm-6">
-                <div class="setting-card">
-                    <div class="setting-card-icon">
-                        <i class="bi bi-shield-lock"></i>
-                    </div>
-                    <h5>Disease Access Control</h5>
-                    <p>Assign disease-specific access permissions to users and teams</p>
-                    <a asp-page="/Settings/DiseaseAccess/Index" class="stretched-link"></a>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- System Administration -->
-    <div class="category-section">
-        <div class="category-header">
-            <div class="category-header-icon category-admin">
-                <i class="bi bi-tools"></i>
-            </div>
-            <div>
-                <h3>System Administration</h3>
-                <p class="category-description">Advanced system management tools for data maintenance and recovery</p>
-            </div>
-        </div>
-        <div class="row g-4">
-            <div class="col-lg-3 col-md-4 col-sm-6">
-                <div class="setting-card">
-                    <div class="setting-card-icon">
-                        <i class="bi bi-trash"></i>
-                    </div>
-                    <h5>Deleted Records</h5>
-                    <p>View, restore, or permanently delete soft-deleted records</p>
-                    <a asp-page="/Settings/DeletedRecords" class="stretched-link"></a>
-                </div>
-            </div>
-            <div class="col-lg-3 col-md-4 col-sm-6">
-                <div class="setting-card">
-                    <div class="setting-card-icon">
-                        <i class="bi bi-table"></i>
-                    </div>
-                    <h5>Lookup Tables</h5>
-                    <p>Browse and manage all system lookup and reference tables</p>
-                    <a asp-page="/Settings/LookupTables/Index" class="stretched-link"></a>
-                </div>
-            </div>
-            <div class="col-lg-3 col-md-4 col-sm-6">
-                <div class="setting-card">
-                    <div class="setting-card-icon">
-                        <i class="bi bi-database"></i>
-                    </div>
-                    <h5>Field Inventory</h5>
-                    <p>Generate complete database field inventory for reporting system</p>
-                    <a asp-page="/Tools/GenerateFieldInventory" class="stretched-link"></a>
-                </div>
-            </div>
-            <div class="col-lg-3 col-md-4 col-sm-6">
-                <div class="setting-card">
-                    <div class="setting-card-icon">
-                        <i class="bi bi-flask"></i>
-                    </div>
-                    <h5>Test Data Generator</h5>
-                    <p>Generate realistic test patients with geocoding and jurisdiction assignment</p>
-                    <a href="/tools/test-data-generator" class="stretched-link"></a>
-                </div>
-            </div>
-        </div>
-    </div>
-
 </div>
+
+<script>
+    // iOS-style category switching
+    document.addEventListener('DOMContentLoaded', function() {
+        const categoryItems = document.querySelectorAll('.settings-category-item');
+        const contentSections = document.querySelectorAll('.settings-content-section');
+        const searchInput = document.getElementById('settingsSearchInput');
+
+        // Category navigation
+        categoryItems.forEach(item => {
+            item.addEventListener('click', function(e) {
+                e.preventDefault();
+
+                // Update active state
+                categoryItems.forEach(i => i.classList.remove('active'));
+                this.classList.add('active');
+
+                // Show corresponding content
+                const category = this.getAttribute('data-category');
+                contentSections.forEach(section => {
+                    section.style.display = 'none';
+                });
+                const targetSection = document.getElementById(category + '-content');
+                if (targetSection) {
+                    targetSection.style.display = 'block';
+                }
+            });
+        });
+
+        // Search functionality
+        if (searchInput) {
+            searchInput.addEventListener('input', function() {
+                const query = this.value.toLowerCase();
+                const allSettings = document.querySelectorAll('.setting-row');
+
+                if (query.length < 2) {
+                    // Show current category if search is cleared
+                    return;
+                }
+
+                // Show all sections for search
+                contentSections.forEach(section => {
+                    section.style.display = 'block';
+                });
+
+                allSettings.forEach(setting => {
+                    const title = setting.querySelector('.setting-row-title').textContent.toLowerCase();
+                    const desc = setting.querySelector('.setting-row-desc').textContent.toLowerCase();
+
+                    if (title.includes(query) || desc.includes(query)) {
+                        setting.style.display = 'flex';
+                    } else {
+                        setting.style.display = 'none';
+                    }
+                });
+            });
+        }
+    });
+</script>

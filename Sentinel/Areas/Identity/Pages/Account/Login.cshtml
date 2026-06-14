@@ -162,7 +162,7 @@
             position: relative;
             z-index: 10;
             width: 100%;
-            max-width: 460px;
+            max-width: 960px;
             padding: 32px;
             animation: fadeInUp 0.8s ease-out;
         }
@@ -396,6 +396,18 @@
             color: var(--signal-dk);
         }
 
+        .demo-users-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 10px;
+        }
+
+        @@media (min-width: 768px) {
+            .demo-users-grid {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+
         .demo-credentials {
             font-family: var(--f-mono);
             font-size: 11px;
@@ -486,6 +498,14 @@
                 display: none;
             }
         }
+
+        @@media (min-width: 768px) {
+            .login-container {
+                display: grid;
+                grid-template-columns: 1fr;
+                gap: 0;
+            }
+        }
     </style>
 </head>
 <body>
@@ -524,65 +544,67 @@
                     <strong>Demo Environment</strong>
                     <p style="margin-bottom: 12px;">Quick login with test accounts below:</p>
 
-                    <form method="post" asp-page-handler="DemoLogin" asp-route-returnUrl="@Model.ReturnUrl">
-                        <input type="hidden" name="email" value="manager@sentinel-demo.com" />
-                        <input type="hidden" name="password" value="Demo123!@@#Manager" />
-                        <button type="submit" class="demo-user-btn">
-                            <i class="bi bi-person-badge"></i>
-                            <div>
-                                <strong>Emma</strong>
-                                <small>Surveillance Manager • Full system access</small>
-                            </div>
-                        </button>
-                    </form>
+                    <div class="demo-users-grid">
+                        <form method="post" asp-page-handler="DemoLogin" asp-route-returnUrl="@Model.ReturnUrl">
+                            <input type="hidden" name="email" value="manager@sentinel-demo.com" />
+                            <input type="hidden" name="password" value="Demo123!@@#Manager" />
+                            <button type="submit" class="demo-user-btn">
+                                <i class="bi bi-person-badge"></i>
+                                <div>
+                                    <strong>Emma</strong>
+                                    <small>Surveillance Manager • Full system access</small>
+                                </div>
+                            </button>
+                        </form>
 
-                    <form method="post" asp-page-handler="DemoLogin" asp-route-returnUrl="@Model.ReturnUrl">
-                        <input type="hidden" name="email" value="officer@sentinel-demo.com" />
-                        <input type="hidden" name="password" value="Demo123!@@#Officer" />
-                        <button type="submit" class="demo-user-btn">
-                            <i class="bi bi-person-badge"></i>
-                            <div>
-                                <strong>Isabella</strong>
-                                <small>Surveillance Officer • Operational access</small>
-                            </div>
-                        </button>
-                    </form>
+                        <form method="post" asp-page-handler="DemoLogin" asp-route-returnUrl="@Model.ReturnUrl">
+                            <input type="hidden" name="email" value="officer@sentinel-demo.com" />
+                            <input type="hidden" name="password" value="Demo123!@@#Officer" />
+                            <button type="submit" class="demo-user-btn">
+                                <i class="bi bi-person-badge"></i>
+                                <div>
+                                    <strong>Isabella</strong>
+                                    <small>Surveillance Officer • Operational access</small>
+                                </div>
+                            </button>
+                        </form>
 
-                    <form method="post" asp-page-handler="DemoLogin" asp-route-returnUrl="@Model.ReturnUrl">
-                        <input type="hidden" name="email" value="tracer@sentinel-demo.com" />
-                        <input type="hidden" name="password" value="Demo123!@@#Tracer" />
-                        <button type="submit" class="demo-user-btn">
-                            <i class="bi bi-person-check"></i>
-                            <div>
-                                <strong>John</strong>
-                                <small>Contact Tracer • Interview queue & surveys</small>
-                            </div>
-                        </button>
-                    </form>
+                        <form method="post" asp-page-handler="DemoLogin" asp-route-returnUrl="@Model.ReturnUrl">
+                            <input type="hidden" name="email" value="tracer@sentinel-demo.com" />
+                            <input type="hidden" name="password" value="Demo123!@@#Tracer" />
+                            <button type="submit" class="demo-user-btn">
+                                <i class="bi bi-person-check"></i>
+                                <div>
+                                    <strong>John</strong>
+                                    <small>Contact Tracer • Interview queue & surveys</small>
+                                </div>
+                            </button>
+                        </form>
 
-                    <form method="post" asp-page-handler="DemoLogin" asp-route-returnUrl="@Model.ReturnUrl">
-                        <input type="hidden" name="email" value="supervisor@sentinel-demo.com" />
-                        <input type="hidden" name="password" value="Demo123!@@#Supervisor" />
-                        <button type="submit" class="demo-user-btn">
-                            <i class="bi bi-person-gear"></i>
-                            <div>
-                                <strong>Caitlin</strong>
-                                <small>Contact Tracing Supervisor • Task management</small>
-                            </div>
-                        </button>
-                    </form>
+                        <form method="post" asp-page-handler="DemoLogin" asp-route-returnUrl="@Model.ReturnUrl">
+                            <input type="hidden" name="email" value="supervisor@sentinel-demo.com" />
+                            <input type="hidden" name="password" value="Demo123!@@#Supervisor" />
+                            <button type="submit" class="demo-user-btn">
+                                <i class="bi bi-person-gear"></i>
+                                <div>
+                                    <strong>Caitlin</strong>
+                                    <small>Contact Tracing Supervisor • Task management</small>
+                                </div>
+                            </button>
+                        </form>
 
-                    <form method="post" asp-page-handler="DemoLogin" asp-route-returnUrl="@Model.ReturnUrl">
-                        <input type="hidden" name="email" value="stiofficer@sentinel-demo.com" />
-                        <input type="hidden" name="password" value="Demo123!@@#STI" />
-                        <button type="submit" class="demo-user-btn">
-                            <i class="bi bi-shield-check"></i>
-                            <div>
-                                <strong>Megge</strong>
-                                <small>STI/BBV Officer • STI/BBV surveillance</small>
-                            </div>
-                        </button>
-                    </form>
+                        <form method="post" asp-page-handler="DemoLogin" asp-route-returnUrl="@Model.ReturnUrl">
+                            <input type="hidden" name="email" value="stiofficer@sentinel-demo.com" />
+                            <input type="hidden" name="password" value="Demo123!@@#STI" />
+                            <button type="submit" class="demo-user-btn">
+                                <i class="bi bi-shield-check"></i>
+                                <div>
+                                    <strong>Megge</strong>
+                                    <small>STI/BBV Officer • STI/BBV surveillance</small>
+                                </div>
+                            </button>
+                        </form>
+                    </div>
 
                     <div style="margin-top: 16px; padding-top: 16px; border-top: 1px solid #9BE8C6; font-size: 11px; color: var(--graphite);">
                         Or login manually with your credentials below

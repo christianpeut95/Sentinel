@@ -60,6 +60,9 @@ const ReportBuilder = {
     },
     
     loadSavedReport(savedReport) {
+        // Store savedReport for use in restoreFilter
+        this.currentSavedReport = savedReport;
+
         // Load saved fields
         if (savedReport.fields && savedReport.fields.length > 0) {
             this.updateLoadingProgress(`Loading ${savedReport.fields.length} selected fields...`);
@@ -78,8 +81,82 @@ const ReportBuilder = {
         // Load saved filters
         if (savedReport.filters && savedReport.filters.length > 0) {
             this.updateLoadingProgress(`Restoring ${savedReport.filters.length} filters...`);
+
+            // Identify unique group IDs
+            const uniqueGroupIds = [...new Set(savedReport.filters.map(f => f.groupId).filter(id => id != null))];
+
+            // Create filter groups if needed
+            if (uniqueGroupIds.length > 0) {
+                uniqueGroupIds.sort((a, b) => a - b); // Sort to maintain order
+                uniqueGroupIds.forEach(groupId => {
+                    // Ensure our internal counter is at least this high
+                    if (groupId >= this.nextGroupId) {
+                        this.nextGroupId = groupId + 1;
+                    }
+
+                    // Create the group HTML
+                    const groupHtml = `
+                        <div class="filter-group mb-3 p-3 border border-primary rounded" id="group-${groupId}" data-group-id="${groupId}">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <div>
+                                    <strong><i class="bi bi-parentheses"></i> Filter Group ${groupId}</strong>
+                                </div>
+                                <div class="btn-group btn-group-sm">
+                                    <button class="btn btn-sm btn-outline-primary" onclick="ReportBuilder.addFilterToGroup(${groupId})">
+                                        <i class="bi bi-plus"></i> Add Filter
+                                    </button>
+                                    <button class="btn btn-sm btn-outline-danger" onclick="ReportBuilder.removeGroup(${groupId})">
+                                        <i class="bi bi-x"></i> Remove Group
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="group-filters" data-group-id="${groupId}">
+                                <div class="text-muted small py-2 text-center">
+                                    <i class="bi bi-arrow-down-circle"></i> Add filters to this group
+                                </div>
+                            </div>
+                            <div class="mt-2">
+                                <div class="btn-group btn-group-sm" role="group">
+                                    <input type="radio" class="btn-check" name="group-logic-${groupId}" id="group-and-${groupId}" value="AND" checked>
+                                    <label class="btn btn-outline-primary" for="group-and-${groupId}">AND</label>
+                                    <input type="radio" class="btn-check" name="group-logic-${groupId}" id="group-or-${groupId}" value="OR">
+                                    <label class="btn btn-outline-primary" for="group-or-${groupId}">OR</label>
+                                </div>
+                                <small class="text-muted ms-2">with next group</small>
+                            </div>
+                        </div>
+                    `;
+
+                    const container = document.getElementById('filters');
+                    if (container.querySelector('.text-center.text-muted')) {
+                        container.innerHTML = '';
+                    }
+                    container.insertAdjacentHTML('beforeend', groupHtml);
+                    this.filterGroups.push({ id: groupId, filters: [] });
+
+                    // Restore group logic operator if saved
+                    const filtersInGroup = savedReport.filters.filter(f => f.groupId === groupId);
+                    if (filtersInGroup.length > 0 && filtersInGroup[0].groupLogicOperator) {
+                        const groupLogic = filtersInGroup[0].groupLogicOperator;
+                        const radioButton = document.getElementById(`group-${groupLogic.toLowerCase()}-${groupId}`);
+                        if (radioButton) {
+                            radioButton.checked = true;
+                        }
+                    }
+                });
+            }
+
+            // Now restore each filter
             savedReport.filters.forEach((filter, index) => {
-                this.addFilter();
+                if (filter.groupId) {
+                    // Add filter to group
+                    this.addFilterToGroup(filter.groupId);
+                } else {
+                    // Add standalone filter
+                    this.addFilter();
+                }
+
+                // Restore filter details after a delay
                 setTimeout(() => {
                     this.restoreFilter(filter, index);
                 }, (index + 1) * 100);
@@ -128,21 +205,53 @@ const ReportBuilder = {
     },
     
     restoreFilter(filter, filterIndex) {
-        const filterElements = document.querySelectorAll('#filters .list-group-item');
-        const filterEl = filterElements[filterIndex];
-        
-        if (!filterEl) return;
-        
+        // Find the correct filter element - need to account for groups
+        let filterEl;
+        if (filter.groupId) {
+            // Filter is in a group - find it within that group's container
+            const groupContainer = document.querySelector(`.group-filters[data-group-id="${filter.groupId}"]`);
+            if (groupContainer) {
+                const filterElements = groupContainer.querySelectorAll('.list-group-item');
+                // Calculate the index within this group
+                const filtersBeforeThisInGroup = this.currentSavedReport.filters
+                    .slice(0, filterIndex)
+                    .filter(f => f.groupId === filter.groupId).length;
+                filterEl = filterElements[filtersBeforeThisInGroup];
+            }
+        } else {
+            // Standalone filter
+            const filterElements = document.querySelectorAll('#filters > .list-group-item');
+            const filtersBeforeThisStandalone = this.currentSavedReport.filters
+                .slice(0, filterIndex)
+                .filter(f => !f.groupId).length;
+            filterEl = filterElements[filtersBeforeThisStandalone];
+        }
+
+        if (!filterEl) {
+            console.warn(`[restoreFilter] Could not find filter element for index ${filterIndex}, groupId: ${filter.groupId}`);
+            return;
+        }
+
         const fieldSelect = filterEl.querySelector('.filter-field');
         if (fieldSelect) {
             fieldSelect.value = filter.fieldPath;
             fieldSelect.dispatchEvent(new Event('change'));
         }
-        
+
+        // Restore logic operator radio button (AND/OR with next filter)
+        if (filter.logicOperator) {
+            setTimeout(() => {
+                const logicRadio = filterEl.querySelector(`input[name^="logic-"][value="${filter.logicOperator}"]`);
+                if (logicRadio) {
+                    logicRadio.checked = true;
+                }
+            }, 100);
+        }
+
         // Wait for field change to create the combined date dropdown
         setTimeout(() => {
             const combinedSelect = filterEl.querySelector('.filter-date-combined');
-            
+
             // If no combined dropdown exists, this is not a date field - restore as regular filter
             if (!combinedSelect) {
                 const operatorSelect = filterEl.querySelector('.filter-operator');
@@ -209,16 +318,13 @@ const ReportBuilder = {
                     return;
                 }
             }
-            
+
             if (restoredPreset) {
                 combinedSelect.value = restoredPreset;
+                // Dispatch change event to ensure underlying operator and hidden fields are populated
+                combinedSelect.dispatchEvent(new Event('change'));
             }
         }, 50);
-        
-        // Restore group ID if present
-        if (filter.groupId) {
-            filterEl.dataset.groupId = filter.groupId;
-        }
     },
     
     hasPreset(selectElement, presetValue) {

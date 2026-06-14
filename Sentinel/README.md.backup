@@ -89,48 +89,82 @@ The design target is end-users in large operations. A changed field or relabelle
 
 ## Screenshots
 
-<table>
-  <tr>
-    <td align="center" width="50%">
-      <img src="https://github.com/user-attachments/assets/bf61e9a7-4e81-477d-96bc-26bbdc399661" alt="Dashboard" width="100%" />
-      <br/><sub><b>Dashboard</b></sub>
-    </td>
-    <td align="center" width="50%">
-      <img src="https://github.com/user-attachments/assets/791483f9-8225-4d12-8bd1-bd0e84c691b7" alt="Case" width="100%" />
-      <br/><sub><b>Case Management</b></sub>
-    </td>
-  </tr>
-  <tr>
-    <td align="center" width="50%">
-      <img src="https://github.com/user-attachments/assets/79358351-12d5-4b7a-a740-a6157f4797a2" alt="Custom Fields" width="100%" />
-      <br/><sub><b>Custom Fields</b></sub>
-    </td>
-    <td align="center" width="50%">
-      <img src="https://github.com/user-attachments/assets/bfdc1a12-77a7-4cd2-b59b-22785e63f4d7" alt="Survey Field Mappings" width="100%" />
-      <br/><sub><b>Survey Field Mappings</b></sub>
-    </td>
-  </tr>
-  <tr>
-    <td align="center" width="50%">
-      <img src="https://github.com/user-attachments/assets/b1c40eb6-8ed0-4c04-bb8c-beaab8bd2941" alt="Review Queue" width="100%" />
-      <br/><sub><b>Review Queue</b></sub>
-    </td>
-    <td align="center" width="50%">
-      <img src="https://github.com/user-attachments/assets/8e5f5031-5772-458f-b247-ba52438adefd" alt="Report Builder" width="100%" />
-      <br/><sub><b>Report Builder</b></sub>
-    </td>
-  </tr>
-  <tr>
-    <td align="center" width="50%">
-      <img src="https://github.com/user-attachments/assets/24557495-ff35-47b5-b7b6-ff58853765e8" alt="Outbreak" width="100%" />
-      <br/><sub><b>Outbreak Investigation</b></sub>
-    </td>
-    <td align="center" width="50%">
-      <img src="https://github.com/user-attachments/assets/2f8db7c9-a3f6-4956-9f5f-0633e0c031f3" alt="Demo Login" width="100%" />
-      <br/><sub><b>Demo Login</b></sub>
-    </td>
-  </tr>
-</table>
+> Screenshots coming soon. The live demo is available at http://sentinel-demo.ddns.net
+
+---
+
+## Core Capabilities
+
+### 01 · Lab Integration
+
+**HL7 lab feeds** — Automated processing of HL7 messages from file drop. Patient matching uses configurable strategies. Results parsed with LOINC and SNOMED. Epidemiologist controls which data enters automatically vs. requires review.
+
+- HL7 v2.x message parsing
+- LOINC/SNOMED mapping
+- Configurable auto-match rules
+- Manual override and audit trail
+
+### 02 · Classification
+
+**Automated case definitions** — Machine-readable case definitions evaluate in the background against labs, symptoms, and exposures. Epidemiologist configures whether they apply automatically, flag for review, or remain manual. Full evaluation history with override capability.
+
+- Background evaluation engine
+- Manual override with audit
+- Historical evaluation tracking
+- Configurable confidence thresholds
+
+### 03 · Surveys
+
+**Surveys & data mapping** — Surveys support conditional logic and versioning. Responses map to case and patient records: trusted fields save automatically, ambiguous ones queue for review. Add questions without code changes.
+
+- Conditional logic (show/hide, validation)
+- Version control and change tracking
+- Field mapping to structured data
+- Free-text narrative entry
+
+### 04 · Outbreaks
+
+**Outbreaks & contact tracing** — Hierarchical outbreak structures, interview queues, supervisor dashboards, bulk contact import (CSV), contact-to-case conversion, and mind-map relationship visualization.
+
+- Hierarchical outbreak linking
+- Interview queue management
+- Contact relationship mapping
+- Bulk operations (import, convert, assign)
+
+---
+
+## Design Principles
+
+### 01 · Epidemiologist-first
+
+**The surveillance team configures the system, not the developers.**
+
+Geographies, demographics, diseases, case definitions, surveys, and reports are configurable through the interface. No code changes, no schema migrations. Adding a question to a survey ("Did the case eat bean sprouts?") requires zero developer involvement.
+
+### 02 · Simplicity
+
+**Scaling to 100 contact tracers overnight leaves no time to retrain.**
+
+The design target is end-users in large operations. A changed field or relabelled question does not require training: the contact tracer clicks next, and the new question appears. The system accommodates the user, not the reverse.
+
+---
+
+## Key Features
+
+- Patient and case management with duplicate detection and merge capability
+- Multi-disease surveillance with disease-based access control
+- Laboratory results tracking (symptoms, exposures, hospitalisation, outcomes)
+- Dynamic custom fields — no database schema changes required
+- Integrated survey system with conditional logic and versioning
+- Task and workflow management with automated task creation
+- Outbreak investigation with hierarchical case linking
+- Interview queues and supervisor dashboards
+- Contact tracing with bulk CSV import and contact-to-case conversion
+- No-code reporting: line listings and pivot table analytics
+- Role-based security with field-level permissions
+- Comprehensive audit logging
+- Address geocoding and jurisdiction assignment
+- Full evaluation history for case definitions
 
 ---
 
@@ -162,25 +196,7 @@ Sentinel follows a clean, data-forward design system optimized for high-density 
 **Shadows** — 4 elevation levels (xs, sm, md, lg)  
 **Radius** — 5 values (2px, 4px, 6px, 8px, 12px, 999px)
 
-Full design system documentation: [wwwroot/design/UI Guidelines.html](wwwroot/design/UI%20Guidelines.html)
-
----
-## Key Features
-
-- Patient and case management with duplicate detection and merge capability
-- Multi-disease surveillance with disease-based access control
-- Laboratory results tracking (symptoms, exposures, hospitalisation, outcomes)
-- Dynamic custom fields — no database schema changes required
-- Integrated survey system with conditional logic and versioning
-- Task and workflow management with automated task creation
-- Outbreak investigation with hierarchical case linking
-- Interview queues and supervisor dashboards
-- Contact tracing with bulk CSV import and contact-to-case conversion
-- No-code reporting: line listings and pivot table analytics
-- Role-based security with field-level permissions
-- Comprehensive audit logging
-- Address geocoding and jurisdiction assignment
-- Full evaluation history for case definitions
+Full design system documentation: [`wwwroot/design/UI Guidelines.html`](wwwroot/design/UI%20Guidelines.html)
 
 ---
 

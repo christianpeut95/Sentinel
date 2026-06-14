@@ -131,9 +131,21 @@ namespace Sentinel.Pages.Cases
             _context.ExposureEvents.Add(Exposure);
             await _context.SaveChangesAsync();
 
-            // Close window and refresh parent
+            // Check if loaded in iframe (for CreateNew workflow)
             return Content(
-                "<script>window.opener.location.reload(); window.close();</script>",
+                @"<script>
+                    if (window.parent && window.parent !== window) {
+                        // We're in an iframe - send message to parent
+                        window.parent.postMessage('exposureSaved', '*');
+                    } else if (window.opener) {
+                        // We're in a popup - reload opener and close
+                        window.opener.location.reload();
+                        window.close();
+                    } else {
+                        // Fallback - redirect to case details
+                        window.location.href = '/Cases/Details?id=' + '" + CaseId + @"';
+                    }
+                </script>",
                 "text/html"
             );
         }

@@ -1,0 +1,145 @@
+@page
+@model Sentinel.Pages.Settings.Lookups.CreateTestResultModel
+
+@{
+    ViewData["Title"] = "Add Test Result";
+    Layout = "~/Pages/Shared/_LayoutSentinel.cshtml";
+}
+
+<nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a asp-page="/Index">Home</a></li>
+        <li class="breadcrumb-item"><a asp-page="/Settings/Index">Settings</a></li>
+        <li class="breadcrumb-item"><a asp-page="./TestResults">Test Results</a></li>
+        <li class="breadcrumb-item active" aria-current="page">Add Test Result</li>
+    </ol>
+</nav>
+
+<div class="sentinel-page-header mb-4">
+    <div>
+        <h1 class="sentinel-page-title">Add Test Result</h1>
+        <p class="sentinel-page-subtitle">Define a new qualitative test result option</p>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-8">
+        <div class="sentinel-card">
+            <div class="sentinel-card-body">
+                <form method="post">
+                    <div asp-validation-summary="ModelOnly" class="alert alert-danger" role="alert"></div>
+
+                    <div class="mb-3">
+                        <label asp-for="TestResult.Name" class="sn-label"></label>
+                        <input asp-for="TestResult.Name" class="sn-input" placeholder="e.g. Positive, Negative, Indeterminate" autofocus />
+                        <span asp-validation-for="TestResult.Name" class="text-danger"></span>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="TestResult.Description" class="sn-label"></label>
+                        <textarea asp-for="TestResult.Description" class="sn-textarea" rows="3" 
+                                  placeholder="Brief description of this test result"></textarea>
+                        <span asp-validation-for="TestResult.Description" class="text-danger"></span>
+                    </div>
+
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-6">
+                            <label asp-for="TestResult.SnomedCode" class="sn-label"></label>
+                            <input asp-for="TestResult.SnomedCode" class="sn-input" placeholder="e.g. 10828004" />
+                            <span asp-validation-for="TestResult.SnomedCode" class="text-danger"></span>
+                            <small class="sentinel-meta-text">6-18 digit SNOMED CT concept code</small>
+                        </div>
+                        <div class="col-md-6">
+                            <label asp-for="TestResult.SnomedDisplay" class="sn-label"></label>
+                            <input asp-for="TestResult.SnomedDisplay" class="sn-input" placeholder="e.g. Positive (qualifier value)" />
+                            <span asp-validation-for="TestResult.SnomedDisplay" class="text-danger"></span>
+                            <small class="sentinel-meta-text">SNOMED CT display name</small>
+                        </div>
+                    </div>
+
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-6">
+                            <label asp-for="TestResult.Hl7Code" class="sn-label"></label>
+                            <input asp-for="TestResult.Hl7Code" class="sn-input" placeholder="e.g. POS, NEG, IND" />
+                            <span asp-validation-for="TestResult.Hl7Code" class="text-danger"></span>
+                            <small class="sentinel-meta-text">For HL7 v2 message mapping</small>
+                        </div>
+                        <div class="col-md-6">
+                            <label asp-for="TestResult.ExportCode" class="sn-label"></label>
+                            <input asp-for="TestResult.ExportCode" class="sn-input" placeholder="Optional export code" />
+                            <span asp-validation-for="TestResult.ExportCode" class="text-danger"></span>
+                            <small class="sentinel-meta-text">For external system integration</small>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="TestResult.DisplayOrder" class="sn-label"></label>
+                        <input asp-for="TestResult.DisplayOrder" type="number" class="sn-input" />
+                        <span asp-validation-for="TestResult.DisplayOrder" class="text-danger"></span>
+                        <small class="sentinel-meta-text">Lower numbers appear first in dropdown lists</small>
+                    </div>
+
+                    <div class="mb-4">
+                        <div class="form-check">
+                            <input asp-for="TestResult.IsActive" class="form-check-input" type="checkbox" />
+                            <label asp-for="TestResult.IsActive" class="form-check-label">
+                                Active (visible in lab result entry)
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="d-flex gap-2 pt-3 border-top">
+                        <button type="submit" class="sn-btn sn-btn--signal">
+                            <i class="bi bi-check-lg"></i>
+                            Save Test Result
+                        </button>
+                        <a asp-page="TestResults" class="sn-btn sn-btn--ghost">
+                            Cancel
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-4">
+        <div class="sentinel-card">
+            <div class="sentinel-card-body">
+                <h3 class="sentinel-section-title">
+                    <i class="bi bi-lightbulb me-2"></i>
+                    Common Test Results
+                </h3>
+                <div class="mb-3">
+                    <h5 class="fw-semibold mb-2">Standard Results</h5>
+                    <ul class="small mb-0">
+                        <li><strong>Positive</strong> - SNOMED: 10828004</li>
+                        <li><strong>Negative</strong> - SNOMED: 260385009</li>
+                        <li><strong>Indeterminate</strong> - SNOMED: 82334004</li>
+                        <li><strong>Borderline</strong> - SNOMED: 260325005</li>
+                    </ul>
+                </div>
+                <div class="mb-3">
+                    <h5 class="fw-semibold mb-2">Serology Results</h5>
+                    <ul class="small mb-0">
+                        <li><strong>Reactive</strong> - SNOMED: 11214006</li>
+                        <li><strong>Non-Reactive</strong> - SNOMED: 131194007</li>
+                        <li><strong>Equivocal</strong> - SNOMED: 419984006</li>
+                    </ul>
+                </div>
+                <div>
+                    <h5 class="fw-semibold mb-2">Culture Results</h5>
+                    <ul class="small mb-0">
+                        <li><strong>Detected</strong> - SNOMED: 260373001</li>
+                        <li><strong>Not Detected</strong> - SNOMED: 260415000</li>
+                        <li><strong>Growth</strong></li>
+                        <li><strong>No Growth</strong></li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+}

@@ -71,6 +71,28 @@
                 <a href="/" class="nav-link @(ViewContext.RouteData.Values["page"]?.ToString() == "/Index" ? "active" : "")">
                     <span>Dashboard</span>
                 </a>
+                <a href="/Dashboard/MyTasks" class="nav-link @(ViewContext.RouteData.Values["page"]?.ToString()?.Contains("MyTasks") == true ? "active" : "")">
+                    <span>My Tasks</span>
+                    <span class="nav-count">→</span>
+                </a>
+                @if (User.Identity?.IsAuthenticated == true)
+                {
+                    var user = await UserManager.GetUserAsync(User);
+                    if (user?.IsInterviewWorker == true)
+                    {
+                        <a href="/Dashboard/InterviewQueue" class="nav-link @(ViewContext.RouteData.Values["page"]?.ToString()?.Contains("InterviewQueue") == true ? "active" : "")">
+                            <span>Interview Queue</span>
+                            <span class="nav-count">→</span>
+                        </a>
+                    }
+                    if (User.IsInRole("Admin") || User.IsInRole("Supervisor"))
+                    {
+                        <a href="/Dashboard/SuperviseInterviews" class="nav-link @(ViewContext.RouteData.Values["page"]?.ToString()?.Contains("SuperviseInterviews") == true ? "active" : "")">
+                            <span>Supervise Interviews</span>
+                            <span class="nav-count">→</span>
+                        </a>
+                    }
+                }
                 <a href="/Cases/Index" class="nav-link @(ViewContext.RouteData.Values["page"]?.ToString()?.Contains("Cases") == true ? "active" : "")">
                     <span>Cases</span>
                     <span class="nav-count">→</span>
@@ -196,11 +218,128 @@
     <script src="/_content/AntDesign/js/ant-design-blazor.js"></script>
     <script src="~/js/site.js" asp-append-version="true"></script>
     
+    <!-- SurveyJS for survey rendering -->
+    <script src="https://unpkg.com/survey-core@1.12.4/survey.core.min.js" onerror="console.error('Failed to load survey-core')"></script>
+    <script src="https://unpkg.com/survey-js-ui@1.12.4/survey-js-ui.min.js" onerror="console.error('Failed to load survey-js-ui')"></script>
+    
     <script>
-        // Sidebar toggle for mobile
-        function toggleSidebar() {
-            document.getElementById('sentinelSidebar').classList.toggle('open');
+        // Verify SurveyJS loaded
+        if (typeof Survey === 'undefined') {
+            console.error('CRITICAL: SurveyJS library failed to load!');
+            console.error('Check network tab for blocked requests');
+            console.error('Check CSP headers for script-src restrictions');
+        } else {
+            console.log('✓ SurveyJS loaded successfully', Survey);
         }
+    </script>
+    
+    <!-- Chart.js for epidemic curves and visualizations -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+
+    <script>
+        // Register custom date functions for SurveyJS
+        if (typeof Survey !== 'undefined' && Survey.FunctionFactory && Survey.FunctionFactory.Instance) {
+            console.log('Registering SurveyJS custom functions...');
+            
+            // today() - returns current date as YYYY-MM-DD
+            Survey.FunctionFactory.Instance.register("today", function() {
+                const today = new Date();
+                return today.toISOString().split('T')[0];
+            });
+
+            // currentDate() - alias for today()
+            Survey.FunctionFactory.Instance.register("currentDate", function() {
+                const today = new Date();
+                return today.toISOString().split('T')[0];
+            });
+
+            // age(birthDate) - calculate age from birth date
+            Survey.FunctionFactory.Instance.register("age", function(params) {
+                if (params.length < 1 || !params[0]) return null;
+                const birthDate = new Date(params[0]);
+                if (isNaN(birthDate.getTime())) return null;
+                
+                const today = new Date();
+                let age = today.getFullYear() - birthDate.getFullYear();
+                const monthDiff = today.getMonth() - birthDate.getMonth();
+                
+                if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+                    age--;
+                }
+                
+                return age;
+            });
+
+            // addDays(date, days) - add days to a date
+            Survey.FunctionFactory.Instance.register("addDays", function(params) {
+                if (params.length < 2) return null;
+                const dateStr = params[0];
+                const daysToAdd = parseInt(params[1]);
+                
+                if (!dateStr || isNaN(daysToAdd)) return null;
+                
+                const date = new Date(dateStr);
+                if (isNaN(date.getTime())) return null;
+                
+                date.setDate(date.getDate() + daysToAdd);
+                return date.toISOString().split('T')[0];
+            });
+
+            // dateDiff(date1, date2) - calculate difference in days
+            Survey.FunctionFactory.Instance.register("dateDiff", function(params) {
+                if (params.length < 2) return null;
+                const date1Str = params[0];
+                const date2Str = params[1];
+                
+                if (!date1Str || !date2Str) return null;
+                
+                const date1 = new Date(date1Str);
+                const date2 = new Date(date2Str);
+                
+                if (isNaN(date1.getTime()) || isNaN(date2.getTime())) return null;
+                
+                const diffTime = Math.abs(date2 - date1);
+                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                return diffDays;
+            });
+            
+            console.log('SurveyJS custom functions registered successfully');
+        } else {
+            console.warn('SurveyJS not loaded - custom functions not registered');
+        }
+    </script>
+    
+    <script>
+        // Enhanced sidebar toggle for mobile with overlay support
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sentinelSidebar');
+            sidebar.classList.toggle('open');
+        }
+
+        // Close sidebar when clicking outside (on overlay)
+        document.addEventListener('DOMContentLoaded', function() {
+            const sidebar = document.getElementById('sentinelSidebar');
+
+            sidebar.addEventListener('click', function(e) {
+                // Check if click was on the overlay (::after pseudo-element area)
+                if (e.target === sidebar && sidebar.classList.contains('open')) {
+                    const rect = sidebar.getBoundingClientRect();
+                    if (e.clientX >= 280) { // Click was outside sidebar width
+                        toggleSidebar();
+                    }
+                }
+            });
+
+            // Close sidebar when nav link is clicked on mobile
+            if (window.innerWidth <= 768) {
+                const navLinks = sidebar.querySelectorAll('.nav-link');
+                navLinks.forEach(link => {
+                    link.addEventListener('click', function() {
+                        sidebar.classList.remove('open');
+                    });
+                });
+            }
+        });
     </script>
 
     @await RenderSectionAsync("Scripts", required: false)

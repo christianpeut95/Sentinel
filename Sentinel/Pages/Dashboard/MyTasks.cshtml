@@ -4,6 +4,8 @@
 
 @{
     ViewData["Title"] = "My Tasks";
+    ViewData["Subtitle"] = $"Showing {Model.FilteredTasks.Count} of {Model.TotalTasks} tasks";
+    Layout = "_LayoutSentinel";
 }
 @functions {
     public string GetCspNonce()
@@ -15,12 +17,6 @@
         return string.Empty;
     }
 }
-
-<!-- Apple Page Header -->
-<div class="apple-page-header">
-    <h1 class="apple-page-title"><i class="bi bi-list-check"></i> My Tasks</h1>
-    <div class="text-muted text-callout">Showing @Model.FilteredTasks.Count of @Model.TotalTasks tasks</div>
-</div>
 
 @if (TempData["SuccessMessage"] != null)
 {
@@ -38,27 +34,27 @@
     </div>
 }
 
-<!-- Stats Grid -->
-<div class="stats-grid">
-    <div class="stat-card">
-        <div class="stat-icon"><i class="bi bi-list-task"></i></div>
-        <div class="stat-value">@Model.TotalTasks</div>
-        <div class="stat-label">Total Tasks</div>
+<!-- KPI Statistics -->
+<div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 24px;">
+    <div class="kpi">
+        <div class="kpi-label">Total Tasks</div>
+        <div class="kpi-value">@Model.TotalTasks</div>
+        <div class="kpi-delta">All assigned tasks</div>
     </div>
-    <div class="stat-card">
-        <div class="stat-icon"><i class="bi bi-hourglass-split"></i></div>
-        <div class="stat-value">@Model.PendingTasks</div>
-        <div class="stat-label">Pending Tasks</div>
+    <div class="kpi">
+        <div class="kpi-label">Pending</div>
+        <div class="kpi-value">@Model.PendingTasks</div>
+        <div class="kpi-delta">Awaiting action</div>
     </div>
-    <div class="stat-card">
-        <div class="stat-icon"><i class="bi bi-exclamation-circle"></i></div>
-        <div class="stat-value">@Model.OverdueTasks</div>
-        <div class="stat-label">Overdue Tasks</div>
+    <div class="kpi">
+        <div class="kpi-label">Overdue</div>
+        <div class="kpi-value" style="color: var(--outbreak);">@Model.OverdueTasks</div>
+        <div class="kpi-delta up">Needs attention</div>
     </div>
-    <div class="stat-card">
-        <div class="stat-icon"><i class="bi bi-check-circle-fill"></i></div>
-        <div class="stat-value">@Model.CompletedTasks</div>
-        <div class="stat-label">Completed This Week</div>
+    <div class="kpi">
+        <div class="kpi-label">Completed</div>
+        <div class="kpi-value" style="color: var(--signal-dk);">@Model.CompletedTasks</div>
+        <div class="kpi-delta down">This week</div>
     </div>
 </div>
 

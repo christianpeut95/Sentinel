@@ -1,0 +1,142 @@
+@page
+@model Sentinel.Pages.Settings.Lookups.EditTestResultModel
+
+@{
+    ViewData["Title"] = "Edit Test Result";
+    Layout = "~/Pages/Shared/_LayoutSentinel.cshtml";
+}
+
+<nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a asp-page="/Index">Home</a></li>
+        <li class="breadcrumb-item"><a asp-page="/Settings/Index">Settings</a></li>
+        <li class="breadcrumb-item"><a asp-page="./TestResults">Test Results</a></li>
+        <li class="breadcrumb-item active" aria-current="page">Edit</li>
+    </ol>
+</nav>
+
+<div class="sentinel-page-header mb-4">
+    <div>
+        <h1 class="sentinel-page-title">Edit Test Result</h1>
+        <p class="sentinel-page-subtitle">@Model.TestResult?.Name</p>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-8">
+        <div class="sentinel-card">
+            <div class="sentinel-card-body">
+                <form method="post">
+                    <input type="hidden" asp-for="TestResult.Id" />
+                    <div asp-validation-summary="ModelOnly" class="alert alert-danger" role="alert"></div>
+
+                    <div class="mb-3">
+                        <label asp-for="TestResult.Name" class="sn-label"></label>
+                        <input asp-for="TestResult.Name" class="sn-input" />
+                        <span asp-validation-for="TestResult.Name" class="text-danger"></span>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="TestResult.Description" class="sn-label"></label>
+                        <textarea asp-for="TestResult.Description" class="sn-textarea" rows="3"></textarea>
+                        <span asp-validation-for="TestResult.Description" class="text-danger"></span>
+                    </div>
+
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-6">
+                            <label asp-for="TestResult.SnomedCode" class="sn-label"></label>
+                            <input asp-for="TestResult.SnomedCode" class="sn-input" />
+                            <span asp-validation-for="TestResult.SnomedCode" class="text-danger"></span>
+                            <small class="sentinel-meta-text">6-18 digit SNOMED CT concept code</small>
+                        </div>
+                        <div class="col-md-6">
+                            <label asp-for="TestResult.SnomedDisplay" class="sn-label"></label>
+                            <input asp-for="TestResult.SnomedDisplay" class="sn-input" />
+                            <span asp-validation-for="TestResult.SnomedDisplay" class="text-danger"></span>
+                            <small class="sentinel-meta-text">SNOMED CT display name</small>
+                        </div>
+                    </div>
+
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-6">
+                            <label asp-for="TestResult.Hl7Code" class="sn-label"></label>
+                            <input asp-for="TestResult.Hl7Code" class="sn-input" />
+                            <span asp-validation-for="TestResult.Hl7Code" class="text-danger"></span>
+                            <small class="sentinel-meta-text">For HL7 v2 message mapping</small>
+                        </div>
+                        <div class="col-md-6">
+                            <label asp-for="TestResult.ExportCode" class="sn-label"></label>
+                            <input asp-for="TestResult.ExportCode" class="sn-input" />
+                            <span asp-validation-for="TestResult.ExportCode" class="text-danger"></span>
+                            <small class="sentinel-meta-text">For external system integration</small>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="TestResult.DisplayOrder" class="sn-label"></label>
+                        <input asp-for="TestResult.DisplayOrder" type="number" class="sn-input" />
+                        <span asp-validation-for="TestResult.DisplayOrder" class="text-danger"></span>
+                        <small class="sentinel-meta-text">Lower numbers appear first in dropdown lists</small>
+                    </div>
+
+                    <div class="mb-4">
+                        <div class="form-check">
+                            <input asp-for="TestResult.IsActive" class="form-check-input" type="checkbox" />
+                            <label asp-for="TestResult.IsActive" class="form-check-label">
+                                Active (visible in lab result entry)
+                            </label>
+                        </div>
+                    </div>
+
+                    @if (Model.UsageCount > 0)
+                    {
+                        <div class="alert alert-info" role="alert">
+                            <i class="bi bi-info-circle me-2"></i>
+                            This test result is referenced in <strong>@Model.UsageCount</strong> lab result(s).
+                        </div>
+                    }
+
+                    <div class="d-flex gap-2 pt-3 border-top">
+                        <button type="submit" class="sn-btn sn-btn--signal">
+                            <i class="bi bi-check-lg"></i>
+                            Save Changes
+                        </button>
+                        <a asp-page="TestResults" class="sn-btn sn-btn--ghost">
+                            Cancel
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-4">
+        <div class="sentinel-card">
+            <div class="sentinel-card-body">
+                <h3 class="sentinel-section-title">
+                    <i class="bi bi-info-circle me-2"></i>
+                    Usage Information
+                </h3>
+                @if (Model.UsageCount > 0)
+                {
+                    <p class="mb-2">
+                        This test result is currently being used in <strong>@Model.UsageCount</strong> lab result record(s).
+                    </p>
+                    <p class="sentinel-meta-text mb-0">
+                        Changes to this test result will affect how these lab results are displayed and reported.
+                    </p>
+                }
+                else
+                {
+                    <p class="sentinel-meta-text mb-0">
+                        This test result is not currently being used in any lab results.
+                    </p>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+}
