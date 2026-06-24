@@ -116,6 +116,33 @@ namespace Sentinel.Services
         public string Type { get; set; } = string.Empty;
         public bool IsRequired { get; set; }
         public List<string>? Choices { get; set; }
+
+        /// <summary>
+        /// Indicates this is a calculated value from the calculatedValues array
+        /// </summary>
+        public bool IsCalculated { get; set; }
+
+        /// <summary>
+        /// For matrix questions, indicates the parent matrix name
+        /// </summary>
+        public string? ParentMatrix { get; set; }
+
+        /// <summary>
+        /// For matrix cell fields or panel dynamic fields, this is the full path
+        /// e.g., "measles_symptoms.cough.onset_date" or "household_contacts[].first_name"
+        /// </summary>
+        public string? FieldPath { get; set; }
+
+        /// <summary>
+        /// Indicates if this field represents an array (paneldynamic)
+        /// </summary>
+        public bool IsArray { get; set; }
+
+        /// <summary>
+        /// For display purposes, a more friendly name
+        /// e.g., "Cough - Date of onset" for "measles_symptoms.cough.onset_date"
+        /// </summary>
+        public string? DisplayName { get; set; }
     }
 
     public class MappingExecutionResult

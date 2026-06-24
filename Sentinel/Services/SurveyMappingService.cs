@@ -169,7 +169,8 @@ namespace Sentinel.Services
             try
             {
                 var surveyDef = System.Text.Json.JsonSerializer.Deserialize<JsonElement>(surveyDefinitionJson);
-                
+
+                // Extract regular questions from pages
                 if (surveyDef.TryGetProperty("pages", out var pages))
                 {
                     foreach (var page in pages.EnumerateArray())
@@ -178,42 +179,215 @@ namespace Sentinel.Services
                         {
                             foreach (var element in elements.EnumerateArray())
                             {
-                                var question = new SurveyQuestion();
-                                
-                                if (element.TryGetProperty("name", out var name))
-                                    question.Name = name.GetString() ?? "";
-                                
-                                if (element.TryGetProperty("title", out var title))
-                                    question.Title = title.GetString() ?? question.Name;
-                                else
-                                    question.Title = question.Name;
-                                
-                                if (element.TryGetProperty("type", out var type))
-                                    question.Type = type.GetString() ?? "";
-                                
-                                if (element.TryGetProperty("isRequired", out var isRequired))
-                                    question.IsRequired = isRequired.GetBoolean();
-                                
-                                if (element.TryGetProperty("choices", out var choices))
-                                {
-                                    question.Choices = choices.EnumerateArray()
-                                        .Select(c => GetChoiceText(c))
-                                        .Where(text => !string.IsNullOrEmpty(text))
-                                        .ToList();
-                                }
-                                
-                                questions.Add(question);
+                                ExtractQuestionsFromElement(element, questions);
                             }
                         }
                     }
                 }
+
+                // Extract calculated values
+                if (surveyDef.TryGetProperty("calculatedValues", out var calculatedValues))
+                {
+                    foreach (var calc in calculatedValues.EnumerateArray())
+                    {
+                        if (calc.TryGetProperty("name", out var name))
+                        {
+                            var calcName = name.GetString() ?? "";
+                            questions.Add(new SurveyQuestion
+                            {
+                                Name = calcName,
+                                Title = FormatDisplayName(calcName),
+                                DisplayName = FormatDisplayName(calcName),
+                                Type = "calculated",
+                                IsCalculated = true,
+                                FieldPath = calcName
+                            });
+                        }
+                    }
+                }
             }
-            catch (System.Text.Json.JsonException)
+            catch (System.Text.Json.JsonException ex)
             {
-                // Invalid JSON - return empty list
+                _logger.LogWarning(ex, "Failed to parse survey definition JSON");
             }
 
             return await Task.FromResult(questions);
+        }
+
+        private void ExtractQuestionsFromElement(JsonElement element, List<SurveyQuestion> questions)
+        {
+            if (!element.TryGetProperty("type", out var typeElement))
+                return;
+
+            var type = typeElement.GetString() ?? "";
+
+            if (!element.TryGetProperty("name", out var nameElement))
+                return;
+
+            var name = nameElement.GetString() ?? "";
+
+            // Skip HTML elements (they're display-only)
+            if (type == "html")
+                return;
+
+            // Handle matrix questions (matrixdropdown, matrixdynamic)
+            if (type == "matrixdropdown" || type == "matrixdynamic")
+            {
+                ExtractMatrixFields(element, name, questions);
+                return;
+            }
+
+            // Handle panel dynamic
+            if (type == "paneldynamic")
+            {
+                ExtractPanelDynamicFields(element, name, questions);
+                return;
+            }
+
+            // Handle regular questions
+            var question = new SurveyQuestion
+            {
+                Name = name,
+                Type = type,
+                FieldPath = name
+            };
+
+            if (element.TryGetProperty("title", out var title))
+                question.Title = title.GetString() ?? name;
+            else
+                question.Title = name;
+
+            question.DisplayName = question.Title;
+
+            if (element.TryGetProperty("isRequired", out var isRequired))
+                question.IsRequired = isRequired.GetBoolean();
+
+            if (element.TryGetProperty("choices", out var choices))
+            {
+                question.Choices = choices.EnumerateArray()
+                    .Select(c => GetChoiceText(c))
+                    .Where(text => !string.IsNullOrEmpty(text))
+                    .ToList();
+            }
+
+            questions.Add(question);
+        }
+
+        private void ExtractMatrixFields(JsonElement matrix, string matrixName, List<SurveyQuestion> questions)
+        {
+            if (!matrix.TryGetProperty("columns", out var columns))
+                return;
+
+            if (!matrix.TryGetProperty("rows", out var rows))
+                return;
+
+            var matrixTitle = "";
+            if (matrix.TryGetProperty("title", out var titleElement))
+                matrixTitle = titleElement.GetString() ?? matrixName;
+
+            // For each row × column combination, create a field entry
+            foreach (var row in rows.EnumerateArray())
+            {
+                string rowValue;
+                string rowText;
+
+                // Row can be a string or an object with "value" and "text"
+                if (row.ValueKind == JsonValueKind.String)
+                {
+                    rowValue = row.GetString() ?? "";
+                    rowText = rowValue;
+                }
+                else if (row.ValueKind == JsonValueKind.Object)
+                {
+                    rowValue = row.TryGetProperty("value", out var val) ? val.GetString() ?? "" : "";
+                    rowText = row.TryGetProperty("text", out var text) ? text.GetString() ?? rowValue : rowValue;
+                }
+                else
+                {
+                    continue;
+                }
+
+                foreach (var column in columns.EnumerateArray())
+                {
+                    if (!column.TryGetProperty("name", out var colNameElement))
+                        continue;
+
+                    var columnName = colNameElement.GetString() ?? "";
+                    var columnTitle = column.TryGetProperty("title", out var colTitle) 
+                        ? colTitle.GetString() ?? columnName 
+                        : columnName;
+
+                    // Create field path: matrixName.rowValue.columnName
+                    var fieldPath = $"{matrixName}.{rowValue}.{columnName}";
+                    var displayName = $"{rowText} - {columnTitle}";
+
+                    var cellType = column.TryGetProperty("cellType", out var cellTypeElement)
+                        ? cellTypeElement.GetString() ?? "text"
+                        : "text";
+
+                    questions.Add(new SurveyQuestion
+                    {
+                        Name = fieldPath,
+                        Title = displayName,
+                        DisplayName = displayName,
+                        Type = $"matrix_{cellType}",
+                        FieldPath = fieldPath,
+                        ParentMatrix = matrixName,
+                        IsRequired = false
+                    });
+                }
+            }
+        }
+
+        private void ExtractPanelDynamicFields(JsonElement panel, string panelName, List<SurveyQuestion> questions)
+        {
+            if (!panel.TryGetProperty("templateElements", out var templateElements))
+                return;
+
+            var panelTitle = panel.TryGetProperty("title", out var titleElement)
+                ? titleElement.GetString() ?? panelName
+                : panelName;
+
+            // Panel dynamic creates array data - each template element becomes a field in the array
+            foreach (var element in templateElements.EnumerateArray())
+            {
+                if (!element.TryGetProperty("name", out var nameElement))
+                    continue;
+
+                var elementName = nameElement.GetString() ?? "";
+                var elementTitle = element.TryGetProperty("title", out var elTitle)
+                    ? elTitle.GetString() ?? elementName
+                    : elementName;
+
+                var elementType = element.TryGetProperty("type", out var typeElement)
+                    ? typeElement.GetString() ?? "text"
+                    : "text";
+
+                // Field path notation: panelName[].fieldName
+                var fieldPath = $"{panelName}[].{elementName}";
+                var displayName = $"{panelTitle} - {elementTitle}";
+
+                questions.Add(new SurveyQuestion
+                {
+                    Name = fieldPath,
+                    Title = displayName,
+                    DisplayName = displayName,
+                    Type = $"array_{elementType}",
+                    FieldPath = fieldPath,
+                    ParentMatrix = panelName,
+                    IsArray = true,
+                    IsRequired = false
+                });
+            }
+        }
+
+        private string FormatDisplayName(string fieldName)
+        {
+            // Convert snake_case or camelCase to Title Case with spaces
+            var result = Regex.Replace(fieldName, "([a-z])([A-Z])", "$1 $2"); // camelCase
+            result = result.Replace("_", " "); // snake_case
+            result = Regex.Replace(result, @"\b(\w)", m => m.Value.ToUpper()); // Title Case
+            return result;
         }
 
         /// <summary>

@@ -78,7 +78,7 @@
                                 <span class="badge bg-info text-dark ms-2">@category.ReportingId</span>
                                 @if (!string.IsNullOrEmpty(category.Description))
                                 {
-                                    <small class="text-muted ms-2">— @category.Description</small>
+                                    <small class="text-muted ms-2">- @category.Description</small>
                                 }
                             </td>
                         </tr>
@@ -97,7 +97,7 @@
                                     <td class="ps-4">
                                         @if (item.Level > 0)
                                         {
-                                            <span class="text-muted me-1">@(new string('—', item.Level))</span>
+                                            <span class="text-muted me-1">@(new string('>', item.Level)) </span>
                                         }
                                         <strong>@item.Name</strong>
                                     </td>
@@ -146,7 +146,7 @@
                                 <td class="ps-4">
                                     @if (item.Level > 0)
                                     {
-                                        <span class="text-muted me-1">@(new string('—', item.Level))</span>
+                                        <span class="text-muted me-1">@(new string('>', item.Level)) </span>
                                     }
                                     <strong>@item.Name</strong>
                                 </td>

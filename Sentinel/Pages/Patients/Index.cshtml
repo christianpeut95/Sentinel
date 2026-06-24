@@ -421,8 +421,8 @@ else
                                     @patient.FamilyName, @patient.GivenName
                                 </a>
                             </td>
-                            <td>@(patient.DateOfBirth?.ToString("dd MMM yyyy") ?? "—")</td>
-                            <td>@(age?.ToString() ?? "—")</td>
+                            <td>@(patient.DateOfBirth?.ToString("dd MMM yyyy") ?? "-")</td>
+                            <td>@(age?.ToString() ?? "-")</td>
                             <td>
                                 @if (patient.Gender != null)
                                 {
@@ -445,13 +445,13 @@ else
                                 }
                                 else
                                 {
-                                    <span style="color: var(--graphite); font-style: italic;">—</span>
+                                    <span style="color: var(--graphite); font-style: italic;">-</span>
                                 }
                             </td>
-                            <td>@(patient.City ?? "—")</td>
-                            <td>@(patient.MobilePhone ?? patient.HomePhone ?? "—")</td>
+                            <td>@(patient.City ?? "-")</td>
+                            <td>@(patient.MobilePhone ?? patient.HomePhone ?? "-")</td>
                             <td style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 150px;" title="@patient.EmailAddress">
-                                @(patient.EmailAddress ?? "—")
+                                @(patient.EmailAddress ?? "-")
                             </td>
                             <td style="text-align: center;" onclick="event.stopPropagation()">
                                 <a asp-page="./Details" asp-route-id="@patient.Id" class="btn-icon-sm" title="View Details">

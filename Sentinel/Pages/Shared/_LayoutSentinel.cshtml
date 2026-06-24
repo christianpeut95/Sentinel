@@ -1,6 +1,7 @@
 @using Microsoft.AspNetCore.Identity
 @using Sentinel.Models
 @inject UserManager<ApplicationUser> UserManager
+@inject Microsoft.Extensions.Configuration.IConfiguration Configuration
 @*
   Sentinel Design System Layout v0.2
   Watchful. Modern. Quiet.
@@ -235,6 +236,17 @@
     
     <!-- Chart.js for epidemic curves and visualizations -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+
+    <!-- Geocoding Service -->
+    <script src="~/js/geocoding.js" asp-append-version="true"></script>
+    <script>
+        SentinelGeocoding.init({
+            provider: '@(Configuration["Geocoding:Provider"] ?? "nominatim")',
+            apiKey: '@(Configuration["Geocoding:ApiKey"] ?? "")',
+            email: '@(Configuration["Geocoding:Email"] ?? "")',
+            defaultCountry: '@(Configuration["Organization:CountryCode"] ?? "AU")'
+        });
+    </script>
 
     <script>
         // Register custom date functions for SurveyJS
