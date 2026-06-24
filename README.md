@@ -1,12 +1,16 @@
 <div align="center">
-  <img src="wwwroot/design/sentinel-hz-w300-1024px (1).png" alt="Sentinel" width="480" />
-  <br /><br />
-  <strong>Watchful infrastructure for public health</strong>
+  <a href="https://sentinelsurveillance.app">
+    <img src="https://raw.githubusercontent.com/christianpeut95/Sentinel/master/Sentinel/wwwroot/design/sentinel-hz-w300-1024px%20(1).png" alt="Sentinel" width="480" />
+  </a>
   <br /><br />
 
   [![.NET](https://img.shields.io/badge/.NET-10.0-purple)](https://dotnet.microsoft.com/)
   [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
   [![Status](https://img.shields.io/badge/status-alpha-orange)]()
+
+  <br />
+
+  **[Visit Homepage ?](https://sentinelsurveillance.app)**
 </div>
 
 ---
@@ -81,22 +85,6 @@ A publicly hosted demo is available at **https://demo.sentinelsurveillance.app**
 
 ---
 
-## Design Principles
-
-### 01 · Epidemiologist-first
-
-**The surveillance team configures the system, not the developers.**
-
-Geographies, demographics, diseases, case definitions, surveys, and reports are configurable through the interface. No code changes, no schema migrations. Adding a question to a survey ("Did the case eat bean sprouts?") requires zero developer involvement.
-
-### 02 · Simplicity
-
-**Scaling to 100 contact tracers overnight leaves no time to retrain.**
-
-The design target is end-users in large operations. A changed field or relabelled question does not require training: the contact tracer clicks next, and the new question appears. The system accommodates the user, not the reverse.
-
----
-
 ## Screenshots
 
 <table>
@@ -144,37 +132,6 @@ The design target is end-users in large operations. A changed field or relabelle
 
 ---
 
-## UI Design System
-
-Sentinel follows a clean, data-forward design system optimized for high-density information display and rapid decision-making.
-
-### Design Tokens
-
-**Color Palette**
-- **Forest** (#0C2A20) — Primary dark, body text
-- **Signal** (#3DD598) — Brand accent, "healthy" indicator
-- **Moss** (#1E5D44) — Secondary dark
-- **Bone** (#F5F3EC) — Page background
-- **Paper** (#ECEAE1) — App background
-- **Chalk** (#FBFAF5) — Card surface
-
-**Status Colors**
-- **Outbreak** (#E04D2B) — Critical/confirmed outbreak
-- **Watch** (#E0A43A) — Under surveillance
-- **Clear** (#3DD598) — Resolved/healthy
-- **Info** (#6B8CF5) — Informational
-
-**Typography**
-- **Geist Sans** — All UI text (weights 300–700)
-- **Geist Mono** — Case IDs, timestamps, numeric data, labels
-
-**Spacing** — 4px base grid (space-1 through space-20)  
-**Shadows** — 4 elevation levels (xs, sm, md, lg)  
-**Radius** — 5 values (2px, 4px, 6px, 8px, 12px, 999px)
-
-Full design system documentation: [wwwroot/design/UI Guidelines.html](wwwroot/design/UI%20Guidelines.html)
-
----
 ## Key Features
 
 ### Core Surveillance
