@@ -951,14 +951,13 @@
                                                 <div class="card-body">
                                                     <div class="alert alert-info small mb-3">
                                                         <i class="bi bi-info-circle me-2"></i>
-                                                        Configure how survey responses map to database fields.
-                                                        Disease-level mappings override task-level defaults.
+                                                        Configure how survey responses map to database fields for this specific task assignment.
                                                     </div>
 
                                                     <component type="typeof(Sentinel.Components.SurveyMappingEditor)" 
                                                                render-mode="ServerPrerendered"
-                                                               param-ConfigurationType="Sentinel.Models.MappingConfigurationType.Disease"
-                                                               param-ConfigurationId="Model.Disease.Id"
+                                                               param-ConfigurationType="Sentinel.Models.MappingConfigurationType.DiseaseTaskTemplate"
+                                                               param-ConfigurationId="dtt.Id"
                                                                param-SurveyTemplateId="dtt.TaskTemplate.SurveyTemplateId" />
                                                 </div>
                                             </div>

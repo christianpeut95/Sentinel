@@ -107,8 +107,11 @@ namespace Sentinel.Controllers.Api
                 return BadRequest(new { errors = validation.Errors, warnings = validation.Warnings });
             }
 
+            // Ensure priority matches configuration type
+            mapping.Priority = (int)mapping.ConfigurationType;
+
             _context.Entry(mapping).State = EntityState.Modified;
-            
+
             try
             {
                 await _context.SaveChangesAsync();

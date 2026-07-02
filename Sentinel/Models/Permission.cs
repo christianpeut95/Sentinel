@@ -9,6 +9,7 @@ namespace Sentinel.Models
         User,
         Report,
         Laboratory,
+        HL7,
         Symptom,
         Task,
         Outbreak,
@@ -34,7 +35,10 @@ namespace Sentinel.Models
         ManageCustomLookups,
         ManageSystemLookups,
         ManageOrganization,
-        ResetPassword
+        ResetPassword,
+        Configure,
+        Process,
+        GenerateTestFiles
     }
 
     public class Permission

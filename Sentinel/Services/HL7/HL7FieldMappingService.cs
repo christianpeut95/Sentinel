@@ -74,9 +74,59 @@ namespace Sentinel.Services.HL7
 
         public async Task<string?> ExtractValueAsync(IMessage message, HL7FieldMapping mapping)
         {
+            return await ExtractValueFromSegmentRepetitionAsync(message, mapping, 0);
+        }
+
+        public async Task<List<string?>> ExtractValuesFromRepeatingSegmentAsync(
+            IMessage message,
+            HL7FieldMapping mapping)
+        {
+            var values = new List<string?>();
+
             try
             {
-                // Parse the field path (e.g., "OBR-15.1", "PID-5.1")
+                // Parse the field path to get segment name
+                var parts = mapping.FieldPath.Split('-');
+                if (parts.Length != 2)
+                {
+                    _logger.LogWarning("Invalid field path format: {Path}", mapping.FieldPath);
+                    return values;
+                }
+
+                var segmentName = parts[0];
+
+                // Get all occurrences of the segment
+                var segments = message.GetAll(segmentName);
+
+                _logger.LogDebug(
+                    "Found {Count} repetitions of segment {Segment} for mapping {Path}",
+                    segments.Length, segmentName, mapping.FieldPath);
+
+                // Extract value from each occurrence
+                for (int i = 0; i < segments.Length; i++)
+                {
+                    var value = await ExtractValueFromSegmentRepetitionAsync(message, mapping, i);
+                    values.Add(value);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex,
+                    "Error extracting values from repeating segment for mapping {MappingId} ({Path})",
+                    mapping.Id, mapping.FieldPath);
+            }
+
+            return values;
+        }
+
+        public async Task<string?> ExtractValueFromSegmentRepetitionAsync(
+            IMessage message,
+            HL7FieldMapping mapping,
+            int repetition)
+        {
+            try
+            {
+                // Parse the field path (e.g., "OBR-15.1", "PID-5.1", "OBX-5")
                 var parts = mapping.FieldPath.Split('-');
                 if (parts.Length != 2)
                 {
@@ -93,11 +143,11 @@ namespace Sentinel.Services.HL7
                     return mapping.DefaultValue;
                 }
 
-                // Get the segment
-                var segment = GetSegment(message, segmentName, 0); // Default to first occurrence
+                // Get the specific segment repetition
+                var segment = GetSegment(message, segmentName, repetition);
                 if (segment == null)
                 {
-                    _logger.LogDebug("Segment {Segment} not found in message", segmentName);
+                    _logger.LogDebug("Segment {Segment}[{Repetition}] not found in message", segmentName, repetition);
                     return mapping.DefaultValue;
                 }
 
@@ -105,7 +155,8 @@ namespace Sentinel.Services.HL7
                 var field = segment.GetField(fieldIndex, 0);
                 if (field == null)
                 {
-                    _logger.LogDebug("Field {Field} not found in segment {Segment}", fieldIndex, segmentName);
+                    _logger.LogDebug("Field {Field} not found in segment {Segment}[{Repetition}]", 
+                        fieldIndex, segmentName, repetition);
                     return mapping.DefaultValue;
                 }
 
@@ -138,8 +189,8 @@ namespace Sentinel.Services.HL7
                 if (mapping.IsRequired && string.IsNullOrWhiteSpace(transformedValue))
                 {
                     _logger.LogWarning(
-                        "Required field {Path} ({Entity}.{Property}) is empty",
-                        mapping.FieldPath, mapping.TargetEntity, mapping.TargetProperty);
+                        "Required field {Path}[{Repetition}] ({Entity}.{Property}) is empty",
+                        mapping.FieldPath, repetition, mapping.TargetEntity, mapping.TargetProperty);
                 }
 
                 // Validate against regex if specified
@@ -149,13 +200,106 @@ namespace Sentinel.Services.HL7
                     if (!Regex.IsMatch(transformedValue, mapping.ValidationRegex))
                     {
                         _logger.LogWarning(
-                            "Field value '{Value}' does not match validation pattern '{Pattern}' for {Path}",
-                            transformedValue, mapping.ValidationRegex, mapping.FieldPath);
+                            "Field value '{Value}' does not match validation pattern '{Pattern}' for {Path}[{Repetition}]",
+                            transformedValue, mapping.ValidationRegex, mapping.FieldPath, repetition);
                         return mapping.DefaultValue;
                     }
                 }
 
-                // Update usage statistics
+                // Update usage statistics (only once per mapping call, not per repetition)
+                if (repetition == 0)
+                {
+                    await UpdateMappingStatsAsync(mapping.Id, success: true);
+                }
+
+                return transformedValue;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex,
+                    "Error extracting value for mapping {MappingId} ({Path}[{Repetition}])",
+                    mapping.Id, mapping.FieldPath, repetition);
+
+                if (repetition == 0)
+                {
+                    await UpdateMappingStatsAsync(mapping.Id, success: false);
+                }
+                return mapping.DefaultValue;
+            }
+        }
+
+        public async Task<string?> GetMappedValueFromRawSegmentAsync(
+            string rawSegment,
+            Guid configurationId,
+            Guid? diseaseId,
+            string targetEntity,
+            string targetProperty)
+        {
+            try
+            {
+                // Get the effective mapping
+                var mapping = await _context.HL7FieldMappings
+                    .Where(m => m.ConfigurationId == configurationId &&
+                               m.TargetEntity == targetEntity &&
+                               m.TargetProperty == targetProperty &&
+                               m.IsActive)
+                    .OrderByDescending(m => m.DiseaseId == diseaseId ? 1 : 0)
+                    .ThenByDescending(m => m.Priority)
+                    .FirstOrDefaultAsync();
+
+                if (mapping == null)
+                {
+                    return null;
+                }
+
+                // Parse raw segment: "OBX|1|CWE|..."
+                var fields = rawSegment.Split('|');
+                if (fields.Length < 2)
+                {
+                    return mapping.DefaultValue;
+                }
+
+                var segmentName = fields[0];
+
+                // Parse the field path
+                var parts = mapping.FieldPath.Split('-');
+                if (parts.Length != 2 || parts[0] != segmentName)
+                {
+                    return mapping.DefaultValue;
+                }
+
+                var fieldParts = parts[1].Split('.');
+                if (!int.TryParse(fieldParts[0], out var fieldIndex))
+                {
+                    return mapping.DefaultValue;
+                }
+
+                // Extract field value (HL7 uses 1-based indexing, but split array is 0-based)
+                if (fieldIndex >= fields.Length)
+                {
+                    return mapping.DefaultValue;
+                }
+
+                var fieldValue = fields[fieldIndex];
+
+                // Handle component if specified
+                if (fieldParts.Length > 1 && int.TryParse(fieldParts[1], out var componentIndex))
+                {
+                    var components = fieldValue.Split('^');
+                    if (componentIndex > 0 && componentIndex <= components.Length)
+                    {
+                        fieldValue = components[componentIndex - 1];
+                    }
+                }
+
+                if (string.IsNullOrWhiteSpace(fieldValue))
+                {
+                    return mapping.DefaultValue;
+                }
+
+                // Apply transformation
+                var transformedValue = await ApplyTransformationAsync(fieldValue, mapping);
+
                 await UpdateMappingStatsAsync(mapping.Id, success: true);
 
                 return transformedValue;
@@ -163,11 +307,9 @@ namespace Sentinel.Services.HL7
             catch (Exception ex)
             {
                 _logger.LogError(ex,
-                    "Error extracting value for mapping {MappingId} ({Path})",
-                    mapping.Id, mapping.FieldPath);
-
-                await UpdateMappingStatsAsync(mapping.Id, success: false);
-                return mapping.DefaultValue;
+                    "Error extracting mapped value from raw segment for {Entity}.{Property}",
+                    targetEntity, targetProperty);
+                return null;
             }
         }
 

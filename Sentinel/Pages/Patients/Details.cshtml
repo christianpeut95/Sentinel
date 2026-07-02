@@ -784,6 +784,55 @@
     </div>
 </div>
 
+@section Styles {
+    <style>
+        .patient-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+
+        .patient-table thead {
+            background: var(--signal-lt);
+        }
+
+        .patient-table th {
+            padding: var(--spacing-3);
+            text-align: left;
+            font-weight: 600;
+            font-size: 11px;
+            color: var(--forest);
+            border-bottom: 2px solid var(--signal-dk);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            font-family: var(--f-mono);
+        }
+
+        .patient-table td {
+            padding: var(--spacing-3);
+            border-bottom: 1px solid var(--hairline);
+            vertical-align: middle;
+        }
+
+        .patient-table tbody tr:hover {
+            background: var(--chalk);
+            transition: background var(--transition-fast);
+        }
+
+        .note-item {
+            border-left: 3px solid var(--signal);
+            padding: var(--spacing-3);
+            margin-bottom: var(--spacing-3);
+            background: var(--chalk);
+            border-radius: var(--radius-md);
+        }
+
+        .note-item:last-child {
+            margin-bottom: 0;
+        }
+    </style>
+}
+
 @section Scripts {
     @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
     <script>
@@ -791,7 +840,7 @@
         document.getElementById('noteTypeSelect').addEventListener('change', function() {
             var recipientField = document.getElementById('recipientField');
             var communicationTypes = ['SMS', 'Phone Call', 'Email'];
-            
+
             if (communicationTypes.includes(this.value)) {
                 recipientField.style.display = 'block';
             } else {

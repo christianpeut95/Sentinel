@@ -1,0 +1,60 @@
+@inherits LayoutComponentBase
+@using Microsoft.AspNetCore.Components.Authorization
+@inject NavigationManager Navigation
+
+<PageTitle>@Title</PageTitle>
+
+<div class="page-wrapper">
+    <!-- Top Navigation Bar -->
+    <header class="navbar-sentinel">
+        <div class="navbar-content">
+            <div class="navbar-brand">
+                <a href="/" class="brand-link">
+                    <i class="bi bi-shield-check"></i>
+                    <span class="brand-text">Sentinel</span>
+                </a>
+            </div>
+
+            <nav class="navbar-menu">
+                <a href="/Dashboard" class="nav-link">
+                    <i class="bi bi-speedometer2"></i> Dashboard
+                </a>
+                <a href="/Patients" class="nav-link">
+                    <i class="bi bi-people"></i> Patients
+                </a>
+                <a href="/Cases" class="nav-link">
+                    <i class="bi bi-folder2-open"></i> Cases
+                </a>
+                <a href="/Tasks" class="nav-link">
+                    <i class="bi bi-check2-square"></i> Tasks
+                </a>
+                <a href="/Settings" class="nav-link active">
+                    <i class="bi bi-gear"></i> Settings
+                </a>
+            </nav>
+
+            <div class="navbar-user">
+                <AuthorizeView>
+                    <Authorized>
+                        <span class="user-name">@context.User.Identity?.Name</span>
+                        <a href="/Identity/Account/Logout" class="btn-logout">
+                            <i class="bi bi-box-arrow-right"></i>
+                        </a>
+                    </Authorized>
+                </AuthorizeView>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content Area -->
+    <main class="page-content">
+        <div class="container-fluid">
+            @Body
+        </div>
+    </main>
+</div>
+
+@code {
+    [Parameter]
+    public string? Title { get; set; }
+}

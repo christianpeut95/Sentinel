@@ -1,0 +1,45 @@
+@page "{ConfigId:guid}"
+@model Sentinel.Pages.Settings.HL7.ConfigureLabPageModel
+@using Sentinel.Components.Settings.HL7
+@{
+    ViewData["Title"] = "Configure Lab Message Mapping";
+    Layout = "~/Pages/Shared/_LayoutSentinel.cshtml";
+}
+
+<!-- Breadcrumb -->
+<nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a asp-page="/Index">Home</a></li>
+        <li class="breadcrumb-item"><a asp-page="/Settings/Index">Settings</a></li>
+        <li class="breadcrumb-item"><a asp-page="/Settings/HL7/Configurations/Index">Lab Configurations</a></li>
+        <li class="breadcrumb-item active" aria-current="page">Configure Mapping</li>
+    </ol>
+</nav>
+
+<!-- Page Header -->
+<div class="page-header">
+    <div class="header-content">
+        <div class="eyebrow">HL7 Configuration</div>
+        <h1 class="page-title">@Model.ConfigurationName</h1>
+        <p class="page-subtitle">Set up how Sentinel reads HL7 messages from this lab</p>
+    </div>
+</div>
+
+@if (Model.Configuration != null)
+{
+    <component type="typeof(Sentinel.Components.Settings.HL7.LabConfigurationWizard)" 
+               render-mode="ServerPrerendered" 
+               param-ConfigurationId="@Model.ConfigId"
+               param-ConfigurationName="@Model.ConfigurationName" />
+}
+else
+{
+    <div class="alert alert-danger">
+        <i class="bi bi-exclamation-triangle me-2"></i>
+        Configuration not found. Please return to the <a asp-page="/Settings/HL7/Configurations/Index">configurations list</a>.
+    </div>
+}
+
+@section Scripts {
+    <script src="/_framework/blazor.web.js"></script>
+}

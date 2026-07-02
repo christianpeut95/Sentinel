@@ -86,26 +86,25 @@
                 <div style="display:flex;gap:8px;padding-top:12px;border-top:1px solid var(--hairline)">
                     @if (config.Status == "Active")
                     {
-                        <a asp-page="/Settings/HL7/FieldMappings/ConfigureLab" asp-route-configId="@config.Id" 
+                        <a href="/Settings/HL7/ConfigureLab/@config.Id" 
                            class="sn-btn sn-btn--ghost sn-btn--sm" style="flex:1">
-                            <i class="bi bi-sliders"></i> Review mappings
+                            <i class="bi bi-pencil"></i> Edit mappings
                         </a>
-                        <button type="button" 
-                                class="sn-btn sn-btn--ghost sn-btn--sm"
-                                onclick="testConfiguration('@config.Id')">
+                        <a href="/Settings/HL7/ConfigureLab/@config.Id?stage=test" 
+                           class="sn-btn sn-btn--ghost sn-btn--sm">
                             <i class="bi bi-flask"></i> Test
-                        </button>
+                        </a>
                     }
                     else if (config.Status == "NeedsAttention")
                     {
-                        <a asp-page="/Settings/HL7/FieldMappings/ConfigureLab" asp-route-configId="@config.Id" 
+                        <a href="/Settings/HL7/ConfigureLab/@config.Id" 
                            class="sn-btn sn-btn--signal sn-btn--sm" style="flex:1">
                             <i class="bi bi-arrow-right"></i> Continue setup
                         </a>
                     }
                     else
                     {
-                        <a asp-page="/Settings/HL7/FieldMappings/ConfigureLab" asp-route-configId="@config.Id" 
+                        <a href="/Settings/HL7/ConfigureLab/@config.Id" 
                            class="sn-btn sn-btn--signal sn-btn--sm" style="flex:1">
                             <i class="bi bi-play-fill"></i> Start configuration
                         </a>
@@ -126,22 +125,13 @@
                 <p style="font-size:14px;color:var(--graphite);max-width:50ch;margin:0 auto 20px">
                     Get started by adding your first laboratory sender. You'll teach Sentinel how to read their messages without any coding.
                 </p>
-                <a asp-page="/Settings/HL7/FieldMappings/ConfigureLab" class="sn-btn sn-btn--signal">
+                <a href="/Settings/HL7/ConfigureLab" class="sn-btn sn-btn--signal">
                     <i class="bi bi-plus-lg"></i> Add your first lab
                 </a>
             </div>
         </div>
     }
 </div>
-
-@section Scripts {
-<script>
-    function testConfiguration(configId) {
-        // Open test modal or navigate to test page
-        alert('Test mode coming soon — paste a message and see how Sentinel reads it.');
-    }
-</script>
-}
 
 @functions {
     string GetStatusBorderStyle(string status)

@@ -61,27 +61,41 @@ var connectionString = builder.Configuration.GetConnectionString("DefaultConnect
 // Register the CaseCreationInterceptor (must be registered before DbContext)
 builder.Services.AddSingleton<CaseCreationInterceptor>();
 
+// Get command timeout from configuration once (used by both registrations)
+var commandTimeout = builder.Configuration.GetValue<int?>("Database:CommandTimeoutSeconds") ?? 30;
+
+// Register DbContext for Razor Pages and services (with interceptor)
+// Use AddDbContext without serviceProvider lambda to avoid scoped DbContextOptions registration
 builder.Services.AddDbContext<ApplicationDbContext>((serviceProvider, options) =>
 {
-    // Get the interceptor from DI
     var caseInterceptor = serviceProvider.GetRequiredService<CaseCreationInterceptor>();
-    
-    // Get command timeout from configuration (default 30 seconds, increase for large bulk imports)
-    var commandTimeout = builder.Configuration.GetValue<int?>("Database:CommandTimeoutSeconds") ?? 30;
-    
+
     options.UseSqlServer(connectionString, sqlOptions =>
     {
-        // Set command timeout for long-running operations (bulk imports, etc.)
         sqlOptions.CommandTimeout(commandTimeout);
-        
-        // Retry on transient failures (connection issues, timeouts)
         sqlOptions.EnableRetryOnFailure(
             maxRetryCount: 5,
             maxRetryDelay: TimeSpan.FromSeconds(10),
             errorNumbersToAdd: null);
     })
-    .AddInterceptors(caseInterceptor); // Auto-create tasks for new cases
-});
+    .AddInterceptors(caseInterceptor);
+}, contextLifetime: ServiceLifetime.Scoped, optionsLifetime: ServiceLifetime.Singleton);
+
+// Register DbContextFactory for Blazor components (needed for proper scoping in interactive scenarios)
+// Use regular factory (not pooled) because ApplicationDbContext has multiple constructors
+// and may need IHttpContextAccessor for audit logging
+builder.Services.AddDbContextFactory<ApplicationDbContext>(options =>
+{
+    options.UseSqlServer(connectionString, sqlOptions =>
+    {
+        sqlOptions.CommandTimeout(commandTimeout);
+        sqlOptions.EnableRetryOnFailure(
+            maxRetryCount: 5,
+            maxRetryDelay: TimeSpan.FromSeconds(10),
+            errorNumbersToAdd: null);
+    });
+    // Note: Interceptors are NOT added to factory-created contexts (CaseCreationInterceptor is for Razor Pages only)
+}, ServiceLifetime.Singleton);
 
 // Identity (include roles so RoleManager and role stores are registered)
 builder.Services.AddDefaultIdentity<ApplicationUser>(options =>
@@ -278,6 +292,7 @@ builder.Services.AddScoped<Sentinel.Services.Reporting.IReportFolderService, Sen
 builder.Services.AddScoped<Sentinel.Services.Reporting.ICollectionMetadataService, Sentinel.Services.Reporting.CollectionMetadataService>();
 builder.Services.AddScoped<Sentinel.Services.Reporting.IDynamicDateResolver, Sentinel.Services.Reporting.DynamicDateResolver>();
 builder.Services.AddScoped<Sentinel.Services.IDataReviewService, Sentinel.Services.DataReviewService>();
+builder.Services.AddScoped<Sentinel.Services.IDashboardService, Sentinel.Services.DashboardService>();
 
 // Case Definition Evaluation Services
 builder.Services.AddScoped<Sentinel.Services.CaseDefinitionEvaluation.OperatorEvaluator>();
@@ -296,6 +311,7 @@ builder.Services.AddScoped<Sentinel.Services.HL7.IHL7MarkerResolutionService, Se
 builder.Services.AddScoped<Sentinel.Services.HL7.ICaseDefinitionMatchingService, Sentinel.Services.HL7.CaseDefinitionMatchingService>();
 builder.Services.AddScoped<Sentinel.Services.HL7.ICaseMatchingService, Sentinel.Services.HL7.CaseMatchingService>();
 builder.Services.AddScoped<Sentinel.Services.HL7.HL7DiagnosticService>();
+builder.Services.AddScoped<Sentinel.Services.HL7.IHL7TestMessageService, Sentinel.Services.HL7.HL7TestMessageService>();
 // HL7 File Monitor Service must be Singleton so all parts of app see the same monitoring state
 builder.Services.AddSingleton<Sentinel.Services.HL7.IHL7FileMonitorService, Sentinel.Services.HL7.HL7FileMonitorService>();
 
@@ -346,6 +362,10 @@ else // Default to Google
 
 // Legacy Geocoding Service (delegates to ILocationLookupService for backward compatibility)
 builder.Services.AddScoped<Sentinel.Services.IGeocodingService, Sentinel.Services.GoogleGeocodingService>();
+
+// Background Geocoding Queue Service
+builder.Services.AddSingleton<Sentinel.Services.IGeocodingQueueService, Sentinel.Services.GeocodingQueueService>();
+builder.Services.AddHostedService<Sentinel.Services.GeocodingBackgroundService>();
 
 var app = builder.Build();
 

@@ -878,9 +878,8 @@
                 <table class="compact-table w-100">
                     <thead>
                         <tr>
-                            <th>Test</th>
-                            <th>Tested For</th>
-                            <th>Result</th>
+                            <th>Biomarkers</th>
+                            <th>Results</th>
                             <th>Collected</th>
                             <th>Reported</th>
                             <th></th>
@@ -893,8 +892,29 @@
                                 <td>
                                     @if (labResult.Markers.Any())
                                     {
-                                        <strong>@labResult.Markers.Count Marker(s)</strong>
-                                        <br /><small class="text-muted">@string.Join(", ", labResult.Markers.Take(2).Select(m => m.Pathogen?.Name ?? "Unknown"))</small>
+                                        <div style="display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 4px;">
+                                            @foreach (var marker in labResult.Markers.Take(3))
+                                            {
+                                                var (bgColor, borderColor, textColor, icon) = marker.QualitativeResultText?.ToLower() switch
+                                                {
+                                                    "detected" or "positive" or "reactive" => ("#FBE2D8", "#F2BBA4", "#7A2A15", "exclamation-circle-fill"),
+                                                    "not detected" or "negative" or "non-reactive" => ("var(--signal-lt)", "#9BE8C6", "#0A3F2C", "check-circle-fill"),
+                                                    "indeterminate" or "equivocal" => ("#FBEDD1", "#EBD196", "#6A4410", "question-circle-fill"),
+                                                    _ => ("var(--chalk)", "var(--hairline)", "var(--graphite)", "circle")
+                                                };
+
+                                                <span style="background: @bgColor; border: 1px solid @borderColor; color: @textColor; padding: 3px 8px; border-radius: 10px; font-size: 10px; font-weight: 500; display: inline-flex; align-items: center; gap: 3px; white-space: nowrap;">
+                                                    <i class="bi bi-@icon" style="font-size: 8px;"></i>
+                                                    @(marker.Pathogen?.Name ?? "Unknown")
+                                                </span>
+                                            }
+                                            @if (labResult.Markers.Count > 3)
+                                            {
+                                                <span style="background: var(--chalk); border: 1px solid var(--hairline); color: var(--graphite); padding: 3px 8px; border-radius: 10px; font-size: 10px; font-weight: 500;">
+                                                    +@(labResult.Markers.Count - 3)
+                                                </span>
+                                            }
+                                        </div>
                                     }
                                     else
                                     {
@@ -902,35 +922,36 @@
                                     }
                                     @if (labResult.IsAmended)
                                     {
-                                        <br /><span class="badge bg-warning text-dark" style="font-size: 0.65rem;"><i class="bi bi-pencil-square"></i> Amended</span>
-                                    }
-                                </td>
-                                <td>
-                                    @if (labResult.TestedDisease != null)
-                                    {
-                                        <small class="text-muted">@labResult.TestedDisease.Name</small>
-                                    }
-                                    else
-                                    {
-                                        <span class="text-muted">-</span>
+                                        <span class="badge bg-warning text-dark" style="font-size: 0.65rem;"><i class="bi bi-pencil-square"></i> Amended</span>
                                     }
                                 </td>
                                 <td>
                                     @if (labResult.Markers.Any())
                                     {
-                                        var firstMarker = labResult.Markers.First();
-                                        var resultClass = firstMarker.QualitativeResultText?.ToLower() switch
-                                        {
-                                            "detected" or "positive" or "reactive" => "bg-danger",
-                                            "not detected" or "negative" or "non-reactive" => "bg-success",
-                                            "indeterminate" or "equivocal" => "bg-warning",
-                                            _ => "bg-secondary"
-                                        };
-                                        <span class="badge @resultClass">@(firstMarker.QualitativeResultText ?? "See Details")</span>
-                                        @if (labResult.Markers.Count > 1)
-                                        {
-                                            <small class="text-muted">+@(labResult.Markers.Count - 1) more</small>
-                                        }
+                                        var detectedCount = labResult.Markers.Count(m => m.QualitativeResultText?.ToLower() == "detected" || m.QualitativeResultText?.ToLower() == "positive" || m.QualitativeResultText?.ToLower() == "reactive");
+                                        var notDetectedCount = labResult.Markers.Count(m => m.QualitativeResultText?.ToLower() == "not detected" || m.QualitativeResultText?.ToLower() == "negative" || m.QualitativeResultText?.ToLower() == "non-reactive");
+                                        var indeterminateCount = labResult.Markers.Count(m => m.QualitativeResultText?.ToLower() == "indeterminate" || m.QualitativeResultText?.ToLower() == "equivocal");
+
+                                        <div style="display: flex; flex-direction: column; gap: 2px;">
+                                            @if (detectedCount > 0)
+                                            {
+                                                <span style="font-size: 11px; color: #7A2A15; font-weight: 600;">
+                                                    <i class="bi bi-exclamation-circle-fill" style="font-size: 9px;"></i> @detectedCount Detected
+                                                </span>
+                                            }
+                                            @if (notDetectedCount > 0)
+                                            {
+                                                <span style="font-size: 11px; color: #0A3F2C; font-weight: 600;">
+                                                    <i class="bi bi-check-circle-fill" style="font-size: 9px;"></i> @notDetectedCount Not Detected
+                                                </span>
+                                            }
+                                            @if (indeterminateCount > 0)
+                                            {
+                                                <span style="font-size: 11px; color: #6A4410; font-weight: 600;">
+                                                    <i class="bi bi-question-circle-fill" style="font-size: 9px;"></i> @indeterminateCount Indeterminate
+                                                </span>
+                                            }
+                                        </div>
                                     }
                                     else
                                     {

@@ -51,6 +51,7 @@ public interface IHL7DataExtractionService
         Patient patient,
         Organization laboratory,
         Organization? orderingProvider,
+        HL7Configuration? configuration = null,
         CancellationToken cancellationToken = default);
 }
 

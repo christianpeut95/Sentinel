@@ -1,0 +1,1504 @@
+@page
+@model Sentinel.Pages.DataInbox.InboxV2Model
+@using Sentinel.Services
+@{
+    ViewData["Title"] = "Review Inbox";
+    Layout = "~/Pages/Shared/_LayoutSentinel.cshtml";
+}
+
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,300;1,300&display=swap" rel="stylesheet" />
+
+<style>
+    /* Sentinel v2 Design Tokens */
+    :root {
+        --v2-bg: #F8F5EB;
+        --v2-bg-2: #FBFAF2;
+        --v2-bg-3: #EFEBDB;
+        --v2-line: #DDD6C0;
+        --v2-line-2: #E8E2CE;
+        --v2-fog: #7C8A82;
+        --v2-fog-2: #5A6B63;
+        --v2-ink: #0C2A20;
+        --v2-ink-2: #1E3B30;
+        --v2-signal: #159C6E;
+        --v2-signal-dk: #0E7551;
+        --v2-signal-glow: rgba(21,156,110,.12);
+        --v2-red: #C84A2A;
+        --v2-amber: #C48618;
+        --v2-blue: #3C63C1;
+        --v2-violet: #7A55C7;
+    }
+
+    .sentinel-container {
+        font-family: 'Geist', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        font-feature-settings: "ss01", "cv11";
+        background: var(--v2-bg);
+        max-width: none !important;
+        padding: 0 !important;
+    }
+
+    /* Page Band */
+    .page-band-v2 {
+        padding: 20px 40px;
+        border-bottom: 1px solid var(--v2-line);
+        background: var(--v2-bg);
+        margin: -20px -20px 0 -20px;
+    }
+
+    .breadcrumb-v2 {
+        font-family: 'Geist Mono', monospace;
+        font-size: 10px;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+        color: var(--v2-fog);
+        margin-bottom: 12px;
+    }
+
+    .breadcrumb-v2 .current {
+        color: var(--v2-signal);
+    }
+
+    .page-title-v2 {
+        font-family: 'Fraunces', serif;
+        font-weight: 300;
+        font-size: 42px;
+        letter-spacing: -0.03em;
+        margin: 0;
+        color: var(--v2-ink);
+    }
+
+    .page-title-v2 em {
+        font-style: italic;
+        color: var(--v2-signal);
+    }
+
+    /* Split Region */
+    .split-region-v2 {
+        display: grid;
+        grid-template-columns: 352px 1fr;
+        gap: 0;
+        height: calc(100vh - 280px);
+        min-height: 500px;
+        margin: 0 -20px;
+    }
+
+    /* List Panel */
+    .list-panel-v2 {
+        border-right: 1px solid var(--v2-line);
+        display: flex;
+        flex-direction: column;
+        background: var(--v2-bg);
+        height: 100%;
+        overflow: hidden;
+    }
+
+    .list-header-v2 {
+        padding: 14px 18px;
+        border-bottom: 1px solid var(--v2-line);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-shrink: 0;
+    }
+
+    .list-header-label {
+        font-family: 'Geist Mono', monospace;
+        font-size: 11px;
+        font-weight: 500;
+        color: var(--v2-ink-2);
+    }
+
+    .list-header-count {
+        color: var(--v2-signal);
+    }
+
+    .list-body-v2 {
+        flex: 1;
+        overflow-y: auto;
+        overflow-x: hidden;
+    }
+
+    /* Day Group */
+    .day-group-header-v2 {
+        padding: 11px 18px 7px;
+        background: var(--v2-bg-2);
+        font-family: 'Geist Mono', monospace;
+        font-size: 9px;
+        text-transform: uppercase;
+        letter-spacing: 0.14em;
+        color: var(--v2-fog);
+        border-bottom: 1px solid var(--v2-line-2);
+        position: sticky;
+        top: 0;
+        z-index: 10;
+    }
+
+    /* List Item */
+    .li-v2 {
+        display: grid;
+        grid-template-columns: auto 1fr auto;
+        gap: 11px;
+        padding: 13px 18px;
+        align-items: start;
+        border-bottom: 1px solid var(--v2-line-2);
+        cursor: pointer;
+        transition: all 0.15s ease;
+        background: var(--v2-bg);
+    }
+
+    .li-v2:hover {
+        background: var(--v2-bg-2);
+    }
+
+    .li-v2.selected {
+        background: var(--v2-bg-3);
+        box-shadow: inset 2px 0 0 var(--v2-signal);
+    }
+
+    .pri-v2 {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        margin-top: 5px;
+        flex-shrink: 0;
+    }
+
+    .pri-v2.high {
+        background: var(--v2-red);
+        box-shadow: 0 0 0 3px rgba(200,74,42,.22);
+    }
+
+    .pri-v2.medium {
+        background: var(--v2-amber);
+        box-shadow: 0 0 0 3px rgba(196,134,24,.22);
+    }
+
+    .pri-v2.low {
+        background: var(--v2-fog);
+        box-shadow: 0 0 0 3px rgba(124,138,130,.22);
+    }
+
+    .nm-v2 {
+        font-size: 14px;
+        font-weight: 500;
+        color: var(--v2-ink);
+        line-height: 1.4;
+        margin-bottom: 4px;
+    }
+
+    .dz-v2 {
+        display: inline-block;
+        font-family: 'Geist Mono', monospace;
+        font-size: 9px;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+        color: var(--v2-fog-2);
+        border: 1px solid var(--v2-line);
+        border-radius: 3px;
+        padding: 2px 6px;
+        margin-left: 7px;
+        vertical-align: 1px;
+    }
+
+    .ol-v2 {
+        font-family: 'Geist Mono', monospace;
+        font-size: 10px;
+        color: var(--v2-fog);
+        margin-top: 4px;
+        line-height: 1.5;
+    }
+
+    .ol-v2 .cs {
+        color: var(--v2-signal);
+    }
+
+    .rt-v2 {
+        text-align: right;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        align-items: flex-end;
+        flex-shrink: 0;
+    }
+
+    .rt-time-v2 {
+        font-family: 'Geist Mono', monospace;
+        font-size: 10px;
+        color: var(--v2-fog);
+        white-space: nowrap;
+    }
+
+    /* Detail Panel */
+    .detail-panel-v2 {
+        display: flex;
+        flex-direction: column;
+        background: var(--v2-bg);
+        height: 100%;
+        overflow: hidden;
+    }
+
+    .dh-v2 {
+        padding: 24px 28px 20px;
+        border-bottom: 1px solid var(--v2-line);
+        flex-shrink: 0;
+    }
+
+    .dh-chips-v2 {
+        display: flex;
+        gap: 8px;
+        margin-bottom: 14px;
+        flex-wrap: wrap;
+    }
+
+    .dh-name-v2 {
+        font-family: 'Fraunces', serif;
+        font-weight: 300;
+        font-size: 32px;
+        letter-spacing: -0.02em;
+        color: var(--v2-ink);
+        margin: 0;
+    }
+
+    .dm-v2 {
+        font-size: 13px;
+        color: var(--v2-ink-2);
+        margin-top: 8px;
+        line-height: 1.6;
+    }
+
+    .dm-v2 strong {
+        font-weight: 600;
+    }
+
+    .db-v2 {
+        padding: 22px 28px;
+        flex: 1;
+        overflow-y: auto;
+    }
+
+    .sec-t-v2 {
+        font-family: 'Geist Mono', monospace;
+        font-size: 10px;
+        text-transform: uppercase;
+        letter-spacing: 0.14em;
+        color: var(--v2-fog);
+        margin-bottom: 14px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .n-v2 {
+        background: var(--v2-signal-glow);
+        color: var(--v2-signal);
+        border-radius: 3px;
+        padding: 2px 7px;
+        font-size: 9px;
+    }
+
+    .difflist-v2 {
+        border: 1px solid var(--v2-line);
+        border-radius: 10px;
+        overflow: hidden;
+        margin-bottom: 24px;
+    }
+
+    .diffrow-v2 {
+        display: grid;
+        grid-template-columns: 120px 1fr auto;
+        gap: 14px;
+        padding: 14px 16px;
+        border-bottom: 1px solid var(--v2-line-2);
+        align-items: start;
+    }
+
+    .diffrow-v2:last-child {
+        border-bottom: none;
+    }
+
+    .fl-v2 {
+        font-family: 'Geist Mono', monospace;
+        font-size: 10px;
+        text-transform: uppercase;
+        color: var(--v2-fog);
+    }
+
+    .chg-v2 {
+        font-size: 13px;
+        line-height: 1.5;
+    }
+
+    .chg-v2 .old {
+        color: var(--v2-fog);
+        text-decoration: line-through;
+    }
+
+    .chg-v2 .arrow {
+        color: var(--v2-fog-2);
+        margin: 0 8px;
+    }
+
+    .chg-v2 .new {
+        color: var(--v2-signal);
+        font-weight: 600;
+    }
+
+    .src-v2 {
+        font-family: 'Geist Mono', monospace;
+        font-size: 10px;
+        color: var(--v2-fog);
+    }
+
+    .ctxgrid-v2 {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        border: 1px solid var(--v2-line);
+        border-radius: 10px;
+        overflow: hidden;
+        margin-bottom: 24px;
+    }
+
+    .ctxcell-v2 {
+        padding: 14px;
+        border-right: 1px solid var(--v2-line-2);
+        border-bottom: 1px solid var(--v2-line-2);
+    }
+
+    .ctxcell-v2:nth-child(4n) {
+        border-right: none;
+    }
+
+    .ctxcell-v2:nth-last-child(-n+4) {
+        border-bottom: none;
+    }
+
+    .ctxkey-v2 {
+        font-family: 'Geist Mono', monospace;
+        font-size: 9px;
+        text-transform: uppercase;
+        color: var(--v2-fog);
+        margin-bottom: 6px;
+    }
+
+    .ctxval-v2 {
+        font-size: 13px;
+        font-weight: 500;
+        color: var(--v2-ink-2);
+    }
+
+    .ctxval-v2.sig {
+        color: var(--v2-signal);
+    }
+
+    /* Links */
+    .patient-link-v2,
+    .case-link-v2 {
+        color: inherit;
+        text-decoration: none;
+        border-bottom: 1px solid transparent;
+        transition: all 0.15s ease;
+    }
+
+    .patient-link-v2:hover {
+        color: var(--v2-signal);
+        border-bottom-color: var(--v2-signal);
+    }
+
+    .case-link-v2 {
+        color: var(--v2-signal);
+    }
+
+    .case-link-v2:hover {
+        opacity: 0.7;
+        border-bottom-color: var(--v2-signal);
+    }
+
+    /* Laboratory Results Preview */
+    .lab-preview-v2 {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        margin-bottom: 24px;
+    }
+
+    .lab-card-v2 {
+        background: var(--v2-bg-2);
+        border: 1px solid var(--v2-line);
+        border-radius: 8px;
+        padding: 12px 14px;
+    }
+
+    .lab-header-v2 {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 10px;
+    }
+
+    .lab-disease-v2 {
+        flex: 1;
+    }
+
+    .v2chip.small {
+        font-size: 9px;
+        padding: 4px 7px;
+    }
+
+    .v2chip.small .v2chip-dot {
+        width: 4px;
+        height: 4px;
+    }
+
+    .lab-date-v2 {
+        font-family: 'Geist Mono', monospace;
+        font-size: 10px;
+        color: var(--v2-fog);
+    }
+
+    .lab-markers-v2 {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+    }
+
+    .marker-row-v2 {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-size: 12px;
+    }
+
+    .marker-name-v2 {
+        color: var(--v2-ink);
+        font-weight: 500;
+    }
+
+    .marker-result-v2 {
+        font-family: 'Geist Mono', monospace;
+        font-size: 11px;
+        padding: 3px 8px;
+        border-radius: 4px;
+        font-weight: 600;
+    }
+
+    .marker-result-v2.positive {
+        background: rgba(200,74,42,.12);
+        color: var(--v2-red);
+    }
+
+    .marker-result-v2.negative {
+        background: rgba(42,128,90,.12);
+        color: #2a805a;
+    }
+
+    .marker-result-v2.indeterminate {
+        background: rgba(196,134,24,.12);
+        color: var(--v2-amber);
+    }
+
+    .marker-result-v2.unknown {
+        background: var(--v2-bg-3);
+        color: var(--v2-fog);
+    }
+
+    .marker-more-v2 {
+        font-family: 'Geist Mono', monospace;
+        font-size: 10px;
+        color: var(--v2-fog);
+        text-align: center;
+        padding-top: 4px;
+    }
+
+    .lab-specimen-v2 {
+        font-size: 12px;
+        color: var(--v2-fog);
+        font-style: italic;
+    }
+
+    .ta-v2 {
+        width: 100%;
+        background: var(--v2-bg-2);
+        border: 1px solid var(--v2-line);
+        border-radius: 8px;
+        padding: 11px 13px;
+        min-height: 64px;
+        resize: vertical;
+        font-family: 'Geist', sans-serif;
+        font-size: 13px;
+        color: var(--v2-ink-2);
+    }
+
+    .ta-v2::placeholder {
+        color: var(--v2-fog);
+    }
+
+    .ta-v2:focus {
+        outline: none;
+        border-color: var(--v2-signal);
+        box-shadow: 0 0 0 2px var(--v2-signal-glow);
+    }
+
+    .actbar-v2 {
+        padding: 16px 28px;
+        border-top: 1px solid var(--v2-line);
+        background: var(--v2-bg-2);
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        flex-shrink: 0;
+        flex-wrap: wrap;
+    }
+
+    .actbar-v2 .spacer {
+        flex: 1;
+    }
+
+    /* Chips */
+    .v2chip {
+        font-family: 'Geist Mono', monospace;
+        font-size: 10px;
+        text-transform: uppercase;
+        padding: 5px 9px;
+        border-radius: 3px;
+        border: 1px solid;
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        font-weight: 500;
+    }
+
+    .v2chip-dot {
+        width: 5px;
+        height: 5px;
+        border-radius: 50%;
+    }
+
+    .v2chip.lab {
+        background: rgba(196,134,24,.10);
+        border-color: var(--v2-amber);
+        color: var(--v2-amber);
+    }
+
+    .v2chip.lab .v2chip-dot {
+        background: var(--v2-amber);
+    }
+
+    .v2chip.case {
+        background: rgba(60,99,193,.10);
+        border-color: var(--v2-blue);
+        color: var(--v2-blue);
+    }
+
+    .v2chip.case .v2chip-dot {
+        background: var(--v2-blue);
+    }
+
+    .v2chip.contact {
+        background: rgba(122,85,199,.10);
+        border-color: var(--v2-violet);
+        color: var(--v2-violet);
+    }
+
+    .v2chip.contact .v2chip-dot {
+        background: var(--v2-violet);
+    }
+
+    .v2chip.duplicate {
+        background: rgba(200,74,42,.10);
+        border-color: var(--v2-red);
+        color: var(--v2-red);
+    }
+
+    .v2chip.duplicate .v2chip-dot {
+        background: var(--v2-red);
+    }
+
+    .v2chip.patient {
+        background: var(--v2-signal-glow);
+        border-color: var(--v2-signal);
+        color: var(--v2-signal);
+    }
+
+    .v2chip.patient .v2chip-dot {
+        background: var(--v2-signal);
+    }
+
+    .v2chip.neutral {
+        background: rgba(124,138,130,.10);
+        border-color: var(--v2-fog);
+        color: var(--v2-fog-2);
+    }
+
+    .v2chip.neutral .v2chip-dot {
+        background: var(--v2-fog);
+    }
+
+    .v2chip.disease {
+        background: rgba(200,74,42,.10);
+        border-color: var(--v2-red);
+        color: var(--v2-red);
+        font-weight: 600;
+    }
+
+    .v2chip.disease .v2chip-dot {
+        background: var(--v2-red);
+    }
+
+    .v2chip.case-chip {
+        background: rgba(60,99,193,.15);
+        border-color: var(--v2-blue);
+        color: var(--v2-blue);
+        text-decoration: none;
+        cursor: pointer;
+        transition: all 0.15s ease;
+        font-weight: 600;
+    }
+
+    .v2chip.case-chip:hover {
+        background: rgba(60,99,193,.25);
+        transform: translateY(-1px);
+    }
+
+    .v2chip.case-chip .v2chip-dot {
+        background: var(--v2-blue);
+    }
+
+    .case-id-link-v2 {
+        text-decoration: none;
+        color: inherit;
+        transition: color 0.15s ease;
+    }
+
+    .case-id-link-v2:hover {
+        color: var(--v2-signal);
+    }
+
+    .case-id-link-v2 .cs {
+        color: var(--v2-signal);
+        font-weight: 600;
+    }
+
+    .case-id-link-v2:hover .cs {
+        text-decoration: underline;
+    }
+
+    .v2chip.priority-high {
+        background: rgba(200,74,42,.10);
+        border-color: var(--v2-red);
+        color: var(--v2-red);
+    }
+
+    .v2chip.priority-high .v2chip-dot {
+        background: var(--v2-red);
+    }
+
+    .v2chip.priority-medium {
+        background: rgba(196,134,24,.10);
+        border-color: var(--v2-amber);
+        color: var(--v2-amber);
+    }
+
+    .v2chip.priority-medium .v2chip-dot {
+        background: var(--v2-amber);
+    }
+
+    /* Buttons */
+    .btn-v2 {
+        font-family: 'Geist', sans-serif;
+        font-size: 12px;
+        font-weight: 500;
+        padding: 9px 14px;
+        border-radius: 6px;
+        border: none;
+        cursor: pointer;
+        transition: all 0.15s ease;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        text-decoration: none;
+    }
+
+    .btn-v2.primary {
+        background: var(--v2-signal-dk);
+        color: white;
+        font-weight: 600;
+        border: 1px solid var(--v2-signal-dk);
+    }
+
+    .btn-v2.primary:hover {
+        background: #0a5a3e;
+        transform: translateY(-1px);
+        box-shadow: 0 2px 8px rgba(14,117,81,.25);
+        color: white;
+    }
+
+    .btn-v2.ghost {
+        background: transparent;
+        border: 1px solid var(--v2-line);
+        color: var(--v2-ink-2);
+    }
+
+    .btn-v2.ghost:hover {
+        background: var(--v2-bg-2);
+        color: var(--v2-ink-2);
+    }
+
+    .btn-v2.soft {
+        background: var(--v2-bg-2);
+        border: 1px solid var(--v2-line);
+        color: var(--v2-ink-2);
+    }
+
+    .btn-v2.soft:hover {
+        background: var(--v2-bg-3);
+        color: var(--v2-ink-2);
+    }
+
+    .btn-v2.danger {
+        background: transparent;
+        border: 1px solid var(--v2-line);
+        color: var(--v2-red);
+    }
+
+    .btn-v2.danger:hover {
+        background: rgba(200,74,42,.05);
+        border-color: var(--v2-red);
+        color: var(--v2-red);
+    }
+
+    /* Empty State */
+    .empty-state-v2 {
+        text-align: center;
+        padding: 80px 40px;
+        color: var(--v2-fog);
+    }
+
+    .empty-state-v2 h3 {
+        font-family: 'Fraunces', serif;
+        font-weight: 300;
+        font-size: 28px;
+        letter-spacing: -0.02em;
+        margin-bottom: 12px;
+        color: var(--v2-ink-2);
+    }
+
+    .empty-state-v2 p {
+        font-size: 14px;
+        margin-bottom: 24px;
+    }
+
+    /* Task Form */
+    .task-form-v2 {
+        display: none;
+        margin-top: 16px;
+        padding: 16px;
+        background: var(--v2-bg-2);
+        border: 1px solid var(--v2-line);
+        border-radius: 8px;
+    }
+
+    .task-form-v2.show {
+        display: block;
+    }
+
+    .form-group-v2 {
+        margin-bottom: 14px;
+    }
+
+    .form-group-v2 label {
+        font-family: 'Geist Mono', monospace;
+        font-size: 10px;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+        color: var(--v2-fog);
+        margin-bottom: 6px;
+        display: block;
+    }
+
+    .form-group-v2 input,
+    .form-group-v2 textarea {
+        width: 100%;
+        background: white;
+        border: 1px solid var(--v2-line);
+        border-radius: 6px;
+        padding: 9px 12px;
+        font-family: 'Geist', sans-serif;
+        font-size: 13px;
+        color: var(--v2-ink-2);
+    }
+
+    .form-group-v2 input:focus,
+    .form-group-v2 textarea:focus {
+        outline: none;
+        border-color: var(--v2-signal);
+        box-shadow: 0 0 0 2px var(--v2-signal-glow);
+    }
+</style>
+
+<!-- Page Band -->
+<div class="page-band-v2">
+    <div class="breadcrumb-v2">
+        Data / <span class="current">Review inbox</span>
+    </div>
+    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px;">
+        <h1 class="page-title-v2">Review <em>inbox</em>.</h1>
+        <div style="display: flex; gap: 12px; align-items: center;">
+            <form method="get" style="display: flex; gap: 12px; align-items: center;">
+                <select name="TimeRange" class="form-select form-select-sm" onchange="this.form.submit()" style="width: auto;">
+                    <option value="24h" selected="@(Model.TimeRange == "24h")">24h</option>
+                    <option value="48h" selected="@(Model.TimeRange == "48h")">48h</option>
+                    <option value="7d" selected="@(Model.TimeRange == "7d")">7d</option>
+                    <option value="30d" selected="@(Model.TimeRange == "30d")">30d</option>
+                </select>
+                <div class="btn-group btn-group-sm" role="group">
+                    <input type="radio" class="btn-check" name="Status" id="statusPending" value="Pending" checked="@(Model.Status == "Pending")" onchange="this.form.submit()" />
+                    <label class="btn btn-outline-primary" for="statusPending">
+                        Pending <span class="badge bg-primary ms-1">@Model.PendingCount</span>
+                    </label>
+                    <input type="radio" class="btn-check" name="Status" id="statusAll" value="All" checked="@(string.IsNullOrEmpty(Model.Status) || Model.Status == "All")" onchange="this.form.submit()" />
+                    <label class="btn btn-outline-primary" for="statusAll">
+                        All <span class="badge bg-secondary ms-1">@Model.ReviewQueue.TotalCount</span>
+                    </label>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Split Region -->
+<div class="split-region-v2">
+    <!-- List Panel -->
+    <div class="list-panel-v2">
+        <div class="list-header-v2">
+            <span class="list-header-label">
+                <span class="list-header-count">@Model.PendingCount</span> pending
+            </span>
+        </div>
+        <div class="list-body-v2" id="listBody">
+            @if (!Model.ReviewQueue.Items.Any())
+            {
+                <div class="empty-state-v2">
+                    <h3>Inbox zero</h3>
+                    <p>Nothing awaiting review</p>
+                </div>
+            }
+            else
+            {
+                var itemsByDay = Model.ReviewQueue.Items
+                    .Where(i => Model.Status == "Pending" ? i.ReviewStatus == "Pending" : true)
+                    .GroupBy(i => i.CreatedDate.Date)
+                    .OrderByDescending(g => g.Key);
+
+                foreach (var dayGroup in itemsByDay)
+                {
+                    var dayLabel = dayGroup.Key == DateTime.UtcNow.Date ? "Today" :
+                                 dayGroup.Key == DateTime.UtcNow.Date.AddDays(-1) ? "Yesterday" :
+                                 dayGroup.Key.ToString("dd MMM");
+
+                    <div class="day-group-header-v2">
+                        @dayLabel · @dayGroup.Count()
+                    </div>
+
+                    foreach (var item in dayGroup.OrderByDescending(i => i.Priority).ThenByDescending(i => i.CreatedDate))
+                    {
+                        var priorityClass = item.Priority >= 3 ? "high" : item.Priority == 2 ? "medium" : "low";
+                        var isSelected = Model.SelectedItemId == item.Id;
+
+                        <div class="li-v2 @(isSelected ? "selected" : "")" data-item-id="@item.Id" onclick="selectItem(@item.Id)">
+                            <div class="pri-v2 @priorityClass"></div>
+                            <div>
+                                <div class="nm-v2">
+                                    @item.PatientName
+                                    @if (!string.IsNullOrEmpty(item.DiseaseName))
+                                    {
+                                        <span class="dz-v2">@item.DiseaseName</span>
+                                    }
+                                </div>
+                                <div class="ol-v2">
+                                    @if (!string.IsNullOrEmpty(item.CaseFriendlyId))
+                                    {
+                                        <a href="/Cases/Details?id=@item.CaseId" class="case-id-link-v2" title="View case details" onclick="event.stopPropagation();">
+                                            <span class="cs">@item.CaseFriendlyId</span>
+                                        </a>
+                                        <text> · </text>
+                                    }
+                                    @GetChangeSummary(item)
+                                    @if (item.VisualGroupCount > 1)
+                                    {
+                                        <text> · +@(item.VisualGroupCount - 1)</text>
+                                    }
+                                </div>
+                            </div>
+                            <div class="rt-v2">
+                                <span class="rt-time-v2">@GetRelativeTime(item.CreatedDate)</span>
+                                @{
+                                    var chipClass = GetEntityChipClass(item.EntityType, item.ChangeType);
+                                }
+                                <span class="v2chip @chipClass">
+                                    <span class="v2chip-dot"></span>
+                                    @GetEntityLabel(item.EntityType, item.ChangeType)
+                                </span>
+                            </div>
+                        </div>
+                    }
+                }
+            }
+        </div>
+    </div>
+
+    <!-- Detail Panel -->
+    <div class="detail-panel-v2">
+        @if (Model.SelectedItem != null)
+        {
+            var item = Model.SelectedItem;
+            var entityChipClass = GetEntityChipClass(item.EntityType, item.ChangeType);
+            var priorityChipClass = item.Priority >= 3 ? "priority-high" : item.Priority == 2 ? "priority-medium" : "";
+
+            <div class="dh-v2">
+                <div class="dh-chips-v2">
+                    @if (item.CaseId.HasValue && !string.IsNullOrEmpty(item.CaseFriendlyId))
+                    {
+                        <a href="/Cases/Details?id=@item.CaseId" class="v2chip case-chip" title="View case details">
+                            <span class="v2chip-dot"></span>
+                            Case @item.CaseFriendlyId
+                        </a>
+                    }
+                    <span class="v2chip @entityChipClass">
+                        <span class="v2chip-dot"></span>
+                        @GetEntityLabel(item.EntityType, item.ChangeType)
+                    </span>
+                    @if (!string.IsNullOrEmpty(item.DiseaseName))
+                    {
+                        <span class="v2chip disease">
+                            <span class="v2chip-dot"></span>
+                            @item.DiseaseName
+                        </span>
+                    }
+                    @if (!string.IsNullOrEmpty(priorityChipClass))
+                    {
+                        <span class="v2chip @priorityChipClass">
+                            <span class="v2chip-dot"></span>
+                            @(item.Priority >= 3 ? "High Priority" : "Medium Priority")
+                        </span>
+                    }
+                </div>
+                <h2 class="dh-name-v2">
+                    @if (item.PatientId.HasValue)
+                    {
+                        <a href="/Patients/Details?id=@item.PatientId" class="patient-link-v2" title="View patient details">@item.PatientName</a>
+                    }
+                    else
+                    {
+                        @item.PatientName
+                    }
+                </h2>
+                <div class="dm-v2">
+                    @if (!string.IsNullOrEmpty(item.PatientSexAtBirth) && item.PatientAge.HasValue)
+                    {
+                        <strong>@item.PatientSexAtBirth · @(item.PatientAge)y</strong>
+                        <text> · </text>
+                    }
+                    @if (item.PatientDateOfBirth.HasValue)
+                    {
+                        <text>DOB @item.PatientDateOfBirth.Value.ToString("dd MMM yyyy")</text>
+                    }
+                    @if (!string.IsNullOrEmpty(item.PatientPhone))
+                    {
+                        <text> · @item.PatientPhone</text>
+                    }
+                    @{
+                        var addressParts = new List<string>();
+                        if (!string.IsNullOrEmpty(item.PatientAddressLine)) addressParts.Add(item.PatientAddressLine);
+                        if (!string.IsNullOrEmpty(item.PatientCity)) addressParts.Add(item.PatientCity);
+                        if (!string.IsNullOrEmpty(item.PatientState)) addressParts.Add(item.PatientState);
+                        if (!string.IsNullOrEmpty(item.PatientPostalCode)) addressParts.Add(item.PatientPostalCode);
+                        var fullAddress = string.Join(", ", addressParts);
+                    }
+                    @if (!string.IsNullOrEmpty(fullAddress))
+                    {
+                        <text> · @fullAddress</text>
+                    }
+                </div>
+            </div>
+
+            <div class="db-v2">
+                @* Proposed Changes Section *@
+                @if (item.VisualGroupMembers?.Any() == true || !string.IsNullOrEmpty(item.ChangeSnapshot))
+                {
+                    <div class="sec-t-v2">
+                        Proposed changes
+                        @if (item.VisualGroupCount > 1)
+                        {
+                            <span class="n-v2">@item.VisualGroupCount grouped</span>
+                        }
+                    </div>
+                    <div class="difflist-v2">
+                        @if (item.VisualGroupMembers?.Any() == true)
+                        {
+                            foreach (var member in item.VisualGroupMembers.OrderBy(m => m.CreatedDate))
+                            {
+                                <div class="diffrow-v2">
+                                    <div class="fl-v2">@(member.TriggerField ?? GetEntityLabel(member.EntityType, member.ChangeType))</div>
+                                    <div class="chg-v2">
+                                        @Html.Raw(member.ChangeSummary)
+                                    </div>
+                                    <div class="src-v2">HL7</div>
+                                </div>
+                            }
+                        }
+                        else if (!string.IsNullOrEmpty(item.ChangeSnapshot))
+                        {
+                            try
+                            {
+                                var changes = System.Text.Json.JsonSerializer.Deserialize<System.Collections.Generic.Dictionary<string, System.Text.Json.JsonElement>>(item.ChangeSnapshot);
+                                if (changes != null)
+                                {
+                                    var oldVal = "-";
+                                    var newVal = "-";
+
+                                    // Try to get display values (human-readable)
+                                    if (changes.ContainsKey("oldValueDisplay") && changes["oldValueDisplay"].ValueKind != System.Text.Json.JsonValueKind.Null)
+                                    {
+                                        oldVal = changes["oldValueDisplay"].GetString() ?? "-";
+                                    }
+                                    else if (changes.ContainsKey("oldValue") && changes["oldValue"].ValueKind != System.Text.Json.JsonValueKind.Null)
+                                    {
+                                        oldVal = changes["oldValue"].ToString() ?? "-";
+                                    }
+
+                                    if (changes.ContainsKey("newValueDisplay") && changes["newValueDisplay"].ValueKind != System.Text.Json.JsonValueKind.Null)
+                                    {
+                                        newVal = changes["newValueDisplay"].GetString() ?? "-";
+                                    }
+                                    else if (changes.ContainsKey("newValue") && changes["newValue"].ValueKind != System.Text.Json.JsonValueKind.Null)
+                                    {
+                                        newVal = changes["newValue"].ToString() ?? "-";
+                                    }
+
+                                    var fieldName = !string.IsNullOrEmpty(item.TriggerField) ? GetFieldDisplayName(item.TriggerField) : "Value";
+
+                                    <div class="diffrow-v2">
+                                        <div class="fl-v2">@fieldName</div>
+                                        <div class="chg-v2">
+                                            @if (oldVal != "-")
+                                            {
+                                                <span class="old">@oldVal</span>
+                                                <text> → </text>
+                                            }
+                                            <span class="new">@newVal</span>
+                                        </div>
+                                        <div class="src-v2">System</div>
+                                    </div>
+                                }
+                            }
+                            catch
+                            {
+                                <div class="diffrow-v2">
+                                    <div class="fl-v2">Change</div>
+                                    <div class="chg-v2">
+                                        <span class="new">@GetChangeSummary(item)</span>
+                                    </div>
+                                    <div class="src-v2">System</div>
+                                </div>
+                            }
+                        }
+                    </div>
+                }
+
+                @* Case Context Section *@
+                @if (item.CaseId.HasValue)
+                {
+                    <div class="sec-t-v2">Case context</div>
+                    <div class="ctxgrid-v2">
+                        <div class="ctxcell-v2">
+                            <div class="ctxkey-v2">Case</div>
+                            <div class="ctxval-v2 sig">
+                                @if (item.CaseId.HasValue)
+                                {
+                                    <a href="/Cases/Details?id=@item.CaseId" class="case-link-v2" title="View case details">@item.CaseFriendlyId</a>
+                                }
+                                else
+                                {
+                                    @item.CaseFriendlyId
+                                }
+                            </div>
+                        </div>
+                        <div class="ctxcell-v2">
+                            <div class="ctxkey-v2">Source</div>
+                            <div class="ctxval-v2">HL7 · Feed</div>
+                        </div>
+                        <div class="ctxcell-v2">
+                            <div class="ctxkey-v2">Reported</div>
+                            <div class="ctxval-v2">@item.CreatedDate.ToString("dd MMM yyyy")</div>
+                        </div>
+                        <div class="ctxcell-v2">
+                            <div class="ctxkey-v2">Priority</div>
+                            <div class="ctxval-v2">@(item.Priority >= 3 ? "High" : item.Priority == 2 ? "Medium" : "Low")</div>
+                        </div>
+                    </div>
+                }
+
+                @* Laboratory Results Preview Section *@
+                @if (Model.SelectedItemLabResults.Any())
+                {
+                    <div class="sec-t-v2">Laboratory results <span class="n-v2">@Model.SelectedItemLabResults.Count recent</span></div>
+                    <div class="lab-preview-v2">
+                        @foreach (var lab in Model.SelectedItemLabResults)
+                        {
+                            <div class="lab-card-v2">
+                                <div class="lab-header-v2">
+                                    <div class="lab-disease-v2">
+                                        @if (lab.TestedDisease != null)
+                                        {
+                                            <span class="v2chip disease small">
+                                                <span class="v2chip-dot"></span>
+                                                @lab.TestedDisease.Name
+                                            </span>
+                                        }
+                                    </div>
+                                    <div class="lab-date-v2">
+                                        @if (lab.ResultDate.HasValue)
+                                        {
+                                            <text>@lab.ResultDate.Value.ToString("dd MMM yyyy")</text>
+                                        }
+                                        else if (lab.SpecimenCollectionDate.HasValue)
+                                        {
+                                            <text>Collected @lab.SpecimenCollectionDate.Value.ToString("dd MMM yyyy")</text>
+                                        }
+                                    </div>
+                                </div>
+                                @if (lab.Markers.Any())
+                                                {
+                                                    <div class="lab-markers-v2">
+                                                        @foreach (var marker in lab.Markers.Take(3))
+                                                        {
+                                                            var resultClass = marker.InterpretationFlag?.ToLower() switch
+                                                            {
+                                                                "pos" or "positive" or "h" => "positive",
+                                                                "neg" or "negative" or "n" => "negative",
+                                                                "ind" or "indeterminate" => "indeterminate",
+                                                                _ => "unknown"
+                                                            };
+
+                                                            var displayValue = marker.TestResult?.Name 
+                                                                ?? marker.QualitativeResultText 
+                                                                ?? (marker.QuantitativeValue.HasValue ? $"{marker.QuantitativeValue} {marker.QuantitativeUnit}" : null)
+                                                                ?? "-";
+
+                                                            <div class="marker-row-v2">
+                                                                <span class="marker-name-v2">@(marker.Pathogen?.Name ?? marker.TestCode ?? "Test")</span>
+                                                                <span class="marker-result-v2 @resultClass">@displayValue</span>
+                                                            </div>
+                                                        }
+                                                        @if (lab.Markers.Count > 3)
+                                                        {
+                                                            <div class="marker-more-v2">+ @(lab.Markers.Count - 3) more</div>
+                                                        }
+                                                    </div>
+                                                }
+                                else if (lab.SpecimenType != null)
+                                {
+                                    <div class="lab-specimen-v2">@lab.SpecimenType.Name</div>
+                                }
+                            </div>
+                        }
+                    </div>
+                }
+
+                @* Review Note Section *@
+                <div class="sec-t-v2">Review note</div>
+                <textarea class="ta-v2" id="reviewNote" placeholder="Add notes about your review decision..."></textarea>
+
+                @* Task Creation Form *@
+                <div class="task-form-v2" id="taskForm">
+                    <div class="form-group-v2">
+                        <label for="taskTitle">Task Title</label>
+                        <input type="text" id="taskTitle" placeholder="Enter task title..." />
+                    </div>
+                    <div class="form-group-v2">
+                        <label for="taskDescription">Task Description</label>
+                        <textarea id="taskDescription" rows="3" placeholder="Enter task description..."></textarea>
+                    </div>
+                    <div style="display: flex; gap: 10px;">
+                        <button type="button" class="btn-v2 primary" onclick="submitTask()">
+                            <i class="bi bi-check-lg"></i>
+                            Create Task
+                        </button>
+                        <button type="button" class="btn-v2 ghost" onclick="cancelTask()">
+                            Cancel
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="actbar-v2">
+                @{
+                    // Determine if dismiss should be shown
+                    // Don't show dismiss for changes that are already applied and can't be rolled back
+                    var showDismiss = !(
+                        (item.EntityType == "CaseChange" && (item.ChangeType == "FieldChanged" || item.ChangeType == "Updated")) ||
+                        (item.EntityType == "LabResult" && item.ChangeType == "New") ||
+                        (item.ChangeType == "Updated")
+                    );
+                }
+
+                @if (showDismiss)
+                {
+                    <form method="post" asp-page-handler="Dismiss" asp-route-id="@item.Id" style="display: inline; margin: 0;">
+                        <button type="submit" class="btn-v2 danger">
+                            <i class="bi bi-x-lg"></i>
+                            Dismiss
+                        </button>
+                    </form>
+                }
+                <button type="button" class="btn-v2 soft" onclick="toggleTaskForm()">
+                    <i class="bi bi-plus-lg"></i>
+                    Create task
+                </button>
+                <div class="spacer"></div>
+                @if (item.ChangeType == "PotentialDuplicate")
+                {
+                    <form method="post" asp-page-handler="KeepAsNew" asp-route-id="@item.Id" style="display: inline; margin: 0;">
+                        <button type="submit" class="btn-v2 soft">
+                            Keep as new
+                        </button>
+                    </form>
+                    <a href="/DataInbox/Review?id=@item.Id" class="btn-v2 primary">
+                        Review duplicate
+                    </a>
+                }
+                else
+                {
+                    <form method="post" asp-page-handler="Confirm" asp-route-id="@item.Id" style="display: inline; margin: 0;">
+                        <button type="submit" class="btn-v2 primary">
+                            <i class="bi bi-check-lg"></i>
+                            Confirm changes
+                        </button>
+                    </form>
+                }
+            </div>
+        }
+        else
+        {
+            <div class="empty-state-v2">
+                <h3>Select an item</h3>
+                <p>Choose a review item from the list to see details</p>
+            </div>
+        }
+    </div>
+</div>
+
+@section Scripts {
+<script>
+    function selectItem(itemId) {
+        const params = new URLSearchParams(window.location.search);
+        params.set('selectedId', itemId);
+        window.location.href = '/DataInbox/InboxV2?' + params.toString();
+    }
+
+    function toggleTaskForm() {
+        const form = document.getElementById('taskForm');
+        form.classList.toggle('show');
+    }
+
+    function cancelTask() {
+        const form = document.getElementById('taskForm');
+        form.classList.remove('show');
+        document.getElementById('taskTitle').value = '';
+        document.getElementById('taskDescription').value = '';
+    }
+
+    function submitTask() {
+        const title = document.getElementById('taskTitle').value;
+        const description = document.getElementById('taskDescription').value;
+
+        // Get the selected item ID from the data attribute
+        const selectedItem = document.querySelector('.li-v2.selected');
+        if (!selectedItem) {
+            alert('No item selected');
+            return;
+        }
+        const itemId = selectedItem.getAttribute('data-item-id');
+
+        if (!title) {
+            alert('Please enter a task title');
+            return;
+        }
+
+        const form = new FormData();
+        form.append('id', itemId);
+        form.append('taskTitle', title);
+        form.append('taskDescription', description);
+        form.append('__RequestVerificationToken', document.querySelector('input[name="__RequestVerificationToken"]').value);
+
+        fetch('/DataInbox/InboxV2?handler=CreateTask', {
+            method: 'POST',
+            body: form
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                window.location.reload();
+            } else {
+                alert('Failed to create task');
+            }
+        })
+        .catch(err => {
+            console.error(err);
+            alert('Error creating task');
+        });
+    }
+
+    // Keyboard navigation
+    document.addEventListener('keydown', function(e) {
+        const items = document.querySelectorAll('.li-v2');
+        const currentIndex = Array.from(items).findIndex(item => item.classList.contains('selected'));
+
+        if (e.key === 'ArrowDown' && currentIndex < items.length - 1) {
+            e.preventDefault();
+            const nextItem = items[currentIndex + 1];
+            const nextId = nextItem.getAttribute('data-item-id');
+            selectItem(nextId);
+        } else if (e.key === 'ArrowUp' && currentIndex > 0) {
+            e.preventDefault();
+            const prevItem = items[currentIndex - 1];
+            const prevId = prevItem.getAttribute('data-item-id');
+            selectItem(prevId);
+        }
+    });
+</script>
+@Html.AntiForgeryToken()
+}
+
+@functions {
+    private string GetChangeSummary(ReviewQueueItem? item)
+    {
+        if (item == null) return "No data";
+
+        if (item.ChangeType == "PotentialDuplicate")
+        {
+            return "Possible duplicate · 92%";
+        }
+        else if (item.ChangeType == "PendingCreation")
+        {
+            return "New contact pending approval";
+        }
+        else if (!string.IsNullOrEmpty(item.TriggerField))
+        {
+            var fieldName = item.TriggerField switch
+            {
+                "DiseaseId" => "Disease",
+                "ConfirmationStatusId" => "Status",
+                _ => item.TriggerField
+            };
+            return $"{fieldName} changed";
+        }
+        return "Data update";
+    }
+
+    private string GetDisplayValue(object? value, string key)
+    {
+        if (value == null) return "-";
+
+        try
+        {
+            // Try to parse as JSON object with old/new/oldDisplay/newDisplay
+            var jsonString = value.ToString();
+            if (string.IsNullOrEmpty(jsonString)) return "-";
+
+            var obj = System.Text.Json.JsonSerializer.Deserialize<System.Collections.Generic.Dictionary<string, System.Text.Json.JsonElement>>(jsonString);
+
+            if (obj != null)
+            {
+                // Try display value first (human-friendly lookup values)
+                var displayKey = key + "ValueDisplay";
+                if (obj.ContainsKey(displayKey) && obj[displayKey].ValueKind != System.Text.Json.JsonValueKind.Null)
+                {
+                    return obj[displayKey].GetString() ?? "-";
+                }
+
+                // Fallback to raw value
+                var valueKey = key + "Value";
+                if (obj.ContainsKey(valueKey) && obj[valueKey].ValueKind != System.Text.Json.JsonValueKind.Null)
+                {
+                    return obj[valueKey].ToString() ?? "-";
+                }
+            }
+
+            return jsonString;
+        }
+        catch
+        {
+            return value.ToString() ?? "-";
+        }
+    }
+
+    private string GetFieldDisplayName(string fieldName)
+    {
+        return fieldName switch
+        {
+            "DiseaseId" => "Disease",
+            "ConfirmationStatusId" => "Confirmation Status",
+            "InvestigationStatusId" => "Investigation Status",
+            "OutbreakId" => "Outbreak",
+            "JurisdictionId" => "Jurisdiction",
+            "OnsetDate" => "Symptom Onset Date",
+            "DiagnosisDate" => "Diagnosis Date",
+            "ExposureDate" => "Exposure Date",
+            "ExposureLocation" => "Exposure Location",
+            "ExposureType" => "Type of Exposure",
+            "ExposureSource" => "Exposure Source",
+            "SpecimenCollectionDate" => "Specimen Collection Date",
+            "ResultDate" => "Result Date",
+            "TestResult" => "Test Result",
+            "TestType" => "Test Type",
+            "LabName" => "Laboratory Name",
+            _ => System.Text.RegularExpressions.Regex.Replace(fieldName, "(\\B[A-Z])", " $1")
+        };
+    }
+
+    private string GetRelativeTime(DateTime date)
+    {
+        var span = DateTime.UtcNow - date;
+        if (span.TotalMinutes < 60)
+            return $"{(int)span.TotalMinutes}m";
+        if (span.TotalHours < 24)
+            return $"{(int)span.TotalHours}h";
+        if (span.TotalDays < 7)
+            return $"{(int)span.TotalDays}d";
+        return date.ToString("dd MMM");
+    }
+
+    private string GetEntityChipClass(string? entityType, string? changeType = null)
+    {
+        if (changeType == "PotentialDuplicate") return "duplicate";
+        if (string.IsNullOrEmpty(entityType)) return "neutral";
+
+        return entityType switch
+        {
+            "LabResult" => "lab",
+            "CaseChange" => "case",
+            "Contact" => "contact",
+            "NewPatient" => "patient",
+            "PatientUpdate" => "patient",
+            _ => "neutral"
+        };
+    }
+
+    private string GetEntityLabel(string? entityType, string? changeType = null)
+    {
+        if (changeType == "PotentialDuplicate") return "Duplicate";
+        if (changeType == "PendingCreation") return "New Contact";
+        if (string.IsNullOrEmpty(entityType)) return "Unknown";
+
+        return entityType switch
+        {
+            "LabResult" => "Lab Result",
+            "CaseChange" => "Case Change",
+            "Contact" => "Contact",
+            "NewPatient" => "New Patient",
+            "PatientUpdate" => "Patient",
+            _ => entityType
+        };
+    }
+}

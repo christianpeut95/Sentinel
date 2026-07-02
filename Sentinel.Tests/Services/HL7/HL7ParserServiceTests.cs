@@ -28,6 +28,17 @@ OBX|3|ST|86780^SYPHILIS AB^LN||POSITIVE||NEGATIVE|A|||F|||20240429113000";
 
     private const string InvalidHL7Message = "This is not a valid HL7 message";
 
+    // Sample message with OBX segments after SPM (similar to user's uploaded message)
+    private const string SampleHL7WithOBXAfterSPM = @"MSH|^~\&|LAB|MAIN HOSPITAL|SENTINEL|HOSPITAL|20260625221534+0930||ORU^R01|MSG91BC7F2E|P|2.5.1
+PID|1||73498216^^^MAINHOSP^MR~LAB662904^^^LAB^PI||NGUYEN^THOMAS^J||19841114|M|||42 RIVERBANK AVE^^NORWOOD^SA^5067^AUS||0412345678^PRN^CP
+PV1|1|O|ED^^^MAIN HOSPITAL
+ORC|RE||ACC2026062561932|||||||202606252112|||1660236056^ROBINSON^RICHARD
+OBR|1||ACC2026062561932|RESPPCR^Respiratory virus PCR panel^L|||202606252112|||||||202606252112||1660236056^ROBINSON^RICHARD
+SPM|1|SPEC20260625002||258500001^Nasopharyngeal swab^SCT
+OBX|1|CWE|92142-9^Influenza A virus^LN||260373001^Detected^SCT||||||F|||202606252215|||NAAT^Nucleic acid amplification test^L
+OBX|2|CWE|92141-1^Influenza B virus^LN||260415000^Not detected^SCT||||||F|||202606252215|||NAAT^Nucleic acid amplification test^L
+OBX|3|CWE|94500-6^SARS-CoV-2 RNA^LN||260415000^Not detected^SCT||||||F|||202606252215|||NAAT^Nucleic acid amplification test^L";
+
     public HL7ParserServiceTests()
     {
         var options = new DbContextOptionsBuilder<ApplicationDbContext>()
@@ -325,6 +336,42 @@ OBX|3|ST|86780^SYPHILIS AB^LN||POSITIVE||NEGATIVE|A|||F|||20240429113000";
 
         // Assert
         Assert.Null(value);
+    }
+
+    [Fact]
+    public async Task ParseMessagePreviewAsync_OBXAfterSPM_ShouldExtractObservations()
+    {
+        // Arrange - Message with OBX segments appearing after SPM (specimen) segment
+        // This tests the raw OBX fallback parser when NHapi's structured parsing doesn't expose them
+
+        // Act
+        var result = await _service.ParseMessagePreviewAsync(SampleHL7WithOBXAfterSPM);
+
+        // Assert
+        Assert.True(result.IsValid, "Message should parse successfully");
+        Assert.NotEmpty(result.PatientData);
+        Assert.NotEmpty(result.OrderData);
+
+        // The key assertion: verify that OBX observations are extracted
+        Assert.NotEmpty(result.ResultData);
+        Assert.True(result.ResultData.Count >= 3, $"Expected at least 3 OBX results but got {result.ResultData.Count}");
+
+        // Verify specific test results
+        var fluAResult = result.ResultData.FirstOrDefault(r => 
+            r.GetValueOrDefault("TestName", "").Contains("Influenza A"));
+        Assert.NotNull(fluAResult);
+        Assert.Equal("Detected", fluAResult.GetValueOrDefault("Result", ""));
+        Assert.Contains("Nucleic acid amplification test", fluAResult.GetValueOrDefault("TestMethod", ""));
+
+        var fluBResult = result.ResultData.FirstOrDefault(r => 
+            r.GetValueOrDefault("TestName", "").Contains("Influenza B"));
+        Assert.NotNull(fluBResult);
+        Assert.Equal("Not detected", fluBResult.GetValueOrDefault("Result", ""));
+
+        var covidResult = result.ResultData.FirstOrDefault(r => 
+            r.GetValueOrDefault("TestName", "").Contains("SARS-CoV-2"));
+        Assert.NotNull(covidResult);
+        Assert.Equal("Not detected", covidResult.GetValueOrDefault("Result", ""));
     }
 
     public void Dispose()

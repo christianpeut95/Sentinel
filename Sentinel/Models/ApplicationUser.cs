@@ -34,5 +34,9 @@ namespace Sentinel.Models
 
         [Display(Name = "Current Task Capacity")]
         public int CurrentTaskCapacity { get; set; } = 10;
+
+        [Display(Name = "Dashboard Configuration")]
+        [DataType(DataType.MultilineText)]
+        public string? DashboardConfigJson { get; set; }
     }
 }

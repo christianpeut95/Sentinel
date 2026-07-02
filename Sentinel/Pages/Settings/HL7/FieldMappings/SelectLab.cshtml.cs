@@ -9,10 +9,12 @@ namespace Sentinel.Pages.Settings.HL7.FieldMappings
     public class SelectLabModel : PageModel
     {
         private readonly ApplicationDbContext _context;
+        private readonly ILogger<SelectLabModel> _logger;
 
-        public SelectLabModel(ApplicationDbContext context)
+        public SelectLabModel(ApplicationDbContext context, ILogger<SelectLabModel> logger)
         {
             _context = context;
+            _logger = logger;
         }
 
         public List<LabConfigurationCard> Configurations { get; set; } = new();
@@ -27,15 +29,41 @@ namespace Sentinel.Pages.Settings.HL7.FieldMappings
 
             foreach (var config in configs)
             {
+                // First, get ALL mappings (not just active ones) to diagnose the issue
+                var allMappings = await _context.HL7FieldMappings
+                    .Where(m => m.ConfigurationId == config.Id)
+                    .ToListAsync();
+
+                _logger.LogInformation("Config {ConfigId} ({ConfigName}): Found {TotalMappings} total mappings in database",
+                    config.Id, config.ConfigurationName, allMappings.Count);
+
+                foreach (var mapping in allMappings)
+                {
+                    _logger.LogInformation("  - ALL Mapping: {Entity}.{Property} -> {FieldPath} (IsActive={IsActive}, FieldName={FieldName})",
+                        mapping.TargetEntity, mapping.TargetProperty, mapping.FieldPath, mapping.IsActive, mapping.FieldName);
+                }
+
                 var mappings = await _context.HL7FieldMappings
                     .Where(m => m.ConfigurationId == config.Id && m.IsActive)
                     .ToListAsync();
+
+                _logger.LogInformation("Config {ConfigId} ({ConfigName}): Found {MappingCount} active mappings, IsActive={IsActive}",
+                    config.Id, config.ConfigurationName, mappings.Count, config.IsActive);
+
+                foreach (var mapping in mappings)
+                {
+                    _logger.LogInformation("  - ACTIVE Mapping: {Entity}.{Property} -> {FieldPath} (IsActive={IsActive})",
+                        mapping.TargetEntity, mapping.TargetProperty, mapping.FieldPath, mapping.IsActive);
+                }
 
                 var requiredFieldCount = GetRequiredFieldKeys().Count;
                 var mappedRequiredCount = mappings.Count(m => 
                     !string.IsNullOrEmpty(m.FieldPath) && 
                     m.FieldPath != "SKIPPED" &&
                     IsRequiredField(m.TargetEntity, m.TargetProperty));
+
+                _logger.LogInformation("Config {ConfigId}: {MappedCount} of {RequiredCount} required fields mapped",
+                    config.Id, mappedRequiredCount, requiredFieldCount);
 
                 string status;
                 string statusMessage;
@@ -55,6 +83,9 @@ namespace Sentinel.Pages.Settings.HL7.FieldMappings
                     status = "NotConfigured";
                     statusMessage = "Not yet configured. Start by uploading a sample message.";
                 }
+
+                _logger.LogInformation("Config {ConfigId} final status: {Status} - {Message}",
+                    config.Id, status, statusMessage);
 
                 // Get message count (if tracking is implemented)
                 var messageCount = 0; // TODO: Link to actual message processing stats
@@ -79,6 +110,7 @@ namespace Sentinel.Pages.Settings.HL7.FieldMappings
                 "patient_firstname",
                 "patient_lastname",
                 "patient_dob",
+                "test_type",
                 "test_result",
                 "test_date"
             };
@@ -89,7 +121,7 @@ namespace Sentinel.Pages.Settings.HL7.FieldMappings
             var requiredFields = new Dictionary<string, List<string>>
             {
                 { "Patient", new List<string> { "FirstName", "LastName", "DateOfBirth" } },
-                { "LabResult", new List<string> { "Result", "TestDate" } }
+                { "LabResult", new List<string> { "TestName", "Result", "TestDate" } }
             };
 
             return requiredFields.ContainsKey(targetEntity) && 

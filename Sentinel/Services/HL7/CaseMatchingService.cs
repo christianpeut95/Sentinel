@@ -344,6 +344,64 @@ namespace Sentinel.Services.HL7
                 }
             }
 
+            // MULTI-MARKER FALLBACK: If no individual markers matched, try evaluating all markers together
+            if (!identifications.Any())
+            {
+                _logger.LogInformation(
+                    "No single-marker matches found for LabResult {LabResultId}. Attempting multi-marker evaluation with {Count} markers.",
+                    labResult.FriendlyId,
+                    labResult.Markers.Count);
+
+                try
+                {
+                    var multiMarkerMatches = await _caseDefinitionMatchingService
+                        .MatchCaseDefinitionsForLabResultAsync(labResult, cancellationToken);
+
+                    foreach (var match in multiMarkerMatches)
+                    {
+                        if (match?.Disease != null)
+                        {
+                            identifications.Add(new DiseaseIdentification
+                            {
+                                Disease = match.Disease,
+                                MatchingMarkers = labResult.Markers.ToList(), // All markers contributed
+                                Source = IdentificationSource.CaseDefinition,
+                                SpecificityScore = CalculateDiseaseSpecificity(match.Disease),
+                                IsPositiveResult = true,
+                                ConfirmationStatus = match.ConfirmationStatus,
+                                ConfirmationStatusId = match.ConfirmationStatusId
+                            });
+
+                            _logger.LogInformation(
+                                "Multi-marker evaluation matched disease {Disease} (Confirmation: {ConfirmationStatus}) using {Count} markers",
+                                match.Disease.Name,
+                                match.ConfirmationStatus?.Name ?? "NULL",
+                                labResult.Markers.Count);
+                        }
+                    }
+
+                    if (!multiMarkerMatches.Any())
+                    {
+                        _logger.LogDebug(
+                            "Multi-marker evaluation found no matches for LabResult {LabResultId}",
+                            labResult.FriendlyId);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex,
+                        "Error during multi-marker evaluation for LabResult {LabResultId}",
+                        labResult.FriendlyId);
+                }
+            }
+            else
+            {
+                _logger.LogDebug(
+                    "Single-marker evaluation found {Count} match(es) for LabResult {LabResultId}. Skipping multi-marker evaluation.",
+                    identifications.Count,
+                    labResult.FriendlyId);
+            }
+
             // Sort by specificity (most specific first)
             return identifications.OrderByDescending(i => i.SpecificityScore).ToList();
         }

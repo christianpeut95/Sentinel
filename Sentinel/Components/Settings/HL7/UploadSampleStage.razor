@@ -1,0 +1,373 @@
+@using Sentinel.Services.HL7
+@using Sentinel.Models
+@using Sentinel.Data
+@using Microsoft.EntityFrameworkCore
+@inject IHL7ParserService ParserService
+@inject IDbContextFactory<ApplicationDbContext> DbContextFactory
+@inject ILogger<UploadSampleStage> Logger
+
+<div class="wizard-stage">
+    <!-- Progress Header -->
+    <div class="wizard-progress">
+        <div class="progress-step active">
+            <div class="step-number">1</div>
+            <div class="step-label">Upload Sample</div>
+        </div>
+        <div class="progress-connector"></div>
+        <div class="progress-step">
+            <div class="step-number">2</div>
+            <div class="step-label">Review Mappings</div>
+        </div>
+        <div class="progress-connector"></div>
+        <div class="progress-step">
+            <div class="step-number">3</div>
+            <div class="step-label">Test & Activate</div>
+        </div>
+    </div>
+
+    <!-- Stage Content -->
+    <div class="stage-content">
+        <div class="stage-hero">
+            <div class="hero-icon">
+                <i class="bi bi-file-earmark-medical"></i>
+            </div>
+            <h2 class="hero-title">Upload a Sample HL7 Message</h2>
+            <p class="hero-description">
+                Paste a real HL7 message from <strong>@ConfigurationName</strong>. 
+                Sentinel will analyze it and learn how to read messages from this lab.
+            </p>
+            <div class="hero-callout">
+                <i class="bi bi-shield-check"></i>
+                <span>This is safe — no cases will be created from this sample</span>
+            </div>
+        </div>
+
+        @if (!string.IsNullOrEmpty(ErrorMessage))
+        {
+            <div class="alert alert-danger" role="alert">
+                <i class="bi bi-exclamation-triangle me-2"></i>@ErrorMessage
+            </div>
+        }
+
+        <div class="upload-area">
+            <label class="form-label">Paste HL7 message</label>
+            <textarea 
+                class="hl7-textarea" 
+                @bind="MessageContent"
+                placeholder="MSH|^~\&|LAB||SENTINEL||20240315103052||ORU^R01|MSG001|P|2.5&#10;PID|1||MRN123456||SMITH^JANE^M||19850422|F|||123 Main St^^Wellington^^6011||...&#10;OBR|1||LAB123456|87881^Salmonella Culture|||20240315100000&#10;OBX|1|ST|87881^Salmonella Culture||Positive||||||F"
+                rows="12"></textarea>
+            <div class="form-help">
+                Paste the entire message including the MSH segment
+            </div>
+        </div>
+
+        <div class="stage-actions">
+            <button class="btn-wizard btn-primary" @onclick="AnalyzeMessage" disabled="@IsAnalyzing">
+                @if (IsAnalyzing)
+                {
+                    <span class="spinner-border spinner-border-sm me-2"></span>
+                    <span>Analyzing...</span>
+                }
+                else
+                {
+                    <i class="bi bi-cpu me-2"></i>
+                    <span>Analyze Message</span>
+                }
+            </button>
+        </div>
+
+        <!-- Tips Section -->
+        <div class="tips-section">
+            <div class="tip-header">
+                <i class="bi bi-lightbulb"></i>
+                <span>Tips for best results</span>
+            </div>
+            <ul class="tip-list">
+                <li>Use a complete, real message from this lab (not test data)</li>
+                <li>Include all segments (MSH, PID, OBR, OBX, etc.)</li>
+                <li>Choose a positive result if possible — it will have more data</li>
+                <li>Make sure patient information is complete</li>
+            </ul>
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter] public Guid ConfigurationId { get; set; }
+    [Parameter] public string ConfigurationName { get; set; } = string.Empty;
+    [Parameter] public EventCallback<string> OnSampleUploaded { get; set; }
+
+    private string MessageContent { get; set; } = string.Empty;
+    private string? ErrorMessage { get; set; }
+    private bool IsAnalyzing { get; set; }
+
+    private async Task AnalyzeMessage()
+    {
+        ErrorMessage = null;
+
+        if (string.IsNullOrWhiteSpace(MessageContent))
+        {
+            ErrorMessage = "Please paste an HL7 message to analyze.";
+            return;
+        }
+
+        IsAnalyzing = true;
+        StateHasChanged();
+
+        try
+        {
+            // Validate the message
+            var validation = await ParserService.ValidateMessageAsync(MessageContent);
+            if (!validation.IsValid)
+            {
+                ErrorMessage = $"Could not parse message: {string.Join(", ", validation.Errors)}";
+                return;
+            }
+
+            // Store the sample message
+            await using var context = await DbContextFactory.CreateDbContextAsync();
+
+            var mapping = await context.HL7FieldMappings
+                .Where(m => m.ConfigurationId == ConfigurationId)
+                .FirstOrDefaultAsync()
+                ?? new HL7FieldMapping
+                {
+                    Id = Guid.NewGuid(),
+                    ConfigurationId = ConfigurationId,
+                    SegmentType = "SAMPLE",
+                    FieldPath = "SAMPLE",
+                    TargetEntity = "Configuration",
+                    TargetProperty = "SampleMessage",
+                    FieldName = "Sample HL7 Message",
+                    CreatedAt = DateTime.UtcNow
+                };
+
+            mapping.SampleMessage = MessageContent;
+            mapping.ModifiedAt = DateTime.UtcNow;
+
+            if (mapping.CreatedAt == default)
+            {
+                context.HL7FieldMappings.Add(mapping);
+            }
+
+            await context.SaveChangesAsync();
+
+            Logger.LogInformation("Sample message saved for configuration {ConfigId}", ConfigurationId);
+
+            // Notify parent
+            await OnSampleUploaded.InvokeAsync(MessageContent);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error analyzing message");
+            ErrorMessage = $"An error occurred: {ex.Message}";
+        }
+        finally
+        {
+            IsAnalyzing = false;
+            StateHasChanged();
+        }
+    }
+}
+
+<style>
+    .wizard-stage {
+        padding: 24px;
+    }
+
+    .wizard-progress {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-bottom: 48px;
+        padding: 0 48px;
+    }
+
+    .progress-step {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 8px;
+        opacity: 0.4;
+        transition: opacity 0.2s;
+    }
+
+    .progress-step.active {
+        opacity: 1;
+    }
+
+    .step-number {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        background: var(--chalk);
+        border: 2px solid var(--hairline);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 16px;
+        font-weight: 600;
+        color: var(--graphite);
+    }
+
+    .progress-step.active .step-number {
+        background: var(--signal-dk);
+        border-color: var(--signal-dk);
+        color: white;
+    }
+
+    .step-label {
+        font-size: 13px;
+        font-weight: 500;
+        color: var(--graphite);
+    }
+
+    .progress-connector {
+        flex: 1;
+        height: 2px;
+        background: var(--hairline);
+        margin: 0 16px;
+        max-width: 120px;
+    }
+
+    .stage-content {
+        max-width: 700px;
+        margin: 0 auto;
+    }
+
+    .stage-hero {
+        text-align: center;
+        margin-bottom: 40px;
+    }
+
+    .hero-icon {
+        font-size: 64px;
+        color: var(--signal-dk);
+        margin-bottom: 16px;
+    }
+
+    .hero-title {
+        font-size: 28px;
+        font-weight: 600;
+        letter-spacing: -0.02em;
+        color: var(--forest);
+        margin-bottom: 12px;
+    }
+
+    .hero-description {
+        font-size: 16px;
+        color: var(--graphite);
+        line-height: 1.6;
+        margin-bottom: 16px;
+    }
+
+    .hero-callout {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 16px;
+        background: var(--signal-lt);
+        border: 1px solid #9BE8C6;
+        border-radius: 6px;
+        font-size: 14px;
+        color: #0A3F2C;
+    }
+
+    .upload-area {
+        margin-bottom: 24px;
+    }
+
+    .form-label {
+        font-size: 14px;
+        font-weight: 600;
+        color: var(--forest);
+        margin-bottom: 8px;
+        display: block;
+    }
+
+    .hl7-textarea {
+        width: 100%;
+        font-family: 'Consolas', 'Monaco', monospace;
+        font-size: 12px;
+        padding: 12px;
+        border: 1px solid var(--hairline);
+        border-radius: 6px;
+        resize: vertical;
+        line-height: 1.5;
+    }
+
+    .hl7-textarea:focus {
+        outline: none;
+        border-color: var(--signal-dk);
+        box-shadow: 0 0 0 3px rgba(46, 213, 115, 0.1);
+    }
+
+    .form-help {
+        font-size: 13px;
+        color: var(--graphite);
+        margin-top: 6px;
+    }
+
+    .stage-actions {
+        display: flex;
+        justify-content: center;
+        margin-bottom: 32px;
+    }
+
+    .btn-wizard {
+        padding: 12px 32px;
+        font-size: 16px;
+        font-weight: 600;
+        border-radius: 8px;
+        border: none;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        transition: all 0.2s;
+    }
+
+    .btn-wizard:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+    }
+
+    .btn-primary {
+        background: var(--signal-dk);
+        color: white;
+    }
+
+    .btn-primary:hover:not(:disabled) {
+        background: #1fa87a;
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(46, 213, 115, 0.3);
+    }
+
+    .tips-section {
+        background: var(--paper);
+        border: 1px solid var(--hairline);
+        border-radius: 8px;
+        padding: 20px;
+    }
+
+    .tip-header {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 14px;
+        font-weight: 600;
+        color: var(--forest);
+        margin-bottom: 12px;
+    }
+
+    .tip-list {
+        margin: 0;
+        padding-left: 24px;
+    }
+
+    .tip-list li {
+        font-size: 14px;
+        color: var(--graphite);
+        line-height: 1.6;
+        margin-bottom: 8px;
+    }
+</style>

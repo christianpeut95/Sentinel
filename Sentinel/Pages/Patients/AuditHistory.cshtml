@@ -3,7 +3,7 @@
 
 @{
     ViewData["Title"] = "Audit History";
-    Layout = "~/Pages/Shared/_Layout.cshtml";
+    Layout = "~/Pages/Shared/_LayoutSentinel.cshtml";
 }
 @functions {
     public string GetCspNonce()
@@ -45,14 +45,18 @@
                 <span class="badge bg-info">@Model.ViewCount views</span>
             </div>
             <div class="col-12 col-md-4 text-end">
-                <div class="form-check form-switch d-inline-block">
-                    <input class="form-check-input" type="checkbox" id="showViewsToggle" 
-                           @(Model.ShowViews ? "checked" : "") 
-                           onchange="window.location.href='?id=@Model.PatientId&showViews=' + this.checked">
-                    <label class="form-check-label" for="showViewsToggle">
-                        Show View Events
-                    </label>
-                </div>
+                <form method="get" class="d-inline-block">
+                    <input type="hidden" name="id" value="@Model.PatientId" />
+                    <div class="form-check form-switch d-inline-block">
+                        <input class="form-check-input" type="checkbox" id="showViewsToggle" 
+                               name="showViews" value="true"
+                               @(Model.ShowViews ? "checked" : "") 
+                               onchange="this.form.submit()">
+                        <label class="form-check-label" for="showViewsToggle">
+                            Show View Events
+                        </label>
+                    </div>
+                </form>
             </div>
         </div>
     </div>
@@ -60,15 +64,17 @@
 
 @if (Model.AuditLogs.Count == 0)
 {
-    <div class="alert alert-info">
-        <i class="bi bi-info-circle me-2"></i>
-        No audit history found for this patient.
+    <div class="sentinel-card">
+        <div class="sentinel-card-body" style="text-align: center; padding: var(--spacing-12);">
+            <i class="bi bi-clock-history" style="font-size: 64px; color: var(--hairline); display: block; margin-bottom: var(--spacing-4);"></i>
+            <p style="color: var(--graphite); font-size: 15px;">No audit history found for this patient.</p>
+        </div>
     </div>
 }
 else
 {
-    <div class="card shadow-sm">
-        <div class="card-body">
+    <div class="sentinel-card">
+        <div class="sentinel-card-body">
             <div class="timeline">
                 @{
                     DateTime? lastDate = null;
@@ -78,105 +84,114 @@ else
                         if (lastDate == null || lastDate != currentDate)
                         {
                             <div class="timeline-date">
-                                <h5 class="text-muted">
-                                    <i class="bi bi-calendar3 me-2"></i>
+                                <div style="font-family: var(--f-mono); font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--graphite); display: flex; align-items: center; gap: var(--spacing-2);">
+                                    <i class="bi bi-calendar3"></i>
                                     @log.ChangedAt.ToString("dddd, dd MMMM yyyy")
-                                </h5>
+                                </div>
                             </div>
                             lastDate = currentDate;
                         }
 
-                        var actionBadgeClass = log.Action switch
+                        var actionColor = log.Action switch
                         {
-                            "Added" => "bg-success",
-                            "Modified" => "bg-primary",
-                            "Deleted" => "bg-danger",
-                            "Viewed" => "bg-info",
-                            _ => "bg-secondary"
+                            "Added" => "var(--signal-dk)",
+                            "Modified" => "var(--info)",
+                            "Deleted" => "var(--status-outbreak)",
+                            "Viewed" => "var(--graphite)",
+                            _ => "var(--slate)"
                         };
 
                         var actionIcon = log.Action switch
                         {
-                            "Added" => "plus-circle",
-                            "Modified" => "pencil",
-                            "Deleted" => "trash",
-                            "Viewed" => "eye",
-                            _ => "question-circle"
+                            "Added" => "plus-circle-fill",
+                            "Modified" => "pencil-fill",
+                            "Deleted" => "trash-fill",
+                            "Viewed" => "eye-fill",
+                            _ => "question-circle-fill"
                         };
 
-                        <div class="timeline-item @(log.Action == "Viewed" ? "timeline-item-view" : "")">
-                            <div class="timeline-marker @actionBadgeClass">
+                        var isViewEvent = log.Action == "Viewed";
+                        var formattedFieldName = Model.FormatFieldName(log.FieldName);
+                        var formattedOldValue = Model.FormatFieldValue(log.FieldName, log.OldValue);
+                        var formattedNewValue = Model.FormatFieldValue(log.FieldName, log.NewValue);
+
+                        <div class="timeline-item @(isViewEvent ? "timeline-item-view" : "")" style="@(isViewEvent ? "opacity: 0.7;" : "")">
+                            <div class="timeline-marker" style="background: @actionColor;">
                                 <i class="bi bi-@actionIcon"></i>
                             </div>
                             <div class="timeline-content">
-                                <div class="d-flex justify-content-between align-items-start mb-2">
-                                    <div>
-                                        <span class="badge @actionBadgeClass me-2">@log.Action</span>
-                                        @if (log.Action == "Viewed")
+                                <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: var(--spacing-3); gap: var(--spacing-3);">
+                                    <div style="display: flex; align-items: center; gap: var(--spacing-2); flex-wrap: wrap;">
+                                        <span class="chip-clear" style="background: @actionColor; color: var(--chalk); border: none; font-size: 10px; padding: 3px 10px;">
+                                            @log.Action
+                                        </span>
+                                        @if (isViewEvent)
                                         {
-                                            <strong>Record Viewed</strong>
+                                            <strong style="font-size: 15px; color: var(--forest);">Record Viewed</strong>
                                         }
                                         else
                                         {
-                                            <strong>@log.FieldName</strong>
+                                            <strong style="font-size: 15px; color: var(--forest);">@formattedFieldName</strong>
                                         }
                                     </div>
-                                    <small class="text-muted">
-                                        @log.ChangedAt.ToString("HH:mm:ss")
+                                    <small style="font-family: var(--f-mono); font-size: 11px; color: var(--graphite); white-space: nowrap;">
+                                        @log.ChangedAt.ToLocalTime().ToString("HH:mm:ss")
                                     </small>
                                 </div>
 
-                                <div class="mb-2">
-                                    @if (log.Action == "Viewed")
+                                <div style="margin-bottom: var(--spacing-3);">
+                                    @if (isViewEvent)
                                     {
-                                        <div class="alert alert-info mb-0 py-2">
+                                        <div style="background: var(--signal-lt); border-left: 3px solid var(--info); padding: var(--spacing-3); border-radius: var(--radius-md); font-size: 13px; color: var(--forest);">
                                             <i class="bi bi-eye me-2"></i>Patient record was accessed
                                         </div>
                                     }
                                     else if (log.Action == "Added")
                                     {
-                                        <div class="alert alert-success mb-0 py-2">
-                                            <strong>Value:</strong> @(string.IsNullOrWhiteSpace(log.NewValue) ? "(empty)" : log.NewValue)
+                                        <div style="background: var(--signal-lt); border-left: 3px solid var(--signal-dk); padding: var(--spacing-3); border-radius: var(--radius-md);">
+                                            <div style="font-size: 11px; font-family: var(--f-mono); letter-spacing: .04em; text-transform: uppercase; color: var(--graphite); margin-bottom: var(--spacing-1);">Value</div>
+                                            <div style="font-size: 14px; color: var(--forest); font-weight: 500;">@(string.IsNullOrWhiteSpace(formattedNewValue) ? "(empty)" : formattedNewValue)</div>
                                         </div>
                                     }
                                     else if (log.Action == "Deleted")
                                     {
-                                        <div class="alert alert-danger mb-0 py-2">
-                                            <strong>Value:</strong> @(string.IsNullOrWhiteSpace(log.OldValue) ? "(empty)" : log.OldValue)
+                                        <div style="background: #FBE2D8; border-left: 3px solid var(--status-outbreak); padding: var(--spacing-3); border-radius: var(--radius-md);">
+                                            <div style="font-size: 11px; font-family: var(--f-mono); letter-spacing: .04em; text-transform: uppercase; color: var(--graphite); margin-bottom: var(--spacing-1);">Removed Value</div>
+                                            <div style="font-size: 14px; color: var(--forest); font-weight: 500; text-decoration: line-through;">@(string.IsNullOrWhiteSpace(formattedOldValue) ? "(empty)" : formattedOldValue)</div>
                                         </div>
                                     }
                                     else if (log.Action == "Modified")
                                     {
-                                        <div class="row g-2">
-                                            <div class="col-md-6">
-                                                <div class="alert alert-warning mb-0 py-2">
-                                                    <strong>Old:</strong> @(string.IsNullOrWhiteSpace(log.OldValue) ? "(empty)" : log.OldValue)
-                                                </div>
+                                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--spacing-3);">
+                                            <div style="background: #FBEDD1; border-left: 3px solid var(--watch); padding: var(--spacing-3); border-radius: var(--radius-md);">
+                                                <div style="font-size: 11px; font-family: var(--f-mono); letter-spacing: .04em; text-transform: uppercase; color: var(--graphite); margin-bottom: var(--spacing-1);">Previous</div>
+                                                <div style="font-size: 14px; color: var(--forest);">@(string.IsNullOrWhiteSpace(formattedOldValue) ? "(empty)" : formattedOldValue)</div>
                                             </div>
-                                            <div class="col-md-6">
-                                                <div class="alert alert-success mb-0 py-2">
-                                                    <strong>New:</strong> @(string.IsNullOrWhiteSpace(log.NewValue) ? "(empty)" : log.NewValue)
-                                                </div>
+                                            <div style="background: var(--signal-lt); border-left: 3px solid var(--signal-dk); padding: var(--spacing-3); border-radius: var(--radius-md);">
+                                                <div style="font-size: 11px; font-family: var(--f-mono); letter-spacing: .04em; text-transform: uppercase; color: var(--graphite); margin-bottom: var(--spacing-1);">Current</div>
+                                                <div style="font-size: 14px; color: var(--forest); font-weight: 500;">@(string.IsNullOrWhiteSpace(formattedNewValue) ? "(empty)" : formattedNewValue)</div>
                                             </div>
                                         </div>
                                     }
                                 </div>
 
-                                <div class="text-muted small">
-                                    <i class="bi bi-person me-1"></i>
-                                    @if (log.Action == "Viewed")
-                                    {
-                                        <text>Viewed by:</text>
-                                    }
-                                    else
-                                    {
-                                        <text>Changed by:</text>
-                                    }
-                                    <strong>@(log.ChangedByUser?.Email ?? log.ChangedByUserId ?? "System")</strong>
+                                <div style="font-size: 13px; color: var(--graphite); display: flex; align-items: center; gap: var(--spacing-4); flex-wrap: wrap;">
+                                    <span>
+                                        <i class="bi bi-person me-1"></i>
+                                        @if (isViewEvent)
+                                        {
+                                            <text>Viewed by:</text>
+                                        }
+                                        else
+                                        {
+                                            <text>Changed by:</text>
+                                        }
+                                        <strong style="color: var(--forest); margin-left: 4px;">@(log.ChangedByUser?.Email ?? log.ChangedByUserId ?? "System")</strong>
+                                    </span>
                                     @if (!string.IsNullOrWhiteSpace(log.IpAddress))
                                     {
-                                        <span class="ms-2">
-                                            <i class="bi bi-globe me-1"></i>IP: @log.IpAddress
+                                        <span style="font-family: var(--f-mono); font-size: 11px;">
+                                            <i class="bi bi-globe me-1"></i>@log.IpAddress
                                         </span>
                                     }
                                 </div>
@@ -189,31 +204,17 @@ else
     </div>
 }
 
+@section Styles {
 <style>
-    /* Ensure page content respects container width */
-    .breadcrumb,
-    .card,
-    .alert,
-    h2 {
-        max-width: 100%;
-        min-width: 0;
-    }
-
-    /* Prevent flex items from overflowing */
-    .d-flex {
-        min-width: 0;
-    }
-
     .timeline {
         position: relative;
-        padding: 20px 0;
-        max-width: 100%;
-        min-width: 0;
+        padding: var(--spacing-4) 0;
     }
 
     .timeline-date {
-        margin: 30px 0 20px 0;
-        max-width: 100%;
+        margin: var(--spacing-8) 0 var(--spacing-4) 0;
+        padding-bottom: var(--spacing-3);
+        border-bottom: 1px solid var(--hairline);
     }
 
     .timeline-date:first-child {
@@ -223,24 +224,14 @@ else
     .timeline-item {
         position: relative;
         padding-left: 60px;
-        padding-bottom: 30px;
-        border-left: 2px solid #e0e0e0;
+        padding-bottom: var(--spacing-6);
+        border-left: 2px solid var(--hairline);
         margin-left: 20px;
-        max-width: 100%;
-        min-width: 0;
     }
 
     .timeline-item:last-child {
         border-left: 2px solid transparent;
         padding-bottom: 0;
-    }
-
-    .timeline-item-view {
-        opacity: 0.7;
-    }
-
-    .timeline-item-view .timeline-content {
-        background: #f0f8ff;
     }
 
     .timeline-marker {
@@ -253,57 +244,26 @@ else
         display: flex;
         align-items: center;
         justify-content: center;
-        color: white;
-        font-size: 1.1rem;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-        flex-shrink: 0;
+        color: var(--chalk);
+        font-size: 16px;
+        box-shadow: var(--shadow-md);
     }
 
     .timeline-content {
-        background: #f8f9fa;
-        padding: 15px;
-        border-radius: 8px;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        max-width: 100%;
-        min-width: 0;
-        overflow-wrap: break-word;
-        word-wrap: break-word;
-        word-break: break-word;
+        background: var(--chalk);
+        padding: var(--spacing-4);
+        border-radius: var(--radius-md);
+        border: 1px solid var(--hairline);
     }
 
-    .timeline-content .alert {
-        font-size: 0.9rem;
-        max-width: 100%;
-        min-width: 0;
-        overflow-wrap: break-word;
-        word-wrap: break-word;
-        word-break: break-word;
+    .timeline-item-view .timeline-content {
+        background: var(--bone);
     }
 
-    /* Ensure cards don't overflow */
-    .card {
-        max-width: 100%;
-        min-width: 0;
-    }
-
-    .card-body {
-        overflow-x: auto;
-        min-width: 0;
-    }
-
-    /* Make row responsive */
-    .row {
-        --bs-gutter-x: 1rem;
-    }
-
-    /* Ensure long text wraps */
-    strong {
-        word-break: break-word;
-    }
-
-    /* Make badges wrap on small screens */
-    .badge {
-        white-space: normal;
-        word-break: break-word;
+    @@media (max-width: 768px) {
+        .timeline-content > div[style*="grid-template-columns"] {
+            grid-template-columns: 1fr !important;
+        }
     }
 </style>
+}

@@ -1,0 +1,2024 @@
+@using Sentinel.Services.HL7
+@using Sentinel.Models
+@using Sentinel.Data
+@using Microsoft.EntityFrameworkCore
+@inject IHL7ParserService ParserService
+@inject IHL7FieldMappingService MappingService
+@inject IDbContextFactory<ApplicationDbContext> DbContextFactory
+@inject ILogger<ReviewMappingsStage> Logger
+
+<div class="wizard-stage">
+    <!-- Progress Header -->
+    <div class="wizard-progress">
+        <div class="progress-step completed">
+            <div class="step-number"><i class="bi bi-check"></i></div>
+            <div class="step-label">Upload Sample</div>
+        </div>
+        <div class="progress-connector completed"></div>
+        <div class="progress-step active">
+            <div class="step-number">2</div>
+            <div class="step-label">Review Mappings</div>
+        </div>
+        <div class="progress-connector"></div>
+        <div class="progress-step">
+            <div class="step-number">3</div>
+            <div class="step-label">Test & Activate</div>
+        </div>
+    </div>
+
+    <!-- Layout with Sidebar -->
+    <div style="display: flex; gap: 32px; max-width: 1200px; margin: 0 auto;">
+        <!-- Main Content -->
+        <div style="flex: 1; min-width: 0;">
+        @if (IsLoading)
+        {
+            <div class="loading-state">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+                <p>Analyzing your message...</p>
+            </div>
+        }
+        else
+        {
+            <!-- Message Preview (Collapsible) -->
+            <div class="message-preview-section">
+                <button class="preview-toggle" @onclick="TogglePreview">
+                    <i class="bi bi-@(ShowPreview ? "chevron-down" : "chevron-right")"></i>
+                    <span class="preview-label">
+                        <i class="bi bi-check-circle-fill text-success me-2"></i>
+                        Message parsed successfully
+                    </span>
+                    <span class="preview-hint">@AllParsedFields.Count fields found</span>
+                </button>
+
+                @if (ShowPreview)
+                {
+                    <div class="preview-content">
+                        <div class="preview-grid">
+                            @if (ParsedPatientData.Any())
+                            {
+                                <div class="preview-section">
+                                    <div class="preview-section-title">
+                                        <i class="bi bi-person"></i> Patient Information
+                                    </div>
+                                    @foreach (var item in ParsedPatientData.Take(5))
+                                    {
+                                        <div class="preview-item">
+                                            <span class="preview-key">@item.Key:</span>
+                                            <span class="preview-value">@item.Value</span>
+                                        </div>
+                                    }
+                                    @if (ParsedPatientData.Count > 5)
+                                    {
+                                        <div class="preview-more">+@(ParsedPatientData.Count - 5) more fields</div>
+                                    }
+                                </div>
+                            }
+
+                            @if (ParsedOrderData.Any())
+                            {
+                                <div class="preview-section">
+                                    <div class="preview-section-title">
+                                        <i class="bi bi-clipboard-data"></i> Order Information
+                                    </div>
+                                    @foreach (var item in ParsedOrderData.Take(5))
+                                    {
+                                        <div class="preview-item">
+                                            <span class="preview-key">@item.Key:</span>
+                                            <span class="preview-value">@item.Value</span>
+                                        </div>
+                                    }
+                                    @if (ParsedOrderData.Count > 5)
+                                    {
+                                        <div class="preview-more">+@(ParsedOrderData.Count - 5) more fields</div>
+                                    }
+                                </div>
+                            }
+
+                            @if (ParsedResultData.Any())
+                            {
+                                <div class="preview-section">
+                                    <div class="preview-section-title">
+                                        <i class="bi bi-clipboard-check"></i> Results (@ParsedResultData.Count)
+                                    </div>
+                                    @foreach (var result in ParsedResultData.Take(3))
+                                    {
+                                        <div class="preview-result-item">
+                                            @if (result.TryGetValue("TestName", out var testName))
+                                            {
+                                                <div class="preview-key">@testName</div>
+                                            }
+                                            @if (result.TryGetValue("Result", out var resultValue))
+                                            {
+                                                <div class="preview-value">@resultValue</div>
+                                            }
+                                        </div>
+                                    }
+                                    @if (ParsedResultData.Count > 3)
+                                    {
+                                        <div class="preview-more">+@(ParsedResultData.Count - 3) more results</div>
+                                    }
+                                </div>
+                            }
+                        </div>
+                    </div>
+                }
+            </div>
+
+            @if (CurrentFieldIndex < Fields.Count)
+            {
+            var field = Fields[CurrentFieldIndex];
+
+            <!-- Field Card -->
+            <div class="field-card">
+                <!-- Progress Indicator -->
+                <div class="card-header">
+                    <div class="field-progress">
+                        <span class="progress-text">Field @(CurrentFieldIndex + 1) of @Fields.Count</span>
+                        <div class="progress-bar-wrapper">
+                            <div class="progress-bar-fill" style="width: @(((double)(CurrentFieldIndex + 1) / Fields.Count * 100).ToString("F0"))%"></div>
+                        </div>
+                    </div>
+                    @if (!field.IsRequired)
+                    {
+                        <span class="optional-badge">Optional</span>
+                    }
+                </div>
+
+                <!-- Field Info -->
+                <div class="card-body">
+                    <h3 class="field-title">@field.FriendlyName</h3>
+                    <p class="field-description">@field.HelpText</p>
+
+                    @* Multi-observation info message *@
+                    @if (IsMultiObservationField(field))
+                    {
+                        <div style="padding: 12px; background: #EFF6FF; border-left: 3px solid #3B82F6; border-radius: 4px; margin-bottom: 16px;">
+                            <div style="display: flex; align-items: start; gap: 8px;">
+                                <i class="bi bi-info-circle" style="color: #3B82F6; font-size: 18px; margin-top: 2px;"></i>
+                                <div style="flex: 1;">
+                                    <div style="font-weight: 600; color: #1E40AF; margin-bottom: 4px;">Multiple Observations Detected</div>
+                                    <div style="font-size: 13px; color: #1E3A8A; line-height: 1.5;">
+                                        This sample message contains @ParsedResultData.Count observations. 
+                                        The mapping you select will be applied to <strong>all observations</strong> in future messages.
+                                        Each observation will create a separate test marker.
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    }
+
+                    @if (field.Candidates != null && field.Candidates.Any())
+                    {
+                        <!-- Show candidates -->
+                        <div class="candidates-section">
+                            <div class="section-label">
+                                <i class="bi bi-search"></i>
+                                Found @field.Candidates.Count possible value@(field.Candidates.Count == 1 ? "" : "s")
+                            </div>
+
+                            @foreach (var candidate in field.Candidates)
+                            {
+                                <div class="candidate-card @(SelectedCandidateFieldPath == candidate.FieldPath ? "selected" : "")"
+                                     @onclick="() => SelectCandidate(candidate)">
+                                    <div class="candidate-radio">
+                                        @if (SelectedCandidateFieldPath == candidate.FieldPath)
+                                        {
+                                            <i class="bi bi-check-circle-fill"></i>
+                                        }
+                                        else
+                                        {
+                                            <i class="bi bi-circle"></i>
+                                        }
+                                    </div>
+                                    <div class="candidate-content">
+                                        <div class="candidate-value">@candidate.DisplayValue</div>
+                                        <div class="candidate-hint">@candidate.Hint</div>
+                                        @if (candidate.Confidence.HasValue && candidate.Confidence >= 80)
+                                        {
+                                            <div class="confidence-badge">@candidate.Confidence% confident</div>
+                                        }
+                                    </div>
+                                </div>
+                            }
+
+                            <!-- Show manually selected field if not in candidates -->
+                            @if (!string.IsNullOrEmpty(SelectedCandidateFieldPath) && 
+                                 !field.Candidates.Any(c => c.FieldPath == SelectedCandidateFieldPath))
+                            {
+                                <div class="candidate-card selected manual-selection">
+                                    <div class="candidate-radio">
+                                        <i class="bi bi-check-circle-fill"></i>
+                                    </div>
+                                    <div class="candidate-content">
+                                        <div class="candidate-value">@SelectedCandidateValue</div>
+                                        <div class="candidate-hint">Manually selected from: @SelectedCandidateFieldPath</div>
+                                        <div class="confidence-badge" style="background: #10b981;">Manually selected</div>
+                                    </div>
+                                </div>
+                            }
+
+                            <button class="btn-text" @onclick="() => ShowAllFields(field)">
+                                <i class="bi bi-list-ul"></i>
+                                Can't find it? Browse all fields in the message
+                            </button>
+                        </div>
+                    }
+                    else
+                    {
+                        <!-- No candidates found -->
+                        <div class="no-candidates">
+                            <i class="bi bi-search"></i>
+                            <p>Couldn't automatically find this field in your message.</p>
+
+                            <!-- Show manually selected field if exists -->
+                            @if (!string.IsNullOrEmpty(SelectedCandidateValue))
+                            {
+                                <div class="candidate-card selected manual-selection" style="margin-bottom: 16px;">
+                                    <div class="candidate-radio">
+                                        <i class="bi bi-check-circle-fill"></i>
+                                    </div>
+                                    <div class="candidate-content">
+                                        <div class="candidate-value">@SelectedCandidateValue</div>
+                                        <div class="candidate-hint">From: @SelectedCandidateFieldPath</div>
+                                        <div class="confidence-badge" style="background: #10b981;">Selected</div>
+                                    </div>
+                                </div>
+                            }
+
+                            <button class="btn-secondary" @onclick="() => ShowAllFields(field)">
+                                <i class="bi bi-list-ul"></i>
+                                Browse all fields in the message
+                            </button>
+                        </div>
+                    }
+                </div>
+
+                <!-- Card Actions -->
+                <div class="card-actions">
+                    <div class="action-left">
+                        @if (CurrentFieldIndex > 0)
+                        {
+                            <button class="btn-ghost" @onclick="PreviousField">
+                                <i class="bi bi-arrow-left"></i>
+                                Previous
+                            </button>
+                        }
+                    </div>
+                    <div class="action-right">
+                        @if (!field.IsRequired)
+                        {
+                            <button class="btn-ghost" @onclick="SkipField">
+                                Skip this field
+                                <i class="bi bi-arrow-right"></i>
+                            </button>
+                        }
+                        <button class="btn-primary" 
+                                @onclick="ConfirmField"
+                                disabled="@(string.IsNullOrEmpty(SelectedCandidateValue) && field.Candidates?.Any() == true)">
+                            @if (CurrentFieldIndex == Fields.Count - 1)
+                            {
+                                <span>Complete Review</span>
+                            }
+                            else
+                            {
+                                <span>Confirm & Continue</span>
+                            }
+                            <i class="bi bi-arrow-right"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+            }
+        }
+        </div>
+
+        <!-- Field Summary Sidebar (Right Side) -->
+        @if (!IsLoading && Fields.Any())
+        {
+            <div style="width: 320px; flex-shrink: 0; background: #ECEAE1; border-radius: 8px; padding: 0; height: calc(100vh - 180px); position: sticky; top: 20px; box-shadow: 0 1px 3px rgba(12,42,32,.08), 0 1px 2px rgba(12,42,32,.04); overflow: hidden; display: flex; flex-direction: column; border: 1px solid #D8D4C4;">
+                <!-- Header -->
+                <div style="padding: 20px 20px 16px 20px; border-bottom: 1px solid #D8D4C4; flex-shrink: 0;">
+                    <div style="font-family: 'Geist Mono', monospace; font-size: 10px; letter-spacing: .12em; text-transform: uppercase; color: #6B7A78; margin-bottom: 8px; font-weight: 500;">Field Progress</div>
+                    <h4 style="font-size: 18px; font-weight: 600; color: #0C2A20; margin: 0; letter-spacing: -.02em;">Mapping Status</h4>
+                </div>
+
+                <!-- Stats -->
+                <div style="display: flex; gap: 12px; padding: 16px 20px; background: #FBFAF5; border-bottom: 1px solid #D8D4C4; flex-shrink: 0;">
+                    <div style="flex: 1; padding: 12px; background: white; border: 1px solid #D8D4C4; border-radius: 6px;">
+                        <div style="font-family: 'Geist Mono', monospace; font-size: 10px; letter-spacing: .08em; text-transform: uppercase; color: #4A5A55; font-weight: 500; margin-bottom: 4px;">Mapped</div>
+                        <div style="font-size: 28px; font-weight: 600; color: #159C6E; line-height: 1; letter-spacing: -.03em;">@ConfirmedMappingsCount</div>
+                    </div>
+                    <div style="flex: 1; padding: 12px; background: white; border: 1px solid #D8D4C4; border-radius: 6px;">
+                        <div style="font-family: 'Geist Mono', monospace; font-size: 10px; letter-spacing: .08em; text-transform: uppercase; color: #4A5A55; font-weight: 500; margin-bottom: 4px;">Total</div>
+                        <div style="font-size: 28px; font-weight: 600; color: #0C2A20; line-height: 1; letter-spacing: -.03em;">@Fields.Count</div>
+                    </div>
+                </div>
+
+                <!-- Fields List (Scrollable) -->
+                <div style="flex: 1; overflow-y: auto; padding: 12px; display: flex; flex-direction: column; gap: 2px;">
+                    <div style="font-family: 'Geist Mono', monospace; font-size: 9px; letter-spacing: .12em; text-transform: uppercase; color: #6B7A78; margin: 0 8px 8px 8px; font-weight: 500;">Required Fields</div>
+
+                    @foreach (var field in Fields.Where(f => f.IsRequired))
+                    {
+                        var fieldIndex = Fields.IndexOf(field);
+                        var isCurrent = fieldIndex == CurrentFieldIndex;
+                        var isMapped = ConfirmedMappings.ContainsKey(field.Key);
+
+                        <div style="display: flex; align-items: center; gap: 10px; padding: 7px 10px; border-radius: 4px; cursor: pointer; transition: background .12s, color .12s; background: @(isCurrent ? "#0C2A20" : "transparent"); color: @(isCurrent ? "#3DD598" : "#0C2A20");"
+                             @onclick="() => JumpToField(fieldIndex)">
+                            <div style="font-size: 14px; flex-shrink: 0;">
+                                @if (isMapped)
+                                {
+                                    <i class="bi bi-check-circle-fill" style="color: @(isCurrent ? "#3DD598" : "#159C6E");"></i>
+                                }
+                                else if (isCurrent)
+                                {
+                                    <i class="bi bi-arrow-right-circle-fill"></i>
+                                }
+                                else
+                                {
+                                    <i class="bi bi-circle" style="color: #6B7A78;"></i>
+                                }
+                            </div>
+                            <div style="flex: 1; min-width: 0;">
+                                <div style="font-size: 13px; font-weight: @(isCurrent ? "500" : "400"); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; letter-spacing: -.005em;">
+                                    @field.FriendlyName
+                                </div>
+                            </div>
+                        </div>
+                    }
+
+                    @if (Fields.Any(f => !f.IsRequired))
+                    {
+                        <div style="font-family: 'Geist Mono', monospace; font-size: 9px; letter-spacing: .12em; text-transform: uppercase; color: #6B7A78; margin: 16px 8px 8px 8px; font-weight: 500;">Optional Fields</div>
+
+                        @foreach (var field in Fields.Where(f => !f.IsRequired))
+                        {
+                            var fieldIndex = Fields.IndexOf(field);
+                            var isCurrent = fieldIndex == CurrentFieldIndex;
+                            var isMapped = ConfirmedMappings.ContainsKey(field.Key);
+
+                            <div style="display: flex; align-items: center; gap: 10px; padding: 7px 10px; border-radius: 4px; cursor: pointer; transition: background .12s, color .12s; background: @(isCurrent ? "#0C2A20" : "transparent"); color: @(isCurrent ? "#3DD598" : "#4A5A55");"
+                                 @onclick="() => JumpToField(fieldIndex)">
+                                <div style="font-size: 14px; flex-shrink: 0;">
+                                    @if (isMapped)
+                                    {
+                                        <i class="bi bi-check-circle-fill" style="color: @(isCurrent ? "#3DD598" : "#159C6E");"></i>
+                                    }
+                                    else if (isCurrent)
+                                    {
+                                        <i class="bi bi-arrow-right-circle-fill"></i>
+                                    }
+                                    else
+                                    {
+                                        <i class="bi bi-circle" style="color: #B8C0BE;"></i>
+                                    }
+                                </div>
+                                <div style="flex: 1; min-width: 0;">
+                                    <div style="font-size: 13px; font-weight: @(isCurrent ? "500" : "400"); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; letter-spacing: -.005em;">
+                                        @field.FriendlyName
+                                    </div>
+                                </div>
+                            </div>
+                        }
+                    }
+                </div>
+
+                <!-- Mapped Data Preview -->
+                @if (ConfirmedMappings.Any())
+                {
+                    <div style="padding: 16px 20px; border-top: 1px solid #D8D4C4; background: #FBFAF5; flex-shrink: 0; max-height: 280px; overflow-y: auto;">
+                        <div style="font-family: 'Geist Mono', monospace; font-size: 9px; letter-spacing: .12em; text-transform: uppercase; color: #6B7A78; margin-bottom: 12px; font-weight: 500;">
+                            <i class="bi bi-eye"></i> Mapped Values Preview
+                        </div>
+                        <div style="display: flex; flex-direction: column; gap: 10px;">
+                            @foreach (var mapping in ConfirmedMappings.Take(5))
+                            {
+                                var fieldDef = Fields.FirstOrDefault(f => f.Key == mapping.Key);
+                                <div style="padding: 10px; background: white; border: 1px solid #D8D4C4; border-radius: 4px;">
+                                    <div style="font-family: 'Geist Mono', monospace; font-size: 9px; letter-spacing: .08em; text-transform: uppercase; color: #6B7A78; margin-bottom: 4px;">
+                                        @(fieldDef?.FriendlyName ?? mapping.Key)
+                                    </div>
+                                    <div style="font-size: 13px; color: #0C2A20; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                                        @mapping.Value.Value
+                                    </div>
+                                </div>
+                            }
+                            @if (ConfirmedMappings.Count > 5)
+                            {
+                                <div style="font-family: 'Geist Mono', monospace; font-size: 10px; color: #6B7A78; text-align: center; padding: 4px;">
+                                    +@(ConfirmedMappings.Count - 5) more mapped
+                                </div>
+                            }
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+    </div>
+
+    <!-- Bottom Actions -->
+    <div class="bottom-actions">
+        <button class="btn-text" @onclick="BackToUpload">
+            <i class="bi bi-arrow-left"></i>
+            Upload a different sample
+        </button>
+    </div>
+</div>
+
+<!-- Browse All Fields Modal -->
+@if (ShowBrowseModal && CurrentField != null)
+{
+    <div style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 10000; padding: 20px;" 
+         @onclick="CloseBrowseModal">
+        <div style="background: white; border-radius: 8px; box-shadow: 0 10px 40px rgba(0,0,0,0.2); max-width: 800px; width: 100%; max-height: 80vh; display: flex; flex-direction: column; pointer-events: all;" 
+             @onclick:stopPropagation="true">
+            <div style="padding: 20px 24px; border-bottom: 1px solid #e5e7eb; display: flex; align-items: center; justify-content: space-between; flex-shrink: 0;">
+                <h4 style="margin: 0; font-size: 18px; font-weight: 600; color: #1f2937;">Select field for: @CurrentField.FriendlyName</h4>
+                <button type="button" 
+                        style="background: none; border: none; padding: 8px; cursor: pointer; color: #6b7280; border-radius: 4px; font-size: 20px;"
+                        @onclick="CloseBrowseModal">
+                    <i class="bi bi-x"></i>
+                </button>
+            </div>
+            <div style="padding: 24px; overflow-y: auto; flex: 1; min-height: 0;">
+                <input type="text" 
+                       style="width: 100%; padding: 10px 12px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 14px; margin-bottom: 16px;"
+                       placeholder="Search fields..." 
+                       @bind="SearchQuery"
+                       @bind:event="oninput" />
+
+                <div style="display: flex; flex-direction: column; gap: 8px; max-height: 450px; overflow-y: auto; padding: 4px;">
+                    @* DEBUG: Show total count and first few fields *@
+                    <div style="padding: 8px; background: #f3f4f6; border-radius: 4px; font-size: 12px; color: #6b7280; margin-bottom: 8px;">
+                        <strong>Debug Info:</strong> Total fields: @AllParsedFields.Count, 
+                        Filtered fields: @AllParsedFields.Where(f => string.IsNullOrEmpty(SearchQuery) || 
+                                                                     f.Path.Contains(SearchQuery, StringComparison.OrdinalIgnoreCase) ||
+                                                                     f.Value.Contains(SearchQuery, StringComparison.OrdinalIgnoreCase)).Count()
+                    </div>
+
+                    @foreach (var segment in AllParsedFields.Where(f => string.IsNullOrEmpty(SearchQuery) || 
+                                                                         f.Path.Contains(SearchQuery, StringComparison.OrdinalIgnoreCase) ||
+                                                                         f.Value.Contains(SearchQuery, StringComparison.OrdinalIgnoreCase)))
+                    {
+                        <div style="padding: 12px 16px; border: 1px solid #e5e7eb; border-radius: 6px; cursor: pointer; background: white; transition: all 0.15s;"
+                             @onclick="@(() => SelectBrowsedField(segment))">
+                            <div style="font-family: 'Courier New', monospace; font-size: 12px; color: #6b7280; margin-bottom: 4px; user-select: all;">
+                                @segment.Path
+                            </div>
+                            <div style="font-size: 14px; color: #1f2937; font-weight: 500; user-select: all;">
+                                @segment.Value
+                            </div>
+
+                            @* Show all observation values if this is an OBX field with multiple observations *@
+                            @if (segment.AllValues != null && segment.AllValues.Count > 1)
+                            {
+                                <div style="margin-top: 8px; padding: 8px; background: #f9fafb; border-radius: 4px; border-left: 3px solid #3b82f6;">
+                                    <div style="font-size: 11px; font-weight: 600; color: #6b7280; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px;">
+                                        <i class="bi bi-stack"></i> All @segment.AllValues.Count Observations
+                                    </div>
+                                    @foreach (var value in segment.AllValues)
+                                    {
+                                        <div style="font-size: 13px; color: #374151; padding: 4px 0; border-bottom: 1px solid #e5e7eb;">
+                                            @value
+                                        </div>
+                                    }
+                                    <div style="font-size: 11px; color: #6b7280; margin-top: 6px; font-style: italic;">
+                                        This mapping will apply to all observations in future messages
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public Guid ConfigurationId { get; set; }
+    [Parameter] public string SampleMessage { get; set; } = string.Empty;
+    [Parameter] public EventCallback OnAllFieldsConfirmed { get; set; }
+    [Parameter] public EventCallback OnBackToUpload { get; set; }
+
+    private List<FieldToReview> Fields { get; set; } = new();
+    private int CurrentFieldIndex { get; set; } = 0;
+    private bool IsLoading { get; set; } = true;
+    private string? SelectedCandidateValue { get; set; }
+    private string? SelectedCandidateFieldPath { get; set; }
+
+    // Preview state
+    private bool ShowPreview { get; set; } = false;
+    private Dictionary<string, string> ParsedPatientData { get; set; } = new();
+    private Dictionary<string, string> ParsedOrderData { get; set; } = new();
+    private List<Dictionary<string, string>> ParsedResultData { get; set; } = new();
+
+    // Browse modal
+    private bool ShowBrowseModal { get; set; }
+    private FieldToReview? CurrentField { get; set; }
+    private string SearchQuery { get; set; } = string.Empty;
+    private List<ParsedField> AllParsedFields { get; set; } = new();
+
+    // Sidebar summary - track confirmed mappings (value + path)
+    private Dictionary<string, (string Value, string Path)> ConfirmedMappings { get; set; } = new();
+    private int ConfirmedMappingsCount => ConfirmedMappings.Count;
+
+    private FieldToReview? CurrentFieldToReview => CurrentFieldIndex < Fields.Count ? Fields[CurrentFieldIndex] : null;
+
+    protected override async Task OnInitializedAsync()
+    {
+        Logger.LogWarning("========== ReviewMappingsStage OnInitializedAsync ==========");
+        Logger.LogWarning("ConfigurationId: {ConfigId}", ConfigurationId);
+        Logger.LogWarning("SampleMessage length: {Length}", SampleMessage?.Length ?? 0);
+        await LoadFieldsToReview();
+    }
+
+    private async Task LoadFieldsToReview()
+    {
+        IsLoading = true;
+        StateHasChanged();
+
+        try
+        {
+            await using var context = await DbContextFactory.CreateDbContextAsync();
+
+            // DEBUG: Log sample message preview
+            var messagePreview = SampleMessage.Length > 500 ? SampleMessage.Substring(0, 500) : SampleMessage;
+            Logger.LogInformation("Parsing sample message (first 500 chars): {Preview}", messagePreview);
+            Logger.LogInformation("Sample message total length: {Length}", SampleMessage.Length);
+
+            // Parse the sample message
+            var parseResult = await ParserService.ParseMessagePreviewAsync(SampleMessage);
+
+            Logger.LogInformation("Parse result - Patient fields: {PatientCount}, Order fields: {OrderCount}, Results: {ResultCount}",
+                parseResult.PatientData.Count,
+                parseResult.OrderData.Count,
+                parseResult.ResultData.Count);
+
+            // DEBUG: Log each result observation for troubleshooting
+            for (int i = 0; i < parseResult.ResultData.Count; i++)
+            {
+                var result = parseResult.ResultData[i];
+                Logger.LogInformation("Result[{Index}] has {FieldCount} fields: {Fields}", 
+                    i, 
+                    result.Count,
+                    string.Join(", ", result.Keys));
+            }
+
+            // Store parsed data for preview
+            ParsedPatientData = parseResult.PatientData;
+            ParsedOrderData = parseResult.OrderData;
+            ParsedResultData = parseResult.ResultData;
+
+            // Store all parsed fields for browse modal
+            AllParsedFields = ExtractAllFields(parseResult);
+
+            Logger.LogInformation("Total parsed fields for browsing: {Count}", AllParsedFields.Count);
+
+            // DEBUG: Count fields by segment type
+            var fieldsBySegment = AllParsedFields.GroupBy(f => f.Path.Split('.')[0]).ToDictionary(g => g.Key, g => g.Count());
+            foreach (var kvp in fieldsBySegment)
+            {
+                Logger.LogInformation("  - {Segment}: {Count} fields", kvp.Key, kvp.Value);
+            }
+
+            // Get field definitions
+            var fieldDefinitions = GetFieldDefinitions();
+
+            // Load existing mappings
+            var mappingList = await context.HL7FieldMappings
+                .Where(m => m.ConfigurationId == ConfigurationId && m.IsActive)
+                .ToListAsync();
+
+            Logger.LogInformation("ReviewMappingsStage: Found {Count} existing active mappings for config {ConfigId}",
+                mappingList.Count, ConfigurationId);
+
+            var existingMappings = mappingList.ToDictionary(m => $"{m.TargetEntity}_{m.TargetProperty}");
+
+            // Build fields to review (all fields, including already-mapped ones)
+            Fields = new List<FieldToReview>();
+
+            foreach (var fieldDef in fieldDefinitions.OrderBy(f => f.Priority))
+            {
+                var key = $"{fieldDef.TargetEntity}_{fieldDef.TargetProperty}";
+                var hasMapping = existingMappings.ContainsKey(key);
+
+                Logger.LogInformation("  Checking field {Key} ({FriendlyName}): hasMapping={HasMapping}",
+                    key, fieldDef.FriendlyName, hasMapping);
+
+                // Detect candidates
+                var candidates = await DetectCandidatesAsync(parseResult, fieldDef);
+
+                // If field already has a mapping, add it to confirmed mappings for the sidebar
+                if (hasMapping)
+                {
+                    var mapping = existingMappings[key];
+                    var isConfirmed = !string.IsNullOrEmpty(mapping.FieldPath) && mapping.FieldPath != "SKIPPED";
+                    Logger.LogInformation("    Existing mapping FieldPath={FieldPath}, IsConfirmed={IsConfirmed}",
+                        mapping.FieldPath, isConfirmed);
+
+                    if (isConfirmed)
+                    {
+                        // Find the actual value from parsed fields for preview
+                        var matchedField = AllParsedFields.FirstOrDefault(f => f.Path == mapping.FieldPath);
+                        var mappedValue = matchedField?.Value ?? mapping.FieldPath; // Fallback to path if value not found
+
+                        // Add to confirmed mappings for sidebar preview
+                        ConfirmedMappings[key] = (mappedValue, mapping.FieldPath);
+                        Logger.LogInformation("    Pre-loaded existing mapping into ConfirmedMappings: {Value} from {Path}", 
+                            mappedValue, mapping.FieldPath);
+                    }
+                }
+
+                Fields.Add(new FieldToReview
+                {
+                    Key = fieldDef.Key,
+                    FriendlyName = fieldDef.FriendlyName,
+                    HelpText = fieldDef.HelpText,
+                    IsRequired = fieldDef.IsRequired,
+                    TargetEntity = fieldDef.TargetEntity,
+                    TargetProperty = fieldDef.TargetProperty,
+                    Candidates = candidates
+                });
+            }
+
+            Logger.LogInformation("ReviewMappingsStage: Built {FieldCount} fields to review", Fields.Count);
+
+            // If no fields to review, we're done
+            if (!Fields.Any())
+            {
+                Logger.LogWarning("ReviewMappingsStage: No fields to review - moving directly to next stage");
+                await OnAllFieldsConfirmed.InvokeAsync();
+            }
+            else
+            {
+                // Load saved selection for the first field if available
+                LoadSavedSelectionForCurrentField();
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error loading fields to review");
+        }
+        finally
+        {
+            IsLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private string? GetParsedValueForPath(string fieldPath, HL7ParseResult parseResult)
+    {
+        // Try to find the value in parsed data by field path
+        var field = AllParsedFields.FirstOrDefault(f => f.Path == fieldPath);
+        return field?.Value;
+    }
+
+    private void SelectCandidate(CandidateValue candidate)
+    {
+        Logger.LogWarning("SelectCandidate: Selected '{Value}' from path '{Path}'", 
+            candidate.Value, candidate.FieldPath);
+        SelectedCandidateValue = candidate.Value;
+        SelectedCandidateFieldPath = candidate.FieldPath;
+        StateHasChanged();
+    }
+
+    private async Task ConfirmField()
+    {
+        var field = Fields[CurrentFieldIndex];
+
+        try
+        {
+            Logger.LogWarning("========== CONFIRMFIELD CALLED ==========");
+            Logger.LogWarning("ConfirmField: Field {FieldName} ({Entity}.{Property})", 
+                field.FriendlyName, field.TargetEntity, field.TargetProperty);
+            Logger.LogWarning("ConfirmField: SelectedCandidateValue = '{Value}'", SelectedCandidateValue ?? "NULL");
+            Logger.LogWarning("ConfirmField: SelectedCandidateFieldPath = '{Path}'", SelectedCandidateFieldPath ?? "NULL");
+            Logger.LogWarning("ConfirmField: ConfigurationId = {ConfigId}", ConfigurationId);
+
+            // Create a new DbContext instance for this operation
+            await using var context = await DbContextFactory.CreateDbContextAsync();
+            Logger.LogWarning("ConfirmField: DbContext created successfully");
+
+            // Save the mapping - use proper upsert pattern
+            var key = $"{field.TargetEntity}_{field.TargetProperty}";
+
+            // Check if mapping exists in database
+            var existingMapping = await context.HL7FieldMappings
+                .Where(m => m.ConfigurationId == ConfigurationId && 
+                           m.TargetEntity == field.TargetEntity && 
+                           m.TargetProperty == field.TargetProperty)
+                .FirstOrDefaultAsync();
+
+            bool isNew = existingMapping == null;
+
+            if (isNew)
+            {
+                // Create new mapping
+                var newMapping = new HL7FieldMapping
+                {
+                    Id = Guid.NewGuid(),
+                    ConfigurationId = ConfigurationId,
+                    TargetEntity = field.TargetEntity,
+                    TargetProperty = field.TargetProperty,
+                    FieldName = field.FriendlyName,
+                    IsRequired = field.IsRequired,
+                    FieldPath = SelectedCandidateFieldPath ?? "MANUAL",
+                    SegmentType = ExtractSegmentType(SelectedCandidateFieldPath ?? "MANUAL"),
+                    IsActive = true,
+                    CreatedAt = DateTime.UtcNow,
+                    ModifiedAt = DateTime.UtcNow
+                };
+                context.HL7FieldMappings.Add(newMapping);
+                Logger.LogWarning("ConfirmField: ADDED new mapping to context, ID = {MappingId}", newMapping.Id);
+            }
+            else
+            {
+                // Update existing mapping
+                existingMapping.FieldPath = SelectedCandidateFieldPath ?? "MANUAL";
+                existingMapping.SegmentType = ExtractSegmentType(existingMapping.FieldPath);
+                existingMapping.IsActive = true;
+                existingMapping.ModifiedAt = DateTime.UtcNow;
+                // Entity is already tracked, no need to call Update
+                Logger.LogWarning("ConfirmField: UPDATED existing mapping in context, ID = {MappingId}", existingMapping.Id);
+            }
+
+            var savedCount = await context.SaveChangesAsync();
+            Logger.LogWarning("ConfirmField: SaveChangesAsync returned {SavedCount}", savedCount);
+            Logger.LogWarning("ConfirmField: ✅ SUCCESS - Saved {FieldName} → {FieldPath}", 
+                field.FriendlyName, SelectedCandidateFieldPath ?? "MANUAL");
+
+            // Track confirmed mapping for preview (store both value and path)
+            if (!string.IsNullOrEmpty(SelectedCandidateValue) && !string.IsNullOrEmpty(SelectedCandidateFieldPath))
+            {
+                ConfirmedMappings[key] = (SelectedCandidateValue, SelectedCandidateFieldPath);
+            }
+
+            // Move to next field or complete
+            if (CurrentFieldIndex < Fields.Count - 1)
+            {
+                CurrentFieldIndex++;
+                // Load any existing mapping for the new current field
+                LoadSavedSelectionForCurrentField();
+                StateHasChanged();
+            }
+            else
+            {
+                Logger.LogWarning("ConfirmField: All fields confirmed, moving to next stage");
+                await OnAllFieldsConfirmed.InvokeAsync();
+            }
+            Logger.LogWarning("========== CONFIRMFIELD COMPLETE ==========");
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "❌ ConfirmField: ERROR confirming field {FieldName}", field.FriendlyName);
+            throw;
+        }
+    }
+
+    private async Task SkipField()
+    {
+        var field = Fields[CurrentFieldIndex];
+
+        try
+        {
+            await using var context = await DbContextFactory.CreateDbContextAsync();
+
+            // Save as skipped - use proper upsert pattern
+            var existingMapping = await context.HL7FieldMappings
+                .Where(m => m.ConfigurationId == ConfigurationId && 
+                           m.TargetEntity == field.TargetEntity && 
+                           m.TargetProperty == field.TargetProperty)
+                .FirstOrDefaultAsync();
+
+            bool isNew = existingMapping == null;
+
+            if (isNew)
+            {
+                // Create new mapping for skipped field
+                var newMapping = new HL7FieldMapping
+                {
+                    Id = Guid.NewGuid(),
+                    ConfigurationId = ConfigurationId,
+                    TargetEntity = field.TargetEntity,
+                    TargetProperty = field.TargetProperty,
+                    FieldName = field.FriendlyName,
+                    FieldPath = "SKIPPED",
+                    SegmentType = "SKIPPED",
+                    IsActive = false,
+                    CreatedAt = DateTime.UtcNow,
+                    ModifiedAt = DateTime.UtcNow
+                };
+                context.HL7FieldMappings.Add(newMapping);
+                Logger.LogWarning("SkipField: ADDED new skipped mapping to context, ID = {MappingId}", newMapping.Id);
+            }
+            else
+            {
+                // Update existing mapping to mark as skipped
+                existingMapping.FieldPath = "SKIPPED";
+                existingMapping.SegmentType = "SKIPPED";
+                existingMapping.IsActive = false;
+                existingMapping.ModifiedAt = DateTime.UtcNow;
+                // Entity is already tracked, no need to call Update
+                Logger.LogWarning("SkipField: UPDATED existing mapping to SKIPPED, ID = {MappingId}", existingMapping.Id);
+            }
+
+            var savedCount = await context.SaveChangesAsync();
+            Logger.LogWarning("SkipField: SaveChangesAsync returned {SavedCount}", savedCount);
+            Logger.LogWarning("SkipField: ✅ SUCCESS - Skipped {FieldName}", field.FriendlyName);
+
+            // Move to next
+            if (CurrentFieldIndex < Fields.Count - 1)
+            {
+                CurrentFieldIndex++;
+                // Load any existing mapping for the new current field
+                LoadSavedSelectionForCurrentField();
+                StateHasChanged();
+            }
+            else
+            {
+                await OnAllFieldsConfirmed.InvokeAsync();
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error skipping field {FieldName}", field.FriendlyName);
+            throw;
+        }
+    }
+
+    private void PreviousField()
+    {
+        if (CurrentFieldIndex > 0)
+        {
+            CurrentFieldIndex--;
+            LoadSavedSelectionForCurrentField();
+            StateHasChanged();
+        }
+    }
+
+    private void JumpToField(int fieldIndex)
+    {
+        if (fieldIndex >= 0 && fieldIndex < Fields.Count)
+        {
+            CurrentFieldIndex = fieldIndex;
+            LoadSavedSelectionForCurrentField();
+            StateHasChanged();
+        }
+    }
+
+    private bool IsMultiObservationField(FieldToReview field)
+    {
+        if (ParsedResultData == null || ParsedResultData.Count <= 1)
+            return false;
+
+        // Check if this field is observation-related
+        var observationFields = new[] { "biomarker", "test_result", "test_type", "loinc_code" };
+        return observationFields.Contains(field.TargetProperty);
+    }
+
+    private void LoadSavedSelectionForCurrentField()
+    {
+        var field = Fields[CurrentFieldIndex];
+        var key = $"{field.TargetEntity}_{field.TargetProperty}";
+
+        // Check if this field has a confirmed mapping
+        if (ConfirmedMappings.TryGetValue(key, out var savedMapping))
+        {
+            SelectedCandidateValue = savedMapping.Value;
+            SelectedCandidateFieldPath = savedMapping.Path;
+        }
+        else
+        {
+            SelectedCandidateValue = null;
+            SelectedCandidateFieldPath = null;
+        }
+    }
+
+    private void ShowAllFields(FieldToReview field)
+    {
+        CurrentField = field;
+        ShowBrowseModal = true;
+        SearchQuery = string.Empty;
+        StateHasChanged();
+    }
+
+    private void CloseBrowseModal()
+    {
+        ShowBrowseModal = false;
+        StateHasChanged();
+    }
+
+    private void SelectBrowsedField(ParsedField field)
+    {
+        SelectedCandidateValue = field.Value;
+        SelectedCandidateFieldPath = field.Path;
+        ShowBrowseModal = false;
+
+        Logger.LogInformation("Field selected from browse: Path={Path}, Value={Value}", field.Path, field.Value);
+
+        StateHasChanged();
+    }
+
+    private async Task BackToUpload()
+    {
+        await OnBackToUpload.InvokeAsync();
+    }
+
+    private void TogglePreview()
+    {
+        ShowPreview = !ShowPreview;
+        StateHasChanged();
+    }
+
+    private List<ParsedField> ExtractAllFields(HL7ParseResult parseResult)
+    {
+        var fields = new List<ParsedField>();
+
+        // Extract from PatientData
+        foreach (var kvp in parseResult.PatientData)
+        {
+            if (!string.IsNullOrWhiteSpace(kvp.Value))
+            {
+                fields.Add(new ParsedField { Path = $"PID.{kvp.Key}", Value = kvp.Value });
+            }
+        }
+
+        // Extract from OrderData
+        foreach (var kvp in parseResult.OrderData)
+        {
+            if (!string.IsNullOrWhiteSpace(kvp.Value))
+            {
+                fields.Add(new ParsedField { Path = $"OBR.{kvp.Key}", Value = kvp.Value });
+            }
+        }
+
+        // Extract from SpecimenData
+        foreach (var kvp in parseResult.SpecimenData)
+        {
+            if (!string.IsNullOrWhiteSpace(kvp.Value))
+            {
+                fields.Add(new ParsedField { Path = $"SPM.{kvp.Key}", Value = kvp.Value });
+            }
+        }
+
+        // Extract from ResultData (OBX segments)
+        // Group by field key to show normalized paths (OBX.Field instead of OBX[1].Field)
+        // and collect all values from all observations
+        var obxFieldGroups = new Dictionary<string, List<string>>();
+
+        foreach (var result in parseResult.ResultData)
+        {
+            foreach (var kvp in result)
+            {
+                if (!string.IsNullOrWhiteSpace(kvp.Value))
+                {
+                    if (!obxFieldGroups.ContainsKey(kvp.Key))
+                    {
+                        obxFieldGroups[kvp.Key] = new List<string>();
+                    }
+                    obxFieldGroups[kvp.Key].Add(kvp.Value);
+                }
+            }
+        }
+
+        // Add normalized OBX fields with all values collected
+        foreach (var kvp in obxFieldGroups)
+        {
+            var normalizedPath = $"OBX.{kvp.Key}";
+            var allValues = kvp.Value;
+
+            // Store the first value as the primary value, but keep all values for display
+            fields.Add(new ParsedField 
+            { 
+                Path = normalizedPath, 
+                Value = allValues.First(),
+                AllValues = allValues // Store all observation values
+            });
+        }
+
+        Logger.LogInformation("Extracted {Count} fields from parse result ({OBXFields} unique OBX fields from {ObsCount} observations)", 
+            fields.Count, 
+            obxFieldGroups.Count,
+            parseResult.ResultData.Count);
+
+        return fields;
+    }
+
+    private string ExtractSegmentType(string fieldPath)
+    {
+        if (string.IsNullOrEmpty(fieldPath) || fieldPath == "SKIPPED" || fieldPath == "MANUAL")
+            return fieldPath;
+
+        var parts = fieldPath.Split('-');
+        return parts.Length > 0 ? parts[0] : "UNKNOWN";
+    }
+
+    // Field detection logic (similar to original ConfigureLab)
+    private async Task<List<CandidateValue>> DetectCandidatesAsync(HL7ParseResult parseResult, FieldDefinition fieldDef)
+    {
+        var candidates = new List<CandidateValue>();
+
+        switch (fieldDef.Key)
+        {
+            case "patient_firstname":
+                if (parseResult.PatientData.TryGetValue("FirstName", out var firstName) && !string.IsNullOrEmpty(firstName))
+                {
+                    candidates.Add(new CandidateValue
+                    {
+                        Value = firstName,
+                        DisplayValue = firstName,
+                        Hint = "Found in patient name",
+                        FieldPath = "PID-5.2",
+                        Confidence = 90
+                    });
+                }
+                break;
+
+            case "patient_lastname":
+                if (parseResult.PatientData.TryGetValue("LastName", out var lastName) && !string.IsNullOrEmpty(lastName))
+                {
+                    candidates.Add(new CandidateValue
+                    {
+                        Value = lastName,
+                        DisplayValue = lastName,
+                        Hint = "Found in patient name",
+                        FieldPath = "PID-5.1",
+                        Confidence = 90
+                    });
+                }
+                break;
+
+            case "patient_dob":
+                if (parseResult.PatientData.TryGetValue("DateOfBirth", out var dob) && !string.IsNullOrEmpty(dob))
+                {
+                    candidates.Add(new CandidateValue
+                    {
+                        Value = dob,
+                        DisplayValue = FormatDate(dob),
+                        Hint = "Found in patient demographics",
+                        FieldPath = "PID-7",
+                        Confidence = 95
+                    });
+                }
+                break;
+
+            case "patient_sex":
+                if (parseResult.PatientData.TryGetValue("Sex", out var sex) && !string.IsNullOrEmpty(sex))
+                {
+                    candidates.Add(new CandidateValue
+                    {
+                        Value = sex,
+                        DisplayValue = sex,
+                        Hint = "Found in patient sex field",
+                        FieldPath = "PID-8",
+                        Confidence = 95
+                    });
+                }
+                break;
+
+            case "patient_address":
+                if (parseResult.PatientData.TryGetValue("Address", out var address) && !string.IsNullOrEmpty(address))
+                {
+                    candidates.Add(new CandidateValue
+                    {
+                        Value = address,
+                        DisplayValue = address,
+                        Hint = "Found in patient address field",
+                        FieldPath = "PID-11.1",
+                        Confidence = 85
+                    });
+                }
+                break;
+
+            case "patient_suburb":
+                if (parseResult.PatientData.TryGetValue("City", out var city) && !string.IsNullOrEmpty(city))
+                {
+                    candidates.Add(new CandidateValue
+                    {
+                        Value = city,
+                        DisplayValue = city,
+                        Hint = "Found in patient address",
+                        FieldPath = "PID-11.3",
+                        Confidence = 85
+                    });
+                }
+                break;
+
+            case "patient_state":
+                if (parseResult.PatientData.TryGetValue("State", out var state) && !string.IsNullOrEmpty(state))
+                {
+                    candidates.Add(new CandidateValue
+                    {
+                        Value = state,
+                        DisplayValue = state,
+                        Hint = "Found in patient address",
+                        FieldPath = "PID-11.4",
+                        Confidence = 85
+                    });
+                }
+                break;
+
+            case "patient_postcode":
+                if (parseResult.PatientData.TryGetValue("ZipCode", out var zip) && !string.IsNullOrEmpty(zip))
+                {
+                    candidates.Add(new CandidateValue
+                    {
+                        Value = zip,
+                        DisplayValue = zip,
+                        Hint = "Found in patient address",
+                        FieldPath = "PID-11.5",
+                        Confidence = 85
+                    });
+                }
+                break;
+
+            case "patient_phone":
+                if (parseResult.PatientData.TryGetValue("Phone", out var phone) && !string.IsNullOrEmpty(phone))
+                {
+                    candidates.Add(new CandidateValue
+                    {
+                        Value = phone,
+                        DisplayValue = phone,
+                        Hint = "Found in patient phone number",
+                        FieldPath = "PID-13",
+                        Confidence = 90
+                    });
+                }
+                break;
+
+            case "accession_number":
+                if (parseResult.OrderData.TryGetValue("AccessionNumber", out var accession) && !string.IsNullOrEmpty(accession))
+                {
+                    candidates.Add(new CandidateValue
+                    {
+                        Value = accession,
+                        DisplayValue = accession,
+                        Hint = "Found in order information",
+                        FieldPath = "OBR-3",
+                        Confidence = 95
+                    });
+                }
+                break;
+
+            case "ordering_provider":
+                if (parseResult.OrderData.TryGetValue("OrderingProvider", out var provider) && !string.IsNullOrEmpty(provider))
+                {
+                    candidates.Add(new CandidateValue
+                    {
+                        Value = provider,
+                        DisplayValue = provider,
+                        Hint = "Found in order information",
+                        FieldPath = "OBR-16",
+                        Confidence = 90
+                    });
+                }
+                break;
+
+            case "test_type":
+                // First check for test method from OBX segments (per-observation test method)
+                if (parseResult.ResultData.Any())
+                {
+                    var testMethods = new List<string>();
+
+                    foreach (var result in parseResult.ResultData)
+                    {
+                        if (result.TryGetValue("TestMethod", out var method) && !string.IsNullOrEmpty(method))
+                        {
+                            testMethods.Add(method);
+                        }
+                    }
+
+                    if (testMethods.Any())
+                    {
+                        var isMultiObservation = testMethods.Count > 1;
+                        var uniqueMethods = testMethods.Distinct().ToList();
+
+                        var displayValue = isMultiObservation && uniqueMethods.Count > 1
+                            ? $"{testMethods.Count} methods: {string.Join(", ", uniqueMethods.Take(3))}{(uniqueMethods.Count > 3 ? "..." : "")}"
+                            : testMethods[0];
+
+                        var hint = isMultiObservation
+                            ? $"Found {testMethods.Count} test methods in OBX-17 (applies to all observations)"
+                            : "Found in observation method (OBX-17)";
+
+                        candidates.Add(new CandidateValue
+                        {
+                            Value = string.Join("|", testMethods),
+                            DisplayValue = displayValue,
+                            Hint = hint,
+                            FieldPath = "OBX-17",
+                            Confidence = 95
+                        });
+                    }
+                }
+
+                // Fallback to order-level test name (OBR-4)
+                if (parseResult.OrderData.TryGetValue("TestName", out var testName) && !string.IsNullOrEmpty(testName))
+                {
+                    candidates.Add(new CandidateValue
+                    {
+                        Value = testName,
+                        DisplayValue = testName,
+                        Hint = "Found in order test name (OBR-4.2)",
+                        FieldPath = "OBR-4.2",
+                        Confidence = 75
+                    });
+                }
+                if (parseResult.OrderData.TryGetValue("TestCode", out var testCode) && !string.IsNullOrEmpty(testCode))
+                {
+                    candidates.Add(new CandidateValue
+                    {
+                        Value = testCode,
+                        DisplayValue = $"{testCode} (code)",
+                        Hint = "Found as order test code (OBR-4.1)",
+                        FieldPath = "OBR-4.1",
+                        Confidence = 70
+                    });
+                }
+                break;
+
+            case "test_result":
+                if (parseResult.ResultData.Any())
+                {
+                    // Collect all unique result values from observations
+                    var resultValues = new List<string>();
+
+                    foreach (var result in parseResult.ResultData)
+                    {
+                        if (result.TryGetValue("Result", out var resultValue) && !string.IsNullOrEmpty(resultValue))
+                        {
+                            resultValues.Add(resultValue);
+                        }
+                    }
+
+                    if (resultValues.Any())
+                    {
+                        var isMultiObservation = resultValues.Count > 1;
+                        var uniqueResults = resultValues.Distinct().ToList();
+
+                        var displayValue = isMultiObservation
+                            ? $"{resultValues.Count} results: {string.Join(", ", uniqueResults.Take(3))}{(uniqueResults.Count > 3 ? "..." : "")}"
+                            : resultValues[0];
+
+                        var hint = isMultiObservation
+                            ? $"Found {resultValues.Count} results in OBX-5 (applies to all observations)"
+                            : "Found in observation result (OBX-5)";
+
+                        candidates.Add(new CandidateValue
+                        {
+                            Value = string.Join("|", resultValues),
+                            DisplayValue = displayValue,
+                            Hint = hint,
+                            FieldPath = "OBX-5",
+                            Confidence = 90
+                        });
+                    }
+                }
+                break;
+
+            case "test_date":
+                if (parseResult.OrderData.TryGetValue("OrderDateTime", out var testDate) && !string.IsNullOrEmpty(testDate))
+                {
+                    candidates.Add(new CandidateValue
+                    {
+                        Value = testDate,
+                        DisplayValue = FormatDate(testDate),
+                        Hint = "Found in order date/time",
+                        FieldPath = "OBR-7",
+                        Confidence = 90
+                    });
+                }
+                break;
+
+            case "specimen_type":
+                if (parseResult.SpecimenData.TryGetValue("SpecimenType", out var specimenType) && !string.IsNullOrEmpty(specimenType))
+                {
+                    candidates.Add(new CandidateValue
+                    {
+                        Value = specimenType,
+                        DisplayValue = specimenType,
+                        Hint = "Found in specimen information",
+                        FieldPath = "SPM-4",
+                        Confidence = 85
+                    });
+                }
+                // Fallback to OBR-15 if SPM not available
+                if (parseResult.OrderData.TryGetValue("SpecimenSource", out var specimenSource) && !string.IsNullOrEmpty(specimenSource))
+                {
+                    candidates.Add(new CandidateValue
+                    {
+                        Value = specimenSource,
+                        DisplayValue = specimenSource,
+                        Hint = "Found in order specimen source",
+                        FieldPath = "OBR-15",
+                        Confidence = 75
+                    });
+                }
+                break;
+
+            case "biomarker":
+                if (parseResult.ResultData.Any())
+                {
+                    // Collect all unique test names from observations
+                    var testNames = new List<string>();
+                    var testCodes = new List<string>();
+
+                    foreach (var result in parseResult.ResultData)
+                    {
+                        if (result.TryGetValue("TestName", out var observationName) && !string.IsNullOrEmpty(observationName))
+                        {
+                            testNames.Add(observationName);
+                        }
+                        if (result.TryGetValue("TestCode", out var observationCode) && !string.IsNullOrEmpty(observationCode))
+                        {
+                            testCodes.Add(observationCode);
+                        }
+                    }
+
+                    // Suggest OBX-3.2 (Test Name) if available
+                    if (testNames.Any())
+                    {
+                        var isMultiObservation = testNames.Count > 1;
+                        var displayValue = isMultiObservation
+                            ? $"{testNames.Count} observations: {string.Join(", ", testNames.Take(3))}{(testNames.Count > 3 ? "..." : "")}"
+                            : testNames[0];
+
+                        var hint = isMultiObservation
+                            ? $"Found {testNames.Count} observations in OBX-3.2 (applies to all)"
+                            : "Found in observation test name (OBX-3.2)";
+
+                        candidates.Add(new CandidateValue
+                        {
+                            Value = string.Join("|", testNames), // Store all for reference
+                            DisplayValue = displayValue,
+                            Hint = hint,
+                            FieldPath = "OBX-3.2",
+                            Confidence = 90
+                        });
+                    }
+
+                    // Suggest OBX-3.1 (Test Code) as alternative
+                    if (testCodes.Any())
+                    {
+                        var isMultiObservation = testCodes.Count > 1;
+                        var displayValue = isMultiObservation
+                            ? $"{testCodes.Count} codes: {string.Join(", ", testCodes.Take(3))}{(testCodes.Count > 3 ? "..." : "")}"
+                            : testCodes[0];
+
+                        var hint = isMultiObservation
+                            ? $"Found {testCodes.Count} codes in OBX-3.1 (LOINC/local codes)"
+                            : "Found in observation identifier (OBX-3.1)";
+
+                        candidates.Add(new CandidateValue
+                        {
+                            Value = string.Join("|", testCodes),
+                            DisplayValue = displayValue,
+                            Hint = hint,
+                            FieldPath = "OBX-3.1",
+                            Confidence = 85
+                        });
+                    }
+                }
+                break;
+        }
+
+        return candidates;
+    }
+
+    private string FormatDate(string hl7Date)
+    {
+        if (string.IsNullOrEmpty(hl7Date) || hl7Date.Length < 8)
+            return hl7Date;
+
+        // HL7 date format: YYYYMMDD or YYYYMMDDHHMMSS
+        try
+        {
+            var year = hl7Date.Substring(0, 4);
+            var month = hl7Date.Substring(4, 2);
+            var day = hl7Date.Substring(6, 2);
+            return $"{day}/{month}/{year}";
+        }
+        catch
+        {
+            return hl7Date;
+        }
+    }
+
+    private List<FieldDefinition> GetFieldDefinitions()
+    {
+        return new List<FieldDefinition>
+        {
+            // Patient Demographics
+            new() { Key = "patient_firstname", FriendlyName = "Patient first name", HelpText = "The patient's given name", IsRequired = true, Priority = 10, TargetEntity = "Patient", TargetProperty = "FirstName" },
+            new() { Key = "patient_lastname", FriendlyName = "Patient last name", HelpText = "The patient's family name", IsRequired = true, Priority = 11, TargetEntity = "Patient", TargetProperty = "LastName" },
+            new() { Key = "patient_dob", FriendlyName = "Patient date of birth", HelpText = "When the patient was born", IsRequired = true, Priority = 12, TargetEntity = "Patient", TargetProperty = "DateOfBirth" },
+            new() { Key = "patient_sex", FriendlyName = "Patient sex", HelpText = "The patient's biological sex (M/F)", IsRequired = false, Priority = 13, TargetEntity = "Patient", TargetProperty = "Sex" },
+            new() { Key = "patient_address", FriendlyName = "Patient address", HelpText = "The patient's home street address", IsRequired = false, Priority = 20, TargetEntity = "Patient", TargetProperty = "Address" },
+            new() { Key = "patient_suburb", FriendlyName = "Patient suburb/city", HelpText = "The patient's suburb or city", IsRequired = false, Priority = 21, TargetEntity = "Patient", TargetProperty = "City" },
+            new() { Key = "patient_state", FriendlyName = "Patient state", HelpText = "The patient's state or province", IsRequired = false, Priority = 22, TargetEntity = "Patient", TargetProperty = "State" },
+            new() { Key = "patient_postcode", FriendlyName = "Patient postcode/ZIP", HelpText = "The patient's postal code", IsRequired = false, Priority = 23, TargetEntity = "Patient", TargetProperty = "Zip" },
+            new() { Key = "patient_phone", FriendlyName = "Patient phone", HelpText = "The patient's contact phone number", IsRequired = false, Priority = 24, TargetEntity = "Patient", TargetProperty = "Phone" },
+
+            // Lab and Order Information
+            new() { Key = "accession_number", FriendlyName = "Accession number", HelpText = "The lab's unique identifier for this order", IsRequired = false, Priority = 30, TargetEntity = "LabResult", TargetProperty = "AccessionNumber" },
+            new() { Key = "ordering_provider", FriendlyName = "Ordering provider", HelpText = "The doctor or provider who ordered the test", IsRequired = false, Priority = 31, TargetEntity = "LabResult", TargetProperty = "OrderingProvider" },
+            new() { Key = "lab_name", FriendlyName = "Lab name", HelpText = "The name of the laboratory performing the test", IsRequired = false, Priority = 32, TargetEntity = "LabResult", TargetProperty = "LaboratoryName" },
+
+            // Test Information
+            new() { Key = "test_type", FriendlyName = "Test type", HelpText = "The name or description of the test performed", IsRequired = true, Priority = 40, TargetEntity = "LabResult", TargetProperty = "TestName", MappingType = MappingType.Code },
+            new() { Key = "test_result", FriendlyName = "Test result", HelpText = "The outcome of the test (Positive, Negative, etc.)", IsRequired = true, Priority = 41, TargetEntity = "LabResult", TargetProperty = "Result" },
+            new() { Key = "test_date", FriendlyName = "Test date", HelpText = "When the sample was collected", IsRequired = true, Priority = 42, TargetEntity = "LabResult", TargetProperty = "TestDate" },
+            new() { Key = "specimen_type", FriendlyName = "Specimen type", HelpText = "What was tested (swab, blood, etc.)", IsRequired = false, Priority = 43, TargetEntity = "LabResult", TargetProperty = "SpecimenType", MappingType = MappingType.Code },
+            new() { Key = "biomarker", FriendlyName = "Biomarker", HelpText = "The specific pathogen or substance detected", IsRequired = false, Priority = 44, TargetEntity = "LabResult", TargetProperty = "Biomarker", MappingType = MappingType.Code }
+        };
+    }
+
+    private class FieldToReview
+    {
+        public string Key { get; set; } = string.Empty;
+        public string FriendlyName { get; set; } = string.Empty;
+        public string HelpText { get; set; } = string.Empty;
+        public bool IsRequired { get; set; }
+        public string TargetEntity { get; set; } = string.Empty;
+        public string TargetProperty { get; set; } = string.Empty;
+        public List<CandidateValue> Candidates { get; set; } = new();
+    }
+
+    private class CandidateValue
+    {
+        public string Value { get; set; } = string.Empty;
+        public string DisplayValue { get; set; } = string.Empty;
+        public string Hint { get; set; } = string.Empty;
+        public string FieldPath { get; set; } = string.Empty;
+        public int? Confidence { get; set; }
+    }
+
+    private class ParsedField
+    {
+        public string Path { get; set; } = string.Empty;
+        public string Value { get; set; } = string.Empty;
+        public List<string>? AllValues { get; set; } // For OBX fields - stores all observation values
+    }
+
+    private class FieldDefinition
+    {
+        public string Key { get; set; } = string.Empty;
+        public string FriendlyName { get; set; } = string.Empty;
+        public string HelpText { get; set; } = string.Empty;
+        public bool IsRequired { get; set; }
+        public int Priority { get; set; }
+        public string TargetEntity { get; set; } = string.Empty;
+        public string TargetProperty { get; set; } = string.Empty;
+        public MappingType MappingType { get; set; } = MappingType.Text;
+    }
+
+    private enum MappingType
+    {
+        Text,      // Direct text value
+        Code       // Needs code mapping (LOINC/SNOMED/etc.)
+    }
+}
+
+<style>
+    /* Reuse progress styles from UploadSampleStage */
+    .wizard-progress {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-bottom: 48px;
+        padding: 0 48px;
+    }
+
+    .progress-step {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 8px;
+        opacity: 0.4;
+    }
+
+    .progress-step.active, .progress-step.completed {
+        opacity: 1;
+    }
+
+    .step-number {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        background: var(--chalk);
+        border: 2px solid var(--hairline);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 16px;
+        font-weight: 600;
+    }
+
+    .progress-step.active .step-number {
+        background: var(--signal-dk);
+        border-color: var(--signal-dk);
+        color: white;
+    }
+
+    .progress-step.completed .step-number {
+        background: var(--signal-dk);
+        border-color: var(--signal-dk);
+        color: white;
+    }
+
+    .progress-connector {
+        flex: 1;
+        height: 2px;
+        background: var(--hairline);
+        margin: 0 16px;
+        max-width: 120px;
+    }
+
+    .progress-connector.completed {
+        background: var(--signal-dk);
+    }
+
+    .stage-content {
+        max-width: 700px;
+        margin: 0 auto;
+    }
+
+    .loading-state {
+        text-align: center;
+        padding: 60px 20px;
+    }
+
+    .loading-state p {
+        margin-top: 16px;
+        color: var(--graphite);
+    }
+
+    .field-card {
+        background: white;
+        border: 1px solid var(--hairline);
+        border-radius: 12px;
+        overflow: hidden;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+    }
+
+    .card-header {
+        padding: 20px 24px;
+        background: var(--chalk);
+        border-bottom: 1px solid var(--hairline);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .field-progress {
+        flex: 1;
+    }
+
+    .progress-text {
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--graphite);
+        display: block;
+        margin-bottom: 8px;
+    }
+
+    .progress-bar-wrapper {
+        height: 6px;
+        background: white;
+        border-radius: 3px;
+        overflow: hidden;
+    }
+
+    .progress-bar-fill {
+        height: 100%;
+        background: var(--signal-dk);
+        transition: width 0.3s ease;
+    }
+
+    .optional-badge {
+        padding: 4px 12px;
+        background: var(--paper);
+        color: var(--graphite);
+        font-size: 11px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        border-radius: 12px;
+    }
+
+    .card-body {
+        padding: 32px 24px;
+    }
+
+    .field-title {
+        font-size: 24px;
+        font-weight: 600;
+        letter-spacing: -0.01em;
+        color: var(--forest);
+        margin-bottom: 12px;
+    }
+
+    .field-description {
+        font-size: 16px;
+        color: var(--graphite);
+        line-height: 1.6;
+        margin-bottom: 32px;
+    }
+
+    .section-label {
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--graphite);
+        margin-bottom: 16px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .candidate-card {
+        padding: 16px;
+        border: 2px solid var(--hairline);
+        border-radius: 8px;
+        margin-bottom: 12px;
+        cursor: pointer;
+        transition: all 0.2s;
+        display: flex;
+        gap: 16px;
+    }
+
+    .candidate-card:hover {
+        border-color: var(--signal-dk);
+        background: var(--signal-lt);
+    }
+
+    .candidate-card.selected {
+        border-color: var(--signal-dk);
+        background: var(--signal-lt);
+    }
+
+    .candidate-radio {
+        font-size: 24px;
+        color: var(--graphite);
+    }
+
+    .candidate-card.selected .candidate-radio {
+        color: var(--signal-dk);
+    }
+
+    .candidate-content {
+        flex: 1;
+    }
+
+    .candidate-value {
+        font-size: 18px;
+        font-weight: 600;
+        color: var(--forest);
+        margin-bottom: 4px;
+    }
+
+    .candidate-hint {
+        font-size: 14px;
+        color: var(--graphite);
+    }
+
+    .confidence-badge {
+        display: inline-block;
+        margin-top: 8px;
+        padding: 4px 10px;
+        background: var(--signal-lt);
+        color: var(--signal-dk);
+        font-size: 11px;
+        font-weight: 600;
+        border-radius: 4px;
+    }
+
+    .no-candidates {
+        text-align: center;
+        padding: 40px 20px;
+        background: var(--paper);
+        border-radius: 8px;
+    }
+
+    .no-candidates i {
+        font-size: 48px;
+        color: var(--graphite);
+        margin-bottom: 16px;
+    }
+
+    .no-candidates p {
+        font-size: 15px;
+        color: var(--graphite);
+        margin-bottom: 20px;
+    }
+
+    .card-actions {
+        padding: 20px 24px;
+        background: var(--chalk);
+        border-top: 1px solid var(--hairline);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .action-right {
+        display: flex;
+        gap: 12px;
+    }
+
+    .btn-primary, .btn-secondary, .btn-ghost, .btn-text {
+        padding: 10px 20px;
+        font-size: 15px;
+        font-weight: 600;
+        border-radius: 6px;
+        border: none;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        transition: all 0.2s;
+    }
+
+    .btn-primary {
+        background: var(--signal-dk);
+        color: white;
+    }
+
+    .btn-primary:hover:not(:disabled) {
+        background: #1fa87a;
+        transform: translateY(-1px);
+    }
+
+    .btn-primary:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+
+    .btn-secondary {
+        background: var(--paper);
+        color: var(--forest);
+        border: 1px solid var(--hairline);
+    }
+
+    .btn-secondary:hover {
+        background: var(--chalk);
+    }
+
+    .btn-ghost {
+        background: transparent;
+        color: var(--graphite);
+    }
+
+    .btn-ghost:hover {
+        background: var(--paper);
+    }
+
+    .btn-text {
+        background: none;
+        border: none;
+        color: var(--signal-dk);
+        font-size: 14px;
+        padding: 8px 12px;
+        cursor: pointer;
+    }
+
+    .btn-text:hover {
+        text-decoration: underline;
+    }
+
+    .bottom-actions {
+        text-align: center;
+        margin-top: 32px;
+    }
+
+    /* Message Preview Section */
+    .message-preview-section {
+        background: var(--paper);
+        border: 1px solid var(--hairline);
+        border-radius: 8px;
+        margin-bottom: 32px;
+        overflow: hidden;
+    }
+
+    .preview-toggle {
+        width: 100%;
+        background: none;
+        border: none;
+        padding: 16px 20px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        cursor: pointer;
+        text-align: left;
+        transition: background 0.2s;
+    }
+
+    .preview-toggle:hover {
+        background: var(--chalk);
+    }
+
+    .preview-toggle i.bi-chevron-right,
+    .preview-toggle i.bi-chevron-down {
+        font-size: 14px;
+        color: var(--graphite);
+    }
+
+    .preview-label {
+        flex: 1;
+        font-size: 15px;
+        font-weight: 600;
+        color: var(--forest);
+        display: flex;
+        align-items: center;
+    }
+
+    .preview-hint {
+        font-size: 13px;
+        color: var(--graphite);
+    }
+
+    .preview-content {
+        border-top: 1px solid var(--hairline);
+        padding: 20px;
+    }
+
+    .preview-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 20px;
+    }
+
+    .preview-section {
+        background: white;
+        border: 1px solid var(--hairline);
+        border-radius: 6px;
+        padding: 16px;
+    }
+
+    .preview-section-title {
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--forest);
+        margin-bottom: 12px;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .preview-section-title i {
+        color: var(--signal-dk);
+    }
+
+    .preview-item {
+        padding: 6px 0;
+        font-size: 13px;
+        display: flex;
+        gap: 8px;
+        border-bottom: 1px solid var(--paper);
+    }
+
+    .preview-item:last-of-type {
+        border-bottom: none;
+    }
+
+    .preview-key {
+        color: var(--graphite);
+        min-width: 100px;
+        font-weight: 500;
+    }
+
+    .preview-value {
+        color: var(--forest);
+        flex: 1;
+        word-break: break-word;
+    }
+
+    .preview-result-item {
+        padding: 8px 0;
+        border-bottom: 1px solid var(--paper);
+    }
+
+    .preview-result-item:last-child {
+        border-bottom: none;
+    }
+
+    .preview-result-item .preview-key {
+        font-size: 13px;
+        color: var(--forest);
+        font-weight: 500;
+        margin-bottom: 4px;
+    }
+
+    .preview-result-item .preview-value {
+        font-size: 14px;
+        color: var(--graphite);
+    }
+
+    .preview-more {
+        font-size: 12px;
+        color: var(--graphite);
+        font-style: italic;
+        margin-top: 8px;
+    }
+
+    /* Modal styles */
+    .modal-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.5);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 1000;
+    }
+
+    .modal-dialog {
+        background: white;
+        border-radius: 12px;
+        max-width: 600px;
+        width: 90%;
+        max-height: 80vh;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .modal-header {
+        padding: 20px 24px;
+        border-bottom: 1px solid var(--hairline);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .modal-header h4 {
+        margin: 0;
+        font-size: 18px;
+        font-weight: 600;
+    }
+
+    .btn-close {
+        background: none;
+        border: none;
+        font-size: 24px;
+        color: var(--graphite);
+        cursor: pointer;
+        padding: 0;
+    }
+
+    .modal-body {
+        padding: 24px;
+        overflow-y: auto;
+    }
+
+    .search-input {
+        width: 100%;
+        padding: 10px 16px;
+        border: 1px solid var(--hairline);
+        border-radius: 6px;
+        font-size: 14px;
+        margin-bottom: 16px;
+    }
+
+    .search-input:focus {
+        outline: none;
+        border-color: var(--signal-dk);
+    }
+
+    .all-fields-list {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .field-item {
+        padding: 12px;
+        border: 1px solid var(--hairline);
+        border-radius: 6px;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .field-item:hover {
+        border-color: var(--signal-dk);
+        background: var(--signal-lt);
+    }
+
+    .field-path {
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--graphite);
+        font-family: 'Consolas', monospace;
+        margin-bottom: 4px;
+    }
+
+    .field-value {
+        font-size: 14px;
+        color: var(--forest);
+    }
+</style>

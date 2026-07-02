@@ -16,6 +16,7 @@ public class HL7DataExtractionService : IHL7DataExtractionService
     private readonly ICaseMatchingService _caseMatchingService;
     private readonly IHL7MarkerResolutionService _markerResolutionService;
     private readonly IHL7FieldMappingService _fieldMappingService;
+    private readonly IGeocodingQueueService? _geocodingQueue;
 
     public HL7DataExtractionService(
         ApplicationDbContext context,
@@ -23,7 +24,8 @@ public class HL7DataExtractionService : IHL7DataExtractionService
         IDuplicateDetectionService duplicateDetectionService,
         ICaseMatchingService caseMatchingService,
         IHL7MarkerResolutionService markerResolutionService,
-        IHL7FieldMappingService fieldMappingService)
+        IHL7FieldMappingService fieldMappingService,
+        IGeocodingQueueService? geocodingQueue = null)
     {
         _context = context;
         _logger = logger;
@@ -31,6 +33,7 @@ public class HL7DataExtractionService : IHL7DataExtractionService
         _caseMatchingService = caseMatchingService;
         _markerResolutionService = markerResolutionService;
         _fieldMappingService = fieldMappingService;
+        _geocodingQueue = geocodingQueue;
     }
 
     public async Task<DataExtractionResult> ExtractAndCreateEntitiesAsync(
@@ -101,7 +104,7 @@ public class HL7DataExtractionService : IHL7DataExtractionService
                 null, // Disease not yet resolved at this stage
                 "Organization",
                 "LaboratoryName",
-                ExtractLaboratoryName);
+                (msg) => ExtractLaboratoryName(msg, configuration));
 
             result.Warnings.Add($"[LAB EXTRACTION] Extracted lab name: '{labName ?? "NULL"}'");
             result.Warnings.Add($"[LAB EXTRACTION] Auto-create orgs: {autoCreateOrgs}");
@@ -148,7 +151,7 @@ public class HL7DataExtractionService : IHL7DataExtractionService
                 null, // Disease not yet resolved at this stage
                 "Organization",
                 "OrderingProviderName",
-                ExtractOrderingProviderName);
+                (msg) => ExtractOrderingProviderName(msg, configuration)); // Pass configuration through lambda
 
             if (!string.IsNullOrEmpty(providerName))
             {
@@ -171,6 +174,7 @@ public class HL7DataExtractionService : IHL7DataExtractionService
                         result.Patient,
                         result.Laboratory,
                         result.OrderingProvider,
+                        configuration,
                         cancellationToken);
 
                     if (result.LabResult != null)
@@ -942,6 +946,7 @@ public class HL7DataExtractionService : IHL7DataExtractionService
         Patient patient,
         Organization laboratory,
         Organization? orderingProvider,
+        HL7Configuration? configuration = null,
         CancellationToken cancellationToken = default)
     {
         // Check for duplicate message first
@@ -971,12 +976,12 @@ public class HL7DataExtractionService : IHL7DataExtractionService
             return null; // Original message didn't create a lab result either
         }
 
-        var accessionNumber = ExtractAccessionNumber(message);
-        var specimenDate = ExtractSpecimenDate(message);
+        var accessionNumber = ExtractAccessionNumber(message, configuration);
+        var specimenDate = ExtractSpecimenDate(message, configuration);
 
         // Extract specimen type and test method for this lab result (applies to all markers)
-        var (specimenCode, specimenText, specimenSystem) = ExtractSpecimenType(message);
-        var (testMethodCode, testMethodText, testMethodSystem) = ExtractTestMethod(message);
+        var (specimenCode, specimenText, specimenSystem) = ExtractSpecimenType(message, configuration);
+        var (testMethodCode, testMethodText, testMethodSystem) = ExtractTestMethod(message, configuration);
 
         // Try to find existing LabResult by accession number
         LabResult? existingLabResult = null;
@@ -1354,9 +1359,51 @@ public class HL7DataExtractionService : IHL7DataExtractionService
     }
 
 
-    private string? ExtractLaboratoryName(HL7Message message)
+    private string? ExtractLaboratoryName(HL7Message message, HL7Configuration? configuration = null)
     {
-        // From MSH-4 (Sending Facility) - typically the laboratory/hospital name
+        // PRIORITY 1: Check if there's a configured mapping for laboratory name
+        if (configuration != null)
+        {
+            try
+            {
+                _logger.LogDebug("[LAB EXTRACTION] Checking for configured field mappings. Total mappings: {Count}",
+                    configuration.FieldMappings?.Count ?? 0);
+
+                var labMapping = configuration.FieldMappings
+                    .FirstOrDefault(m => m.IsActive &&
+                                        (m.TargetProperty == "LaboratoryName" || m.TargetProperty == "Laboratory"));
+
+                if (labMapping != null)
+                {
+                    _logger.LogDebug("[LAB EXTRACTION] Found configured mapping: Segment={Segment}, FieldPath={Path}",
+                        labMapping.SegmentType, labMapping.FieldPath);
+
+                    var pathParts = labMapping.FieldPath.Split('-');
+                    if (pathParts.Length == 2 && int.TryParse(pathParts[1], out int fieldNumber))
+                    {
+                        var segment = message.Segments.FirstOrDefault(s => s.SegmentType == labMapping.SegmentType);
+                        if (segment != null)
+                        {
+                            var fields = segment.RawSegment.Split('|');
+                            int fieldIndex = fieldNumber - 1;
+
+                            if (fields.Length > fieldIndex && !string.IsNullOrWhiteSpace(fields[fieldIndex]))
+                            {
+                                _logger.LogInformation("[LAB EXTRACTION] ✅ Extracted from configured mapping {FieldPath}: '{Value}'",
+                                    labMapping.FieldPath, fields[fieldIndex]);
+                                return fields[fieldIndex];
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "[LAB EXTRACTION] Error checking field mapping configuration, falling back to default");
+            }
+        }
+
+        // PRIORITY 2 (FALLBACK): From MSH-4 (Sending Facility) - typically the laboratory/hospital name
         var mshSegment = message.Segments.FirstOrDefault(s => s.SegmentType == "MSH");
         if (mshSegment != null)
         {
@@ -1384,7 +1431,7 @@ public class HL7DataExtractionService : IHL7DataExtractionService
         return null;
     }
 
-    private string? ExtractOrderingProviderName(HL7Message message)
+    private string? ExtractOrderingProviderName(HL7Message message, HL7Configuration? configuration = null)
     {
         _logger.LogInformation("[ORDERING PROVIDER] === EXTRACTION START ===");
         _logger.LogInformation("[ORDERING PROVIDER] Message has {Count} segments in collection", message.Segments?.Count ?? 0);
@@ -1489,6 +1536,104 @@ public class HL7DataExtractionService : IHL7DataExtractionService
             return null;
         }
 
+        // PRIORITY 1: Check if there's a configured mapping for ordering provider
+        if (configuration != null)
+        {
+            try
+            {
+                _logger.LogInformation("[ORDERING PROVIDER] Configuration provided, checking for field mappings. Total mappings: {Count}", 
+                    configuration.FieldMappings?.Count ?? 0);
+
+                // Debug: List all active mappings
+                if (configuration.FieldMappings != null && configuration.FieldMappings.Any())
+                {
+                    foreach (var mapping in configuration.FieldMappings.Where(m => m.IsActive))
+                    {
+                        _logger.LogInformation("[ORDERING PROVIDER] Available mapping: TargetProperty='{Property}', FieldPath='{Path}', IsActive={Active}", 
+                            mapping.TargetProperty, mapping.FieldPath, mapping.IsActive);
+                    }
+                }
+
+                // Look for any mapping targeting OrderingProvider
+                var providerMapping = configuration.FieldMappings
+                    .FirstOrDefault(m => m.IsActive && 
+                                        (m.TargetProperty == "OrderingProvider" ||
+                                         m.TargetProperty == "OrderingProviderName"));
+
+                if (providerMapping != null)
+                {
+                    _logger.LogInformation("[ORDERING PROVIDER] Found configured mapping: Segment={Segment}, FieldPath={Path}, TargetEntity='{Entity}'", 
+                        providerMapping.SegmentType, providerMapping.FieldPath, providerMapping.TargetEntity);
+
+                    // Extract segment type and field number from FieldPath (e.g., "OBR-16" → "OBR" and 16)
+                    var pathParts = providerMapping.FieldPath.Split('-');
+                    if (pathParts.Length == 2 && int.TryParse(pathParts[1], out int fieldNumber))
+                    {
+                        var segment = message.Segments.FirstOrDefault(s => s.SegmentType == providerMapping.SegmentType);
+                        if (segment != null)
+                        {
+                            var fields = segment.RawSegment.Split('|');
+                            _logger.LogInformation("[ORDERING PROVIDER] {SegmentType} segment has {Count} fields", providerMapping.SegmentType, fields.Length);
+                            _logger.LogInformation("[ORDERING PROVIDER] {SegmentType} raw segment: {Segment}", providerMapping.SegmentType, segment.RawSegment);
+
+                            // Log fields around the target position for debugging
+                            _logger.LogInformation("[ORDERING PROVIDER] Field mapping expects {FieldPath} (0-based index {Index})", 
+                                providerMapping.FieldPath, fieldNumber - 1);
+                            for (int i = Math.Max(0, fieldNumber - 3); i < Math.Min(fields.Length, fieldNumber + 2); i++)
+                            {
+                                _logger.LogInformation("[ORDERING PROVIDER] {SegmentType} Field[{Index}] (HL7 {Segment}-{FieldNum}) = '{Value}'", 
+                                    providerMapping.SegmentType, i, providerMapping.SegmentType, i + 1, fields[i]);
+                            }
+
+                            // Convert HL7 field number to 0-based array index (e.g., OBR-16 → fields[15])
+                            int fieldIndex = fieldNumber - 1;
+
+                            if (fields.Length > fieldIndex && !string.IsNullOrWhiteSpace(fields[fieldIndex]))
+                            {
+                                _logger.LogInformation("[ORDERING PROVIDER] {FieldPath} raw value: '{Value}'", providerMapping.FieldPath, fields[fieldIndex]);
+                                var providerName = ParseProviderName(fields[fieldIndex], providerMapping.FieldPath);
+                                if (providerName != null)
+                                {
+                                    _logger.LogInformation("[ORDERING PROVIDER] ✅ Extracted from configured mapping {FieldPath}: '{Name}'", 
+                                        providerMapping.FieldPath, providerName);
+                                    return providerName;
+                                }
+                            }
+                            else
+                            {
+                                _logger.LogWarning("[ORDERING PROVIDER] Configured field {FieldPath} is empty or doesn't exist (segment has {Count} fields)", 
+                                    providerMapping.FieldPath, fields.Length);
+                            }
+                        }
+                        else
+                        {
+                            _logger.LogWarning("[ORDERING PROVIDER] Configured segment type {SegmentType} not found in message", 
+                                providerMapping.SegmentType);
+                        }
+                    }
+                    else
+                    {
+                        _logger.LogWarning("[ORDERING PROVIDER] Invalid FieldPath format: '{Path}'. Expected format: SEGMENT-NUMBER (e.g., OBR-16)", 
+                            providerMapping.FieldPath);
+                    }
+                }
+                else
+                {
+                    _logger.LogInformation("[ORDERING PROVIDER] No configured mapping found for OrderingProvider. Using default extraction.");
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "[ORDERING PROVIDER] Error checking field mapping configuration, falling back to default extraction");
+            }
+        }
+        else
+        {
+            _logger.LogDebug("[ORDERING PROVIDER] No configuration provided, using default extraction");
+        }
+
+        // PRIORITY 2 (FALLBACK): Try standard HL7 locations for ordering provider
+
         // Try ORC-12 (Ordering Provider) first - preferred location per HL7 v2.5
         var orcSegment = message.Segments.FirstOrDefault(s => s.SegmentType == "ORC");
         if (orcSegment != null)
@@ -1517,6 +1662,26 @@ public class HL7DataExtractionService : IHL7DataExtractionService
                     _logger.LogWarning("[ORDERING PROVIDER] ORC segment has only {Count} fields, cannot access field[11] (ORC-12)", fields.Length);
                 else
                     _logger.LogWarning("[ORDERING PROVIDER] ORC field[11] (ORC-12) is empty or whitespace");
+            }
+
+            // Try ORC-13 as additional fallback (some labs use non-standard positions)
+            // NOTE: ORC-13 in HL7 notation = fields[12] in 0-based array
+            if (fields.Length > 12 && !string.IsNullOrWhiteSpace(fields[12]))
+            {
+                _logger.LogInformation("[ORDERING PROVIDER] Attempting to parse ORC-13 (fields[12]): '{Value}'", fields[12]);
+                var providerName = ParseProviderName(fields[12], "ORC-13");
+                if (providerName != null)
+                    return providerName;
+            }
+
+            // Try ORC-14 as additional fallback (YOUR LAB USES THIS POSITION!)
+            // NOTE: ORC-14 in HL7 notation = fields[13] in 0-based array
+            if (fields.Length > 13 && !string.IsNullOrWhiteSpace(fields[13]))
+            {
+                _logger.LogInformation("[ORDERING PROVIDER] Attempting to parse ORC-14 (fields[13]): '{Value}'", fields[13]);
+                var providerName = ParseProviderName(fields[13], "ORC-14");
+                if (providerName != null)
+                    return providerName;
             }
         }
         else
@@ -1558,7 +1723,7 @@ public class HL7DataExtractionService : IHL7DataExtractionService
             }
         }
 
-        _logger.LogWarning("[ORDERING PROVIDER] No ordering provider found in ORC-12, OBR-16, OBR-28, or OBR-32");
+        _logger.LogWarning("[ORDERING PROVIDER] No ordering provider found in ORC-12/13/14, OBR-16/28/32");
         return null;
     }
 
@@ -1693,9 +1858,61 @@ public class HL7DataExtractionService : IHL7DataExtractionService
     /// Extract specimen type from OBR-15 (Specimen Source), OBR-12 (Danger Code), or SPM-4
     /// Some labs put specimen info in non-standard fields, so we check multiple locations
     /// </summary>
-    private (string? specimenCode, string? specimenText, string? specimenSystem) ExtractSpecimenType(HL7Message message)
+    private (string? specimenCode, string? specimenText, string? specimenSystem) ExtractSpecimenType(HL7Message message, HL7Configuration? configuration = null)
     {
-        // STRATEGY 1: Try OBR-15 (Specimen Source) first - standard location
+        // PRIORITY 1: Check if there's a configured mapping for specimen type
+        if (configuration != null)
+        {
+            try
+            {
+                _logger.LogDebug("[SPECIMEN] Checking for configured field mappings. Total mappings: {Count}",
+                    configuration.FieldMappings?.Count ?? 0);
+
+                var specimenMapping = configuration.FieldMappings
+                    .FirstOrDefault(m => m.IsActive &&
+                                        (m.TargetProperty == "SpecimenType" || m.TargetProperty == "SpecimenTypeCode"));
+
+                if (specimenMapping != null)
+                {
+                    _logger.LogDebug("[SPECIMEN] Found configured mapping: Segment={Segment}, FieldPath={Path}",
+                        specimenMapping.SegmentType, specimenMapping.FieldPath);
+
+                    var pathParts = specimenMapping.FieldPath.Split('-');
+                    if (pathParts.Length == 2 && int.TryParse(pathParts[1], out int fieldNumber))
+                    {
+                        var segment = message.Segments.FirstOrDefault(s => s.SegmentType == specimenMapping.SegmentType);
+                        if (segment != null)
+                        {
+                            var fields = segment.RawSegment.Split('|');
+                            int fieldIndex = fieldNumber - 1;
+
+                            if (fields.Length > fieldIndex && !string.IsNullOrWhiteSpace(fields[fieldIndex]))
+                            {
+                                var fieldValue = fields[fieldIndex];
+                                var parts = fieldValue.Split('^');
+                                var code = parts.Length > 0 && !string.IsNullOrWhiteSpace(parts[0]) ? parts[0] : null;
+                                var text = parts.Length > 1 && !string.IsNullOrWhiteSpace(parts[1]) ? parts[1] :
+                                          (parts.Length > 0 && !string.IsNullOrWhiteSpace(parts[0]) ? parts[0] : null);
+                                var system = parts.Length > 2 && !string.IsNullOrWhiteSpace(parts[2]) ? parts[2] : null;
+
+                                if (code != null || text != null)
+                                {
+                                    _logger.LogInformation("[SPECIMEN] ✅ Extracted from configured mapping {FieldPath}: Code='{Code}', Text='{Text}', System='{System}'",
+                                        specimenMapping.FieldPath, code ?? "NULL", text ?? "NULL", system ?? "NULL");
+                                    return (code, text, system);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "[SPECIMEN] Error checking field mapping configuration, falling back to default");
+            }
+        }
+
+        // PRIORITY 2 (FALLBACK): Try OBR-15 (Specimen Source) first - standard location
         var obrSegment = message.Segments.FirstOrDefault(s => s.SegmentType == "OBR");
         if (obrSegment != null)
         {
@@ -1808,10 +2025,88 @@ public class HL7DataExtractionService : IHL7DataExtractionService
         return (null, null, null);
     }
 
-    private (string? testMethodCode, string? testMethodText, string? testMethodSystem) ExtractTestMethod(HL7Message message)
+    private (string? testMethodCode, string? testMethodText, string? testMethodSystem) ExtractTestMethod(HL7Message message, HL7Configuration? configuration = null)
     {
-        // Extract test method from OBR-4 (Universal Service Identifier)
+        // PRIORITY 1: Check if there's a configured mapping for test method/test type
+        // This allows users to configure which field contains the test method (e.g., OBX-17, OBR-4)
+        if (configuration != null)
+        {
+            try
+            {
+                _logger.LogInformation("[TEST METHOD] Configuration provided, checking for field mappings. Total mappings: {Count}", 
+                    configuration.FieldMappings?.Count ?? 0);
+
+                // Check for OBX-17 mapping (TestName or TestMethod)
+                var obx17Mapping = configuration.FieldMappings
+                    .FirstOrDefault(m => m.IsActive && 
+                                        m.SegmentType == "OBX" && 
+                                        m.FieldPath == "OBX-17" &&
+                                        (m.TargetProperty == "TestName" || m.TargetProperty == "TestMethod"));
+
+                if (obx17Mapping != null)
+                {
+                    _logger.LogInformation("[TEST METHOD] Found OBX-17 mapping configuration: TargetEntity='{Entity}', TargetProperty='{Property}'", 
+                        obx17Mapping.TargetEntity, obx17Mapping.TargetProperty);
+
+                    // Extract from OBX-17 instead of OBR-4
+                    var obxSegment = message.Segments.FirstOrDefault(s => s.SegmentType == "OBX");
+                    if (obxSegment != null)
+                    {
+                        var fields = obxSegment.RawSegment.Split('|');
+                        _logger.LogDebug("[TEST METHOD] OBX segment has {Count} fields", fields.Length);
+
+                        // OBX-17: Observation Method (index 17 in 0-based array)
+                        if (fields.Length > 17 && !string.IsNullOrWhiteSpace(fields[17]))
+                        {
+                            var testMethodField = fields[17];
+                            _logger.LogDebug("[TEST METHOD] OBX-17 raw value: '{Value}'", testMethodField);
+
+                            var parts = testMethodField.Split('^');
+
+                            var code = parts.Length > 0 && !string.IsNullOrWhiteSpace(parts[0]) ? parts[0] : null;
+                            var text = parts.Length > 1 && !string.IsNullOrWhiteSpace(parts[1]) ? parts[1] : 
+                                      (parts.Length > 0 && !string.IsNullOrWhiteSpace(parts[0]) ? parts[0] : null);
+                            var system = parts.Length > 2 && !string.IsNullOrWhiteSpace(parts[2]) ? parts[2] : null;
+
+                            if (code != null || text != null)
+                            {
+                                _logger.LogInformation("[TEST METHOD] ✅ Extracted from OBX-17 (configured mapping): Code='{Code}', Text='{Text}', System='{System}'", 
+                                    code, text, system);
+                                return (code, text, system);
+                            }
+                            else
+                            {
+                                _logger.LogWarning("[TEST METHOD] OBX-17 field was present but contained no usable code or text");
+                            }
+                        }
+                        else
+                        {
+                            _logger.LogWarning("[TEST METHOD] OBX-17 mapping configured but OBX segment has no field 17 or it's empty");
+                        }
+                    }
+                    else
+                    {
+                        _logger.LogWarning("[TEST METHOD] OBX-17 mapping configured but no OBX segment found in message");
+                    }
+                }
+                else
+                {
+                    _logger.LogInformation("[TEST METHOD] No OBX-17 mapping found for TestName/TestMethod. Falling back to OBR-4.");
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "[TEST METHOD] Error checking field mapping configuration, falling back to OBR-4");
+            }
+        }
+        else
+        {
+            _logger.LogDebug("[TEST METHOD] No configuration provided, using default OBR-4 extraction");
+        }
+
+        // PRIORITY 2 (FALLBACK): Extract test method from OBR-4 (Universal Service Identifier)
         // This is the standard location for the test/service being performed
+        _logger.LogInformation("[TEST METHOD] Using fallback: extracting from OBR-4");
         var obrSegment = message.Segments.FirstOrDefault(s => s.SegmentType == "OBR");
         if (obrSegment != null)
         {
@@ -1995,8 +2290,51 @@ public class HL7DataExtractionService : IHL7DataExtractionService
         return normalized;
     }
 
-    private string? ExtractAccessionNumber(HL7Message message)
+    private string? ExtractAccessionNumber(HL7Message message, HL7Configuration? configuration = null)
     {
+        // PRIORITY 1: Check if there's a configured mapping for accession number
+        if (configuration != null)
+        {
+            try
+            {
+                var accessionMapping = configuration.FieldMappings
+                    .FirstOrDefault(m => m.IsActive &&
+                                        (m.TargetProperty == "AccessionNumber" || m.TargetProperty == "FillerOrderNumber"));
+
+                if (accessionMapping != null)
+                {
+                    var pathParts = accessionMapping.FieldPath.Split('-');
+                    if (pathParts.Length == 2 && int.TryParse(pathParts[1], out int fieldNumber))
+                    {
+                        var segment = message.Segments.FirstOrDefault(s => s.SegmentType == accessionMapping.SegmentType);
+                        if (segment != null)
+                        {
+                            var fields = segment.RawSegment.Split('|');
+                            int fieldIndex = fieldNumber - 1;
+
+                            if (fields.Length > fieldIndex && !string.IsNullOrWhiteSpace(fields[fieldIndex]))
+                            {
+                                var fieldValue = fields[fieldIndex];
+                                var parts = fieldValue.Split('^');
+                                var accession = parts.Length > 0 ? parts[0] : null;
+                                if (!string.IsNullOrWhiteSpace(accession))
+                                {
+                                    _logger.LogInformation("[ACCESSION] ✅ Extracted from configured mapping {FieldPath}: '{Value}'",
+                                        accessionMapping.FieldPath, accession);
+                                    return accession;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "[ACCESSION] Error checking field mapping configuration, falling back to default");
+            }
+        }
+
+        // PRIORITY 2 (FALLBACK): Use OBR-3 (standard location)
         var obrSegment = message.Segments.FirstOrDefault(s => s.SegmentType == "OBR");
         if (obrSegment != null)
         {
@@ -2012,8 +2350,51 @@ public class HL7DataExtractionService : IHL7DataExtractionService
         return null;
     }
 
-    private DateTime? ExtractSpecimenDate(HL7Message message)
+    private DateTime? ExtractSpecimenDate(HL7Message message, HL7Configuration? configuration = null)
     {
+        // PRIORITY 1: Check if there's a configured mapping for specimen date
+        if (configuration != null)
+        {
+            try
+            {
+                var dateMapping = configuration.FieldMappings
+                    .FirstOrDefault(m => m.IsActive &&
+                                        (m.TargetProperty == "SpecimenCollectionDate" ||
+                                         m.TargetProperty == "SpecimenDate" ||
+                                         m.TargetProperty == "CollectionDateTime"));
+
+                if (dateMapping != null)
+                {
+                    var pathParts = dateMapping.FieldPath.Split('-');
+                    if (pathParts.Length == 2 && int.TryParse(pathParts[1], out int fieldNumber))
+                    {
+                        var segment = message.Segments.FirstOrDefault(s => s.SegmentType == dateMapping.SegmentType);
+                        if (segment != null)
+                        {
+                            var fields = segment.RawSegment.Split('|');
+                            int fieldIndex = fieldNumber - 1;
+
+                            if (fields.Length > fieldIndex && !string.IsNullOrWhiteSpace(fields[fieldIndex]))
+                            {
+                                var date = ParseHL7Date(fields[fieldIndex]);
+                                if (date != null)
+                                {
+                                    _logger.LogInformation("[SPECIMEN DATE] ✅ Extracted from configured mapping {FieldPath}: {Date}",
+                                        dateMapping.FieldPath, date.Value.ToString("yyyy-MM-dd HH:mm"));
+                                    return date;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "[SPECIMEN DATE] Error checking field mapping configuration, falling back to default");
+            }
+        }
+
+        // PRIORITY 2 (FALLBACK): Use OBR-7 and OBR-14 (standard locations)
         var obrSegment = message.Segments.FirstOrDefault(s => s.SegmentType == "OBR");
         if (obrSegment != null)
         {
@@ -2034,6 +2415,299 @@ public class HL7DataExtractionService : IHL7DataExtractionService
         return null;
     }
 
+    /// <summary>
+    /// Extract markers from OBX segments using configuration-driven dynamic mappings with hardcoded fallback
+    /// Supports vendor-specific HL7 variations through configurable field paths
+    /// </summary>
+    private async Task<List<MarkerData>> ExtractMarkersFromOBXAsync(
+        HL7Message message,
+        HL7Configuration? configuration,
+        CancellationToken cancellationToken = default)
+    {
+        var markers = new List<MarkerData>();
+
+        var obxSegments = message.Segments
+            .Where(s => s.SegmentType == "OBX")
+            .OrderBy(s => s.SequenceNumber)
+            .ToList();
+
+        if (!obxSegments.Any())
+        {
+            _logger.LogDebug("[OBX EXTRACTION] No OBX segments found in message");
+            return markers;
+        }
+
+        _logger.LogInformation("[OBX EXTRACTION] Processing {Count} OBX segments with {Mode} mode", 
+            obxSegments.Count, 
+            configuration != null ? "DYNAMIC MAPPING" : "HARDCODED FALLBACK");
+
+        // If configuration is available, try to parse message for NHapi-based mapping
+        NHapi.Base.Model.IMessage? parsedMessage = null;
+        if (configuration != null)
+        {
+            parsedMessage = await ParseHL7MessageForMappingAsync(message);
+        }
+
+        foreach (var segment in obxSegments)
+        {
+            var marker = new MarkerData();
+            var fields = segment.RawSegment.Split('|');
+
+            if (fields.Length < 5)
+            {
+                _logger.LogWarning("[OBX EXTRACTION] Skipping malformed OBX segment (< 5 fields)");
+                continue;
+            }
+
+            // OBX-3: Observation Identifier (Test Code/Name)
+            marker.TestCode = await ExtractMappedValueFromOBXAsync(
+                parsedMessage,
+                segment.RawSegment,
+                configuration,
+                null,
+                "OBXMarker",
+                "TestCode",
+                () => ExtractOBX3TestCode(fields),
+                cancellationToken);
+
+            marker.TestName = await ExtractMappedValueFromOBXAsync(
+                parsedMessage,
+                segment.RawSegment,
+                configuration,
+                null,
+                "OBXMarker",
+                "TestName",
+                () => ExtractOBX3TestName(fields),
+                cancellationToken);
+
+            // OBX-5: Observation Value (Result)
+            var rawValue = await ExtractMappedValueFromOBXAsync(
+                parsedMessage,
+                segment.RawSegment,
+                configuration,
+                null,
+                "OBXMarker",
+                "Result",
+                () => ExtractOBX5Value(fields),
+                cancellationToken);
+
+            if (!string.IsNullOrWhiteSpace(rawValue))
+            {
+                // Parse result as numeric or qualitative
+                if (decimal.TryParse(rawValue, out decimal numericValue))
+                {
+                    marker.QuantitativeValue = numericValue;
+                }
+                else
+                {
+                    // Parse coded/structured result: code^text^coding_system
+                    var components = rawValue.Split('^');
+                    if (components.Length > 1 && !string.IsNullOrWhiteSpace(components[1]))
+                    {
+                        marker.QualitativeResult = components[1].Trim();
+                    }
+                    else if (components.Length > 0)
+                    {
+                        marker.QualitativeResult = components[0].Trim();
+                    }
+                    else
+                    {
+                        marker.QualitativeResult = rawValue;
+                    }
+
+                    if (components.Length > 1)
+                    {
+                        _logger.LogDebug("[OBX-5 PARSE] Raw: '{Raw}' → Display: '{Display}'", 
+                            rawValue, marker.QualitativeResult);
+                    }
+                }
+            }
+
+            // OBX-6: Units
+            marker.Units = await ExtractMappedValueFromOBXAsync(
+                parsedMessage,
+                segment.RawSegment,
+                configuration,
+                null,
+                "OBXMarker",
+                "Units",
+                () => fields.Length > 6 ? fields[6] : null,
+                cancellationToken);
+
+            // OBX-7: Reference Range
+            marker.ReferenceRange = await ExtractMappedValueFromOBXAsync(
+                parsedMessage,
+                segment.RawSegment,
+                configuration,
+                null,
+                "OBXMarker",
+                "ReferenceRange",
+                () => fields.Length > 7 ? fields[7] : null,
+                cancellationToken);
+
+            // OBX-8: Abnormal Flags
+            marker.AbnormalFlag = await ExtractMappedValueFromOBXAsync(
+                parsedMessage,
+                segment.RawSegment,
+                configuration,
+                null,
+                "OBXMarker",
+                "AbnormalFlag",
+                () => fields.Length > 8 ? fields[8] : null,
+                cancellationToken);
+
+            // OBX-11: Result Status
+            marker.ResultStatus = await ExtractMappedValueFromOBXAsync(
+                parsedMessage,
+                segment.RawSegment,
+                configuration,
+                null,
+                "OBXMarker",
+                "ResultStatus",
+                () => fields.Length > 11 ? fields[11] : null,
+                cancellationToken);
+
+            // OBX-17: Observation Method (Test Method)
+            var methodField = await ExtractMappedValueFromOBXAsync(
+                parsedMessage,
+                segment.RawSegment,
+                configuration,
+                null,
+                "OBXMarker",
+                "TestMethod",
+                () => fields.Length > 17 ? fields[17] : null,
+                cancellationToken);
+
+            if (!string.IsNullOrWhiteSpace(methodField))
+            {
+                var methodParts = methodField.Split('^');
+                marker.TestMethodCode = methodParts.Length > 0 ? methodParts[0] : null;
+                marker.TestMethodText = methodParts.Length > 1 ? methodParts[1] : null;
+                marker.TestMethodCodingSystem = methodParts.Length > 2 ? methodParts[2] : null;
+            }
+
+            markers.Add(marker);
+        }
+
+        _logger.LogInformation("[OBX EXTRACTION] Extracted {Count} markers", markers.Count);
+        return markers;
+    }
+
+    /// <summary>
+    /// Extract a mapped value from OBX with configuration-driven dynamic mapping and hardcoded fallback
+    /// This helper method centralizes the dynamic mapping pattern for all OBX fields
+    /// </summary>
+    private async Task<string?> ExtractMappedValueFromOBXAsync(
+        NHapi.Base.Model.IMessage? parsedMessage,
+        string rawSegment,
+        HL7Configuration? configuration,
+        Guid? diseaseId,
+        string targetEntity,
+        string targetProperty,
+        Func<string?> fallbackExtractor,
+        CancellationToken cancellationToken = default)
+    {
+        // Try configuration-driven dynamic mapping first
+        if (configuration != null && parsedMessage != null)
+        {
+            try
+            {
+                var mappedValue = await _fieldMappingService.GetMappedValueAsync(
+                    parsedMessage,
+                    configuration.Id,
+                    diseaseId,
+                    targetEntity,
+                    targetProperty);
+
+                if (mappedValue != null)
+                {
+                    _logger.LogDebug(
+                        "[OBX DYNAMIC] Used configuration mapping for {Entity}.{Property}: {Value}",
+                        targetEntity, targetProperty, mappedValue);
+                    return mappedValue;
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex,
+                    "[OBX DYNAMIC] Failed to use configuration mapping for {Entity}.{Property}, falling back to hardcoded extraction",
+                    targetEntity, targetProperty);
+            }
+        }
+
+        // Try raw segment mapping as a secondary fallback for vendor-specific messages
+        if (configuration != null)
+        {
+            try
+            {
+                var rawMappedValue = await _fieldMappingService.GetMappedValueFromRawSegmentAsync(
+                    rawSegment,
+                    configuration.Id,
+                    diseaseId,
+                    targetEntity,
+                    targetProperty);
+
+                if (rawMappedValue != null)
+                {
+                    _logger.LogDebug(
+                        "[OBX RAW FALLBACK] Used raw segment mapping for {Entity}.{Property}: {Value}",
+                        targetEntity, targetProperty, rawMappedValue);
+                    return rawMappedValue;
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogDebug(ex,
+                    "[OBX RAW FALLBACK] Raw segment mapping failed for {Entity}.{Property}",
+                    targetEntity, targetProperty);
+            }
+        }
+
+        // Final fallback to hardcoded extraction
+        var fallbackValue = fallbackExtractor();
+        if (fallbackValue != null)
+        {
+            _logger.LogDebug(
+                "[OBX HARDCODED] Used fallback extraction for {Entity}.{Property}: {Value}",
+                targetEntity, targetProperty, fallbackValue);
+        }
+
+        return fallbackValue;
+    }
+
+    // Hardcoded extraction helpers for OBX fields
+    private string? ExtractOBX3TestCode(string[] fields)
+    {
+        if (fields.Length > 3)
+        {
+            var identifier = fields[3];
+            var parts = identifier.Split('^');
+            return parts.Length > 0 ? parts[0] : null;
+        }
+        return null;
+    }
+
+    private string? ExtractOBX3TestName(string[] fields)
+    {
+        if (fields.Length > 3)
+        {
+            var identifier = fields[3];
+            var parts = identifier.Split('^');
+            return parts.Length > 1 ? parts[1] : null;
+        }
+        return null;
+    }
+
+    private string? ExtractOBX5Value(string[] fields)
+    {
+        return fields.Length > 5 ? fields[5] : null;
+    }
+
+    /// <summary>
+    /// DEPRECATED: Old synchronous OBX extraction - replaced by ExtractMarkersFromOBXAsync
+    /// Kept for backward compatibility with non-configuration-driven code paths
+    /// </summary>
+    [Obsolete("Use ExtractMarkersFromOBXAsync instead for configuration-driven dynamic mapping support")]
     private List<MarkerData> ExtractMarkersFromOBX(HL7Message message)
     {
         var markers = new List<MarkerData>();
@@ -2314,7 +2988,7 @@ public class HL7DataExtractionService : IHL7DataExtractionService
             // STEP 2: Match/stage organizations
             stagingLog.Add($"[{DateTime.UtcNow:yyyy-MM-dd HH:mm:ss.fff}] --- STEP 2: ORGANIZATION STAGING ---");
 
-            var labName = ExtractLaboratoryName(message);
+            var labName = ExtractLaboratoryName(message, configuration);
             stagingLog.Add($"Laboratory name extracted: '{labName ?? "NULL"}'");
             stagingLog.Add($"Configuration: AutoCreate={configuration?.AutoCreateOrganizations ?? false}, DefaultLabId={configuration?.DefaultLaboratoryId}");
 
@@ -2351,7 +3025,7 @@ public class HL7DataExtractionService : IHL7DataExtractionService
             stagingLog.Add($"[ORDERING PROVIDER] Calling ExtractOrderingProviderName...");
             _logger.LogInformation("[STAGING] About to call ExtractOrderingProviderName for message {MessageControlId}", message.MessageControlId);
 
-            var providerName = ExtractOrderingProviderName(message);
+            var providerName = ExtractOrderingProviderName(message, configuration);
 
             stagingLog.Add($"Ordering provider name extracted: '{providerName ?? "NULL"}'");
             _logger.LogInformation("[STAGING] ExtractOrderingProviderName returned: '{ProviderName}'", providerName ?? "NULL");
@@ -2361,7 +3035,8 @@ public class HL7DataExtractionService : IHL7DataExtractionService
                 stagingLog.Add($"  Normalized: '{NormalizeOrganizationName(providerName)}'");
 
                 // Try multiple OrganizationType names in order of preference
-                string[] providerTypeNames = { "Healthcare Provider", "Provider", "Clinic", "Hospital" };
+                // Ordering providers are typically individual practitioners, not organizations
+                string[] providerTypeNames = { "Medical Practitioner", "Healthcare Provider", "Provider", "Clinic" };
 
                 foreach (var typeName in providerTypeNames)
                 {
@@ -2431,6 +3106,7 @@ public class HL7DataExtractionService : IHL7DataExtractionService
                 message,
                 stage.StagedPatient,
                 stage.StagedLaboratory,
+                configuration,
                 cancellationToken);
 
             stage.StagedLabResult = stagedLabResult;
@@ -2983,6 +3659,7 @@ public class HL7DataExtractionService : IHL7DataExtractionService
         HL7Message message,
         StagedPatient stagedPatient,
         StagedOrganization stagedLaboratory,
+        HL7Configuration? configuration,
         CancellationToken cancellationToken)
     {
         var duplicateCheck = new DuplicateCheckResult();
@@ -2990,19 +3667,19 @@ public class HL7DataExtractionService : IHL7DataExtractionService
         try
         {
             // Extract lab result metadata
-            var accessionNumber = ExtractAccessionNumber(message);
-            var specimenDate = ExtractSpecimenDate(message);
+            var accessionNumber = ExtractAccessionNumber(message, configuration);
+            var specimenDate = ExtractSpecimenDate(message, configuration);
             var resultDate = specimenDate; // Can be different in some systems
 
             // Extract specimen type from OBR-15 or SPM-4
-            var (specimenCode, specimenText, specimenSystem) = ExtractSpecimenType(message);
+            var (specimenCode, specimenText, specimenSystem) = ExtractSpecimenType(message, configuration);
 
-            // Extract test method from OBR-4 (Universal Service Identifier)
+            // Extract test method from OBR-4 (Universal Service Identifier) or configured field (e.g., OBX-17)
             // This applies to ALL markers in this lab result
-            var (testMethodCode, testMethodText, testMethodSystem) = ExtractTestMethod(message);
+            var (testMethodCode, testMethodText, testMethodSystem) = ExtractTestMethod(message, configuration);
 
-            // Extract markers from OBX segments
-            var markerDataList = ExtractMarkersFromOBX(message);
+            // Extract markers from OBX segments (using configuration-driven dynamic mappings when available)
+            var markerDataList = await ExtractMarkersFromOBXAsync(message, configuration, cancellationToken);
 
             if (!markerDataList.Any())
             {
@@ -3022,7 +3699,8 @@ public class HL7DataExtractionService : IHL7DataExtractionService
                 ReferenceRange = md.ReferenceRange,
                 ResultStatus = md.ResultStatus ?? "F",
                 InterpretationFlag = md.AbnormalFlag,
-                // Apply test method from OBR-4 to ALL markers (one test method per lab result)
+                // Prioritize test method from OBR-4/configured mapping (applies to ALL markers)
+                // Fall back to per-marker OBX-17 only if OBR-level method not available
                 TestMethodCode = testMethodCode ?? md.TestMethodCode,
                 TestMethodText = testMethodText ?? md.TestMethodText,
                 TestMethodCodingSystem = testMethodSystem ?? md.TestMethodCodingSystem
@@ -5200,6 +5878,28 @@ public class HL7DataExtractionService : IHL7DataExtractionService
     }
 
     /// <summary>
+    /// Build a full address string from components
+    /// </summary>
+    private string BuildFullAddress(string? addressLine, string? city, string? state, string? postalCode)
+    {
+        var parts = new List<string>();
+
+        if (!string.IsNullOrWhiteSpace(addressLine))
+            parts.Add(addressLine.Trim());
+
+        if (!string.IsNullOrWhiteSpace(city))
+            parts.Add(city.Trim());
+
+        if (!string.IsNullOrWhiteSpace(state))
+            parts.Add(state.Trim());
+
+        if (!string.IsNullOrWhiteSpace(postalCode))
+            parts.Add(postalCode.Trim());
+
+        return string.Join(", ", parts);
+    }
+
+    /// <summary>
     /// Calculate text similarity (simple Levenshtein-based)
     /// </summary>
     private double CalculateSimilarity(string source, string target)
@@ -5458,6 +6158,20 @@ public class HL7DataExtractionService : IHL7DataExtractionService
                                 commitLog.Add($"✅ Patient created successfully: ID={result.Patient.Id}, FriendlyId={result.Patient.FriendlyId}");
                                 result.Warnings.Add($"[PATIENT] ✅ Created new patient: {result.Patient.GivenName} {result.Patient.FamilyName}");
                                 _logger.LogInformation("[STAGING COMMIT] Created patient {PatientId}", result.Patient.Id);
+
+                                // Queue patient address for background geocoding
+                                if (_geocodingQueue != null && !string.IsNullOrWhiteSpace(newPatient.AddressLine))
+                                {
+                                    var fullAddress = BuildFullAddress(
+                                        newPatient.AddressLine,
+                                        newPatient.City,
+                                        newPatient.StateId.HasValue ? await _context.States.Where(s => s.Id == newPatient.StateId).Select(s => s.Code).FirstOrDefaultAsync(cancellationToken) : null,
+                                        newPatient.PostalCode);
+
+                                    _geocodingQueue.Enqueue(newPatient.Id, fullAddress);
+                                    commitLog.Add($"  📍 Queued address for background geocoding: {fullAddress}");
+                                    _logger.LogInformation("[GEOCODING] Queued patient {PatientId} for background geocoding", newPatient.Id);
+                                }
                             }
                             catch (Microsoft.EntityFrameworkCore.DbUpdateException dbEx) 
                                 when (dbEx.InnerException is Microsoft.Data.SqlClient.SqlException sqlEx && 

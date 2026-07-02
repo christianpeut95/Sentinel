@@ -177,6 +177,9 @@ namespace Sentinel.Migrations
                     b.Property<int>("CurrentTaskCapacity")
                         .HasColumnType("int");
 
+                    b.Property<string>("DashboardConfigJson")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<string>("Email")
                         .HasMaxLength(256)
                         .HasColumnType("nvarchar(256)");
@@ -1586,6 +1589,53 @@ namespace Sentinel.Migrations
                     b.ToTable("ExposureEvents");
                 });
 
+            modelBuilder.Entity("Sentinel.Models.GeocodingQueueItem", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("AttemptCount")
+                        .HasColumnType("int");
+
+                    b.Property<string>("ErrorMessage")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<bool>("Failed")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("FullAddress")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<bool>("IsCompleted")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime?>("NextAttemptAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid>("PatientId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime?>("ProcessedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("QueuedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<double?>("ResultLatitude")
+                        .HasColumnType("float");
+
+                    b.Property<double?>("ResultLongitude")
+                        .HasColumnType("float");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PatientId");
+
+                    b.ToTable("GeocodingQueueItems");
+                });
+
             modelBuilder.Entity("Sentinel.Models.Group", b =>
                 {
                     b.Property<int>("Id")
@@ -2328,6 +2378,129 @@ namespace Sentinel.Migrations
                     b.HasIndex("IsResolved", "IssueType");
 
                     b.ToTable("HL7ParsingIssues");
+                });
+
+            modelBuilder.Entity("Sentinel.Models.HL7TestMessageHistory", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("AccessionNumber")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("ConfigurationSnapshot")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("FilePath")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<DateTime>("GeneratedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("GeneratedBy")
+                        .HasMaxLength(450)
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<string>("GeneratedByUserId")
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<Guid?>("HL7MessageId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("PatientMRN")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("ProcessingResultJson")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int?>("ProcessingStatus")
+                        .HasColumnType("int");
+
+                    b.Property<string>("RawHL7Message")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<Guid?>("TemplateId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("TestComment")
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
+
+                    b.Property<bool>("WasAutoProcessed")
+                        .HasColumnType("bit");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("GeneratedByUserId");
+
+                    b.HasIndex("HL7MessageId");
+
+                    b.HasIndex("TemplateId");
+
+                    b.ToTable("HL7TestMessageHistory");
+                });
+
+            modelBuilder.Entity("Sentinel.Models.HL7TestMessageTemplate", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("ConfigurationJson")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CreatedBy")
+                        .HasMaxLength(450)
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<string>("CreatedByUserId")
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<bool>("IsFavorite")
+                        .HasColumnType("bit");
+
+                    b.Property<int>("LabTemplateType")
+                        .HasColumnType("int");
+
+                    b.Property<string>("TemplateName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("TestComment")
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("UpdatedBy")
+                        .HasMaxLength(450)
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<string>("UpdatedByUserId")
+                        .HasColumnType("nvarchar(450)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedByUserId");
+
+                    b.HasIndex("UpdatedByUserId");
+
+                    b.ToTable("HL7TestMessageTemplates");
                 });
 
             modelBuilder.Entity("Sentinel.Models.LabResult", b =>
@@ -6777,6 +6950,17 @@ namespace Sentinel.Migrations
                     b.Navigation("SourceCase");
                 });
 
+            modelBuilder.Entity("Sentinel.Models.GeocodingQueueItem", b =>
+                {
+                    b.HasOne("Sentinel.Models.Patient", "Patient")
+                        .WithMany()
+                        .HasForeignKey("PatientId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Patient");
+                });
+
             modelBuilder.Entity("Sentinel.Models.HL7.DiseaseHL7MatchingConfig", b =>
                 {
                     b.HasOne("Sentinel.Models.Lookups.Disease", "Disease")
@@ -6968,6 +7152,42 @@ namespace Sentinel.Migrations
                     b.Navigation("MessageSegment");
 
                     b.Navigation("ResolvedByUser");
+                });
+
+            modelBuilder.Entity("Sentinel.Models.HL7TestMessageHistory", b =>
+                {
+                    b.HasOne("Sentinel.Models.ApplicationUser", "GeneratedByUser")
+                        .WithMany()
+                        .HasForeignKey("GeneratedByUserId");
+
+                    b.HasOne("Sentinel.Models.HL7Message", "HL7Message")
+                        .WithMany()
+                        .HasForeignKey("HL7MessageId");
+
+                    b.HasOne("Sentinel.Models.HL7TestMessageTemplate", "Template")
+                        .WithMany()
+                        .HasForeignKey("TemplateId");
+
+                    b.Navigation("GeneratedByUser");
+
+                    b.Navigation("HL7Message");
+
+                    b.Navigation("Template");
+                });
+
+            modelBuilder.Entity("Sentinel.Models.HL7TestMessageTemplate", b =>
+                {
+                    b.HasOne("Sentinel.Models.ApplicationUser", "CreatedByUser")
+                        .WithMany()
+                        .HasForeignKey("CreatedByUserId");
+
+                    b.HasOne("Sentinel.Models.ApplicationUser", "UpdatedByUser")
+                        .WithMany()
+                        .HasForeignKey("UpdatedByUserId");
+
+                    b.Navigation("CreatedByUser");
+
+                    b.Navigation("UpdatedByUser");
                 });
 
             modelBuilder.Entity("Sentinel.Models.LabResult", b =>

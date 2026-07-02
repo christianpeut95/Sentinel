@@ -28,7 +28,7 @@ namespace Sentinel.Pages.Cases
         public int DataChangeCount { get; set; }
 
         [BindProperty(SupportsGet = true)]
-        public bool ShowViews { get; set; } = true;
+        public bool ShowViews { get; set; } = false;
 
         public async Task<IActionResult> OnGetAsync(Guid? id)
         {

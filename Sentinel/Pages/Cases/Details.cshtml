@@ -1084,11 +1084,10 @@
                         <tr>
                             <th style="width: 5%;"></th>
                             <th style="width: 20%;">Lab Result ID</th>
-                            <th style="width: 20%;">Tested For</th>
-                            <th style="width: 15%;">Markers</th>
+                            <th style="width: 30%;">Biomarkers</th>
                             <th style="width: 15%;">Collection Date</th>
                             <th style="width: 15%;">Result Date</th>
-                            <th style="width: 10%; text-align: right;">Actions</th>
+                            <th style="width: 15%; text-align: right;">Actions</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -1125,21 +1124,31 @@
                                     }
                                 </td>
                                 <td style="padding: 8px 12px;">
-                                    @if (labResult.TestedDisease != null)
-                                    {
-                                        <span style="font-weight: 500; color: var(--forest);">@labResult.TestedDisease.Name</span>
-                                    }
-                                    else
-                                    {
-                                        <span class="text-muted">-</span>
-                                    }
-                                </td>
-                                <td style="padding: 8px 12px;">
                                     @if (hasMarkers)
                                     {
-                                        <span style="background: var(--signal-lt); color: var(--forest); padding: 4px 8px; border-radius: 4px; font-weight: 500; font-size: 13px;">
-                                            @labResult.Markers.Count Marker@(labResult.Markers.Count != 1 ? "s" : "")
-                                        </span>
+                                        <div style="display: flex; flex-wrap: wrap; gap: 6px;">
+                                            @foreach (var marker in labResult.Markers.OrderBy(m => m.DisplayOrder).Take(3))
+                                            {
+                                                var (bgColor, borderColor, textColor, icon) = marker.QualitativeResultText?.ToLower() switch
+                                                {
+                                                    "detected" or "positive" or "reactive" => ("#FBE2D8", "#F2BBA4", "#7A2A15", "exclamation-circle-fill"),
+                                                    "not detected" or "negative" or "non-reactive" => ("var(--signal-lt)", "#9BE8C6", "#0A3F2C", "check-circle-fill"),
+                                                    "indeterminate" or "equivocal" => ("#FBEDD1", "#EBD196", "#6A4410", "question-circle-fill"),
+                                                    _ => ("var(--chalk)", "var(--hairline)", "var(--graphite)", "circle")
+                                                };
+
+                                                <span style="background: @bgColor; border: 1px solid @borderColor; color: @textColor; padding: 4px 10px; border-radius: 12px; font-size: 11px; font-weight: 500; display: inline-flex; align-items: center; gap: 4px; white-space: nowrap;">
+                                                    <i class="bi bi-@icon" style="font-size: 9px;"></i>
+                                                    @(marker.Pathogen?.Name ?? "Unknown")
+                                                </span>
+                                            }
+                                            @if (labResult.Markers.Count > 3)
+                                            {
+                                                <span style="background: var(--chalk); border: 1px solid var(--hairline); color: var(--graphite); padding: 4px 10px; border-radius: 12px; font-size: 11px; font-weight: 500;">
+                                                    +@(labResult.Markers.Count - 3) more
+                                                </span>
+                                            }
+                                        </div>
                                     }
                                     else
                                     {
@@ -1186,98 +1195,104 @@
                             @if (hasMarkers)
                             {
                                 <tr class="marker-details-row" id="markers-@rowId" style="display: none; background: var(--bone);">
-                                    <td colspan="7" style="padding: 0;">
-                                        <div style="padding: 16px 24px; border-left: 3px solid var(--signal-dk);">
+                                    <td colspan="6" style="padding: 0;">
+                                        <div style="padding: 16px 24px; border-left: 3px solid var(--signal-dk); background: var(--bone);">
                                             <div class="text-label" style="margin-bottom: 12px; color: var(--graphite);">
                                                 TEST MARKERS (@labResult.Markers.Count)
                                             </div>
-                                            <div style="display: flex; flex-direction: column; gap: 12px;">
-                                                @foreach (var marker in labResult.Markers.OrderBy(m => m.DisplayOrder))
-                                                {
-                                                    var resultStyle = marker.QualitativeResultText?.ToLower() switch
+                                            <table class="sn-table" style="font-size: 13px; background: white;">
+                                                <thead>
+                                                    <tr>
+                                                        <th style="width: 30%;">Pathogen/Biomarker</th>
+                                                        <th style="width: 20%;">Method</th>
+                                                        <th style="width: 15%;">Result</th>
+                                                        <th style="width: 20%;">Quant. Value</th>
+                                                        <th style="width: 15%;">Ref. Range</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    @foreach (var marker in labResult.Markers.OrderBy(m => m.DisplayOrder))
                                                     {
-                                                        "detected" or "positive" or "reactive" => "background: #FBE2D8; border-color: #F2BBA4; color: #7A2A15;",
-                                                        "not detected" or "negative" or "non-reactive" => "background: var(--signal-lt); border-color: #9BE8C6; color: #0A3F2C;",
-                                                        "indeterminate" or "equivocal" => "background: #FBEDD1; border-color: #EBD196; color: #6A4410;",
-                                                        _ => "background: var(--chalk); border-color: var(--hairline); color: var(--graphite);"
-                                                    };
+                                                        var (bgColor, icon, iconColor) = marker.QualitativeResultText?.ToLower() switch
+                                                        {
+                                                            "detected" or "positive" or "reactive" => ("#FBE2D8", "bi-exclamation-circle-fill", "#7A2A15"),
+                                                            "not detected" or "negative" or "non-reactive" => ("var(--signal-lt)", "bi-check-circle-fill", "#0A3F2C"),
+                                                            "indeterminate" or "equivocal" => ("#FBEDD1", "bi-question-circle-fill", "#6A4410"),
+                                                            _ => ("var(--chalk)", "bi-circle", "var(--graphite)")
+                                                        };
 
-                                                    <div style="@resultStyle border: 1px solid; border-radius: 6px; padding: 12px; display: grid; grid-template-columns: 2fr 1fr 2fr; gap: 16px; align-items: center;">
-                                                        <!-- Left: Pathogen & Test Method -->
-                                                        <div>
-                                                            <div style="font-weight: 600; font-size: 14px; margin-bottom: 4px;">
-                                                                @(marker.Pathogen?.Name ?? "Unknown Pathogen")
-                                                            </div>
-                                                            @if (marker.TestMethod != null)
-                                                            {
-                                                                <div style="font-size: 12px; opacity: 0.8;">
-                                                                    @marker.TestMethod.Name
-                                                                </div>
-                                                            }
-                                                            @if (!string.IsNullOrEmpty(marker.LOINCCode))
-                                                            {
-                                                                <div class="text-mono" style="font-size: 11px; opacity: 0.7; margin-top: 4px;">@marker.LOINCCode</div>
-                                                            }
-                                                        </div>
-
-                                                        <!-- Middle: Result Status -->
-                                                        <div style="text-align: center;">
-                                                            @if (!string.IsNullOrEmpty(marker.QualitativeResultText))
-                                                            {
-                                                                <div style="font-weight: 700; font-size: 16px; letter-spacing: 0.5px;">
-                                                                    @marker.QualitativeResultText.ToUpper()
-                                                                </div>
-                                                            }
-                                                        </div>
-
-                                                        <!-- Right: Quantitative Values -->
-                                                        <div style="text-align: right;">
-                                                            @if (marker.QuantitativeValue.HasValue)
-                                                            {
-                                                                <div style="font-family: var(--f-mono); font-size: 14px;">
-                                                                    <strong style="font-size: 16px;">@marker.QuantitativeValue.Value</strong> 
-                                                                    <span style="opacity: 0.8;">@marker.QuantitativeUnit</span>
-                                                                </div>
+                                                        <tr style="background: @bgColor;">
+                                                            <td>
+                                                                <div style="font-weight: 600; margin-bottom: 2px;">@(marker.Pathogen?.Name ?? "Unknown")</div>
+                                                                @if (!string.IsNullOrEmpty(marker.LOINCCode))
+                                                                {
+                                                                    <div class="text-mono text-muted" style="font-size: 10px;">@marker.LOINCCode</div>
+                                                                }
+                                                            </td>
+                                                            <td><small>@(marker.TestMethod?.Name ?? "-")</small></td>
+                                                            <td>
+                                                                @if (!string.IsNullOrEmpty(marker.QualitativeResultText))
+                                                                {
+                                                                    <span style="font-weight: 600; display: inline-flex; align-items: center; gap: 4px;">
+                                                                        <i class="@icon" style="font-size: 11px; color: @iconColor;"></i>
+                                                                        @marker.QualitativeResultText
+                                                                    </span>
+                                                                }
+                                                                else
+                                                                {
+                                                                    <span class="text-muted">-</span>
+                                                                }
+                                                            </td>
+                                                            <td>
+                                                                @if (marker.QuantitativeValue.HasValue)
+                                                                {
+                                                                    <span class="text-mono" style="font-weight: 600;">@marker.QuantitativeValue.Value @marker.QuantitativeUnit</span>
+                                                                    @if (!string.IsNullOrEmpty(marker.InterpretationFlag))
+                                                                    {
+                                                                        <div style="font-size: 10px; margin-top: 2px;">[@marker.InterpretationFlag]</div>
+                                                                    }
+                                                                }
+                                                                else
+                                                                {
+                                                                    <span class="text-muted">-</span>
+                                                                }
+                                                            </td>
+                                                            <td>
                                                                 @if (marker.ReferenceRangeLow.HasValue || marker.ReferenceRangeHigh.HasValue)
                                                                 {
-                                                                    <div style="font-size: 11px; opacity: 0.7; margin-top: 2px;">
-                                                                        Ref: @(marker.ReferenceRangeLow?.ToString() ?? "—")–@(marker.ReferenceRangeHigh?.ToString() ?? "—")
-                                                                    </div>
+                                                                    <small class="text-muted">@(marker.ReferenceRangeLow?.ToString() ?? "—")–@(marker.ReferenceRangeHigh?.ToString() ?? "—")</small>
                                                                 }
-                                                                @if (!string.IsNullOrEmpty(marker.InterpretationFlag))
+                                                                else
                                                                 {
-                                                                    <div style="font-weight: 600; font-size: 12px; margin-top: 4px;">
-                                                                        [@marker.InterpretationFlag]
-                                                                    </div>
+                                                                    <span class="text-muted">-</span>
                                                                 }
-                                                            }
-                                                            else if (string.IsNullOrEmpty(marker.QualitativeResultText))
-                                                            {
-                                                                <div style="opacity: 0.6; font-style: italic;">No result</div>
-                                                            }
-                                                        </div>
-                                                    </div>
+                                                            </td>
+                                                        </tr>
+                                                        @if (!string.IsNullOrEmpty(marker.Notes))
+                                                        {
+                                                            <tr style="background: @bgColor;">
+                                                                <td colspan="5" style="padding: 8px 12px; border-top: none;">
+                                                                    <div style="font-size: 12px; font-style: italic; opacity: 0.9;">
+                                                                        <i class="bi bi-chat-left-text" style="margin-right: 4px;"></i>@marker.Notes
+                                                                    </div>
+                                                                </td>
+                                                            </tr>
+                                                                                }
+                                                                            }
+                                                                        </tbody>
+                                                                    </table>
 
-                                                    @if (!string.IsNullOrEmpty(marker.Notes))
-                                                    {
-                                                        <div style="margin-top: -8px; margin-bottom: 4px; padding: 8px 12px; background: rgba(255,255,255,0.3); border-radius: 0 0 6px 6px; font-size: 12px; font-style: italic; opacity: 0.9;">
-                                                            <i class="bi bi-chat-left-text" style="margin-right: 4px;"></i>@marker.Notes
-                                                        </div>
+                                                                    @if (!string.IsNullOrEmpty(labResult.LabInterpretation))
+                                                                    {
+                                                                        <div style="margin-top: 16px; padding: 12px; background: rgba(255,255,255,0.5); border-radius: 6px; border-left: 3px solid var(--signal-dk);">
+                                                                            <div class="text-label" style="margin-bottom: 6px;">LAB INTERPRETATION</div>
+                                                                            <div style="font-size: 13px; line-height: 1.5;">@labResult.LabInterpretation</div>
+                                                                        </div>
+                                                                    }
+                                                                </div>
+                                                            </td>
+                                                        </tr>
                                                     }
-                                                }
-                                            </div>
-
-                                            @if (!string.IsNullOrEmpty(labResult.LabInterpretation))
-                                            {
-                                                <div style="margin-top: 16px; padding: 12px; background: rgba(255,255,255,0.5); border-radius: 6px; border-left: 3px solid var(--signal-dk);">
-                                                    <div class="text-label" style="margin-bottom: 6px;">LAB INTERPRETATION</div>
-                                                    <div style="font-size: 13px; line-height: 1.5;">@labResult.LabInterpretation</div>
-                                                </div>
-                                            }
-                                        </div>
-                                    </td>
-                                </tr>
-                            }
                         }
                     </tbody>
                 </table>

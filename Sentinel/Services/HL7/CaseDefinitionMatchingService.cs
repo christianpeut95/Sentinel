@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Sentinel.Data;
+using Sentinel.Models;
 using Sentinel.Models.CaseDefinitions;
 using Sentinel.Models.Lookups;
 using System.Text.Json;
@@ -320,6 +321,246 @@ public class CaseDefinitionMatchingService : ICaseDefinitionMatchingService
             _logger.LogWarning(ex, "Failed to deserialize Guid array from JSON: {Json}", json);
             return new List<Guid>();
         }
+    }
+
+    /// <summary>
+    /// Evaluates all markers in a lab result against case definitions requiring multiple markers.
+    /// This is called when no individual markers match single-marker case definitions.
+    /// </summary>
+    public async Task<List<CaseDefinitionMatchResult>> MatchCaseDefinitionsForLabResultAsync(
+        LabResult labResult,
+        CancellationToken cancellationToken = default)
+    {
+        var results = new List<CaseDefinitionMatchResult>();
+
+        if (labResult.Markers == null || !labResult.Markers.Any())
+        {
+            _logger.LogDebug("[MULTI-MARKER] No markers in lab result to evaluate");
+            return results;
+        }
+
+        _logger.LogInformation(
+            "[MULTI-MARKER] Evaluating {Count} markers together for LabResult {LabResultId}",
+            labResult.Markers.Count,
+            labResult.FriendlyId);
+
+        // Get all active case definitions with laboratory criteria
+        var caseDefinitions = await _context.CaseDefinitions
+            .IgnoreQueryFilters()
+            .Include(cd => cd.Disease)
+            .Include(cd => cd.ConfirmationStatus)
+            .Include(cd => cd.Criteria)
+            .Where(cd =>
+                cd.Status == CaseDefinitionStatus.Current &&
+                cd.EnableAutoEvaluation &&
+                cd.Criteria.Any(c => c.CriterionType == CriterionType.Laboratory))
+            .ToListAsync(cancellationToken);
+
+        if (!caseDefinitions.Any())
+        {
+            _logger.LogDebug("[MULTI-MARKER] No active case definitions found");
+            return results;
+        }
+
+        _logger.LogDebug("[MULTI-MARKER] Evaluating {Count} case definitions", caseDefinitions.Count);
+
+        foreach (var caseDefinition in caseDefinitions)
+        {
+            var matchResult = await EvaluateMultiMarkerCaseDefinitionAsync(
+                caseDefinition,
+                labResult,
+                cancellationToken);
+
+            if (matchResult != null)
+            {
+                _logger.LogInformation(
+                    "[MULTI-MARKER] ✅ Matched case definition: {CaseDefName} → Disease: {Disease}",
+                    caseDefinition.Name,
+                    matchResult.Disease?.Name ?? "NULL");
+
+                results.Add(matchResult);
+            }
+        }
+
+        if (!results.Any())
+        {
+            _logger.LogDebug("[MULTI-MARKER] No case definitions matched the lab result markers");
+        }
+
+        return results;
+    }
+
+    /// <summary>
+    /// Evaluates whether all laboratory criteria in a case definition can be satisfied
+    /// by the combination of markers in the lab result
+    /// </summary>
+    private async Task<CaseDefinitionMatchResult?> EvaluateMultiMarkerCaseDefinitionAsync(
+        CaseDefinition caseDefinition,
+        LabResult labResult,
+        CancellationToken cancellationToken)
+    {
+        var laboratoryCriteria = caseDefinition.Criteria
+            .Where(c => c.CriterionType == CriterionType.Laboratory)
+            .ToList();
+
+        if (!laboratoryCriteria.Any())
+            return null;
+
+        _logger.LogDebug(
+            "[MULTI-MARKER] Evaluating case definition '{CaseDefName}' with {Count} lab criteria",
+            caseDefinition.Name,
+            laboratoryCriteria.Count);
+
+        // Group criteria by group number and logical operator
+        var groupedCriteria = laboratoryCriteria
+            .GroupBy(c => c.GroupNumber)
+            .OrderBy(g => g.Key)
+            .ToList();
+
+        foreach (var group in groupedCriteria)
+        {
+            var groupResults = new List<bool>();
+
+            foreach (var criterion in group)
+            {
+                // Check if ANY marker in the lab result satisfies this criterion
+                var criterionMatch = await EvaluateMultiMarkerLaboratoryCriterion(
+                    criterion,
+                    labResult,
+                    cancellationToken);
+
+                groupResults.Add(criterionMatch);
+
+                _logger.LogDebug(
+                    "[MULTI-MARKER] Criterion {CritId} (Group {Group}): {Result}",
+                    criterion.Id,
+                    criterion.GroupNumber,
+                    criterionMatch ? "MATCH" : "NO MATCH");
+            }
+
+            // Evaluate group result based on logical operators
+            var groupMatch = EvaluateGroupLogic(group.ToList(), groupResults);
+
+            if (!groupMatch)
+            {
+                _logger.LogDebug(
+                    "[MULTI-MARKER] Group {Group} failed, case definition does not match",
+                    group.Key);
+                return null;
+            }
+        }
+
+        // All groups passed - this case definition matches!
+        _logger.LogInformation(
+            "[MULTI-MARKER] All groups passed for case definition '{CaseDefName}'",
+            caseDefinition.Name);
+
+        return new CaseDefinitionMatchResult
+        {
+            CaseDefinition = caseDefinition,
+            Disease = caseDefinition.Disease,
+            ConfirmationStatus = caseDefinition.ConfirmationStatus,
+            DiseaseId = caseDefinition.DiseaseId,
+            ConfirmationStatusId = caseDefinition.ConfirmationStatusId
+        };
+    }
+
+    /// <summary>
+    /// Checks if ANY marker in the lab result satisfies the laboratory criterion
+    /// </summary>
+    private async Task<bool> EvaluateMultiMarkerLaboratoryCriterion(
+        CaseDefinitionCriteria criterion,
+        LabResult labResult,
+        CancellationToken cancellationToken)
+    {
+        var specimenTypeId = labResult.SpecimenTypeId;
+
+        // Check specimen type constraint (applies to all markers)
+        if (!string.IsNullOrWhiteSpace(criterion.AcceptableSpecimenTypesJson))
+        {
+            var acceptableSpecimenTypes = DeserializeIntArray(criterion.AcceptableSpecimenTypesJson);
+            if (!specimenTypeId.HasValue || !acceptableSpecimenTypes.Contains(specimenTypeId.Value))
+            {
+                _logger.LogDebug(
+                    "[MULTI-MARKER] Specimen type mismatch: Resolved={Resolved}, Acceptable={Acceptable}",
+                    specimenTypeId?.ToString() ?? "NULL",
+                    string.Join(",", acceptableSpecimenTypes));
+                return false;
+            }
+        }
+
+        // Check if ANY marker matches the pathogen/test method/result criteria
+        foreach (var marker in labResult.Markers)
+        {
+            var markerMatches = await EvaluateMarkerAgainstCriterion(
+                marker,
+                criterion,
+                cancellationToken);
+
+            if (markerMatches)
+            {
+                _logger.LogDebug(
+                    "[MULTI-MARKER] Marker {MarkerId} (Pathogen={PathogenId}) matches criterion {CritId}",
+                    marker.Id,
+                    marker.PathogenId?.ToString() ?? "NULL",
+                    criterion.Id);
+                return true;
+            }
+        }
+
+        _logger.LogDebug(
+            "[MULTI-MARKER] No markers satisfy criterion {CritId}",
+            criterion.Id);
+
+        return false;
+    }
+
+    /// <summary>
+    /// Evaluates a single marker against criterion constraints (pathogen, test method, result)
+    /// </summary>
+    private async Task<bool> EvaluateMarkerAgainstCriterion(
+        LabResultMarker marker,
+        CaseDefinitionCriteria criterion,
+        CancellationToken cancellationToken)
+    {
+        var matches = new List<bool>();
+
+        // Evaluate Pathogen/Biomarker
+        if (!string.IsNullOrWhiteSpace(criterion.AcceptablePathogensJson))
+        {
+            var acceptablePathogens = await ResolveAcceptablePathogenIdsAsync(
+                criterion.AcceptablePathogensJson,
+                cancellationToken);
+
+            var pathogenMatch = marker.PathogenId.HasValue &&
+                                acceptablePathogens.Contains(marker.PathogenId.Value);
+            matches.Add(pathogenMatch);
+        }
+
+        // Evaluate Test Method
+        if (!string.IsNullOrWhiteSpace(criterion.AcceptableTestMethodsJson))
+        {
+            var acceptableTestMethods = DeserializeIntArray(criterion.AcceptableTestMethodsJson);
+            var testMethodMatch = marker.TestMethodId.HasValue &&
+                                  acceptableTestMethods.Contains(marker.TestMethodId.Value);
+            matches.Add(testMethodMatch);
+        }
+
+        // Evaluate Test Result
+        if (!string.IsNullOrWhiteSpace(criterion.AcceptableResultsJson))
+        {
+            var acceptableResults = DeserializeIntArray(criterion.AcceptableResultsJson);
+            var resultMatch = marker.TestResultId.HasValue &&
+                              acceptableResults.Contains(marker.TestResultId.Value);
+            matches.Add(resultMatch);
+        }
+
+        // If no criteria were specified, treat as no match
+        if (!matches.Any())
+            return false;
+
+        // ALL specified criteria must match
+        return matches.All(m => m);
     }
 }
 

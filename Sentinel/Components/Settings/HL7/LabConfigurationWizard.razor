@@ -1,0 +1,130 @@
+@using Sentinel.Services.HL7
+@using Sentinel.Models
+@using Sentinel.Data
+@using Microsoft.EntityFrameworkCore
+@inject IHL7ParserService ParserService
+@inject IHL7FieldMappingService MappingService
+@inject IDbContextFactory<ApplicationDbContext> DbContextFactory
+@inject ILogger<LabConfigurationWizard> Logger
+@inject NavigationManager Navigation
+
+<div class="wizard-container">
+    @if (CurrentStage == WizardStage.UploadSample)
+    {
+        <UploadSampleStage 
+            ConfigurationId="@ConfigurationId"
+            ConfigurationName="@ConfigurationName"
+            OnSampleUploaded="HandleSampleUploaded" />
+    }
+    else if (CurrentStage == WizardStage.ReviewMappings)
+    {
+        <ReviewMappingsStage 
+            ConfigurationId="@ConfigurationId"
+            SampleMessage="@SampleMessage"
+            OnAllFieldsConfirmed="HandleAllFieldsConfirmed"
+            OnBackToUpload="HandleBackToUpload" />
+    }
+    else if (CurrentStage == WizardStage.TestAndActivate)
+    {
+        <TestAndActivateStage 
+            ConfigurationId="@ConfigurationId"
+            OnBackToReview="HandleBackToReview"
+            OnActivated="HandleActivated" />
+    }
+</div>
+
+@code {
+    [Parameter] public Guid ConfigurationId { get; set; }
+    [Parameter] public string ConfigurationName { get; set; } = string.Empty;
+    [Parameter] public EventCallback OnCompleted { get; set; }
+    [SupplyParameterFromQuery(Name = "stage")]
+    public string? InitialStage { get; set; }
+
+    private WizardStage CurrentStage { get; set; } = WizardStage.UploadSample;
+    private string? SampleMessage { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        Logger.LogWarning("LabConfigurationWizard: OnInitializedAsync - ConfigurationId={ConfigId}, InitialStage={Stage}", ConfigurationId, InitialStage);
+
+        await using var context = await DbContextFactory.CreateDbContextAsync();
+
+        // Check if we already have a sample message
+        var existingMapping = await context.HL7FieldMappings
+            .Where(m => m.ConfigurationId == ConfigurationId && !string.IsNullOrEmpty(m.SampleMessage))
+            .FirstOrDefaultAsync();
+
+        if (existingMapping != null)
+        {
+            SampleMessage = existingMapping.SampleMessage;
+
+            // If user requested specific stage via query param, go there
+            if (!string.IsNullOrEmpty(InitialStage))
+            {
+                CurrentStage = InitialStage.ToLower() switch
+                {
+                    "test" => WizardStage.TestAndActivate,
+                    "review" => WizardStage.ReviewMappings,
+                    "upload" => WizardStage.UploadSample,
+                    _ => WizardStage.ReviewMappings
+                };
+                Logger.LogWarning("LabConfigurationWizard: Starting at stage {Stage} based on query param", CurrentStage);
+            }
+            else
+            {
+                CurrentStage = WizardStage.ReviewMappings;
+                Logger.LogWarning("LabConfigurationWizard: Starting at ReviewMappings (existing sample found)");
+            }
+        }
+        else
+        {
+            Logger.LogWarning("LabConfigurationWizard: Starting at UploadSample (no existing sample)");
+        }
+    }
+
+    private void HandleSampleUploaded(string sampleMessage)
+    {
+        SampleMessage = sampleMessage;
+        CurrentStage = WizardStage.ReviewMappings;
+        StateHasChanged();
+    }
+
+    private void HandleBackToUpload()
+    {
+        CurrentStage = WizardStage.UploadSample;
+        StateHasChanged();
+    }
+
+    private void HandleAllFieldsConfirmed()
+    {
+        CurrentStage = WizardStage.TestAndActivate;
+        StateHasChanged();
+    }
+
+    private void HandleBackToReview()
+    {
+        CurrentStage = WizardStage.ReviewMappings;
+        StateHasChanged();
+    }
+
+    private async Task HandleActivated()
+    {
+        Logger.LogInformation("Configuration {ConfigId} activated, redirecting to configurations list", ConfigurationId);
+        // Redirect to configurations list with success message
+        Navigation.NavigateTo("/Settings/HL7/Configurations/Index?activated=true");
+    }
+
+    private enum WizardStage
+    {
+        UploadSample,
+        ReviewMappings,
+        TestAndActivate
+    }
+}
+
+<style>
+    .wizard-container {
+        max-width: 900px;
+        margin: 0 auto;
+    }
+</style>

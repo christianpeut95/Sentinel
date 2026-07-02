@@ -1,0 +1,1199 @@
+@page "/settings/hl7/generate-test-files"
+@rendermode RenderMode.InteractiveServer
+@using Microsoft.AspNetCore.Authorization
+@using Sentinel.HL7Generator.Models
+@using Sentinel.HL7Generator.Services
+@using Sentinel.Services.HL7
+@using Sentinel.Models
+@inject IHL7TestMessageService TestMessageService
+@inject NavigationManager Navigation
+@inject ILogger<GenerateTestFiles> Logger
+@attribute [Authorize(Policy = "Permission.HL7.GenerateTestFiles")]
+
+<PageTitle>Generate HL7 Test Files - Sentinel</PageTitle>
+
+<div class="container-fluid py-4">
+    <div class="row mb-4">
+        <div class="col">
+            <h1 class="h3">
+                <i class="bi bi-file-earmark-medical me-2"></i>
+                Generate HL7 Test Files
+            </h1>
+            <p class="text-muted">
+                Create test HL7 messages for configuration validation and workflow testing
+            </p>
+        </div>
+        <div class="col-auto">
+            <button class="btn btn-outline-secondary" @onclick="LoadSavedTemplate">
+                <i class="bi bi-folder-open me-1"></i>
+                Load Template
+            </button>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Left Panel: Message Builder -->
+        <div class="col-lg-7">
+            <div class="card">
+                <div class="card-body">
+                    <EditForm Model="@request" OnValidSubmit="GenerateMessage" FormName="hl7GenerateForm">
+                        <DataAnnotationsValidator />
+
+                        <!-- Section 1: Lab & Configuration -->
+                        <div class="mb-4">
+                            <h5 class="border-bottom pb-2 mb-3">
+                                <i class="bi bi-building me-2"></i>Lab & Configuration
+                            </h5>
+
+                            <div class="row mb-3">
+                                <div class="col-md-6">
+                                    <label class="form-label">Lab Template</label>
+                                    <select class="form-select" @bind="request.LabTemplate" @bind:after="OnLabTemplateChanged">
+                                        <option value="@LabTemplateType.Generic">Generic HL7 2.5.1</option>
+                                        <option value="@LabTemplateType.QuestDiagnostics">Quest Diagnostics</option>
+                                        <option value="@LabTemplateType.LabCorp">LabCorp</option>
+                                        <option value="@LabTemplateType.HospitalLab">Hospital Lab</option>
+                                        <option value="@LabTemplateType.ReferenceLab">Reference Lab</option>
+                                    </select>
+                                    @if (!string.IsNullOrEmpty(labTemplateDescription))
+                                    {
+                                        <small class="form-text text-muted">@labTemplateDescription</small>
+                                    }
+                                </div>
+
+                                <div class="col-md-6">
+                                    <label class="form-label">Output Destination</label>
+                                    <select class="form-select" @bind="selectedConfigurationId" @bind:after="OnConfigurationChanged">
+                                        <option value="">Custom path...</option>
+                                        @foreach (var config in configurations)
+                                        {
+                                            <option value="@config.Id">@config.ConfigurationName (@config.FileDropPath)</option>
+                                        }
+                                    </select>
+                                    @if (selectedConfigurationId == Guid.Empty)
+                                    {
+                                        <input type="text" class="form-control mt-2" @bind="customOutputPath" placeholder="Enter custom path..." />
+                                    }
+                                    else
+                                    {
+                                        <small class="form-text text-success">
+                                            <i class="bi bi-check-circle me-1"></i>Will be processed by: @GetSelectedConfigurationName()
+                                        </small>
+                                    }
+                                </div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label">Test Comment <span class="text-muted">(What are you testing?)</span></label>
+                                <textarea class="form-control" rows="2" @bind="testComment" 
+                                          placeholder="e.g., Testing Chlamydia positive result with new patient creation"></textarea>
+                            </div>
+                        </div>
+
+                        <!-- Section 2: Patient Selection -->
+                        <div class="mb-4">
+                            <h5 class="border-bottom pb-2 mb-3">
+                                <i class="bi bi-person me-2"></i>Patient
+                            </h5>
+
+                            <div class="mb-3">
+                                <div class="btn-group w-100" role="group">
+                                    <input type="radio" class="btn-check" name="patientMode" id="patientRandom" 
+                                           checked="@(patientMode == PatientMode.Random)" 
+                                           @onclick="@(() => SetPatientMode(PatientMode.Random))">
+                                    <label class="btn btn-outline-primary" for="patientRandom">
+                                        <i class="bi bi-shuffle me-1"></i>Random
+                                    </label>
+
+                                    <input type="radio" class="btn-check" name="patientMode" id="patientExisting" 
+                                           checked="@(patientMode == PatientMode.Existing)" 
+                                           @onclick="@(() => SetPatientMode(PatientMode.Existing))">
+                                    <label class="btn btn-outline-primary" for="patientExisting">
+                                        <i class="bi bi-person-check me-1"></i>Existing
+                                    </label>
+
+                                    <input type="radio" class="btn-check" name="patientMode" id="patientManual" 
+                                           checked="@(patientMode == PatientMode.Manual)" 
+                                           @onclick="@(() => SetPatientMode(PatientMode.Manual))">
+                                    <label class="btn btn-outline-primary" for="patientManual">
+                                        <i class="bi bi-pencil me-1"></i>Manual
+                                    </label>
+                                </div>
+                            </div>
+
+                            @if (patientMode == PatientMode.Random)
+                            {
+                                <div class="alert alert-info small">
+                                    <i class="bi bi-info-circle me-1"></i>
+                                    A new patient with random demographics will be generated each time
+                                </div>
+                            }
+                            else if (patientMode == PatientMode.Existing)
+                            {
+                                <div class="mb-3">
+                                    <label class="form-label">Select Patient</label>
+                                    <input type="text" class="form-control" @bind="patientSearchTerm" 
+                                           @bind:event="oninput" @bind:after="SearchPatients"
+                                           placeholder="Search by name or MRN..." />
+
+                                    @if (availablePatients.Any())
+                                    {
+                                        <div class="list-group mt-2" style="max-height: 200px; overflow-y: auto;">
+                                            @foreach (var patient in availablePatients)
+                                            {
+                                                <button type="button" class="list-group-item list-group-item-action @(selectedPatient?.Id == patient.Id ? "active" : "")"
+                                                        @onclick="() => SelectPatient(patient)">
+                                                    <div class="d-flex justify-content-between">
+                                                        <span><strong>@patient.FullName</strong> (MRN: @patient.MRN)</span>
+                                                        <small>DOB: @patient.DateOfBirth.ToString("yyyy-MM-dd")</small>
+                                                    </div>
+                                                </button>
+                                            }
+                                        </div>
+                                    }
+                                </div>
+                            }
+                            else if (patientMode == PatientMode.Manual)
+                            {
+                                <div class="row">
+                                    <div class="col-md-6 mb-3">
+                                        <label class="form-label">MRN</label>
+                                        <input type="text" class="form-control" @bind="request.Patient.MRN" />
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <label class="form-label">First Name</label>
+                                        <input type="text" class="form-control" @bind="request.Patient.GivenName" />
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <label class="form-label">Last Name</label>
+                                        <input type="text" class="form-control" @bind="request.Patient.FamilyName" />
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <label class="form-label">Date of Birth</label>
+                                        <input type="date" class="form-control" @bind="patientDobInput" />
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <label class="form-label">Gender</label>
+                                        <select class="form-select" @bind="request.Patient.Gender">
+                                            <option value="M">Male</option>
+                                            <option value="F">Female</option>
+                                            <option value="U">Unknown</option>
+                                            <option value="O">Other</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            }
+                        </div>
+
+                        <!-- Section 3: Provider Selection -->
+                        <div class="mb-4">
+                            <h5 class="border-bottom pb-2 mb-3">
+                                <i class="bi bi-hospital me-2"></i>Provider
+                            </h5>
+
+                            <div class="mb-3">
+                                <div class="btn-group w-100" role="group">
+                                    <input type="radio" class="btn-check" name="providerMode" id="providerRandom" 
+                                           checked="@(providerMode == ProviderMode.Random)" 
+                                           @onclick="@(() => SetProviderMode(ProviderMode.Random))">
+                                    <label class="btn btn-outline-primary" for="providerRandom">
+                                        <i class="bi bi-shuffle me-1"></i>Random
+                                    </label>
+
+                                    <input type="radio" class="btn-check" name="providerMode" id="providerExisting" 
+                                           checked="@(providerMode == ProviderMode.Existing)" 
+                                           @onclick="@(() => SetProviderMode(ProviderMode.Existing))">
+                                    <label class="btn btn-outline-primary" for="providerExisting">
+                                        <i class="bi bi-building-check me-1"></i>Existing
+                                    </label>
+
+                                    <input type="radio" class="btn-check" name="providerMode" id="providerManual" 
+                                           checked="@(providerMode == ProviderMode.Manual)" 
+                                           @onclick="@(() => SetProviderMode(ProviderMode.Manual))">
+                                    <label class="btn btn-outline-primary" for="providerManual">
+                                        <i class="bi bi-pencil me-1"></i>Manual
+                                    </label>
+
+                                    <input type="radio" class="btn-check" name="providerMode" id="providerNone" 
+                                           checked="@(providerMode == ProviderMode.None)" 
+                                           @onclick="@(() => SetProviderMode(ProviderMode.None))">
+                                    <label class="btn btn-outline-secondary" for="providerNone">
+                                        <i class="bi bi-x-circle me-1"></i>None
+                                    </label>
+                                </div>
+                            </div>
+
+                            @if (providerMode == ProviderMode.Existing)
+                            {
+                                <div class="mb-3">
+                                    <label class="form-label">Select Provider</label>
+                                    <input type="text" class="form-control" @bind="providerSearchTerm" 
+                                           @bind:event="oninput" @bind:after="SearchProviders"
+                                           placeholder="Search organizations..." />
+
+                                    @if (availableProviders.Any())
+                                    {
+                                        <div class="list-group mt-2" style="max-height: 200px; overflow-y: auto;">
+                                            @foreach (var provider in availableProviders)
+                                            {
+                                                <button type="button" class="list-group-item list-group-item-action @(selectedProviderId == provider.Id ? "active" : "")"
+                                                        @onclick="() => SelectProvider(provider)">
+                                                    <strong>@provider.Name</strong>
+                                                    <small class="text-muted d-block">@provider.OrganizationType</small>
+                                                </button>
+                                            }
+                                        </div>
+                                    }
+                                </div>
+                            }
+                            else if (providerMode == ProviderMode.Manual)
+                            {
+                                <div class="row">
+                                    <div class="col-md-6 mb-3">
+                                        <label class="form-label">Last Name</label>
+                                        <input type="text" class="form-control" @bind="request.OrderingProvider.FamilyName" />
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <label class="form-label">First Name</label>
+                                        <input type="text" class="form-control" @bind="request.OrderingProvider.GivenName" />
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <label class="form-label">NPI</label>
+                                        <input type="text" class="form-control" @bind="request.OrderingProvider.NPI" />
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <label class="form-label">Organization</label>
+                                        <input type="text" class="form-control" @bind="request.OrderingProvider.Organization" />
+                                    </div>
+                                </div>
+                            }
+                        </div>
+
+                        <!-- Section 4: Specimen & Order Info -->
+                        <div class="mb-4">
+                            <h5 class="border-bottom pb-2 mb-3">
+                                <i class="bi bi-clipboard-data me-2"></i>Specimen & Order
+                            </h5>
+
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">Accession Number</label>
+                                    <div class="input-group">
+                                        <input type="text" class="form-control" @bind="request.AccessionNumber" 
+                                               placeholder="Leave blank to auto-generate" />
+                                        <button type="button" class="btn btn-outline-secondary" 
+                                                @onclick="GenerateNewAccession">
+                                            <i class="bi bi-arrow-clockwise"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">Specimen Type</label>
+                                    <select class="form-select" @bind="request.SpecimenType">
+                                        <option value="URINE">Urine</option>
+                                        <option value="BLOOD">Blood</option>
+                                        <option value="SWAB">Swab</option>
+                                        <option value="VAGINAL">Vaginal Swab</option>
+                                        <option value="URETHRAL">Urethral Swab</option>
+                                        <option value="CERVICAL">Cervical Swab</option>
+                                        <option value="THROAT">Throat Swab</option>
+                                        <option value="NASAL">Nasal Swab</option>
+                                        <option value="RECTAL">Rectal Swab</option>
+                                        <option value="SERUM">Serum</option>
+                                        <option value="PLASMA">Plasma</option>
+                                        <option value="SPUTUM">Sputum</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">Collection Date/Time</label>
+                                    <input type="datetime-local" class="form-control" @bind="collectionDateTimeInput" />
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Section 5: Biomarkers & Results -->
+                        <div class="mb-4">
+                            <h5 class="border-bottom pb-2 mb-3">
+                                <i class="bi bi-virus me-2"></i>Biomarkers & Results
+                            </h5>
+
+                            <div class="d-flex gap-2 mb-3">
+                                <button type="button" class="btn btn-sm btn-primary" @onclick="AddBiomarker">
+                                    <i class="bi bi-plus-lg me-1"></i>Add Biomarker
+                                </button>
+                                <select class="form-select form-select-sm w-auto" @onchange="AddCommonTest">
+                                    <option value="">Or add common test...</option>
+                                    <option value="CT">Chlamydia (CT)</option>
+                                    <option value="GC">Gonorrhea (GC)</option>
+                                    <option value="COVID">COVID-19</option>
+                                    <option value="HIV">HIV 1+2 Antibody</option>
+                                    <option value="HEPC">Hepatitis C</option>
+                                    <option value="SYPHILIS">Syphilis RPR</option>
+                                    <option value="TRICH">Trichomonas</option>
+                                </select>
+                            </div>
+
+                            @foreach (var (biomarker, index) in request.BiomarkerResults.Select((b, i) => (b, i)))
+                            {
+                                <div class="card mb-3">
+                                    <div class="card-body">
+                                        <div class="d-flex justify-content-between align-items-start mb-2">
+                                            <strong>Biomarker #@(index + 1)</strong>
+                                            <button type="button" class="btn btn-sm btn-outline-danger" 
+                                                    @onclick="() => RemoveBiomarker(index)">
+                                                <i class="bi bi-trash"></i>
+                                            </button>
+                                        </div>
+
+                                        <div class="row">
+                                            <div class="col-md-6 mb-2">
+                                                <label class="form-label small">Test Code (LOINC or Lab Code)</label>
+                                                <input type="text" class="form-control form-control-sm" 
+                                                       @bind="biomarker.TestCode" placeholder="e.g., 87798-0" />
+                                            </div>
+                                            <div class="col-md-6 mb-2">
+                                                <label class="form-label small">Test Name</label>
+                                                <input type="text" class="form-control form-control-sm" 
+                                                       @bind="biomarker.TestName" placeholder="e.g., CHLAMYDIA NAAT" />
+                                            </div>
+                                            <div class="col-md-4 mb-2">
+                                                <label class="form-label small">LOINC Code (Optional)</label>
+                                                <input type="text" class="form-control form-control-sm" 
+                                                       @bind="biomarker.LOINCCode" placeholder="e.g., 87798-0" />
+                                            </div>
+                                            <div class="col-md-4 mb-2">
+                                                <label class="form-label small">Test Type/Method</label>
+                                                <select class="form-select form-select-sm" @bind="biomarker.TestType">
+                                                    <option value="NAAT">NAAT</option>
+                                                    <option value="PCR">PCR</option>
+                                                    <option value="CULTURE">Culture</option>
+                                                    <option value="ANTIBODY">Antibody</option>
+                                                    <option value="ANTIGEN">Antigen</option>
+                                                    <option value="ELISA">ELISA</option>
+                                                    <option value="RAPID">Rapid Test</option>
+                                                    <option value="SEROLOGY">Serology</option>
+                                                    <option value="MOLECULAR">Molecular</option>
+                                                </select>
+                                            </div>
+                                            <div class="col-md-4 mb-2">
+                                                <label class="form-label small">Result</label>
+                                                <select class="form-select form-select-sm" @bind="biomarker.Result">
+                                                    <option value="POSITIVE">POSITIVE</option>
+                                                    <option value="NEGATIVE">NEGATIVE</option>
+                                                    <option value="DETECTED">DETECTED</option>
+                                                    <option value="NOT DETECTED">NOT DETECTED</option>
+                                                    <option value="EQUIVOCAL">EQUIVOCAL</option>
+                                                </select>
+                                            </div>
+                                            <div class="col-md-6 mb-2">
+                                                <label class="form-label small">Abnormal Flag</label>
+                                                <select class="form-select form-select-sm" @bind="biomarker.AbnormalFlag">
+                                                    <option value="">Normal</option>
+                                                    <option value="A">A - Abnormal</option>
+                                                    <option value="H">H - High</option>
+                                                    <option value="L">L - Low</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            }
+
+                            @if (!request.BiomarkerResults.Any())
+                            {
+                                <div class="alert alert-warning small">
+                                    <i class="bi bi-exclamation-triangle me-1"></i>
+                                    At least one biomarker is required
+                                </div>
+                            }
+                        </div>
+
+                        <!-- Section 6: Generation Options -->
+                        <div class="mb-4">
+                            <h5 class="border-bottom pb-2 mb-3">
+                                <i class="bi bi-gear me-2"></i>Generation Options
+                            </h5>
+
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">Number of Files</label>
+                                    <input type="number" class="form-control" @bind="batchCount" min="1" max="50" />
+                                    <small class="form-text text-muted">Generate multiple files with variations</small>
+                                </div>
+                            </div>
+
+                            <div class="form-check mb-2">
+                                <input class="form-check-input" type="checkbox" id="saveTemplate" @bind="saveAsTemplate">
+                                <label class="form-check-label" for="saveTemplate">
+                                    Save as template for reuse
+                                </label>
+                            </div>
+
+                            @if (saveAsTemplate)
+                            {
+                                <input type="text" class="form-control mb-3" @bind="templateName" 
+                                       placeholder="Template name..." />
+                            }
+                        </div>
+
+                        <!-- Action Buttons -->
+                        <div class="d-flex gap-2">
+                            <button type="submit" class="btn btn-success" disabled="@isGenerating">
+                                @if (isGenerating)
+                                {
+                                    <span class="spinner-border spinner-border-sm me-2"></span>
+                                }
+                                else
+                                {
+                                    <i class="bi bi-play-fill me-2"></i>
+                                }
+                                Generate @(batchCount > 1 ? $"{batchCount} Files" : "File")
+                            </button>
+
+                            <button type="button" class="btn btn-outline-primary" @onclick="PreviewMessage" 
+                                    disabled="@isGenerating">
+                                <i class="bi bi-eye me-1"></i>Preview
+                            </button>
+
+                            <button type="button" class="btn btn-outline-secondary" @onclick="ResetForm">
+                                <i class="bi bi-arrow-counterclockwise me-1"></i>Reset
+                            </button>
+                        </div>
+
+                        <ValidationSummary class="mt-3" />
+                    </EditForm>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Panel: Results Tracker -->
+        <div class="col-lg-5">
+            <div class="card sticky-top" style="top: 20px;">
+                <div class="card-header bg-light">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h6 class="mb-0">
+                            <i class="bi bi-clock-history me-2"></i>Recent Messages
+                        </h6>
+                        <button class="btn btn-sm btn-outline-secondary" @onclick="LoadHistory">
+                            <i class="bi bi-arrow-clockwise"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="card-body p-0" style="max-height: 800px; overflow-y: auto;">
+                    @if (recentHistory.Any())
+                    {
+                        @foreach (var history in recentHistory)
+                        {
+                            <div class="border-bottom p-3 @(expandedHistoryId == history.Id ? "bg-light" : "")">
+                                <div class="d-flex justify-content-between align-items-start mb-2">
+                                    <div class="flex-grow-1" style="cursor: pointer;" @onclick="() => ToggleHistoryDetails(history.Id)">
+                                        <strong class="d-block">@(history.TestComment ?? "No comment")</strong>
+                                        <small class="text-muted">
+                                            @history.GeneratedAt.ToLocalTime().ToString("MMM dd, HH:mm:ss")
+                                        </small>
+                                    </div>
+                                    <span class="badge @GetStatusBadgeClass(history.ProcessingStatus)">
+                                        @GetStatusText(history.ProcessingStatus)
+                                    </span>
+                                </div>
+
+                                <div class="small">
+                                    <div><strong>Accession:</strong> @history.AccessionNumber</div>
+                                    <div><strong>Patient:</strong> @history.PatientMRN</div>
+                                </div>
+
+                                @if (expandedHistoryId == history.Id && processingResults.ContainsKey(history.Id))
+                                {
+                                    var result = processingResults[history.Id];
+                                    <div class="mt-3 pt-3 border-top">
+                                        @if (result.PatientId.HasValue)
+                                        {
+                                            <div class="mb-2">
+                                                <i class="bi bi-check-circle text-success me-1"></i>
+                                                <strong>Patient:</strong> @result.PatientName
+                                            </div>
+                                        }
+                                        @if (result.LabResultId.HasValue)
+                                        {
+                                            <div class="mb-2">
+                                                <i class="bi bi-check-circle text-success me-1"></i>
+                                                <strong>Lab Result Created</strong>
+                                            </div>
+                                        }
+                                        @if (result.BiomarkersMapped.Any())
+                                        {
+                                            <div class="mb-2">
+                                                <strong>Biomarkers Mapped:</strong>
+                                                @foreach (var biomarker in result.BiomarkersMapped)
+                                                {
+                                                    <div class="ms-3 small">
+                                                        <i class="bi bi-arrow-right me-1"></i>
+                                                        @biomarker.TestName: @biomarker.Result
+                                                        @if (biomarker.WasMapped)
+                                                        {
+                                                            <span class="text-success">→ @biomarker.PathogenName</span>
+                                                        }
+                                                        else
+                                                        {
+                                                            <span class="text-warning">→ Not mapped</span>
+                                                        }
+                                                    </div>
+                                                }
+                                            </div>
+                                        }
+                                        @if (result.CasesCreated.Any())
+                                        {
+                                            <div class="mb-2">
+                                                <strong>Cases:</strong>
+                                                @foreach (var caseInfo in result.CasesCreated)
+                                                {
+                                                    <div class="ms-3 small">
+                                                        <i class="bi bi-folder me-1"></i>
+                                                        @caseInfo.CaseFriendlyId - @caseInfo.DiseaseName
+                                                    </div>
+                                                }
+                                            </div>
+                                        }
+                                        @if (result.Errors.Any())
+                                        {
+                                            <div class="alert alert-danger small mb-2 p-2">
+                                                @foreach (var error in result.Errors)
+                                                {
+                                                    <div>@error</div>
+                                                }
+                                            </div>
+                                        }
+                                    </div>
+
+                                    <div class="mt-2 d-flex gap-1">
+                                        <button class="btn btn-sm btn-outline-primary" @onclick="() => RegenerateWithNewPatient(history.Id)">
+                                            <i class="bi bi-arrow-repeat me-1"></i>New Patient
+                                        </button>
+                                        <button class="btn btn-sm btn-outline-secondary" @onclick="() => CloneMessage(history.Id)">
+                                            <i class="bi bi-files me-1"></i>Clone
+                                        </button>
+                                    </div>
+                                }
+                            </div>
+                        }
+                    }
+                    else
+                    {
+                        <div class="p-4 text-center text-muted">
+                            <i class="bi bi-inbox display-4 d-block mb-2"></i>
+                            No messages generated yet
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@if (showPreviewModal)
+{
+    <div class="modal show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+        <div class="modal-dialog modal-lg modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">HL7 Message Preview</h5>
+                    <button type="button" class="btn-close" @onclick="ClosePreview"></button>
+                </div>
+                <div class="modal-body">
+                    <pre class="bg-light p-3" style="font-family: 'Courier New', monospace; font-size: 0.85em;">@previewContent</pre>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="ClosePreview">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@if (showTemplateModal)
+{
+    <div class="modal show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+        <div class="modal-dialog modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <i class="bi bi-folder-open me-2"></i>Load Saved Template
+                    </h5>
+                    <button type="button" class="btn-close" @onclick="CloseTemplateModal"></button>
+                </div>
+                <div class="modal-body">
+                    @if (savedTemplates.Any())
+                    {
+                        <div class="list-group">
+                            @foreach (var template in savedTemplates)
+                            {
+                                <button type="button" class="list-group-item list-group-item-action" @onclick="() => SelectTemplate(template.Id)">
+                                    <div class="d-flex w-100 justify-content-between align-items-start">
+                                        <div>
+                                            <h6 class="mb-1">@template.TemplateName</h6>
+                                            <small class="text-muted">
+                                                @template.LabTemplateType.ToString()
+                                                @if (!string.IsNullOrEmpty(template.TestComment))
+                                                {
+                                                    <span> - @template.TestComment</span>
+                                                }
+                                            </small>
+                                            <div class="mt-1">
+                                                <span class="badge bg-secondary">@template.CreatedAt.ToString("g")</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </button>
+                            }
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="text-center text-muted py-4">
+                            <i class="bi bi-inbox display-6 d-block mb-2"></i>
+                            <p>No saved templates yet</p>
+                            <small>Save a template from the generation form to reuse it later</small>
+                        </div>
+                    }
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="CloseTemplateModal">Cancel</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    // State
+    private HL7MessageRequest request = new();
+    private List<HL7Configuration> configurations = new();
+    private List<HL7TestMessageHistory> recentHistory = new();
+    private Dictionary<Guid, TestMessageProcessingResult> processingResults = new();
+
+    // UI State
+    private PatientMode patientMode = PatientMode.Random;
+    private ProviderMode providerMode = ProviderMode.Random;
+    private Guid selectedConfigurationId = Guid.Empty;
+    private string customOutputPath = "";
+    private string testComment = "";
+    private int batchCount = 1;
+    private bool saveAsTemplate = false;
+    private string templateName = "";
+    private bool isGenerating = false;
+    private string labTemplateDescription = "";
+    private Guid expandedHistoryId = Guid.Empty;
+    private bool showPreviewModal = false;
+    private string previewContent = "";
+    private bool showTemplateModal = false;
+    private List<HL7TestMessageTemplate> savedTemplates = new();
+
+    // Patient selection
+    private string patientSearchTerm = "";
+    private List<PatientSelectionItem> availablePatients = new();
+    private PatientSelectionItem? selectedPatient = null;
+    private DateTime patientDobInput = DateTime.Now.AddYears(-30);
+
+    // Provider selection
+    private string providerSearchTerm = "";
+    private List<ProviderSelectionItem> availableProviders = new();
+    private Guid selectedProviderId = Guid.Empty;
+
+    // Date inputs
+    private DateTime collectionDateTimeInput = DateTime.Now.AddHours(-24);
+
+    protected override async Task OnInitializedAsync()
+    {
+        InitializeRequest();
+        await LoadConfigurations();
+        await LoadHistory();
+    }
+
+    private void InitializeRequest()
+    {
+        request = new HL7MessageRequest
+        {
+            LabTemplate = LabTemplateType.Generic,
+            MessageDateTime = DateTime.Now,
+            CollectionDateTime = DateTime.Now.AddHours(-24),
+            Patient = TestMessageService.GenerateRandomPatient(),
+            OrderingProvider = TestMessageService.GenerateRandomProvider(),
+            AccessionNumber = TestMessageService.GenerateAccessionNumber()
+        };
+
+        UpdateLabTemplateDescription();
+    }
+
+    private async Task LoadConfigurations()
+    {
+        configurations = await TestMessageService.GetActiveConfigurationsAsync();
+        if (configurations.Any())
+        {
+            selectedConfigurationId = configurations.First().Id;
+            OnConfigurationChanged();
+        }
+    }
+
+    private async Task LoadHistory()
+    {
+        recentHistory = await TestMessageService.GetRecentHistoryAsync(20);
+    }
+
+    private void OnLabTemplateChanged()
+    {
+        UpdateLabTemplateDescription();
+
+        // Apply template defaults
+        var template = LabTemplateFactory.CreateTemplate(request.LabTemplate);
+        request.SendingApplication = template.SendingApplication;
+        request.SendingFacility = template.SendingFacility;
+        request.HL7Version = template.HL7Version;
+    }
+
+    private void UpdateLabTemplateDescription()
+    {
+        labTemplateDescription = LabTemplateFactory.GetTemplateDescription(request.LabTemplate);
+    }
+
+    private void OnConfigurationChanged()
+    {
+        var config = configurations.FirstOrDefault(c => c.Id == selectedConfigurationId);
+        if (config != null)
+        {
+            customOutputPath = config.FileDropPath ?? "";
+        }
+    }
+
+    private string GetSelectedConfigurationName()
+    {
+        return configurations.FirstOrDefault(c => c.Id == selectedConfigurationId)?.ConfigurationName ?? "";
+    }
+
+    private void SetPatientMode(PatientMode mode)
+    {
+        patientMode = mode;
+
+        if (mode == PatientMode.Random)
+        {
+            request.Patient = TestMessageService.GenerateRandomPatient();
+        }
+        else if (mode == PatientMode.Manual)
+        {
+            request.Patient = new PatientInfo
+            {
+                MRN = TestMessageService.GenerateAccessionNumber().Replace("ACC", "MRN"),
+                DateOfBirth = patientDobInput,
+                Gender = "U"
+            };
+        }
+    }
+
+    private void SetProviderMode(ProviderMode mode)
+    {
+        providerMode = mode;
+
+        if (mode == ProviderMode.Random)
+        {
+            request.OrderingProvider = TestMessageService.GenerateRandomProvider();
+        }
+        else if (mode == ProviderMode.None)
+        {
+            request.OrderingProvider = null;
+        }
+        else if (mode == ProviderMode.Manual)
+        {
+            request.OrderingProvider = new ProviderInfo();
+        }
+    }
+
+    private async Task SearchPatients()
+    {
+        if (!string.IsNullOrWhiteSpace(patientSearchTerm))
+        {
+            availablePatients = await TestMessageService.GetPatientsForSelectionAsync(patientSearchTerm);
+        }
+    }
+
+    private void SelectPatient(PatientSelectionItem patient)
+    {
+        selectedPatient = patient;
+        request.Patient = new PatientInfo
+        {
+            MRN = patient.MRN,
+            FamilyName = patient.FullName.Split(' ').Last(),
+            GivenName = patient.FullName.Split(' ').First(),
+            DateOfBirth = patient.DateOfBirth,
+            Gender = patient.Gender == "Male" ? "M" : patient.Gender == "Female" ? "F" : "U"
+        };
+    }
+
+    private async Task SearchProviders()
+    {
+        if (!string.IsNullOrWhiteSpace(providerSearchTerm))
+        {
+            availableProviders = await TestMessageService.GetProvidersForSelectionAsync(providerSearchTerm);
+        }
+    }
+
+    private void SelectProvider(ProviderSelectionItem provider)
+    {
+        selectedProviderId = provider.Id;
+        request.OrderingProvider = new ProviderInfo
+        {
+            FamilyName = provider.Name,
+            GivenName = "",
+            Organization = provider.Name,
+            NPI = provider.NPI
+        };
+    }
+
+    private void GenerateNewAccession()
+    {
+        request.AccessionNumber = TestMessageService.GenerateAccessionNumber();
+    }
+
+    private void AddBiomarker()
+    {
+        request.BiomarkerResults.Add(new BiomarkerResult
+        {
+            TestCode = "",
+            TestName = "",
+            TestType = "NAAT",
+            Result = "POSITIVE",
+            ReferenceRange = "NEGATIVE"
+        });
+    }
+
+    private void AddCommonTest(ChangeEventArgs e)
+    {
+        var testType = e.Value?.ToString();
+        if (string.IsNullOrEmpty(testType)) return;
+
+        var biomarker = testType switch
+        {
+            "CT" => new BiomarkerResult
+            {
+                TestCode = "87798-0",
+                TestName = "CHLAMYDIA TRACHOMATIS NAAT",
+                LOINCCode = "87798-0",
+                TestType = "NAAT",
+                Result = "POSITIVE",
+                ReferenceRange = "NEGATIVE",
+                AbnormalFlag = "A"
+            },
+            "GC" => new BiomarkerResult
+            {
+                TestCode = "87491-0",
+                TestName = "NEISSERIA GONORRHOEAE NAAT",
+                LOINCCode = "87491-0",
+                TestType = "NAAT",
+                Result = "POSITIVE",
+                ReferenceRange = "NEGATIVE",
+                AbnormalFlag = "A"
+            },
+            "COVID" => new BiomarkerResult
+            {
+                TestCode = "94500-6",
+                TestName = "SARS-COV-2 RNA NAA",
+                LOINCCode = "94500-6",
+                TestType = "PCR",
+                Result = "DETECTED",
+                ReferenceRange = "NOT DETECTED",
+                AbnormalFlag = "A"
+            },
+            "HIV" => new BiomarkerResult
+            {
+                TestCode = "75622-1",
+                TestName = "HIV 1+2 ANTIBODY",
+                LOINCCode = "75622-1",
+                TestType = "ANTIBODY",
+                Result = "REACTIVE",
+                ReferenceRange = "NONREACTIVE",
+                AbnormalFlag = "A"
+            },
+            "HEPC" => new BiomarkerResult
+            {
+                TestCode = "16128-1",
+                TestName = "HEPATITIS C ANTIBODY",
+                LOINCCode = "16128-1",
+                TestType = "ANTIBODY",
+                Result = "REACTIVE",
+                ReferenceRange = "NONREACTIVE",
+                AbnormalFlag = "A"
+            },
+            "SYPHILIS" => new BiomarkerResult
+            {
+                TestCode = "20507-0",
+                TestName = "SYPHILIS RPR",
+                LOINCCode = "20507-0",
+                TestType = "SEROLOGY",
+                Result = "REACTIVE",
+                ReferenceRange = "NONREACTIVE",
+                AbnormalFlag = "A"
+            },
+            "TRICH" => new BiomarkerResult
+            {
+                TestCode = "87661-7",
+                TestName = "TRICHOMONAS VAGINALIS NAAT",
+                LOINCCode = "87661-7",
+                TestType = "NAAT",
+                Result = "POSITIVE",
+                ReferenceRange = "NEGATIVE",
+                AbnormalFlag = "A"
+            },
+            _ => new BiomarkerResult
+            {
+                TestCode = "",
+                TestName = "",
+                TestType = "NAAT",
+                Result = "POSITIVE",
+                ReferenceRange = "NEGATIVE"
+            }
+        };
+
+        request.BiomarkerResults.Add(biomarker);
+    }
+
+    private void RemoveBiomarker(int index)
+    {
+        request.BiomarkerResults.RemoveAt(index);
+    }
+
+    private async Task GenerateMessage()
+    {
+        if (!request.BiomarkerResults.Any())
+        {
+            return;
+        }
+
+        isGenerating = true;
+
+        try
+        {
+            // Update dates from inputs
+            request.CollectionDateTime = collectionDateTimeInput;
+            request.Patient.DateOfBirth = patientDobInput;
+
+            var outputPath = selectedConfigurationId != Guid.Empty 
+                ? customOutputPath 
+                : customOutputPath;
+
+            if (string.IsNullOrWhiteSpace(outputPath))
+            {
+                Logger.LogWarning("No output path specified");
+                return;
+            }
+
+            if (saveAsTemplate && !string.IsNullOrWhiteSpace(templateName))
+            {
+                await TestMessageService.SaveTemplateAsync(templateName, request, testComment: testComment);
+            }
+
+            if (batchCount > 1)
+            {
+                var batchResult = await TestMessageService.GenerateMultipleMessagesAsync(
+                    request,
+                    outputPath,
+                    batchCount,
+                    varyPatient: patientMode == PatientMode.Random,
+                    varyProvider: providerMode == ProviderMode.Random,
+                    varyAccession: true,
+                    testComment: testComment,
+                    autoProcess: false
+                );
+            }
+            else
+            {
+                var result = await TestMessageService.GenerateAndSaveMessageAsync(
+                    request,
+                    outputPath,
+                    testComment,
+                    autoProcess: false
+                );
+            }
+
+            // Reload history
+            await LoadHistory();
+
+            // Reset if random modes
+            if (patientMode == PatientMode.Random)
+            {
+                request.Patient = TestMessageService.GenerateRandomPatient();
+            }
+            if (providerMode == ProviderMode.Random)
+            {
+                request.OrderingProvider = TestMessageService.GenerateRandomProvider();
+            }
+
+            request.AccessionNumber = TestMessageService.GenerateAccessionNumber();
+        }
+        finally
+        {
+            isGenerating = false;
+        }
+    }
+
+    private async Task PreviewMessage()
+    {
+        if (!request.BiomarkerResults.Any())
+        {
+            return;
+        }
+
+        try
+        {
+            request.CollectionDateTime = collectionDateTimeInput;
+            request.Patient.DateOfBirth = patientDobInput;
+
+            var generator = new Sentinel.HL7Generator.Services.HL7GeneratorService();
+            previewContent = generator.GenerateMessage(request);
+            showPreviewModal = true;
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error generating preview");
+        }
+    }
+
+    private void ClosePreview()
+    {
+        showPreviewModal = false;
+    }
+
+    private void ResetForm()
+    {
+        InitializeRequest();
+        testComment = "";
+        batchCount = 1;
+        saveAsTemplate = false;
+        templateName = "";
+    }
+
+    private async Task ToggleHistoryDetails(Guid historyId)
+    {
+        if (expandedHistoryId == historyId)
+        {
+            expandedHistoryId = Guid.Empty;
+        }
+        else
+        {
+            expandedHistoryId = historyId;
+
+            if (!processingResults.ContainsKey(historyId))
+            {
+                var result = await TestMessageService.GetProcessingResultAsync(historyId);
+                if (result != null)
+                {
+                    processingResults[historyId] = result;
+                }
+            }
+        }
+    }
+
+    private async Task RegenerateWithNewPatient(Guid historyId)
+    {
+        isGenerating = true;
+        try
+        {
+            var outputPath = selectedConfigurationId != Guid.Empty ? customOutputPath : customOutputPath;
+            await TestMessageService.RegenerateWithNewPatientAsync(historyId, outputPath);
+            await LoadHistory();
+        }
+        finally
+        {
+            isGenerating = false;
+        }
+    }
+
+    private async Task CloneMessage(Guid historyId)
+    {
+        isGenerating = true;
+        try
+        {
+            var outputPath = selectedConfigurationId != Guid.Empty ? customOutputPath : customOutputPath;
+            await TestMessageService.CloneMessageAsync(historyId, outputPath);
+            await LoadHistory();
+        }
+        finally
+        {
+            isGenerating = false;
+        }
+    }
+
+    private void LoadSavedTemplate()
+    {
+        LoadTemplates();
+        showTemplateModal = true;
+    }
+
+    private async Task LoadTemplates()
+    {
+        savedTemplates = await TestMessageService.GetTemplatesAsync();
+    }
+
+    private async Task SelectTemplate(Guid templateId)
+    {
+        var config = await TestMessageService.LoadTemplateAsync(templateId);
+        if (config != null)
+        {
+            request = config;
+            testComment = request.LabComments ?? "";
+            UpdateLabTemplateDescription();
+
+            // Update patient/provider modes based on whether they're set
+            patientMode = string.IsNullOrEmpty(request.Patient?.MRN) ? PatientMode.Random : PatientMode.Existing;
+            providerMode = string.IsNullOrEmpty(request.OrderingProvider?.NPI) && string.IsNullOrEmpty(request.OrderingProvider?.FamilyName) 
+                ? ProviderMode.Random 
+                : ProviderMode.Existing;
+
+            // Update datetime inputs
+            patientDobInput = request.Patient?.DateOfBirth ?? DateTime.Now.AddYears(-30);
+            collectionDateTimeInput = request.CollectionDateTime;
+        }
+
+        showTemplateModal = false;
+    }
+
+    private void CloseTemplateModal()
+    {
+        showTemplateModal = false;
+    }
+
+    private string GetStatusBadgeClass(HL7ProcessingStatus? status)
+    {
+        return status switch
+        {
+            HL7ProcessingStatus.ProcessedSuccessfully => "bg-success",
+            HL7ProcessingStatus.ManualReviewComplete => "bg-success",
+            HL7ProcessingStatus.ParsedSuccessfully => "bg-info",
+            HL7ProcessingStatus.ProcessedWithWarnings => "bg-warning",
+            HL7ProcessingStatus.AwaitingManualReview => "bg-warning",
+            HL7ProcessingStatus.ParsingFailed => "bg-danger",
+            HL7ProcessingStatus.ProcessingFailed => "bg-danger",
+            _ => "bg-secondary"
+        };
+    }
+
+    private string GetStatusText(HL7ProcessingStatus? status)
+    {
+        return status?.ToString() ?? "Pending";
+    }
+
+    private enum PatientMode
+    {
+        Random,
+        Existing,
+        Manual
+    }
+
+    private enum ProviderMode
+    {
+        Random,
+        Existing,
+        Manual,
+        None
+    }
+}

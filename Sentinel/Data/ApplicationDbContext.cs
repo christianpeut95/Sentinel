@@ -10,13 +10,12 @@ namespace Sentinel.Data
     {
         private readonly IHttpContextAccessor? _httpContextAccessor;
 
-        public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options) : base(options)
-        {
-        }
-
+        // Single constructor that accepts optional IHttpContextAccessor
+        // The factory can call this with just DbContextOptions
+        // Razor Pages can call this with both parameters
         public ApplicationDbContext(
             DbContextOptions<ApplicationDbContext> options,
-            IHttpContextAccessor httpContextAccessor) : base(options)
+            IHttpContextAccessor? httpContextAccessor = null) : base(options)
         {
             _httpContextAccessor = httpContextAccessor;
         }
@@ -86,6 +85,13 @@ namespace Sentinel.Data
         public DbSet<Models.HL7.HL7CustomFieldMapping> HL7CustomFieldMappings { get; set; }
         public DbSet<Models.HL7.DiseaseHL7MatchingConfig> DiseaseHL7MatchingConfigs { get; set; }
         public DbSet<DiseaseReinfectionRule> DiseaseReinfectionRules { get; set; }
+
+        // HL7 Test Generator System
+        public DbSet<HL7TestMessageTemplate> HL7TestMessageTemplates { get; set; }
+        public DbSet<HL7TestMessageHistory> HL7TestMessageHistory { get; set; }
+
+        // Background Processing System
+        public DbSet<GeocodingQueueItem> GeocodingQueueItems { get; set; }
 
         // REMOVED: TestTypes table dropped
         // [Obsolete("Legacy table - Use Pathogens and TestMethods instead. Will be removed in future version.")]

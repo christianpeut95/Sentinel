@@ -194,6 +194,7 @@ namespace Sentinel.Services.HL7
                     {
                         _logger.LogDebug("Loading HL7 configuration: {ConfigId}", configurationId.Value);
                         configuration = await context.HL7Configurations
+                            .Include(c => c.FieldMappings)
                             .FirstOrDefaultAsync(c => c.Id == configurationId.Value, cancellationToken);
                         if (configuration == null)
                         {

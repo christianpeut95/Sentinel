@@ -1,0 +1,1150 @@
+@page "/dashboard"
+@model DashboardModel
+@using Sentinel.Models.Dashboard
+@{
+    ViewData["Title"] = "Dashboard";
+    ViewData["Subtitle"] = DateTime.Now.ToString("dddd, MMMM d, yyyy");
+}
+
+<style>
+    .dashboard-greeting {
+        margin-bottom: var(--spacing-8);
+        margin-top: var(--spacing-6);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .dashboard-greeting h2 {
+        font-family: var(--f-sans);
+        font-weight: 500;
+        font-size: 32px;
+        letter-spacing: -0.03em;
+        color: var(--forest);
+        margin: 0;
+    }
+
+    .dashboard-actions {
+        display: flex;
+        gap: 12px;
+    }
+
+    .btn-customize {
+        background: transparent;
+        border: 1px solid var(--hairline);
+        border-radius: 6px;
+        padding: 8px 16px;
+        cursor: pointer;
+        font-size: 14px;
+        color: var(--forest);
+        transition: all 0.15s;
+    }
+
+    .btn-customize:hover {
+        background: var(--paper);
+        border-color: var(--slate-lt);
+    }
+
+    .dashboard-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 20px;
+        margin-top: 24px;
+    }
+
+    .widget-card {
+        background: var(--chalk, #FBFAF5);
+        border: 1px solid var(--hairline, #D8D4C4);
+        border-radius: 8px;
+        padding: 24px;
+        position: relative;
+        transition: box-shadow 0.2s;
+    }
+
+    .widget-card:hover {
+        box-shadow: 0 4px 12px rgba(12, 42, 32, 0.08);
+    }
+
+    .widget-card.loading {
+        opacity: 0.6;
+        pointer-events: none;
+    }
+
+    .widget-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 20px;
+        padding-bottom: 12px;
+        border-bottom: 1px solid var(--hairline, #D8D4C4);
+    }
+
+    .widget-title-area {
+        flex: 1;
+    }
+
+    .widget-title {
+        font-size: 16px;
+        font-weight: 600;
+        letter-spacing: -0.02em;
+        color: var(--forest, #0C2A20);
+        margin-bottom: 4px;
+    }
+
+    .widget-controls {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+    }
+
+    .widget-settings-btn,
+    .widget-refresh {
+        background: transparent;
+        border: 1px solid var(--hairline, #D8D4C4);
+        border-radius: 4px;
+        padding: 4px 8px;
+        cursor: pointer;
+        font-size: 13px;
+        color: var(--graphite, #4A5A55);
+        transition: all 0.12s;
+        display: flex;
+        align-items: center;
+        gap: 4px;
+    }
+
+    .widget-refresh:hover,
+    .widget-settings-btn:hover {
+        background: var(--paper, #ECEAE1);
+        border-color: var(--slate-lt, #B8C0BE);
+    }
+
+    .widget-time-selector {
+        font-size: 11px;
+        padding: 3px 8px;
+        border-radius: 4px;
+        border: 1px solid var(--hairline);
+        background: white;
+        color: var(--graphite);
+        cursor: pointer;
+        font-family: var(--f-mono);
+    }
+
+    .widget-content {
+        min-height: 140px;
+    }
+
+    .widget-error {
+        color: var(--outbreak, #E04D2B);
+        font-size: 13px;
+        padding: 12px;
+        background: #FBE2D8;
+        border-radius: 4px;
+    }
+
+    .widget-empty {
+        color: var(--graphite, #4A5A55);
+        font-size: 14px;
+        text-align: center;
+        padding: 40px 20px;
+    }
+
+    /* Activity Widget */
+    .activity-item {
+        display: flex;
+        align-items: flex-start;
+        gap: 12px;
+        padding: 10px 0;
+        border-bottom: 1px solid var(--hairline, #D8D4C4);
+        transition: background 0.15s;
+    }
+
+    .activity-item:last-child {
+        border-bottom: none;
+    }
+
+    .activity-item:hover {
+        background: rgba(255, 255, 255, 0.5);
+        margin: 0 -8px;
+        padding: 10px 8px;
+        border-radius: 4px;
+    }
+
+    .activity-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 3px 8px;
+        border-radius: 4px;
+        font-family: var(--f-mono, monospace);
+        font-size: 10px;
+        font-weight: 500;
+        letter-spacing: 0.04em;
+        border: 1px solid transparent;
+        flex-shrink: 0;
+        text-transform: uppercase;
+    }
+
+    .activity-chip.outbreak {
+        background: #FBE2D8;
+        color: #7A2A15;
+        border-color: #F2BBA4;
+    }
+
+    .activity-chip.watch {
+        background: #FBEDD1;
+        color: #6A4410;
+        border-color: #EBD196;
+    }
+
+    .activity-chip.clear,
+    .activity-chip.info {
+        background: #D9F2E5;
+        color: #0A3F2C;
+        border-color: #9BE8C6;
+    }
+
+    .activity-text {
+        flex: 1;
+        font-size: 13px;
+        color: var(--forest, #0C2A20);
+        line-height: 1.5;
+    }
+
+    .activity-text a {
+        color: var(--signal-dk);
+        text-decoration: none;
+        font-weight: 500;
+    }
+
+    .activity-text a:hover {
+        text-decoration: underline;
+    }
+
+    /* Disease Widget */
+    .disease-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 10px 0;
+        border-bottom: 1px solid var(--hairline, #D8D4C4);
+        cursor: pointer;
+        transition: background 0.15s;
+    }
+
+    .disease-row:last-child {
+        border-bottom: none;
+    }
+
+    .disease-row:hover {
+        background: rgba(255, 255, 255, 0.5);
+        margin: 0 -8px;
+        padding: 10px 8px;
+        border-radius: 4px;
+    }
+
+    .disease-name {
+        font-size: 14px;
+        font-weight: 500;
+        color: var(--forest, #0C2A20);
+    }
+
+    .disease-counts {
+        display: flex;
+        gap: 12px;
+        align-items: center;
+        font-family: var(--f-mono, monospace);
+        font-size: 12px;
+    }
+
+    .disease-count-item {
+        color: var(--graphite, #4A5A55);
+    }
+
+    .disease-count-item strong {
+        color: var(--forest, #0C2A20);
+        font-weight: 600;
+    }
+
+    /* KPI Tiles */
+    .kpi-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 12px;
+    }
+
+    .kpi-tile {
+        padding: 16px;
+        background: #fff;
+        border: 1px solid var(--hairline, #D8D4C4);
+        border-radius: 6px;
+        transition: transform 0.15s;
+    }
+
+    .kpi-tile:hover {
+        transform: translateY(-2px);
+    }
+
+    .kpi-label {
+        font-family: var(--f-mono, monospace);
+        font-size: 10px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--graphite, #4A5A55);
+        font-weight: 500;
+    }
+
+    .kpi-value {
+        font-size: 32px;
+        font-weight: 500;
+        letter-spacing: -0.04em;
+        margin-top: 6px;
+        color: var(--forest, #0C2A20);
+    }
+
+    .kpi-detail {
+        font-size: 12px;
+        color: var(--graphite);
+        margin-top: 4px;
+    }
+
+    /* Outbreak Card */
+    .outbreak-card {
+        padding: 12px;
+        background: #fff;
+        border: 1px solid var(--hairline);
+        border-radius: 6px;
+        margin-bottom: 10px;
+        cursor: pointer;
+        transition: all 0.15s;
+    }
+
+    .outbreak-card:hover {
+        border-color: var(--outbreak);
+        box-shadow: 0 2px 8px rgba(224, 77, 43, 0.1);
+    }
+
+    .outbreak-name {
+        font-weight: 600;
+        margin-bottom: 6px;
+        color: var(--forest);
+    }
+
+    .outbreak-meta {
+        display: flex;
+        gap: 16px;
+        font-size: 12px;
+        color: var(--graphite);
+        font-family: var(--f-mono);
+    }
+
+    /* Task Item */
+    .task-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 8px 0;
+        border-bottom: 1px solid var(--hairline);
+    }
+
+    .task-item:last-child {
+        border-bottom: none;
+    }
+
+    /* Responsive */
+    @@media (max-width: 1200px) {
+        .dashboard-grid {
+            grid-template-columns: repeat(2, 1fr);
+        }
+    }
+
+    @@media (max-width: 768px) {
+        .dashboard-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    /* Loading spinner */
+    .spinner {
+        border: 2px solid var(--hairline);
+        border-top: 2px solid var(--forest);
+        border-radius: 50%;
+        width: 16px;
+        height: 16px;
+        animation: spin 0.8s linear infinite;
+    }
+
+    @@keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+</style>
+
+<div class="dashboard-greeting">
+    <h2>
+        Good @(DateTime.Now.Hour < 12 ? "morning" : DateTime.Now.Hour < 18 ? "afternoon" : "evening")@(!string.IsNullOrWhiteSpace(Model.UserDisplayName) ? ", " + Model.UserDisplayName : "").
+    </h2>
+    <div class="dashboard-actions">
+        <button class="btn-customize" onclick="toggleDiseaseFilter()">
+            <i class="bi bi-funnel"></i> Filter Diseases @if(Model.Config.PinnedDiseases.Any()) { <span style="background:var(--signal);color:white;border-radius:50%;padding:2px 6px;font-size:10px;margin-left:4px;">@Model.Config.PinnedDiseases.Count</span> }
+        </button>
+        <button class="btn-customize" onclick="window.location.href='/dashboard?handler=ResetConfig'">
+            <i class="bi bi-arrow-clockwise"></i> Reset Layout
+        </button>
+    </div>
+</div>
+
+<!-- Quick Search -->
+<div style="margin-bottom: 24px; position: relative;">
+    <div style="position: relative; max-width: 700px;">
+        <i class="bi bi-search" style="position: absolute; left: 16px; top: 50%; transform: translateY(-50%); color: var(--graphite); font-size: 18px; pointer-events: none;"></i>
+        <input type="text" 
+               id="quickSearch" 
+               placeholder="Quick search: patient name, DOB, address, suburb, case, contact, outbreak..."
+               style="width: 100%; padding: 14px 16px 14px 48px; border: 2px solid var(--hairline); border-radius: 10px; font-size: 15px; background: white; transition: all 0.2s; box-shadow: 0 2px 8px rgba(0,0,0,0.05);"
+               onkeyup="performQuickSearch(this.value)"
+               onfocus="this.style.borderColor='var(--signal-dk)'; this.style.boxShadow='0 4px 16px rgba(35, 130, 90, 0.15)'"
+               onblur="this.style.borderColor='var(--hairline)'; this.style.boxShadow='0 2px 8px rgba(0,0,0,0.05)'">
+        <div id="quickSearchLoader" style="position: absolute; right: 16px; top: 50%; transform: translateY(-50%); display: none;">
+            <div style="width: 18px; height: 18px; border: 2px solid var(--hairline); border-top: 2px solid var(--signal-dk); border-radius: 50%; animation: spin 0.6s linear infinite;"></div>
+        </div>
+    </div>
+
+    <!-- Search Results Dropdown -->
+    <div id="quickSearchResults" style="display: none; position: absolute; top: 100%; left: 0; right: 0; max-width: 700px; background: white; border: 1px solid var(--hairline); border-radius: 10px; margin-top: 8px; box-shadow: 0 8px 24px rgba(0,0,0,0.12); max-height: 400px; overflow-y: auto; z-index: 1000;"></div>
+</div>
+
+<!-- Quick Actions Section (Dark) -->
+<div style="background: linear-gradient(135deg, #0C2A20 0%, #1A4438 100%); border-radius: 10px; padding: 20px 24px; margin-bottom: 32px; box-shadow: 0 4px 16px rgba(12, 42, 32, 0.15);">
+    <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px;">
+        <a asp-page="/Patients/Create" style="background: rgba(255,255,255,0.1); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; padding: 16px 20px; text-decoration: none; text-align: center; transition: all 0.2s; display: flex; align-items: center; justify-content: center; gap: 10px;" onmouseover="this.style.background='rgba(255,255,255,0.15)'; this.style.transform='translateY(-2px)'" onmouseout="this.style.background='rgba(255,255,255,0.1)'; this.style.transform='translateY(0)'">
+            <i class="bi bi-person-plus-fill" style="font-size: 20px; color: #9BE8C6;"></i>
+            <div style="font-weight: 500; color: white; font-size: 14px;">New Patient</div>
+        </a>
+        <a asp-page="/Cases/CreateNew" style="background: rgba(255,255,255,0.1); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; padding: 16px 20px; text-decoration: none; text-align: center; transition: all 0.2s; display: flex; align-items: center; justify-content: center; gap: 10px;" onmouseover="this.style.background='rgba(255,255,255,0.15)'; this.style.transform='translateY(-2px)'" onmouseout="this.style.background='rgba(255,255,255,0.1)'; this.style.transform='translateY(0)'">
+            <i class="bi bi-virus" style="font-size: 20px; color: #FFB84D;"></i>
+            <div style="font-weight: 500; color: white; font-size: 14px;">New Case</div>
+        </a>
+        <a asp-page="/Reports/Builder" style="background: rgba(255,255,255,0.1); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; padding: 16px 20px; text-decoration: none; text-align: center; transition: all 0.2s; display: flex; align-items: center; justify-content: center; gap: 10px;" onmouseover="this.style.background='rgba(255,255,255,0.15)'; this.style.transform='translateY(-2px)'" onmouseout="this.style.background='rgba(255,255,255,0.1)'; this.style.transform='translateY(0)'">
+            <i class="bi bi-bar-chart-fill" style="font-size: 20px; color: #7CC4E8;"></i>
+            <div style="font-weight: 500; color: white; font-size: 14px;">Build Report</div>
+        </a>
+        <a asp-page="/Outbreaks/Index" style="background: rgba(255,255,255,0.1); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; padding: 16px 20px; text-decoration: none; text-align: center; transition: all 0.2s; display: flex; align-items: center; justify-content: center; gap: 10px;" onmouseover="this.style.background='rgba(255,255,255,0.15)'; this.style.transform='translateY(-2px)'" onmouseout="this.style.background='rgba(255,255,255,0.1)'; this.style.transform='translateY(0)'">
+            <i class="bi bi-diagram-3" style="font-size: 20px; color: #FF8585;"></i>
+            <div style="font-weight: 500; color: white; font-size: 14px;">Outbreaks</div>
+        </a>
+    </div>
+</div>
+
+<!-- Personalized Dashboard Cards -->
+<div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-bottom: 32px;">
+    <!-- Recently Viewed -->
+    <div class="sentinel-card" style="background: white;">
+        <div class="sentinel-card-header" style="background: linear-gradient(135deg, #2D5A4D 0%, #3A7061 100%); margin: -24px -24px 20px -24px; padding: 20px 24px; border-radius: 8px 8px 0 0;">
+            <h4 style="font-size: 16px; font-weight: 600; color: white; margin: 0;">
+                <i class="bi bi-clock-history" style="margin-right: 8px;"></i>Recently Viewed
+            </h4>
+        </div>
+        @if (Model.RecentlyViewed.Any())
+        {
+            @foreach (var item in Model.RecentlyViewed)
+            {
+                var iconBi = item.EntityType == "Case" ? "file-medical" : item.EntityType == "Contact" ? "people" : "person";
+                var pagePath = item.EntityType == "Contact" ? "/Contacts/Details" : 
+                              item.EntityType == "Case" ? "/Cases/Details" : "/Patients/Details";
+                var timeAgo = DateTime.UtcNow - item.ViewedAt;
+                var timeAgoText = timeAgo.TotalMinutes < 2 ? "just now" :
+                                 timeAgo.TotalMinutes < 60 ? $"{(int)timeAgo.TotalMinutes}m ago" :
+                                 timeAgo.TotalHours < 24 ? $"{(int)timeAgo.TotalHours}h ago" :
+                                 $"{(int)timeAgo.TotalDays}d ago";
+
+                <a asp-page="@pagePath" asp-route-id="@item.EntityId" style="display: flex; align-items: center; gap: 12px; padding: 12px; border-radius: 6px; text-decoration: none; color: var(--forest); margin-bottom: 8px; transition: background 0.15s; border: 1px solid transparent;" onmouseover="this.style.background='var(--signal-lt)'; this.style.borderColor='var(--signal)'" onmouseout="this.style.background='transparent'; this.style.borderColor='transparent'">
+                    <div style="width: 36px; height: 36px; border-radius: 50%; background: linear-gradient(135deg, #E8F5F0 0%, #D9F2E5 100%); display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                        <i class="bi bi-@iconBi" style="font-size: 16px; color: var(--signal-dk);"></i>
+                    </div>
+                    <div style="flex: 1; min-width: 0;">
+                        <div style="font-weight: 500; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">@item.DisplayName</div>
+                        <div style="font-size: 11px; color: var(--graphite); font-family: var(--f-mono);">@item.SubText</div>
+                    </div>
+                    <div style="font-size: 10px; color: var(--graphite); white-space: nowrap; font-family: var(--f-mono);">@timeAgoText</div>
+                </a>
+            }
+        }
+        else
+        {
+            <div style="text-align: center; padding: 40px 20px; color: var(--graphite);">
+                <i class="bi bi-clock" style="font-size: 32px; opacity: 0.3;"></i>
+                <p style="margin-top: 12px; font-size: 13px;">No recently viewed records</p>
+            </div>
+        }
+    </div>
+
+    <!-- My Outbreaks -->
+    <div class="sentinel-card" style="background: white;">
+        <div class="sentinel-card-header" style="background: linear-gradient(135deg, #C84545 0%, #E85555 100%); margin: -24px -24px 20px -24px; padding: 20px 24px; border-radius: 8px 8px 0 0;">
+            <h4 style="font-size: 16px; font-weight: 600; color: white; margin: 0;">
+                <i class="bi bi-diagram-3" style="margin-right: 8px;"></i>My Outbreaks
+            </h4>
+        </div>
+        @if (Model.MyOutbreaks.Any())
+        {
+            @foreach (var ob in Model.MyOutbreaks)
+            {
+                var chipClass = ob.Status == "Active" ? "chip-outbreak" : "chip-watch";
+
+                <a asp-page="/Outbreaks/Details" asp-route-id="@ob.Id" style="display: flex; align-items: center; justify-content: space-between; padding: 12px; border: 1px solid var(--hairline); border-radius: 6px; text-decoration: none; color: var(--forest); margin-bottom: 8px; transition: all 0.15s;" onmouseover="this.style.borderColor='var(--signal-dk)'; this.style.background='#FFF9F0'" onmouseout="this.style.borderColor='var(--hairline)'; this.style.background='transparent'">
+                    <div style="min-width: 0; flex: 1;">
+                        <div style="font-weight: 500; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">@ob.Name</div>
+                        <div style="font-size: 11px; color: var(--graphite); font-family: var(--f-mono); margin-top: 2px;">@(ob.DiseaseName ?? "No disease")</div>
+                    </div>
+                    <span class="@chipClass" style="white-space: nowrap; font-size: 11px;">
+                        <span class="dot"></span>
+                        @ob.Status
+                    </span>
+                </a>
+            }
+        }
+        else
+        {
+            <div style="text-align: center; padding: 40px 20px; color: var(--graphite);">
+                <i class="bi bi-diagram-3" style="font-size: 32px; opacity: 0.3;"></i>
+                <p style="margin-top: 12px; font-size: 13px;">Not assigned to any outbreaks</p>
+            </div>
+        }
+    </div>
+
+    <!-- My Tasks -->
+    <div class="sentinel-card" style="background: white;">
+        <div class="sentinel-card-header" style="background: linear-gradient(135deg, #5A7DC8 0%, #6B8FD8 100%); margin: -24px -24px 20px -24px; padding: 20px 24px; border-radius: 8px 8px 0 0;">
+            <h4 style="font-size: 16px; font-weight: 600; color: white; margin: 0;">
+                <i class="bi bi-list-check" style="margin-right: 8px;"></i>My Tasks
+            </h4>
+        </div>
+        @if (Model.MyTasks.Any())
+        {
+            @foreach (var task in Model.MyTasks)
+            {
+                var chipClass = task.Priority switch {
+                    "Urgent" => "chip-outbreak",
+                    "High" => "chip-watch",
+                    _ => "chip-info"
+                };
+
+                <a asp-page="/Cases/Details" asp-route-id="@task.CaseId" style="display: flex; align-items: center; justify-content: space-between; padding: 12px; border: 1px solid var(--hairline); border-radius: 6px; text-decoration: none; color: var(--forest); margin-bottom: 8px; transition: all 0.15s;" onmouseover="this.style.borderColor='var(--signal-dk)'; this.style.background='#F0F9FF'" onmouseout="this.style.borderColor='var(--hairline)'; this.style.background='transparent'">
+                    <div style="min-width: 0; flex: 1;">
+                        <div style="font-weight: 500; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">@task.Title</div>
+                        <div style="font-size: 11px; color: var(--graphite); font-family: var(--f-mono); margin-top: 2px;">@(task.PatientName ?? "No patient")</div>
+                    </div>
+                    <span class="@chipClass" style="white-space: nowrap; font-size: 11px;">
+                        <span class="dot"></span>
+                        @task.Priority
+                    </span>
+                </a>
+            }
+        }
+        else
+        {
+            <div style="text-align: center; padding: 40px 20px; color: var(--graphite);">
+                <i class="bi bi-list-check" style="font-size: 32px; opacity: 0.3;"></i>
+                <p style="margin-top: 12px; font-size: 13px;">No pending tasks</p>
+            </div>
+        }
+    </div>
+</div>
+
+<!-- Analytics Widgets Section Header -->
+<div style="margin-bottom: 20px;">
+    <h3 style="font-size: 20px; font-weight: 600; color: var(--forest); margin: 0 0 8px 0;">
+        <i class="bi bi-graph-up" style="margin-right: 8px;"></i>Analytics & Insights
+    </h3>
+    <p style="font-size: 14px; color: var(--graphite); margin: 0;">Real-time epidemiological data and system metrics</p>
+</div>
+
+<!-- Disease Filter Modal -->
+<div id="diseaseFilterModal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:9999;align-items:center;justify-content:center;">
+    <div style="background:var(--chalk);border-radius:12px;padding:32px;max-width:600px;max-height:80vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,0.2);">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;">
+            <h3 style="font-size:20px;font-weight:600;color:var(--forest);margin:0;">Pin Diseases</h3>
+            <button onclick="toggleDiseaseFilter()" style="background:none;border:none;font-size:24px;cursor:pointer;color:var(--graphite);">&times;</button>
+        </div>
+        <p style="font-size:14px;color:var(--graphite);margin-bottom:20px;">Select diseases to focus your dashboard. Only data for pinned diseases will be shown.</p>
+
+        <div style="display:flex;gap:12px;margin-bottom:16px;">
+            <button onclick="pinAll()" class="btn-customize" style="flex:1;">Pin All</button>
+            <button onclick="unpinAll()" class="btn-customize" style="flex:1;">Unpin All</button>
+        </div>
+
+        <div id="diseaseList" style="display:grid;gap:8px;">
+            @foreach (var disease in Model.AvailableDiseases)
+            {
+                <div class="disease-pin-item" data-disease-id="@disease.Id" style="display:flex;align-items:center;padding:12px;background:white;border:1px solid var(--hairline);border-radius:6px;cursor:pointer;transition:all 0.15s;" onclick="togglePin(this, '@disease.Id')">
+                    <input type="checkbox" @(disease.IsPinned ? "checked" : "") style="margin-right:12px;width:18px;height:18px;cursor:pointer;" onclick="event.stopPropagation();">
+                    <div style="flex:1;">
+                        <div style="font-weight:500;color:var(--forest);">@disease.Name</div>
+                        @if (!string.IsNullOrEmpty(disease.Code))
+                        {
+                            <div style="font-size:11px;color:var(--graphite);font-family:var(--f-mono);margin-top:2px;">@disease.Code</div>
+                        }
+                    </div>
+                    <i class="bi bi-pin-angle-fill" style="color:var(--signal);font-size:18px;@(disease.IsPinned ? "" : "opacity:0.2;")"></i>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+<form method="post" id="dashboardForm">
+    @Html.AntiForgeryToken()
+</form>
+
+<div class="dashboard-grid" id="dashboardGrid">
+    @foreach (var widget in Model.Config.Widgets.OrderBy(w => w.Position))
+    {
+        if (Model.WidgetDataCache.TryGetValue(widget.WidgetId, out var widgetData))
+        {
+            <div class="widget-card" id="widget-@widget.WidgetId" data-widget-id="@widget.WidgetId">
+                <div class="widget-header">
+                    <div class="widget-title-area">
+                        <div class="widget-title">@widgetData.Title</div>
+                        @if (widget.WidgetId == "recent-activity" || widget.WidgetId == "cases-by-disease" || widget.WidgetId == "hl7-overview" || widget.WidgetId == "tasks-surveys")
+                        {
+                            <select class="widget-time-selector" onchange="updateWidgetTime('@widget.WidgetId', this.value)">
+                                @{
+                                    var currentTime = widget.Settings.ContainsKey("timeWindow") ? widget.Settings["timeWindow"]?.ToString() : "24h";
+                                }
+                                <option value="24h" selected="@(currentTime == "24h")">24 hours</option>
+                                <option value="48h" selected="@(currentTime == "48h")">48 hours</option>
+                                <option value="7d" selected="@(currentTime == "7d")">7 days</option>
+                                <option value="30d" selected="@(currentTime == "30d")">30 days</option>
+                            </select>
+                        }
+                    </div>
+                    <div class="widget-controls">
+                        <button class="widget-refresh" onclick="refreshWidget('@widget.WidgetId')">
+                            <i class="bi bi-arrow-clockwise"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="widget-content" id="content-@widget.WidgetId">
+                    @await Html.PartialAsync("_WidgetContent", new Tuple<string, Sentinel.Models.Dashboard.WidgetData>(widget.WidgetId, widgetData))
+                </div>
+            </div>
+        }
+    }
+</div>
+
+@section Scripts {
+    <script>
+        // Get anti-forgery token
+        function getAntiForgeryToken() {
+            const tokenInput = document.querySelector('input[name="__RequestVerificationToken"]');
+            return tokenInput ? tokenInput.value : '';
+        }
+
+        // Widget refresh functionality
+        async function refreshWidget(widgetId) {
+            const card = document.getElementById(`widget-${widgetId}`);
+            const content = document.getElementById(`content-${widgetId}`);
+
+            if (!card || !content) {
+                console.error('Widget elements not found:', widgetId);
+                return;
+            }
+
+            card.classList.add('loading');
+
+            try {
+                const timeSelector = card.querySelector('.widget-time-selector');
+                const settings = {};
+
+                if (timeSelector) {
+                    settings.timeWindow = timeSelector.value;
+                }
+
+                const token = getAntiForgeryToken();
+                const headers = {
+                    'Content-Type': 'application/json'
+                };
+
+                if (token) {
+                    headers['RequestVerificationToken'] = token;
+                }
+
+                const response = await fetch('/dashboard?handler=RefreshWidget', {
+                    method: 'POST',
+                    headers: headers,
+                    body: JSON.stringify({
+                        widgetId: widgetId,
+                        settings: settings
+                    })
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    await updateWidgetContent(widgetId, data);
+                } else {
+                    throw new Error(`Server returned ${response.status}`);
+                }
+            } catch (error) {
+                console.error('Error refreshing widget:', error);
+                content.innerHTML = '<div class="widget-error"><i class="bi bi-exclamation-triangle"></i> Failed to refresh widget</div>';
+            } finally {
+                card.classList.remove('loading');
+            }
+        }
+
+        // Update widget time range
+        async function updateWidgetTime(widgetId, timeWindow) {
+            const card = document.getElementById(`widget-${widgetId}`);
+
+            if (!card) {
+                console.error('Widget card not found:', widgetId);
+                return;
+            }
+
+            card.classList.add('loading');
+
+            try {
+                const token = getAntiForgeryToken();
+                const headers = {
+                    'Content-Type': 'application/json'
+                };
+
+                if (token) {
+                    headers['RequestVerificationToken'] = token;
+                }
+
+                const response = await fetch('/dashboard?handler=UpdateWidgetSettings', {
+                    method: 'POST',
+                    headers: headers,
+                    body: JSON.stringify({
+                        widgetId: widgetId,
+                        settings: { timeWindow: timeWindow }
+                    })
+                });
+
+                if (response.ok) {
+                    const result = await response.json();
+                    if (result.success && result.data) {
+                        await updateWidgetContent(widgetId, result.data);
+                    }
+                } else {
+                    throw new Error(`Server returned ${response.status}`);
+                }
+            } catch (error) {
+                console.error('Error updating widget settings:', error);
+            } finally {
+                card.classList.remove('loading');
+            }
+        }
+
+        // Update widget content dynamically
+        async function updateWidgetContent(widgetId, data) {
+            const content = document.getElementById(`content-${widgetId}`);
+
+            if (data.errorMessage) {
+                content.innerHTML = `<div class="widget-error"><i class="bi bi-exclamation-triangle"></i> ${data.errorMessage}</div>`;
+                return;
+            }
+
+            // Render based on widget type
+            switch (widgetId) {
+                case 'recent-activity':
+                    renderRecentActivity(content, data.data);
+                    break;
+                case 'cases-by-disease':
+                    renderCasesByDisease(content, data.data);
+                    break;
+                case 'hl7-overview':
+                    renderHL7Overview(content, data.data);
+                    break;
+                case 'tasks-surveys':
+                    renderTasksAndSurveys(content, data.data);
+                    break;
+                case 'outbreak-tracker':
+                    renderOutbreakTracker(content, data.data);
+                    break;
+                case 'data-review-queue':
+                    renderDataReviewQueue(content, data.data);
+                    break;
+            }
+        }
+
+        // Render functions for each widget type
+        function renderRecentActivity(container, data) {
+            if (!data || !data.items || data.items.length === 0) {
+                container.innerHTML = '<div class="widget-empty">No recent activity</div>';
+                return;
+            }
+
+            let html = '';
+            data.items.slice(0, 8).forEach(item => {
+                const link = getEntityLink(item.entityType, item.entityId);
+                html += `
+                    <div class="activity-item">
+                        <span class="activity-chip ${item.status}">
+                            <span style="width:5px;height:5px;border-radius:50%;background:currentColor;"></span>
+                            ${item.activityType}
+                        </span>
+                        <div class="activity-text">
+                            ${link ? `<a href="${link}">${item.displayText}</a>` : item.displayText}
+                        </div>
+                    </div>
+                `;
+            });
+            container.innerHTML = html;
+        }
+
+        function renderCasesByDisease(container, data) {
+            if (!data || !data.diseases || data.diseases.length === 0) {
+                container.innerHTML = '<div class="widget-empty">No cases found</div>';
+                return;
+            }
+
+            let html = '';
+            data.diseases.slice(0, 8).forEach(disease => {
+                html += `
+                    <div class="disease-row" onclick="window.location.href='/Cases?diseaseId=${disease.diseaseId}'">
+                        <div class="disease-name">${disease.diseaseName}</div>
+                        <div class="disease-counts">
+                            <span class="disease-count-item">
+                                <strong>${disease.totalCount}</strong> total
+                            </span>
+                            ${disease.confirmedCount > 0 ? `
+                                <span class="disease-count-item">
+                                    <strong>${disease.confirmedCount}</strong> conf.
+                                </span>
+                            ` : ''}
+                        </div>
+                    </div>
+                `;
+            });
+            container.innerHTML = html;
+        }
+
+        function renderHL7Overview(container, data) {
+            if (!data) {
+                container.innerHTML = '<div class="widget-empty">No data available</div>';
+                return;
+            }
+
+            const healthColor = data.healthStatus === 'error' ? 'var(--outbreak)' : 
+                               data.healthStatus === 'warning' ? 'var(--watch)' : 'var(--forest)';
+
+            container.innerHTML = `
+                <div class="kpi-grid">
+                    <div class="kpi-tile" onclick="window.location.href='/Settings/HL7/Messages?status=Processed'">
+                        <div class="kpi-label">Processed</div>
+                        <div class="kpi-value">${data.processedCount}</div>
+                    </div>
+                    <div class="kpi-tile" onclick="window.location.href='/Settings/HL7/Messages?status=Rejected'">
+                        <div class="kpi-label">Rejected</div>
+                        <div class="kpi-value" style="color:${data.rejectedCount > 0 ? 'var(--outbreak)' : 'var(--forest)'}">${data.rejectedCount}</div>
+                    </div>
+                    <div class="kpi-tile" onclick="window.location.href='/Settings/HL7/Messages?status=AwaitingReview'">
+                        <div class="kpi-label">Awaiting Review</div>
+                        <div class="kpi-value">${data.awaitingReviewCount}</div>
+                    </div>
+                    <div class="kpi-tile">
+                        <div class="kpi-label">System Status</div>
+                        <div style="margin-top:8px;">
+                            <span class="activity-chip ${data.healthStatus}">${data.healthStatus.toUpperCase()}</span>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderTasksAndSurveys(container, data) {
+            if (!data) {
+                container.innerHTML = '<div class="widget-empty">No data available</div>';
+                return;
+            }
+
+            let html = `
+                <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px;">
+                    <div class="kpi-tile">
+                        <div class="kpi-label">Outstanding</div>
+                        <div class="kpi-value">${data.outstandingTasks}</div>
+                    </div>
+                    <div class="kpi-tile">
+                        <div class="kpi-label">Completed Today</div>
+                        <div class="kpi-value" style="color:var(--signal-dk)">${data.completedToday}</div>
+                    </div>
+                    <div class="kpi-tile">
+                        <div class="kpi-label">Overdue</div>
+                        <div class="kpi-value" style="color:${data.overdueTasks > 0 ? 'var(--outbreak)' : 'var(--forest)'}">${data.overdueTasks}</div>
+                    </div>
+                </div>
+            `;
+
+            if (data.topTaskTypes && data.topTaskTypes.length > 0) {
+                html += '<div style="font-size:11px;font-weight:600;margin-bottom:8px;color:var(--graphite);font-family:var(--f-mono)">TOP TASK TYPES</div>';
+                data.topTaskTypes.forEach(taskType => {
+                    html += `
+                        <div class="task-item">
+                            <div style="font-size:13px;">${taskType.taskType}</div>
+                            <div style="font-family:var(--f-mono);font-size:12px;color:var(--graphite)">${taskType.count}</div>
+                        </div>
+                    `;
+                });
+            }
+            container.innerHTML = html;
+        }
+
+        function renderOutbreakTracker(container, data) {
+            if (!data || !data.activeOutbreaks || data.activeOutbreaks.length === 0) {
+                container.innerHTML = '<div class="widget-empty">No active outbreaks</div>';
+                return;
+            }
+
+            let html = '';
+            data.activeOutbreaks.slice(0, 5).forEach(outbreak => {
+                html += `
+                    <div class="outbreak-card" onclick="window.location.href='/Outbreaks/View/${outbreak.outbreakId}'">
+                        <div class="outbreak-name">${outbreak.outbreakName}</div>
+                        <div class="outbreak-meta">
+                            <span>${outbreak.linkedCasesCount} cases</span>
+                            <span>${outbreak.daysSinceDeclaration} days</span>
+                            <span>${outbreak.teamMemberCount} team</span>
+                        </div>
+                    </div>
+                `;
+            });
+            container.innerHTML = html;
+        }
+
+        function renderDataReviewQueue(container, data) {
+            if (!data) {
+                container.innerHTML = '<div class="widget-empty">No data available</div>';
+                return;
+            }
+
+            let html = `
+                <div class="kpi-tile" style="margin-bottom:16px;" onclick="window.location.href='/DataInbox'">
+                    <div class="kpi-label">Total Items</div>
+                    <div class="kpi-value">${data.totalItems}</div>
+                </div>
+            `;
+
+            if (data.itemsByType && data.itemsByType.length > 0) {
+                html += '<div style="font-size:11px;font-weight:600;margin-bottom:8px;color:var(--graphite);font-family:var(--f-mono)">BY TYPE</div>';
+                data.itemsByType.slice(0, 5).forEach(item => {
+                    html += `
+                        <div class="disease-row" onclick="window.location.href='/DataInbox?type=${item.reviewType}'">
+                            <div style="font-size:13px;">${item.reviewType}</div>
+                            <div style="font-family:var(--f-mono);font-size:12px;">
+                                <strong style="color:var(--forest)">${item.count}</strong>
+                                ${item.highPriorityCount > 0 ? `<span style="color:var(--outbreak);margin-left:8px;">⚠ ${item.highPriorityCount}</span>` : ''}
+                            </div>
+                        </div>
+                    `;
+                });
+            }
+            container.innerHTML = html;
+        }
+
+        // Helper to get entity link
+        function getEntityLink(entityType, entityId) {
+            const linkMap = {
+                'Case': `/Cases/View/${entityId}`,
+                'Contact': `/Contacts/View/${entityId}`,
+                'Patient': `/Patients/View/${entityId}`,
+                'Outbreak': `/Outbreaks/View/${entityId}`,
+                'Event': `/Events/View/${entityId}`,
+                'Location': `/Locations/View/${entityId}`
+            };
+            return linkMap[entityType] || null;
+        }
+
+        // Auto-refresh every 5 minutes
+        setInterval(() => {
+            document.querySelectorAll('.widget-card').forEach(card => {
+                const widgetId = card.dataset.widgetId;
+                if (widgetId) {
+                    refreshWidget(widgetId);
+                }
+            });
+        }, 300000); // 5 minutes
+
+        // Disease Filter Functions
+        function toggleDiseaseFilter() {
+            const modal = document.getElementById('diseaseFilterModal');
+            modal.style.display = modal.style.display === 'none' ? 'flex' : 'none';
+        }
+
+        async function togglePin(element, diseaseId) {
+            const checkbox = element.querySelector('input[type="checkbox"]');
+            const pin = element.querySelector('.bi-pin-angle-fill');
+
+            checkbox.checked = !checkbox.checked;
+
+            console.log('Toggle pin:', diseaseId, 'isPinned:', checkbox.checked);
+
+            try {
+                const token = getAntiForgeryToken();
+                const headers = {
+                    'Content-Type': 'application/json'
+                };
+
+                if (token) {
+                    headers['RequestVerificationToken'] = token;
+                }
+
+                const response = await fetch('/dashboard?handler=TogglePinnedDisease', {
+                    method: 'POST',
+                    headers: headers,
+                    body: JSON.stringify({
+                        diseaseId: diseaseId, // Send as string (Guid)
+                        isPinned: checkbox.checked
+                    })
+                });
+
+                if (response.ok) {
+                    const result = await response.json();
+
+                    // Update pin icon
+                    if (checkbox.checked) {
+                        pin.style.opacity = '1';
+                        element.style.borderColor = 'var(--signal)';
+                        element.style.background = '#FFF7ED';
+                    } else {
+                        pin.style.opacity = '0.2';
+                        element.style.borderColor = 'var(--hairline)';
+                        element.style.background = 'white';
+                    }
+
+                    // Refresh all widgets if filter changed
+                    if (result.refreshWidgets) {
+                        setTimeout(() => {
+                            window.location.reload();
+                        }, 500);
+                    }
+                } else {
+                    const errorText = await response.text();
+                    console.error('Toggle pin failed:', response.status, errorText);
+                    // Revert checkbox if failed
+                    checkbox.checked = !checkbox.checked;
+                    alert('Failed to update disease filter. Please try again.');
+                }
+            } catch (error) {
+                console.error('Error toggling pin:', error);
+                checkbox.checked = !checkbox.checked;
+                alert('Error updating disease filter: ' + error.message);
+            }
+        }
+
+        async function pinAll() {
+            const items = document.querySelectorAll('.disease-pin-item');
+            for (const item of items) {
+                const checkbox = item.querySelector('input[type="checkbox"]');
+                if (!checkbox.checked) {
+                    const diseaseId = item.dataset.diseaseId;
+                    await togglePin(item, diseaseId);
+                }
+            }
+        }
+
+        async function unpinAll() {
+            const items = document.querySelectorAll('.disease-pin-item');
+            for (const item of items) {
+                const checkbox = item.querySelector('input[type="checkbox"]');
+                if (checkbox.checked) {
+                    const diseaseId = item.dataset.diseaseId;
+                    await togglePin(item, diseaseId);
+                }
+            }
+        }
+
+        // Close modal on click outside
+        document.getElementById('diseaseFilterModal')?.addEventListener('click', (e) => {
+            if (e.target.id === 'diseaseFilterModal') {
+                toggleDiseaseFilter();
+            }
+        });
+
+        // Quick Search
+        let searchTimeout;
+        async function performQuickSearch(query) {
+            clearTimeout(searchTimeout);
+
+            const resultsDiv = document.getElementById('quickSearchResults');
+            const loader = document.getElementById('quickSearchLoader');
+
+            if (!query || query.length < 2) {
+                resultsDiv.style.display = 'none';
+                return;
+            }
+
+            loader.style.display = 'block';
+
+            searchTimeout = setTimeout(async () => {
+                try {
+                    const response = await fetch(`/dashboard?handler=QuickSearch&q=${encodeURIComponent(query)}`);
+                    if (response.ok) {
+                        const data = await response.json();
+                        displaySearchResults(data.results);
+                    }
+                } catch (error) {
+                    console.error('Search error:', error);
+                } finally {
+                    loader.style.display = 'none';
+                }
+            }, 300);
+        }
+
+        function displaySearchResults(results) {
+            const resultsDiv = document.getElementById('quickSearchResults');
+
+            if (!results || results.length === 0) {
+                resultsDiv.innerHTML = '<div style="padding: 20px; text-align: center; color: var(--graphite); font-size: 14px;"><i class="bi bi-search" style="font-size: 32px; opacity: 0.3; display: block; margin-bottom: 8px;"></i>No results found</div>';
+                resultsDiv.style.display = 'block';
+                return;
+            }
+
+            const typeColors = {
+                'Patient': '#9BE8C6',
+                'Case': '#FFB84D',
+                'Contact': '#7CC4E8',
+                'Outbreak': '#FF8585'
+            };
+
+            let html = '<div style="padding: 8px;">';
+
+            results.forEach(result => {
+                const color = typeColors[result.type] || '#D8D4C4';
+                html += `
+                    <a href="${result.url}" style="display: flex; align-items: center; gap: 12px; padding: 12px; border-radius: 8px; text-decoration: none; color: var(--forest); transition: background 0.15s; margin-bottom: 4px;" onmouseover="this.style.background='var(--signal-lt)'" onmouseout="this.style.background='transparent'">
+                        <div style="width: 40px; height: 40px; border-radius: 8px; background: ${color}22; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                            <i class="bi bi-${result.icon}" style="font-size: 18px; color: ${color};"></i>
+                        </div>
+                        <div style="flex: 1; min-width: 0;">
+                            <div style="font-weight: 500; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${result.title}</div>
+                            <div style="font-size: 12px; color: var(--graphite); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${result.subtitle || 'No details'}</div>
+                        </div>
+                        <div style="padding: 4px 10px; background: ${color}22; border-radius: 6px; font-size: 11px; font-weight: 500; color: ${color}; white-space: nowrap;">${result.type}</div>
+                    </a>
+                `;
+            });
+
+            html += '</div>';
+            resultsDiv.innerHTML = html;
+            resultsDiv.style.display = 'block';
+        }
+
+        // Close search results when clicking outside
+        document.addEventListener('click', (e) => {
+            const searchInput = document.getElementById('quickSearch');
+            const resultsDiv = document.getElementById('quickSearchResults');
+
+            if (searchInput && resultsDiv && !searchInput.contains(e.target) && !resultsDiv.contains(e.target)) {
+                resultsDiv.style.display = 'none';
+            }
+        });
+
+        // Add spinner animation
+        const style = document.createElement('style');
+        style.textContent = '@@keyframes spin { 0% { transform: translateY(-50%) rotate(0deg); } 100% { transform: translateY(-50%) rotate(360deg); } }';
+        document.head.appendChild(style);
+    </script>
+}

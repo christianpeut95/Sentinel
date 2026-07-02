@@ -1,0 +1,843 @@
+@using Sentinel.Services.HL7
+@using Sentinel.Models
+@using Sentinel.Data
+@using Microsoft.EntityFrameworkCore
+@inject IHL7ParserService ParserService
+@inject IDbContextFactory<ApplicationDbContext> DbContextFactory
+@inject ILogger<TestAndActivateStage> Logger
+
+<div class="wizard-stage">
+    <!-- Progress Header -->
+    <div class="wizard-progress">
+        <div class="progress-step completed">
+            <div class="step-number"><i class="bi bi-check"></i></div>
+            <div class="step-label">Upload Sample</div>
+        </div>
+        <div class="progress-connector completed"></div>
+        <div class="progress-step completed">
+            <div class="step-number"><i class="bi bi-check"></i></div>
+            <div class="step-label">Review Mappings</div>
+        </div>
+        <div class="progress-connector completed"></div>
+        <div class="progress-step active">
+            <div class="step-number">3</div>
+            <div class="step-label">Test & Activate</div>
+        </div>
+    </div>
+
+    <!-- Stage Content -->
+    <div class="stage-content">
+        @if (IsLoading)
+        {
+            <div class="loading-state">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+                <p>Loading configuration summary...</p>
+            </div>
+        }
+        else
+        {
+            <div class="stage-hero">
+                <div class="hero-icon success">
+                    <i class="bi bi-check-circle"></i>
+                </div>
+                <h2 class="hero-title">Configuration Complete!</h2>
+                <p class="hero-description">
+                    All required fields have been mapped. Review the summary below and test with a real message.
+                </p>
+            </div>
+
+            <!-- Summary Card -->
+            <div class="summary-card">
+                <h3 class="summary-title">
+                    <i class="bi bi-list-check"></i>
+                    Confirmed Mappings
+                </h3>
+                <div class="mapping-list">
+                    @foreach (var mapping in Mappings)
+                    {
+                        <div class="mapping-item">
+                            <div class="mapping-label">@mapping.FieldName</div>
+                            <div class="mapping-arrow">→</div>
+                            <div class="mapping-value">@mapping.FieldPath</div>
+                        </div>
+                    }
+                </div>
+            </div>
+
+            <!-- Test Section -->
+            <div class="test-section">
+                <h3 class="section-title">
+                    <i class="bi bi-flask"></i>
+                    Test Your Configuration
+                </h3>
+                <p class="section-description">
+                    Paste a real message to see how Sentinel will interpret it. No data will be saved.
+                </p>
+
+                <div class="test-input-area">
+                    <textarea 
+                        class="test-textarea" 
+                        @bind="TestMessage"
+                        placeholder="Paste a test HL7 message here..."
+                        rows="8"></textarea>
+                    <button class="btn-secondary" @onclick="RunTest" disabled="@IsTesting">
+                        @if (IsTesting)
+                        {
+                            <span class="spinner-border spinner-border-sm me-2"></span>
+                            <span>Testing...</span>
+                        }
+                        else
+                        {
+                            <i class="bi bi-play-fill"></i>
+                            <span>Run Test</span>
+                        }
+                    </button>
+                </div>
+
+                @if (TestResults != null)
+                {
+                    <div class="test-results">
+                        <div class="results-header">
+                            <i class="bi bi-check-circle-fill text-success"></i>
+                            <span>Test Results</span>
+                        </div>
+                        <div class="results-grid">
+                            @foreach (var result in TestResults)
+                            {
+                                <div class="result-row">
+                                    <div class="result-label">@result.Key</div>
+                                    <div class="result-value">@result.Value</div>
+                                </div>
+                            }
+                        </div>
+                    </div>
+                }
+
+                @if (!string.IsNullOrEmpty(TestError))
+                {
+                    <div class="alert alert-danger mt-3">
+                        <i class="bi bi-exclamation-triangle me-2"></i>@TestError
+                    </div>
+                }
+            </div>
+
+            <!-- Actions -->
+            <div class="stage-actions">
+                <button class="btn-ghost" @onclick="BackToReview">
+                    <i class="bi bi-arrow-left"></i>
+                    Back to Review
+                </button>
+                <button class="btn-primary btn-large" @onclick="ActivateConfiguration" disabled="@IsActivating">
+                    @if (IsActivating)
+                    {
+                        <span class="spinner-border spinner-border-sm me-2"></span>
+                        <span>Activating...</span>
+                    }
+                    else
+                    {
+                        <i class="bi bi-rocket-takeoff"></i>
+                        <span>Activate Configuration</span>
+                    }
+                </button>
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+    [Parameter] public Guid ConfigurationId { get; set; }
+    [Parameter] public EventCallback OnBackToReview { get; set; }
+    [Parameter] public EventCallback OnActivated { get; set; }
+
+    private List<MappingSummary> Mappings { get; set; } = new();
+    private bool IsLoading { get; set; } = true;
+    private string TestMessage { get; set; } = string.Empty;
+    private bool IsTesting { get; set; }
+    private Dictionary<string, string>? TestResults { get; set; }
+    private string? TestError { get; set; }
+    private bool IsActivating { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadMappingSummary();
+    }
+
+    private async Task LoadMappingSummary()
+    {
+        IsLoading = true;
+        StateHasChanged();
+
+        try
+        {
+            await using var context = await DbContextFactory.CreateDbContextAsync();
+
+            var mappings = await context.HL7FieldMappings
+                .Where(m => m.ConfigurationId == ConfigurationId && 
+                           m.IsActive && 
+                           m.FieldPath != "SKIPPED")
+                .OrderBy(m => m.FieldName)
+                .ToListAsync();
+
+            Mappings = mappings.Select(m => new MappingSummary
+            {
+                FieldName = m.FieldName ?? "Unknown Field",
+                FieldPath = m.FieldPath ?? "Not Set"
+            }).ToList();
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error loading mapping summary");
+        }
+        finally
+        {
+            IsLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task RunTest()
+    {
+        TestError = null;
+        TestResults = null;
+
+        if (string.IsNullOrWhiteSpace(TestMessage))
+        {
+            TestError = "Please paste a test message.";
+            return;
+        }
+
+        IsTesting = true;
+        StateHasChanged();
+
+        try
+        {
+            // Parse the message to get all segments
+            var parseResult = await ParserService.ParseMessagePreviewAsync(TestMessage);
+
+            if (!parseResult.IsValid)
+            {
+                TestError = parseResult.Errors.Any() 
+                    ? string.Join("; ", parseResult.Errors)
+                    : "Invalid HL7 message structure";
+                return;
+            }
+
+            // Load all active field mappings for this configuration
+            await using var context = await DbContextFactory.CreateDbContextAsync();
+            var mappings = await context.HL7FieldMappings
+                .Where(m => m.ConfigurationId == ConfigurationId && 
+                           m.IsActive && 
+                           !string.IsNullOrEmpty(m.FieldPath) &&
+                           m.FieldPath != "SKIPPED")
+                .OrderBy(m => m.FieldName)
+                .ToListAsync();
+
+            Logger.LogInformation("Found {Count} active mappings to test", mappings.Count);
+
+            TestResults = new Dictionary<string, string>();
+
+            // Normalize the message before parsing (same logic as HL7ParserService)
+            var normalizedMessage = NormalizeHL7Message(TestMessage);
+
+            // Parse normalized message using NHapi for field extraction
+            var parser = new NHapi.Base.Parser.PipeParser();
+            var parsedMessage = parser.Parse(normalizedMessage);
+
+            // Extract value for each mapped field
+            foreach (var mapping in mappings)
+            {
+                try
+                {
+                    var extractedValue = ExtractFieldValue(parsedMessage, mapping);
+                    if (!string.IsNullOrEmpty(extractedValue))
+                    {
+                        var displayName = !string.IsNullOrEmpty(mapping.FieldName) 
+                            ? $"{mapping.FieldName} ({mapping.FieldPath})"
+                            : $"{mapping.TargetProperty ?? "Unknown"} ({mapping.FieldPath})";
+
+                        TestResults[displayName] = extractedValue;
+                        Logger.LogInformation("Extracted {Field}: {Value}", displayName, extractedValue);
+                    }
+                    else
+                    {
+                        Logger.LogWarning("No value extracted for {Field} from {FieldPath}", mapping.FieldName, mapping.FieldPath);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Logger.LogWarning(ex, "Failed to extract field {Field} from {FieldPath}", mapping.FieldName, mapping.FieldPath);
+                    TestResults[$"{mapping.FieldName} ({mapping.FieldPath}) [Error]"] = $"Could not extract: {ex.Message}";
+                }
+            }
+
+            if (!TestResults.Any())
+            {
+                TestError = "No mapped fields could be extracted from the message. Check that your field mappings match the message structure.";
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error testing message");
+            TestError = $"Could not parse message: {ex.Message}";
+        }
+        finally
+        {
+            IsTesting = false;
+            StateHasChanged();
+        }
+    }
+
+    private string? ExtractFieldValue(NHapi.Base.Model.IMessage parsedMessage, HL7FieldMapping mapping)
+    {
+        try
+        {
+            // Parse the field path (e.g., "PID-5.1" or "OBR-16")
+            if (string.IsNullOrEmpty(mapping.FieldPath))
+                return null;
+
+            var parts = mapping.FieldPath.Split('-');
+            if (parts.Length != 2)
+            {
+                Logger.LogWarning("Invalid field path format: {FieldPath}", mapping.FieldPath);
+                return null;
+            }
+
+            var segmentType = parts[0]; // e.g., "PID"
+            var fieldSpec = parts[1];   // e.g., "5.1" or "16"
+
+            // Find the segment
+            var segment = FindSegment(parsedMessage, segmentType);
+            if (segment == null)
+            {
+                Logger.LogWarning("Segment {SegmentType} not found in message", segmentType);
+                return null;
+            }
+
+            // Parse field number and component (if any)
+            var fieldParts = fieldSpec.Split('.');
+            if (!int.TryParse(fieldParts[0], out int fieldNumber))
+            {
+                Logger.LogWarning("Invalid field number in: {FieldSpec}", fieldSpec);
+                return null;
+            }
+
+            // Get the field (NHapi uses 1-based indexing)
+            var field = segment.GetField(fieldNumber, 0);
+            if (field == null)
+            {
+                Logger.LogWarning("Field {FieldNumber} not found in segment {SegmentType}", fieldNumber, segmentType);
+                return null;
+            }
+
+            // If there's a component specifier (e.g., "5.1"), extract that component
+            if (fieldParts.Length > 1 && int.TryParse(fieldParts[1], out int componentNumber))
+            {
+                if (field is NHapi.Base.Model.IComposite composite && componentNumber > 0)
+                {
+                    var components = composite.Components;
+                    if (componentNumber <= components.Length)
+                    {
+                        var component = components[componentNumber - 1];
+                        // Use PipeParser to encode the component back to string
+                        return NHapi.Base.Parser.PipeParser.Encode(component, new NHapi.Base.Parser.EncodingCharacters('|', "^~\\&"));
+                    }
+                }
+            }
+
+            // Return the full field value encoded as string
+            return NHapi.Base.Parser.PipeParser.Encode(field, new NHapi.Base.Parser.EncodingCharacters('|', "^~\\&"));
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error extracting field value for {FieldPath}", mapping.FieldPath);
+            return null;
+        }
+    }
+
+    private NHapi.Base.Model.ISegment? FindSegment(NHapi.Base.Model.IMessage message, string segmentType)
+    {
+        try
+        {
+            // For ORU_R01 V2.5.1 messages
+            if (message is NHapi.Model.V251.Message.ORU_R01 oruMessage251)
+            {
+                switch (segmentType)
+                {
+                    case "MSH":
+                        return oruMessage251.MSH;
+                    case "PID":
+                        return oruMessage251.GetPATIENT_RESULT()?.PATIENT?.PID;
+                    case "PV1":
+                        return oruMessage251.GetPATIENT_RESULT()?.PATIENT?.VISIT?.PV1;
+                    case "ORC":
+                        return oruMessage251.GetPATIENT_RESULT()?.GetORDER_OBSERVATION()?.ORC;
+                    case "OBR":
+                        return oruMessage251.GetPATIENT_RESULT()?.GetORDER_OBSERVATION()?.OBR;
+                    case "OBX":
+                        return oruMessage251.GetPATIENT_RESULT()?.GetORDER_OBSERVATION()?.GetOBSERVATION(0)?.OBX;
+                    case "SPM":
+                        return oruMessage251.GetPATIENT_RESULT()?.GetORDER_OBSERVATION()?.GetSPECIMEN(0)?.SPM;
+                }
+            }
+            // For ORU_R01 V2.5 messages
+            else if (message is NHapi.Model.V25.Message.ORU_R01 oruMessage25)
+            {
+                switch (segmentType)
+                {
+                    case "MSH":
+                        return oruMessage25.MSH;
+                    case "PID":
+                        return oruMessage25.GetPATIENT_RESULT()?.PATIENT?.PID;
+                    case "PV1":
+                        return oruMessage25.GetPATIENT_RESULT()?.PATIENT?.VISIT?.PV1;
+                    case "ORC":
+                        return oruMessage25.GetPATIENT_RESULT()?.GetORDER_OBSERVATION()?.ORC;
+                    case "OBR":
+                        return oruMessage25.GetPATIENT_RESULT()?.GetORDER_OBSERVATION()?.OBR;
+                    case "OBX":
+                        return oruMessage25.GetPATIENT_RESULT()?.GetORDER_OBSERVATION()?.GetOBSERVATION(0)?.OBX;
+                    case "SPM":
+                        return oruMessage25.GetPATIENT_RESULT()?.GetORDER_OBSERVATION()?.GetSPECIMEN(0)?.SPM;
+                }
+            }
+            // For ORU_R01 V2.3 messages (uses GetRESPONSE() instead of GetPATIENT_RESULT())
+            else if (message is NHapi.Model.V23.Message.ORU_R01 oruMessage23)
+            {
+                switch (segmentType)
+                {
+                    case "MSH":
+                        return oruMessage23.MSH;
+                    case "PID":
+                        return oruMessage23.GetRESPONSE()?.PATIENT?.PID;
+                    case "PV1":
+                        return oruMessage23.GetRESPONSE()?.PATIENT?.VISIT?.PV1;
+                    case "ORC":
+                        return oruMessage23.GetRESPONSE()?.GetORDER_OBSERVATION()?.ORC;
+                    case "OBR":
+                        return oruMessage23.GetRESPONSE()?.GetORDER_OBSERVATION()?.OBR;
+                    case "OBX":
+                        return oruMessage23.GetRESPONSE()?.GetORDER_OBSERVATION()?.GetOBSERVATION(0)?.OBX;
+                    // Note: V2.3 doesn't have SPM segment (introduced in V2.5)
+                }
+            }
+
+            return null;
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error finding segment {SegmentType}", segmentType);
+            return null;
+        }
+    }
+
+    private string NormalizeHL7Message(string rawMessage)
+    {
+        var normalizedMessage = rawMessage;
+
+        // 1. If message contains logging output, extract just the HL7 part
+        if (normalizedMessage.Contains("Sentinel.") || normalizedMessage.Contains(": Information:") || 
+            normalizedMessage.Contains(": Debug:") || normalizedMessage.Contains(": Error:"))
+        {
+            Logger.LogWarning("Message appears to contain logging output - attempting to extract HL7 content");
+
+            // Find the MSH segment which marks the start of the actual HL7 message
+            var mshIndex = normalizedMessage.IndexOf("MSH|");
+            if (mshIndex > 0)
+            {
+                normalizedMessage = normalizedMessage.Substring(mshIndex);
+                Logger.LogInformation("Extracted HL7 content starting from MSH segment at position {Position}", mshIndex);
+            }
+        }
+
+        // 2. Replace various line ending combinations with \r
+        normalizedMessage = normalizedMessage.Replace("\r\n", "\r").Replace("\n", "\r");
+
+        // 3. If segments are separated by spaces instead of \r, fix that
+        // Common issue when copy-pasting from databases or text editors
+        if (!normalizedMessage.Contains("\r"))
+        {
+            // Check if we have space-separated segments (e.g., "2.5.1 PID|" or "M OBR|")
+            var hasSpaceSeparatedSegments = System.Text.RegularExpressions.Regex.IsMatch(
+                normalizedMessage,
+                @"\s(MSH|PID|PV1|ORC|OBR|OBX|SPM|NTE|FT1|DG1|GT1|IN1|NK1|AL1)\|"
+            );
+
+            if (hasSpaceSeparatedSegments)
+            {
+                Logger.LogWarning("Message appears to use spaces between segments instead of line breaks - attempting to fix");
+                // Replace space before segment identifiers with \r
+                normalizedMessage = System.Text.RegularExpressions.Regex.Replace(
+                    normalizedMessage, 
+                    @"\s+(MSH|PID|PV1|ORC|OBR|OBX|SPM|NTE|FT1|DG1|GT1|IN1|NK1|AL1)\|", 
+                    "\r$1|"
+                );
+            }
+        }
+
+        Logger.LogDebug("Message normalized for parsing");
+        return normalizedMessage;
+    }
+
+    private async Task ActivateConfiguration()
+    {
+        IsActivating = true;
+        StateHasChanged();
+
+        try
+        {
+            await using var context = await DbContextFactory.CreateDbContextAsync();
+
+            // Mark configuration as active/complete
+            var config = await context.HL7Configurations.FindAsync(ConfigurationId);
+            if (config != null)
+            {
+                config.IsActive = true;
+                config.ModifiedAt = DateTime.UtcNow;
+                await context.SaveChangesAsync();
+
+                Logger.LogInformation("Configuration {ConfigId} activated successfully", ConfigurationId);
+            }
+
+            await OnActivated.InvokeAsync();
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error activating configuration");
+            TestError = "Failed to activate configuration. Please try again.";
+        }
+        finally
+        {
+            IsActivating = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task BackToReview()
+    {
+        await OnBackToReview.InvokeAsync();
+    }
+
+    private string FormatDate(string hl7Date)
+    {
+        if (string.IsNullOrEmpty(hl7Date) || hl7Date.Length < 8)
+            return hl7Date;
+
+        try
+        {
+            var year = hl7Date.Substring(0, 4);
+            var month = hl7Date.Substring(4, 2);
+            var day = hl7Date.Substring(6, 2);
+            return $"{day}/{month}/{year}";
+        }
+        catch
+        {
+            return hl7Date;
+        }
+    }
+
+    private class MappingSummary
+    {
+        public string FieldName { get; set; } = string.Empty;
+        public string FieldPath { get; set; } = string.Empty;
+    }
+}
+
+<style>
+    .wizard-progress {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-bottom: 48px;
+        padding: 0 48px;
+    }
+
+    .progress-step {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 8px;
+        opacity: 0.4;
+    }
+
+    .progress-step.active, .progress-step.completed {
+        opacity: 1;
+    }
+
+    .step-number {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        background: var(--chalk);
+        border: 2px solid var(--hairline);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 16px;
+        font-weight: 600;
+    }
+
+    .progress-step.active .step-number {
+        background: var(--signal-dk);
+        border-color: var(--signal-dk);
+        color: white;
+    }
+
+    .progress-step.completed .step-number {
+        background: var(--signal-dk);
+        border-color: var(--signal-dk);
+        color: white;
+    }
+
+    .progress-connector {
+        flex: 1;
+        height: 2px;
+        background: var(--hairline);
+        margin: 0 16px;
+        max-width: 120px;
+    }
+
+    .progress-connector.completed {
+        background: var(--signal-dk);
+    }
+
+    .stage-content {
+        max-width: 700px;
+        margin: 0 auto;
+    }
+
+    .loading-state {
+        text-align: center;
+        padding: 60px 20px;
+    }
+
+    .stage-hero {
+        text-align: center;
+        margin-bottom: 40px;
+    }
+
+    .hero-icon {
+        font-size: 80px;
+        color: var(--signal-dk);
+        margin-bottom: 16px;
+    }
+
+    .hero-title {
+        font-size: 28px;
+        font-weight: 600;
+        letter-spacing: -0.02em;
+        color: var(--forest);
+        margin-bottom: 12px;
+    }
+
+    .hero-description {
+        font-size: 16px;
+        color: var(--graphite);
+        line-height: 1.6;
+    }
+
+    .summary-card {
+        background: white;
+        border: 1px solid var(--hairline);
+        border-radius: 12px;
+        padding: 24px;
+        margin-bottom: 32px;
+    }
+
+    .summary-title {
+        font-size: 18px;
+        font-weight: 600;
+        color: var(--forest);
+        margin-bottom: 20px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .mapping-list {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    .mapping-item {
+        display: grid;
+        grid-template-columns: 1fr auto 1fr;
+        align-items: center;
+        gap: 16px;
+        padding: 12px;
+        background: var(--paper);
+        border-radius: 6px;
+    }
+
+    .mapping-label {
+        font-size: 14px;
+        font-weight: 500;
+        color: var(--forest);
+    }
+
+    .mapping-arrow {
+        color: var(--graphite);
+        font-size: 16px;
+    }
+
+    .mapping-value {
+        font-size: 13px;
+        font-family: 'Consolas', monospace;
+        color: var(--signal-dk);
+        font-weight: 600;
+    }
+
+    .test-section {
+        background: var(--chalk);
+        border: 1px solid var(--hairline);
+        border-radius: 12px;
+        padding: 24px;
+        margin-bottom: 32px;
+    }
+
+    .section-title {
+        font-size: 18px;
+        font-weight: 600;
+        color: var(--forest);
+        margin-bottom: 8px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .section-description {
+        font-size: 14px;
+        color: var(--graphite);
+        margin-bottom: 20px;
+    }
+
+    .test-input-area {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    .test-textarea {
+        width: 100%;
+        font-family: 'Consolas', monospace;
+        font-size: 12px;
+        padding: 12px;
+        border: 1px solid var(--hairline);
+        border-radius: 6px;
+        resize: vertical;
+    }
+
+    .test-textarea:focus {
+        outline: none;
+        border-color: var(--signal-dk);
+    }
+
+    .test-results {
+        margin-top: 20px;
+        background: white;
+        border: 1px solid var(--hairline);
+        border-radius: 8px;
+        overflow: hidden;
+    }
+
+    .results-header {
+        padding: 12px 16px;
+        background: var(--signal-lt);
+        border-bottom: 1px solid #9BE8C6;
+        font-size: 14px;
+        font-weight: 600;
+        color: #0A3F2C;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .results-grid {
+        padding: 16px;
+    }
+
+    .result-row {
+        display: grid;
+        grid-template-columns: 1fr 2fr;
+        gap: 16px;
+        padding: 10px 0;
+        border-bottom: 1px solid var(--hairline);
+    }
+
+    .result-row:last-child {
+        border-bottom: none;
+    }
+
+    .result-label {
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--graphite);
+    }
+
+    .result-value {
+        font-size: 14px;
+        color: var(--forest);
+    }
+
+    .stage-actions {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding-top: 24px;
+    }
+
+    .btn-primary, .btn-secondary, .btn-ghost {
+        padding: 12px 24px;
+        font-size: 15px;
+        font-weight: 600;
+        border-radius: 8px;
+        border: none;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        transition: all 0.2s;
+    }
+
+    .btn-large {
+        padding: 14px 32px;
+        font-size: 16px;
+    }
+
+    .btn-primary {
+        background: var(--signal-dk);
+        color: white;
+    }
+
+    .btn-primary:hover:not(:disabled) {
+        background: #1fa87a;
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(46, 213, 115, 0.3);
+    }
+
+    .btn-primary:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+    }
+
+    .btn-secondary {
+        background: var(--paper);
+        color: var(--forest);
+        border: 1px solid var(--hairline);
+    }
+
+    .btn-secondary:hover:not(:disabled) {
+        background: white;
+    }
+
+    .btn-ghost {
+        background: transparent;
+        color: var(--graphite);
+    }
+
+    .btn-ghost:hover {
+        background: var(--paper);
+    }
+</style>

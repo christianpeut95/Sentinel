@@ -1,3 +1,5 @@
 <Solution>
-  <Project Path="Surveillance-MVP/Surveillance-MVP.csproj" />
+  <Project Path="Sentinel/Sentinel.csproj" />
+  <Project Path="Sentinel.Tests/Sentinel.Tests.csproj" />
+  <Project Path="Sentinel.HL7Generator/Sentinel.HL7Generator.csproj" />
 </Solution>

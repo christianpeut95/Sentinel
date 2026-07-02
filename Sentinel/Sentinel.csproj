@@ -49,4 +49,12 @@
     <None Include="Scripts\**\*.sql" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
+  <ItemGroup>
+    <None Include="Sentinel.slnx" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Sentinel.HL7Generator\Sentinel.HL7Generator.csproj" />
+  </ItemGroup>
+
 </Project>

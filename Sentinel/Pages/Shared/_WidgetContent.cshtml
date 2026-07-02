@@ -1,0 +1,219 @@
+@model Tuple<string, Sentinel.Models.Dashboard.WidgetData>
+@{
+    var widgetId = Model.Item1;
+    var widgetData = Model.Item2;
+}
+
+@if (!string.IsNullOrEmpty(widgetData.ErrorMessage))
+{
+    <div class="widget-error">
+        <i class="bi bi-exclamation-triangle"></i> @widgetData.ErrorMessage
+    </div>
+}
+else if (widgetData.Data == null)
+{
+    <div class="widget-empty">No data available</div>
+}
+else
+{
+    @switch (widgetId)
+    {
+        case "recent-activity":
+            var activityData = widgetData.Data as Sentinel.Models.Dashboard.RecentActivityData;
+            if (activityData?.Items.Any() == true)
+            {
+                foreach (var item in activityData.Items.Take(8))
+                {
+                    var link = item.EntityType switch
+                    {
+                        "Case" => $"/Cases/View/{item.EntityId}",
+                        "Contact" => $"/Contacts/View/{item.EntityId}",
+                        "Patient" => $"/Patients/View/{item.EntityId}",
+                        "Outbreak" => $"/Outbreaks/View/{item.EntityId}",
+                        "Event" => $"/Events/View/{item.EntityId}",
+                        "Location" => $"/Locations/View/{item.EntityId}",
+                        _ => null
+                    };
+
+                    <div class="activity-item">
+                        <span class="activity-chip @item.Status">
+                            <span style="width:5px;height:5px;border-radius:50%;background:currentColor;"></span>
+                            @item.ActivityType
+                        </span>
+                        <div class="activity-text">
+                            @if (!string.IsNullOrEmpty(link))
+                            {
+                                <a href="@link">@item.DisplayText</a>
+                            }
+                            else
+                            {
+                                @item.DisplayText
+                            }
+                        </div>
+                    </div>
+                }
+            }
+            else
+            {
+                <div class="widget-empty">No recent activity</div>
+            }
+            break;
+
+        case "cases-by-disease":
+            var diseaseData = widgetData.Data as Sentinel.Models.Dashboard.CasesByDiseaseData;
+            if (diseaseData?.Diseases.Any() == true)
+            {
+                foreach (var disease in diseaseData.Diseases.Take(8))
+                {
+                    <div class="disease-row" onclick="window.location.href='/Cases?diseaseId=@disease.DiseaseId'">
+                        <div class="disease-name">@disease.DiseaseName</div>
+                        <div class="disease-counts">
+                            <span class="disease-count-item">
+                                <strong>@disease.TotalCount</strong> total
+                            </span>
+                            @if (disease.ConfirmedCount > 0)
+                            {
+                                <span class="disease-count-item">
+                                    <strong>@disease.ConfirmedCount</strong> conf.
+                                </span>
+                            }
+                        </div>
+                    </div>
+                }
+            }
+            else
+            {
+                <div class="widget-empty">No cases found</div>
+            }
+            break;
+
+        case "hl7-overview":
+            var hl7Data = widgetData.Data as Sentinel.Models.Dashboard.HL7OverviewData;
+            if (hl7Data != null)
+            {
+                <div class="kpi-grid">
+                    <div class="kpi-tile" onclick="window.location.href='/Settings/HL7/Messages?status=Processed'" style="cursor: pointer;">
+                        <div class="kpi-label">Processed</div>
+                        <div class="kpi-value">@hl7Data.ProcessedCount</div>
+                    </div>
+                    <div class="kpi-tile" onclick="window.location.href='/Settings/HL7/Messages?status=Rejected'" style="cursor: pointer;">
+                        <div class="kpi-label">Rejected</div>
+                        <div class="kpi-value" style="color:@(hl7Data.RejectedCount > 0 ? "var(--outbreak)" : "var(--forest)")">@hl7Data.RejectedCount</div>
+                    </div>
+                    <div class="kpi-tile" onclick="window.location.href='/Settings/HL7/Messages?status=AwaitingReview'" style="cursor: pointer;">
+                        <div class="kpi-label">Awaiting Review</div>
+                        <div class="kpi-value">@hl7Data.AwaitingReviewCount</div>
+                    </div>
+                    <div class="kpi-tile">
+                        <div class="kpi-label">System Status</div>
+                        <div style="margin-top:8px;">
+                            <span class="activity-chip @hl7Data.HealthStatus">@hl7Data.HealthStatus.ToUpper()</span>
+                        </div>
+                    </div>
+                </div>
+            }
+            break;
+
+        case "tasks-surveys":
+            var tasksData = widgetData.Data as Sentinel.Models.Dashboard.TasksAndSurveysData;
+            if (tasksData != null)
+            {
+                <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px;">
+                    <div class="kpi-tile">
+                        <div class="kpi-label">Outstanding</div>
+                        <div class="kpi-value">@tasksData.OutstandingTasks</div>
+                    </div>
+                    <div class="kpi-tile">
+                        <div class="kpi-label">Completed Today</div>
+                        <div class="kpi-value" style="color:var(--signal-dk)">@tasksData.CompletedToday</div>
+                    </div>
+                    <div class="kpi-tile">
+                        <div class="kpi-label">Overdue</div>
+                        <div class="kpi-value" style="color:@(tasksData.OverdueTasks > 0 ? "var(--outbreak)" : "var(--forest)")">@tasksData.OverdueTasks</div>
+                    </div>
+                </div>
+                @if (tasksData.TopTaskTypes.Any())
+                {
+                    <div style="font-size:11px;font-weight:600;margin-bottom:8px;color:var(--graphite);font-family:var(--f-mono)">TOP TASK TYPES</div>
+                    foreach (var taskType in tasksData.TopTaskTypes)
+                    {
+                        <div class="task-item">
+                            <div style="font-size:13px;">@taskType.TaskType</div>
+                            <div style="font-family:var(--f-mono);font-size:12px;color:var(--graphite)">@taskType.Count</div>
+                        </div>
+                    }
+                }
+            }
+            break;
+
+        case "outbreak-tracker":
+            var outbreakData = widgetData.Data as Sentinel.Models.Dashboard.OutbreakTrackerData;
+            if (outbreakData?.ActiveOutbreaks.Any() == true)
+            {
+                foreach (var outbreak in outbreakData.ActiveOutbreaks.Take(5))
+                {
+                    <div class="outbreak-card" onclick="window.location.href='/Outbreaks/View/@outbreak.OutbreakId'">
+                        <div class="outbreak-name">@outbreak.OutbreakName</div>
+                        <div class="outbreak-meta">
+                            <span>@outbreak.LinkedCasesCount cases</span>
+                            <span>@outbreak.DaysSinceDeclaration days</span>
+                            <span>@outbreak.TeamMemberCount team</span>
+                        </div>
+                    </div>
+                }
+            }
+            else
+            {
+                <div class="widget-empty">No active outbreaks</div>
+            }
+            break;
+
+        case "data-review-queue":
+            var reviewData = widgetData.Data as Sentinel.Models.Dashboard.DataReviewQueueData;
+            if (reviewData != null)
+            {
+                <div class="kpi-tile" style="margin-bottom:16px;cursor:pointer;" onclick="window.location.href='/DataInbox'">
+                    <div class="kpi-label">Total Items</div>
+                    <div class="kpi-value">@reviewData.TotalItems</div>
+                </div>
+                @if (reviewData.ItemsByType.Any())
+                {
+                    <div style="font-size:11px;font-weight:600;margin-bottom:8px;color:var(--graphite);font-family:var(--f-mono)">BY TYPE</div>
+                    foreach (var item in reviewData.ItemsByType.Take(5))
+                    {
+                        <div class="disease-row" onclick="window.location.href='/DataInbox?type=@item.ReviewType'">
+                            <div style="font-size:13px;">@item.ReviewType</div>
+                            <div style="font-family:var(--f-mono);font-size:12px;">
+                                <strong style="color:var(--forest)">@item.Count</strong>
+                                @if (item.HighPriorityCount > 0)
+                                {
+                                    <span style="color:var(--outbreak);margin-left:8px;">⚠ @item.HighPriorityCount</span>
+                                }
+                            </div>
+                        </div>
+                    }
+                }
+            }
+            break;
+
+        case "quick-stats":
+            var statsData = widgetData.Data as Sentinel.Models.Dashboard.QuickStatsData;
+            if (statsData != null)
+            {
+                <div class="kpi-grid">
+                    @foreach (var metric in statsData.Metrics.Take(4))
+                    {
+                        <div class="kpi-tile">
+                            <div class="kpi-label">@metric.Label</div>
+                            <div class="kpi-value">@metric.Value</div>
+                            @if (!string.IsNullOrEmpty(metric.Context))
+                            {
+                                <div class="kpi-detail">@metric.Context</div>
+                            }
+                        </div>
+                    }
+                </div>
+            }
+            break;
+    }
+}

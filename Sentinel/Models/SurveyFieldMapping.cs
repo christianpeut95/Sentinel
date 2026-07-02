@@ -109,9 +109,10 @@ namespace Sentinel.Models
 
     public enum MappingConfigurationType
     {
-        Disease = 1,
-        Task = 2,
-        Survey = 3
+        DiseaseTaskTemplate = 1,  // Disease-specific task template mapping (ConfigurationId = DiseaseTaskTemplate.Id) - HIGHEST PRIORITY
+        Survey = 2,                // Survey-level mapping (ConfigurationId = SurveyTemplate.Id)
+        Task = 3,                  // Task template-level mapping (ConfigurationId = TaskTemplate.Id)
+        Disease = 4                // Disease-level mapping (ConfigurationId = Disease.Id) - LOWEST PRIORITY
     }
 
     public enum MappingFieldType

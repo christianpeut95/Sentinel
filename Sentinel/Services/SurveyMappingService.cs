@@ -39,8 +39,32 @@ namespace Sentinel.Services
             _logger.LogInformation("GetActiveMappingsAsync called with: Survey={Survey}, Task={Task}, Disease={Disease}",
                 surveyTemplateId, taskTemplateId, diseaseId);
 
-            // Priority order: Survey (1) > Task (2) > Disease (3)
+            // Priority order: DiseaseTaskTemplate (1) > Survey (2) > Task (3) > Disease (4)
             // Lower priority number = higher precedence
+
+            // NEW: Check for DiseaseTaskTemplate-level mapping (most specific)
+            if (taskTemplateId.HasValue && diseaseId.HasValue)
+            {
+                var diseaseTaskTemplate = await _context.DiseaseTaskTemplates
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(dtt => dtt.DiseaseId == diseaseId.Value 
+                                             && dtt.TaskTemplateId == taskTemplateId.Value 
+                                             && dtt.IsActive);
+
+                if (diseaseTaskTemplate != null)
+                {
+                    var diseaseTaskMappings = await _context.SurveyFieldMappings
+                        .Where(m => m.ConfigurationType == MappingConfigurationType.DiseaseTaskTemplate
+                                 && m.ConfigurationId == diseaseTaskTemplate.Id
+                                 && m.IsActive)
+                        .OrderBy(m => m.DisplayOrder)
+                        .ToListAsync();
+
+                    _logger.LogInformation("Found {Count} DiseaseTaskTemplate mappings for DiseaseTaskTemplateId={Id}",
+                        diseaseTaskMappings.Count, diseaseTaskTemplate.Id);
+                    mappings.AddRange(diseaseTaskMappings);
+                }
+            }
 
             if (surveyTemplateId.HasValue)
             {
@@ -54,7 +78,7 @@ namespace Sentinel.Services
                 {
                     // Determine the root parent of this survey family
                     var rootParentId = surveyTemplate.ParentSurveyTemplateId ?? surveyTemplate.Id;
-                    
+
                     _logger.LogInformation("Survey {SurveyId} belongs to family with root {RootId}", 
                         surveyTemplateId.Value, rootParentId);
 
@@ -75,10 +99,10 @@ namespace Sentinel.Services
                                  && m.IsActive)
                         .OrderBy(m => m.DisplayOrder)
                         .ToListAsync();
-                    
+
                     _logger.LogInformation("Found {Count} survey mappings for survey family (searched {FamilyCount} versions)", 
                         surveyMappings.Count, surveyFamilyIds.Count);
-                    
+
                     mappings.AddRange(surveyMappings);
                 }
                 else
