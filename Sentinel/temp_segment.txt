@@ -1,0 +1,21 @@
+﻿if (mostSpecific.Count == 1)
+            {
+                var winner = mostSpecific[0];
+                _logger.LogWarning(
+                    "ðŸ”¥ [SPECIFICITY FILTER] âœ… Selected '{Name}' as most specific (Score: {Score}, Satisfied: {Satisfied}, Groups: {Groups})",
+                    winner.CaseDefinition?.Name,
+                    winner.SpecificityScore,
+                    winner.SatisfiedCriteriaIds.Count,
+                    winner.CompletedGroupIds.Count);
+            }
+            else
+            {
+                _logger.LogWarning(
+                    "ðŸ”¥ [SPECIFICITY FILTER] âš ï¸ Multiple definitions with score {Score} remain after filtering - keeping all {Count}",
+                    maxScore,
+                    mostSpecific.Count);
+
+                foreach (var match in mostSpecific)
+                {
+                    _logger.LogWarning(
+                        "ðŸ”¥ [SPECIFICITY FILTER]   Tie: '{Name}' (Satisfied: {Satisfied}, Groups: {G

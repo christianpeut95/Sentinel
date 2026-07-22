@@ -876,6 +876,9 @@ namespace Sentinel.Migrations
                         .HasMaxLength(200)
                         .HasColumnType("nvarchar(200)");
 
+                    b.Property<int?>("GroupExitOperator")
+                        .HasColumnType("int");
+
                     b.Property<int>("GroupNumber")
                         .HasColumnType("int");
 
@@ -1658,14 +1661,32 @@ namespace Sentinel.Migrations
                     b.Property<Guid>("DiseaseId")
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<bool>("AllowMissingPathogen")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("AllowMissingResult")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("AllowMissingSpecimenType")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("AllowMissingTestMethod")
+                        .HasColumnType("bit");
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
 
                     b.Property<string>("CreatedBy")
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<int>("MaxMissingFieldsAllowed")
+                        .HasColumnType("int");
+
                     b.Property<bool>("OverrideParentRules")
                         .HasColumnType("bit");
+
+                    b.Property<int?>("PartialMatchConfirmationStatusId")
+                        .HasColumnType("int");
 
                     b.Property<bool>("Pathogen_CaseInsensitive")
                         .HasColumnType("bit");
@@ -1722,6 +1743,8 @@ namespace Sentinel.Migrations
                         .HasColumnType("nvarchar(max)");
 
                     b.HasKey("DiseaseId");
+
+                    b.HasIndex("PartialMatchConfirmationStatusId");
 
                     b.ToTable("DiseaseHL7MatchingConfigs");
                 });
@@ -2157,6 +2180,9 @@ namespace Sentinel.Migrations
 
                     b.Property<DateTime?>("ParsedAt")
                         .HasColumnType("datetime2");
+
+                    b.Property<string>("PartialMatchDetailsJson")
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<Guid?>("PatientId")
                         .HasColumnType("uniqueidentifier");
@@ -3254,12 +3280,6 @@ namespace Sentinel.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier");
 
-                    b.Property<bool>("AlwaysCreateNewCase")
-                        .HasColumnType("bit");
-
-                    b.Property<int>("CaseMatchingStrategy")
-                        .HasColumnType("int");
-
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
 
@@ -3271,15 +3291,6 @@ namespace Sentinel.Migrations
                         .HasColumnType("uniqueidentifier");
 
                     b.Property<bool>("IsActive")
-                        .HasColumnType("bit");
-
-                    b.Property<bool>("IsChronic")
-                        .HasColumnType("bit");
-
-                    b.Property<bool>("MatchOnResultType")
-                        .HasColumnType("bit");
-
-                    b.Property<bool>("MatchOnTestType")
                         .HasColumnType("bit");
 
                     b.Property<DateTime?>("ModifiedAt")
@@ -6969,7 +6980,14 @@ namespace Sentinel.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.HasOne("Sentinel.Models.Lookups.CaseStatus", "PartialMatchConfirmationStatus")
+                        .WithMany()
+                        .HasForeignKey("PartialMatchConfirmationStatusId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.Navigation("Disease");
+
+                    b.Navigation("PartialMatchConfirmationStatus");
                 });
 
             modelBuilder.Entity("Sentinel.Models.HL7.HL7CustomFieldMapping", b =>

@@ -23,6 +23,9 @@ namespace Sentinel.Models.CaseDefinitions
         [Display(Name = "Logical Operator")]
         public LogicalOperator LogicalOperator { get; set; } = LogicalOperator.AND;
 
+        [Display(Name = "Group Exit Operator")]
+        public LogicalOperator? GroupExitOperator { get; set; }
+
         [Display(Name = "Group Number")]
         public int GroupNumber { get; set; } = 1;
 

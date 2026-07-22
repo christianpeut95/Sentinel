@@ -113,10 +113,14 @@ public class HL7ParserService : IHL7ParserService
                 // CHECK FOR DUPLICATE: If MessageControlId is not empty, check if we've already processed this message
                 if (!string.IsNullOrWhiteSpace(hl7Message.MessageControlId))
                 {
+                    // Find the FIRST (original) message with this MessageControlId + SendingFacility
+                    // We want to link all duplicates to the original, not to other duplicates
                     var existingMessage = await _context.HL7Messages
-                        .Include(m => m.Segments)  // ← CRITICAL: Load segments for extraction
                         .Where(m => m.MessageControlId == hl7Message.MessageControlId &&
-                                    m.SendingFacility == hl7Message.SendingFacility)
+                                    m.SendingFacility == hl7Message.SendingFacility &&
+                                    !m.IsDeleted &&
+                                    !m.IsDuplicate) // Only match the original, not other duplicates
+                        .OrderBy(m => m.ReceivedAt) // Get the earliest one
                         .FirstOrDefaultAsync(cancellationToken);
 
                     if (existingMessage != null)
@@ -129,28 +133,16 @@ public class HL7ParserService : IHL7ParserService
                             existingMessage.ReceivedAt,
                             existingMessage.Status);
 
-                        // CRITICAL FIX: Update the existing message's RawMessage with the normalized version
-                        // This fixes issues where the original message had space-separated segments
-                        if (existingMessage.RawMessage != normalizedMessage)
-                        {
-                            _logger.LogInformation(
-                                "Updating existing message {MessageControlId} with normalized RawMessage (was {OldLength} chars, now {NewLength} chars)",
-                                existingMessage.MessageControlId,
-                                existingMessage.RawMessage?.Length ?? 0,
-                                normalizedMessage.Length);
+                        // Mark this new message as a duplicate
+                        hl7Message.IsDuplicate = true;
+                        hl7Message.DuplicateOfMessageId = existingMessage.Id;
+                        hl7Message.DuplicateDetectionMethod = "MessageControlId+SendingFacility";
+                        hl7Message.Status = HL7ProcessingStatus.DuplicateDetected;
+                        hl7Message.ParsedAt = DateTime.UtcNow;
 
-                            existingMessage.RawMessage = normalizedMessage;
-
-                            // Re-parse segments with normalized message
-                            existingMessage.Segments.Clear();
-                            await ParseSegmentsAsync(existingMessage, parsedMessage, cancellationToken);
-
-                            await _context.SaveChangesAsync(cancellationToken);
-                            _logger.LogInformation("Successfully updated existing message {MessageControlId} with normalized data", existingMessage.MessageControlId);
-                        }
-
-                        // Return the existing message (now with normalized content)
-                        return existingMessage;
+                        _logger.LogInformation(
+                            "Creating duplicate HL7Message record pointing to original message {OriginalId}",
+                            existingMessage.Id);
                     }
                 }
                 else
@@ -162,8 +154,12 @@ public class HL7ParserService : IHL7ParserService
             // Parse segments
             await ParseSegmentsAsync(hl7Message, parsedMessage, cancellationToken);
 
-            hl7Message.Status = HL7ProcessingStatus.ParsedSuccessfully;
-            hl7Message.ParsedAt = DateTime.UtcNow;
+            // Set status to ParsedSuccessfully only if not already marked as duplicate
+            if (hl7Message.Status != HL7ProcessingStatus.DuplicateDetected)
+            {
+                hl7Message.Status = HL7ProcessingStatus.ParsedSuccessfully;
+                hl7Message.ParsedAt = DateTime.UtcNow;
+            }
         }
         catch (Exception ex)
         {

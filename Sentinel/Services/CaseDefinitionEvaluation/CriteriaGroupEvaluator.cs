@@ -164,12 +164,48 @@ namespace Sentinel.Services.CaseDefinitionEvaluation
             }
 
             // Apply logical operator to combine results
-            groupResult.IsMatch = logicalOperator switch
+            // For root-level criteria with GroupExitOperator, use that to combine with next criterion
+            // For nested groups or criteria without GroupExitOperator, use LogicalOperator
+            if (parentId == null && criteriaAtThisLevel.Count > 1)
             {
-                LogicalOperator.AND => groupResult.ChildResults.All(r => r.IsMatch),
-                LogicalOperator.OR => groupResult.ChildResults.Any(r => r.IsMatch),
-                _ => groupResult.ChildResults.Any(r => r.IsMatch) // Default to OR for safety (invalid operator shouldn't fail all cases)
-            };
+                // Root level with multiple criteria - apply GroupExitOperator logic
+                bool accumulated = groupResult.ChildResults[0].IsMatch;
+
+                for (int i = 1; i < groupResult.ChildResults.Count; i++)
+                {
+                    var previousCriterion = criteriaAtThisLevel[i - 1];
+                    var currentResult = groupResult.ChildResults[i].IsMatch;
+
+                    // Use GroupExitOperator if available (for groups), otherwise LogicalOperator
+                    var operatorToUse = previousCriterion.GroupExitOperator ?? previousCriterion.LogicalOperator;
+
+                    _logger.LogInformation(
+                        "{Indent}Combining root criterion [{Prev}] with [{Curr}] using {Operator} (GroupExit={GE}, Logical={L})",
+                        indent, i - 1, i, operatorToUse,
+                        previousCriterion.GroupExitOperator?.ToString() ?? "null",
+                        previousCriterion.LogicalOperator);
+
+                    accumulated = operatorToUse switch
+                    {
+                        LogicalOperator.AND => accumulated && currentResult,
+                        LogicalOperator.OR => accumulated || currentResult,
+                        LogicalOperator.NOT => accumulated && !currentResult,
+                        _ => accumulated && currentResult // Default to AND
+                    };
+                }
+
+                groupResult.IsMatch = accumulated;
+            }
+            else
+            {
+                // Nested group or single criterion - use LogicalOperator
+                groupResult.IsMatch = logicalOperator switch
+                {
+                    LogicalOperator.AND => groupResult.ChildResults.All(r => r.IsMatch),
+                    LogicalOperator.OR => groupResult.ChildResults.Any(r => r.IsMatch),
+                    _ => groupResult.ChildResults.Any(r => r.IsMatch) // Default to OR for safety (invalid operator shouldn't fail all cases)
+                };
+            }
 
             // Build descriptive actual/expected values
             var matchCount = groupResult.ChildResults.Count(r => r.IsMatch);

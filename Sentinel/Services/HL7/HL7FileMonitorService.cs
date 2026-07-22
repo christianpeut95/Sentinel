@@ -127,6 +127,19 @@ namespace Sentinel.Services.HL7
             return Task.CompletedTask;
         }
 
+        public async Task ReloadConfigurationsAsync(CancellationToken cancellationToken = default)
+        {
+            _logger.LogInformation("Reloading HL7 configurations and restarting monitoring");
+
+            // Stop current monitoring
+            await StopMonitoringAsync();
+
+            // Start monitoring again (will reload configurations from database)
+            await StartMonitoringAsync(cancellationToken);
+
+            _logger.LogInformation("HL7 configurations reloaded and monitoring restarted");
+        }
+
         public async Task<FileProcessingResult> ProcessFileAsync(
             string filePath,
             Guid? configurationId = null,

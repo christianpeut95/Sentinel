@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
 using Sentinel.Data;
 using Sentinel.Models;
+using Sentinel.Services.HL7;
 
 namespace Sentinel.Pages.Settings.HL7.Configurations
 {
@@ -12,10 +13,17 @@ namespace Sentinel.Pages.Settings.HL7.Configurations
     public class CreateModel : PageModel
     {
         private readonly ApplicationDbContext _context;
+        private readonly IHL7FileMonitorService _fileMonitorService;
+        private readonly ILogger<CreateModel> _logger;
 
-        public CreateModel(ApplicationDbContext context)
+        public CreateModel(
+            ApplicationDbContext context,
+            IHL7FileMonitorService fileMonitorService,
+            ILogger<CreateModel> logger)
         {
             _context = context;
+            _fileMonitorService = fileMonitorService;
+            _logger = logger;
         }
 
         [BindProperty]
@@ -108,7 +116,18 @@ namespace Sentinel.Pages.Settings.HL7.Configurations
             _context.HL7Configurations.Add(Configuration);
             await _context.SaveChangesAsync();
 
-            TempData["SuccessMessage"] = $"Configuration '{Configuration.ConfigurationName}' has been created successfully. File monitoring will start automatically.";
+            // Reload configurations to pick up the new configuration
+            try
+            {
+                await _fileMonitorService.ReloadConfigurationsAsync();
+                TempData["SuccessMessage"] = $"Configuration '{Configuration.ConfigurationName}' has been created successfully and file monitoring has been started.";
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to reload HL7 configurations after creating new configuration");
+                TempData["WarningMessage"] = $"Configuration '{Configuration.ConfigurationName}' has been created successfully, but file monitoring could not be restarted. Please restart the application.";
+            }
+
             return RedirectToPage("./Index");
         }
 

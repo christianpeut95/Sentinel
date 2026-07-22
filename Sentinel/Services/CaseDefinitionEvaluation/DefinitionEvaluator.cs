@@ -74,17 +74,59 @@ namespace Sentinel.Services.CaseDefinitionEvaluation
                     return result;
                 }
 
-                // Check if definition applies to this disease
+                // Check if definition applies to this disease or its disease family (parent/children/siblings)
                 _logger.LogInformation("Checking disease match: Case={CaseDisease}, Definition={DefDisease}",
                     caseEntity.DiseaseId, definition.DiseaseId);
+
                 if (caseEntity.DiseaseId.HasValue 
                     && definition.DiseaseId != Guid.Empty
                     && definition.DiseaseId != caseEntity.DiseaseId.Value)
                 {
-                    _logger.LogWarning("❌ Disease mismatch");
-                    result.Rationale = $"Case definition is for a different disease";
-                    result.RecommendedAction = RecommendedAction.None;
-                    return result;
+                    // Build disease family IDs to allow evaluation of child, parent, and sibling diseases
+                    var diseaseIds = new List<Guid> { caseEntity.DiseaseId.Value };
+
+                    // Load case disease to check hierarchy
+                    var caseDisease = await _context.Diseases
+                        .IgnoreQueryFilters()
+                        .FirstOrDefaultAsync(d => d.Id == caseEntity.DiseaseId.Value);
+
+                    if (caseDisease != null)
+                    {
+                        // Add parent disease if exists
+                        if (caseDisease.ParentDiseaseId.HasValue)
+                        {
+                            diseaseIds.Add(caseDisease.ParentDiseaseId.Value);
+
+                            // Add siblings (other children of the same parent)
+                            var siblings = await _context.Diseases
+                                .IgnoreQueryFilters()
+                                .Where(d => d.ParentDiseaseId == caseDisease.ParentDiseaseId && d.Id != caseEntity.DiseaseId.Value)
+                                .Select(d => d.Id)
+                                .ToListAsync();
+                            diseaseIds.AddRange(siblings);
+                        }
+
+                        // Add children (sub-diseases)
+                        var children = await _context.Diseases
+                            .IgnoreQueryFilters()
+                            .Where(d => d.ParentDiseaseId == caseEntity.DiseaseId.Value)
+                            .Select(d => d.Id)
+                            .ToListAsync();
+                        diseaseIds.AddRange(children);
+                    }
+
+                    // Check if definition disease is in the family
+                    if (!diseaseIds.Contains(definition.DiseaseId))
+                    {
+                        _logger.LogWarning("❌ Disease mismatch - not in disease family");
+                        result.Rationale = $"Case definition is for a different disease family";
+                        result.RecommendedAction = RecommendedAction.None;
+                        return result;
+                    }
+                    else
+                    {
+                        _logger.LogInformation("✅ Definition disease {DefDisease} is in case disease family", definition.DiseaseId);
+                    }
                 }
 
                 // Evaluate all criteria as a group

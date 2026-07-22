@@ -23,28 +23,13 @@ namespace Sentinel.Models.Lookups
         [Range(0, 3650)]
         public int? ReinfectionWindowDays { get; set; }
 
-        [Display(Name = "Is Chronic Disease")]
-        public bool IsChronic { get; set; } = false;
-
-        [Display(Name = "Always Create New Case")]
-        public bool AlwaysCreateNewCase { get; set; } = false;
+        [Display(Name = "Require Confirmation for New Case")]
+        public bool RequireConfirmationForNewCase { get; set; } = false;
 
         [Display(Name = "Description")]
         [StringLength(2000)]
         [DataType(DataType.MultilineText)]
         public string? Description { get; set; }
-
-        [Display(Name = "Case Matching Strategy")]
-        public CaseMatchingStrategy CaseMatchingStrategy { get; set; } = CaseMatchingStrategy.DateWindowMatching;
-
-        [Display(Name = "Match on Test Type")]
-        public bool MatchOnTestType { get; set; } = false;
-
-        [Display(Name = "Match on Result Type")]
-        public bool MatchOnResultType { get; set; } = false;
-
-        [Display(Name = "Require Confirmation for New Case")]
-        public bool RequireConfirmationForNewCase { get; set; } = false;
 
         [Display(Name = "Notification Message")]
         [StringLength(1000)]

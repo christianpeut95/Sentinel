@@ -2,7 +2,7 @@
 @model Sentinel.Pages.Settings.Diseases.ReinfectionRulesModel
 
 @{
-    ViewData["Title"] = "Reinfection Rules";
+    ViewData["Title"] = "Reinfection Windows";
     Layout = "~/Pages/Shared/_LayoutSentinel.cshtml";
 }
 
@@ -11,15 +11,15 @@
         <li class="breadcrumb-item"><a asp-page="/Index">Home</a></li>
         <li class="breadcrumb-item"><a asp-page="/Settings/Index">Settings</a></li>
         <li class="breadcrumb-item"><a asp-page="./Index">Diseases</a></li>
-        <li class="breadcrumb-item active" aria-current="page">Reinfection Rules</li>
+        <li class="breadcrumb-item active" aria-current="page">Reinfection Windows</li>
     </ol>
 </nav>
 
 <div class="sentinel-page-header mb-4">
     <div>
         <div class="sentinel-eyebrow">Disease Configuration</div>
-        <h1 class="sentinel-page-title">Reinfection Rules</h1>
-        <p class="sentinel-page-subtitle">Configure how lab results are matched to existing cases</p>
+        <h1 class="sentinel-page-title">Reinfection Windows</h1>
+        <p class="sentinel-page-subtitle">Configure time windows for case reinfection detection</p>
     </div>
 </div>
 
@@ -42,7 +42,7 @@
             <div class="col-md-6">
                 <a asp-page="./ReinfectionRulesEdit" asp-route-diseaseId="@Model.SelectedDiseaseId" 
                    class="sn-btn sn-btn--signal">
-                    <i class="bi bi-plus-circle me-1"></i>Add Reinfection Rule
+                    <i class="bi bi-plus-circle me-1"></i>Add Reinfection Window
                 </a>
             </div>
         </form>
@@ -52,11 +52,11 @@
 <!-- Info Alert -->
 <div class="alert alert-info mb-4" role="alert">
     <h5 style="font-weight:600;margin-bottom:8px">
-        <i class="bi bi-info-circle me-2"></i>About Reinfection Rules
+        <i class="bi bi-info-circle me-2"></i>About Reinfection Windows
     </h5>
     <p style="margin-bottom:0">
-        Reinfection rules determine when incoming lab results should create a new case versus being added to an existing case.
-        Each disease can have one rule that defines the matching strategy and time windows.
+        Configure the number of days that must pass before a new lab result creates a new case for the same patient and disease. 
+        If a positive result arrives within the window, it will be added to the existing case.
     </p>
 </div>
 
@@ -69,10 +69,8 @@
                     <thead>
                         <tr>
                             <th>Disease</th>
-                            <th>Rule Type</th>
                             <th>Reinfection Window</th>
-                            <th>Case Matching Strategy</th>
-                            <th>Options</th>
+                            <th>Description</th>
                             <th>Status</th>
                             <th class="text-end">Actions</th>
                         </tr>
@@ -85,39 +83,9 @@
                                     <strong>@rule.Disease?.Name</strong>
                                 </td>
                                 <td>
-                                    @switch (rule.RuleType)
-                                    {
-                                        case Sentinel.Models.Lookups.ReinfectionRuleType.NoReinfection:
-                                            <span class="chip chip--info">
-                                                <i class="bi bi-lock me-1"></i>No Reinfection
-                                            </span>
-                                            break;
-                                        case Sentinel.Models.Lookups.ReinfectionRuleType.TimeWindow:
-                                            <span class="chip chip--watch">
-                                                <i class="bi bi-clock me-1"></i>Time Window
-                                            </span>
-                                            break;
-                                        case Sentinel.Models.Lookups.ReinfectionRuleType.AlwaysNewCase:
-                                            <span class="chip chip--outbreak">
-                                                <i class="bi bi-plus-circle me-1"></i>Always New Case
-                                            </span>
-                                            break;
-                                        case Sentinel.Models.Lookups.ReinfectionRuleType.ChronicDisease:
-                                            <span class="chip chip--clear">
-                                                <i class="bi bi-arrow-repeat me-1"></i>Chronic Disease
-                                            </span>
-                                            break;
-                                        case Sentinel.Models.Lookups.ReinfectionRuleType.ManualReview:
-                                            <span class="chip chip--info">
-                                                <i class="bi bi-eye me-1"></i>Manual Review
-                                            </span>
-                                            break;
-                                    }
-                                </td>
-                                <td>
                                     @if (rule.ReinfectionWindowDays.HasValue)
                                     {
-                                        <span style="font-family:var(--f-mono);color:var(--graphite)">
+                                        <span style="font-family:var(--f-mono);color:var(--graphite);font-size:15px;font-weight:600">
                                             @rule.ReinfectionWindowDays.Value days
                                         </span>
                                     }
@@ -127,44 +95,16 @@
                                     }
                                 </td>
                                 <td>
-                                    @switch (rule.CaseMatchingStrategy)
+                                    @if (!string.IsNullOrWhiteSpace(rule.Description))
                                     {
-                                        case Sentinel.Models.Lookups.CaseMatchingStrategy.DateWindowMatching:
-                                            <span style="font-size:13px;color:var(--graphite)">Date Window</span>
-                                            break;
-                                        case Sentinel.Models.Lookups.CaseMatchingStrategy.MostRecentOpenCase:
-                                            <span style="font-size:13px;color:var(--graphite)">Most Recent Open</span>
-                                            break;
-                                        case Sentinel.Models.Lookups.CaseMatchingStrategy.AnyOpenCase:
-                                            <span style="font-size:13px;color:var(--graphite)">Any Open Case</span>
-                                            break;
-                                        case Sentinel.Models.Lookups.CaseMatchingStrategy.ExactDateMatch:
-                                            <span style="font-size:13px;color:var(--graphite)">Exact Date Match</span>
-                                            break;
-                                        case Sentinel.Models.Lookups.CaseMatchingStrategy.ManualAssignmentOnly:
-                                            <span style="font-size:13px;color:var(--graphite)">Manual Assignment Only</span>
-                                            break;
+                                        <span style="font-size:13px;color:var(--graphite)">
+                                            @(rule.Description.Length > 60 ? rule.Description.Substring(0, 60) + "..." : rule.Description)
+                                        </span>
                                     }
-                                </td>
-                                <td>
-                                    <div style="display:flex;gap:6px;flex-wrap:wrap">
-                                        @if (rule.IsChronic)
-                                        {
-                                            <span class="chip" style="font-size:11px">Chronic</span>
-                                        }
-                                        @if (rule.AlwaysCreateNewCase)
-                                        {
-                                            <span class="chip" style="font-size:11px">Always New</span>
-                                        }
-                                        @if (rule.MatchOnTestType)
-                                        {
-                                            <span class="chip" style="font-size:11px">Match Test</span>
-                                        }
-                                        @if (rule.RequireConfirmationForNewCase)
-                                        {
-                                            <span class="chip" style="font-size:11px">Confirm New</span>
-                                        }
-                                    </div>
+                                    else
+                                    {
+                                        <span style="color:var(--graphite-lt)">—</span>
+                                    }
                                 </td>
                                 <td>
                                     @if (rule.IsActive)
@@ -207,10 +147,10 @@
                         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                     </div>
                     <div class="modal-body">
-                        <p>Are you sure you want to delete the reinfection rule for <strong>@rule.Disease?.Name</strong>?</p>
+                        <p>Are you sure you want to delete the reinfection window for <strong>@rule.Disease?.Name</strong>?</p>
                         <p class="text-danger">
                             <i class="bi bi-exclamation-triangle me-1"></i>
-                            <strong>Warning:</strong> This will affect how future lab results are matched to cases for this disease.
+                            <strong>Warning:</strong> This will affect how future lab results create cases for this disease.
                         </p>
                     </div>
                     <div class="modal-footer">
@@ -233,70 +173,21 @@ else
     <div class="sentinel-card">
         <div class="sentinel-card-body text-center" style="padding:60px 20px">
             <i class="bi bi-clipboard-data" style="font-size:48px;color:var(--graphite-lt);margin-bottom:16px"></i>
-            <h5 style="color:var(--graphite);margin-bottom:8px">No Reinfection Rules</h5>
+            <h5 style="color:var(--graphite);margin-bottom:8px">No Reinfection Windows</h5>
             <p style="color:var(--graphite);margin-bottom:24px">
                 @if (Model.SelectedDiseaseId.HasValue)
                 {
-                    <text>No reinfection rules found for the selected disease.</text>
+                    <text>No reinfection window found for the selected disease.</text>
                 }
                 else
                 {
-                    <text>No reinfection rules have been configured yet.</text>
+                    <text>No reinfection windows have been configured yet.</text>
                 }
             </p>
             <a asp-page="./ReinfectionRulesEdit" asp-route-diseaseId="@Model.SelectedDiseaseId" 
                class="sn-btn sn-btn--signal">
-                <i class="bi bi-plus-circle me-1"></i>Add First Rule
+                <i class="bi bi-plus-circle me-1"></i>Add First Window
             </a>
         </div>
     </div>
 }
-
-<!-- Help Section -->
-<div class="row mt-4">
-    <div class="col-lg-12">
-        <div class="sentinel-card" style="background:var(--paper)">
-            <div class="sentinel-card-body">
-                <h5 style="font-weight:600;margin-bottom:16px">
-                    <i class="bi bi-question-circle me-2" style="color:var(--signal-dk)"></i>Rule Type Examples
-                </h5>
-                <div class="row">
-                    <div class="col-md-6">
-                        <div style="margin-bottom:16px">
-                            <strong style="color:var(--forest)">No Reinfection (HIV, Hepatitis B)</strong>
-                            <p style="font-size:13px;color:var(--graphite);margin:4px 0 0 0">
-                                All lab results append to the patient's single case. Used for chronic/lifelong diseases.
-                            </p>
-                        </div>
-                        <div style="margin-bottom:16px">
-                            <strong style="color:var(--forest)">Time Window (Influenza: 90 days)</strong>
-                            <p style="font-size:13px;color:var(--graphite);margin:4px 0 0 0">
-                                New case only if last positive was more than 90 days ago. Most common for acute diseases.
-                            </p>
-                        </div>
-                        <div style="margin-bottom:16px">
-                            <strong style="color:var(--forest)">Always New Case (Food Poisoning)</strong>
-                            <p style="font-size:13px;color:var(--graphite);margin:4px 0 0 0">
-                                Each positive result creates a separate case. Used for diseases with frequent reinfection.
-                            </p>
-                        </div>
-                    </div>
-                    <div class="col-md-6">
-                        <div style="margin-bottom:16px">
-                            <strong style="color:var(--forest)">Chronic Disease (Tuberculosis)</strong>
-                            <p style="font-size:13px;color:var(--graphite);margin:4px 0 0 0">
-                                All results append to most recent case. Used for diseases with long treatment periods.
-                            </p>
-                        </div>
-                        <div style="margin-bottom:16px">
-                            <strong style="color:var(--forest)">Manual Review</strong>
-                            <p style="font-size:13px;color:var(--graphite);margin:4px 0 0 0">
-                                Results flagged for staff review before case assignment. Used for complex scenarios.
-                            </p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>

@@ -3,8 +3,221 @@
 
 @{
     ViewData["Title"] = "Organization Details";
-    Layout = "~/Pages/Shared/_Layout.cshtml";
+    Layout = "~/Pages/Shared/_LayoutSentinel.cshtml";
 }
+
+<style>
+    /* Organization Details - Sentinel UI */
+    .page-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1.5rem;
+    }
+
+    .page-title {
+        font-size: 28px;
+        font-weight: 500;
+        letter-spacing: -.03em;
+        color: var(--forest);
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .page-title i {
+        color: var(--signal-dk);
+    }
+
+    /* Sentinel Buttons */
+    .sn-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 7px;
+        height: 36px;
+        padding: 0 16px;
+        font-size: 14px;
+        font-weight: 500;
+        letter-spacing: -.005em;
+        border: 1px solid transparent;
+        border-radius: 6px;
+        transition: all .12s;
+        text-decoration: none;
+    }
+
+    .sn-btn--signal {
+        background: var(--signal-dk);
+        color: white;
+    }
+
+    .sn-btn--signal:hover {
+        background: #088960;
+        color: white;
+    }
+
+    .sn-btn--ghost {
+        background: transparent;
+        border: 1px solid var(--hairline);
+        color: var(--forest);
+    }
+
+    .sn-btn--ghost:hover {
+        background: var(--chalk);
+        border-color: var(--slate-lt);
+        color: var(--forest);
+    }
+
+    /* Cards */
+    .sn-card {
+        background: var(--chalk);
+        border: 1px solid var(--hairline);
+        border-radius: 8px;
+        margin-bottom: 1rem;
+        overflow: hidden;
+    }
+
+    .sn-card-header {
+        padding: 16px 20px;
+        border-bottom: 1px solid var(--hairline);
+        background: linear-gradient(to right, var(--signal-lt), white);
+    }
+
+    .sn-card-title {
+        margin: 0;
+        font-size: 15px;
+        font-weight: 600;
+        color: var(--forest);
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .sn-card-body {
+        padding: 24px;
+    }
+
+    /* Field Groups */
+    .sn-field-group {
+        margin-bottom: 1.5rem;
+    }
+
+    .sn-field-label {
+        font-family: var(--f-mono);
+        font-size: 10px;
+        letter-spacing: .08em;
+        text-transform: uppercase;
+        color: var(--graphite);
+        margin-bottom: 6px;
+        display: block;
+    }
+
+    .sn-field-value {
+        font-size: 15px;
+        color: var(--forest);
+        line-height: 1.5;
+    }
+
+    .sn-field-value-large {
+        font-size: 20px;
+        font-weight: 500;
+        letter-spacing: -.02em;
+    }
+
+    /* Status Chips */
+    .sn-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        padding: 6px 12px;
+        border-radius: 4px;
+        font-family: var(--f-mono);
+        font-size: 11px;
+        font-weight: 500;
+        letter-spacing: .04em;
+        border: 1px solid transparent;
+    }
+
+    .sn-chip .dot {
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+    }
+
+    .sn-chip.clear {
+        background: var(--signal-lt);
+        color: #0A3F2C;
+        border-color: #9BE8C6;
+    }
+
+    .sn-chip.clear .dot {
+        background: var(--signal-dk);
+    }
+
+    .sn-chip.inactive {
+        background: var(--paper);
+        color: var(--graphite);
+        border-color: var(--hairline);
+    }
+
+    .sn-chip.inactive .dot {
+        background: var(--slate);
+    }
+
+    .sn-chip.info {
+        background: #E3E9FB;
+        color: #2A3970;
+        border-color: #B7C4EE;
+    }
+
+    .sn-chip.info .dot {
+        background: var(--info);
+    }
+
+    /* Section Divider */
+    .sn-divider {
+        height: 1px;
+        background: var(--hairline);
+        margin: 1.5rem 0;
+    }
+
+    .sn-section-title {
+        font-size: 14px;
+        font-weight: 600;
+        color: var(--forest);
+        margin-bottom: 1rem;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .sn-section-title i {
+        color: var(--signal-dk);
+    }
+
+    /* Notes Display */
+    .sn-notes {
+        background: var(--signal-lt);
+        border: 1px solid #9BE8C6;
+        border-radius: 6px;
+        padding: 16px;
+        font-size: 14px;
+        line-height: 1.6;
+        color: var(--forest);
+    }
+
+    /* Links */
+    .sn-link {
+        color: var(--signal-dk);
+        text-decoration: none;
+        transition: color .12s;
+    }
+
+    .sn-link:hover {
+        color: #088960;
+        text-decoration: underline;
+    }
+</style>
 
 <nav aria-label="breadcrumb" class="mb-3">
     <ol class="breadcrumb">
@@ -16,150 +229,186 @@
 
 @if (TempData["SuccessMessage"] != null)
 {
-    <div class="alert alert-success alert-dismissible fade show" role="alert">
-        <i class="bi bi-check-circle-fill me-2"></i>@TempData["SuccessMessage"]
+    <div class="alert alert-success alert-dismissible fade show" role="alert" style="border-left: 3px solid var(--signal-dk);">
+        <i class="bi bi-check-circle me-2"></i>@TempData["SuccessMessage"]
         <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
     </div>
 }
 
 @if (TempData["ErrorMessage"] != null)
 {
-    <div class="alert alert-danger alert-dismissible fade show" role="alert">
-        <i class="bi bi-exclamation-triangle-fill me-2"></i>@TempData["ErrorMessage"]
+    <div class="alert alert-danger alert-dismissible fade show" role="alert" style="border-left: 3px solid var(--outbreak);">
+        <i class="bi bi-exclamation-triangle me-2"></i>@TempData["ErrorMessage"]
         <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
     </div>
 }
 
-<div class="container-fluid">
-    <div class="row mb-3">
-        <div class="col">
-            <h2 class="fw-semibold">
-                <i class="bi bi-building me-2"></i>
-                Organization Details
-            </h2>
-        </div>
-        <div class="col text-end">
-            <a asp-page="./Edit" asp-route-id="@Model.Organization.Id" class="btn btn-primary">
-                <i class="bi bi-pencil"></i> Edit
-            </a>
-            <a asp-page="./Index" class="btn btn-outline-secondary ms-2">
-                Back to List
-            </a>
-        </div>
+<div class="page-header">
+    <div class="page-title">
+        <i class="bi bi-building"></i>
+        Organization Details
     </div>
+    <div class="d-flex gap-2">
+        <a asp-page="./Edit" asp-route-id="@Model.Organization.Id" class="sn-btn sn-btn--signal">
+            <i class="bi bi-pencil"></i>Edit
+        </a>
+        <a asp-page="./Index" class="sn-btn sn-btn--ghost">
+            <i class="bi bi-arrow-left"></i>Back to List
+        </a>
+    </div>
+</div>
 
+<div class="container-fluid">
     <div class="row">
         <div class="col-lg-8">
-            <div class="card shadow-sm mb-4">
-                <div class="card-header bg-light fw-semibold">
-                    <i class="bi bi-info-circle me-2"></i>Organization Information
+            <div class="sn-card">
+                <div class="sn-card-header">
+                    <div class="sn-card-title">
+                        <i class="bi bi-info-circle"></i>Organization Information
+                    </div>
                 </div>
-                <div class="card-body">
-                    <div class="row mb-3">
+                <div class="sn-card-body">
+                    <div class="row mb-4">
                         <div class="col-md-6">
-                            <label class="text-muted small">Organization ID</label>
-                            <div><span class="badge bg-secondary fs-6">@Model.Organization.FriendlyId</span></div>
+                            <div class="sn-field-group">
+                                <label class="sn-field-label">Organization ID</label>
+                                <div class="sn-field-value">
+                                    <span class="sn-chip info">
+                                        <span class="dot"></span>
+                                        @Model.Organization.FriendlyId
+                                    </span>
+                                </div>
+                            </div>
                         </div>
                         <div class="col-md-6">
-                            <label class="text-muted small">Status</label>
-                            <div>
-                                @if (Model.Organization.IsActive)
-                                {
-                                    <span class="badge bg-success fs-6">Active</span>
-                                }
-                                else
-                                {
-                                    <span class="badge bg-secondary fs-6">Inactive</span>
-                                }
+                            <div class="sn-field-group">
+                                <label class="sn-field-label">Status</label>
+                                <div class="sn-field-value">
+                                    @if (Model.Organization.IsActive)
+                                    {
+                                        <span class="sn-chip clear">
+                                            <span class="dot"></span>
+                                            Active
+                                        </span>
+                                    }
+                                    else
+                                    {
+                                        <span class="sn-chip inactive">
+                                            <span class="dot"></span>
+                                            Inactive
+                                        </span>
+                                    }
+                                </div>
                             </div>
                         </div>
                     </div>
 
-                    <div class="row mb-3">
+                    <div class="row mb-4">
                         <div class="col-md-12">
-                            <label class="text-muted small">Organization Name</label>
-                            <div class="fw-bold fs-5">@Model.Organization.Name</div>
+                            <div class="sn-field-group">
+                                <label class="sn-field-label">Organization Name</label>
+                                <div class="sn-field-value sn-field-value-large">@Model.Organization.Name</div>
+                            </div>
                         </div>
                     </div>
 
-                    <div class="row mb-3">
+                    <div class="row mb-4">
                         <div class="col-md-6">
-                            <label class="text-muted small">Organization Type</label>
-                            <div>
-                                @if (Model.Organization.OrganizationType != null)
-                                {
-                                    <span class="badge bg-info fs-6">@Model.Organization.OrganizationType.Name</span>
-                                }
-                                else
-                                {
-                                    <span class="text-muted">Not specified</span>
-                                }
+                            <div class="sn-field-group">
+                                <label class="sn-field-label">Organization Type</label>
+                                <div class="sn-field-value">
+                                    @if (Model.Organization.OrganizationType != null)
+                                    {
+                                        <span class="sn-chip info">
+                                            <span class="dot"></span>
+                                            @Model.Organization.OrganizationType.Name
+                                        </span>
+                                    }
+                                    else
+                                    {
+                                        <span style="color: var(--graphite);">Not specified</span>
+                                    }
+                                </div>
                             </div>
                         </div>
                         <div class="col-md-6">
-                            <label class="text-muted small">Export Code</label>
-                            <div>@(Model.Organization.ExportCode ?? "-")</div>
+                            <div class="sn-field-group">
+                                <label class="sn-field-label">Export Code</label>
+                                <div class="sn-field-value">@(Model.Organization.ExportCode ?? "-")</div>
+                            </div>
                         </div>
                     </div>
 
-                    <hr />
+                    <div class="sn-divider"></div>
 
-                    <h6 class="fw-semibold mb-3"><i class="bi bi-geo-alt me-2"></i>Address</h6>
-                    <div class="mb-3">
+                    <div class="sn-section-title">
+                        <i class="bi bi-geo-alt"></i>Address
+                    </div>
+                    <div class="sn-field-group">
                         @if (!string.IsNullOrEmpty(Model.Organization.Address))
                         {
-                            <p class="mb-0">@Model.Organization.Address</p>
+                            <div class="sn-field-value">@Model.Organization.Address</div>
                         }
                         else
                         {
-                            <p class="text-muted mb-0">No address on file</p>
+                            <div class="sn-field-value" style="color: var(--graphite);">No address on file</div>
                         }
                     </div>
 
-                    <hr />
+                    <div class="sn-divider"></div>
 
-                    <h6 class="fw-semibold mb-3"><i class="bi bi-telephone me-2"></i>Contact Information</h6>
-                    <div class="row mb-3">
+                    <div class="sn-section-title">
+                        <i class="bi bi-telephone"></i>Contact Information
+                    </div>
+                    <div class="row mb-4">
                         <div class="col-md-6">
-                            <label class="text-muted small">Contact Person</label>
-                            <div>@(Model.Organization.ContactPerson ?? "-")</div>
+                            <div class="sn-field-group">
+                                <label class="sn-field-label">Contact Person</label>
+                                <div class="sn-field-value">@(Model.Organization.ContactPerson ?? "-")</div>
+                            </div>
                         </div>
                         <div class="col-md-6">
-                            <label class="text-muted small">Phone</label>
-                            <div>
-                                @if (!string.IsNullOrEmpty(Model.Organization.Phone))
-                                {
-                                    <a href="tel:@Model.Organization.Phone">@Model.Organization.Phone</a>
-                                }
-                                else
-                                {
-                                    <span class="text-muted">-</span>
-                                }
+                            <div class="sn-field-group">
+                                <label class="sn-field-label">Phone</label>
+                                <div class="sn-field-value">
+                                    @if (!string.IsNullOrEmpty(Model.Organization.Phone))
+                                    {
+                                        <a href="tel:@Model.Organization.Phone" class="sn-link">@Model.Organization.Phone</a>
+                                    }
+                                    else
+                                    {
+                                        <span>-</span>
+                                    }
+                                </div>
                             </div>
                         </div>
                     </div>
 
-                    <div class="row mb-3">
+                    <div class="row mb-4">
                         <div class="col-md-12">
-                            <label class="text-muted small">Email</label>
-                            <div>
-                                @if (!string.IsNullOrEmpty(Model.Organization.Email))
-                                {
-                                    <a href="mailto:@Model.Organization.Email">@Model.Organization.Email</a>
-                                }
-                                else
-                                {
-                                    <span class="text-muted">-</span>
-                                }
+                            <div class="sn-field-group">
+                                <label class="sn-field-label">Email</label>
+                                <div class="sn-field-value">
+                                    @if (!string.IsNullOrEmpty(Model.Organization.Email))
+                                    {
+                                        <a href="mailto:@Model.Organization.Email" class="sn-link">@Model.Organization.Email</a>
+                                    }
+                                    else
+                                    {
+                                        <span>-</span>
+                                    }
+                                </div>
                             </div>
                         </div>
                     </div>
 
                     @if (!string.IsNullOrEmpty(Model.Organization.Notes))
                     {
-                        <hr />
-                        <h6 class="fw-semibold mb-3"><i class="bi bi-file-text me-2"></i>Notes</h6>
-                        <div class="alert alert-light mb-0">
+                        <div class="sn-divider"></div>
+                        <div class="sn-section-title">
+                            <i class="bi bi-file-text"></i>Notes
+                        </div>
+                        <div class="sn-notes">
                             @Model.Organization.Notes
                         </div>
                     }
@@ -168,20 +417,22 @@
         </div>
 
         <div class="col-lg-4">
-            <div class="card shadow-sm mb-4">
-                <div class="card-header bg-light fw-semibold">
-                    <i class="bi bi-clock-history me-2"></i>Audit Information
+            <div class="sn-card">
+                <div class="sn-card-header">
+                    <div class="sn-card-title">
+                        <i class="bi bi-clock-history"></i>Audit Information
+                    </div>
                 </div>
-                <div class="card-body">
-                    <div class="mb-3">
-                        <label class="text-muted small">Created</label>
-                        <div>@Model.Organization.CreatedAt.ToString("dd MMM yyyy HH:mm")</div>
+                <div class="sn-card-body">
+                    <div class="sn-field-group">
+                        <label class="sn-field-label">Created</label>
+                        <div class="sn-field-value">@Model.Organization.CreatedAt.ToString("dd MMM yyyy HH:mm")</div>
                     </div>
                     @if (Model.Organization.ModifiedAt.HasValue)
                     {
-                        <div class="mb-3">
-                            <label class="text-muted small">Last Modified</label>
-                            <div>@Model.Organization.ModifiedAt.Value.ToString("dd MMM yyyy HH:mm")</div>
+                        <div class="sn-field-group">
+                            <label class="sn-field-label">Last Modified</label>
+                            <div class="sn-field-value">@Model.Organization.ModifiedAt.Value.ToString("dd MMM yyyy HH:mm")</div>
                         </div>
                     }
                 </div>

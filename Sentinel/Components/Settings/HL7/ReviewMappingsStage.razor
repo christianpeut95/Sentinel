@@ -938,36 +938,81 @@
     {
         var fields = new List<ParsedField>();
 
-        // Extract from PatientData
+        // Mapping from parsed field keys to actual HL7 field paths
+        // This ensures that when users browse and select fields, proper HL7 paths are saved
+        var pidFieldMap = new Dictionary<string, string>
+        {
+            ["FirstName"] = "PID-5.2",
+            ["LastName"] = "PID-5.1",
+            ["MiddleName"] = "PID-5.3",
+            ["DateOfBirth"] = "PID-7",
+            ["Sex"] = "PID-8",
+            ["Address"] = "PID-11.1",
+            ["City"] = "PID-11.3",
+            ["State"] = "PID-11.4",
+            ["ZipCode"] = "PID-11.5",
+            ["Zip"] = "PID-11.5",
+            ["Phone"] = "PID-13",
+            ["MRN"] = "PID-3"
+        };
+
+        var obrFieldMap = new Dictionary<string, string>
+        {
+            ["AccessionNumber"] = "OBR-3",
+            ["TestCode"] = "OBR-4.1",
+            ["TestName"] = "OBR-4.2",
+            ["OrderDateTime"] = "OBR-7",
+            ["SpecimenSource"] = "OBR-15",
+            ["OrderingProvider"] = "OBR-16"
+        };
+
+        var spmFieldMap = new Dictionary<string, string>
+        {
+            ["SpecimenType"] = "SPM-4"
+        };
+
+        var obxFieldMap = new Dictionary<string, string>
+        {
+            ["TestCode"] = "OBX-3.1",
+            ["TestName"] = "OBX-3.2",
+            ["Result"] = "OBX-5",
+            ["TestMethod"] = "OBX-17",
+            ["Units"] = "OBX-6",
+            ["AbnormalFlag"] = "OBX-8"
+        };
+
+        // Extract from PatientData with proper HL7 field paths
         foreach (var kvp in parseResult.PatientData)
         {
             if (!string.IsNullOrWhiteSpace(kvp.Value))
             {
-                fields.Add(new ParsedField { Path = $"PID.{kvp.Key}", Value = kvp.Value });
+                var fieldPath = pidFieldMap.ContainsKey(kvp.Key) ? pidFieldMap[kvp.Key] : $"PID.{kvp.Key}";
+                fields.Add(new ParsedField { Path = fieldPath, Value = kvp.Value });
             }
         }
 
-        // Extract from OrderData
+        // Extract from OrderData with proper HL7 field paths
         foreach (var kvp in parseResult.OrderData)
         {
             if (!string.IsNullOrWhiteSpace(kvp.Value))
             {
-                fields.Add(new ParsedField { Path = $"OBR.{kvp.Key}", Value = kvp.Value });
+                var fieldPath = obrFieldMap.ContainsKey(kvp.Key) ? obrFieldMap[kvp.Key] : $"OBR.{kvp.Key}";
+                fields.Add(new ParsedField { Path = fieldPath, Value = kvp.Value });
             }
         }
 
-        // Extract from SpecimenData
+        // Extract from SpecimenData with proper HL7 field paths
         foreach (var kvp in parseResult.SpecimenData)
         {
             if (!string.IsNullOrWhiteSpace(kvp.Value))
             {
-                fields.Add(new ParsedField { Path = $"SPM.{kvp.Key}", Value = kvp.Value });
+                var fieldPath = spmFieldMap.ContainsKey(kvp.Key) ? spmFieldMap[kvp.Key] : $"SPM.{kvp.Key}";
+                fields.Add(new ParsedField { Path = fieldPath, Value = kvp.Value });
             }
         }
 
-        // Extract from ResultData (OBX segments)
-        // Group by field key to show normalized paths (OBX.Field instead of OBX[1].Field)
-        // and collect all values from all observations
+        // Extract from ResultData (OBX segments) with proper HL7 field paths
+        // Group by field key and collect all values from all observations
         var obxFieldGroups = new Dictionary<string, List<string>>();
 
         foreach (var result in parseResult.ResultData)
@@ -985,16 +1030,16 @@
             }
         }
 
-        // Add normalized OBX fields with all values collected
+        // Add OBX fields with proper HL7 field paths (e.g., OBX-3.2 instead of OBX.TestName)
         foreach (var kvp in obxFieldGroups)
         {
-            var normalizedPath = $"OBX.{kvp.Key}";
+            var fieldPath = obxFieldMap.ContainsKey(kvp.Key) ? obxFieldMap[kvp.Key] : $"OBX.{kvp.Key}";
             var allValues = kvp.Value;
 
             // Store the first value as the primary value, but keep all values for display
             fields.Add(new ParsedField 
             { 
-                Path = normalizedPath, 
+                Path = fieldPath, 
                 Value = allValues.First(),
                 AllValues = allValues // Store all observation values
             });
@@ -1013,7 +1058,7 @@
         if (string.IsNullOrEmpty(fieldPath) || fieldPath == "SKIPPED" || fieldPath == "MANUAL")
             return fieldPath;
 
-        var parts = fieldPath.Split('-');
+        var parts = fieldPath.Split('.', '-');
         return parts.Length > 0 ? parts[0] : "UNKNOWN";
     }
 

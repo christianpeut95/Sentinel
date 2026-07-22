@@ -56,6 +56,7 @@ namespace Sentinel.Tests.Services.HL7
                 .ReturnsAsync(new MarkerResolutionResult());
 
             var mockFieldMappingService = new Mock<IHL7FieldMappingService>();
+            var mockCaseDefinitionMatchingService = new Mock<ICaseDefinitionMatchingService>();
 
             // Use real HL7ParserService for authentic test messages
             _parserService = new HL7ParserService(_context, _mockParserLogger.Object);
@@ -66,7 +67,8 @@ namespace Sentinel.Tests.Services.HL7
                 _mockDuplicateService.Object,
                 _mockCaseMatchingService.Object,
                 mockMarkerResolutionService.Object,
-                mockFieldMappingService.Object);
+                mockFieldMappingService.Object,
+                mockCaseDefinitionMatchingService.Object);
 
             SeedLookupData();
         }

@@ -68,6 +68,26 @@ namespace Sentinel.Models.HL7
         [Display(Name = "Case Insensitive")]
         public bool TestResult_CaseInsensitive { get; set; } = false;
 
+        // Partial Match Flexibility Rules
+        [Display(Name = "Allow Messages Missing Specimen Type")]
+        public bool AllowMissingSpecimenType { get; set; } = false;
+
+        [Display(Name = "Allow Messages Missing Test Method")]
+        public bool AllowMissingTestMethod { get; set; } = false;
+
+        [Display(Name = "Allow Messages Missing Pathogen")]
+        public bool AllowMissingPathogen { get; set; } = false;
+
+        [Display(Name = "Allow Messages Missing Result")]
+        public bool AllowMissingResult { get; set; } = false;
+
+        [Display(Name = "Confirmation Status for Partial Matches")]
+        public int? PartialMatchConfirmationStatusId { get; set; }
+        public CaseStatus? PartialMatchConfirmationStatus { get; set; }
+
+        [Display(Name = "Max Missing Fields Allowed")]
+        public int MaxMissingFieldsAllowed { get; set; } = 1;
+
         // Audit
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
         public DateTime? UpdatedAt { get; set; }

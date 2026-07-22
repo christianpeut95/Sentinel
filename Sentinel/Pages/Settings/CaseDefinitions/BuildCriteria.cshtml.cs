@@ -85,7 +85,7 @@ namespace Sentinel.Pages.Settings.CaseDefinitions
             var valueObj = new
             {
                 specimenTypeIds = input.SpecimenTypeIds,
-                pathogenNames = input.PathogenNames,
+                pathogenIds = input.PathogenIds,
                 testMethodIds = input.TestMethodIds,
                 resultValues = input.ResultValues,
                 timeConstraint = input.TimeConstraint,
@@ -115,7 +115,7 @@ namespace Sentinel.Pages.Settings.CaseDefinitions
                 AcceptableSpecimenTypesJson = JsonSerializer.Serialize(input.SpecimenTypeIds ?? new List<int>()),
                 SpecimenStoragePreference = input.SpecimenStoragePreference,
                 CanonicalSpecimenTypeId = input.CanonicalSpecimenTypeId,
-                AcceptablePathogensJson = JsonSerializer.Serialize(input.PathogenNames ?? new List<string>()),
+                AcceptablePathogensJson = JsonSerializer.Serialize(input.PathogenIds ?? new List<Guid>()),
                 BiomarkerStoragePreference = input.PathogenStoragePreference,
                 CanonicalPathogenId = input.CanonicalPathogenId,
                 AcceptableTestMethodsJson = JsonSerializer.Serialize(input.TestMethodIds ?? new List<int>()),
@@ -357,7 +357,7 @@ namespace Sentinel.Pages.Settings.CaseDefinitions
             public LogicalOperator LogicalOperator { get; set; }
             public int GroupNumber { get; set; }
             public List<int> SpecimenTypeIds { get; set; } = new();
-            public List<string> PathogenNames { get; set; } = new();
+            public List<Guid> PathogenIds { get; set; } = new();
             public List<int> TestMethodIds { get; set; } = new();
             public List<string> ResultValues { get; set; } = new();
             public TimeConstraintInput? TimeConstraint { get; set; }

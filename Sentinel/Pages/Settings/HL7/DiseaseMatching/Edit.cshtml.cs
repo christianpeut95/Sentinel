@@ -25,6 +25,13 @@ namespace Sentinel.Pages.Settings.HL7.DiseaseMatching
         public Disease? Disease { get; set; }
         public string? ParentDiseaseName { get; set; }
 
+        public async Task<List<CaseStatus>> GetCaseStatusesAsync()
+        {
+            return await _context.CaseStatuses
+                .OrderBy(s => s.DisplayOrder)
+                .ToListAsync();
+        }
+
         public async Task<IActionResult> OnGetAsync()
         {
             Disease = await _context.Diseases
@@ -90,6 +97,15 @@ namespace Sentinel.Pages.Settings.HL7.DiseaseMatching
             // Remove Config.Disease from ModelState - it's a required navigation property that won't be posted
             ModelState.Remove("Config.Disease");
 
+            // Custom validation: if any Allow Missing field is checked, require PartialMatchConfirmationStatusId
+            if ((Config.AllowMissingSpecimenType || Config.AllowMissingTestMethod || 
+                 Config.AllowMissingPathogen || Config.AllowMissingResult) && 
+                !Config.PartialMatchConfirmationStatusId.HasValue)
+            {
+                ModelState.AddModelError("Config.PartialMatchConfirmationStatusId", 
+                    "Confirmation Status is required when partial matching is enabled.");
+            }
+
             if (!ModelState.IsValid)
             {
                 TempData["ErrorMessage"] = "Validation failed. Please check your inputs.";
@@ -119,6 +135,15 @@ namespace Sentinel.Pages.Settings.HL7.DiseaseMatching
                 existingConfig.TestResult_NormalizeWhitespace = Config.TestResult_NormalizeWhitespace;
                 existingConfig.TestResult_IgnorePunctuation = Config.TestResult_IgnorePunctuation;
                 existingConfig.TestResult_CaseInsensitive = Config.TestResult_CaseInsensitive;
+
+                // Partial match flexibility fields
+                existingConfig.AllowMissingSpecimenType = Config.AllowMissingSpecimenType;
+                existingConfig.AllowMissingTestMethod = Config.AllowMissingTestMethod;
+                existingConfig.AllowMissingPathogen = Config.AllowMissingPathogen;
+                existingConfig.AllowMissingResult = Config.AllowMissingResult;
+                existingConfig.PartialMatchConfirmationStatusId = Config.PartialMatchConfirmationStatusId;
+                existingConfig.MaxMissingFieldsAllowed = Config.MaxMissingFieldsAllowed;
+
                 existingConfig.UpdatedAt = DateTime.UtcNow;
                 existingConfig.UpdatedBy = User.Identity?.Name;
             }

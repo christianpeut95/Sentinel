@@ -16,6 +16,11 @@ namespace Sentinel.Services.HL7
         Task StopMonitoringAsync();
 
         /// <summary>
+        /// Reloads configurations from database and restarts monitoring
+        /// </summary>
+        Task ReloadConfigurationsAsync(CancellationToken cancellationToken = default);
+
+        /// <summary>
         /// Processes a single HL7 file manually
         /// </summary>
         Task<FileProcessingResult> ProcessFileAsync(

@@ -49,7 +49,7 @@ namespace Sentinel.Controllers.Api
             var valueObj = new
             {
                 specimenTypeIds = input.SpecimenTypeIds,
-                pathogenNames = input.PathogenNames,
+                pathogenIds = input.PathogenIds,
                 testMethodIds = input.TestMethodIds,
                 resultValues = input.ResultValues,
                 timeConstraint = input.TimeConstraint,
@@ -80,7 +80,7 @@ namespace Sentinel.Controllers.Api
                 AcceptableSpecimenTypesJson = JsonSerializer.Serialize(input.SpecimenTypeIds),
                 SpecimenStoragePreference = input.SpecimenStoragePreference,
                 CanonicalSpecimenTypeId = input.CanonicalSpecimenTypeId,
-                AcceptablePathogensJson = JsonSerializer.Serialize(input.PathogenNames),
+                AcceptablePathogensJson = JsonSerializer.Serialize(input.PathogenIds),
                 BiomarkerStoragePreference = input.PathogenStoragePreference,
                 CanonicalPathogenId = input.CanonicalPathogenId,
                 AcceptableTestMethodsJson = JsonSerializer.Serialize(input.TestMethodIds),
@@ -129,7 +129,7 @@ namespace Sentinel.Controllers.Api
                 var valueObj = new
                 {
                     specimenTypeIds = input.SpecimenTypeIds,
-                    pathogenNames = input.PathogenNames,
+                    pathogenIds = input.PathogenIds,
                     testMethodIds = input.TestMethodIds,
                     resultValues = input.ResultValues,
                     timeConstraint = input.TimeConstraint,
@@ -159,7 +159,7 @@ namespace Sentinel.Controllers.Api
                 criterion.AcceptableSpecimenTypesJson = JsonSerializer.Serialize(input.SpecimenTypeIds);
                 criterion.SpecimenStoragePreference = input.SpecimenStoragePreference;
                 criterion.CanonicalSpecimenTypeId = input.CanonicalSpecimenTypeId;
-                criterion.AcceptablePathogensJson = JsonSerializer.Serialize(input.PathogenNames);
+                criterion.AcceptablePathogensJson = JsonSerializer.Serialize(input.PathogenIds);
                 criterion.BiomarkerStoragePreference = input.PathogenStoragePreference;
                 criterion.CanonicalPathogenId = input.CanonicalPathogenId;
                 criterion.AcceptableTestMethodsJson = JsonSerializer.Serialize(input.TestMethodIds);
@@ -472,6 +472,30 @@ namespace Sentinel.Controllers.Api
             return Ok(new { success = true });
         }
 
+        [HttpPatch("{criterionId}/group-exit-operator")]
+        public async Task<IActionResult> UpdateGroupExitOperator(int definitionId, int criterionId, [FromBody] UpdateGroupExitOperatorInput input)
+        {
+            var criterion = await _context.CaseDefinitionCriteria
+                .Include(c => c.ChildCriteria)
+                .FirstOrDefaultAsync(c => c.Id == criterionId && c.CaseDefinitionId == definitionId);
+
+            if (criterion == null)
+            {
+                return NotFound();
+            }
+
+            // Only allow setting GroupExitOperator on parent criteria (groups)
+            if (criterion.ChildCriteria?.Any() != true)
+            {
+                return BadRequest("GroupExitOperator can only be set on parent criteria with children");
+            }
+
+            criterion.GroupExitOperator = input.GroupExitOperator;
+            await _context.SaveChangesAsync();
+
+            return Ok(new { success = true });
+        }
+
         [HttpPost("{criterionId}/create-group")]
         public async Task<IActionResult> CreateGroup(int definitionId, int criterionId)
         {
@@ -614,7 +638,7 @@ namespace Sentinel.Controllers.Api
         public int GroupNumber { get; set; }
         public int? ParentCriteriaId { get; set; }
         public List<int> SpecimenTypeIds { get; set; } = new();
-        public List<string> PathogenNames { get; set; } = new(); // Legacy: now stores GUIDs as strings (not names)
+        public List<Guid> PathogenIds { get; set; } = new();
         public List<int> TestMethodIds { get; set; } = new();
         public List<string> ResultValues { get; set; } = new();
         public TimeConstraintInput? TimeConstraint { get; set; }
@@ -675,6 +699,11 @@ namespace Sentinel.Controllers.Api
     public class UpdateOperatorInput
     {
         public LogicalOperator LogicalOperator { get; set; }
+    }
+
+    public class UpdateGroupExitOperatorInput
+    {
+        public LogicalOperator GroupExitOperator { get; set; }
     }
 
     public class ReorderInput

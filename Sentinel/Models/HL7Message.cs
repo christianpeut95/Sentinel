@@ -139,6 +139,10 @@ namespace Sentinel.Models
         [DataType(DataType.MultilineText)]
         public string? ManualReviewNotes { get; set; }
 
+        // Partial Match Tracking
+        [Display(Name = "Partial Match Details (JSON)")]
+        public string? PartialMatchDetailsJson { get; set; }
+
         // Parsing Details
         public ICollection<HL7MessageSegment> Segments { get; set; } = new List<HL7MessageSegment>();
         public ICollection<HL7ParsingIssue> ParsingIssues { get; set; } = new List<HL7ParsingIssue>();

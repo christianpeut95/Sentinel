@@ -7,12 +7,6 @@
 }
 
 <style>
-    /* Breadcrumb fix */
-    .sn-breadcrumb {
-        list-style: none;
-        padding-left: 0;
-    }
-
     /* Matching sections */
     .matching-section-card {
         background: var(--sn-chalk, #FBFAF5);
@@ -85,13 +79,13 @@
     }
 </style>
 
-<nav aria-label="breadcrumb" class="mb-4">
-    <ol class="sn-breadcrumb">
-        <li class="sn-breadcrumb-item"><a asp-page="/Index">Home</a></li>
-        <li class="sn-breadcrumb-item"><a asp-page="/Settings/Index">Settings</a></li>
-        <li class="sn-breadcrumb-item"><a asp-page="/Settings/HL7/Configurations/Index">HL7 Configurations</a></li>
-        <li class="sn-breadcrumb-item"><a asp-page="./Index">Disease Matching Rules</a></li>
-        <li class="sn-breadcrumb-item sn-breadcrumb-item--active" aria-current="page">@Model.Disease?.Name</li>
+<nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a asp-page="/Index">Home</a></li>
+        <li class="breadcrumb-item"><a asp-page="/Settings/Index">Settings</a></li>
+        <li class="breadcrumb-item"><a asp-page="/Settings/HL7/Configurations/Index">HL7 Configurations</a></li>
+        <li class="breadcrumb-item"><a asp-page="./Index">Disease Matching Rules</a></li>
+        <li class="breadcrumb-item active" aria-current="page">@Model.Disease?.Name</li>
     </ol>
 </nav>
 
@@ -305,6 +299,81 @@
                             Case Insensitive
                         </label>
                     </div>
+                </div>
+            </div>
+
+            <!-- Partial Match Flexibility -->
+            <div class="matching-section-card" style="border-color: var(--sn-accent-dk, #D67500);">
+                <div class="matching-section-header">
+                    <i class="bi bi-exclamation-triangle matching-section-icon" style="color: var(--sn-accent-dk, #D67500);"></i>
+                    <h2 class="matching-section-title">Partial Match Flexibility</h2>
+                </div>
+                <p class="matching-section-desc">
+                    <strong style="color: var(--sn-accent-dk, #D67500);">Advanced:</strong> Allow HL7 messages to match case definitions even when specific fields are missing from the message. Use with caution to avoid incorrect disease classification.
+                </p>
+
+                <div class="sn-alert sn-alert--warning mb-3" style="font-size: 13px;">
+                    <i class="bi bi-info-circle me-1"></i>
+                    Maximum <strong>1 missing field</strong> allowed per message. Messages with 2+ missing fields will be rejected.
+                </div>
+
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <div class="sn-checkbox">
+                            <input class="sn-checkbox-input" type="checkbox" asp-for="Config.AllowMissingSpecimenType" id="allowMissingSpecimen">
+                            <label class="sn-checkbox-label" for="allowMissingSpecimen">
+                                <strong>Allow Missing Specimen Type</strong>
+                                <small class="d-block" style="color:var(--sn-graphite,#4A5A55);margin-top:2px">Accept messages without specimen information</small>
+                            </label>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="sn-checkbox">
+                            <input class="sn-checkbox-input" type="checkbox" asp-for="Config.AllowMissingTestMethod" id="allowMissingMethod">
+                            <label class="sn-checkbox-label" for="allowMissingMethod">
+                                <strong>Allow Missing Test Method</strong>
+                                <small class="d-block" style="color:var(--sn-graphite,#4A5A55);margin-top:2px">Accept messages without test method information</small>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <div class="sn-checkbox">
+                            <input class="sn-checkbox-input" type="checkbox" asp-for="Config.AllowMissingPathogen" id="allowMissingPathogen">
+                            <label class="sn-checkbox-label" for="allowMissingPathogen">
+                                <strong>Allow Missing Pathogen</strong>
+                                <small class="d-block" style="color:var(--sn-graphite,#4A5A55);margin-top:2px">Accept messages without pathogen/biomarker information</small>
+                            </label>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="sn-checkbox">
+                            <input class="sn-checkbox-input" type="checkbox" asp-for="Config.AllowMissingResult" id="allowMissingResult">
+                            <label class="sn-checkbox-label" for="allowMissingResult">
+                                <strong>Allow Missing Result</strong>
+                                <small class="d-block" style="color:var(--sn-graphite,#4A5A55);margin-top:2px">Accept messages without test result information</small>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <hr class="my-3" style="border-color: var(--sn-hairline, #D8D4C4);">
+
+                <div class="mb-0">
+                    <label class="form-label" for="partialMatchStatus">
+                        <strong>Confirmation Status for Partial Matches</strong>
+                        <small class="d-block text-muted">Required: Select the confirmation status to apply when messages have missing data</small>
+                    </label>
+                    <select class="form-select" asp-for="Config.PartialMatchConfirmationStatusId" id="partialMatchStatus">
+                        <option value="">-- Select Confirmation Status --</option>
+                        @foreach (var status in await Model.GetCaseStatusesAsync())
+                        {
+                            <option value="@status.Id">@status.Name</option>
+                        }
+                    </select>
+                    <span asp-validation-for="Config.PartialMatchConfirmationStatusId" class="text-danger"></span>
                 </div>
             </div>
 

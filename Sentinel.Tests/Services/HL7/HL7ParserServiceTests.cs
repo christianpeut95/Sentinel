@@ -374,6 +374,63 @@ OBX|3|CWE|94500-6^SARS-CoV-2 RNA^LN||260415000^Not detected^SCT||||||F|||2026062
         Assert.Equal("Not detected", covidResult.GetValueOrDefault("Result", ""));
     }
 
+    [Fact]
+    public async Task ParseMessageAsync_DuplicateMessage_ShouldCreateNewDuplicateRecord()
+    {
+        // Arrange - Parse the original message
+        var originalMessage = await _service.ParseMessageAsync(SampleHL7Message);
+        Assert.NotNull(originalMessage);
+        Assert.Equal("MSG00001", originalMessage.MessageControlId);
+        Assert.Equal(HL7ProcessingStatus.ParsedSuccessfully, originalMessage.Status);
+
+        // Act - Parse the same message again (duplicate)
+        var duplicateMessage = await _service.ParseMessageAsync(SampleHL7Message);
+
+        // Assert - Should create a NEW message record
+        Assert.NotNull(duplicateMessage);
+        Assert.NotEqual(originalMessage.Id, duplicateMessage.Id); // Different IDs
+
+        // Duplicate should be marked appropriately
+        Assert.True(duplicateMessage.IsDuplicate);
+        Assert.Equal(originalMessage.Id, duplicateMessage.DuplicateOfMessageId);
+        Assert.Equal("MessageControlId+SendingFacility", duplicateMessage.DuplicateDetectionMethod);
+        Assert.Equal(HL7ProcessingStatus.DuplicateDetected, duplicateMessage.Status);
+
+        // Both messages should exist in the database
+        var allMessages = await _context.HL7Messages.ToListAsync();
+        Assert.Equal(2, allMessages.Count);
+
+        // Original should still be marked as processed successfully
+        var dbOriginal = allMessages.First(m => m.Id == originalMessage.Id);
+        Assert.Equal(HL7ProcessingStatus.ParsedSuccessfully, dbOriginal.Status);
+        Assert.False(dbOriginal.IsDuplicate);
+    }
+
+    [Fact]
+    public async Task ParseMessageAsync_MultipleDuplicates_ShouldCreateSeparateRecords()
+    {
+        // Arrange - Parse the original message
+        var originalMessage = await _service.ParseMessageAsync(SampleHL7Message);
+
+        // Act - Parse the same message twice more
+        var duplicate1 = await _service.ParseMessageAsync(SampleHL7Message);
+        var duplicate2 = await _service.ParseMessageAsync(SampleHL7Message);
+
+        // Assert - Should have 3 separate records
+        var allMessages = await _context.HL7Messages.ToListAsync();
+        Assert.Equal(3, allMessages.Count);
+
+        // All duplicates should point to the original
+        Assert.True(duplicate1.IsDuplicate);
+        Assert.Equal(originalMessage.Id, duplicate1.DuplicateOfMessageId);
+        Assert.True(duplicate2.IsDuplicate);
+        Assert.Equal(originalMessage.Id, duplicate2.DuplicateOfMessageId);
+
+        // Each duplicate should have a unique ID and ReceivedAt timestamp
+        Assert.NotEqual(duplicate1.Id, duplicate2.Id);
+        Assert.True(duplicate2.ReceivedAt >= duplicate1.ReceivedAt);
+    }
+
     public void Dispose()
     {
         _context.Database.EnsureDeleted();

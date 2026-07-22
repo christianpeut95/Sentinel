@@ -51,8 +51,13 @@ namespace Sentinel.Pages.Settings
         public string? CountryCode { get; set; }
 
         [BindProperty]
-        [Display(Name = "Timezone")]
+        [Display(Name = "Timezone (Legacy)")]
         public string? Timezone { get; set; }
+
+        [BindProperty]
+        [Required(ErrorMessage = "Application timezone is required")]
+        [Display(Name = "Application Timezone")]
+        public string TimeZoneId { get; set; } = "UTC";
 
         [TempData]
         public string StatusMessage { get; set; } = string.Empty;
@@ -66,6 +71,7 @@ namespace Sentinel.Pages.Settings
             PostalCode = _config["Organization:PostalCode"];
             CountryCode = _config["Organization:CountryCode"];
             Timezone = _config["Organization:Timezone"];
+            TimeZoneId = _config["Organization:TimeZoneId"] ?? "UTC";
         }
 
         public async Task<IActionResult> OnPostAsync()
@@ -75,13 +81,24 @@ namespace Sentinel.Pages.Settings
                 return Page();
             }
 
+            // Validate timezone ID
+            try
+            {
+                TimeZoneInfo.FindSystemTimeZoneById(TimeZoneId);
+            }
+            catch (TimeZoneNotFoundException)
+            {
+                ModelState.AddModelError(nameof(TimeZoneId), "Invalid timezone identifier. Please select a valid timezone from the list.");
+                return Page();
+            }
+
             var appsettingsPath = Path.Combine(_env.ContentRootPath, "appsettings.json");
-            
+
             try
             {
                 var txt = await System.IO.File.ReadAllTextAsync(appsettingsPath);
                 var node = JsonNode.Parse(txt) ?? new JsonObject();
-                
+
                 // Ensure Organization section exists
                 if (node["Organization"] == null)
                 {
@@ -92,36 +109,39 @@ namespace Sentinel.Pages.Settings
                 node["Organization"]!["Name"] = string.IsNullOrWhiteSpace(OrganizationName) 
                     ? JsonValue.Create((string?)null) 
                     : JsonValue.Create(OrganizationName);
-                    
+
                 node["Organization"]!["Country"] = string.IsNullOrWhiteSpace(Country) 
                     ? JsonValue.Create((string?)null) 
                     : JsonValue.Create(Country);
-                    
+
                 node["Organization"]!["State"] = string.IsNullOrWhiteSpace(State) 
                     ? JsonValue.Create((string?)null) 
                     : JsonValue.Create(State);
-                    
+
                 node["Organization"]!["City"] = string.IsNullOrWhiteSpace(City) 
                     ? JsonValue.Create((string?)null) 
                     : JsonValue.Create(City);
-                    
+
                 node["Organization"]!["PostalCode"] = string.IsNullOrWhiteSpace(PostalCode) 
                     ? JsonValue.Create((string?)null) 
                     : JsonValue.Create(PostalCode);
-                    
+
                 node["Organization"]!["CountryCode"] = string.IsNullOrWhiteSpace(CountryCode) 
                     ? JsonValue.Create((string?)null) 
                     : JsonValue.Create(CountryCode?.ToUpperInvariant());
-                    
+
                 node["Organization"]!["Timezone"] = string.IsNullOrWhiteSpace(Timezone) 
                     ? JsonValue.Create((string?)null) 
                     : JsonValue.Create(Timezone);
+
+                // Save the new TimeZoneId field
+                node["Organization"]!["TimeZoneId"] = JsonValue.Create(TimeZoneId);
 
                 var opts = new JsonSerializerOptions { WriteIndented = true };
                 var outTxt = node.ToJsonString(opts);
                 await System.IO.File.WriteAllTextAsync(appsettingsPath, outTxt);
 
-                StatusMessage = "Organization settings saved successfully. Address lookups will now prioritize your configured location.";
+                StatusMessage = $"Organization settings saved successfully. Application timezone set to {TimeZoneId}. Restart the application for timezone changes to take full effect.";
             }
             catch (Exception ex)
             {

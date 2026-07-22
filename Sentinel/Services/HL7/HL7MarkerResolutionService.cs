@@ -44,29 +44,36 @@ public class HL7MarkerResolutionService : IHL7MarkerResolutionService
         var result = new MarkerResolutionResult();
 
         // 1. Resolve Pathogen/Biomarker ID
+        var pathogenPresent = !string.IsNullOrWhiteSpace(testCode) || !string.IsNullOrWhiteSpace(testName);
         result.PathogenId = await ResolvePathogenAsync(
             testCode,
             testName,
             enableTextSearchFallback,
             cancellationToken);
+        result.PathogenStatus = DetermineFieldStatus(pathogenPresent, result.PathogenId != null);
 
         // 2. Resolve Test Type/Method
+        var testMethodPresent = !string.IsNullOrWhiteSpace(testMethodCode) || !string.IsNullOrWhiteSpace(testMethodText);
         result.TestMethodId = await ResolveTestMethodAsync(
             testMethodCode,
             testMethodText,
             testMethodCodingSystem,
             enableTextSearchFallback,
             cancellationToken);
+        result.TestMethodStatus = DetermineFieldStatus(testMethodPresent, result.TestMethodId != null);
 
         // 3. Resolve Specimen Type
+        var specimenPresent = !string.IsNullOrWhiteSpace(specimenCode) || !string.IsNullOrWhiteSpace(specimenText);
         result.SpecimenTypeId = await ResolveSpecimenTypeAsync(
             specimenCode,
             specimenText,
             specimenCodingSystem,
             enableTextSearchFallback,
             cancellationToken);
+        result.SpecimenTypeStatus = DetermineFieldStatus(specimenPresent, result.SpecimenTypeId != null);
 
         // 4. Resolve Result Interpretation
+        var resultPresent = !string.IsNullOrWhiteSpace(qualitativeResult) || quantitativeValue.HasValue || !string.IsNullOrWhiteSpace(abnormalFlag);
         var resultResolution = await ResolveResultInterpretationAsync(
             qualitativeResult,
             quantitativeValue,
@@ -76,8 +83,20 @@ public class HL7MarkerResolutionService : IHL7MarkerResolutionService
 
         result.TestResultId = resultResolution.TestResultId;
         result.QuantitativeValue = resultResolution.QuantitativeValue;
+        result.TestResultStatus = DetermineFieldStatus(resultPresent, result.TestResultId != null);
 
         return result;
+    }
+
+    private FieldResolutionStatus DetermineFieldStatus(bool fieldPresent, bool resolvedSuccessfully)
+    {
+        if (!fieldPresent)
+            return FieldResolutionStatus.NotPresent;
+
+        if (resolvedSuccessfully)
+            return FieldResolutionStatus.Resolved;
+
+        return FieldResolutionStatus.ParseFailed;
     }
 
     #region Private Resolution Methods
@@ -103,7 +122,7 @@ public class HL7MarkerResolutionService : IHL7MarkerResolutionService
             }
         }
 
-        // STRATEGY 2: Fuzzy text search on pathogen name (if enabled)
+        // STRATEGY 2: Exact text match on pathogen name after normalization (if enabled)
         if (enableTextFallback && !string.IsNullOrWhiteSpace(testName))
         {
             var normalizedSearch = NormalizeText(testName);
@@ -114,12 +133,11 @@ public class HL7MarkerResolutionService : IHL7MarkerResolutionService
 
             var matchedPathogen = pathogens.FirstOrDefault(p =>
                 !string.IsNullOrWhiteSpace(p.Name) &&
-                (NormalizeText(p.Name).Contains(normalizedSearch) ||
-                 normalizedSearch.Contains(NormalizeText(p.Name))));
+                NormalizeText(p.Name) == normalizedSearch);
 
             if (matchedPathogen != null)
             {
-                _logger.LogDebug("[PATHOGEN] Fuzzy text match '{TestName}' → {PathogenName}", testName, matchedPathogen.Name);
+                _logger.LogDebug("[PATHOGEN] Exact text match '{TestName}' → {PathogenName}", testName, matchedPathogen.Name);
                 return matchedPathogen.Id;
             }
         }
@@ -161,31 +179,29 @@ public class HL7MarkerResolutionService : IHL7MarkerResolutionService
             }
         }
 
-        // STRATEGY 2: Text-based fuzzy matching (if enabled)
+        // STRATEGY 2: Text-based exact matching after normalization (if enabled)
         if (enableTextFallback && !string.IsNullOrWhiteSpace(methodText))
         {
             var normalizedText = NormalizeText(methodText);
 
+            // Try exact name match
             var textMatch = testMethods.FirstOrDefault(tm =>
-            {
-                var normalizedName = NormalizeText(tm.Name);
-                return normalizedName.Contains(normalizedText) || normalizedText.Contains(normalizedName);
-            });
+                NormalizeText(tm.Name) == normalizedText);
 
             if (textMatch != null)
             {
-                _logger.LogDebug("[TEST METHOD] Text match '{Text}' → {Name}", methodText, textMatch.Name);
+                _logger.LogDebug("[TEST METHOD] Exact text match '{Text}' → {Name}", methodText, textMatch.Name);
                 return textMatch.Id;
             }
 
-            // Try SNOMED display match
+            // Try exact SNOMED display match
             var snomedMatch = testMethods.FirstOrDefault(tm =>
                 !string.IsNullOrWhiteSpace(tm.SnomedDisplay) &&
-                NormalizeText(tm.SnomedDisplay).Contains(normalizedText));
+                NormalizeText(tm.SnomedDisplay) == normalizedText);
 
             if (snomedMatch != null)
             {
-                _logger.LogDebug("[TEST METHOD] SNOMED display match '{Text}' → {Name}", methodText, snomedMatch.Name);
+                _logger.LogDebug("[TEST METHOD] Exact SNOMED display match '{Text}' → {Name}", methodText, snomedMatch.Name);
                 return snomedMatch.Id;
             }
         }
@@ -256,7 +272,7 @@ public class HL7MarkerResolutionService : IHL7MarkerResolutionService
             }
         }
 
-        // STRATEGY 4: Text-based fuzzy matching (if enabled)
+        // STRATEGY 4: Text-based exact matching after normalization (if enabled)
         if (enableTextFallback && !string.IsNullOrWhiteSpace(specimenText))
         {
             var normalizedText = NormalizeText(specimenText);
@@ -271,28 +287,15 @@ public class HL7MarkerResolutionService : IHL7MarkerResolutionService
                 return exactTextMatch.Id;
             }
 
-            // Try SNOMED Display match
+            // Try exact SNOMED Display match
             var snomedDisplayMatch = specimenTypes.FirstOrDefault(st =>
                 !string.IsNullOrWhiteSpace(st.SnomedDisplay) &&
                 NormalizeText(st.SnomedDisplay) == normalizedText);
 
             if (snomedDisplayMatch != null)
             {
-                _logger.LogDebug("[SPECIMEN TYPE] SNOMED display match '{Text}' → {Name}", specimenText, snomedDisplayMatch.Name);
+                _logger.LogDebug("[SPECIMEN TYPE] Exact SNOMED display match '{Text}' → {Name}", specimenText, snomedDisplayMatch.Name);
                 return snomedDisplayMatch.Id;
-            }
-
-            // Try fuzzy match (contains)
-            var fuzzyMatch = specimenTypes.FirstOrDefault(st =>
-            {
-                var normalizedName = NormalizeText(st.Name);
-                return normalizedName.Contains(normalizedText) || normalizedText.Contains(normalizedName);
-            });
-
-            if (fuzzyMatch != null)
-            {
-                _logger.LogDebug("[SPECIMEN TYPE] Fuzzy text match '{Text}' → {Name}", specimenText, fuzzyMatch.Name);
-                return fuzzyMatch.Id;
             }
         }
 
@@ -361,7 +364,7 @@ public class HL7MarkerResolutionService : IHL7MarkerResolutionService
             }
         }
 
-        // STRATEGY 3: Text-based matching (if enabled)
+        // STRATEGY 3: Text-based exact matching after normalization (if enabled)
         if (enableTextFallback && !string.IsNullOrWhiteSpace(qualitativeResult))
         {
             var normalizedResult = NormalizeText(qualitativeResult);
@@ -377,29 +380,15 @@ public class HL7MarkerResolutionService : IHL7MarkerResolutionService
                 return resolution;
             }
 
-            // Try SNOMED display match
+            // Try exact SNOMED display match
             var displayMatch = testResults.FirstOrDefault(tr =>
                 !string.IsNullOrWhiteSpace(tr.SnomedDisplay) &&
                 NormalizeText(tr.SnomedDisplay) == normalizedResult);
 
             if (displayMatch != null)
             {
-                _logger.LogDebug("[RESULT] SNOMED display match '{Result}' → {Name}", qualitativeResult, displayMatch.Name);
+                _logger.LogDebug("[RESULT] Exact SNOMED display match '{Result}' → {Name}", qualitativeResult, displayMatch.Name);
                 resolution.TestResultId = displayMatch.Id;
-                return resolution;
-            }
-
-            // Try fuzzy match
-            var fuzzyMatch = testResults.FirstOrDefault(tr =>
-            {
-                var normalizedName = NormalizeText(tr.Name);
-                return normalizedName.Contains(normalizedResult) || normalizedResult.Contains(normalizedName);
-            });
-
-            if (fuzzyMatch != null)
-            {
-                _logger.LogDebug("[RESULT] Fuzzy text match '{Result}' → {Name}", qualitativeResult, fuzzyMatch.Name);
-                resolution.TestResultId = fuzzyMatch.Id;
                 return resolution;
             }
         }
@@ -456,6 +445,24 @@ public class HL7MarkerResolutionService : IHL7MarkerResolutionService
 
 #region Result Classes
 
+/// <summary>
+/// Status of field resolution from HL7 message
+/// </summary>
+public enum FieldResolutionStatus
+{
+    /// <summary>Field was successfully resolved to a lookup value</summary>
+    Resolved,
+
+    /// <summary>Field was not present in the HL7 message</summary>
+    NotPresent,
+
+    /// <summary>Field was present but could not be parsed/resolved</summary>
+    ParseFailed,
+
+    /// <summary>Multiple possible matches found, could not determine single value</summary>
+    Ambiguous
+}
+
 public class MarkerResolutionResult
 {
     public Guid? PathogenId { get; set; }
@@ -463,6 +470,12 @@ public class MarkerResolutionResult
     public int? SpecimenTypeId { get; set; }
     public int? TestResultId { get; set; }
     public decimal? QuantitativeValue { get; set; }
+
+    // Status tracking for each field
+    public FieldResolutionStatus PathogenStatus { get; set; } = FieldResolutionStatus.NotPresent;
+    public FieldResolutionStatus TestMethodStatus { get; set; } = FieldResolutionStatus.NotPresent;
+    public FieldResolutionStatus SpecimenTypeStatus { get; set; } = FieldResolutionStatus.NotPresent;
+    public FieldResolutionStatus TestResultStatus { get; set; } = FieldResolutionStatus.NotPresent;
 }
 
 public class ResultInterpretationResolution

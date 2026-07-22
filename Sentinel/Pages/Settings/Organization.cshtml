@@ -101,12 +101,43 @@
                 </div>
 
                 <div class="col-md-6 mb-3">
-                    <label asp-for="Timezone" class="form-label">
-                        <i class="bi bi-clock me-1"></i>Timezone
+                    <label asp-for="TimeZoneId" class="form-label">
+                        <i class="bi bi-clock me-1"></i>Application Timezone
+                        <span class="text-danger">*</span>
                     </label>
-                    <input asp-for="Timezone" class="form-control" placeholder="e.g., Australia/Sydney" />
-                    <span asp-validation-for="Timezone" class="text-danger"></span>
-                    <small class="form-text text-muted">IANA timezone identifier (optional)</small>
+                    <select asp-for="TimeZoneId" class="form-select" required>
+                        <option value="">-- Select Timezone --</option>
+                        <optgroup label="Australia">
+                            <option value="Australia/Sydney">Sydney (AEDT/AEST)</option>
+                            <option value="Australia/Melbourne">Melbourne (AEDT/AEST)</option>
+                            <option value="Australia/Brisbane">Brisbane (AEST - no DST)</option>
+                            <option value="Australia/Perth">Perth (AWST)</option>
+                            <option value="Australia/Adelaide">Adelaide (ACDT/ACST)</option>
+                            <option value="Australia/Darwin">Darwin (ACST - no DST)</option>
+                            <option value="Australia/Hobart">Hobart (AEDT/AEST)</option>
+                        </optgroup>
+                        <optgroup label="New Zealand">
+                            <option value="Pacific/Auckland">Auckland (NZDT/NZST)</option>
+                            <option value="Pacific/Chatham">Chatham Islands</option>
+                        </optgroup>
+                        <optgroup label="Pacific">
+                            <option value="Pacific/Fiji">Fiji</option>
+                            <option value="Pacific/Port_Moresby">Papua New Guinea</option>
+                            <option value="Pacific/Guam">Guam</option>
+                        </optgroup>
+                        <optgroup label="Asia">
+                            <option value="Asia/Singapore">Singapore</option>
+                            <option value="Asia/Hong_Kong">Hong Kong</option>
+                            <option value="Asia/Tokyo">Tokyo</option>
+                        </optgroup>
+                        <optgroup label="Other">
+                            <option value="UTC">UTC (Coordinated Universal Time)</option>
+                        </optgroup>
+                    </select>
+                    <span asp-validation-for="TimeZoneId" class="text-danger"></span>
+                    <small class="form-text text-muted">
+                        All dates and times will be displayed in this timezone. HL7 files will be organized by dates in this timezone.
+                    </small>
                 </div>
             </div>
 

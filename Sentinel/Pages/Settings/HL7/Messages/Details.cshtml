@@ -86,6 +86,15 @@
                         </span>
                         break;
                 }
+
+                @* Partial Match Indicator *@
+                @if (!string.IsNullOrWhiteSpace(Model.Message.PartialMatchDetailsJson))
+                {
+                    <span class="chip" style="background:#FFF6E5;color:#D67500;border:1px solid #FFDFA6;font-size:12px;padding:4px 10px;margin-left:8px"
+                          title="@Model.GetPartialMatchTooltip()">
+                        <i class="bi bi-exclamation-triangle me-1"></i>PARTIAL MATCH
+                    </span>
+                }
             </div>
             <div class="kpi-delta">@Model.Message.MessageType</div>
         </div>
@@ -179,7 +188,7 @@
                 <h6 class="alert-heading mb-1"><i class="bi bi-flask me-2"></i>Lab Result Created</h6>
                 <p class="mb-0" style="font-size:13px">A laboratory result was successfully created from this message.</p>
             </div>
-            <a asp-page="/Cases/ViewLabResult" asp-route-id="@Model.Message.LabResultId" class="sn-btn sn-btn--signal">
+            <a asp-page="/Cases/ViewLabResult" asp-route-labResultId="@Model.Message.LabResultId" class="sn-btn sn-btn--signal">
                 <i class="bi bi-box-arrow-up-right me-1"></i>View Lab Result
             </a>
         </div>

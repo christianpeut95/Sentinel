@@ -340,19 +340,25 @@
                         var nextCriterion = !isLast ? rootCriteria[i + 1] : null;
                         var previousCriterion = !isFirst ? rootCriteria[i - 1] : null;
 
-                        @* Show logical operator toggle between root criteria (only if not grouped) *@
+                        @* Show logical operator toggle between root criteria *@
                         @* The toggle shows BEFORE this criterion, so it updates the PREVIOUS criterion's operator *@
+                        @* Skip if BOTH current and previous are non-grouped, AND previous was a group (because group exit operator already shown) *@
                         @if (!isFirst && !hasChildren)
                         {
-                            <div style="text-align: center; margin: -0.5rem 0;">
-                                <div class="logical-operator-toggle" 
-                                     data-criterion-id="@previousCriterion.Id" 
-                                     data-operator="@((int)previousCriterion.LogicalOperator)"
-                                     onclick="toggleLogicalOperator(@previousCriterion.Id, @((int)previousCriterion.LogicalOperator))">
-                                    <span class="operator-label">@(previousCriterion.LogicalOperator == LogicalOperator.AND ? "AND" : "OR")</span>
-                                    <i class="bi bi-arrow-down-up" style="font-size: 0.75rem; margin-left: 0.25rem;"></i>
+                            var previousHasChildren = previousCriterion?.ChildCriteria?.Any() == true;
+                            @* Only show if previous was NOT a group (groups show their own exit operator) *@
+                            @if (!previousHasChildren)
+                            {
+                                <div style="text-align: center; margin: -0.5rem 0;">
+                                    <div class="logical-operator-toggle" 
+                                         data-criterion-id="@previousCriterion.Id" 
+                                         data-operator="@((int)previousCriterion.LogicalOperator)"
+                                         onclick="toggleLogicalOperator(@previousCriterion.Id, @((int)previousCriterion.LogicalOperator))">
+                                        <span class="operator-label">@(previousCriterion.LogicalOperator == LogicalOperator.AND ? "AND" : "OR")</span>
+                                        <i class="bi bi-arrow-down-up" style="font-size: 0.75rem; margin-left: 0.25rem;"></i>
+                                    </div>
                                 </div>
-                            </div>
+                            }
                         }
 
                         @* Group container start *@
@@ -361,16 +367,23 @@
                             var children = criterion.ChildCriteria.OrderBy(c => c.DisplayOrder).ToList();
                             <div style="border: 2px solid var(--signal-dk); border-radius: 8px; padding: 1rem; background: var(--signal-lt); margin-bottom: 1rem;">
                                 @* Show operator before group if not first *@
-                                @* The toggle shows BEFORE this group, so it updates the PREVIOUS criterion's operator *@
+                                @* The toggle shows BEFORE this group, so it updates the PREVIOUS criterion's operator or GroupExitOperator *@
                                 @if (!isFirst)
                                 {
+                                    var previousHasChildren = previousCriterion?.ChildCriteria?.Any() == true;
+                                    var operatorToShow = previousHasChildren && previousCriterion.GroupExitOperator.HasValue
+                                        ? previousCriterion.GroupExitOperator.Value
+                                        : previousCriterion.LogicalOperator;
+                                    var operatorToUpdate = previousHasChildren ? "GroupExitOperator" : "LogicalOperator";
+
                                     <div style="text-align: center; margin: -2rem 0 1rem 0;">
                                         <div class="logical-operator-toggle" 
                                              data-criterion-id="@previousCriterion.Id" 
-                                             data-operator="@((int)previousCriterion.LogicalOperator)"
-                                             onclick="toggleLogicalOperator(@previousCriterion.Id, @((int)previousCriterion.LogicalOperator))"
+                                             data-operator="@((int)operatorToShow)"
+                                             @* If previous was a group, toggle GroupExitOperator; otherwise toggle LogicalOperator *@
+                                             onclick="@(previousHasChildren ? $"toggleGroupExitOperator({previousCriterion.Id}, {(int)operatorToShow})" : $"toggleLogicalOperator({previousCriterion.Id}, {(int)operatorToShow})")"
                                              style="background: white;">
-                                            <span class="operator-label">@(previousCriterion.LogicalOperator == LogicalOperator.AND ? "AND" : "OR")</span>
+                                            <span class="operator-label">@(operatorToShow == LogicalOperator.AND ? "AND" : "OR")</span>
                                             <i class="bi bi-arrow-down-up" style="font-size: 0.75rem; margin-left: 0.25rem;"></i>
                                         </div>
                                     </div>
@@ -594,6 +607,23 @@
                                     <i class="bi bi-braces"></i> GROUP END
                                 </div>
                             </div>
+
+                            @* Group exit operator - shown after group if not last criterion *@
+                            @if (hasChildren && !isLast)
+                            {
+                                var groupExitOp = criterion.GroupExitOperator ?? criterion.LogicalOperator;
+                                <div style="text-align: center; margin: 0.5rem 0;">
+                                    <div class="logical-operator-toggle" 
+                                         data-criterion-id="@criterion.Id" 
+                                         data-operator="@((int)groupExitOp)"
+                                         onclick="toggleGroupExitOperator(@criterion.Id, @((int)groupExitOp))"
+                                         style="border: 2px solid var(--signal-dk);">
+                                        <span class="operator-label">@(groupExitOp == LogicalOperator.AND ? "AND" : "OR")</span>
+                                        <i class="bi bi-arrow-down-up" style="font-size: 0.75rem; margin-left: 0.25rem;"></i>
+                                        <span style="font-size: 0.625rem; opacity: 0.7; margin-left: 0.5rem;">(group exit)</span>
+                                    </div>
+                                </div>
+                            }
                         }
                         else
                         {
@@ -1606,7 +1636,7 @@
                 groupNumber: 1,
                 parentCriteriaId: window.currentParentCriterionId || null,
                 specimenTypeIds: selectedSpecimenIds,
-                pathogenNames: pathogenIds, // Now sending pathogen GUIDs (as strings)
+                pathogenIds: pathogenIds, // Sending pathogen GUIDs
                 testMethodIds: testMethods,
                 resultValues: resultValues,
                 timeConstraint: timeConstraint,
@@ -1933,6 +1963,43 @@
             }
         }
 
+        // Toggle group exit operator (AND/OR) for a group criterion
+        // This operator connects the group to the next criterion
+        async function toggleGroupExitOperator(criterionId, currentOperator) {
+            // LogicalOperator enum: AND=1, OR=2, NOT=3
+            // Fix invalid values (0 or anything else) to default to AND (1)
+            let validOperator = currentOperator;
+            if (currentOperator !== 1 && currentOperator !== 2) {
+                console.warn(`Invalid group exit operator ${currentOperator} for criterion ${criterionId}, defaulting to AND (1)`);
+                validOperator = 1; // Default to AND
+            }
+
+            // Toggle between AND (1) and OR (2)
+            const newOperator = validOperator === 1 ? 2 : 1;
+            const newOperatorLabel = newOperator === 1 ? 'AND' : 'OR';
+
+            console.log(`Toggling group exit operator for criterion ${criterionId}: ${validOperator} → ${newOperator} (${newOperatorLabel})`);
+
+            try {
+                const response = await fetch(`/api/case-definitions/@Model.DefinitionId/criteria/${criterionId}/group-exit-operator`, {
+                    method: 'PATCH',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ groupExitOperator: newOperator })
+                });
+
+                if (response.ok) {
+                    location.reload();
+                } else {
+                    alert('Failed to update group exit operator');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('An error occurred while updating group exit operator');
+            }
+        }
+
         // Move criterion up or down in display order
         async function moveCriterion(criterionId, direction) {
             console.log('moveCriterion called:', criterionId, direction);
@@ -2060,13 +2127,13 @@
                 updateSelectedSpecimens();
             }
 
-            // Set pathogens
-            if (valueData.pathogenNames) {
-                selectedPathogenNames = [...valueData.pathogenNames];
-                selectedPathogenNames.forEach(name => {
-                    const element = Array.from(document.querySelectorAll('#pathogenGrid .specimen-item')).find(el => 
-                        el.querySelector('.specimen-item-name').textContent === name
-                    );
+            // Set pathogens (pathogenIds contains GUIDs)
+            // Support both old format (pathogenNames) and new format (pathogenIds) for backward compatibility
+            const pathogenIdsToLoad = valueData.pathogenIds || valueData.pathogenNames;
+            if (pathogenIdsToLoad) {
+                selectedPathogenIds = [...pathogenIdsToLoad];
+                selectedPathogenIds.forEach(id => {
+                    const element = document.querySelector(`#pathogenGrid [data-id="${id}"]`);
                     if (element) element.classList.add('selected');
                 });
                 updateSelectedPathogens();

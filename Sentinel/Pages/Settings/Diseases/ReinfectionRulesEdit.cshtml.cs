@@ -23,7 +23,6 @@ namespace Sentinel.Pages.Settings.Diseases
         {
             IsActive = true,
             RuleType = ReinfectionRuleType.TimeWindow,
-            CaseMatchingStrategy = CaseMatchingStrategy.DateWindowMatching,
             ReinfectionWindowDays = 90
         };
 
@@ -53,6 +52,9 @@ namespace Sentinel.Pages.Settings.Diseases
 
         public async Task<IActionResult> OnPostAsync()
         {
+            // Always set rule type to TimeWindow since that's the only type we use
+            Rule.RuleType = ReinfectionRuleType.TimeWindow;
+
             if (!ModelState.IsValid)
             {
                 await LoadSelectListsAsync();
@@ -71,10 +73,17 @@ namespace Sentinel.Pages.Settings.Diseases
                 return Page();
             }
 
-            // Validate reinfection window for TimeWindow rule type
-            if (Rule.RuleType == ReinfectionRuleType.TimeWindow && !Rule.ReinfectionWindowDays.HasValue)
+            // Validate reinfection window is provided
+            if (!Rule.ReinfectionWindowDays.HasValue)
             {
-                ModelState.AddModelError("Rule.ReinfectionWindowDays", "Reinfection window is required for Time Window rule type.");
+                ModelState.AddModelError("Rule.ReinfectionWindowDays", "Reinfection window (in days) is required.");
+                await LoadSelectListsAsync();
+                return Page();
+            }
+
+            if (Rule.ReinfectionWindowDays.Value < 0)
+            {
+                ModelState.AddModelError("Rule.ReinfectionWindowDays", "Reinfection window must be 0 or greater.");
                 await LoadSelectListsAsync();
                 return Page();
             }
@@ -102,13 +111,8 @@ namespace Sentinel.Pages.Settings.Diseases
                 existingRuleToUpdate.DiseaseId = Rule.DiseaseId;
                 existingRuleToUpdate.RuleType = Rule.RuleType;
                 existingRuleToUpdate.ReinfectionWindowDays = Rule.ReinfectionWindowDays;
-                existingRuleToUpdate.IsChronic = Rule.IsChronic;
-                existingRuleToUpdate.AlwaysCreateNewCase = Rule.AlwaysCreateNewCase;
-                existingRuleToUpdate.Description = Rule.Description;
-                existingRuleToUpdate.CaseMatchingStrategy = Rule.CaseMatchingStrategy;
-                existingRuleToUpdate.MatchOnTestType = Rule.MatchOnTestType;
-                existingRuleToUpdate.MatchOnResultType = Rule.MatchOnResultType;
                 existingRuleToUpdate.RequireConfirmationForNewCase = Rule.RequireConfirmationForNewCase;
+                existingRuleToUpdate.Description = Rule.Description;
                 existingRuleToUpdate.NotificationMessage = Rule.NotificationMessage;
                 existingRuleToUpdate.IsActive = Rule.IsActive;
                 existingRuleToUpdate.Notes = Rule.Notes;

@@ -64,6 +64,9 @@ namespace Sentinel.Services.HL7
                 // Step 1: Identify all diseases from markers
                 var diseaseIdentifications = await IdentifyDiseasesFromMarkersAsync(labResult, cancellationToken);
 
+                // Store identifications in result for audit trail
+                result.DiseaseIdentifications = diseaseIdentifications;
+
                 diagnosticLog.Add($"Disease Identifications Found: {diseaseIdentifications.Count}");
 
                 if (!diseaseIdentifications.Any())
@@ -153,8 +156,25 @@ namespace Sentinel.Services.HL7
                     "Identified {Count} potential diseases from LabResult {LabResultId}",
                     diseaseIdentifications.Count, labResult.FriendlyId);
 
-                // Step 2: Process each identified disease
-                foreach (var identification in diseaseIdentifications.Where(d => d.IsPositiveResult))
+                // Step 2: Filter out parent diseases when more-specific child diseases are present
+                // This ensures we process only the most specific disease in each family
+                var diseasesToProcess = FilterMostSpecificDiseases(diseaseIdentifications);
+
+                if (diseasesToProcess.Count < diseaseIdentifications.Count)
+                {
+                    var filtered = diseaseIdentifications.Except(diseasesToProcess).ToList();
+                    foreach (var filteredDisease in filtered)
+                    {
+                        diagnosticLog.Add($"⚠️ Filtered out parent disease: {filteredDisease.Disease?.Name} (more specific child disease present)");
+                    }
+                    _logger.LogInformation(
+                        "Filtered {FilteredCount} parent diseases, processing {ProcessCount} most-specific diseases",
+                        filtered.Count,
+                        diseasesToProcess.Count);
+                }
+
+                // Step 3: Process each most-specific identified disease
+                foreach (var identification in diseasesToProcess.Where(d => d.IsPositiveResult))
                 {
                     try
                     {
@@ -258,6 +278,11 @@ namespace Sentinel.Services.HL7
             LabResult labResult,
             CancellationToken cancellationToken = default)
         {
+            _logger.LogInformation(
+                "🔬 START IdentifyDiseasesFromMarkersAsync for LabResult {LabResultId} with {MarkerCount} markers",
+                labResult.FriendlyId,
+                labResult.Markers?.Count ?? 0);
+
             var identifications = new List<DiseaseIdentification>();
 
             // Markers should already be loaded by ProcessLabResultAsync
@@ -288,7 +313,12 @@ namespace Sentinel.Services.HL7
                     SpecimenTypeId = specimenTypeId,
                     TestMethodId = marker.TestMethodId,
                     TestResultId = marker.TestResultId,
-                    QuantitativeValue = marker.QuantitativeValue
+                    QuantitativeValue = marker.QuantitativeValue,
+                    // Set field resolution statuses for partial matching
+                    PathogenStatus = marker.PathogenId.HasValue ? FieldResolutionStatus.Resolved : FieldResolutionStatus.NotPresent,
+                    TestMethodStatus = marker.TestMethodId.HasValue ? FieldResolutionStatus.Resolved : FieldResolutionStatus.NotPresent,
+                    SpecimenTypeStatus = specimenTypeId.HasValue ? FieldResolutionStatus.Resolved : FieldResolutionStatus.NotPresent,
+                    TestResultStatus = marker.TestResultId.HasValue ? FieldResolutionStatus.Resolved : FieldResolutionStatus.NotPresent
                 };
 
                 try
@@ -304,6 +334,17 @@ namespace Sentinel.Services.HL7
                         if (existing != null)
                         {
                             existing.MatchingMarkers.Add(marker);
+
+                            // Track partial match details
+                            if (caseDefinitionMatch.IsPartialMatch)
+                            {
+                                existing.IsPartialMatch = true;
+                                existing.MissingFields.AddRange(caseDefinitionMatch.MissingFields);
+                                if (caseDefinitionMatch.OriginalConfirmationStatusId.HasValue)
+                                {
+                                    existing.OriginalConfirmationStatusId = caseDefinitionMatch.OriginalConfirmationStatusId;
+                                }
+                            }
                         }
                         else
                         {
@@ -315,15 +356,19 @@ namespace Sentinel.Services.HL7
                                 SpecificityScore = CalculateDiseaseSpecificity(caseDefinitionMatch.Disease),
                                 IsPositiveResult = true,
                                 ConfirmationStatus = caseDefinitionMatch.ConfirmationStatus,
-                                ConfirmationStatusId = caseDefinitionMatch.ConfirmationStatusId
+                                ConfirmationStatusId = caseDefinitionMatch.ConfirmationStatusId,
+                                IsPartialMatch = caseDefinitionMatch.IsPartialMatch,
+                                MissingFields = new List<string>(caseDefinitionMatch.MissingFields),
+                                OriginalConfirmationStatusId = caseDefinitionMatch.OriginalConfirmationStatusId
                             });
                         }
 
                         _logger.LogInformation(
-                            "Marker {MarkerId} matched to disease {Disease} via case definition (Confirmation: {ConfirmationStatus})",
+                            "Marker {MarkerId} matched to disease {Disease} via case definition (Confirmation: {ConfirmationStatus}){PartialMatchInfo}",
                             marker.Id,
                             caseDefinitionMatch.Disease.Name,
-                            caseDefinitionMatch.ConfirmationStatus?.Name ?? "NULL");
+                            caseDefinitionMatch.ConfirmationStatus?.Name ?? "NULL",
+                            caseDefinitionMatch.IsPartialMatch ? $" [PARTIAL MATCH - Missing: {string.Join(", ", caseDefinitionMatch.MissingFields)}]" : "");
                     }
                     else
                     {
@@ -344,22 +389,30 @@ namespace Sentinel.Services.HL7
                 }
             }
 
-            // MULTI-MARKER FALLBACK: If no individual markers matched, try evaluating all markers together
-            if (!identifications.Any())
+            _logger.LogInformation(
+                "✅ Completed single-marker evaluation. Found {Count} disease identification(s). Now starting multi-marker evaluation...",
+                identifications.Count);
+
+            // MULTI-MARKER EVALUATION: Always run to detect more-specific diseases requiring multiple markers
+            // This ensures child diseases (e.g., Salmonella Typhimurium) can be identified even when
+            // parent diseases (e.g., generic Salmonella) already matched on individual markers
+            _logger.LogInformation(
+                "Running multi-marker evaluation for LabResult {LabResultId} with {Count} markers to detect specific diseases.",
+                labResult.FriendlyId,
+                labResult.Markers.Count);
+
+            try
             {
-                _logger.LogInformation(
-                    "No single-marker matches found for LabResult {LabResultId}. Attempting multi-marker evaluation with {Count} markers.",
-                    labResult.FriendlyId,
-                    labResult.Markers.Count);
+                var multiMarkerMatches = await _caseDefinitionMatchingService
+                    .MatchCaseDefinitionsForLabResultAsync(labResult, cancellationToken);
 
-                try
+                foreach (var match in multiMarkerMatches)
                 {
-                    var multiMarkerMatches = await _caseDefinitionMatchingService
-                        .MatchCaseDefinitionsForLabResultAsync(labResult, cancellationToken);
-
-                    foreach (var match in multiMarkerMatches)
+                    if (match?.Disease != null)
                     {
-                        if (match?.Disease != null)
+                        // Only add if not already identified, or if this is a more-specific disease
+                        var existing = identifications.FirstOrDefault(i => i.Disease.Id == match.Disease.Id);
+                        if (existing == null)
                         {
                             identifications.Add(new DiseaseIdentification
                             {
@@ -373,37 +426,44 @@ namespace Sentinel.Services.HL7
                             });
 
                             _logger.LogInformation(
-                                "Multi-marker evaluation matched disease {Disease} (Confirmation: {ConfirmationStatus}) using {Count} markers",
+                                "Multi-marker evaluation matched disease {Disease} (Confirmation: {ConfirmationStatus}, Specificity: {Specificity}) using {Count} markers",
                                 match.Disease.Name,
                                 match.ConfirmationStatus?.Name ?? "NULL",
+                                CalculateDiseaseSpecificity(match.Disease),
                                 labResult.Markers.Count);
                         }
-                    }
-
-                    if (!multiMarkerMatches.Any())
-                    {
-                        _logger.LogDebug(
-                            "Multi-marker evaluation found no matches for LabResult {LabResultId}",
-                            labResult.FriendlyId);
+                        else
+                        {
+                            _logger.LogDebug(
+                                "Disease {Disease} already identified, skipping duplicate",
+                                match.Disease.Name);
+                        }
                     }
                 }
-                catch (Exception ex)
+
+                if (!multiMarkerMatches.Any())
                 {
-                    _logger.LogError(ex,
-                        "Error during multi-marker evaluation for LabResult {LabResultId}",
+                    _logger.LogDebug(
+                        "Multi-marker evaluation found no additional matches for LabResult {LabResultId}",
                         labResult.FriendlyId);
                 }
             }
-            else
+            catch (Exception ex)
             {
-                _logger.LogDebug(
-                    "Single-marker evaluation found {Count} match(es) for LabResult {LabResultId}. Skipping multi-marker evaluation.",
-                    identifications.Count,
+                _logger.LogError(ex,
+                    "Error during multi-marker evaluation for LabResult {LabResultId}",
                     labResult.FriendlyId);
             }
 
             // Sort by specificity (most specific first)
-            return identifications.OrderByDescending(i => i.SpecificityScore).ToList();
+            var sortedIdentifications = identifications.OrderByDescending(i => i.SpecificityScore).ToList();
+
+            _logger.LogInformation(
+                "🏁 END IdentifyDiseasesFromMarkersAsync - Returning {Count} disease identification(s): {Diseases}",
+                sortedIdentifications.Count,
+                string.Join(", ", sortedIdentifications.Select(i => $"{i.Disease?.Name} (Specificity={i.SpecificityScore})")));
+
+            return sortedIdentifications;
         }
 
         public async Task<Case> FindOrCreateCaseAsync(
@@ -571,17 +631,42 @@ namespace Sentinel.Services.HL7
             DiseaseReinfectionRule? reinfectionRule,
             CancellationToken cancellationToken)
         {
-            // Get disease family IDs (parent + siblings)
+            // PHASE 2 FIX: Enhanced disease family search for progressive typing
+            // Build disease family IDs: self + parent + siblings + DIRECT children only
             var diseaseIds = new List<Guid> { disease.Id };
+
+            // Add parent
             if (disease.ParentDiseaseId != null)
             {
                 diseaseIds.Add(disease.ParentDiseaseId.Value);
+            }
+
+            // Add siblings (same parent)
+            if (disease.ParentDiseaseId != null)
+            {
                 var siblings = await _context.Diseases
                     .IgnoreQueryFilters()  // Background service - bypass access control
-                    .Where(d => d.ParentDiseaseId == disease.ParentDiseaseId)
+                    .Where(d => d.ParentDiseaseId == disease.ParentDiseaseId && d.Id != disease.Id)
                     .Select(d => d.Id)
                     .ToListAsync(cancellationToken);
                 diseaseIds.AddRange(siblings);
+            }
+
+            // CRITICAL: Add DIRECT children only (not all descendants)
+            // This enables generic Salmonella to find existing STM9/STM135 cases
+            // without pulling in unrelated deeper descendants or sibling subtypes
+            var directChildren = await _context.Diseases
+                .IgnoreQueryFilters()
+                .Where(d => d.ParentDiseaseId == disease.Id)  // Direct children only
+                .Select(d => d.Id)
+                .ToListAsync(cancellationToken);
+
+            if (directChildren.Any())
+            {
+                diseaseIds.AddRange(directChildren);
+                _logger.LogDebug(
+                    "Expanded case search for {Disease} to include {ChildCount} direct child disease(s)",
+                    disease.Name, directChildren.Count);
             }
 
             var openCases = await _context.Cases
@@ -932,6 +1017,70 @@ namespace Sentinel.Services.HL7
             }
 
             return depth;
+        }
+
+        /// <summary>
+        /// Filters disease identifications to keep only the most specific diseases in each family.
+        /// Removes parent diseases when their children are present.
+        /// </summary>
+        private List<DiseaseIdentification> FilterMostSpecificDiseases(List<DiseaseIdentification> identifications)
+        {
+            var result = new List<DiseaseIdentification>();
+
+            foreach (var identification in identifications.OrderByDescending(i => i.SpecificityScore))
+            {
+                if (identification?.Disease == null)
+                    continue;
+
+                // Check if this disease is a parent of any already-selected disease
+                bool isParentOfSelected = result.Any(r =>
+                    r.Disease != null &&
+                    (r.Disease.ParentDiseaseId == identification.Disease.Id ||
+                     IsAncestorOf(identification.Disease.Id, r.Disease)));
+
+                if (!isParentOfSelected)
+                {
+                    // Check if any already-selected disease is a parent of this one
+                    // If so, remove the parent and add this more-specific child
+                    result.RemoveAll(r =>
+                        r.Disease != null &&
+                        (identification.Disease.ParentDiseaseId == r.Disease.Id ||
+                         IsAncestorOf(r.Disease.Id, identification.Disease)));
+
+                    result.Add(identification);
+
+                    _logger.LogDebug(
+                        "Selected disease: {Disease} (Specificity: {Specificity})",
+                        identification.Disease.Name,
+                        identification.SpecificityScore);
+                }
+                else
+                {
+                    _logger.LogDebug(
+                        "Filtered out parent disease: {Disease} (child already selected)",
+                        identification.Disease.Name);
+                }
+            }
+
+            return result;
+        }
+
+        /// <summary>
+        /// Checks if ancestorId is an ancestor of the given disease in the hierarchy
+        /// </summary>
+        private bool IsAncestorOf(Guid ancestorId, Disease disease)
+        {
+            var current = disease;
+            while (current?.ParentDiseaseId != null)
+            {
+                if (current.ParentDiseaseId == ancestorId)
+                    return true;
+
+                current = _context.Diseases
+                    .IgnoreQueryFilters()
+                    .FirstOrDefault(d => d.Id == current.ParentDiseaseId);
+            }
+            return false;
         }
 
         #endregion

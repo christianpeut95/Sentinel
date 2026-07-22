@@ -360,6 +360,12 @@ namespace Sentinel.Data
                 .HasForeignKey<Models.HL7.DiseaseHL7MatchingConfig>(c => c.DiseaseId)
                 .OnDelete(DeleteBehavior.Cascade);
 
+            builder.Entity<Models.HL7.DiseaseHL7MatchingConfig>()
+                .HasOne(c => c.PartialMatchConfirmationStatus)
+                .WithMany()
+                .HasForeignKey(c => c.PartialMatchConfirmationStatusId)
+                .OnDelete(DeleteBehavior.Restrict);
+
             builder.Entity<Disease>()
                 .HasIndex(d => d.Code)
                 .IsUnique();
@@ -1469,19 +1475,23 @@ namespace Sentinel.Data
             var saveId = Guid.NewGuid().ToString().Substring(0, 8); // Unique ID for this save
             var stackTrace = new System.Diagnostics.StackTrace(true);
             var callingMethod = stackTrace.GetFrame(1)?.GetMethod()?.Name ?? "Unknown";
-            
+
             System.Diagnostics.Debug.WriteLine("====================================");
             System.Diagnostics.Debug.WriteLine($"[REVIEW:{saveId}] SaveChangesAsync CALLED from {callingMethod}");
             System.Diagnostics.Debug.WriteLine("====================================");
-            
+
             await GeneratePatientFriendlyIds();
             await GenerateCaseFriendlyIds();
             await GenerateLabResultFriendlyIds();
             await GenerateOrganizationFriendlyIds();
             await UpdateDiseasePaths();
             UpdateAuditableEntities();
+
+            // Normalize all DateTime properties to UTC
+            NormalizeDateTimesToUtc();
+
             var auditEntries = OnBeforeSaveChanges();
-            
+
             System.Diagnostics.Debug.WriteLine($"[REVIEW:{saveId}] About to detect review queue items...");
 
             // Detect items for review queue BEFORE saving
@@ -1508,7 +1518,7 @@ namespace Sentinel.Data
             await QueueCaseEvaluationsAsync(caseEvaluationChanges);
             System.Diagnostics.Debug.WriteLine($"[EVAL:{saveId}] Queued {caseEvaluationChanges.Count} case evaluations");
             System.Diagnostics.Debug.WriteLine("====================================");
-            
+
             return result;
         }
 
@@ -1520,12 +1530,64 @@ namespace Sentinel.Data
             GenerateOrganizationFriendlyIdsSync();
             UpdateDiseasePathsSync();
             UpdateAuditableEntities();
+
+            // Normalize all DateTime properties to UTC
+            NormalizeDateTimesToUtc();
+
             var auditEntries = OnBeforeSaveChanges();
-            
+
             // Note: Sync version doesn't queue reviews - use async version for review queueing
             var result = base.SaveChanges();
             OnAfterSaveChangesSync(auditEntries);
             return result;
+        }
+
+        /// <summary>
+        /// Normalizes all DateTime properties to UTC before saving to database.
+        /// Ensures consistent timezone handling across the application.
+        /// </summary>
+        private void NormalizeDateTimesToUtc()
+        {
+            var entries = ChangeTracker.Entries()
+                .Where(e => e.State == EntityState.Added || e.State == EntityState.Modified);
+
+            foreach (var entry in entries)
+            {
+                foreach (var property in entry.Properties)
+                {
+                    // Handle non-nullable DateTime
+                    if (property.Metadata.ClrType == typeof(DateTime) && property.CurrentValue != null)
+                    {
+                        var dt = (DateTime)property.CurrentValue;
+
+                        if (dt.Kind == DateTimeKind.Unspecified)
+                        {
+                            // Treat unspecified as UTC (common case for date-only values)
+                            property.CurrentValue = DateTime.SpecifyKind(dt, DateTimeKind.Utc);
+                        }
+                        else if (dt.Kind == DateTimeKind.Local)
+                        {
+                            // Convert local to UTC
+                            property.CurrentValue = dt.ToUniversalTime();
+                        }
+                        // If already UTC, no change needed
+                    }
+                    // Handle nullable DateTime
+                    else if (property.Metadata.ClrType == typeof(DateTime?) && property.CurrentValue != null)
+                    {
+                        var dt = (DateTime)property.CurrentValue;
+
+                        if (dt.Kind == DateTimeKind.Unspecified)
+                        {
+                            property.CurrentValue = (DateTime?)DateTime.SpecifyKind(dt, DateTimeKind.Utc);
+                        }
+                        else if (dt.Kind == DateTimeKind.Local)
+                        {
+                            property.CurrentValue = (DateTime?)dt.ToUniversalTime();
+                        }
+                    }
+                }
+            }
         }
 
         private async Task GeneratePatientFriendlyIds()
@@ -1720,7 +1782,7 @@ namespace Sentinel.Data
 
             var year = DateTime.UtcNow.Year;
             var prefix = $"LAB-{year}-";
-            
+
             // Get the last assigned ID from database
             var lastLabResult = await LabResults
                 .IgnoreQueryFilters()  // Include soft-deleted - need highest ID ever assigned
@@ -1735,6 +1797,23 @@ namespace Sentinel.Data
                 if (int.TryParse(lastSequencePart, out int lastSequence))
                 {
                     nextSequence = lastSequence + 1;
+                }
+            }
+
+            // CRITICAL FIX: Also check change tracker for already-assigned FriendlyIds
+            // This handles multiple SaveChanges calls within the same transaction
+            var existingFriendlyIds = ChangeTracker.Entries<LabResult>()
+                .Where(e => e.State == EntityState.Unchanged || e.State == EntityState.Modified)
+                .Select(e => e.Entity.FriendlyId)
+                .Where(fid => !string.IsNullOrEmpty(fid) && fid.StartsWith(prefix))
+                .ToList();
+
+            foreach (var fid in existingFriendlyIds)
+            {
+                var sequencePart = fid.Substring(prefix.Length);
+                if (int.TryParse(sequencePart, out int sequence) && sequence >= nextSequence)
+                {
+                    nextSequence = sequence + 1;
                 }
             }
 
@@ -1766,7 +1845,7 @@ namespace Sentinel.Data
 
             var year = DateTime.UtcNow.Year;
             var prefix = $"LAB-{year}-";
-            
+
             var lastLabResult = LabResults
                 .IgnoreQueryFilters()  // Include soft-deleted - need highest ID ever assigned
                 .Where(lr => lr.FriendlyId.StartsWith(prefix))
@@ -1780,6 +1859,23 @@ namespace Sentinel.Data
                 if (int.TryParse(lastSequencePart, out int lastSequence))
                 {
                     nextSequence = lastSequence + 1;
+                }
+            }
+
+            // CRITICAL FIX: Also check change tracker for already-assigned FriendlyIds
+            // This handles multiple SaveChanges calls within the same transaction
+            var existingFriendlyIds = ChangeTracker.Entries<LabResult>()
+                .Where(e => e.State == EntityState.Unchanged || e.State == EntityState.Modified)
+                .Select(e => e.Entity.FriendlyId)
+                .Where(fid => !string.IsNullOrEmpty(fid) && fid.StartsWith(prefix))
+                .ToList();
+
+            foreach (var fid in existingFriendlyIds)
+            {
+                var sequencePart = fid.Substring(prefix.Length);
+                if (int.TryParse(sequencePart, out int sequence) && sequence >= nextSequence)
+                {
+                    nextSequence = sequence + 1;
                 }
             }
 

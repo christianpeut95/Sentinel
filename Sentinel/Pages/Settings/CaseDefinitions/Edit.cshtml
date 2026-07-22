@@ -360,13 +360,21 @@
                             var isFirst = i == 0;
                             var isLast = i == rootCriteria.Count - 1;
                             var hasChildren = criterion.ChildCriteria?.Any() == true;
+                            var previousCriterion = !isFirst ? rootCriteria[i - 1] : null;
 
                             @* Show logical operator between root criteria *@
                                             @if (!isFirst)
                                             {
                                                 <div style="text-align: center; margin: -0.5rem 0;">
                                                     <div class="logical-operator-toggle" style="cursor: default;">
-                                                        <span class="operator-label">@(criterion.LogicalOperator == LogicalOperator.AND ? "AND" : "OR")</span>
+                                                        @* Use previous criterion's GroupExitOperator if it was a group, otherwise its LogicalOperator *@
+                                                        @{
+                                                            var previousHasChildren = previousCriterion?.ChildCriteria?.Any() == true;
+                                                            var operatorToShow = previousHasChildren && previousCriterion.GroupExitOperator.HasValue
+                                                                ? previousCriterion.GroupExitOperator.Value
+                                                                : previousCriterion.LogicalOperator;
+                                                        }
+                                                        <span class="operator-label">@(operatorToShow == LogicalOperator.AND ? "AND" : "OR")</span>
                                                     </div>
                                                 </div>
                                             }
@@ -424,15 +432,24 @@
                                 for (int j = 0; j < children.Count; j++)
                                 {
                                     var child = children[j];
+                                    var childIsFirst = j == 0;
+                                    var previousChild = !childIsFirst ? children[j - 1] : null;
 
-                                    @if (j > 0)
-                                    {
-                                        <div style="text-align: center; margin: -0.5rem 0; margin-left: 2rem;">
-                                            <div class="logical-operator-toggle" style="cursor: default;">
-                                                <span class="operator-label">@(child.LogicalOperator == LogicalOperator.AND ? "AND" : "OR")</span>
-                                            </div>
+                                    @* Show operator before each child *@
+                                    <div style="text-align: center; margin: -0.5rem 0; margin-left: 2rem;">
+                                        <div class="logical-operator-toggle" style="cursor: default;">
+                                            @if (childIsFirst)
+                                            {
+                                                @* First child: use parent's operator for internal group logic *@
+                                                <span class="operator-label">@(criterion.LogicalOperator == LogicalOperator.AND ? "AND" : "OR")</span>
+                                            }
+                                            else
+                                            {
+                                                @* Subsequent children: use previous child's operator *@
+                                                <span class="operator-label">@(previousChild.LogicalOperator == LogicalOperator.AND ? "AND" : "OR")</span>
+                                            }
                                         </div>
-                                    }
+                                    </div>
 
                                     <div class="criterion-card" 
                                          data-criterion-id="@child.Id" 

@@ -1,0 +1,190 @@
+﻿REM Visual Studio Command Window Commands
+REM Copy and paste these into VS Command Window (Ctrl+Alt+A)
+REM Or Tools -> Command Window
+
+File.OpenFile C:\Users\Christian\source\repos\christianpeut95\Sentinel\Sentinel\Services\HL7\HL7DataExtractionService.cs /line:3526
+Debug.ToggleBreakpoint
+File.OpenFile C:\Users\Christian\source\repos\christianpeut95\Sentinel\Sentinel\Services\HL7\HL7DataExtractionService.cs /line:3527
+Debug.ToggleBreakpoint
+File.OpenFile C:\Users\Christian\source\repos\christianpeut95\Sentinel\Sentinel\Services\HL7\HL7DataExtractionService.cs /line:3528
+Debug.ToggleBreakpoint
+File.OpenFile C:\Users\Christian\source\repos\christianpeut95\Sentinel\Sentinel\Services\HL7\HL7DataExtractionService.cs /line:3529
+Debug.ToggleBreakpoint
+File.OpenFile C:\Users\Christian\source\repos\christianpeut95\Sentinel\Sentinel\Services\HL7\HL7DataExtractionService.cs /line:3574
+Debug.ToggleBreakpoint
+File.OpenFile C:\Users\Christian\source\repos\christianpeut95\Sentinel\Sentinel\Services\HL7\HL7DataExtractionService.cs /line:3582
+Debug.ToggleBreakpoint
+File.OpenFile C:\Users\Christian\source\repos\christianpeut95\Sentinel\Sentinel\Services\HL7\HL7DataExtractionService.cs /line:3598
+Debug.ToggleBreakpoint
+File.OpenFile C:\Users\Christian\source\repos\christianpeut95\Sentinel\Sentinel\Services\HL7\HL7DataExtractionService.cs /line:3623
+Debug.ToggleBreakpoint
+File.OpenFile C:\Users\Christian\source\repos\christianpeut95\Sentinel\Sentinel\Services\HL7\HL7DataExtractionService.cs /line:3634
+Debug.ToggleBreakpoint
+File.OpenFile C:\Users\Christian\source\repos\christianpeut95\Sentinel\Sentinel\Services\HL7\HL7DataExtractionService.cs /line:3638
+Debug.ToggleBreakpoint
+File.OpenFile C:\Users\Christian\source\repos\christianpeut95\Sentinel\Sentinel\Services\HL7\HL7DataExtractionService.cs /line:3665
+Debug.ToggleBreakpoint
+File.OpenFile C:\Users\Christian\source\repos\christianpeut95\Sentinel\Sentinel\Services\HL7\HL7DataExtractionService.cs /line:3686
+Debug.ToggleBreakpoint
+File.OpenFile C:\Users\Christian\source\repos\christianpeut95\Sentinel\Sentinel\Services\HL7\HL7DataExtractionService.cs /line:3695
+Debug.ToggleBreakpoint
+File.OpenFile C:\Users\Christian\source\repos\christianpeut95\Sentinel\Sentinel\Services\HL7\HL7DataExtractionService.cs /line:3722
+Debug.ToggleBreakpoint
+File.OpenFile C:\Users\Christian\source\repos\christianpeut95\Sentinel\Sentinel\Services\HL7\HL7DataExtractionService.cs /line:3723
+Debug.ToggleBreakpoint
+File.OpenFile C:\Users\Christian\source\repos\christianpeut95\Sentinel\Sentinel\Services\HL7\HL7DataExtractionService.cs /line:3747
+Debug.ToggleBreakpoint
+File.OpenFile C:\Users\Christian\source\repos\christianpeut95\Sentinel\Sentinel\Services\HL7\HL7DataExtractionService.cs /line:3750
+Debug.ToggleBreakpoint
+File.OpenFile C:\Users\Christian\source\repos\christianpeut95\Sentinel\Sentinel\Services\HL7\HL7DataExtractionService.cs /line:3756
+Debug.ToggleBreakpoint
+File.OpenFile C:\Users\Christian\source\repos\christianpeut95\Sentinel\Sentinel\Services\HL7\HL7DataExtractionService.cs /line:3761
+Debug.ToggleBreakpoint
+File.OpenFile C:\Users\Christian\source\repos\christianpeut95\Sentinel\Sentinel\Services\HL7\HL7DataExtractionService.cs /line:3779
+Debug.ToggleBreakpoint
+File.OpenFile C:\Users\Christian\source\repos\christianpeut95\Sentinel\Sentinel\Services\HL7\HL7DataExtractionService.cs /line:3785
+Debug.ToggleBreakpoint
+File.OpenFile C:\Users\Christian\source\repos\christianpeut95\Sentinel\Sentinel\Services\HL7\HL7DataExtractionService.cs /line:3788
+Debug.ToggleBreakpoint
+File.OpenFile C:\Users\Christian\source\repos\christianpeut95\Sentinel\Sentinel\Services\HL7\HL7DataExtractionService.cs /line:3794
+Debug.ToggleBreakpoint
+File.OpenFile C:\Users\Christian\source\repos\christianpeut95\Sentinel\Sentinel\Services\HL7\HL7DataExtractionService.cs /line:3820
+Debug.ToggleBreakpoint
+File.OpenFile C:\Users\Christian\source\repos\christianpeut95\Sentinel\Sentinel\Services\HL7\HL7DataExtractionService.cs /line:3821
+Debug.ToggleBreakpoint
+File.OpenFile C:\Users\Christian\source\repos\christianpeut95\Sentinel\Sentinel\Services\HL7\HL7DataExtractionService.cs /line:3822
+Debug.ToggleBreakpoint
+File.OpenFile C:\Users\Christian\source\repos\christianpeut95\Sentinel\Sentinel\Services\HL7\HL7DataExtractionService.cs /line:3833
+Debug.ToggleBreakpoint
+File.OpenFile C:\Users\Christian\source\repos\christianpeut95\Sentinel\Sentinel\Services\HL7\HL7DataExtractionService.cs /line:3838
+Debug.ToggleBreakpoint
+File.OpenFile C:\Users\Christian\source\repos\christianpeut95\Sentinel\Sentinel\Services\HL7\HL7DataExtractionService.cs /line:4782
+Debug.ToggleBreakpoint
+File.OpenFile C:\Users\Christian\source\repos\christianpeut95\Sentinel\Sentinel\Services\HL7\HL7DataExtractionService.cs /line:4806
+Debug.ToggleBreakpoint
+File.OpenFile C:\Users\Christian\source\repos\christianpeut95\Sentinel\Sentinel\Services\HL7\HL7DataExtractionService.cs /line:4824
+Debug.ToggleBreakpoint
+File.OpenFile C:\Users\Christian\source\repos\christianpeut95\Sentinel\Sentinel\Services\HL7\HL7DataExtractionService.cs /line:4846
+Debug.ToggleBreakpoint
+File.OpenFile C:\Users\Christian\source\repos\christianpeut95\Sentinel\Sentinel\Services\HL7\HL7DataExtractionService.cs /line:4923
+Debug.ToggleBreakpoint
+File.OpenFile C:\Users\Christian\source\repos\christianpeut95\Sentinel\Sentinel\Services\HL7\HL7DataExtractionService.cs /line:4924
+Debug.ToggleBreakpoint
+File.OpenFile C:\Users\Christian\source\repos\christianpeut95\Sentinel\Sentinel\Services\HL7\HL7DataExtractionService.cs /line:4925
+Debug.ToggleBreakpoint
+File.OpenFile C:\Users\Christian\source\repos\christianpeut95\Sentinel\Sentinel\Services\HL7\HL7DataExtractionService.cs /line:4932
+Debug.ToggleBreakpoint
+File.OpenFile C:\Users\Christian\source\repos\christianpeut95\Sentinel\Sentinel\Services\HL7\HL7DataExtractionService.cs /line:4990
+Debug.ToggleBreakpoint
+File.OpenFile C:\Users\Christian\source\repos\christianpeut95\Sentinel\Sentinel\Services\HL7\HL7DataExtractionService.cs /line:5006
+Debug.ToggleBreakpoint
+File.OpenFile C:\Users\Christian\source\repos\christianpeut95\Sentinel\Sentinel\Services\HL7\HL7DataExtractionService.cs /line:5070
+Debug.ToggleBreakpoint
+File.OpenFile C:\Users\Christian\source\repos\christianpeut95\Sentinel\Sentinel\Services\HL7\HL7DataExtractionService.cs /line:5079
+Debug.ToggleBreakpoint
+File.OpenFile C:\Users\Christian\source\repos\christianpeut95\Sentinel\Sentinel\Services\HL7\HL7DataExtractionService.cs /line:5086
+Debug.ToggleBreakpoint
+File.OpenFile C:\Users\Christian\source\repos\christianpeut95\Sentinel\Sentinel\Services\HL7\HL7DataExtractionService.cs /line:5090
+Debug.ToggleBreakpoint
+File.OpenFile C:\Users\Christian\source\repos\christianpeut95\Sentinel\Sentinel\Services\HL7\HL7DataExtractionService.cs /line:5109
+Debug.ToggleBreakpoint
+File.OpenFile C:\Users\Christian\source\repos\christianpeut95\Sentinel\Sentinel\Services\HL7\HL7DataExtractionService.cs /line:5121
+Debug.ToggleBreakpoint
+File.OpenFile C:\Users\Christian\source\repos\christianpeut95\Sentinel\Sentinel\Services\HL7\HL7DataExtractionService.cs /line:5125
+Debug.ToggleBreakpoint
+File.OpenFile C:\Users\Christian\source\repos\christianpeut95\Sentinel\Sentinel\Services\HL7\HL7DataExtractionService.cs /line:5141
+Debug.ToggleBreakpoint
+File.OpenFile C:\Users\Christian\source\repos\christianpeut95\Sentinel\Sentinel\Services\HL7\HL7DataExtractionService.cs /line:5146
+Debug.ToggleBreakpoint
+File.OpenFile C:\Users\Christian\source\repos\christianpeut95\Sentinel\Sentinel\Services\HL7\HL7DataExtractionService.cs /line:5149
+Debug.ToggleBreakpoint
+File.OpenFile C:\Users\Christian\source\repos\christianpeut95\Sentinel\Sentinel\Services\HL7\HL7DataExtractionService.cs /line:5154
+Debug.ToggleBreakpoint
+File.OpenFile C:\Users\Christian\source\repos\christianpeut95\Sentinel\Sentinel\Services\HL7\HL7DataExtractionService.cs /line:5160
+Debug.ToggleBreakpoint
+File.OpenFile C:\Users\Christian\source\repos\christianpeut95\Sentinel\Sentinel\Services\HL7\HL7DataExtractionService.cs /line:5162
+Debug.ToggleBreakpoint
+File.OpenFile C:\Users\Christian\source\repos\christianpeut95\Sentinel\Sentinel\Services\HL7\HL7DataExtractionService.cs /line:5168
+Debug.ToggleBreakpoint
+File.OpenFile C:\Users\Christian\source\repos\christianpeut95\Sentinel\Sentinel\Services\HL7\HL7DataExtractionService.cs /line:5170
+Debug.ToggleBreakpoint
+File.OpenFile C:\Users\Christian\source\repos\christianpeut95\Sentinel\Sentinel\Services\HL7\HL7DataExtractionService.cs /line:5181
+Debug.ToggleBreakpoint
+File.OpenFile C:\Users\Christian\source\repos\christianpeut95\Sentinel\Sentinel\Services\HL7\HL7DataExtractionService.cs /line:5190
+Debug.ToggleBreakpoint
+File.OpenFile C:\Users\Christian\source\repos\christianpeut95\Sentinel\Sentinel\Services\HL7\HL7DataExtractionService.cs /line:5220
+Debug.ToggleBreakpoint
+File.OpenFile C:\Users\Christian\source\repos\christianpeut95\Sentinel\Sentinel\Services\HL7\HL7DataExtractionService.cs /line:5223
+Debug.ToggleBreakpoint
+File.OpenFile C:\Users\Christian\source\repos\christianpeut95\Sentinel\Sentinel\Services\HL7\HL7DataExtractionService.cs /line:5232
+Debug.ToggleBreakpoint
+File.OpenFile C:\Users\Christian\source\repos\christianpeut95\Sentinel\Sentinel\Services\HL7\HL7DataExtractionService.cs /line:5234
+Debug.ToggleBreakpoint
+File.OpenFile C:\Users\Christian\source\repos\christianpeut95\Sentinel\Sentinel\Services\HL7\HL7DataExtractionService.cs /line:5714
+Debug.ToggleBreakpoint
+File.OpenFile C:\Users\Christian\source\repos\christianpeut95\Sentinel\Sentinel\Services\HL7\HL7DataExtractionService.cs /line:5774
+Debug.ToggleBreakpoint
+File.OpenFile C:\Users\Christian\source\repos\christianpeut95\Sentinel\Sentinel\Services\HL7\HL7DataExtractionService.cs /line:5787
+Debug.ToggleBreakpoint
+File.OpenFile C:\Users\Christian\source\repos\christianpeut95\Sentinel\Sentinel\Services\HL7\HL7DataExtractionService.cs /line:5796
+Debug.ToggleBreakpoint
+File.OpenFile C:\Users\Christian\source\repos\christianpeut95\Sentinel\Sentinel\Services\HL7\HL7DataExtractionService.cs /line:5816
+Debug.ToggleBreakpoint
+File.OpenFile C:\Users\Christian\source\repos\christianpeut95\Sentinel\Sentinel\Services\HL7\HL7DataExtractionService.cs /line:5833
+Debug.ToggleBreakpoint
+File.OpenFile C:\Users\Christian\source\repos\christianpeut95\Sentinel\Sentinel\Services\HL7\HL7DataExtractionService.cs /line:5851
+Debug.ToggleBreakpoint
+File.OpenFile C:\Users\Christian\source\repos\christianpeut95\Sentinel\Sentinel\Services\HL7\HL7DataExtractionService.cs /line:5859
+Debug.ToggleBreakpoint
+File.OpenFile C:\Users\Christian\source\repos\christianpeut95\Sentinel\Sentinel\Services\HL7\HL7DataExtractionService.cs /line:5862
+Debug.ToggleBreakpoint
+File.OpenFile C:\Users\Christian\source\repos\christianpeut95\Sentinel\Sentinel\Services\HL7\HL7DataExtractionService.cs /line:5876
+Debug.ToggleBreakpoint
+File.OpenFile C:\Users\Christian\source\repos\christianpeut95\Sentinel\Sentinel\Services\HL7\HL7DataExtractionService.cs /line:5916
+Debug.ToggleBreakpoint
+File.OpenFile C:\Users\Christian\source\repos\christianpeut95\Sentinel\Sentinel\Services\HL7\HL7DataExtractionService.cs /line:5927
+Debug.ToggleBreakpoint
+File.OpenFile C:\Users\Christian\source\repos\christianpeut95\Sentinel\Sentinel\Services\HL7\HL7DataExtractionService.cs /line:5942
+Debug.ToggleBreakpoint
+File.OpenFile C:\Users\Christian\source\repos\christianpeut95\Sentinel\Sentinel\Services\HL7\HL7DataExtractionService.cs /line:5950
+Debug.ToggleBreakpoint
+File.OpenFile C:\Users\Christian\source\repos\christianpeut95\Sentinel\Sentinel\Services\HL7\HL7DataExtractionService.cs /line:5953
+Debug.ToggleBreakpoint
+File.OpenFile C:\Users\Christian\source\repos\christianpeut95\Sentinel\Sentinel\Services\HL7\HL7DataExtractionService.cs /line:5975
+Debug.ToggleBreakpoint
+File.OpenFile C:\Users\Christian\source\repos\christianpeut95\Sentinel\Sentinel\Services\HL7\HL7DataExtractionService.cs /line:5984
+Debug.ToggleBreakpoint
+File.OpenFile C:\Users\Christian\source\repos\christianpeut95\Sentinel\Sentinel\Services\HL7\HL7DataExtractionService.cs /line:5996
+Debug.ToggleBreakpoint
+File.OpenFile C:\Users\Christian\source\repos\christianpeut95\Sentinel\Sentinel\Services\HL7\HL7DataExtractionService.cs /line:6021
+Debug.ToggleBreakpoint
+File.OpenFile C:\Users\Christian\source\repos\christianpeut95\Sentinel\Sentinel\Services\HL7\HL7DataExtractionService.cs /line:6029
+Debug.ToggleBreakpoint
+File.OpenFile C:\Users\Christian\source\repos\christianpeut95\Sentinel\Sentinel\Services\HL7\HL7DataExtractionService.cs /line:6039
+Debug.ToggleBreakpoint
+File.OpenFile C:\Users\Christian\source\repos\christianpeut95\Sentinel\Sentinel\Services\HL7\HL7DataExtractionService.cs /line:6052
+Debug.ToggleBreakpoint
+File.OpenFile C:\Users\Christian\source\repos\christianpeut95\Sentinel\Sentinel\Services\HL7\HL7DataExtractionService.cs /line:6057
+Debug.ToggleBreakpoint
+File.OpenFile C:\Users\Christian\source\repos\christianpeut95\Sentinel\Sentinel\Services\HL7\HL7DataExtractionService.cs /line:6078
+Debug.ToggleBreakpoint
+File.OpenFile C:\Users\Christian\source\repos\christianpeut95\Sentinel\Sentinel\Services\HL7\HL7DataExtractionService.cs /line:6082
+Debug.ToggleBreakpoint
+File.OpenFile C:\Users\Christian\source\repos\christianpeut95\Sentinel\Sentinel\Services\HL7\HL7DataExtractionService.cs /line:6089
+Debug.ToggleBreakpoint
+File.OpenFile C:\Users\Christian\source\repos\christianpeut95\Sentinel\Sentinel\Services\HL7\HL7DataExtractionService.cs /line:6101
+Debug.ToggleBreakpoint
+File.OpenFile C:\Users\Christian\source\repos\christianpeut95\Sentinel\Sentinel\Services\HL7\HL7DataExtractionService.cs /line:6111
+Debug.ToggleBreakpoint
+File.OpenFile C:\Users\Christian\source\repos\christianpeut95\Sentinel\Sentinel\Services\HL7\HL7DataExtractionService.cs /line:6125
+Debug.ToggleBreakpoint
+File.OpenFile C:\Users\Christian\source\repos\christianpeut95\Sentinel\Sentinel\Services\HL7\HL7DataExtractionService.cs /line:6139
+Debug.ToggleBreakpoint
+File.OpenFile C:\Users\Christian\source\repos\christianpeut95\Sentinel\Sentinel\Services\HL7\HL7DataExtractionService.cs /line:6158
+Debug.ToggleBreakpoint
+File.OpenFile C:\Users\Christian\source\repos\christianpeut95\Sentinel\Sentinel\Services\HL7\HL7DataExtractionService.cs /line:6183
+Debug.ToggleBreakpoint
+File.OpenFile C:\Users\Christian\source\repos\christianpeut95\Sentinel\Sentinel\Services\HL7\HL7DataExtractionService.cs /line:6195
+Debug.ToggleBreakpoint
+File.OpenFile C:\Users\Christian\source\repos\christianpeut95\Sentinel\Sentinel\Services\HL7\HL7DataExtractionService.cs /line:6198
+Debug.ToggleBreakpoint

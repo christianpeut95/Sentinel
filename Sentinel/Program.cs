@@ -294,12 +294,16 @@ builder.Services.AddScoped<Sentinel.Services.Reporting.IDynamicDateResolver, Sen
 builder.Services.AddScoped<Sentinel.Services.IDataReviewService, Sentinel.Services.DataReviewService>();
 builder.Services.AddScoped<Sentinel.Services.IDashboardService, Sentinel.Services.DashboardService>();
 
+// Application Timezone Service (Singleton - same timezone for entire app)
+builder.Services.AddSingleton<Sentinel.Services.IApplicationTimeZoneService, Sentinel.Services.ApplicationTimeZoneService>();
+
 // Case Definition Evaluation Services
 builder.Services.AddScoped<Sentinel.Services.CaseDefinitionEvaluation.OperatorEvaluator>();
 builder.Services.AddScoped<Sentinel.Services.CaseDefinitionEvaluation.FieldResolver>();
 builder.Services.AddScoped<Sentinel.Services.CaseDefinitionEvaluation.CriterionEvaluator>();
 builder.Services.AddScoped<Sentinel.Services.CaseDefinitionEvaluation.CriteriaGroupEvaluator>();
 builder.Services.AddScoped<Sentinel.Services.CaseDefinitionEvaluation.DefinitionEvaluator>();
+builder.Services.AddScoped<Sentinel.Services.CaseDefinitionEvaluation.TreeBasedCriteriaEvaluator>();
 builder.Services.AddScoped<Sentinel.Services.CaseDefinitionEvaluation.ICaseDefinitionEvaluationService, Sentinel.Services.CaseDefinitionEvaluation.CaseDefinitionEvaluationService>();
 
 // HL7 Services
@@ -310,6 +314,7 @@ builder.Services.AddScoped<Sentinel.Services.HL7.IHL7DataExtractionService, Sent
 builder.Services.AddScoped<Sentinel.Services.HL7.IHL7MarkerResolutionService, Sentinel.Services.HL7.HL7MarkerResolutionService>();
 builder.Services.AddScoped<Sentinel.Services.HL7.ICaseDefinitionMatchingService, Sentinel.Services.HL7.CaseDefinitionMatchingService>();
 builder.Services.AddScoped<Sentinel.Services.HL7.ICaseMatchingService, Sentinel.Services.HL7.CaseMatchingService>();
+builder.Services.AddScoped<Sentinel.Services.HL7.CaseDefinitionSpecificityScorer>();
 builder.Services.AddScoped<Sentinel.Services.HL7.HL7DiagnosticService>();
 builder.Services.AddScoped<Sentinel.Services.HL7.IHL7TestMessageService, Sentinel.Services.HL7.HL7TestMessageService>();
 // HL7 File Monitor Service must be Singleton so all parts of app see the same monitoring state
@@ -827,8 +832,8 @@ app.MapPut("/api/case-definitions/{id:int}/criteria/{criterionId:int}/laboratory
     // Extract data
     var specimenTypeIds = data.GetProperty("specimenTypeIds").EnumerateArray()
         .Select(e => e.GetInt32()).ToList();
-    var pathogenNames = data.GetProperty("pathogenNames").EnumerateArray()
-        .Select(e => e.GetString()!).ToList();
+    var pathogenIds = data.GetProperty("pathogenIds").EnumerateArray()
+        .Select(e => Guid.Parse(e.GetString()!)).ToList();
     var testMethodIds = data.GetProperty("testMethodIds").EnumerateArray()
         .Select(e => e.GetInt32()).ToList();
     var resultValues = data.GetProperty("resultValues").EnumerateArray()
@@ -860,7 +865,7 @@ app.MapPut("/api/case-definitions/{id:int}/criteria/{criterionId:int}/laboratory
     var valueObj = new
     {
         specimenTypeIds,
-        pathogenNames,
+        pathogenIds,
         testMethodIds,
         resultValues,
         timeConstraint,
@@ -883,7 +888,7 @@ app.MapPut("/api/case-definitions/{id:int}/criteria/{criterionId:int}/laboratory
     criterion.AcceptableSpecimenTypesJson = JsonSerializer.Serialize(specimenTypeIds);
     criterion.SpecimenStoragePreference = specimenStoragePreference.HasValue ? (Sentinel.Models.CaseDefinitions.DataStoragePreference)specimenStoragePreference.Value : Sentinel.Models.CaseDefinitions.DataStoragePreference.StoreAsReceived;
     criterion.CanonicalSpecimenTypeId = canonicalSpecimenTypeId;
-    criterion.AcceptablePathogensJson = JsonSerializer.Serialize(pathogenNames);
+    criterion.AcceptablePathogensJson = JsonSerializer.Serialize(pathogenIds);
     criterion.BiomarkerStoragePreference = pathogenStoragePreference.HasValue ? (Sentinel.Models.CaseDefinitions.DataStoragePreference)pathogenStoragePreference.Value : Sentinel.Models.CaseDefinitions.DataStoragePreference.StoreAsReceived;
     criterion.CanonicalPathogenId = canonicalPathogenId != null ? Guid.Parse(canonicalPathogenId) : (Guid?)null;
     criterion.AcceptableTestMethodsJson = JsonSerializer.Serialize(testMethodIds);

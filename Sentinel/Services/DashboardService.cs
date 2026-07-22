@@ -148,48 +148,71 @@ namespace Sentinel.Services
             }
 
             // 2. New Contacts per Disease (grouped summary) - within time window
-            var newContactsQuery = _context.Cases
-                .Include(c => c.Disease)
-                .Where(c => !c.IsDeleted 
-                    && c.Type == CaseType.Contact 
-                    && c.DiseaseId.HasValue);
-
-            // Apply disease filter if any pinned
-            if (pinnedDiseaseIds.Any())
-            {
-                newContactsQuery = newContactsQuery.Where(c => pinnedDiseaseIds.Contains(c.DiseaseId.Value));
-            }
-
-            var newContacts = await newContactsQuery
-                .OrderByDescending(c => c.Id)
-                .Take(100)
+            // Get contact creation audit logs within the time window
+            var contactCreationAuditsList = await _context.AuditLogs
+                .Where(a => a.EntityType == "Case" 
+                    && a.Action == "Created"
+                    && a.ChangedAt >= cutoffTime)
                 .ToListAsync();
 
-            var contactsByDisease = newContacts
-                .GroupBy(c => new { c.DiseaseId, DiseaseName = c.Disease?.Name, DiseaseCode = c.Disease?.Code })
-                .Select(g => new
-                {
-                    g.Key.DiseaseId,
-                    g.Key.DiseaseName,
-                    g.Key.DiseaseCode,
-                    Count = g.Count()
-                })
-                .Where(x => x.Count > 0)
-                .OrderByDescending(x => x.Count)
-                .Take(5);
+            var contactCreationAudits = contactCreationAuditsList.ToDictionary(a => a.EntityId, a => a.ChangedAt);
 
-            foreach (var group in contactsByDisease)
+            if (contactCreationAudits.Any())
             {
-                activities.Add(new ActivityItem
+                var contactIds = contactCreationAudits.Keys.ToList();
+
+                var newContactsQuery = _context.Cases
+                    .Include(c => c.Disease)
+                    .Where(c => !c.IsDeleted 
+                        && c.Type == CaseType.Contact 
+                        && c.DiseaseId.HasValue
+                        && contactIds.Contains(c.Id.ToString()));
+
+                // Apply disease filter if any pinned
+                if (pinnedDiseaseIds.Any())
                 {
-                    ActivityType = "Contacts",
-                    EntityType = "Disease",
-                    EntityId = group.DiseaseId?.ToString() ?? "",
-                    DisplayText = $"{group.Count} new contact{(group.Count != 1 ? "s" : "")} - {group.DiseaseName}",
-                    Status = "info",
-                    OccurredAt = DateTime.UtcNow,
-                    DiseaseCode = group.DiseaseCode
-                });
+                    newContactsQuery = newContactsQuery.Where(c => pinnedDiseaseIds.Contains(c.DiseaseId.Value));
+                }
+
+                var newContacts = await newContactsQuery.ToListAsync();
+
+                // Create contacts with their creation times
+                var contactsWithCreationTime = newContacts
+                    .Where(c => contactCreationAudits.ContainsKey(c.Id.ToString()))
+                    .Select(c => new 
+                    { 
+                        Contact = c, 
+                        CreatedAt = contactCreationAudits[c.Id.ToString()] 
+                    })
+                    .ToList();
+
+                var contactsByDisease = contactsWithCreationTime
+                    .GroupBy(c => new { c.Contact.DiseaseId, DiseaseName = c.Contact.Disease?.Name, DiseaseCode = c.Contact.Disease?.Code })
+                    .Select(g => new
+                    {
+                        g.Key.DiseaseId,
+                        g.Key.DiseaseName,
+                        g.Key.DiseaseCode,
+                        Count = g.Count(),
+                        MostRecentCreation = g.Max(x => x.CreatedAt)
+                    })
+                    .Where(x => x.Count > 0)
+                    .OrderByDescending(x => x.Count)
+                    .Take(5);
+
+                foreach (var group in contactsByDisease)
+                {
+                    activities.Add(new ActivityItem
+                    {
+                        ActivityType = "Contacts",
+                        EntityType = "Disease",
+                        EntityId = group.DiseaseId?.ToString() ?? "",
+                        DisplayText = $"{group.Count} new contact{(group.Count != 1 ? "s" : "")} - {group.DiseaseName}",
+                        Status = "info",
+                        OccurredAt = group.MostRecentCreation,
+                        DiseaseCode = group.DiseaseCode
+                    });
+                }
             }
 
             // 3. New Outbreaks - within time window
@@ -271,10 +294,25 @@ namespace Sentinel.Services
 
         private async Task<WidgetData> GetCasesByDiseaseDataAsync(string userId, Dictionary<string, object> settings, List<Guid> pinnedDiseaseIds)
         {
+            var timeWindow = settings.ContainsKey("timeWindow") ? settings["timeWindow"]?.ToString() : "30d";
+            var cutoffTime = GetCutoffTime(timeWindow ?? "30d");
+
+            // Get case IDs created within the time window from audit logs
+            var caseCreationAuditsList = await _context.AuditLogs
+                .Where(a => a.EntityType == "Case" 
+                    && a.Action == "Created"
+                    && a.ChangedAt >= cutoffTime)
+                .ToListAsync();
+
+            var createdCaseIds = caseCreationAuditsList.Select(a => a.EntityId).ToList();
+
             var casesQuery = _context.Cases
                 .Include(c => c.Disease)
                 .Include(c => c.ConfirmationStatus)
-                .Where(c => !c.IsDeleted && c.Type == CaseType.Case && c.DiseaseId.HasValue);
+                .Where(c => !c.IsDeleted 
+                    && c.Type == CaseType.Case 
+                    && c.DiseaseId.HasValue
+                    && createdCaseIds.Contains(c.Id.ToString()));
 
             // Filter by pinned diseases if any
             if (pinnedDiseaseIds.Any())
@@ -311,8 +349,11 @@ namespace Sentinel.Services
 
         private async Task<WidgetData> GetHL7OverviewDataAsync(string userId, Dictionary<string, object> settings, List<Guid> pinnedDiseaseIds)
         {
+            var timeWindow = settings.ContainsKey("timeWindow") ? settings["timeWindow"]?.ToString() : "24h";
+            var cutoffTime = GetCutoffTime(timeWindow ?? "24h");
+
             var messages = await _context.HL7Messages
-                .Where(m => !m.IsDeleted)
+                .Where(m => !m.IsDeleted && m.ReceivedAt >= cutoffTime)
                 .ToListAsync();
 
             var processed = messages.Count(m => m.Status == HL7ProcessingStatus.ProcessedSuccessfully || m.Status == HL7ProcessingStatus.ProcessedWithWarnings);
@@ -341,15 +382,22 @@ namespace Sentinel.Services
 
         private async Task<WidgetData> GetTasksAndSurveysDataAsync(string userId, Dictionary<string, object> settings, List<Guid> pinnedDiseaseIds)
         {
-            var tasks = await _context.CaseTasks
+            var timeWindow = settings.ContainsKey("timeWindow") ? settings["timeWindow"]?.ToString() : "24h";
+            var cutoffTime = GetCutoffTime(timeWindow ?? "24h");
+
+            // Get all tasks for outstanding/overdue counts (not filtered by time)
+            var allTasks = await _context.CaseTasks
                 .Include(t => t.TaskType)
                 .ToListAsync();
 
-            var outstanding = tasks.Count(t => t.Status != CaseTaskStatus.Completed && t.Status != CaseTaskStatus.Cancelled);
-            var completedToday = tasks.Count(t => t.CompletedAt.HasValue && t.CompletedAt.Value.Date == DateTime.UtcNow.Date);
-            var overdue = tasks.Count(t => t.Status != CaseTaskStatus.Completed && t.DueDate.HasValue && t.DueDate < DateTime.UtcNow);
+            // Get tasks created in time window for "new tasks" metric
+            var recentTasks = allTasks.Where(t => t.CreatedAt >= cutoffTime).ToList();
 
-            var taskTypeSummary = tasks
+            var outstanding = allTasks.Count(t => t.Status != CaseTaskStatus.Completed && t.Status != CaseTaskStatus.Cancelled);
+            var completedInWindow = recentTasks.Count(t => t.Status == CaseTaskStatus.Completed);
+            var overdue = allTasks.Count(t => t.Status != CaseTaskStatus.Completed && t.DueDate.HasValue && t.DueDate < DateTime.UtcNow);
+
+            var taskTypeSummary = allTasks
                 .Where(t => t.Status != CaseTaskStatus.Completed)
                 .GroupBy(t => t.TaskType?.Name ?? "Unspecified")
                 .Select(g => new TaskSummary
@@ -369,7 +417,7 @@ namespace Sentinel.Services
                 Data = new TasksAndSurveysData
                 {
                     OutstandingTasks = outstanding,
-                    CompletedToday = completedToday,
+                    CompletedToday = completedInWindow,
                     OverdueTasks = overdue,
                     TopTaskTypes = taskTypeSummary
                 },

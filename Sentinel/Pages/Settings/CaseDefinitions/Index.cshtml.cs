@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.EntityFrameworkCore;
 using Sentinel.Data;
@@ -62,6 +63,25 @@ namespace Sentinel.Pages.Settings.CaseDefinitions
         {
             // TODO: Implement when background evaluation service is ready
             return "Not yet evaluated";
+        }
+
+        public async Task<IActionResult> OnPostArchiveAsync(int id)
+        {
+            var definition = await _context.CaseDefinitions.FindAsync(id);
+
+            if (definition == null)
+            {
+                return NotFound();
+            }
+
+            // Archive the definition
+            definition.Status = CaseDefinitionStatus.Archived;
+            definition.ModifiedAt = DateTime.UtcNow;
+            definition.ModifiedBy = User.Identity?.Name;
+
+            await _context.SaveChangesAsync();
+
+            return new OkResult();
         }
     }
 }

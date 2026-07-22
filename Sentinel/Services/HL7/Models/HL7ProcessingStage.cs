@@ -141,7 +141,21 @@ namespace Sentinel.Services.HL7.Models
         public int? ResolvedTestMethodId { get; set; }
         public MatchMethod TestMethodMatchMethod { get; set; } = MatchMethod.NotMatched;
 
+        public int? ResolvedSpecimenTypeId { get; set; }
+        public int? ResolvedTestResultId { get; set; }
+
         public string? NormalizedResultValue { get; set; } // "Positive", "Negative", etc.
+
+        // Resolved names for display/logging
+        public string? PathogenName { get; set; }
+        public string? TestMethodName { get; set; }
+        public string? SpecimenTypeName { get; set; }
+
+        // Field resolution status
+        public FieldResolutionStatus PathogenStatus { get; set; } = FieldResolutionStatus.NotPresent;
+        public FieldResolutionStatus TestMethodStatus { get; set; } = FieldResolutionStatus.NotPresent;
+        public FieldResolutionStatus SpecimenTypeStatus { get; set; } = FieldResolutionStatus.NotPresent;
+        public FieldResolutionStatus TestResultStatus { get; set; } = FieldResolutionStatus.NotPresent;
     }
 
     /// <summary>
@@ -172,6 +186,12 @@ namespace Sentinel.Services.HL7.Models
         public bool MultipleActiveCasesDetected { get; set; }
         public bool ShouldCreateNewCase { get; set; }
         public Disease? FinalDiseaseForCase { get; set; }  // The disease to use for case creation
+
+        // Partial match support
+        public CaseStatus? ConfirmationStatus { get; set; }
+        public int? ConfirmationStatusId { get; set; }
+        public bool IsPartialMatch { get; set; }
+        public List<string> MissingFields { get; set; } = new();
     }
 
     public enum MatchSource
@@ -204,9 +224,11 @@ namespace Sentinel.Services.HL7.Models
     /// </summary>
     public enum MatchMethod
     {
-        NotMatched,  // No match found
-        Exact,       // Matched by code/ID
-        Text         // Matched by text search/fuzzy matching
+        None,            // No matching attempted
+        NotMatched,      // No match found
+        Exact,           // Matched by code/ID
+        Text,            // Matched by text search/fuzzy matching
+        FromExistingCase // Loaded from existing case for progressive typing
     }
 }
 

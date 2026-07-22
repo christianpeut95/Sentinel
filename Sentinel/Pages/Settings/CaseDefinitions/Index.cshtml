@@ -235,6 +235,11 @@
     </div>
 </div>
 
+<!-- Hidden form for anti-forgery token -->
+<form id="hiddenForm" method="post" style="display:none;">
+    @Html.AntiForgeryToken()
+</form>
+
 @section Scripts {
     <script>
         function clearFilters() {
@@ -278,19 +283,21 @@
 
         function archiveDefinition(id) {
             if (confirm('Archive this definition? It will no longer be used for case evaluation.')) {
-                fetch(`/Settings/CaseDefinitions/Archive?id=${id}`, {
-                    method: 'POST',
-                    headers: {
-                        'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]')?.value
-                    }
-                })
-                .then(response => {
-                    if (response.ok) {
-                        location.reload();
-                    } else {
-                        alert('Failed to archive definition');
-                    }
-                });
+                const form = document.createElement('form');
+                form.method = 'POST';
+                form.action = `/Settings/CaseDefinitions/Index?handler=Archive&id=${id}`;
+
+                const token = document.querySelector('input[name="__RequestVerificationToken"]');
+                if (token) {
+                    const hiddenToken = document.createElement('input');
+                    hiddenToken.type = 'hidden';
+                    hiddenToken.name = '__RequestVerificationToken';
+                    hiddenToken.value = token.value;
+                    form.appendChild(hiddenToken);
+                }
+
+                document.body.appendChild(form);
+                form.submit();
             }
         }
 

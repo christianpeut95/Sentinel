@@ -62,6 +62,7 @@ public class DataExtractionResult
     public Organization? Laboratory { get; set; }
     public Organization? OrderingProvider { get; set; }
     public LabResult? LabResult { get; set; }
+    public List<Case> Cases { get; set; } = new();
     public List<string> Warnings { get; set; } = new();
     public List<string> Errors { get; set; } = new();
     public bool RequiresManualReview { get; set; }

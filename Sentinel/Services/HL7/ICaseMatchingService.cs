@@ -55,6 +55,7 @@ namespace Sentinel.Services.HL7
         public List<string> Errors { get; set; } = new();
         public bool RequiresManualReview { get; set; }
         public string? ManualReviewReason { get; set; }
+        public List<DiseaseIdentification> DiseaseIdentifications { get; set; } = new();
     }
 
     /// <summary>
@@ -69,6 +70,11 @@ namespace Sentinel.Services.HL7
         public bool IsPositiveResult { get; set; }
         public CaseStatus? ConfirmationStatus { get; set; }
         public int? ConfirmationStatusId { get; set; }
+
+        // Partial Match tracking
+        public bool IsPartialMatch { get; set; }
+        public List<string> MissingFields { get; set; } = new();
+        public int? OriginalConfirmationStatusId { get; set; }
     }
 
     /// <summary>

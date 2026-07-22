@@ -1,0 +1,415 @@
+===============================================================================
+STEP 4 & STEP 5 DECISION POINT BREAKPOINTS
+===============================================================================
+File: Services\HL7\HL7DataExtractionService.cs
+Total Decision Points: 93
+
+===============================================================================
+ALL BREAKPOINT LINE NUMBERS (copy/paste ready)
+===============================================================================
+
+3526, 3527, 3528, 3529, 3574, 3582, 3598, 3623, 3634, 3638, 3665, 3686, 3695,
+3722, 3723, 3747, 3750, 3756, 3761, 3779, 3785, 3788, 3794, 3820, 3821, 3822,
+3833, 3838, 4782, 4806, 4824, 4846, 4923, 4924, 4925, 4932, 4990, 5006, 5070,
+5079, 5086, 5090, 5109, 5121, 5125, 5141, 5146, 5149, 5154, 5160, 5162, 5168,
+5170, 5181, 5190, 5220, 5223, 5232, 5234, 5714, 5774, 5787, 5796, 5816, 5833,
+5851, 5859, 5862, 5876, 5916, 5927, 5942, 5950, 5953, 5975, 5984, 5996, 6021,
+6029, 6039, 6052, 6057, 6078, 6082, 6089, 6101, 6111, 6125, 6139, 6158, 6183,
+6195, 6198
+
+===============================================================================
+ORGANIZED BY SECTION
+===============================================================================
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ STEP 4: FIELD RESOLUTION & DISEASE IDENTIFICATION (43 breakpoints)         │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+╔═══════════════════════════════════════════════════════════════════════════╗
+║ STEP 4.1: Text Matching Configuration (4 breakpoints)                    ║
+╚═══════════════════════════════════════════════════════════════════════════╝
+
+Line 3526: anySpecimenTextEnabled check
+           bool anySpecimenTextEnabled = allDiseaseConfigs.Any(c => c.SpecimenType_UseTextFallback);
+
+Line 3527: anyPathogenTextEnabled check
+           bool anyPathogenTextEnabled = allDiseaseConfigs.Any(c => c.Pathogen_UseTextFallback);
+
+Line 3528: anyTestMethodTextEnabled check
+           bool anyTestMethodTextEnabled = allDiseaseConfigs.Any(c => c.TestMethod_UseTextFallback);
+
+Line 3529: anyTestResultTextEnabled check
+           bool anyTestResultTextEnabled = allDiseaseConfigs.Any(c => c.TestResult_UseTextFallback);
+
+╔═══════════════════════════════════════════════════════════════════════════╗
+║ STEP 4.2: Existing Case Markers for Progressive Typing (2 breakpoints)   ║
+╚═══════════════════════════════════════════════════════════════════════════╝
+
+Line 3574: Check if existing case markers exist
+           if (existingCaseMarkers.Any())
+
+Line 3582: Temporarily combine markers
+           if (existingCaseMarkers.Any())
+
+╔═══════════════════════════════════════════════════════════════════════════╗
+║ STEP 4.3: Universal Field Resolution (4 breakpoints)                     ║
+╚═══════════════════════════════════════════════════════════════════════════╝
+
+Line 4782: Specimen type resolved check
+           if (stagedLabResult.ResolvedSpecimenTypeId.HasValue)
+
+Line 4806: Pathogen resolved check
+           if (marker.ResolvedPathogenId.HasValue)
+
+Line 4824: Test method resolved check
+           if (marker.ResolvedTestMethodId.HasValue)
+
+Line 4846: Test result resolved check
+           if (marker.ResolvedTestResultId.HasValue)
+
+╔═══════════════════════════════════════════════════════════════════════════╗
+║ STEP 4.4: Minimum Required Fields Validation (4 breakpoints)             ║
+╚═══════════════════════════════════════════════════════════════════════════╝
+
+Line 4923: hasSpecimen determination
+           bool hasSpecimen = stagedLabResult.ResolvedSpecimenTypeId.HasValue;
+
+Line 4924: hasPathogen determination
+           bool hasPathogen = resolvedMarkers.Any();
+
+Line 4925: hasResult determination
+           bool hasResult = stagedLabResult.Markers.Any(m => !string.IsNullOrWhiteSpace(m.NormalizedResultValue));
+
+Line 4932: Combined validation decision
+           if (!hasSpecimen || !hasPathogen || !hasResult)
+
+╔═══════════════════════════════════════════════════════════════════════════╗
+║ STEP 4.5: Case Definition Matching (23 breakpoints)                      ║
+╚═══════════════════════════════════════════════════════════════════════════╝
+
+Line 4990: No case definitions found
+           if (!caseDefinitions.Any())
+
+Line 5006: No laboratory criteria found
+           if (!labCriteria.Any())
+
+Line 5070: No pathogen restriction check
+           if (!hasPathogenRestriction)
+
+Line 5079: Pathogen not resolved
+           if (!marker.ResolvedPathogenId.HasValue)
+
+Line 5086: GUID-based pathogen matching
+           if (acceptablePathogenIds.Any())
+
+Line 5090: Pathogen GUID match failure
+           if (!pathogenMatch)
+
+Line 5109: Legacy name-based pathogen matching
+           else if (acceptablePathogenNames.Any())
+
+Line 5121: Name-based pathogen comparison
+           pathogenMatch = acceptablePathogenNames.Any(acceptableName =>
+
+Line 5125: Pathogen name match failure
+           if (!pathogenMatch)
+
+Line 5141: No specimen restriction
+           if (!acceptableSpecimens.Any())
+
+Line 5146: Specimen restriction exists
+           else
+
+Line 5149: Specimen match check
+           specimenMatch = stagedLabResult.ResolvedSpecimenTypeId.HasValue &&
+
+Line 5154: No test method restriction
+           if (!acceptableTestMethods.Any())
+
+Line 5160: Test method restriction exists
+           else
+
+Line 5162: Test method match check
+           testMethodMatch = marker.ResolvedTestMethodId.HasValue &&
+
+Line 5168: No result restriction
+           if (!acceptableResults.Any())
+
+Line 5170: Result value exists
+           if (marker.NormalizedResultValue != null)
+
+Line 5181: Result restriction exists
+           else
+
+Line 5190: All four criteria matched
+           if (pathogenMatch && specimenMatch && testMethodMatch && resultMatch)
+
+Line 5220: Required criteria evaluation
+           var allRequiredMatched = requiredCriteria.All(cm => cm.matched) && requiredCriteria.Any();
+
+Line 5223: Case definition as a whole matches
+           if (allRequiredMatched || (criteriaMatches.Any() && criteriaMatches.All(cm => cm.matched)))
+
+Line 5232: Check for existing disease match
+           var existingMatch = diseaseMatches.FirstOrDefault(dm => dm.Disease.Id == disease.Id);
+
+Line 5234: Existing match found
+           if (existingMatch != null)
+
+╔═══════════════════════════════════════════════════════════════════════════╗
+║ STEP 4.6: Disease Match Validation (6 breakpoints)                       ║
+╚═══════════════════════════════════════════════════════════════════════════╝
+
+Line 3598: No diseases identified
+           if (!stage.DiseaseMatches.Any())
+
+Line 3623: Multiple diseases require filtering
+           if (stage.DiseaseMatches.Count > 1)
+
+Line 3634: Check if disease is ancestor of another
+           bool isAncestorOfAnother = stage.DiseaseMatches.Any(other =>
+
+Line 3638: Keep most specific diseases
+           if (!isAncestorOfAnother)
+
+Line 3665: No diseases after filtering
+           if (!stage.DiseaseMatches.Any())
+
+Line 3686: Has multiple matched case definitions
+           if (diseaseMatch.MatchedCaseDefinitions.Any())
+
+Line 3695: Has single matched case definition
+           else if (diseaseMatch.MatchedCaseDefinition != null)
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ STEP 5: REINFECTION & HIERARCHY EVALUATION (50 breakpoints)                │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+╔═══════════════════════════════════════════════════════════════════════════╗
+║ STEP 5.1: Positive Match Filtering (6 breakpoints)                       ║
+╚═══════════════════════════════════════════════════════════════════════════╝
+
+Line 3722: Filter to positive results
+           var positiveMatches = stage.DiseaseMatches.Where(d => d.IsPositiveResult).ToList();
+
+Line 3723: No positive results found
+           if (!positiveMatches.Any())
+
+Line 3747: Existing case found
+           if (diseaseMatch.ExistingCase != null)
+
+Line 3750: Disease refinement recommended
+           if (diseaseMatch.ShouldRefineDiseaseOnExistingCase && diseaseMatch.RefinedDisease != null)
+
+Line 3756: Multiple active cases detected
+           if (diseaseMatch.MultipleActiveCasesDetected)
+
+Line 3761: Should create new case
+           if (diseaseMatch.ShouldCreateNewCase)
+
+╔═══════════════════════════════════════════════════════════════════════════╗
+║ STEP 5.2: Valid Positive Match Final Decision (9 breakpoints)            ║
+╚═══════════════════════════════════════════════════════════════════════════╝
+
+Line 3779: Filter to valid positive matches with pathogens
+           var validPositiveMatches = stage.DiseaseMatches
+
+Line 3785: No valid positive matches
+           if (!validPositiveMatches.Any())
+
+Line 3788: Check for matches without pathogen linkages
+           var matchesWithoutPathogens = stage.DiseaseMatches
+
+Line 3794: Matches found but no pathogens
+           if (matchesWithoutPathogens.Any())
+
+Line 3820: Valid matches exist
+           else
+
+Line 3821: Check for new cases
+           var hasNewCases = validPositiveMatches.Any(m => m.ShouldCreateNewCase);
+
+Line 3822: Check for linkages
+           var hasLinkages = validPositiveMatches.Any(m => m.ReinfectionDecision == ReinfectionDecision.LinkToExisting);
+
+Line 3833: Create new case decision
+           if (hasNewCases)
+
+Line 3838: Link to existing case decision
+           else if (hasLinkages)
+
+╔═══════════════════════════════════════════════════════════════════════════╗
+║ STEP 5.3: Reinfection Window Check (10 breakpoints)                      ║
+╚═══════════════════════════════════════════════════════════════════════════╝
+Method: EvaluateReinfectionAndHierarchyAsync
+
+Line 5714: New patient check
+           if (stagedPatient.IsNew)
+
+Line 5774: Query existing cases
+           var existingCases = await _context.Cases
+
+Line 5787: No existing cases found
+           if (!existingCases.Any())
+
+Line 5796: Multiple active cases found
+           if (existingCases.Count > 1)
+
+Line 5816: Within reinfection window
+           if (Math.Abs(daysSinceCase) <= reinfectionWindowDays)
+
+Line 5833: Evaluate disease refinement
+           await EvaluateDiseaseRefinementForExistingCaseAsync(
+
+Line 5851: Multi-marker refinement not found
+           if (!diseaseMatch.ShouldRefineDiseaseOnExistingCase &&
+
+Line 5859: Current case disease loaded
+           if (currentCaseDisease != null)
+
+Line 5862: Matched disease is more specific
+           if (diseaseMatch.Disease.Level > currentCaseDisease.Level &&
+
+Line 5876: Outside reinfection window
+           else
+
+╔═══════════════════════════════════════════════════════════════════════════╗
+║ STEP 5.4: Disease Hierarchy Evaluation (8 breakpoints)                   ║
+╚═══════════════════════════════════════════════════════════════════════════╝
+Method: EvaluateDiseaseHierarchyAsync
+
+Line 5916: No child diseases
+           if (!diseaseFamily.Any())
+
+Line 5927: Loop through child diseases
+           foreach (var childDisease in sortedDiseases)
+
+Line 5942: No case definitions for child
+           if (!caseDefinitions.Any())
+
+Line 5950: Initialize child match flag
+           bool childMatches = false;
+
+Line 5953: Loop through matched markers
+           foreach (var marker in diseaseMatch.MatchedMarkers)
+
+Line 5975: Child disease matches
+           if (matchResult != null && matchResult.DiseaseId == childDisease.Id)
+
+Line 5984: Use child disease
+           if (childMatches && childMatchResult != null)
+
+Line 5996: Child does not match
+           else
+
+╔═══════════════════════════════════════════════════════════════════════════╗
+║ STEP 5.5: Disease Refinement for Existing Cases (16 breakpoints)         ║
+╚═══════════════════════════════════════════════════════════════════════════╝
+Method: EvaluateDiseaseRefinementForExistingCaseAsync
+
+Line 6021: No existing case
+           if (diseaseMatch.ExistingCase == null)
+
+Line 6029: Case has no disease ID
+           if (!currentCaseDiseaseId.HasValue)
+
+Line 6039: Could not load current disease
+           if (currentCaseDisease == null)
+
+Line 6052: Query existing lab results
+           var existingLabResults = await _context.LabResults
+
+Line 6057: Filter markers with pathogens
+           .Where(m => m.PathogenId.HasValue)
+
+Line 6078: Loop through existing markers
+           foreach (var existingMarker in existingMarkers)
+
+Line 6082: Result not resolved and text exists
+           if (!resolvedTestResultId.HasValue && !string.IsNullOrWhiteSpace(existingMarker.QualitativeResultText))
+
+Line 6089: Result ID resolved from text
+           if (resolvedTestResultId.HasValue)
+
+Line 6101: Add existing marker to combined set
+           combinedLabResult.Markers.Add(new LabResultMarker
+
+Line 6111: Add new markers to combined set
+           foreach (var newMarker in stagedLabResult.Markers.Where(m => m.ResolvedPathogenId.HasValue))
+
+Line 6125: No markers available
+           if (!combinedLabResult.Markers.Any())
+
+Line 6139: No case definition matches
+           if (!combinedMatches.Any())
+
+Line 6158: Matches found but no diseases
+           if (!matchedDiseases.Any())
+
+Line 6183: Could not determine most specific
+           if (mostSpecificMatch?.Disease == null)
+
+Line 6195: Different disease than current
+           if (refinedDisease.Id != currentCaseDisease.Id)
+
+Line 6198: Refined disease is more specific
+           if (refinedDisease.Level > currentCaseDisease.Level &&
+
+===============================================================================
+INSTRUCTIONS: HOW TO SET BREAKPOINTS IN VISUAL STUDIO
+===============================================================================
+
+METHOD 1: Manual (Recommended for selective debugging)
+------------------------------------------------------
+1. Open: Services\HL7\HL7DataExtractionService.cs
+2. Press: Ctrl+G (Go To Line)
+3. Enter a line number from above
+4. Press: F9 to toggle breakpoint
+5. Repeat for each decision point you want to debug
+
+METHOD 2: Batch Set All (Advanced)
+-----------------------------------
+Use the following PowerShell script to generate Visual Studio commands:
+
+$lines = @(3526, 3527, 3528, 3529, 3574, 3582, 3598, 3623, 3634, 3638, 3665,
+          3686, 3695, 3722, 3723, 3747, 3750, 3756, 3761, 3779, 3785, 3788,
+          3794, 3820, 3821, 3822, 3833, 3838, 4782, 4806, 4824, 4846, 4923,
+          4924, 4925, 4932, 4990, 5006, 5070, 5079, 5086, 5090, 5109, 5121,
+          5125, 5141, 5146, 5149, 5154, 5160, 5162, 5168, 5170, 5181, 5190,
+          5220, 5223, 5232, 5234, 5714, 5774, 5787, 5796, 5816, 5833, 5851,
+          5859, 5862, 5876, 5916, 5927, 5942, 5950, 5953, 5975, 5984, 5996,
+          6021, 6029, 6039, 6052, 6057, 6078, 6082, 6089, 6101, 6111, 6125,
+          6139, 6158, 6183, 6195, 6198)
+
+$file = "Services\HL7\HL7DataExtractionService.cs"
+
+foreach ($line in $lines) {
+    Write-Host "Setting breakpoint at line $line..."
+    # In VS Immediate Window, use:
+    # DTE.Debugger.Breakpoints.Add("", $file, $line)
+}
+
+===============================================================================
+DEBUGGING TIPS
+===============================================================================
+
+🔍 Start with these key decision points:
+   - Line 4932: Minimum required fields check (STEP 4.4)
+   - Line 5223: Case definition match (STEP 4.5)
+   - Line 3785: Valid positive matches check (STEP 5.2)
+   - Line 5816: Reinfection window check (STEP 5.3)
+
+⚡ Use conditional breakpoints for specific scenarios:
+   Right-click breakpoint → Conditions → Add condition
+   Examples:
+   - diseaseMatch.Disease.Name == "Salmonella"
+   - marker.TestCode == "11475-1"
+   - stagedLabResult.AccessionNumber == "ABC123"
+
+📊 Use breakpoint hit count to detect loops:
+   Right-click breakpoint → Actions → Log message with hit count
+
+💾 Save breakpoint configuration:
+   Debug → Windows → Breakpoints → Export breakpoints
+
+===============================================================================

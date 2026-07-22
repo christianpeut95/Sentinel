@@ -309,12 +309,20 @@
                     var criterion = rootCriteriaList[i];
                     var isFirst = i == 0;
                     var hasChildren = criterion.ChildCriteria?.Any() == true;
+                    var previousCriterion = !isFirst ? rootCriteriaList[i - 1] : null;
 
                     @if (!isFirst)
                     {
                         <div style="text-align: center; margin: -0.5rem 0;">
                             <div class="logical-operator-badge">
-                                @(criterion.LogicalOperator == LogicalOperator.AND ? "AND" : "OR")
+                                @* Show the operator that connects from PREVIOUS to CURRENT criterion *@
+                                @{
+                                    var previousHasChildren = previousCriterion?.ChildCriteria?.Any() == true;
+                                    var operatorToShow = previousHasChildren && previousCriterion.GroupExitOperator.HasValue
+                                        ? previousCriterion.GroupExitOperator.Value
+                                        : previousCriterion.LogicalOperator;
+                                }
+                                @(operatorToShow == LogicalOperator.AND ? "AND" : "OR")
                             </div>
                         </div>
                     }
@@ -363,10 +371,19 @@
                             @for (int j = 0; j < children.Count; j++)
                             {
                                 var child = children[j];
+                                var childIsFirst = j == 0;
 
                                 <div style="text-align: center; margin: 0.5rem 0;">
                                     <div class="logical-operator-badge">
-                                        @(child.LogicalOperator == LogicalOperator.AND ? "AND" : "OR")
+                                        @* First child uses PARENT's operator (group's internal operator), others use previous child's operator *@
+                                        @if (childIsFirst)
+                                        {
+                                            @(criterion.LogicalOperator == LogicalOperator.AND ? "AND" : "OR")
+                                        }
+                                        else
+                                        {
+                                            @(child.LogicalOperator == LogicalOperator.AND ? "AND" : "OR")
+                                        }
                                     </div>
                                 </div>
 

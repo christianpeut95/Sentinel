@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 using Sentinel.Data;
 using Sentinel.Models;
 using Sentinel.Services.HL7;
+using System.Text.Json;
 
 namespace Sentinel.Pages.Settings.HL7.Messages
 {
@@ -21,6 +22,27 @@ namespace Sentinel.Pages.Settings.HL7.Messages
         }
 
         public HL7Message Message { get; set; } = null!;
+
+        public string GetPartialMatchTooltip()
+        {
+            if (string.IsNullOrWhiteSpace(Message.PartialMatchDetailsJson))
+                return string.Empty;
+
+            try
+            {
+                var details = JsonSerializer.Deserialize<PartialMatchDetails>(Message.PartialMatchDetailsJson);
+                if (details?.MissingFields != null && details.MissingFields.Any())
+                {
+                    return $"Missing fields: {string.Join(", ", details.MissingFields)}";
+                }
+            }
+            catch
+            {
+                // Fallback if deserialization fails
+            }
+
+            return "Partial match - some fields were missing";
+        }
 
         public async Task<IActionResult> OnGetAsync(Guid id)
         {
@@ -75,5 +97,13 @@ namespace Sentinel.Pages.Settings.HL7.Messages
 
             return RedirectToPage(new { id });
         }
+    }
+
+    public class PartialMatchDetails
+    {
+        public List<string> MissingFields { get; set; } = new();
+        public bool IsPartialMatch { get; set; }
+        public int? OriginalConfirmationStatusId { get; set; }
+        public int? OverriddenConfirmationStatusId { get; set; }
     }
 }
