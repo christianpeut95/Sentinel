@@ -7346,14 +7346,14 @@ public class HL7DataExtractionService : IHL7DataExtractionService
                                     .Where(c => c.CaseDefinitionId == caseDefId && c.CriterionType == CriterionType.Laboratory)
                                     .ToListAsync(cancellationToken);
 
-                                // Count how many lab markers matched at least one criterion
-                                var matchedMarkerIds = new HashSet<string>();
-
-                                foreach (var marker in stagedLabResult.Markers.Where(m => m.ResolvedPathogenId.HasValue))
+                                // Count how many criteria were satisfied by the lab markers
+                                var satisfiedCriteriaCount = 0;
+                                foreach (var criterion in laboratoryCriteria)
                                 {
-                                    var markerKey = $"{marker.TestCode}|{marker.ResolvedPathogenId}";
+                                    // Check if any lab marker satisfies this criterion
+                                    bool criterionSatisfied = false;
 
-                                    foreach (var criterion in laboratoryCriteria)
+                                    foreach (var marker in stagedLabResult.Markers.Where(m => m.ResolvedPathogenId.HasValue))
                                     {
                                         if (string.IsNullOrEmpty(criterion.AcceptablePathogensJson))
                                             continue;
@@ -7402,109 +7402,23 @@ public class HL7DataExtractionService : IHL7DataExtractionService
 
                                             if (markerMatches)
                                             {
-                                                matchedMarkerIds.Add(markerKey);
-                                                break; // This marker matched a criterion, move to next marker
+                                                criterionSatisfied = true;
+                                                break; // This criterion is satisfied, no need to check more markers
                                             }
                                         }
                                         catch { /* Ignore JSON errors */ }
                                     }
+
+                                    if (criterionSatisfied)
+                                        satisfiedCriteriaCount++;
                                 }
 
-                                var score = matchedMarkerIds.Count;
-                                scored.Add((match: match, score: score));
-                                stagingLog.Add($"     - {match.CaseDefinition?.Name}: {score} markers matched criteria");
+                                scored.Add((match: match, score: satisfiedCriteriaCount));
+                                stagingLog.Add($"     - {match.CaseDefinition?.Name}: {satisfiedCriteriaCount} satisfied criteria");
                             }
 
                             var mostSpecific = scored.OrderByDescending(s => s.score).First();
-
-                            // If there's a tie, count how many satisfied criteria are in AND groups
-                            var topScore = mostSpecific.score;
-                            var tiedMatches = scored.Where(s => s.score == topScore).ToList();
-
-                            if (tiedMatches.Count > 1)
-                            {
-                                stagingLog.Add($"     ⚠️ Tie detected ({tiedMatches.Count} definitions with score {topScore}), checking AND-grouped criteria");
-
-                                var withAndGroupScores = new List<(CaseDefinitionMatchResult match, int andGroupScore)>();
-
-                                foreach (var tied in tiedMatches)
-                                {
-                                    var caseDefId = tied.match.CaseDefinition?.Id ?? 0;
-
-                                    // Get all laboratory criteria with their parent/group relationships
-                                    var allCriteria = await _context.CaseDefinitionCriteria
-                                        .Where(c => c.CaseDefinitionId == caseDefId)
-                                        .ToListAsync(cancellationToken);
-
-                                    // Find satisfied criteria
-                                    var satisfiedCriteriaIds = new HashSet<int>();
-                                    foreach (var criterion in allCriteria.Where(c => c.CriterionType == CriterionType.Laboratory))
-                                    {
-                                        // Check if any marker satisfies this criterion (reuse logic from above)
-                                        bool satisfied = false;
-                                        foreach (var marker in stagedLabResult.Markers.Where(m => m.ResolvedPathogenId.HasValue))
-                                        {
-                                            if (string.IsNullOrEmpty(criterion.AcceptablePathogensJson))
-                                                continue;
-
-                                            try
-                                            {
-                                                var acceptablePathogens = System.Text.Json.JsonSerializer.Deserialize<List<Guid>>(criterion.AcceptablePathogensJson);
-                                                if (acceptablePathogens?.Contains(marker.ResolvedPathogenId!.Value) == true)
-                                                {
-                                                    // Simplified check - if pathogen matches, consider it satisfied for scoring
-                                                    satisfied = true;
-                                                    break;
-                                                }
-                                            }
-                                            catch { }
-                                        }
-
-                                        if (satisfied)
-                                            satisfiedCriteriaIds.Add(criterion.Id);
-                                    }
-
-                                    // Count satisfied criteria that have AND relationships with other satisfied criteria
-                                    int andGroupScore = 0;
-                                    foreach (var criterionId in satisfiedCriteriaIds)
-                                    {
-                                        var criterion = allCriteria.First(c => c.Id == criterionId);
-
-                                        // Check if this criterion is connected to other satisfied criteria via AND
-                                        // (either as previous sibling or within same parent group)
-                                        var siblings = allCriteria.Where(c => 
-                                            c.ParentCriteriaId == criterion.ParentCriteriaId && 
-                                            c.Id != criterion.Id &&
-                                            satisfiedCriteriaIds.Contains(c.Id)).ToList();
-
-                                        if (siblings.Any())
-                                        {
-                                            // Check if connected by AND
-                                            var prevSibling = allCriteria
-                                                .Where(c => c.ParentCriteriaId == criterion.ParentCriteriaId && 
-                                                           c.DisplayOrder < criterion.DisplayOrder)
-                                                .OrderByDescending(c => c.DisplayOrder)
-                                                .FirstOrDefault();
-
-                                            if (prevSibling != null && 
-                                                prevSibling.LogicalOperator == LogicalOperator.AND &&
-                                                satisfiedCriteriaIds.Contains(prevSibling.Id))
-                                            {
-                                                andGroupScore++;
-                                            }
-                                        }
-                                    }
-
-                                    withAndGroupScores.Add((tied.match, andGroupScore));
-                                    stagingLog.Add($"        - {tied.match.CaseDefinition?.Name}: {andGroupScore} AND-grouped satisfied criteria");
-                                }
-
-                                var winner = withAndGroupScores.OrderByDescending(w => w.andGroupScore).First();
-                                mostSpecific = (winner.match, topScore);
-                                stagingLog.Add($"     ✅ Tiebreaker winner: {winner.match.CaseDefinition?.Name} ({winner.andGroupScore} AND-grouped)");
-                            }
-
-                            stagingLog.Add($"     ✅ Keeping most specific: {mostSpecific.match.CaseDefinition?.Name} ({mostSpecific.score} markers matched)");
+                            stagingLog.Add($"     ✅ Keeping most specific: {mostSpecific.match.CaseDefinition?.Name} ({mostSpecific.score} satisfied criteria)");
                             filteredResults.Add(mostSpecific.match);
                                             }
                                         }
