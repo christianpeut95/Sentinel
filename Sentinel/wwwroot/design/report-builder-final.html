@@ -1,0 +1,1090 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Sentinel — Report Builder</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700;800&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* ── Tokens ─────────────────────────────────────────── */
+:root {
+  --forest:       #0C2A20;
+  --forest-2:     #13382C;
+  --moss:         #1E5D44;
+  --signal:       #3DD598;
+  --signal-dk:    #159C6E;
+  --signal-lt:    #D9F2E5;
+  --lime:         #C9E86A;
+  --slate:        #6B7A78;
+  --slate-2:      #3E4A48;
+  --slate-lt:     #B8C0BE;
+  --bone:         #F5F3EC;
+  --paper:        #ECEAE1;
+  --chalk:        #FBFAF5;
+  --graphite:     #4A5A55;
+  --hairline:     #D8D4C4;
+  --f-sans: "Geist", ui-sans-serif, system-ui, sans-serif;
+  --f-mono: "Geist Mono", ui-monospace, Menlo, monospace;
+}
+
+/* ── Reset ───────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { color-scheme: light; }
+body {
+  background: var(--bone);
+  color: var(--forest);
+  font-family: var(--f-sans);
+  font-size: 13px;
+  line-height: 1.4;
+  -webkit-font-smoothing: antialiased;
+  padding: 0;
+  margin: 0;
+  overflow: hidden;
+}
+
+/* ── Window Chrome ───────────────────────────────────── */
+.window {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  background: var(--chalk);
+}
+
+.title-bar {
+  background: var(--forest);
+  color: var(--chalk);
+  padding: 6px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 12px;
+  font-weight: 600;
+  border-bottom: 1px solid var(--forest-2);
+}
+
+.window-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.window-controls {
+  display: flex;
+  gap: 4px;
+}
+
+.control-btn {
+  width: 20px;
+  height: 18px;
+  background: var(--paper);
+  border: 1px solid var(--hairline);
+  border-radius: 2px;
+  font-size: 11px;
+  font-weight: bold;
+  color: var(--forest);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+
+.control-btn:hover {
+  background: var(--signal-lt);
+}
+
+/* ── Menu Bar ────────────────────────────────────────── */
+.menu-bar {
+  background: var(--chalk);
+  border-bottom: 1px solid var(--hairline);
+  padding: 4px 8px;
+  display: flex;
+  gap: 2px;
+}
+
+.menu-item {
+  padding: 4px 10px;
+  font-size: 12px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  border-radius: 2px;
+  color: var(--forest);
+  font-weight: 500;
+}
+
+.menu-item:hover {
+  background: var(--paper);
+}
+
+/* ── Main Layout ─────────────────────────────────────── */
+.main-layout {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+/* ── Left Panel ──────────────────────────────────────── */
+.left-panel {
+  width: 380px;
+  background: var(--paper);
+  border-right: 1px solid var(--hairline);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.panel-section {
+  border-bottom: 1px solid var(--hairline);
+  display: flex;
+  flex-direction: column;
+}
+
+.panel-section.scrollable {
+  flex: 1;
+  overflow-y: auto;
+}
+
+.panel-header {
+  background: var(--chalk);
+  padding: 8px 12px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .02em;
+  color: var(--forest);
+  border-bottom: 1px solid var(--hairline);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  text-transform: uppercase;
+}
+
+.panel-header:hover {
+  background: var(--bone);
+}
+
+.panel-count {
+  font-family: var(--f-mono);
+  font-size: 10px;
+  background: var(--bone);
+  padding: 2px 6px;
+  border-radius: 2px;
+  font-weight: 600;
+}
+
+.panel-body {
+  padding: 10px;
+}
+
+/* ── Info Display ────────────────────────────────────── */
+.info-group {
+  margin-bottom: 10px;
+}
+
+.info-label {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  color: var(--slate);
+  margin-bottom: 4px;
+  letter-spacing: .03em;
+}
+
+.info-value {
+  font-size: 12px;
+  color: var(--forest);
+  background: var(--chalk);
+  padding: 6px 8px;
+  border: 1px solid var(--hairline);
+  border-radius: 2px;
+}
+
+.info-value.highlight {
+  background: var(--chalk);
+  color: var(--forest);
+  font-weight: 700;
+  font-size: 20px;
+  text-align: center;
+  border: 2px solid var(--hairline);
+}
+
+.info-value select {
+  width: 100%;
+  font-family: var(--f-sans);
+  font-size: 12px;
+  padding: 6px 8px;
+  border: 1px solid var(--hairline);
+  border-radius: 2px;
+  background: var(--chalk);
+  cursor: pointer;
+}
+
+/* ── Query Display Box ───────────────────────────────── */
+.query-box {
+  background: var(--forest-2);
+  color: var(--bone);
+  padding: 12px;
+  font-family: var(--f-mono);
+  font-size: 11px;
+  line-height: 1.7;
+  border: 1px solid var(--moss);
+  border-radius: 3px;
+  max-height: 240px;
+  overflow-y: auto;
+}
+
+.query-box .kw {
+  color: #B8D4CA;
+  font-weight: 600;
+}
+
+.query-box .val {
+  color: #E5F2ED;
+}
+
+.query-box .op {
+  color: #9CC2B3;
+}
+
+/* ── List View ───────────────────────────────────────── */
+.list-view {
+  background: var(--chalk);
+  border: 1px solid var(--hairline);
+}
+
+.list-header {
+  background: var(--paper);
+  border-bottom: 1px solid var(--hairline);
+  padding: 6px 10px;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  display: grid;
+  grid-template-columns: 1fr 100px 30px;
+  gap: 8px;
+  align-items: center;
+  color: var(--graphite);
+}
+
+.list-item {
+  display: grid;
+  grid-template-columns: 1fr 100px 30px;
+  gap: 8px;
+  padding: 7px 10px;
+  border-bottom: 1px solid var(--hairline);
+  font-size: 12px;
+  align-items: center;
+  cursor: pointer;
+  transition: background .05s;
+}
+
+.list-item:hover {
+  background: var(--bone);
+}
+
+.list-item:last-child {
+  border-bottom: none;
+}
+
+.list-item.selected {
+  background: var(--signal-lt);
+  border-left: 3px solid var(--signal-dk);
+}
+
+.list-label {
+  color: var(--forest);
+  font-weight: 500;
+}
+
+.list-value {
+  font-family: var(--f-mono);
+  font-size: 11px;
+  color: var(--slate);
+  text-align: right;
+}
+
+.list-action {
+  text-align: center;
+}
+
+.mini-btn {
+  background: none;
+  border: none;
+  color: var(--slate);
+  cursor: pointer;
+  font-size: 16px;
+  padding: 0;
+  line-height: 1;
+  width: 20px;
+  height: 20px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 2px;
+}
+
+.mini-btn:hover {
+  background: var(--paper);
+  color: var(--forest);
+}
+
+/* ── Add Button ──────────────────────────────────────── */
+.add-btn {
+  width: 100%;
+  font-family: var(--f-sans);
+  font-size: 12px;
+  font-weight: 500;
+  padding: 8px 12px;
+  background: var(--chalk);
+  border: 1px dashed var(--hairline);
+  border-radius: 3px;
+  color: var(--graphite);
+  cursor: pointer;
+  transition: all .1s;
+  margin-top: 8px;
+}
+
+.add-btn:hover {
+  background: var(--bone);
+  border-color: var(--slate-lt);
+  color: var(--forest);
+}
+
+/* ── Content Area with Tabs ──────────────────────────── */
+.content-area {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  background: var(--chalk);
+  overflow: hidden;
+}
+
+.tab-strip {
+  background: var(--paper);
+  border-bottom: 1px solid var(--hairline);
+  display: flex;
+  padding: 0;
+}
+
+.tab {
+  padding: 8px 20px;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  color: var(--graphite);
+  transition: all .1s;
+}
+
+.tab:hover {
+  background: var(--bone);
+  color: var(--forest);
+}
+
+.tab.active {
+  background: var(--chalk);
+  color: var(--forest);
+  font-weight: 600;
+  border-bottom-color: var(--signal-dk);
+}
+
+.tab-content {
+  flex: 1;
+  overflow: hidden;
+  display: none;
+  flex-direction: column;
+}
+
+.tab-content.active {
+  display: flex;
+}
+
+/* ── Pane Toolbar ────────────────────────────────────── */
+.pane-toolbar {
+  background: var(--paper);
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--hairline);
+  font-size: 11px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: var(--forest);
+}
+
+.toolbar-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.toolbar-btn {
+  font-size: 11px;
+  font-weight: 500;
+  padding: 4px 10px;
+  background: var(--chalk);
+  border: 1px solid var(--hairline);
+  border-radius: 3px;
+  cursor: pointer;
+  color: var(--forest);
+  transition: all .1s;
+}
+
+.toolbar-btn:hover {
+  background: var(--bone);
+  border-color: var(--slate-lt);
+}
+
+.text-muted {
+  color: var(--slate);
+  font-size: 11px;
+  font-weight: 400;
+}
+
+.pane-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px;
+}
+
+/* ── Data Grid ───────────────────────────────────────── */
+.data-grid {
+  background: var(--chalk);
+  border: 1px solid var(--hairline);
+  overflow: hidden;
+  font-size: 12px;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.grid-wrapper {
+  overflow: auto;
+  flex: 1;
+}
+
+.data-grid table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.data-grid thead {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.data-grid th {
+  background: var(--paper);
+  border-right: 1px solid var(--hairline);
+  border-bottom: 2px solid var(--hairline);
+  padding: 7px 12px;
+  text-align: left;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .03em;
+  white-space: nowrap;
+  color: var(--graphite);
+}
+
+.data-grid td {
+  border-right: 1px solid var(--hairline);
+  border-bottom: 1px solid var(--hairline);
+  padding: 6px 12px;
+  white-space: nowrap;
+}
+
+.data-grid tbody tr:hover {
+  background: var(--signal-lt);
+}
+
+.data-grid tbody tr:nth-child(even) {
+  background: var(--bone);
+}
+
+.data-grid tbody tr:nth-child(even):hover {
+  background: var(--signal-lt);
+}
+
+/* ── Pivot Tool ──────────────────────────────────────── */
+.pivot-container {
+  padding: 0;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.pivot-controls {
+  background: var(--paper);
+  padding: 12px;
+  border-bottom: 1px solid var(--hairline);
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+
+.pivot-dropzone {
+  background: var(--chalk);
+  border: 2px dashed var(--hairline);
+  border-radius: 4px;
+  padding: 12px;
+  min-height: 80px;
+}
+
+.pivot-dropzone-label {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--slate);
+  margin-bottom: 8px;
+  letter-spacing: .03em;
+}
+
+.pivot-field {
+  background: var(--paper);
+  border: 1px solid var(--hairline);
+  padding: 6px 10px;
+  border-radius: 3px;
+  font-size: 11px;
+  margin-bottom: 4px;
+  cursor: move;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.pivot-field:hover {
+  background: var(--signal-lt);
+}
+
+.pivot-output {
+  flex: 1;
+  overflow: auto;
+  padding: 12px;
+}
+
+/* ── Status Bar ──────────────────────────────────────── */
+.status-bar {
+  background: var(--paper);
+  border-top: 1px solid var(--hairline);
+  padding: 5px 12px;
+  font-size: 11px;
+  display: flex;
+  gap: 20px;
+  color: var(--graphite);
+}
+
+.status-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.status-indicator {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--signal);
+}
+
+.status-indicator.warning {
+  background: var(--watch);
+}
+
+.status-indicator.error {
+  background: var(--outbreak);
+}
+
+/* ── Helpers ─────────────────────────────────────────── */
+.badge {
+  font-family: var(--f-mono);
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  background: var(--bone);
+  color: var(--slate);
+  padding: 2px 6px;
+  border-radius: 2px;
+  letter-spacing: .03em;
+}
+
+.badge.aggregate {
+  background: var(--signal-lt);
+  color: var(--signal-dk);
+}
+
+/* ── Scrollbar ───────────────────────────────────────── */
+::-webkit-scrollbar {
+  width: 14px;
+  height: 14px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--paper);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--slate-lt);
+  border: 2px solid var(--paper);
+  border-radius: 7px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--slate);
+}
+
+::-webkit-scrollbar-corner {
+  background: var(--paper);
+}
+</style>
+</head>
+<body>
+
+<div class="window">
+
+  <!-- Title Bar -->
+  <div class="title-bar">
+    <div class="window-title">
+      <span>Sentinel Report Builder</span>
+    </div>
+    <div class="window-controls">
+      <button class="control-btn">_</button>
+      <button class="control-btn">□</button>
+      <button class="control-btn">×</button>
+    </div>
+  </div>
+
+  <!-- Menu Bar -->
+  <div class="menu-bar">
+    <button class="menu-item">File</button>
+    <button class="menu-item">Edit</button>
+    <button class="menu-item">View</button>
+    <button class="menu-item">Tools</button>
+    <button class="menu-item">Help</button>
+  </div>
+
+  <!-- Main Layout -->
+  <div class="main-layout">
+
+    <!-- Left Panel: Configuration -->
+    <div class="left-panel">
+
+      <!-- Report Info -->
+      <div class="panel-section">
+        <div class="panel-header">Report Info</div>
+        <div class="panel-body">
+          <div class="info-group">
+            <div class="info-label">Report Name</div>
+            <div class="info-value">
+              <input type="text" value="COVID-19 Cases with Lab Results" style="width: 100%; border: none; background: transparent; font: inherit; padding: 0;">
+            </div>
+          </div>
+          <div class="info-group">
+            <div class="info-label">Entity Type</div>
+            <div class="info-value">
+              <select>
+                <option selected>Case</option>
+                <option>Patient</option>
+                <option>Outbreak</option>
+                <option>Contact</option>
+              </select>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Summary -->
+      <div class="panel-section">
+        <div class="panel-header">
+          <span>Summary</span>
+        </div>
+        <div class="panel-body">
+          <div class="info-group">
+            <div class="info-label">Total Results</div>
+            <div class="info-value highlight">847</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Filters -->
+      <div class="panel-section scrollable">
+        <div class="panel-header">
+          <span>Filters</span>
+          <span class="panel-count">2</span>
+        </div>
+        <div class="panel-body">
+          <div class="list-view">
+            <div class="list-header">
+              <div>Field</div>
+              <div style="text-align: right;">Condition</div>
+              <div></div>
+            </div>
+            <div class="list-item">
+              <div class="list-label">Status</div>
+              <div class="list-value">= Confirmed</div>
+              <div class="list-action">
+                <button class="mini-btn">×</button>
+              </div>
+            </div>
+            <div class="list-item">
+              <div class="list-label">Onset Date</div>
+              <div class="list-value">≥ 2024-01-01</div>
+              <div class="list-action">
+                <button class="mini-btn">×</button>
+              </div>
+            </div>
+          </div>
+          <button class="add-btn">+ Add Filter</button>
+        </div>
+      </div>
+
+      <!-- Collections -->
+      <div class="panel-section scrollable">
+        <div class="panel-header">
+          <span>Collections</span>
+          <span class="panel-count">1</span>
+        </div>
+        <div class="panel-body">
+          <div class="list-view">
+            <div class="list-header">
+              <div>Collection</div>
+              <div style="text-align: right;">Operation</div>
+              <div></div>
+            </div>
+            <div class="list-item selected">
+              <div class="list-label">LabResults.Markers</div>
+              <div class="list-value">HasAny</div>
+              <div class="list-action">
+                <button class="mini-btn">×</button>
+              </div>
+            </div>
+          </div>
+          <button class="add-btn">+ Add Collection</button>
+
+          <div style="margin-top: 12px; padding: 10px; background: var(--bone); border: 1px solid var(--hairline); border-radius: 3px; font-size: 11px; line-height: 1.5;">
+            <strong>Selected:</strong> LabResults.Markers<br>
+            <span style="color: var(--slate);">Sub-filter: Pathogen.Name = "COVID-19"</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Display Fields -->
+      <div class="panel-section scrollable">
+        <div class="panel-header">
+          <span>Display Fields</span>
+          <span class="panel-count">4</span>
+        </div>
+        <div class="panel-body">
+          <div class="list-view">
+            <div class="list-header">
+              <div>Field Name</div>
+              <div style="text-align: right;">Type</div>
+              <div></div>
+            </div>
+            <div class="list-item">
+              <div class="list-label">Case ID</div>
+              <div class="list-value">String</div>
+              <div class="list-action">
+                <button class="mini-btn">×</button>
+              </div>
+            </div>
+            <div class="list-item">
+              <div class="list-label">Status</div>
+              <div class="list-value">String</div>
+              <div class="list-action">
+                <button class="mini-btn">×</button>
+              </div>
+            </div>
+            <div class="list-item">
+              <div class="list-label">Onset Date</div>
+              <div class="list-value">Date</div>
+              <div class="list-action">
+                <button class="mini-btn">×</button>
+              </div>
+            </div>
+            <div class="list-item">
+              <div class="list-label">Marker Count</div>
+              <div class="list-value"><span class="badge aggregate">AGG</span></div>
+              <div class="list-action">
+                <button class="mini-btn">×</button>
+              </div>
+            </div>
+          </div>
+          <button class="add-btn">+ Add Field</button>
+        </div>
+      </div>
+
+      <!-- Query Summary -->
+      <div class="panel-section">
+        <div class="panel-header">Query Summary</div>
+        <div class="panel-body">
+          <div class="query-box">
+<span class="kw">Entity:</span> <span class="val">Case</span>
+<span class="kw">WHERE:</span>
+  • Status <span class="op">=</span> <span class="val">"Confirmed"</span>
+  • OnsetDate <span class="op">≥</span> <span class="val">2024-01-01</span>
+<span class="kw">WITH:</span>
+  LabResults.Markers
+  <span class="op">HasAny</span> WHERE
+    Pathogen.Name <span class="op">=</span> <span class="val">"COVID-19"</span>
+<span class="kw">RETURN:</span>
+  CaseId, Status, OnsetDate,
+  [Markers.Count] <span class="badge aggregate">agg</span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Content Area: Tabs -->
+    <div class="content-area">
+
+      <div class="tab-strip">
+        <button class="tab active" onclick="switchTab(0)">Preview</button>
+        <button class="tab" onclick="switchTab(1)">Results</button>
+        <button class="tab" onclick="switchTab(2)">Pivot</button>
+      </div>
+
+      <!-- Tab 1: Preview -->
+      <div class="tab-content active">
+        <div class="pane-toolbar">
+          <span>Preview — First 100 Rows</span>
+          <div class="toolbar-actions">
+            <span class="text-muted">Showing 10 of 847 · Updated 12s ago</span>
+            <button class="toolbar-btn">⟳ Refresh</button>
+          </div>
+        </div>
+        <div class="pane-content" style="padding: 0;">
+          <div class="data-grid">
+            <div class="grid-wrapper">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Case ID</th>
+                    <th>Status</th>
+                    <th>Onset Date</th>
+                    <th>Marker Count</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>CASE-001</td>
+                    <td>Confirmed</td>
+                    <td>2024-01-15</td>
+                    <td>3</td>
+                  </tr>
+                  <tr>
+                    <td>CASE-002</td>
+                    <td>Confirmed</td>
+                    <td>2024-01-18</td>
+                    <td>2</td>
+                  </tr>
+                  <tr>
+                    <td>CASE-003</td>
+                    <td>Confirmed</td>
+                    <td>2024-01-22</td>
+                    <td>1</td>
+                  </tr>
+                  <tr>
+                    <td>CASE-007</td>
+                    <td>Confirmed</td>
+                    <td>2024-01-28</td>
+                    <td>4</td>
+                  </tr>
+                  <tr>
+                    <td>CASE-012</td>
+                    <td>Confirmed</td>
+                    <td>2024-02-03</td>
+                    <td>2</td>
+                  </tr>
+                  <tr>
+                    <td>CASE-015</td>
+                    <td>Confirmed</td>
+                    <td>2024-02-08</td>
+                    <td>3</td>
+                  </tr>
+                  <tr>
+                    <td>CASE-018</td>
+                    <td>Confirmed</td>
+                    <td>2024-02-12</td>
+                    <td>1</td>
+                  </tr>
+                  <tr>
+                    <td>CASE-021</td>
+                    <td>Confirmed</td>
+                    <td>2024-02-15</td>
+                    <td>5</td>
+                  </tr>
+                  <tr>
+                    <td>CASE-024</td>
+                    <td>Confirmed</td>
+                    <td>2024-02-18</td>
+                    <td>2</td>
+                  </tr>
+                  <tr>
+                    <td>CASE-027</td>
+                    <td>Confirmed</td>
+                    <td>2024-02-22</td>
+                    <td>4</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab 2: Results -->
+      <div class="tab-content">
+        <div class="pane-toolbar">
+          <span>Full Results — 847 Rows</span>
+          <div class="toolbar-actions">
+            <button class="toolbar-btn">▼ Export CSV</button>
+            <button class="toolbar-btn">⚡ Run Full Query</button>
+          </div>
+        </div>
+        <div class="pane-content">
+          <div style="padding: 60px 40px; text-align: center; color: var(--slate);">
+            <div style="font-size: 48px; margin-bottom: 16px; opacity: .3;">⚡</div>
+            <div style="font-size: 14px; font-weight: 600; margin-bottom: 8px;">No Full Results Yet</div>
+            <div style="font-size: 12px;">Click "Run Full Query" to execute against all 847 matching records</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab 3: Pivot -->
+      <div class="tab-content">
+        <div class="pivot-container">
+          <div class="pivot-controls">
+            <div class="pivot-dropzone">
+              <div class="pivot-dropzone-label">Rows</div>
+              <div class="pivot-field">
+                Status
+                <button class="mini-btn">×</button>
+              </div>
+            </div>
+            <div class="pivot-dropzone">
+              <div class="pivot-dropzone-label">Columns</div>
+              <div class="pivot-field">
+                Onset Month
+                <button class="mini-btn">×</button>
+              </div>
+            </div>
+            <div class="pivot-dropzone">
+              <div class="pivot-dropzone-label">Values</div>
+              <div class="pivot-field">
+                Count <span class="badge">AGG</span>
+                <button class="mini-btn">×</button>
+              </div>
+            </div>
+          </div>
+          <div class="pivot-output">
+            <div class="data-grid" style="height: auto;">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Status</th>
+                    <th>Jan 2024</th>
+                    <th>Feb 2024</th>
+                    <th>Mar 2024</th>
+                    <th>Total</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td><strong>Confirmed</strong></td>
+                    <td>248</td>
+                    <td>312</td>
+                    <td>287</td>
+                    <td><strong>847</strong></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+  </div>
+
+  <!-- Status Bar -->
+  <div class="status-bar">
+    <div class="status-item">
+      <span class="status-indicator"></span>
+      <span>Saved</span>
+    </div>
+    <div class="status-item">
+      <span>847 rows</span>
+    </div>
+    <div class="status-item">
+      <span>2 filters</span>
+    </div>
+    <div class="status-item">
+      <span>1 collection</span>
+    </div>
+    <div class="status-item">
+      <span>4 fields</span>
+    </div>
+    <div class="status-item" style="margin-left: auto;">
+      <span>Query: 124ms</span>
+    </div>
+  </div>
+
+</div>
+
+<script>
+function switchTab(index) {
+  const tabs = document.querySelectorAll('.tab');
+  const contents = document.querySelectorAll('.tab-content');
+
+  tabs.forEach((tab, i) => {
+    if (i === index) {
+      tab.classList.add('active');
+      contents[i].classList.add('active');
+    } else {
+      tab.classList.remove('active');
+      contents[i].classList.remove('active');
+    }
+  });
+}
+
+// Demo interactions
+document.querySelectorAll('.mini-btn').forEach(btn => {
+  btn.addEventListener('click', function(e) {
+    e.stopPropagation();
+    if (confirm('Remove this item?')) {
+      const item = this.closest('.list-item, .pivot-field');
+      item.style.opacity = '0.3';
+      setTimeout(() => item.remove(), 200);
+    }
+  });
+});
+
+document.querySelectorAll('.panel-header').forEach(header => {
+  header.addEventListener('click', function() {
+    const section = this.closest('.panel-section');
+    const body = section.querySelector('.panel-body');
+    if (body) {
+      body.style.display = body.style.display === 'none' ? 'block' : 'none';
+    }
+  });
+});
+
+document.querySelectorAll('.list-item').forEach(item => {
+  item.addEventListener('click', function() {
+    document.querySelectorAll('.list-item').forEach(i => i.classList.remove('selected'));
+    this.classList.add('selected');
+  });
+});
+</script>
+
+</body>
+</html>

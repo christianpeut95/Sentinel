@@ -5,116 +5,163 @@ console.log('[report-builder-collections.js] Loading...');
 
 // Add these functions to the ReportBuilder object
 
-ReportBuilder.addCollectionQuery = function() {
+ReportBuilder.addCollectionQuery = async function() {
     console.log('[addCollectionQuery] Called');
     const queryId = this.nextCollectionQueryId++;
     const container = document.getElementById('collectionQueries');
-    
+
     const placeholder = container.querySelector('.text-center');
     if (placeholder) {
         container.innerHTML = '';
     }
-    
+
     const entityType = document.getElementById('entityTypeSelector').value;
-    const collections = this.getAvailableCollections(entityType);
-    
+    const collections = await this.getAvailableCollections(entityType);
+
     if (collections.length === 0) {
         alert('No related collections available for this entity type');
         return;
     }
-    
+
     this.addCollectionQueryCard(queryId, collections);
     this.collectionQueries.push({ id: queryId, subFilters: [], displayAsColumn: false });
+    this.scheduleAutoSave();
 };
 
 ReportBuilder.addCollectionQueryCard = function(queryId, collections) {
     const container = document.getElementById('collectionQueries');
-    
+
     if (!collections) {
         const entityType = document.getElementById('entityTypeSelector').value;
         collections = this.getAvailableCollections(entityType);
     }
-    
+
+    // Remove empty state if present
+    const emptyState = container.querySelector('.rb-empty-state');
+    if (emptyState) {
+        container.innerHTML = '';
+    }
+
     const queryHtml = `
-        <div class="list-group-item border-start border-info border-3" id="collection-query-${queryId}" data-query-id="${queryId}">
-            <div class="row g-2">
-                <div class="col-12 d-flex justify-content-between align-items-center mb-2">
-                    <h6 class="mb-0 text-info"><i class="bi bi-diagram-3 me-2"></i>Related Data Query #${queryId}</h6>
-                    <button class="btn btn-sm btn-outline-danger" onclick="ReportBuilder.removeCollectionQuery(${queryId})">
-                        <i class="bi bi-x"></i>
-                    </button>
-                </div>
-                
-                <div class="col-12 mb-2">
-                    <div class="form-check form-switch">
-                        <input class="form-check-input" type="checkbox" id="display-as-column-${queryId}" onchange="ReportBuilder.toggleDisplayMode(${queryId})">
-                        <label class="form-check-label fw-bold text-success" for="display-as-column-${queryId}">
-                            <i class="bi bi-table me-1"></i> Display as Column (instead of filtering rows)
-                        </label>
-                    </div>
-                    <small class="text-muted ms-4">When checked, adds a column showing the result for each row. When unchecked, filters rows based on the condition.</small>
-                </div>
-                
-                <div class="col-12" id="column-name-container-${queryId}" style="display:none;">
-                    <label class="form-label small fw-bold">Column Name:</label>
-                    <input type="text" class="form-control form-control-sm" id="column-name-${queryId}" placeholder="e.g., 'Has Positive PCR' or 'Exposure Count'">
-                </div>
-                
-                <div class="col-md-4">
-                    <label class="form-label small fw-bold">Collection:</label>
-                    <select class="form-select form-select-sm collection-name" id="collection-${queryId}" onchange="ReportBuilder.updateCollectionFields(${queryId})">
+        <div class="rb-collection-query" id="collection-query-${queryId}" data-query-id="${queryId}">
+            <div class="rb-collection-header">
+                <span class="rb-collection-title">Collection Query #${queryId}</span>
+                <button class="rb-item-action" onclick="ReportBuilder.removeCollectionQuery(${queryId})" title="Remove query">×</button>
+            </div>
+            <div class="rb-collection-body">
+                <div class="rb-collection-row">
+                    <label>Collection:</label>
+                    <select class="rb-collection-select" id="collection-${queryId}" onchange="ReportBuilder.updateCollectionFields(${queryId})">
                         <option value="">Select collection...</option>
                         ${collections.map(c => `<option value="${c.value}" data-type="${c.entityType}">${c.label}</option>`).join('')}
                     </select>
                 </div>
-                
-                <div class="col-md-4">
-                    <label class="form-label small fw-bold">Operation:</label>
-                    <select class="form-select form-select-sm collection-operation" id="operation-${queryId}" onchange="ReportBuilder.updateCollectionOperator(${queryId})">
+                <div class="rb-collection-row">
+                    <label>Operation:</label>
+                    <select class="rb-collection-select" id="operation-${queryId}" onchange="ReportBuilder.updateCollectionOperator(${queryId})">
                         <option value="">Select operation...</option>
-                        <option value="HasAny">Has Any (at least one)</option>
-                        <option value="HasAll">Has All (every one matches)</option>
-                        <option value="Count">Count (number of items)</option>
-                        <option value="Sum">Sum (total value)</option>
+                        <option value="HasAny">Has Any</option>
+                        <option value="Count">Count</option>
+                        <option value="Sum">Sum</option>
                         <option value="Average">Average</option>
                         <option value="Min">Minimum</option>
                         <option value="Max">Maximum</option>
                     </select>
                 </div>
-                
-                <div class="col-md-4" id="aggregate-field-container-${queryId}" style="display:none;">
-                    <label class="form-label small fw-bold">Aggregate Field:</label>
-                    <select class="form-select form-select-sm" id="aggregate-field-${queryId}">
+                <div class="rb-collection-row" id="aggregate-field-container-${queryId}" style="display:none;">
+                    <label>Aggregate Field:</label>
+                    <select class="rb-collection-select" id="aggregate-field-${queryId}">
                         <option value="">Select field...</option>
                     </select>
-                    <small class="text-muted">Field to aggregate (min/max/sum/average)</small>
                 </div>
-                
-                <div class="col-md-4" id="operator-container-${queryId}">
-                    <!-- Operator will appear here for Count/Sum/etc -->
+                <div id="operator-container-${queryId}"></div>
+                <div class="rb-collection-switch">
+                    <input type="checkbox" id="display-as-column-${queryId}" onchange="ReportBuilder.toggleDisplayMode(${queryId})">
+                    <label for="display-as-column-${queryId}">Display as column (instead of filter)</label>
                 </div>
-                
-                <div class="col-12">
-                    <div class="card card-body bg-light">
-                        <div class="d-flex justify-content-between align-items-center mb-2">
-                            <label class="form-label small fw-bold mb-0">Sub-Filters (optional - filter which items to include):</label>
-                            <button type="button" class="btn btn-sm btn-outline-primary" onclick="ReportBuilder.addCollectionSubFilter(${queryId})">
-                                <i class="bi bi-plus-circle me-1"></i> Add Sub-Filter
-                            </button>
-                        </div>
-                        <div id="subfilters-${queryId}" class="mt-2">
-                            <small class="text-muted">No sub-filters added</small>
-                        </div>
+                <div id="column-name-container-${queryId}" style="display:none;" class="rb-collection-row">
+                    <label>Column Name:</label>
+                    <input type="text" class="rb-collection-input" id="column-name-${queryId}" placeholder="e.g., Has Positive PCR">
+                </div>
+                <div class="rb-subfilters-section">
+                    <div class="rb-subfilters-header">
+                        <span>Sub-Filters</span>
+                        <button class="rb-add-btn-sm" onclick="ReportBuilder.addCollectionSubFilter(${queryId})">+ Add</button>
+                    </div>
+                    <div class="rb-subfilters-container" id="subfilters-${queryId}">
+                        <div class="rb-empty-state-sm">No sub-filters</div>
                     </div>
                 </div>
             </div>
         </div>
     `;
-    
+
     container.insertAdjacentHTML('beforeend', queryHtml);
+    this.updateStatusBar();
 };
 
-ReportBuilder.getAvailableCollections = function(entityType) {
+/**
+ * Get available collections for an entity type, including nested sub-collections.
+ * Fetches collection metadata from API and builds hierarchical options.
+ * @param {string} entityType - The entity type (e.g., 'Case', 'Contact')
+ * @returns {Promise<Array>} Array of collection options with value, label, entityType
+ */
+ReportBuilder.getAvailableCollections = async function(entityType) {
+    console.log('[getAvailableCollections] Fetching collections for entity type:', entityType);
+
+    try {
+        const response = await fetch(`/api/reports/collection-metadata/${entityType}`);
+        if (!response.ok) {
+            console.error('[getAvailableCollections] API request failed:', response.status);
+            return this.getFallbackCollections(entityType);
+        }
+
+        const data = await response.json();
+
+        if (!data.success || !data.collections) {
+            console.error('[getAvailableCollections] Invalid API response:', data);
+            return this.getFallbackCollections(entityType);
+        }
+
+        const collections = [];
+
+        // Iterate through top-level collections
+        for (const [collectionName, metadata] of Object.entries(data.collections)) {
+            // Add parent collection
+            collections.push({
+                value: collectionName,
+                label: this.formatCollectionLabel(collectionName),
+                entityType: metadata.EntityType || collectionName
+            });
+
+            // Add nested sub-collections with arrow notation
+            if (metadata.SubCollections) {
+                for (const [subCollectionName, subMetadata] of Object.entries(metadata.SubCollections)) {
+                    collections.push({
+                        value: `${collectionName}.${subCollectionName}`,
+                        label: `${this.formatCollectionLabel(collectionName)} → ${this.formatCollectionLabel(subCollectionName)}`,
+                        entityType: subMetadata.EntityType || subCollectionName,
+                        parentCollection: collectionName,
+                        subCollection: subCollectionName
+                    });
+                }
+            }
+        }
+
+        console.log('[getAvailableCollections] Built collection list:', collections);
+        return collections;
+
+    } catch (error) {
+        console.error('[getAvailableCollections] Error fetching collections:', error);
+        return this.getFallbackCollections(entityType);
+    }
+};
+
+/**
+ * Fallback hardcoded collections if API fetch fails (backward compatibility)
+ */
+ReportBuilder.getFallbackCollections = function(entityType) {
+    console.warn('[getFallbackCollections] Using hardcoded fallback collections');
     const collections = {
         'Case': [
             { value: 'ExposureEvents', label: 'Exposures', entityType: 'ExposureEvent' },
@@ -136,8 +183,28 @@ ReportBuilder.getAvailableCollections = function(entityType) {
             { value: 'Tasks', label: 'Tasks', entityType: 'Task' }
         ]
     };
-    
+
     return collections[entityType] || [];
+};
+
+/**
+ * Format collection name into readable label
+ */
+ReportBuilder.formatCollectionLabel = function(collectionName) {
+    // Handle special cases
+    const labels = {
+        'LabResults': 'Lab Results',
+        'ExposureEvents': 'Exposures',
+        'OutbreakCases': 'Outbreak Cases',
+        'CaseSymptomTracking': 'Symptoms'
+    };
+
+    if (labels[collectionName]) {
+        return labels[collectionName];
+    }
+
+    // Default: Add spaces before capital letters
+    return collectionName.replace(/([A-Z])/g, ' $1').trim();
 };
 
 ReportBuilder.toggleDisplayMode = function(queryId) {
@@ -163,13 +230,23 @@ ReportBuilder.toggleDisplayMode = function(queryId) {
 
 ReportBuilder.updateCollectionFields = async function(queryId) {
     const selectElement = document.getElementById(`collection-${queryId}`);
-    const collectionName = selectElement.value;
+    const collectionPath = selectElement.value;
 
-    if (!collectionName) return;
+    if (!collectionPath) return;
 
     const entityType = document.getElementById('entityTypeSelector').value;
 
-    console.log('[updateCollectionFields] Fetching metadata for collection:', collectionName, 'entityType:', entityType);
+    // Parse nested collection path (e.g., "LabResults.Markers")
+    const pathParts = collectionPath.split('.');
+    const parentCollectionName = pathParts[0];
+    const subCollectionName = pathParts.length > 1 ? pathParts[1] : null;
+
+    console.log('[updateCollectionFields] Fetching metadata for:', {
+        collectionPath,
+        parent: parentCollectionName,
+        sub: subCollectionName,
+        entityType
+    });
 
     try {
         const aggregateFieldSelect = document.getElementById(`aggregate-field-${queryId}`);
@@ -188,8 +265,21 @@ ReportBuilder.updateCollectionFields = async function(queryId) {
         if (data.success && data.collections) {
             const query = this.collectionQueries.find(q => q.id === queryId);
             if (query) {
-                query.collectionMetadata = data.collections[collectionName];
-                console.log('[updateCollectionFields] Stored collectionMetadata:', query.collectionMetadata);
+                // Store parent collection name and sub-collection name
+                query.collectionName = parentCollectionName;
+                query.subCollectionName = subCollectionName;
+
+                // Get parent metadata
+                const parentMetadata = data.collections[parentCollectionName];
+
+                // If nested, navigate to sub-collection metadata
+                if (subCollectionName && parentMetadata?.SubCollections) {
+                    query.collectionMetadata = parentMetadata.SubCollections[subCollectionName];
+                    console.log('[updateCollectionFields] Using sub-collection metadata:', query.collectionMetadata);
+                } else {
+                    query.collectionMetadata = parentMetadata;
+                    console.log('[updateCollectionFields] Using parent collection metadata:', query.collectionMetadata);
+                }
             }
         }
 
@@ -216,14 +306,14 @@ ReportBuilder.updateCollectionFields = async function(queryId) {
 
             let collectionMetadata = null;
 
-            // Search through all categories for a field matching the collection name
+            // Search through all categories for a field matching the parent collection name
             for (const category in fieldsByCategory) {
-                console.log(`[updateCollectionFields] Searching category "${category}" for collection "${collectionName}"`);
+                console.log(`[updateCollectionFields] Searching category "${category}" for collection "${parentCollectionName}"`);
 
                 const field = fieldsByCategory[category].find(f => {
-                    const matches = (f.fieldPath === collectionName || 
-                                   f.fieldPath?.toLowerCase() === collectionName.toLowerCase() ||
-                                   f.displayName === collectionName) && 
+                    const matches = (f.fieldPath === parentCollectionName || 
+                                   f.fieldPath?.toLowerCase() === parentCollectionName.toLowerCase() ||
+                                   f.displayName === parentCollectionName) && 
                                   f.isCollection;
 
                     if (matches) {
@@ -241,13 +331,16 @@ ReportBuilder.updateCollectionFields = async function(queryId) {
             }
 
             if (!collectionMetadata) {
-                console.warn('[updateCollectionFields] ⚠️ No collection metadata found for:', collectionName);
+                console.warn('[updateCollectionFields] ⚠️ No collection metadata found for:', parentCollectionName);
                 console.log('[updateCollectionFields] Available collections:', 
                     Object.values(fieldsByCategory).flat().filter(f => f.isCollection).map(f => f.fieldPath));
             }
 
             const query = this.collectionQueries.find(q => q.id === queryId);
             if (query && collectionMetadata) {
+                // Use metadata from the correct level (sub-collection or parent)
+                const effectiveMetadata = query.collectionMetadata || collectionMetadata;
+
                 query.collectionSubFieldsMetadata = collectionMetadata.collectionSubFieldsMetadata || [];
                 query.collectionSubFields = collectionMetadata.collectionSubFields || [];
                 query.collectionEntityType = collectionMetadata.collectionElementType;
@@ -255,7 +348,8 @@ ReportBuilder.updateCollectionFields = async function(queryId) {
                 console.log('[updateCollectionFields] ✅ Stored sub-field metadata:', {
                     subFields: query.collectionSubFields.length,
                     subFieldsMetadata: query.collectionSubFieldsMetadata.length,
-                    entityType: query.collectionEntityType
+                    entityType: query.collectionEntityType,
+                    isNested: !!subCollectionName
                 });
             } else if (query) {
                 console.error('[updateCollectionFields] ❌ No metadata found - fields will default to String type');
@@ -318,26 +412,32 @@ ReportBuilder.updateAggregateFieldOptions = function(queryId) {
     const aggregateFieldContainer = document.getElementById(`aggregate-field-container-${queryId}`);
     const aggregateFieldSelect = document.getElementById(`aggregate-field-${queryId}`);
     const operationSelect = document.getElementById(`operation-${queryId}`);
-    
+
     if (!aggregateFieldContainer || !aggregateFieldSelect) {
         return;
     }
-    
+
     const operation = operationSelect?.value;
     const query = this.collectionQueries.find(q => q.id === queryId);
+
+    // Use collectionMetadata which already points to the correct level
+    // (sub-collection metadata if nested, parent metadata otherwise)
     const metadata = query?.collectionMetadata;
-    
+
     aggregateFieldSelect.innerHTML = '<option value="">Select field...</option>';
-    
+
     if (!metadata || !metadata.aggregatableFields) {
         aggregateFieldContainer.style.display = 'none';
+        console.log('[updateAggregateFieldOptions] No aggregatable fields available for query', queryId);
         return;
     }
-    
+
     if (['Min', 'Max', 'Sum', 'Average'].includes(operation)) {
         const aggregatableFields = metadata.aggregatableFields;
         let hasOptions = false;
-        
+
+        console.log('[updateAggregateFieldOptions] Building aggregate options for', operation, 'from fields:', aggregatableFields);
+
         for (const [fieldName, fieldInfo] of Object.entries(aggregatableFields)) {
             if (fieldInfo.allowedOperations && fieldInfo.allowedOperations.includes(operation)) {
                 const option = document.createElement('option');
@@ -348,7 +448,7 @@ ReportBuilder.updateAggregateFieldOptions = function(queryId) {
                 hasOptions = true;
             }
         }
-        
+
         if (hasOptions) {
             aggregateFieldContainer.style.display = 'block';
         } else {
@@ -375,9 +475,17 @@ ReportBuilder.addCollectionSubFilter = function(queryId) {
         return;
     }
 
+    // Use fields from the correct metadata level (sub-collection if nested, parent otherwise)
+    // These were populated by updateCollectionFields() from collectionMetadata
     const fields = query.collectionSubFields;
     const fieldsMetadata = query.collectionSubFieldsMetadata || [];
 
+    console.log('[addCollectionSubFilter] Adding sub-filter for query', queryId, {
+        isNested: !!query.subCollectionName,
+        collectionName: query.collectionName,
+        subCollectionName: query.subCollectionName,
+        fieldsCount: fields.length
+    });
     console.log('[addCollectionSubFilter] Fields:', fields);
     console.log('[addCollectionSubFilter] Metadata:', fieldsMetadata);
 
@@ -399,28 +507,25 @@ ReportBuilder.addCollectionSubFilter = function(queryId) {
     }).join('');
 
     const subFilterHtml = `
-        <div class="mb-2 p-2 border rounded bg-white" id="subfilter-${queryId}-${subFilterId}">
-            <div class="row g-1">
-                <div class="col-md-4">
-                    <select class="form-select form-select-sm subfilter-field" data-subfilter-id="${subFilterId}" data-query-id="${queryId}">
-                        <option value="">Select field...</option>
-                        ${fieldOptions}
-                    </select>
-                </div>
-                <div class="col-md-3">
-                    <select class="form-select form-select-sm subfilter-operator" id="subfilter-operator-${queryId}-${subFilterId}">
-                        <option value="Equals">Equals</option>
-                    </select>
-                </div>
-                <div class="col-md-4" id="subfilter-value-container-${queryId}-${subFilterId}">
-                    <input type="text" class="form-control form-control-sm subfilter-value" placeholder="Value">
-                </div>
-                <div class="col-md-1">
-                    <button class="btn btn-sm btn-outline-danger" onclick="ReportBuilder.removeCollectionSubFilter(${queryId}, ${subFilterId})">
-                        <i class="bi bi-x"></i>
-                    </button>
-                </div>
-            </div>
+        <div class="rb-subfilter-row" id="subfilter-${queryId}-${subFilterId}">
+            <select class="rb-subfilter-field" data-subfilter-id="${subFilterId}" data-query-id="${queryId}">
+                <option value="">Select field...</option>
+                ${fieldOptions}
+            </select>
+            <select class="rb-subfilter-operator" id="subfilter-operator-${queryId}-${subFilterId}">
+                <option value="Equals">=</option>
+                <option value="NotEquals">!=</option>
+                <option value="Contains">contains</option>
+                <option value="StartsWith">starts with</option>
+                <option value="GreaterThan">&gt;</option>
+                <option value="LessThan">&lt;</option>
+                <option value="GreaterThanOrEqual">&gt;=</option>
+                <option value="LessThanOrEqual">&lt;=</option>
+                <option value="IsNull">is null</option>
+                <option value="IsNotNull">is not null</option>
+            </select>
+            <input type="text" class="rb-subfilter-value" id="subfilter-value-${queryId}-${subFilterId}" placeholder="Value">
+            <button class="rb-item-action" onclick="ReportBuilder.removeCollectionSubFilter(${queryId}, ${subFilterId})" title="Remove sub-filter">×</button>
         </div>
     `;
 
@@ -476,30 +581,29 @@ ReportBuilder.setupSubFilterSmartInput = function(queryId, subFilterId) {
 ReportBuilder.removeCollectionQuery = function(queryId) {
     document.getElementById(`collection-query-${queryId}`)?.remove();
     this.collectionQueries = this.collectionQueries.filter(q => q.id !== queryId);
-    
+
     const container = document.getElementById('collectionQueries');
     if (container.children.length === 0) {
         container.innerHTML = `
-            <div class="text-center text-muted py-4">
-                <i class="bi bi-diagram-3 fs-1"></i>
-                <p class="mt-2">No collection queries added yet</p>
-                <small class="text-muted">Use collection queries to filter on related data like exposures, tasks, or lab results</small>
+            <div class="rb-empty-state">
+                <div class="rb-empty-state-text">No collection queries</div>
             </div>
         `;
     }
+    this.updateStatusBar();
 };
 
 ReportBuilder.removeCollectionSubFilter = function(queryId, subFilterId) {
     document.getElementById(`subfilter-${queryId}-${subFilterId}`)?.remove();
-    
+
     const query = this.collectionQueries.find(q => q.id === queryId);
     if (query) {
         query.subFilters = query.subFilters.filter(f => f !== subFilterId);
     }
-    
+
     const container = document.getElementById(`subfilters-${queryId}`);
     if (container.children.length === 0) {
-        container.innerHTML = '<small class="text-muted">No sub-filters added</small>';
+        container.innerHTML = '<div class="rb-empty-state-sm">No sub-filters</div>';
     }
 };
 
@@ -540,6 +644,7 @@ ReportBuilder.restoreCollectionQuery = async function(query) {
     try {
         // Normalize property names (handle both PascalCase from C# and camelCase from JS)
         const collectionName = query.collectionName || query.CollectionName;
+        const subCollectionName = query.subCollectionName || query.SubCollectionName;
         const operation = query.operation || query.Operation;
         const displayAsColumn = query.displayAsColumn ?? query.DisplayAsColumn ?? false;
         const columnName = query.columnName || query.ColumnName;
@@ -548,8 +653,22 @@ ReportBuilder.restoreCollectionQuery = async function(query) {
         const value = query.value ?? query.Value;
         const subFilters = query.subFilters || query.SubFilters || [];
 
+        // Reconstruct full collection path for dropdown
+        const collectionPath = subCollectionName 
+            ? `${collectionName}.${subCollectionName}` 
+            : collectionName;
+
         console.log('[restoreCollectionQuery] Normalized values:', {
-            collectionName, operation, displayAsColumn, columnName, aggregateField, comparator, value,
+            collectionName, 
+            subCollectionName,
+            collectionPath,
+            isNested: !!subCollectionName,
+            operation, 
+            displayAsColumn, 
+            columnName, 
+            aggregateField, 
+            comparator, 
+            value,
             subFiltersCount: subFilters.length
         });
 
@@ -563,7 +682,7 @@ ReportBuilder.restoreCollectionQuery = async function(query) {
         // Add the collection query card
         const queryId = this.nextCollectionQueryId++;
         const entityType = document.getElementById('entityTypeSelector').value;
-        const collections = this.getAvailableCollections(entityType);
+        const collections = await this.getAvailableCollections(entityType);
 
         console.log('[restoreCollectionQuery] Creating card with queryId:', queryId);
         this.addCollectionQueryCard(queryId, collections);
@@ -573,7 +692,8 @@ ReportBuilder.restoreCollectionQuery = async function(query) {
             id: queryId,
             subFilters: [],
             displayAsColumn: displayAsColumn,
-            collectionName: collectionName
+            collectionName: collectionName,
+            subCollectionName: subCollectionName  // Store sub-collection for nested queries
         });
 
         // Wait for DOM to be ready
@@ -586,11 +706,11 @@ ReportBuilder.restoreCollectionQuery = async function(query) {
             return;
         }
 
-        // Set collection name
+        // Set collection path (use full path for nested collections)
         const collectionSelect = document.getElementById(`collection-${queryId}`);
-        if (collectionSelect && collectionName) {
-            console.log('[restoreCollectionQuery] Setting collection to:', collectionName);
-            collectionSelect.value = collectionName;
+        if (collectionSelect && collectionPath) {
+            console.log('[restoreCollectionQuery] Setting collection to:', collectionPath);
+            collectionSelect.value = collectionPath;
 
             // Trigger change to load collection metadata
             try {

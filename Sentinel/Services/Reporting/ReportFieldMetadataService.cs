@@ -62,6 +62,85 @@ public class ReportFieldMetadataService : IReportFieldMetadataService
             .ToDictionary(g => g.Key, g => g.OrderBy(f => f.DisplayName).ToList());
     }
 
+    public async Task<List<ReportFieldMetadata>> GetRecommendedFieldsAsync(string entityType)
+    {
+        var allFields = await GetFieldsForEntityAsync(entityType);
+        var recommendedPaths = GetRecommendedFieldPaths(entityType);
+
+        return allFields
+            .Where(f => recommendedPaths.Contains(f.FieldPath))
+            .OrderBy(f => Array.IndexOf(recommendedPaths, f.FieldPath))
+            .ToList();
+    }
+
+    private static string[] GetRecommendedFieldPaths(string entityType)
+    {
+        return entityType.ToLower() switch
+        {
+            "case" => new[]
+            {
+                // Core Identification
+                "FriendlyId",
+                "Patient.FriendlyId",
+                "Patient.FirstName",
+                "Patient.LastName",
+                "Patient.DateOfBirth",
+                "Patient.Sex",
+
+                // Disease & Status
+                "Disease.Name",
+                "ConfirmationStatus.Name",
+                "Type",
+
+                // Key Dates
+                "DateOfOnset",
+                "DateOfNotification",
+                "ClinicalNotificationDate",
+
+                // Clinical
+                "Hospitalised",
+                "Hospital.Name",
+                "DateOfAdmission",
+                "DiedDueToDisease",
+
+                // Location 
+                "CaseCity",
+                "CaseState.Name",
+                "CasePostalCode",
+
+                // Jurisdiction
+                "Jurisdiction1.Name",
+
+                // Audit
+                "CreatedAt",
+                "ModifiedAt"
+            },
+            "patient" => new[]
+            {
+                "FriendlyId",
+                "FirstName",
+                "LastName",
+                "DateOfBirth",
+                "Sex",
+                "HomeAddressCity",
+                "HomeAddressState.Name",
+                "HomeAddressPostalCode",
+                "CreatedAt"
+            },
+            "outbreak" => new[]
+            {
+                "Name",
+                "Disease.Name",
+                "Status",
+                "DateDeclared",
+                "DateClosed",
+                "Jurisdiction1.Name",
+                "CreatedAt"
+            },
+            _ => Array.Empty<string>()
+        };
+    }
+
     public async Task<List<ReportFieldMetadata>> GetCustomFieldsForEntityAsync(string entityType)
     {
         var customFields = new List<ReportFieldMetadata>();

@@ -17,17 +17,20 @@
 
 <div class="container-fluid">
 <div class="d-flex justify-content-between align-items-center mb-4">
-    <h2>Task Templates</h2>
+    <div>
+        <h2 style="font-size: 32px; font-weight: 500; letter-spacing: -0.02em; color: var(--forest, #0C2A20);">Task Templates</h2>
+        <p style="color: var(--graphite, #4A5A55); margin: 0;">Manage task templates and workflows</p>
+    </div>
     <div class="d-flex gap-2">
         <form method="post" asp-page-handler="PropagateAll" style="display: inline;">
             <button type="submit" class="btn btn-warning" 
                     onclick="return confirm('This will create inherited assignments for all child diseases where templates have ApplyToChildren=true. Continue?');"
                     title="Propagate all templates with ApplyToChildren to their child diseases">
-                <i class="fas fa-sync"></i> Refresh All Inheritance
+                <i class="bi bi-arrow-repeat"></i> Refresh All Inheritance
             </button>
         </form>
-        <a asp-page="./CreateTaskTemplate" class="btn btn-primary">
-            <i class="fas fa-plus"></i> Create Task Template
+        <a asp-page="./CreateTaskTemplate" class="btn btn-primary" style="background: var(--signal, #3DD598); border-color: var(--signal, #3DD598); color: var(--forest, #0C2A20);">
+            <i class="bi bi-plus-circle"></i> Create Task Template
         </a>
     </div>
 </div>
@@ -40,12 +43,12 @@
         </div>
     }
 
-    <div class="card">
-        <div class="card-body">
+    <div class="card" style="background: var(--chalk, #FBFAF5); border: 1px solid var(--hairline, #D8D4C4); border-radius: 8px;">
+        <div class="card-body" style="padding: 28px;">
             <!-- Filter by Task Type -->
             <div class="row mb-3">
-                <div class="col-md-4">
-                    <label class="form-label">Filter by Task Type</label>
+                <div class="col-md-6">
+                    <label class="form-label" style="font-family: 'Geist Mono', monospace; font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--graphite, #4A5A55);">Filter by Task Type</label>
                     <select class="form-select" id="taskTypeFilter">
                         <option value="">All Task Types</option>
                         @foreach (var taskType in Model.TaskTypes)
@@ -54,20 +57,8 @@
                         }
                     </select>
                 </div>
-                <div class="col-md-4">
-                    <label class="form-label">Filter by Trigger</label>
-                    <select class="form-select" id="triggerFilter">
-                        <option value="">All Triggers</option>
-                        <option value="0">On Case Creation</option>
-                        <option value="1">On Contact Identification</option>
-                        <option value="2">On Lab Confirmation</option>
-                        <option value="3">On Symptom Onset</option>
-                        <option value="4">On Exposure Recorded</option>
-                        <option value="5">Manual</option>
-                    </select>
-                </div>
-                <div class="col-md-4">
-                    <label class="form-label">Status</label>
+                <div class="col-md-6">
+                    <label class="form-label" style="font-family: 'Geist Mono', monospace; font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--graphite, #4A5A55);">Status</label>
                     <select class="form-select" id="statusFilter">
                         <option value="">All</option>
                         <option value="true" selected>Active Only</option>
@@ -82,8 +73,7 @@
                         <tr>
                             <th>Name</th>
                             <th>Task Type</th>
-                            <th>Disease</th>
-                            <th>Trigger</th>
+                            <th>Diseases</th>
                             <th>Priority</th>
                             <th>Applies To</th>
                             <th>Recurring</th>
@@ -95,7 +85,6 @@
                         @foreach (var template in Model.TaskTemplates.OrderBy(t => t.TaskType?.Name).ThenBy(t => t.Name))
                         {
                             <tr data-tasktype="@template.TaskTypeId" 
-                                data-trigger="@((int)template.TriggerType)"
                                 data-active="@template.IsActive.ToString().ToLower()">
                                 <td>
                                     <strong>@template.Name</strong>
@@ -134,7 +123,7 @@
                                     }
                                 </td>
                                 <td>
-                                    <span class="badge bg-secondary">@template.TriggerType.ToString().Replace("On", "On ")</span>
+                                    <span class="badge bg-secondary">@template.DefaultPriority</span>
                                 </td>
                                 <td>
                                     @switch (template.DefaultPriority)
@@ -267,26 +256,22 @@
         // Simple client-side filtering
         document.addEventListener('DOMContentLoaded', function() {
             const taskTypeFilter = document.getElementById('taskTypeFilter');
-            const triggerFilter = document.getElementById('triggerFilter');
             const statusFilter = document.getElementById('statusFilter');
             const table = document.getElementById('taskTemplatesTable');
 
             function filterTable() {
                 const taskTypeValue = taskTypeFilter.value;
-                const triggerValue = triggerFilter.value;
                 const statusValue = statusFilter.value;
 
                 const rows = table.querySelectorAll('tbody tr');
                 rows.forEach(row => {
                     const taskType = row.getAttribute('data-tasktype');
-                    const trigger = row.getAttribute('data-trigger');
                     const active = row.getAttribute('data-active');
 
                     const matchesTaskType = !taskTypeValue || taskType === taskTypeValue;
-                    const matchesTrigger = !triggerValue || trigger === triggerValue;
                     const matchesStatus = !statusValue || active === statusValue;
 
-                    if (matchesTaskType && matchesTrigger && matchesStatus) {
+                    if (matchesTaskType && matchesStatus) {
                         row.style.display = '';
                     } else {
                         row.style.display = 'none';
@@ -295,7 +280,6 @@
             }
 
             taskTypeFilter.addEventListener('change', filterTable);
-            triggerFilter.addEventListener('change', filterTable);
             statusFilter.addEventListener('change', filterTable);
 
             // Initial filter

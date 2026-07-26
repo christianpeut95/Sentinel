@@ -323,6 +323,10 @@ namespace Sentinel.Pages
             var searchTerm = q.Trim().ToLower();
             var results = new List<QuickSearchResult>();
 
+            // Try to parse as GUID for ID searches
+            Guid guidSearch;
+            bool isGuidSearch = Guid.TryParse(searchTerm, out guidSearch);
+
             // Search Patients
             var patients = await _context.Patients
                 .Where(p => !p.IsDeleted && 
@@ -332,7 +336,9 @@ namespace Sentinel.Pages
                             (p.MobilePhone != null && p.MobilePhone.Contains(searchTerm)) ||
                             (p.EmailAddress != null && p.EmailAddress.ToLower().Contains(searchTerm)) ||
                             (p.AddressLine != null && p.AddressLine.ToLower().Contains(searchTerm)) ||
-                            (p.City != null && p.City.ToLower().Contains(searchTerm))))
+                            (p.City != null && p.City.ToLower().Contains(searchTerm)) ||
+                            (p.FriendlyId != null && p.FriendlyId.ToLower().Contains(searchTerm)) ||
+                            (isGuidSearch && p.Id == guidSearch)))
                 .Take(5)
                 .Select(p => new QuickSearchResult
                 {
@@ -354,7 +360,9 @@ namespace Sentinel.Pages
                            c.Patient != null && 
                            (c.Patient.GivenName.ToLower().Contains(searchTerm) ||
                             c.Patient.FamilyName.ToLower().Contains(searchTerm) ||
-                            (c.Patient.City != null && c.Patient.City.ToLower().Contains(searchTerm))))
+                            (c.Patient.City != null && c.Patient.City.ToLower().Contains(searchTerm)) ||
+                            (c.FriendlyId != null && c.FriendlyId.ToLower().Contains(searchTerm)) ||
+                            (isGuidSearch && c.Id == guidSearch)))
                 .Take(5)
                 .Select(c => new QuickSearchResult
                 {
@@ -377,7 +385,9 @@ namespace Sentinel.Pages
                            (c.Patient.GivenName.ToLower().Contains(searchTerm) ||
                             c.Patient.FamilyName.ToLower().Contains(searchTerm) ||
                             (c.Patient.AddressLine != null && c.Patient.AddressLine.ToLower().Contains(searchTerm)) ||
-                            (c.Patient.City != null && c.Patient.City.ToLower().Contains(searchTerm))))
+                            (c.Patient.City != null && c.Patient.City.ToLower().Contains(searchTerm)) ||
+                            (c.FriendlyId != null && c.FriendlyId.ToLower().Contains(searchTerm)) ||
+                            (isGuidSearch && c.Id == guidSearch)))
                 .Take(5)
                 .Select(c => new QuickSearchResult
                 {
@@ -412,7 +422,53 @@ namespace Sentinel.Pages
                 .ToListAsync();
             results.AddRange(outbreaks);
 
-            return new JsonResult(new { results = results.Take(15) });
+            // Search Events
+            var events = await _context.Events
+                .Include(e => e.Location)
+                .Include(e => e.EventType)
+                .Where(e => e.IsActive &&
+                           (e.Name.ToLower().Contains(searchTerm) ||
+                            (e.Description != null && e.Description.ToLower().Contains(searchTerm)) ||
+                            (e.Location != null && e.Location.Name.ToLower().Contains(searchTerm)) ||
+                            (e.Location != null && e.Location.Address != null && e.Location.Address.ToLower().Contains(searchTerm)) ||
+                            (isGuidSearch && e.Id == guidSearch)))
+                .Take(5)
+                .Select(e => new QuickSearchResult
+                {
+                    Type = "Event",
+                    Id = e.Id.ToString(),
+                    Title = e.Name,
+                    Subtitle = e.EventType != null ? e.EventType.Name : (e.Location != null ? e.Location.Name : ""),
+                    Icon = "calendar-event",
+                    Url = $"/Events/Details?id={e.Id}"
+                })
+                .ToListAsync();
+            results.AddRange(events);
+
+            // Search Locations
+            var locations = await _context.Locations
+                .Include(l => l.LocationType)
+                .Include(l => l.Organization)
+                .Where(l => l.IsActive &&
+                           (l.Name.ToLower().Contains(searchTerm) ||
+                            (l.Address != null && l.Address.ToLower().Contains(searchTerm)) ||
+                            (l.Notes != null && l.Notes.ToLower().Contains(searchTerm)) ||
+                            (l.Organization != null && l.Organization.Name.ToLower().Contains(searchTerm)) ||
+                            (isGuidSearch && l.Id == guidSearch)))
+                .Take(5)
+                .Select(l => new QuickSearchResult
+                {
+                    Type = "Location",
+                    Id = l.Id.ToString(),
+                    Title = l.Name,
+                    Subtitle = l.LocationType != null ? l.LocationType.Name : (l.Address ?? ""),
+                    Icon = "geo-alt",
+                    Url = $"/Locations/Details?id={l.Id}"
+                })
+                .ToListAsync();
+            results.AddRange(locations);
+
+            return new JsonResult(new { results = results.Take(20) });
         }
     }
 

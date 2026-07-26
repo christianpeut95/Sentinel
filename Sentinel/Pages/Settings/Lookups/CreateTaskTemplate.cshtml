@@ -11,9 +11,9 @@
     <!-- Header -->
     <div class="d-flex justify-content-between align-items-center mb-4">
         <div>
-            <h2><i class="bi bi-plus-circle me-2"></i>Create Task Template</h2>
+            <h2 style="font-size: 32px; font-weight: 500; letter-spacing: -0.02em; color: var(--forest, #0C2A20);"><i class="bi bi-plus-circle me-2"></i>Create Task Template</h2>
             <nav aria-label="breadcrumb">
-                <ol class="breadcrumb mb-0">
+                <ol class="breadcrumb mb-0" style="font-size: 13px;">
                     <li class="breadcrumb-item"><a asp-page="/Index">Home</a></li>
                     <li class="breadcrumb-item"><a asp-page="/Settings/Index">Settings</a></li>
                     <li class="breadcrumb-item"><a asp-page="./TaskTemplates">Task Templates</a></li>
@@ -30,26 +30,26 @@
     <form method="post">
         <div asp-validation-summary="ModelOnly" class="alert alert-danger"></div>
 
-        <div class="card mb-3">
-            <div class="card-header bg-primary text-white">
-                <h5 class="mb-0"><i class="bi bi-info-circle me-2"></i>Basic Information</h5>
+        <div class="card mb-3" style="background: var(--chalk, #FBFAF5); border: 1px solid var(--hairline, #D8D4C4); border-radius: 8px;">
+            <div class="card-header" style="background: var(--chalk, #FBFAF5); border-bottom: 1px solid var(--hairline, #D8D4C4); padding: 20px 28px;">
+                <h5 class="mb-0" style="font-family: 'Geist Mono', monospace; font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--graphite, #4A5A55); font-weight: 500;">Basic Information</h5>
             </div>
-            <div class="card-body">
+            <div class="card-body" style="padding: 28px;">
                 <div class="row g-3">
                     <div class="col-md-6">
-                        <label asp-for="Input.Name" class="form-label fw-bold"></label>
+                        <label asp-for="Input.Name" class="form-label" style="font-family: 'Geist Mono', monospace; font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--graphite, #4A5A55);"></label>
                         <input asp-for="Input.Name" class="form-control" />
                         <span asp-validation-for="Input.Name" class="text-danger"></span>
                     </div>
                     <div class="col-md-6">
-                        <label asp-for="Input.TaskTypeId" class="form-label fw-bold"></label>
+                        <label asp-for="Input.TaskTypeId" class="form-label" style="font-family: 'Geist Mono', monospace; font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--graphite, #4A5A55);"></label>
                         <select asp-for="Input.TaskTypeId" class="form-select" asp-items="Model.TaskTypeSelectList">
                             <option value="">-- Select --</option>
                         </select>
                         <span asp-validation-for="Input.TaskTypeId" class="text-danger"></span>
                     </div>
                     <div class="col-12">
-                        <label asp-for="Input.Description" class="form-label fw-bold"></label>
+                        <label asp-for="Input.Description" class="form-label" style="font-family: 'Geist Mono', monospace; font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--graphite, #4A5A55);"></label>
                         <textarea asp-for="Input.Description" class="form-control" rows="2"></textarea>
                         <span asp-validation-for="Input.Description" class="text-danger"></span>
                     </div>
@@ -57,35 +57,31 @@
             </div>
         </div>
 
-        <div class="card mb-3">
-            <div class="card-header bg-info text-white">
-                <h5 class="mb-0"><i class="bi bi-sliders me-2"></i>Configuration</h5>
+        <div class="card mb-3" style="background: var(--chalk, #FBFAF5); border: 1px solid var(--hairline, #D8D4C4); border-radius: 8px;">
+            <div class="card-header" style="background: var(--chalk, #FBFAF5); border-bottom: 1px solid var(--hairline, #D8D4C4); padding: 20px 28px;">
+                <h5 class="mb-0" style="font-family: 'Geist Mono', monospace; font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--graphite, #4A5A55); font-weight: 500;">Configuration</h5>
             </div>
-            <div class="card-body">
+            <div class="card-body" style="padding: 28px;">
                 <div class="row g-3">
                     <div class="col-md-4">
-                        <label asp-for="Input.DefaultPriority" class="form-label fw-bold"></label>
+                        <label asp-for="Input.DefaultPriority" class="form-label" style="font-family: 'Geist Mono', monospace; font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--graphite, #4A5A55);"></label>
                         <select asp-for="Input.DefaultPriority" class="form-select" asp-items="Html.GetEnumSelectList<TaskPriority>()"></select>
                     </div>
                     <div class="col-md-4">
-                        <label asp-for="Input.TriggerType" class="form-label fw-bold"></label>
-                        <select asp-for="Input.TriggerType" class="form-select" asp-items="Html.GetEnumSelectList<TaskTrigger>()"></select>
-                    </div>
-                    <div class="col-md-4">
-                        <label asp-for="Input.AssignmentType" class="form-label fw-bold"></label>
+                        <label asp-for="Input.AssignmentType" class="form-label" style="font-family: 'Geist Mono', monospace; font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--graphite, #4A5A55);"></label>
                         <select asp-for="Input.AssignmentType" class="form-select" asp-items="Html.GetEnumSelectList<TaskAssignmentType>()"></select>
                     </div>
-                    <div class="col-md-6">
-                        <label asp-for="Input.DueCalculationMethod" class="form-label fw-bold"></label>
+                    <div class="col-md-4">
+                        <label asp-for="Input.DueCalculationMethod" class="form-label" style="font-family: 'Geist Mono', monospace; font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--graphite, #4A5A55);"></label>
                         <select asp-for="Input.DueCalculationMethod" class="form-select" asp-items="Html.GetEnumSelectList<TaskDueCalculationMethod>()"></select>
                     </div>
                     <div class="col-md-6">
-                        <label asp-for="Input.DueDaysFromOnset" class="form-label fw-bold"></label>
+                        <label asp-for="Input.DueDaysFromOnset" class="form-label" style="font-family: 'Geist Mono', monospace; font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--graphite, #4A5A55);"></label>
                         <input asp-for="Input.DueDaysFromOnset" type="number" class="form-control" />
                         <small class="text-muted">Days from onset/notification</small>
                     </div>
-                    <div class="col-md-12">
-                        <label asp-for="Input.SurveyTemplateId" class="form-label fw-bold"></label>
+                    <div class="col-md-6">
+                        <label asp-for="Input.SurveyTemplateId" class="form-label" style="font-family: 'Geist Mono', monospace; font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--graphite, #4A5A55);"></label>
                         <select asp-for="Input.SurveyTemplateId" class="form-select" asp-items="Model.SurveyTemplateSelectList">
                             <option value="">-- No Survey --</option>
                         </select>
@@ -99,28 +95,22 @@
             </div>
         </div>
 
-        <div class="card mb-3">
-            <div class="card-header bg-warning">
-                <h5 class="mb-0"><i class="bi bi-toggles me-2"></i>Options</h5>
+        <div class="card mb-3" style="background: var(--chalk, #FBFAF5); border: 1px solid var(--hairline, #D8D4C4); border-radius: 8px;">
+            <div class="card-header" style="background: var(--chalk, #FBFAF5); border-bottom: 1px solid var(--hairline, #D8D4C4); padding: 20px 28px;">
+                <h5 class="mb-0" style="font-family: 'Geist Mono', monospace; font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--graphite, #4A5A55); font-weight: 500;">Options</h5>
             </div>
             <div class="card-body">
                 <div class="row g-3">
-                    <div class="col-md-4">
+                    <div class="col-md-6">
                         <div class="form-check form-switch">
                             <input asp-for="Input.IsActive" class="form-check-input" />
-                            <label asp-for="Input.IsActive" class="form-check-label fw-bold"></label>
+                            <label asp-for="Input.IsActive" class="form-check-label" style="font-family: 'Geist Mono', monospace; font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase;"></label>
                         </div>
                     </div>
-                    <div class="col-md-4">
-                        <div class="form-check form-switch">
-                            <input asp-for="Input.RequiresEvidence" class="form-check-input" />
-                            <label asp-for="Input.RequiresEvidence" class="form-check-label fw-bold"></label>
-                        </div>
-                    </div>
-                    <div class="col-md-4">
+                    <div class="col-md-6">
                         <div class="form-check form-switch">
                             <input asp-for="Input.IsInterviewTask" class="form-check-input" />
-                            <label asp-for="Input.IsInterviewTask" class="form-check-label fw-bold"></label>
+                            <label asp-for="Input.IsInterviewTask" class="form-check-label" style="font-family: 'Geist Mono', monospace; font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase;"></label>
                         </div>
                         <small class="text-muted d-block mt-1">
                             <i class="bi bi-telephone"></i> For interview workers
@@ -129,7 +119,7 @@
                 </div>
                 <div class="row g-3 mt-1">
                     <div class="col-md-6">
-                        <label class="form-label fw-bold">Applies To</label>
+                        <label class="form-label" style="font-family: 'Geist Mono', monospace; font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--graphite, #4A5A55);">Applies To</label>
                         <select asp-for="Input.ApplicableToType" class="form-select">
                             <option value="">Both — Cases &amp; Contacts</option>
                             <option value="1">Cases only</option>
@@ -141,18 +131,18 @@
             </div>
         </div>
 
-        <div class="card mb-3">
-            <div class="card-header bg-secondary text-white">
-                <h5 class="mb-0"><i class="bi bi-file-text me-2"></i>Instructions</h5>
+        <div class="card mb-3" style="background: var(--chalk, #FBFAF5); border: 1px solid var(--hairline, #D8D4C4); border-radius: 8px;">
+            <div class="card-header" style="background: var(--chalk, #FBFAF5); border-bottom: 1px solid var(--hairline, #D8D4C4); padding: 20px 28px;">
+                <h5 class="mb-0" style="font-family: 'Geist Mono', monospace; font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--graphite, #4A5A55); font-weight: 500;">Instructions</h5>
             </div>
-            <div class="card-body">
+            <div class="card-body" style="padding: 28px;">
                 <div class="row g-3">
                     <div class="col-12">
-                        <label asp-for="Input.Instructions" class="form-label fw-bold"></label>
+                        <label asp-for="Input.Instructions" class="form-label" style="font-family: 'Geist Mono', monospace; font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--graphite, #4A5A55);"></label>
                         <textarea asp-for="Input.Instructions" class="form-control" rows="4"></textarea>
                     </div>
                     <div class="col-12">
-                        <label asp-for="Input.CompletionCriteria" class="form-label fw-bold"></label>
+                        <label asp-for="Input.CompletionCriteria" class="form-label" style="font-family: 'Geist Mono', monospace; font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--graphite, #4A5A55);"></label>
                         <textarea asp-for="Input.CompletionCriteria" class="form-control" rows="2"></textarea>
                     </div>
                 </div>
@@ -161,7 +151,7 @@
 
         <!-- Actions -->
         <div class="d-flex gap-2 mb-4">
-            <button type="submit" class="btn btn-success btn-lg">
+            <button type="submit" class="btn btn-lg" style="background: var(--signal, #3DD598); border-color: var(--signal, #3DD598); color: var(--forest, #0C2A20); font-weight: 500;">
                 <i class="bi bi-check-circle me-2"></i>Create Task Template
             </button>
             <a asp-page="./TaskTemplates" class="btn btn-outline-secondary btn-lg">

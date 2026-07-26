@@ -40,6 +40,7 @@ namespace Sentinel.Pages.Settings.HL7.Messages
         public int ProcessedCount { get; set; }
         public int ErrorCount { get; set; }
         public int ReviewCount { get; set; }
+        public int ManualReviewCount { get; set; }
         public int TotalPages { get; set; }
         public bool HasFilters => !string.IsNullOrWhiteSpace(StatusFilter) || 
                                    !string.IsNullOrWhiteSpace(FacilityFilter) ||
@@ -89,6 +90,8 @@ namespace Sentinel.Pages.Settings.HL7.Messages
             ProcessedCount = await query.CountAsync(m => m.Status == HL7ProcessingStatus.ProcessedSuccessfully);
             ErrorCount = await query.CountAsync(m => m.Status == HL7ProcessingStatus.ProcessingFailed);
             ReviewCount = await query.CountAsync(m => m.Status == HL7ProcessingStatus.AwaitingManualReview);
+            ManualReviewCount = await _context.HL7Messages.CountAsync(m => (m.RequiresManualReview && !m.ManualReviewCompleted) || 
+                                                                             (m.NoSurveillanceItem && !m.ManualReviewCompleted));
 
             // Calculate pagination
             TotalPages = (int)Math.Ceiling(TotalCount / (double)PAGE_SIZE);

@@ -20,7 +20,20 @@
         <h1 class="sentinel-page-title">HL7 Messages</h1>
         <p class="sentinel-page-subtitle">Review and reprocess HL7 laboratory messages</p>
     </div>
-    <div>
+    <div style="display: flex; gap: 0.5rem;">
+        @if (Model.ManualReviewCount > 0)
+        {
+            <a asp-page="/Settings/HL7/Messages/ReviewQueue" class="sn-btn sn-btn--primary">
+                <i class="bi bi-clipboard-check me-1"></i> Review Queue
+                <span class="badge bg-light text-dark ms-2">@Model.ManualReviewCount</span>
+            </a>
+        }
+        else
+        {
+            <a asp-page="/Settings/HL7/Messages/ReviewQueue" class="sn-btn sn-btn--ghost">
+                <i class="bi bi-clipboard-check me-1"></i> Review Queue
+            </a>
+        }
         <a asp-page="/Settings/HL7/Monitoring/Dashboard" class="sn-btn sn-btn--ghost">
             <i class="bi bi-activity me-1"></i>Dashboard
         </a>

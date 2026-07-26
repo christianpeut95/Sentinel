@@ -71,7 +71,8 @@ namespace Sentinel.Pages.Settings.Lookups
             taskTemplateToUpdate.Description = TaskTemplate.Description;
             taskTemplateToUpdate.TaskTypeId = TaskTemplate.TaskTypeId;
             taskTemplateToUpdate.DefaultPriority = TaskTemplate.DefaultPriority;
-            taskTemplateToUpdate.TriggerType = TaskTemplate.TriggerType;
+            // Note: TriggerType is not updated here as it's not used for auto-creation logic
+            // Auto-creation is controlled by DiseaseTaskTemplate flags
             taskTemplateToUpdate.AssignmentType = TaskTemplate.AssignmentType;
             taskTemplateToUpdate.DueCalculationMethod = TaskTemplate.DueCalculationMethod;
             taskTemplateToUpdate.DueDaysFromOnset = TaskTemplate.DueDaysFromOnset;

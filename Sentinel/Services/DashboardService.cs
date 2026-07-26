@@ -297,22 +297,15 @@ namespace Sentinel.Services
             var timeWindow = settings.ContainsKey("timeWindow") ? settings["timeWindow"]?.ToString() : "30d";
             var cutoffTime = GetCutoffTime(timeWindow ?? "30d");
 
-            // Get case IDs created within the time window from audit logs
-            var caseCreationAuditsList = await _context.AuditLogs
-                .Where(a => a.EntityType == "Case" 
-                    && a.Action == "Created"
-                    && a.ChangedAt >= cutoffTime)
-                .ToListAsync();
-
-            var createdCaseIds = caseCreationAuditsList.Select(a => a.EntityId).ToList();
-
+            // Query Cases directly using DateOfNotification instead of relying on audit logs
             var casesQuery = _context.Cases
                 .Include(c => c.Disease)
                 .Include(c => c.ConfirmationStatus)
                 .Where(c => !c.IsDeleted 
                     && c.Type == CaseType.Case 
                     && c.DiseaseId.HasValue
-                    && createdCaseIds.Contains(c.Id.ToString()));
+                    && c.DateOfNotification.HasValue
+                    && c.DateOfNotification >= cutoffTime);
 
             // Filter by pinned diseases if any
             if (pinnedDiseaseIds.Any())

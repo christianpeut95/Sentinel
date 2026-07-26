@@ -22,6 +22,7 @@ namespace Sentinel.Pages.Settings.HL7.Monitoring
         public MonitoringStatus MonitoringStatus { get; set; } = null!;
         public List<HL7Configuration> ActiveConfigurations { get; set; } = new();
         public List<HL7Message> RecentMessages { get; set; } = new();
+        public int ManualReviewCount { get; set; }
 
         public async Task OnGetAsync()
         {
@@ -41,6 +42,11 @@ namespace Sentinel.Pages.Settings.HL7.Monitoring
                 .OrderByDescending(m => m.ReceivedAt)
                 .Take(50)
                 .ToListAsync();
+
+            // Get manual review count
+            ManualReviewCount = await _context.HL7Messages
+                .CountAsync(m => (m.RequiresManualReview && !m.ManualReviewCompleted) ||
+                                 (m.NoSurveillanceItem && !m.ManualReviewCompleted));
         }
     }
 }

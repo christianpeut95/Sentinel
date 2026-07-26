@@ -26,12 +26,12 @@ else
                 {
                     var link = item.EntityType switch
                     {
-                        "Case" => $"/Cases/View/{item.EntityId}",
-                        "Contact" => $"/Contacts/View/{item.EntityId}",
-                        "Patient" => $"/Patients/View/{item.EntityId}",
-                        "Outbreak" => $"/Outbreaks/View/{item.EntityId}",
-                        "Event" => $"/Events/View/{item.EntityId}",
-                        "Location" => $"/Locations/View/{item.EntityId}",
+                        "Case" => $"/Cases/Details?id={item.EntityId}",
+                        "Contact" => $"/Contacts/Details?id={item.EntityId}",
+                        "Patient" => $"/Patients/Details?id={item.EntityId}",
+                        "Outbreak" => $"/Outbreaks/Details?id={item.EntityId}",
+                        "Event" => $"/Events/Details?id={item.EntityId}",
+                        "Location" => $"/Locations/Details?id={item.EntityId}",
                         _ => null
                     };
 

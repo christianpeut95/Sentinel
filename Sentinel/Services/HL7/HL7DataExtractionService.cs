@@ -492,6 +492,7 @@ public class HL7DataExtractionService : IHL7DataExtractionService
                 message.Status = HL7ProcessingStatus.ProcessedSuccessfully;
                 message.ProcessedAt = DateTime.UtcNow;
                 message.ProcessingNotes = string.Join("\n", stage.Warnings);
+                message.NoSurveillanceItem = true; // Flag for review queue visibility
 
                 await _context.SaveChangesAsync(cancellationToken);
 
@@ -5602,13 +5603,72 @@ public class HL7DataExtractionService : IHL7DataExtractionService
                 .IgnoreQueryFilters()
                 .FirstOrDefaultAsync(d => d.Id == existingCase.DiseaseId!.Value, cancellationToken);
 
-            var labResults = await _context.LabResults
+            // CRITICAL: Load reinfection rule to determine date window for combining markers
+            var reinfectionRule = await _context.DiseaseReinfectionRules
+                .FirstOrDefaultAsync(r => 
+                    r.DiseaseId == existingCase.DiseaseId.Value && 
+                    r.IsActive, 
+                    cancellationToken);
+
+            // Calculate date cutoff for loading existing markers
+            // Only include markers from lab results within the reinfection window
+            DateTime? dateWindowStart = null;
+            var newSpecimenDate = stagedLabResult.SpecimenCollectionDate ?? DateTime.UtcNow;
+
+            if (reinfectionRule != null)
+            {
+                switch (reinfectionRule.RuleType)
+                {
+                    case ReinfectionRuleType.NoReinfection:
+                    case ReinfectionRuleType.ChronicDisease:
+                    case ReinfectionRuleType.ManualReview:
+                        // Include all markers from the case (no date limit)
+                        break;
+
+                    case ReinfectionRuleType.TimeWindow:
+                        if (reinfectionRule.ReinfectionWindowDays.HasValue)
+                        {
+                            dateWindowStart = newSpecimenDate.AddDays(-reinfectionRule.ReinfectionWindowDays.Value);
+                        }
+                        break;
+
+                    case ReinfectionRuleType.AlwaysNewCase:
+                        // Should not reach here (shouldn't be combining markers if always creating new cases)
+                        stagingLog.Add($"  • Case {existingCase.FriendlyId}: {disease?.Name ?? "Unknown"} (Rule: AlwaysNewCase - skipping)");
+                        continue; // Skip this case entirely
+                }
+            }
+            else
+            {
+                // No explicit rule - use default 30-day window
+                dateWindowStart = newSpecimenDate.AddDays(-30);
+            }
+
+            // Load lab results with date filter if applicable
+            var labResultsQuery = _context.LabResults
                 .IgnoreQueryFilters()
                 .Include(lr => lr.Markers)
-                .Where(lr => lr.CaseId == existingCase.Id && !lr.IsDeleted)
-                .ToListAsync(cancellationToken);
+                .Where(lr => lr.CaseId == existingCase.Id && !lr.IsDeleted);
 
-            stagingLog.Add($"  • Case {existingCase.FriendlyId}: {disease?.Name ?? "Unknown"} with {labResults.Count} lab result(s)");
+            // Apply date filter if we have a window
+            if (dateWindowStart.HasValue)
+            {
+                labResultsQuery = labResultsQuery
+                    .Where(lr => lr.SpecimenCollectionDate == null || lr.SpecimenCollectionDate >= dateWindowStart.Value);
+            }
+
+            var labResults = await labResultsQuery.ToListAsync(cancellationToken);
+
+            // Enhanced logging
+            var totalMarkers = labResults.Sum(lr => lr.Markers.Count(m => m.PathogenId.HasValue));
+            if (dateWindowStart.HasValue)
+            {
+                stagingLog.Add($"  • Case {existingCase.FriendlyId}: {disease?.Name ?? "Unknown"} - window from {dateWindowStart.Value:yyyy-MM-dd} ({labResults.Count} result(s), {totalMarkers} marker(s))");
+            }
+            else
+            {
+                stagingLog.Add($"  • Case {existingCase.FriendlyId}: {disease?.Name ?? "Unknown"} - all results ({labResults.Count} result(s), {totalMarkers} marker(s))");
+            }
 
             foreach (var labResult in labResults)
             {
@@ -6056,20 +6116,108 @@ public class HL7DataExtractionService : IHL7DataExtractionService
             _logger.LogInformation("[DISEASE REFINEMENT] Current case disease: {Disease} (Level: {Level})", 
                 currentCaseDisease.Name, currentCaseDisease.Level);
 
-            // STEP 1: Load ALL existing lab result markers from the case
-            var existingLabResults = await _context.LabResults
+            // CRITICAL: Load reinfection rule to determine date window for combining markers
+            var reinfectionRule = await _context.DiseaseReinfectionRules
+                .FirstOrDefaultAsync(r => 
+                    r.DiseaseId == currentCaseDiseaseId.Value && 
+                    r.IsActive, 
+                    cancellationToken);
+
+            // Calculate date cutoff for loading existing markers
+            // Only include markers from lab results within the reinfection window
+            DateTime? dateWindowStart = null;
+            var newSpecimenDate = stagedLabResult.SpecimenCollectionDate ?? DateTime.UtcNow;
+
+            if (reinfectionRule != null)
+            {
+                switch (reinfectionRule.RuleType)
+                {
+                    case ReinfectionRuleType.NoReinfection:
+                    case ReinfectionRuleType.ChronicDisease:
+                        // Include all markers from the case (no date limit)
+                        _logger.LogInformation("[DISEASE REFINEMENT] Rule type {RuleType} - including all case markers", 
+                            reinfectionRule.RuleType);
+                        break;
+
+                    case ReinfectionRuleType.TimeWindow:
+                        if (reinfectionRule.ReinfectionWindowDays.HasValue)
+                        {
+                            dateWindowStart = newSpecimenDate.AddDays(-reinfectionRule.ReinfectionWindowDays.Value);
+                            _logger.LogInformation(
+                                "[DISEASE REFINEMENT] Applying {Days}-day reinfection window - only including markers from {StartDate:yyyy-MM-dd} onwards", 
+                                reinfectionRule.ReinfectionWindowDays.Value,
+                                dateWindowStart.Value);
+                        }
+                        break;
+
+                    case ReinfectionRuleType.AlwaysNewCase:
+                        // Should not reach here (refinement only runs for existing cases)
+                        _logger.LogWarning("[DISEASE REFINEMENT] AlwaysNewCase rule encountered - should not be refining existing case");
+                        return;
+
+                    case ReinfectionRuleType.ManualReview:
+                        // Include all markers for manual review scenarios
+                        _logger.LogInformation("[DISEASE REFINEMENT] ManualReview rule - including all case markers");
+                        break;
+                }
+            }
+            else
+            {
+                // No explicit rule - use default 30-day window
+                dateWindowStart = newSpecimenDate.AddDays(-30);
+                _logger.LogInformation(
+                    "[DISEASE REFINEMENT] No reinfection rule found - applying default 30-day window from {StartDate:yyyy-MM-dd}", 
+                    dateWindowStart.Value);
+            }
+
+            // STEP 1: Load existing lab result markers from the case WITHIN the date window
+            var existingLabResultsQuery = _context.LabResults
                 .IgnoreQueryFilters()
                 .Include(lr => lr.Markers)
-                .Where(lr => lr.CaseId == diseaseMatch.ExistingCase.Id && !lr.IsDeleted)
-                .ToListAsync(cancellationToken);
+                .Where(lr => lr.CaseId == diseaseMatch.ExistingCase.Id && !lr.IsDeleted);
+
+            // Apply date filter if we have a window
+            if (dateWindowStart.HasValue)
+            {
+                existingLabResultsQuery = existingLabResultsQuery
+                    .Where(lr => lr.SpecimenCollectionDate == null || lr.SpecimenCollectionDate >= dateWindowStart.Value);
+            }
+
+            var existingLabResults = await existingLabResultsQuery.ToListAsync(cancellationToken);
 
             var existingMarkers = existingLabResults
                 .SelectMany(lr => lr.Markers)
                 .Where(m => m.PathogenId.HasValue)
                 .ToList();
 
-            _logger.LogInformation("[DISEASE REFINEMENT] Existing case has {Count} lab result(s) with {MarkerCount} pathogen marker(s)", 
-                existingLabResults.Count, existingMarkers.Count);
+            // Count total markers in case for comparison
+            var allLabResultsInCase = await _context.LabResults
+                .IgnoreQueryFilters()
+                .Include(lr => lr.Markers)
+                .Where(lr => lr.CaseId == diseaseMatch.ExistingCase.Id && !lr.IsDeleted)
+                .ToListAsync(cancellationToken);
+
+            var totalMarkersInCase = allLabResultsInCase
+                .SelectMany(lr => lr.Markers)
+                .Count(m => m.PathogenId.HasValue);
+
+            if (dateWindowStart.HasValue)
+            {
+                var excludedResults = allLabResultsInCase.Count - existingLabResults.Count;
+                var excludedMarkers = totalMarkersInCase - existingMarkers.Count;
+
+                _logger.LogInformation(
+                    "[DISEASE REFINEMENT] Within date window: {IncludedResults} lab result(s) with {IncludedMarkers} marker(s) | Excluded (outside window): {ExcludedResults} result(s) with {ExcludedMarkers} marker(s)", 
+                    existingLabResults.Count, 
+                    existingMarkers.Count,
+                    excludedResults,
+                    excludedMarkers);
+            }
+            else
+            {
+                _logger.LogInformation("[DISEASE REFINEMENT] Existing case has {Count} lab result(s) with {MarkerCount} pathogen marker(s) (no date filter)", 
+                    existingLabResults.Count, existingMarkers.Count);
+            }
 
             // STEP 2: Combine existing markers with new incoming markers
             // Build a temporary LabResult that contains ALL markers for case-definition evaluation
@@ -7339,78 +7487,18 @@ public class HL7DataExtractionService : IHL7DataExtractionService
                             var scored = new List<(CaseDefinitionMatchResult match, int score)>();
                             foreach (var match in matchesForDisease)
                             {
-                                var caseDefId = match.CaseDefinition?.Id ?? 0;
+                                // Use the marker-based specificity score computed during evaluation
+                                // This correctly counts distinct pathogens from the successful evaluation path
+                                var score = match.MarkerBasedSpecificityScore;
 
-                                // Get all laboratory criteria for this definition
-                                var laboratoryCriteria = await _context.CaseDefinitionCriteria
-                                    .Where(c => c.CaseDefinitionId == caseDefId && c.CriterionType == CriterionType.Laboratory)
-                                    .ToListAsync(cancellationToken);
+                                // DIAGNOSTIC: Log details about the score calculation
+                                _logger.LogWarning(
+                                    "STAGING SCORE: {DefName} - Score={Score}, SatisfiedCriteria={CritCount}, MarkersByCriterion={MarkerCount}",
+                                    match.CaseDefinition?.Name,
+                                    score,
+                                    match.SatisfiedCriteriaIds?.Count ?? 0,
+                                    match.MarkersByCriterion?.Count ?? 0);
 
-                                // Count how many lab markers matched at least one criterion
-                                var matchedMarkerIds = new HashSet<string>();
-
-                                foreach (var marker in stagedLabResult.Markers.Where(m => m.ResolvedPathogenId.HasValue))
-                                {
-                                    var markerKey = $"{marker.TestCode}|{marker.ResolvedPathogenId}";
-
-                                    foreach (var criterion in laboratoryCriteria)
-                                    {
-                                        if (string.IsNullOrEmpty(criterion.AcceptablePathogensJson))
-                                            continue;
-
-                                        try
-                                        {
-                                            var acceptablePathogens = System.Text.Json.JsonSerializer.Deserialize<List<Guid>>(criterion.AcceptablePathogensJson);
-                                            if (acceptablePathogens?.Contains(marker.ResolvedPathogenId!.Value) != true)
-                                                continue;
-
-                                            // Pathogen matches, now check other constraints
-                                            bool markerMatches = true;
-
-                                            // Check test method if specified
-                                            if (!string.IsNullOrEmpty(criterion.AcceptableTestMethodsJson))
-                                            {
-                                                var acceptableMethods = System.Text.Json.JsonSerializer.Deserialize<List<int>>(criterion.AcceptableTestMethodsJson);
-                                                if (acceptableMethods?.Any() == true && marker.ResolvedTestMethodId.HasValue)
-                                                {
-                                                    if (!acceptableMethods.Contains(marker.ResolvedTestMethodId.Value))
-                                                        markerMatches = false;
-                                                }
-                                            }
-
-                                            // Check specimen type if specified
-                                            if (markerMatches && !string.IsNullOrEmpty(criterion.AcceptableSpecimenTypesJson))
-                                            {
-                                                var acceptableSpecimens = System.Text.Json.JsonSerializer.Deserialize<List<int>>(criterion.AcceptableSpecimenTypesJson);
-                                                if (acceptableSpecimens?.Any() == true && marker.ResolvedSpecimenTypeId.HasValue)
-                                                {
-                                                    if (!acceptableSpecimens.Contains(marker.ResolvedSpecimenTypeId.Value))
-                                                        markerMatches = false;
-                                                }
-                                            }
-
-                                            // Check result if specified
-                                            if (markerMatches && !string.IsNullOrEmpty(criterion.AcceptableResultsJson))
-                                            {
-                                                var acceptableResults = System.Text.Json.JsonSerializer.Deserialize<List<int>>(criterion.AcceptableResultsJson);
-                                                if (acceptableResults?.Any() == true && marker.ResolvedTestResultId.HasValue)
-                                                {
-                                                    if (!acceptableResults.Contains(marker.ResolvedTestResultId.Value))
-                                                        markerMatches = false;
-                                                }
-                                            }
-
-                                            if (markerMatches)
-                                            {
-                                                matchedMarkerIds.Add(markerKey);
-                                                break; // This marker matched a criterion, move to next marker
-                                            }
-                                        }
-                                        catch { /* Ignore JSON errors */ }
-                                    }
-                                }
-
-                                var score = matchedMarkerIds.Count;
                                 scored.Add((match: match, score: score));
                                 stagingLog.Add($"     - {match.CaseDefinition?.Name}: {score} markers matched criteria");
                             }
@@ -8595,6 +8683,51 @@ public class HL7DataExtractionService : IHL7DataExtractionService
                 var casesCreated = new List<Case>();
                 var casesLinked = new List<Case>();
 
+                // Track if this is the first disease being processed (for multiplex handling)
+                bool isFirstDisease = true;
+                LabResult currentLabResult = result.LabResult!;
+                Guid? firstDiseaseId = null; // Track first disease for deferred marker filtering
+
+                // Pre-load disease hierarchy data for multiplex marker filtering (before loop to avoid transaction issues)
+                Dictionary<Guid, Disease>? allDiseases = null;
+                Dictionary<Guid, Guid>? pathogenToDiseaseMap = null;
+
+                if (relevantDiseaseMatches.Count > 1)
+                {
+                    // Load pathogen-to-disease mappings
+                    var allPathogenIds = await _context.LabResultMarkers
+                        .Where(m => m.LabResultId == result.LabResult!.Id && m.PathogenId != null)
+                        .Select(m => m.PathogenId!.Value)
+                        .Distinct()
+                        .ToListAsync(cancellationToken);
+
+                    var pathogenList = await _context.Pathogens
+                        .Where(p => allPathogenIds.Contains(p.Id) && p.DiseaseId != null)
+                        .AsNoTracking()
+                        .ToListAsync(cancellationToken);
+
+                    pathogenToDiseaseMap = pathogenList
+                        .Where(p => p.DiseaseId.HasValue)
+                        .ToDictionary(p => p.Id, p => p.DiseaseId.Value);
+
+                    // Load all diseases into memory (reference data, small set)
+                    // Project only the fields needed for hierarchy checks to avoid navigation property issues
+                    // IgnoreQueryFilters: HL7 background processing needs all diseases regardless of user access
+                    var diseasesList = await _context.Diseases
+                        .AsNoTracking()
+                        .IgnoreQueryFilters()
+                        .Select(d => new { d.Id, d.ParentDiseaseId, d.Level, d.PathIds })
+                        .ToListAsync(cancellationToken);
+
+                    allDiseases = diseasesList.ToDictionary(d => d.Id, d => new Disease
+                    {
+                        Id = d.Id,
+                        ParentDiseaseId = d.ParentDiseaseId,
+                        Level = d.Level,
+                        PathIds = d.PathIds
+                    });
+                }
+
                 foreach (var diseaseMatch in relevantDiseaseMatches)
                 {
                     commitLog.Add($"");
@@ -8651,16 +8784,106 @@ public class HL7DataExtractionService : IHL7DataExtractionService
 
                         commitLog.Add($"  ✅ Case created: ID={newCase.Id}, FriendlyId={newCase.FriendlyId}");
 
-                        // Link lab result to case
-                        result.LabResult!.CaseId = newCase.Id;
-                        await _context.SaveChangesAsync(cancellationToken);
+                        // For multiplex results: clone the lab result for second+ diseases
+                        if (!isFirstDisease)
+                        {
+                            commitLog.Add($"  🔄 Multiplex detected - cloning lab result for disease: {diseaseMatch.FinalDiseaseForCase.Name}");
 
-                        commitLog.Add($"  ✅ Lab result linked to new case");
+                            // Create a clone of the original lab result
+                            var clonedLabResult = new LabResult
+                            {
+                                // Link to parent
+                                ParentLabResultId = result.LabResult!.Id,
+                                IsMultiplexClone = true,
+
+                                // Link to this case
+                                CaseId = newCase.Id,
+
+                                // Copy all specimen and test data
+                                PatientId = result.LabResult!.PatientId,
+                                AccessionNumber = result.LabResult!.AccessionNumber,
+                                SpecimenCollectionDate = result.LabResult!.SpecimenCollectionDate,
+                                SpecimenTypeId = result.LabResult!.SpecimenTypeId,
+                                ResultDate = result.LabResult!.ResultDate,
+                                ResultUnitsId = result.LabResult!.ResultUnitsId,
+                                TestedDiseaseId = result.LabResult!.TestedDiseaseId,
+                                LaboratoryId = result.LabResult!.LaboratoryId,
+                                OrderingProviderId = result.LabResult!.OrderingProviderId,
+                                LabInterpretation = result.LabResult!.LabInterpretation,
+                                Notes = result.LabResult!.Notes,
+                                IsAmended = result.LabResult!.IsAmended,
+                                AttachmentPath = result.LabResult!.AttachmentPath,
+                                AttachmentFileName = result.LabResult!.AttachmentFileName,
+                                AttachmentSize = result.LabResult!.AttachmentSize,
+                                CreatedAt = DateTime.UtcNow,
+                                ModifiedAt = null
+                                // Note: FriendlyId will be auto-generated by ApplicationDbContext on SaveChanges
+                            };
+
+                            _context.LabResults.Add(clonedLabResult);
+                            await _context.SaveChangesAsync(cancellationToken);
+
+                            // Use pre-loaded disease data for marker filtering
+                            var targetDiseaseId = diseaseMatch.FinalDiseaseForCase.Id;
+
+                            // Clone only disease-relevant markers
+                            var originalMarkers = await _context.LabResultMarkers
+                                .Where(m => m.LabResultId == result.LabResult!.Id)
+                                .ToListAsync(cancellationToken);
+
+                            var clonedMarkersCount = 0;
+                            foreach (var originalMarker in originalMarkers)
+                            {
+                                // Filter: only clone markers relevant to this disease family
+                                if (IsMarkerRelevantToDisease(originalMarker, targetDiseaseId, pathogenToDiseaseMap, allDiseases))
+                                {
+                                    var clonedMarker = new LabResultMarker
+                                    {
+                                        LabResultId = clonedLabResult.Id,
+                                        PathogenId = originalMarker.PathogenId,
+                                        TestMethodId = originalMarker.TestMethodId,
+                                        TestResultId = originalMarker.TestResultId,
+                                        QualitativeResultText = originalMarker.QualitativeResultText,
+                                        QuantitativeValue = originalMarker.QuantitativeValue,
+                                        QuantitativeUnit = originalMarker.QuantitativeUnit,
+                                        ReferenceRangeLow = originalMarker.ReferenceRangeLow,
+                                        ReferenceRangeHigh = originalMarker.ReferenceRangeHigh,
+                                        InterpretationFlag = originalMarker.InterpretationFlag,
+                                        LOINCCode = originalMarker.LOINCCode,
+                                        Notes = originalMarker.Notes,
+                                        DisplayOrder = originalMarker.DisplayOrder,
+                                        ResultStatus = originalMarker.ResultStatus,
+                                        ResultFinalizedDate = originalMarker.ResultFinalizedDate,
+                                        TestCode = originalMarker.TestCode,
+                                        CreatedAt = DateTime.UtcNow
+                                    };
+                                    _context.LabResultMarkers.Add(clonedMarker);
+                                    clonedMarkersCount++;
+                                }
+                            }
+
+                            await _context.SaveChangesAsync(cancellationToken);
+
+                            commitLog.Add($"  ✅ Created lab result clone {clonedLabResult.FriendlyId} with {clonedMarkersCount}/{originalMarkers.Count} disease-relevant markers");
+                            currentLabResult = clonedLabResult;
+                        }
+                        else
+                        {
+                            // First disease: link the original lab result (but defer marker filtering until after all clones)
+                            result.LabResult!.CaseId = newCase.Id;
+                            firstDiseaseId = diseaseMatch.FinalDiseaseForCase.Id;
+
+                            await _context.SaveChangesAsync(cancellationToken);
+                            commitLog.Add($"  ✅ Lab result linked to new case");
+                        }
 
                         casesCreated.Add(newCase);
                         result.Warnings.Add($"[CASE] ✅ Created new case {newCase.FriendlyId} for {diseaseMatch.FinalDiseaseForCase.Name}");
                         _logger.LogInformation("[STAGING COMMIT] Created case {CaseId} for disease {DiseaseId}", 
                             newCase.Id, diseaseMatch.FinalDiseaseForCase.Id);
+
+                        // Mark that we've processed the first disease
+                        isFirstDisease = false;
                     }
                     // Link to existing case
                     else if (diseaseMatch.ExistingCase != null && diseaseMatch.ReinfectionDecision == ReinfectionDecision.LinkToExisting)
@@ -8686,17 +8909,127 @@ public class HL7DataExtractionService : IHL7DataExtractionService
                                 diseaseMatch.ExistingCase.Id, diseaseMatch.RefinedDisease.Id);
                         }
 
-                        // Link lab result to case using navigation property
-                        result.LabResult!.CaseId = diseaseMatch.ExistingCase.Id;
+                        // For multiplex results: clone the lab result for second+ diseases
+                        if (!isFirstDisease)
+                        {
+                            commitLog.Add($"  🔄 Multiplex detected - cloning lab result for existing case: {diseaseMatch.ExistingCase.FriendlyId}");
 
-                        await _context.SaveChangesAsync(cancellationToken);
+                            // Create a clone of the original lab result
+                            var clonedLabResult = new LabResult
+                            {
+                                // Link to parent
+                                ParentLabResultId = result.LabResult!.Id,
+                                IsMultiplexClone = true,
+
+                                // Link to this existing case
+                                CaseId = diseaseMatch.ExistingCase.Id,
+
+                                // Copy all specimen and test data
+                                PatientId = result.LabResult!.PatientId,
+                                AccessionNumber = result.LabResult!.AccessionNumber,
+                                SpecimenCollectionDate = result.LabResult!.SpecimenCollectionDate,
+                                SpecimenTypeId = result.LabResult!.SpecimenTypeId,
+                                ResultDate = result.LabResult!.ResultDate,
+                                ResultUnitsId = result.LabResult!.ResultUnitsId,
+                                TestedDiseaseId = result.LabResult!.TestedDiseaseId,
+                                LaboratoryId = result.LabResult!.LaboratoryId,
+                                OrderingProviderId = result.LabResult!.OrderingProviderId,
+                                LabInterpretation = result.LabResult!.LabInterpretation,
+                                Notes = result.LabResult!.Notes,
+                                IsAmended = result.LabResult!.IsAmended,
+                                AttachmentPath = result.LabResult!.AttachmentPath,
+                                AttachmentFileName = result.LabResult!.AttachmentFileName,
+                                AttachmentSize = result.LabResult!.AttachmentSize,
+                                CreatedAt = DateTime.UtcNow,
+                                ModifiedAt = null
+                            };
+
+                            _context.LabResults.Add(clonedLabResult);
+                            await _context.SaveChangesAsync(cancellationToken);
+
+                            // Clone all markers
+                            var originalMarkers = await _context.LabResultMarkers
+                                .Where(m => m.LabResultId == result.LabResult!.Id)
+                                .ToListAsync(cancellationToken);
+
+                            foreach (var originalMarker in originalMarkers)
+                            {
+                                var clonedMarker = new LabResultMarker
+                                {
+                                    LabResultId = clonedLabResult.Id,
+                                    PathogenId = originalMarker.PathogenId,
+                                    TestMethodId = originalMarker.TestMethodId,
+                                    TestResultId = originalMarker.TestResultId,
+                                    QualitativeResultText = originalMarker.QualitativeResultText,
+                                    QuantitativeValue = originalMarker.QuantitativeValue,
+                                    QuantitativeUnit = originalMarker.QuantitativeUnit,
+                                    ReferenceRangeLow = originalMarker.ReferenceRangeLow,
+                                    ReferenceRangeHigh = originalMarker.ReferenceRangeHigh,
+                                    InterpretationFlag = originalMarker.InterpretationFlag,
+                                    LOINCCode = originalMarker.LOINCCode,
+                                    Notes = originalMarker.Notes,
+                                    DisplayOrder = originalMarker.DisplayOrder,
+                                    ResultStatus = originalMarker.ResultStatus,
+                                    ResultFinalizedDate = originalMarker.ResultFinalizedDate,
+                                    TestCode = originalMarker.TestCode,
+                                    CreatedAt = DateTime.UtcNow
+                                };
+                                _context.LabResultMarkers.Add(clonedMarker);
+                            }
+
+                            await _context.SaveChangesAsync(cancellationToken);
+
+                            commitLog.Add($"  ✅ Created lab result clone {clonedLabResult.FriendlyId} with {originalMarkers.Count} markers");
+                            currentLabResult = clonedLabResult;
+                        }
+                        else
+                        {
+                            // First disease: link the original lab result
+                            result.LabResult!.CaseId = diseaseMatch.ExistingCase.Id;
+                            await _context.SaveChangesAsync(cancellationToken);
+                            commitLog.Add($"  ✅ Lab result linked to case successfully");
+                        }
+
                         casesLinked.Add(diseaseMatch.ExistingCase);
-                        commitLog.Add($"  ✅ Lab result linked to case successfully");
                         result.Warnings.Add($"[CASE] ✅ Linked lab result to existing case {diseaseMatch.ExistingCase.FriendlyId} ({diseaseMatch.ReinfectionReason})");
+
+                        // Mark that we've processed the first disease
+                        isFirstDisease = false;
                     }
                     else
                     {
                         commitLog.Add($"  ℹ️ No case action taken (Decision: {diseaseMatch.ReinfectionDecision})");
+                    }
+                }
+
+                // After all clones: filter markers on the original lab result for the first disease (multiplex)
+                if (firstDiseaseId.HasValue && relevantDiseaseMatches.Count > 1 && pathogenToDiseaseMap != null && allDiseases != null)
+                {
+                    commitLog.Add($"");
+                    commitLog.Add($"🔄 Filtering original lab result markers for first disease (multiplex cleanup)");
+
+                    var originalMarkers = await _context.LabResultMarkers
+                        .Where(m => m.LabResultId == result.LabResult!.Id)
+                        .ToListAsync(cancellationToken);
+
+                    var markersToRemove = new List<LabResultMarker>();
+                    foreach (var marker in originalMarkers)
+                    {
+                        if (!IsMarkerRelevantToDisease(marker, firstDiseaseId.Value, pathogenToDiseaseMap, allDiseases))
+                        {
+                            markersToRemove.Add(marker);
+                        }
+                    }
+
+                    if (markersToRemove.Any())
+                    {
+                        _context.LabResultMarkers.RemoveRange(markersToRemove);
+                        await _context.SaveChangesAsync(cancellationToken);
+                        commitLog.Add($"  ✅ Removed {markersToRemove.Count}/{originalMarkers.Count} non-relevant markers from original lab result");
+                    }
+                    else
+                    {
+                        commitLog.Add($"  ℹ️ All {originalMarkers.Count} markers are relevant to first disease - no removal needed");
                     }
                 }
 
@@ -8826,6 +9159,81 @@ public class HL7DataExtractionService : IHL7DataExtractionService
                 .IgnoreQueryFilters()
                 .FirstOrDefault(d => d.Id == current.ParentDiseaseId);
         }
+        return false;
+    }
+
+    /// <summary>
+    /// Check if a marker is relevant to a disease by checking if the marker's pathogen
+    /// belongs to the disease family (the disease itself or any of its ancestors/descendants)
+    /// Uses in-memory lookups with pre-loaded pathogen-to-disease mappings
+    /// </summary>
+    private bool IsMarkerRelevantToDisease(LabResultMarker marker, Guid targetDiseaseId, Dictionary<Guid, Guid> pathogenToDiseaseMap, Dictionary<Guid, Disease> allDiseases)
+    {
+        if (marker.PathogenId == null)
+            return false;
+
+        // Get the disease for this pathogen
+        if (!pathogenToDiseaseMap.TryGetValue(marker.PathogenId.Value, out var pathogenDiseaseId))
+            return false;
+
+        // Check if the marker's disease matches the target disease
+        if (pathogenDiseaseId == targetDiseaseId)
+            return true;
+
+        // Check if marker's disease is an ancestor of target disease
+        if (allDiseases.TryGetValue(targetDiseaseId, out var targetDisease) && 
+            IsAncestorOfDisease(pathogenDiseaseId, targetDisease))
+            return true;
+
+        // Check if marker's disease is a descendant of target disease
+        if (allDiseases.TryGetValue(pathogenDiseaseId, out var markerDisease) && 
+            IsAncestorOfDisease(targetDiseaseId, markerDisease))
+            return true;
+
+        return false;
+    }
+
+    /// <summary>
+    /// Legacy async version - kept for compatibility but prefer the sync version with pre-loaded data
+    /// </summary>
+    private async Task<bool> IsMarkerRelevantToDiseaseAsync(LabResultMarker marker, Disease targetDisease, CancellationToken cancellationToken)
+    {
+        if (marker.PathogenId == null)
+            return false;
+
+        if (targetDisease == null)
+            return false;
+
+        // Extract all values before queries to avoid EF Core translation issues
+        var pathogenId = marker.PathogenId.Value;
+        var targetDiseaseId = targetDisease.Id;
+
+        // Get the pathogen - no need to include Disease navigation, just get DiseaseId
+        var pathogen = await _context.Pathogens
+            .AsNoTracking()
+            .FirstOrDefaultAsync(p => p.Id == pathogenId, cancellationToken);
+
+        if (pathogen?.DiseaseId == null)
+            return false;
+
+        var pathogenDiseaseId = pathogen.DiseaseId.Value;
+
+        // Check if the marker's disease matches the target disease
+        if (pathogenDiseaseId == targetDiseaseId)
+            return true;
+
+        // Check if marker's disease is an ancestor of target disease
+        if (IsAncestorOfDisease(pathogenDiseaseId, targetDisease))
+            return true;
+
+        // Check if marker's disease is a descendant of target disease
+        var markerDisease = await _context.Diseases
+            .AsNoTracking()
+            .FirstOrDefaultAsync(d => d.Id == pathogenDiseaseId, cancellationToken);
+
+        if (markerDisease != null && IsAncestorOfDisease(targetDiseaseId, markerDisease))
+            return true;
+
         return false;
     }
 

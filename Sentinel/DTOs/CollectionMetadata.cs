@@ -25,6 +25,12 @@ public class CollectionMetadata
     /// Fields available for sub-filtering
     /// </summary>
     public List<CollectionFieldInfo> FilterableFields { get; set; } = new();
+
+    /// <summary>
+    /// Nested sub-collections (e.g., LabResults → Markers)
+    /// Key = collection name, Value = metadata for that sub-collection
+    /// </summary>
+    public Dictionary<string, CollectionMetadata>? SubCollections { get; set; }
 }
 
 /// <summary>

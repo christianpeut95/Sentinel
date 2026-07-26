@@ -9,6 +9,103 @@ const ReportBuilder = {
     nextFilterId: 1,
     nextGroupId: 1,
     nextCollectionQueryId: 1,
+    autoSaveEnabled: true,
+    autoSaveTimer: null,
+    lastAutoSave: null,
+
+    // Auto-save functionality
+    AUTO_SAVE_KEY: 'sentinel_report_draft',
+    AUTO_SAVE_DELAY: 2000, // 2 seconds after last change
+
+    scheduleAutoSave() {
+        if (!this.autoSaveEnabled) return;
+
+        // Clear existing timer
+        if (this.autoSaveTimer) {
+            clearTimeout(this.autoSaveTimer);
+        }
+
+        // Schedule new save
+        this.autoSaveTimer = setTimeout(() => {
+            this.performAutoSave();
+        }, this.AUTO_SAVE_DELAY);
+    },
+
+    performAutoSave() {
+        if (!this.autoSaveEnabled) return;
+
+        try {
+            const entityType = document.getElementById('entityTypeSelector')?.value || 'Case';
+            const reportName = document.getElementById('reportName')?.value || '';
+
+            const draftData = {
+                timestamp: new Date().toISOString(),
+                entityType: entityType,
+                reportName: reportName,
+                selectedFields: this.selectedFields,
+                filters: this.filters,
+                collectionQueries: this.collectionQueries,
+                nextFilterId: this.nextFilterId,
+                nextCollectionQueryId: this.nextCollectionQueryId
+            };
+
+            localStorage.setItem(this.AUTO_SAVE_KEY, JSON.stringify(draftData));
+            this.lastAutoSave = new Date();
+            this.updateAutoSaveStatus();
+            console.log('[AutoSave] Draft saved at', this.lastAutoSave.toLocaleTimeString());
+        } catch (error) {
+            console.error('[AutoSave] Error saving draft:', error);
+        }
+    },
+
+    loadAutoSavedDraft() {
+        try {
+            const draftJson = localStorage.getItem(this.AUTO_SAVE_KEY);
+            if (!draftJson) return null;
+
+            const draft = JSON.parse(draftJson);
+            console.log('[AutoSave] Found draft from', draft.timestamp);
+            return draft;
+        } catch (error) {
+            console.error('[AutoSave] Error loading draft:', error);
+            return null;
+        }
+    },
+
+    clearAutoSavedDraft() {
+        try {
+            localStorage.removeItem(this.AUTO_SAVE_KEY);
+            this.lastAutoSave = null;
+            this.updateAutoSaveStatus();
+            console.log('[AutoSave] Draft cleared');
+        } catch (error) {
+            console.error('[AutoSave] Error clearing draft:', error);
+        }
+    },
+
+    updateAutoSaveStatus() {
+        const statusEl = document.getElementById('autoSaveStatus');
+        if (!statusEl) return;
+
+        if (this.lastAutoSave) {
+            const timeAgo = this.getTimeAgo(this.lastAutoSave);
+            statusEl.textContent = `Auto-saved ${timeAgo}`;
+            statusEl.style.opacity = '1';
+        } else {
+            statusEl.textContent = 'Auto-save enabled';
+            statusEl.style.opacity = '0.6';
+        }
+    },
+
+    getTimeAgo(date) {
+        const seconds = Math.floor((new Date() - date) / 1000);
+        if (seconds < 10) return 'just now';
+        if (seconds < 60) return `${seconds}s ago`;
+        const minutes = Math.floor(seconds / 60);
+        if (minutes < 60) return `${minutes}m ago`;
+        const hours = Math.floor(minutes / 60);
+        return `${hours}h ago`;
+    },
 
     // Loading UI helpers
     showLoading(message = 'Loading...', subtext = '') {
@@ -37,31 +134,305 @@ const ReportBuilder = {
         }
     },
 
+    updateStatusBar() {
+        const entityType = document.getElementById('entityTypeSelector')?.value || 'Case';
+        const statusEntity = document.getElementById('statusEntity');
+        const statusFields = document.getElementById('statusFields');
+        const statusFilters = document.getElementById('statusFilters');
+        const statusCollections = document.getElementById('statusCollections');
+        const fieldCount = document.getElementById('fieldCount');
+        const filterCount = document.getElementById('filterCount');
+        const collectionCount = document.getElementById('collectionCount');
+
+        if (statusEntity) statusEntity.textContent = entityType;
+        if (statusFields) statusFields.textContent = this.selectedFields.length;
+        if (statusFilters) statusFilters.textContent = this.filters.length;
+        if (statusCollections) statusCollections.textContent = this.collectionQueries.length;
+        if (fieldCount) fieldCount.textContent = this.selectedFields.length;
+        if (filterCount) filterCount.textContent = this.filters.length;
+        if (collectionCount) collectionCount.textContent = this.collectionQueries.length;
+
+        // Update query summary
+        this.updateQuerySummary();
+    },
+
+    updateQuerySummary() {
+        const querySummary = document.getElementById('querySummary');
+        const summaryCount = document.getElementById('summaryCount');
+        if (!querySummary) return;
+
+        const entityType = document.getElementById('entityTypeSelector')?.value || 'Case';
+        const conditionCount = this.filters.length + this.collectionQueries.length;
+
+        if (summaryCount) {
+            summaryCount.textContent = conditionCount === 0 ? 'No conditions' : 
+                                      conditionCount === 1 ? '1 condition' : 
+                                      `${conditionCount} conditions`;
+        }
+
+        let summary = `<span class="kw">SELECT</span> `;
+        if (this.selectedFields.length === 0) {
+            summary += `<span class="val">*</span>`;
+        } else {
+            summary += `<span class="val">${this.selectedFields.length} field${this.selectedFields.length !== 1 ? 's' : ''}</span>`;
+        }
+        summary += ` <span class="kw">FROM</span> <span class="val">${entityType}</span>`;
+
+        if (this.filters.length > 0) {
+            summary += ` <span class="kw">WHERE</span> <span class="val">${this.filters.length} filter${this.filters.length !== 1 ? 's' : ''}</span>`;
+        }
+
+        if (this.collectionQueries.length > 0) {
+            summary += ` <span class="kw">WITH</span> <span class="val">${this.collectionQueries.length} collection quer${this.collectionQueries.length !== 1 ? 'ies' : 'y'}</span>`;
+        }
+
+        querySummary.innerHTML = summary;
+    },
+
     // Initialize with data passed from Razor page
     init(savedReport) {
         console.log('[ReportBuilder.init] Called with savedReport:', savedReport);
 
-        if (savedReport) {
-            this.showLoading('Loading Report', 'Restoring filters and collection queries...');
-        }
+        try {
+            // Store reportId if present
+            if (savedReport && savedReport.reportId) {
+                this.reportId = savedReport.reportId;
+                console.log('[ReportBuilder.init] Stored reportId:', this.reportId);
+            }
 
-        this.setupDragDrop();
-        this.setupEventListeners();
-        this.setupFieldSearch();
+            // Check for auto-saved draft FIRST
+            const draft = this.loadAutoSavedDraft();
+            const hasSavedReport = savedReport && savedReport.reportId;
 
-        if (savedReport) {
-            this.loadSavedReport(savedReport);
-        } else {
-            // No saved report, hide loading immediately
+            if (draft && !hasSavedReport) {
+                // Found a draft and no explicit saved report - offer to restore
+                const draftDate = new Date(draft.timestamp);
+                const timeAgo = this.getTimeAgo(draftDate);
+
+                if (confirm(`Found an auto-saved draft from ${timeAgo} (${draftDate.toLocaleString()}).\n\nRestore this draft?`)) {
+                    console.log('[ReportBuilder.init] Restoring auto-saved draft');
+                    savedReport = draft;
+                } else {
+                    console.log('[ReportBuilder.init] User declined draft restore');
+                    this.clearAutoSavedDraft();
+                }
+            }
+
+            if (savedReport) {
+                this.showLoading('Loading Report', 'Restoring filters and collection queries...');
+            }
+
+            console.log('[ReportBuilder.init] Setting up drag/drop');
+            this.setupDragDrop();
+
+            console.log('[ReportBuilder.init] Setting up event listeners');
+            this.setupEventListeners();
+
+            console.log('[ReportBuilder.init] Setting up field search');
+            this.setupFieldSearch();
+
+            // Load available fields for the current entity type
+            const entityType = document.getElementById('entityTypeSelector')?.value || 'Case';
+            console.log('[ReportBuilder.init] Loading fields for entity type:', entityType);
+            this.loadAvailableFields(entityType);
+
+            if (savedReport) {
+                console.log('[ReportBuilder.init] Loading saved report');
+                this.loadSavedReport(savedReport);
+            } else {
+                // No saved report, hide loading immediately
+                this.hideLoading();
+            }
+
+            // Initial status bar update
+            this.updateStatusBar();
+
+            // Start auto-save timer updates
+            setInterval(() => {
+                this.updateAutoSaveStatus();
+            }, 10000); // Update every 10 seconds
+
+            console.log('[ReportBuilder.init] Initialization complete');
+        } catch (error) {
+            console.error('[ReportBuilder.init] Error during initialization:', error);
             this.hideLoading();
+            alert('Error initializing report builder: ' + error.message);
+        }
+    },
+
+    async loadAvailableFields(entityType) {
+        console.log('[loadAvailableFields] Loading fields for:', entityType);
+
+        try {
+            // Load both recommended and all fields
+            const [recommendedResponse, groupedResponse] = await Promise.all([
+                fetch(`/api/reporting/fields/${entityType}/recommended`),
+                fetch(`/api/reporting/fields/${entityType}/grouped`)
+            ]);
+
+            if (!recommendedResponse.ok || !groupedResponse.ok) {
+                throw new Error(`Failed to load fields`);
+            }
+
+            const recommendedFields = await recommendedResponse.json();
+            const fieldsByCategory = await groupedResponse.json();
+
+            console.log('[loadAvailableFields] Loaded recommended:', recommendedFields.length);
+            console.log('[loadAvailableFields] Loaded categories:', Object.keys(fieldsByCategory).length);
+
+            this.renderFieldCategories(fieldsByCategory, recommendedFields);
+        } catch (error) {
+            console.error('[loadAvailableFields] Error:', error);
+            const container = document.getElementById('fieldCategories');
+            if (container) {
+                container.innerHTML = `
+                    <div class="rb-empty-state">
+                        <div class="rb-empty-state-text">Failed to load fields: ${error.message}</div>
+                    </div>
+                `;
+            }
+        }
+    },
+
+    renderFieldCategories(fieldsByCategory, recommendedFields = []) {
+        const container = document.getElementById('fieldCategories');
+        if (!container) return;
+
+        container.innerHTML = '';
+
+        // Render Recommended Fields section first if we have any
+        if (recommendedFields && recommendedFields.length > 0) {
+            const recommendedHtml = `
+                <div class="rb-field-category rb-recommended-category">
+                    <div class="rb-field-category-header" data-category="category-recommended">
+                        <span class="rb-field-category-icon">▼</span>
+                        <span class="rb-field-category-name">⭐ Recommended</span>
+                        <span class="rb-field-category-count">${recommendedFields.length}</span>
+                    </div>
+                    <div class="rb-field-category-body" id="category-recommended">
+                        ${recommendedFields.map(field => `
+                            <div class="rb-field-item field-item" 
+                                 data-field-path="${field.fieldPath}"
+                                 data-display-name="${field.displayName}"
+                                 data-data-type="${field.dataType}"
+                                 data-is-custom="${field.isCustomField || false}"
+                                 data-custom-id="${field.customFieldDefinitionId || ''}"
+                                 title="${field.fieldPath}">
+                                <span class="rb-field-icon">${this.getFieldIcon(field.dataType)}</span>
+                                <span class="rb-field-name">${field.displayName}</span>
+                                <span class="rb-field-type">${field.dataType}</span>
+                                <button class="rb-field-add-btn" title="Add field">+</button>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `;
+            container.insertAdjacentHTML('beforeend', recommendedHtml);
+
+            // Add separator
+            container.insertAdjacentHTML('beforeend', `
+                <div class="rb-section-header" style="margin-top: 16px;">
+                    <span>All Fields</span>
+                </div>
+            `);
         }
 
-        console.log('[ReportBuilder.init] Initialization complete');
+        // Render all other categories (collapsed by default)
+        Object.entries(fieldsByCategory).forEach(([categoryName, fields], index) => {
+            const categoryId = `category-${index}`;
+            const isExpanded = false; // All categories collapsed by default now
+
+            const categoryHtml = `
+                <div class="rb-field-category">
+                    <div class="rb-field-category-header" data-category="${categoryId}">
+                        <span class="rb-field-category-icon">${isExpanded ? '▼' : '▶'}</span>
+                        <span class="rb-field-category-name">${categoryName}</span>
+                        <span class="rb-field-category-count">${fields.length}</span>
+                    </div>
+                    <div class="rb-field-category-body ${isExpanded ? '' : 'collapsed'}" id="${categoryId}">
+                        ${fields.map(field => `
+                            <div class="rb-field-item field-item" 
+                                 data-field-path="${field.fieldPath}"
+                                 data-display-name="${field.displayName}"
+                                 data-data-type="${field.dataType}"
+                                 data-is-custom="${field.isCustomField || false}"
+                                 data-custom-id="${field.customFieldDefinitionId || ''}"
+                                 title="${field.fieldPath}">
+                                <span class="rb-field-icon">${this.getFieldIcon(field.dataType)}</span>
+                                <span class="rb-field-name">${field.displayName}</span>
+                                <span class="rb-field-type">${field.dataType}</span>
+                                <button class="rb-field-add-btn" title="Add field">+</button>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `;
+
+            container.insertAdjacentHTML('beforeend', categoryHtml);
+        });
+
+        // Setup category toggle handlers
+        container.querySelectorAll('.rb-field-category-header').forEach(header => {
+            header.addEventListener('click', () => {
+                const categoryId = header.dataset.category;
+                const body = document.getElementById(categoryId);
+                const icon = header.querySelector('.rb-field-category-icon');
+
+                if (body) {
+                    body.classList.toggle('collapsed');
+                    icon.textContent = body.classList.contains('collapsed') ? '▶' : '▼';
+                }
+            });
+        });
+
+        // Setup + button click handlers
+        container.querySelectorAll('.rb-field-add-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const fieldItem = btn.closest('.rb-field-item');
+                const field = {
+                    fieldPath: fieldItem.dataset.fieldPath,
+                    displayName: fieldItem.dataset.displayName,
+                    dataType: fieldItem.dataset.dataType,
+                    isCustom: fieldItem.dataset.isCustom === 'true',
+                    customId: fieldItem.dataset.customId || null
+                };
+                this.addField(field);
+            });
+        });
+
+        // Re-setup drag and drop for new field items
+        this.setupDragDrop();
+    },
+
+    getFieldIcon(dataType) {
+        const iconMap = {
+            'String': '📝',
+            'Int32': '#',
+            'Int64': '#',
+            'Decimal': '1.2',
+            'Double': '1.2',
+            'Boolean': '☑',
+            'DateTime': '📅',
+            'Guid': '🔑',
+            'Enum': '⚙',
+        };
+        return iconMap[dataType] || '•';
     },
     
     loadSavedReport(savedReport) {
         // Store savedReport for use in restoreFilter
         this.currentSavedReport = savedReport;
+
+        // Store pivot and preview configurations if present
+        if (savedReport.pivotConfiguration) {
+            this.savedPivotConfiguration = savedReport.pivotConfiguration;
+            console.log('[loadSavedReport] Stored pivot configuration');
+        }
+        if (savedReport.previewConfiguration) {
+            this.savedPreviewConfiguration = savedReport.previewConfiguration;
+            console.log('[loadSavedReport] Stored preview configuration');
+        }
 
         // Load saved fields
         if (savedReport.fields && savedReport.fields.length > 0) {
@@ -509,79 +880,132 @@ const ReportBuilder = {
 
         this.setupSubFilterSmartInput(queryId, subFilterId);
     },
-    
+
     setupDragDrop() {
-        document.querySelectorAll('.field-item').forEach(item => {
-            item.addEventListener('dragstart', (e) => {
-                const fieldData = {
-                    fieldPath: item.dataset.fieldPath,
-                    displayName: item.dataset.displayName,
-                    dataType: item.dataset.dataType,
-                    isCustom: item.dataset.isCustom === 'true',
-                    customId: item.dataset.customId || null
-                };
-                e.dataTransfer.setData('application/json', JSON.stringify(fieldData));
-                e.dataTransfer.setData('drag-type', 'add-field');
-                e.dataTransfer.effectAllowed = 'copy';
-            });
-        });
-        
-        const dropZone = document.getElementById('selectedFields');
-        
-        dropZone.addEventListener('dragover', (e) => {
-            e.preventDefault();
-            const dragType = e.dataTransfer.types.includes('drag-type') ? 'add-field' : 'reorder';
-            e.dataTransfer.dropEffect = dragType === 'add-field' ? 'copy' : 'move';
-        });
-
-        dropZone.addEventListener('drop', (e) => {
-            const jsonData = e.dataTransfer.getData('application/json');
-            const dragType = e.dataTransfer.types.includes('drag-type') ? e.dataTransfer.getData('drag-type') : null;
-
-            if (jsonData && dragType === 'add-field') {
-                e.preventDefault();
-                e.stopPropagation();
-                const fieldData = JSON.parse(jsonData);
-                this.addField(fieldData);
-            }
-        });
+        // Drag and drop removed - using + buttons instead
+        console.log('[setupDragDrop] Skipped (using + buttons)');
     },
-    
+
     setupEventListeners() {
-        document.getElementById('btnPreview').addEventListener('click', () => this.preview());
-        document.getElementById('btnSave').addEventListener('click', () => this.save());
-        document.getElementById('btnAddFilter').addEventListener('click', () => this.addFilter());
-        document.getElementById('btnAddGroup').addEventListener('click', () => this.addFilterGroup());
-        document.getElementById('btnAddCollectionQuery').addEventListener('click', () => this.addCollectionQuery());
-        document.getElementById('btnLoadDefaults').addEventListener('click', () => this.loadDefaultFields());
-        
-        document.getElementById('entityTypeSelector').addEventListener('change', (e) => {
-            const reportId = e.target.dataset.reportId;
-            
-            if (reportId && reportId !== 'null') {
-                if (!confirm('Changing the entity type will clear all fields, filters, and collection queries. Are you sure?')) {
-                    e.target.value = e.target.dataset.originalValue;
-                    return;
+        console.log('[setupEventListeners] Starting');
+
+        const btnPreview = document.getElementById('btnPreview');
+        const btnSave = document.getElementById('btnSave');
+        const btnAddFilter = document.getElementById('btnAddFilter');
+        const btnAddGroup = document.getElementById('btnAddGroup');
+        const btnAddCollection = document.getElementById('btnAddCollection');
+        const btnLoadDefaults = document.getElementById('btnLoadDefaults');
+        const entityTypeSelector = document.getElementById('entityTypeSelector');
+
+        if (btnPreview) {
+            btnPreview.addEventListener('click', () => { 
+                console.log('[btnPreview] Clicked'); 
+                this.preview(); 
+            });
+            console.log('[setupEventListeners] btnPreview wired');
+        } else {
+            console.warn('[setupEventListeners] btnPreview not found');
+        }
+
+        if (btnSave) {
+            btnSave.addEventListener('click', () => { 
+                console.log('[btnSave] Clicked'); 
+                this.save(); 
+            });
+            console.log('[setupEventListeners] btnSave wired');
+        } else {
+            console.warn('[setupEventListeners] btnSave not found');
+        }
+
+        if (btnAddFilter) {
+            btnAddFilter.addEventListener('click', () => { 
+                console.log('[btnAddFilter] Clicked'); 
+                this.addFilter(); 
+            });
+            console.log('[setupEventListeners] btnAddFilter wired');
+        } else {
+            console.warn('[setupEventListeners] btnAddFilter not found');
+        }
+
+        if (btnAddGroup) {
+            btnAddGroup.addEventListener('click', () => { 
+                console.log('[btnAddGroup] Clicked'); 
+                this.addFilterGroup(); 
+            });
+            console.log('[setupEventListeners] btnAddGroup wired');
+        }
+
+        if (btnAddCollection) {
+            btnAddCollection.addEventListener('click', () => { 
+                console.log('[btnAddCollection] Clicked'); 
+                this.addCollectionQuery(); 
+            });
+            console.log('[setupEventListeners] btnAddCollection wired');
+        } else {
+            console.warn('[setupEventListeners] btnAddCollection not found');
+        }
+
+        if (btnLoadDefaults) {
+            btnLoadDefaults.addEventListener('click', () => { 
+                console.log('[btnLoadDefaults] Clicked'); 
+                this.loadDefaultFields(); 
+            });
+            console.log('[setupEventListeners] btnLoadDefaults wired');
+        } else {
+            console.warn('[setupEventListeners] btnLoadDefaults not found');
+        }
+
+        const btnClearAll = document.getElementById('btnClearAll');
+        if (btnClearAll) {
+            btnClearAll.addEventListener('click', () => { 
+                console.log('[btnClearAll] Clicked'); 
+                this.clearAll(); 
+            });
+            console.log('[setupEventListeners] btnClearAll wired');
+        } else {
+            console.warn('[setupEventListeners] btnClearAll not found');
+        }
+
+        if (entityTypeSelector) {
+            entityTypeSelector.addEventListener('change', (e) => {
+                const reportId = e.target.dataset.reportId;
+
+                if (reportId && reportId !== 'null') {
+                    if (!confirm('Changing the entity type will clear all fields, filters, and collection queries. Are you sure?')) {
+                        e.target.value = e.target.dataset.originalValue;
+                        return;
+                    }
                 }
-            }
-            
-            window.location.href = '?entityType=' + e.target.value;
-        });
+
+                window.location.href = '?entityType=' + e.target.value;
+            });
+            console.log('[setupEventListeners] entityTypeSelector wired');
+        }
+
+        console.log('[setupEventListeners] Complete');
     },
-    
+
     setupFieldSearch() {
-        document.getElementById('fieldSearch').addEventListener('input', (e) => {
+        const searchInput = document.getElementById('fieldSearch');
+        if (!searchInput) {
+            console.warn('[setupFieldSearch] fieldSearch input not found');
+            return;
+        }
+
+        searchInput.addEventListener('input', (e) => {
             const search = e.target.value.toLowerCase();
             document.querySelectorAll('.field-item').forEach(item => {
                 const text = item.textContent.toLowerCase();
                 item.style.display = text.includes(search) ? '' : 'none';
             });
         });
+
+        console.log('[setupFieldSearch] Field search initialized');
     },
 
     addField(field) {
         if (this.selectedFields.some(f => f.fieldPath === field.fieldPath)) {
-            alert('Field already added');
+            console.log('[addField] Field already added:', field.fieldPath);
             return;
         }
 
@@ -592,98 +1016,38 @@ const ReportBuilder = {
     removeField(fieldPath) {
         this.selectedFields = this.selectedFields.filter(f => f.fieldPath !== fieldPath);
         this.renderSelectedFields();
+        this.scheduleAutoSave();
     },
-    
+
     renderSelectedFields() {
         const container = document.getElementById('selectedFields');
-        
+
         if (this.selectedFields.length === 0) {
             container.innerHTML = `
-                <div class="text-center text-muted py-4">
-                    <i class="bi bi-arrow-left-circle fs-1"></i>
-                    <p class="mt-2">Drag fields from the left panel to add them to your report</p>
+                <div class="rb-empty-state">
+                    <div class="rb-empty-state-text">No fields selected. Use Add Fields button to select fields.</div>
                 </div>
             `;
             return;
         }
-        
+
         container.innerHTML = this.selectedFields.map((field, index) => `
-            <div class="list-group-item selected-field-item" draggable="true" data-index="${index}" data-field-path="${field.fieldPath}">
-                <div class="d-flex justify-content-between align-items-center">
-                    <div class="d-flex align-items-center flex-grow-1">
-                        <i class="bi bi-grip-vertical text-muted me-2" style="cursor: move;"></i>
-                        <div>
-                            <strong>${field.displayName}</strong>
-                            ${field.isCustom ? '<span class="badge bg-success ms-2">Custom</span>' : ''}
-                            <br><small class="text-muted">${field.fieldPath} (${field.dataType})</small>
-                        </div>
-                    </div>
-                    <button class="btn btn-sm btn-outline-danger" onclick="ReportBuilder.removeField('${field.fieldPath}')">
-                        <i class="bi bi-x"></i>
-                    </button>
+            <div class="rb-list-item" data-index="${index}" data-field-path="${field.fieldPath}">
+                <div class="rb-item-content">
+                    <div class="rb-item-label">${field.displayName}</div>
+                    <div class="rb-item-detail">${field.fieldPath} · ${field.dataType}</div>
                 </div>
+                <button class="rb-item-action" onclick="ReportBuilder.removeField('${field.fieldPath}')" title="Remove field">×</button>
             </div>
         `).join('');
-        
-        this.setupFieldReordering();
+
+        this.updateStatusBar();
+        this.scheduleAutoSave();
     },
-    
+
     setupFieldReordering() {
-        const items = document.querySelectorAll('.selected-field-item');
-        let draggedItem = null;
-        let draggedIndex = null;
-
-        items.forEach(item => {
-            item.addEventListener('dragstart', (e) => {
-                draggedItem = item;
-                draggedIndex = parseInt(item.dataset.index);
-                item.classList.add('dragging');
-                e.dataTransfer.effectAllowed = 'move';
-                e.dataTransfer.setData('drag-type', 'reorder');
-                e.dataTransfer.setData('text/plain', '');
-            });
-
-            item.addEventListener('dragend', (e) => {
-                item.classList.remove('dragging');
-                draggedItem = null;
-                draggedIndex = null;
-            });
-
-            item.addEventListener('dragover', (e) => {
-                if (draggedItem && draggedItem !== item) {
-                    e.preventDefault();
-                    e.dataTransfer.dropEffect = 'move';
-
-                    const container = item.parentElement;
-                    const mouseY = e.clientY;
-                    const itemRect = item.getBoundingClientRect();
-                    const itemMiddle = itemRect.top + itemRect.height / 2;
-
-                    if (mouseY < itemMiddle) {
-                        container.insertBefore(draggedItem, item);
-                    } else {
-                        container.insertBefore(draggedItem, item.nextSibling);
-                    }
-                }
-            });
-
-            item.addEventListener('drop', (e) => {
-                if (draggedItem) {
-                    e.preventDefault();
-                    e.stopPropagation();
-
-                    const items = document.querySelectorAll('.selected-field-item');
-                    const newOrder = [];
-                    items.forEach(item => {
-                        const fieldPath = item.dataset.fieldPath;
-                        const field = this.selectedFields.find(f => f.fieldPath === fieldPath);
-                        if (field) newOrder.push(field);
-                    });
-
-                    this.selectedFields = newOrder;
-                }
-            });
-        });
+        // Reordering removed for simplicity
+        console.log('[setupFieldReordering] Skipped');
     },
 
     // ==================== FILTER FUNCTIONS ====================
@@ -697,54 +1061,57 @@ const ReportBuilder = {
             return;
         }
 
-        if (container.querySelector('.text-center')) {
+        const emptyState = container.querySelector('.rb-empty-state');
+        if (emptyState) {
             container.innerHTML = '';
         }
 
         const filterHtml = `
-            <div class="list-group-item" id="filter-${filterId}">
-                <div class="row g-2">
-                    <div class="col-md-4">
-                        <select class="form-select form-select-sm filter-field" data-filter-id="${filterId}">
-                            <option value="">Select field...</option>
-                            ${this.selectedFields.map(f => `<option value="${f.fieldPath}" data-type="${f.dataType}">${f.displayName}</option>`).join('')}
-                        </select>
-                    </div>
-                    <div class="col-md-3">
-                        <select class="form-select form-select-sm filter-operator" id="operator-${filterId}">
-                            <option value="Equals">Equals</option>
-                            <option value="Contains">Contains</option>
-                            <option value="GreaterThan">Greater Than</option>
-                            <option value="LessThan">Less Than</option>
-                        </select>
-                    </div>
-                    <div class="col-md-4">
-                        <input type="text" class="form-control form-control-sm filter-value" id="value-${filterId}" placeholder="Value">
-                    </div>
-                    <div class="col-md-1">
-                        <button class="btn btn-sm btn-outline-danger" onclick="ReportBuilder.removeFilter(${filterId})">
-                            <i class="bi bi-x"></i>
-                        </button>
-                    </div>
+            <div class="rb-list-item" id="filter-${filterId}">
+                <div class="rb-filter-row">
+                    <select class="rb-filter-field" data-filter-id="${filterId}">
+                        <option value="">Select field...</option>
+                        ${this.selectedFields.map(f => `<option value="${f.fieldPath}" data-type="${f.dataType}">${f.displayName}</option>`).join('')}
+                    </select>
+                    <select class="rb-filter-operator" id="operator-${filterId}">
+                        <option value="Equals">=</option>
+                        <option value="NotEquals">!=</option>
+                        <option value="Contains">contains</option>
+                        <option value="StartsWith">starts with</option>
+                        <option value="GreaterThan">&gt;</option>
+                        <option value="LessThan">&lt;</option>
+                        <option value="GreaterThanOrEqual">&gt;=</option>
+                        <option value="LessThanOrEqual">&lt;=</option>
+                        <option value="IsNull">is null</option>
+                        <option value="IsNotNull">is not null</option>
+                    </select>
+                    <input type="text" class="rb-filter-value" id="value-${filterId}" placeholder="Value">
+                    <button class="rb-item-action" onclick="ReportBuilder.removeFilter(${filterId})" title="Remove filter">×</button>
                 </div>
             </div>
         `;
 
         container.insertAdjacentHTML('beforeend', filterHtml);
+        this.filters.push({ id: filterId });
         this.setupSmartFilter(filterId);
+        this.updateStatusBar();
+        this.scheduleAutoSave();
     },
 
     removeFilter(filterId) {
         document.getElementById(`filter-${filterId}`)?.remove();
+        this.filters = this.filters.filter(f => f.id !== filterId);
+
         const container = document.getElementById('filters');
         if (container.children.length === 0) {
             container.innerHTML = `
-                <div class="text-center text-muted py-4">
-                    <i class="bi bi-funnel fs-1"></i>
-                    <p class="mt-2">No filters added yet</p>
+                <div class="rb-empty-state">
+                    <div class="rb-empty-state-text">No filters applied</div>
                 </div>
             `;
         }
+        this.updateStatusBar();
+        this.scheduleAutoSave();
     },
 
     setupSmartFilter(filterId) {
@@ -1167,6 +1534,52 @@ const ReportBuilder = {
                 </div>
             `;
         }
+    },
+
+    clearAll() {
+        console.log('[clearAll] Clearing all fields, filters, and collection queries');
+
+        if (!confirm('This will clear all selected fields, filters, and collection queries. Are you sure?')) {
+            return;
+        }
+
+        // Clear selected fields
+        this.selectedFields = [];
+        this.renderSelectedFields();
+
+        // Clear filters
+        this.filters = [];
+        this.filterGroups = [];
+        this.nextFilterId = 1;
+        this.nextGroupId = 1;
+        const filtersContainer = document.getElementById('filters');
+        if (filtersContainer) {
+            filtersContainer.innerHTML = `
+                <div class="rb-empty-state">
+                    <div class="rb-empty-state-text">No filters applied</div>
+                </div>
+            `;
+        }
+
+        // Clear collection queries
+        this.collectionQueries = [];
+        this.nextCollectionQueryId = 1;
+        const collectionsContainer = document.getElementById('collectionQueries');
+        if (collectionsContainer) {
+            collectionsContainer.innerHTML = `
+                <div class="rb-empty-state">
+                    <div class="rb-empty-state-text">No collection queries</div>
+                </div>
+            `;
+        }
+
+        // Update status bar
+        this.updateStatusBar();
+
+        // Clear auto-saved draft
+        this.clearAutoSavedDraft();
+
+        console.log('[clearAll] Complete');
     },
 
     // Smart filtering functions

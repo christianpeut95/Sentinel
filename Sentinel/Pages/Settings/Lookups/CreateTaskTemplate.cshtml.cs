@@ -46,8 +46,8 @@ namespace Sentinel.Pages.Settings.Lookups
             [Display(Name = "Default Priority")]
             public TaskPriority DefaultPriority { get; set; } = TaskPriority.Medium;
 
-            [Required]
-            [Display(Name = "Trigger Type")]
+            // Note: TriggerType is stored in database but not used for auto-creation logic
+            // Auto-creation is controlled by DiseaseTaskTemplate flags instead
             public TaskTrigger TriggerType { get; set; } = TaskTrigger.Manual;
 
             [Display(Name = "Applicable To")]
@@ -155,9 +155,11 @@ namespace Sentinel.Pages.Settings.Lookups
                     IsInherited = false,
                     ApplyToChildren = true,
                     AllowChildOverride = true,
-                    AutoCreateOnCaseCreation = Input.TriggerType == TaskTrigger.OnCaseCreation,
-                    AutoCreateOnContactCreation = Input.TriggerType == TaskTrigger.OnContactCreation,
-                    AutoCreateOnLabConfirmation = Input.TriggerType == TaskTrigger.OnLabConfirmation,
+                    // Note: Auto-create flags should be configured per disease on the Disease Edit page
+                    // Not automatically set based on TriggerType
+                    AutoCreateOnCaseCreation = false,
+                    AutoCreateOnContactCreation = false,
+                    AutoCreateOnLabConfirmation = false,
                     IsActive = true,
                     CreatedAt = DateTime.UtcNow
                 };

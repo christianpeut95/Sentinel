@@ -20,17 +20,20 @@ namespace Sentinel.Services.HL7
         private readonly DefinitionEvaluator _definitionEvaluator;
         private readonly ICaseDefinitionMatchingService _caseDefinitionMatchingService;
         private readonly ILogger<CaseMatchingService> _logger;
+        private readonly IAuditService _auditService;
 
         public CaseMatchingService(
             ApplicationDbContext context,
             DefinitionEvaluator definitionEvaluator,
             ICaseDefinitionMatchingService caseDefinitionMatchingService,
-            ILogger<CaseMatchingService> logger)
+            ILogger<CaseMatchingService> logger,
+            IAuditService auditService)
         {
             _context = context ?? throw new ArgumentNullException(nameof(context));
             _definitionEvaluator = definitionEvaluator ?? throw new ArgumentNullException(nameof(definitionEvaluator));
             _caseDefinitionMatchingService = caseDefinitionMatchingService ?? throw new ArgumentNullException(nameof(caseDefinitionMatchingService));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+            _auditService = auditService ?? throw new ArgumentNullException(nameof(auditService));
         }
 
         public async Task<CaseMatchingResult> ProcessLabResultAsync(
@@ -174,6 +177,9 @@ namespace Sentinel.Services.HL7
                 }
 
                 // Step 3: Process each most-specific identified disease
+                bool isFirstDisease = true;
+                LabResult currentLabResult = labResult;
+
                 foreach (var identification in diseasesToProcess.Where(d => d.IsPositiveResult))
                 {
                     try
@@ -188,12 +194,49 @@ namespace Sentinel.Services.HL7
 
                         diagnosticLog.Add($"Processing disease: {identification.Disease.Name}");
 
-                        var existingCase = await FindOrCreateCaseAsync(
-                            patient,
-                            identification.Disease,
-                            labResult,
-                            identification.ConfirmationStatusId,
-                            cancellationToken);
+                        // For multiplex results, we need to findor create the case first,
+                        // then create a clone WITH the CaseId already set
+                        Case existingCase;
+
+                        if (!isFirstDisease)
+                        {
+                            diagnosticLog.Add($"🔄 Processing multiplex disease: {identification.Disease.Name}");
+                            _logger.LogInformation(
+                                "Processing multiplex disease {Disease} for LabResult {LabResultId}",
+                                identification.Disease.Name,
+                                labResult.FriendlyId);
+
+                            // Find/create case for the second+ disease WITHOUT linking the original lab result
+                            // We'll create a clone and link that instead
+                            existingCase = await FindOrCreateCaseForMultiplexAsync(
+                                patient,
+                                identification.Disease,
+                                labResult,
+                                identification.ConfirmationStatusId,
+                                cancellationToken);
+
+                            // Now create the clone and link it to this case
+                            currentLabResult = await CloneLabResultForMultiplexAsync(
+                                labResult,
+                                existingCase.Id,
+                                identification.Disease,
+                                cancellationToken);
+
+                            diagnosticLog.Add($"✅ Created lab result clone {currentLabResult.FriendlyId} for case {existingCase.FriendlyId}");
+                        }
+                        else
+                        {
+                            // First disease: use the normal flow which will link the original lab result
+                            existingCase = await FindOrCreateCaseAsync(
+                                patient,
+                                identification.Disease,
+                                currentLabResult,
+                                identification.ConfirmationStatusId,
+                                cancellationToken);
+
+                            // The original lab result is now linked to the first case
+                            await _context.SaveChangesAsync(cancellationToken);
+                        }
 
                         if (string.IsNullOrEmpty(existingCase.FriendlyId))
                         {
@@ -241,7 +284,9 @@ namespace Sentinel.Services.HL7
                         }
 
                         // Extract custom field values if mapped
-                        await ExtractCustomFieldValuesAsync(existingCase, labResult, cancellationToken);
+                        await ExtractCustomFieldValuesAsync(existingCase, currentLabResult, cancellationToken);
+
+                        isFirstDisease = false;
                     }
                     catch (Exception ex)
                     {
@@ -466,6 +511,110 @@ namespace Sentinel.Services.HL7
             return sortedIdentifications;
         }
 
+        /// <summary>
+        /// Find or create case for multiplex results WITHOUT modifying the original lab result.
+        /// This is used for second+ diseases in multiplex results to avoid overwriting the original lab result's CaseId.
+        /// </summary>
+        private async Task<Case> FindOrCreateCaseForMultiplexAsync(
+            Patient patient,
+            Disease disease,
+            LabResult originalLabResult,
+            int? confirmationStatusId,
+            CancellationToken cancellationToken = default)
+        {
+            // Find reinfection rule for this disease
+            var reinfectionRule = await _context.DiseaseReinfectionRules
+                .FirstOrDefaultAsync(r =>
+                    r.DiseaseId == disease.Id &&
+                    r.IsActive,
+                    cancellationToken);
+
+            // Search for existing cases (using original lab result's specimen date for matching logic)
+            var existingCase = await FindExistingCaseForLabResultAsync(
+                patient,
+                disease,
+                originalLabResult,
+                reinfectionRule,
+                cancellationToken);
+
+            if (existingCase != null)
+            {
+                // Found existing case - don't modify the original lab result
+                _logger.LogInformation(
+                    "Found existing Case {CaseId} for multiplex disease {Disease}",
+                    existingCase.FriendlyId, disease.Name);
+                return existingCase;
+            }
+
+            // Check if manual review required before case creation
+            if (reinfectionRule?.RequireConfirmationForNewCase == true)
+            {
+                _logger.LogInformation(
+                    "Case creation requires manual review for disease {Disease}",
+                    disease.Name);
+
+                // Create pending case - we'll link the clone later
+                var pendingCase = await CreateNewCaseForMultiplexAsync(patient, disease, confirmationStatusId, cancellationToken);
+
+                await CreateReviewQueueItemAsync(
+                    pendingCase,
+                    new DiseaseRefinementResult
+                    {
+                        RequiresReview = true,
+                        Reason = reinfectionRule.NotificationMessage ?? "New case requires confirmation"
+                    },
+                    cancellationToken);
+
+                return pendingCase;
+            }
+
+            // Create new case - we'll link the clone later
+            var newCase = await CreateNewCaseForMultiplexAsync(patient, disease, confirmationStatusId, cancellationToken);
+            _logger.LogInformation(
+                "Created new Case {CaseId} for multiplex disease {Disease}",
+                newCase.FriendlyId, disease.Name);
+
+            return newCase;
+        }
+
+        /// <summary>
+        /// Create a new case for multiplex results WITHOUT linking a lab result yet.
+        /// The lab result clone will be linked separately after creation.
+        /// </summary>
+        private async Task<Case> CreateNewCaseForMultiplexAsync(
+            Patient patient,
+            Disease disease,
+            int? confirmationStatusId,
+            CancellationToken cancellationToken = default)
+        {
+            var newCase = new Case
+            {
+                PatientId = patient.Id,
+                DiseaseId = disease.Id,
+                ConfirmationStatusId = confirmationStatusId,
+                Type = CaseType.Case,
+                DateOfNotification = DateTime.UtcNow
+                // Note: FriendlyId will be auto-generated by ApplicationDbContext on SaveChanges
+                // Note: Audit properties (Created/Modified) handled by IAuditable
+            };
+
+            _context.Cases.Add(newCase);
+            await _context.SaveChangesAsync(cancellationToken);
+
+            // Log audit entry for case creation
+            await _auditService.LogChangeAsync(
+                "Case",
+                newCase.Id.ToString(),
+                "Created",
+                null,
+                $"Case {newCase.FriendlyId} created from HL7 multiplex result for disease {disease.Name}",
+                null, // System-generated, no user ID
+                "HL7 System"
+            );
+
+            return newCase;
+        }
+
         public async Task<Case> FindOrCreateCaseAsync(
             Patient patient,
             Disease disease,
@@ -527,6 +676,100 @@ namespace Sentinel.Services.HL7
                 newCase.FriendlyId, disease.Name);
 
             return newCase;
+        }
+
+        private async Task<LabResult> CloneLabResultForMultiplexAsync(
+            LabResult originalLabResult,
+            Guid newCaseId,
+            Disease targetDisease,
+            CancellationToken cancellationToken = default)
+        {
+            _logger.LogInformation(
+                "Cloning LabResult {OriginalId} for multiplex processing (Disease: {DiseaseName})",
+                originalLabResult.FriendlyId,
+                targetDisease.Name);
+
+            // Create clone with same specimen/test data
+            var clonedLabResult = new LabResult
+            {
+                // Link to parent
+                ParentLabResultId = originalLabResult.Id,
+                IsMultiplexClone = true,
+
+                // Link to new case
+                CaseId = newCaseId,
+
+                // Copy all specimen and test data
+                PatientId = originalLabResult.PatientId,
+                AccessionNumber = originalLabResult.AccessionNumber,
+                SpecimenCollectionDate = originalLabResult.SpecimenCollectionDate,
+                SpecimenTypeId = originalLabResult.SpecimenTypeId,
+                ResultDate = originalLabResult.ResultDate,
+                ResultUnitsId = originalLabResult.ResultUnitsId,
+                TestedDiseaseId = originalLabResult.TestedDiseaseId,
+                LaboratoryId = originalLabResult.LaboratoryId,
+                OrderingProviderId = originalLabResult.OrderingProviderId,
+                LabInterpretation = originalLabResult.LabInterpretation,
+                Notes = originalLabResult.Notes,
+                IsAmended = originalLabResult.IsAmended,
+                AttachmentPath = originalLabResult.AttachmentPath,
+                AttachmentFileName = originalLabResult.AttachmentFileName,
+                AttachmentSize = originalLabResult.AttachmentSize,
+                CreatedAt = DateTime.UtcNow,
+                ModifiedAt = null
+                // Note: FriendlyId will be auto-generated by ApplicationDbContext on SaveChanges
+            };
+
+            _context.LabResults.Add(clonedLabResult);
+            await _context.SaveChangesAsync(cancellationToken);
+
+            // Clone only disease-relevant markers
+            var originalMarkers = await _context.LabResultMarkers
+                .Where(m => m.LabResultId == originalLabResult.Id)
+                .ToListAsync(cancellationToken);
+
+            var clonedMarkersCount = 0;
+            foreach (var originalMarker in originalMarkers)
+            {
+                // Filter: only clone markers relevant to this disease family
+                if (await IsMarkerRelevantToDiseaseAsync(originalMarker, targetDisease, cancellationToken))
+                {
+                    var clonedMarker = new LabResultMarker
+                    {
+                        LabResultId = clonedLabResult.Id,
+                        PathogenId = originalMarker.PathogenId,
+                        TestMethodId = originalMarker.TestMethodId,
+                        TestResultId = originalMarker.TestResultId,
+                        QualitativeResultText = originalMarker.QualitativeResultText,
+                        QuantitativeValue = originalMarker.QuantitativeValue,
+                        QuantitativeUnit = originalMarker.QuantitativeUnit,
+                        ReferenceRangeLow = originalMarker.ReferenceRangeLow,
+                        ReferenceRangeHigh = originalMarker.ReferenceRangeHigh,
+                        InterpretationFlag = originalMarker.InterpretationFlag,
+                        LOINCCode = originalMarker.LOINCCode,
+                        Notes = originalMarker.Notes,
+                        DisplayOrder = originalMarker.DisplayOrder,
+                        ResultStatus = originalMarker.ResultStatus,
+                        ResultFinalizedDate = originalMarker.ResultFinalizedDate,
+                        TestCode = originalMarker.TestCode,
+                        CreatedAt = DateTime.UtcNow
+                    };
+                    _context.LabResultMarkers.Add(clonedMarker);
+                    clonedMarkersCount++;
+                }
+            }
+
+            await _context.SaveChangesAsync(cancellationToken);
+
+            _logger.LogInformation(
+                "Created clone LabResult {CloneId} from {OriginalId} with {ClonedCount}/{TotalCount} disease-relevant markers for {DiseaseName}",
+                clonedLabResult.FriendlyId,
+                originalLabResult.FriendlyId,
+                clonedMarkersCount,
+                originalMarkers.Count,
+                targetDisease.Name);
+
+            return clonedLabResult;
         }
 
         public async Task<DiseaseRefinementResult> EvaluateDiseaseRefinementAsync(
@@ -744,6 +987,17 @@ namespace Sentinel.Services.HL7
 
             _context.Cases.Add(newCase);
             await _context.SaveChangesAsync(cancellationToken); // Save to generate FriendlyId
+
+            // Log audit entry for case creation
+            await _auditService.LogChangeAsync(
+                "Case",
+                newCase.Id.ToString(),
+                "Created",
+                null,
+                $"Case {newCase.FriendlyId} created from HL7 lab result {labResult.FriendlyId}",
+                null, // System-generated, no user ID
+                "HL7 System"
+            );
 
             // Add note about HL7 creation
             var note = new Note
@@ -1080,6 +1334,51 @@ namespace Sentinel.Services.HL7
                     .IgnoreQueryFilters()
                     .FirstOrDefault(d => d.Id == current.ParentDiseaseId);
             }
+            return false;
+        }
+
+        /// <summary>
+        /// Check if a marker is relevant to a disease by checking if the marker's pathogen
+        /// belongs to the disease family (the disease itself or any of its ancestors/descendants)
+        /// </summary>
+        private async Task<bool> IsMarkerRelevantToDiseaseAsync(LabResultMarker marker, Disease targetDisease, CancellationToken cancellationToken)
+        {
+            if (marker.PathogenId == null)
+                return false;
+
+            if (targetDisease == null)
+                return false;
+
+            // Extract all values before queries to avoid EF Core translation issues
+            var pathogenId = marker.PathogenId.Value;
+            var targetDiseaseId = targetDisease.Id;
+
+            // Get the pathogen - no need to include Disease navigation, just get DiseaseId
+            var pathogen = await _context.Pathogens
+                .AsNoTracking()
+                .FirstOrDefaultAsync(p => p.Id == pathogenId, cancellationToken);
+
+            if (pathogen?.DiseaseId == null)
+                return false;
+
+            var pathogenDiseaseId = pathogen.DiseaseId.Value;
+
+            // Check if the marker's disease matches the target disease
+            if (pathogenDiseaseId == targetDiseaseId)
+                return true;
+
+            // Check if marker's disease is an ancestor of target disease
+            if (IsAncestorOf(pathogenDiseaseId, targetDisease))
+                return true;
+
+            // Check if marker's disease is a descendant of target disease
+            var markerDisease = await _context.Diseases
+                .AsNoTracking()
+                .FirstOrDefaultAsync(d => d.Id == pathogenDiseaseId, cancellationToken);
+
+            if (markerDisease != null && IsAncestorOf(targetDiseaseId, markerDisease))
+                return true;
+
             return false;
         }
 

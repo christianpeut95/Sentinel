@@ -8,8 +8,15 @@ public class CollectionQueryDto
 {
     /// <summary>
     /// Collection name (e.g., "LabResults", "ExposureEvents", "Tasks")
+    /// For nested collections, this is the parent collection name
     /// </summary>
     public string CollectionName { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Sub-collection name for nested queries (e.g., "Markers" when querying LabResults.Markers)
+    /// Null for direct collection queries
+    /// </summary>
+    public string? SubCollectionName { get; set; }
 
     /// <summary>
     /// Operation: HasAny, HasAll, Count, Sum, Average, Min, Max

@@ -1,0 +1,306 @@
+@page
+@using Sentinel.Models
+@model Sentinel.Pages.Settings.HL7.Messages.ReviewQueueModel
+@{
+    ViewData["Title"] = "HL7 Message Review Queue";
+}
+
+@section Styles {
+    <link rel="stylesheet" href="~/css/review-queue.css" />
+}
+
+@section Scripts {
+    <script src="~/js/review-queue.js"></script>
+}
+
+<div class="review-queue-header">
+    <h1>HL7 Message Review Queue</h1>
+    <p>Review and triage messages requiring manual attention</p>
+</div>
+
+@if (TempData["Success"] != null)
+{
+    <div class="alert alert-success alert-dismissible fade show" role="alert">
+        @TempData["Success"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+
+@if (TempData["Error"] != null)
+{
+    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+        @TempData["Error"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+
+
+<!-- Stats Cards -->
+@if (Model.Stats != null)
+{
+    <div class="review-stats-grid">
+        <div class="review-stat-card">
+            <div class="review-stat-label">Pending Review</div>
+            <div class="review-stat-value stat-pending">@Model.Stats.TotalPending</div>
+        </div>
+        <div class="review-stat-card">
+            <div class="review-stat-label">Errors</div>
+            <div class="review-stat-value stat-errors">@Model.Stats.TotalErrors</div>
+        </div>
+        <div class="review-stat-card">
+            <div class="review-stat-label">Completed</div>
+            <div class="review-stat-value stat-completed">@Model.Stats.TotalCompleted</div>
+        </div>
+        <div class="review-stat-card">
+            <div class="review-stat-label">Avg Review Time</div>
+            <div class="review-stat-value">
+                @if (Model.Stats.AvgReviewTimeMinutes.HasValue)
+                {
+                    <span>@Math.Round(Model.Stats.AvgReviewTimeMinutes.Value, 1) min</span>
+                }
+                else
+                {
+                    <span style="color: var(--slate);">N/A</span>
+                }
+            </div>
+        </div>
+    </div>
+}
+
+
+<!-- Filters -->
+<div class="review-filter-panel">
+    <form method="get">
+        <div class="review-filter-grid">
+            <div>
+                <label class="form-label">Facility</label>
+                <input type="text" class="form-control" name="FacilityFilter" value="@Model.FacilityFilter" placeholder="Any facility" />
+            </div>
+            <div>
+                <label class="form-label">Date From</label>
+                <input type="date" class="form-control" name="DateFromFilter" value="@Model.DateFromFilter?.ToString("yyyy-MM-dd")" />
+            </div>
+            <div>
+                <label class="form-label">Date To</label>
+                <input type="date" class="form-control" name="DateToFilter" value="@Model.DateToFilter?.ToString("yyyy-MM-dd")" />
+            </div>
+            <div style="display: flex; gap: 0.5rem;">
+                <button type="submit" class="review-action-btn btn-primary">Apply Filters</button>
+                <a href="@Url.Page("/Settings/HL7/Messages/ReviewQueue")" class="review-action-btn">Clear</a>
+            </div>
+        </div>
+    </form>
+</div>
+
+
+<!-- Message Cards -->
+@if (!Model.Messages.Any())
+{
+    <div class="review-empty-state">
+        <div class="review-empty-state-icon">✓</div>
+        <div class="review-empty-state-title">All Clear!</div>
+        <div class="review-empty-state-text">No messages require review at this time.</div>
+    </div>
+}
+else
+{
+    <div class="review-queue-list">
+        @foreach (var message in Model.Messages)
+        {
+            <div class="review-message-card" data-message-id="@message.Id">
+                <div class="review-card-header">
+                    <!-- Priority & Status -->
+                    <div class="review-priority-badge">
+                        @if (message.Status == HL7ProcessingStatus.ProcessingFailed)
+                        {
+                            <span class="review-status-badge status-error">ERROR</span>
+                        }
+                        else if (message.NoSurveillanceItem)
+                        {
+                            <span class="review-status-badge status-no-surveillance">NO SURVEILLANCE</span>
+                        }
+                        else
+                        {
+                            <span class="review-status-badge status-review">REVIEW</span>
+                        }
+                        <div class="review-timestamp">
+                            @message.ReceivedAt.ToLocalTime().ToString("MMM d, h:mm tt")
+                        </div>
+                    </div>
+
+                    <!-- Message Details -->
+                    <div class="review-card-body">
+                        <div class="review-message-id">
+                            Message ID: @message.MessageControlId
+                        </div>
+                        @if (!string.IsNullOrEmpty(message.SendingFacility))
+                        {
+                            <div class="review-facility">from @message.SendingFacility</div>
+                        }
+
+                        @if (!string.IsNullOrEmpty(message.ErrorMessage))
+                        {
+                            <div class="review-error-alert">
+                                <strong>Error:</strong> @message.ErrorMessage
+                            </div>
+                        }
+
+                        @if (!string.IsNullOrEmpty(message.ProcessingNotes))
+                        {
+                            <div class="review-notes">
+                                <strong>Notes:</strong> @message.ProcessingNotes
+                            </div>
+                        }
+
+                        <!-- Patient & Case Context -->
+                        <div class="review-context-section">
+                            @if (message.Patient != null)
+                            {
+                                <div class="review-context-item">
+                                    <strong>Patient:</strong>
+                                    <a href="/Patients/Details?id=@message.Patient.Id" target="_blank" class="review-context-link">
+                                        @message.Patient.GivenName @message.Patient.FamilyName
+                                    </a>
+                                    @if (!string.IsNullOrEmpty(message.Patient.FriendlyId))
+                                    {
+                                        <span class="review-context-id">(@message.Patient.FriendlyId)</span>
+                                    }
+                                </div>
+                            }
+
+                            @if (message.Case != null)
+                            {
+                                <div class="review-context-item">
+                                    <strong>Case:</strong>
+                                    <a href="/Cases/Details?id=@message.Case.Id" target="_blank" class="review-context-link">
+                                        @message.Case.Disease?.Name
+                                    </a>
+                                    @if (!string.IsNullOrEmpty(message.Case.FriendlyId))
+                                    {
+                                        <span class="review-context-id">(@message.Case.FriendlyId)</span>
+                                    }
+                                </div>
+                            }
+
+                            @if (message.LabResult != null && message.LabResult.Markers.Any())
+                            {
+                                <div class="review-lab-tests">
+                                    <strong>Tests:</strong> @string.Join(", ", message.LabResult.Markers.Where(m => m.Pathogen != null).Select(m => m.Pathogen!.Name).Distinct())
+                                </div>
+                            }
+                        </div>
+
+                        <button type="button" class="review-toggle-content">▾ Show HL7 Content</button>
+                    </div>
+
+                    <!-- Actions -->
+                    <div class="review-card-actions">
+                        <a href="/Settings/HL7/Messages/Details?id=@message.Id" class="review-action-btn" target="_blank">
+                            View Details
+                        </a>
+
+                        <button type="button" class="review-action-btn btn-primary" data-bs-toggle="modal" data-bs-target="#reviewModal-@message.Id">
+                            Mark as Reviewed
+                        </button>
+
+                        @if (message.Configuration != null)
+                        {
+                            <a href="/Settings/HL7/Configurations/Edit?id=@message.Configuration.Id" class="review-action-btn" target="_blank">
+                                Edit Config
+                            </a>
+                        }
+                    </div>
+                </div>
+
+                <!-- Expandable HL7 Content -->
+                <div class="review-hl7-content">
+                    <div class="review-hl7-header">
+                        📄 HL7 Message Content
+                    </div>
+                    <div class="review-hl7-segments">
+                        @if (!string.IsNullOrEmpty(message.RawMessage))
+                        {
+                            @foreach (var segment in message.RawMessage.Split('\r'))
+                            {
+                                if (!string.IsNullOrWhiteSpace(segment))
+                                {
+                                    var segmentType = segment.Substring(0, Math.Min(3, segment.Length));
+                                    <div class="review-hl7-segment">
+                                        <span class="review-hl7-segment-type">@segmentType</span>
+                                        <div class="review-hl7-field">@segment</div>
+                                    </div>
+                                }
+                            }
+                        }
+                        else
+                        {
+                            <div style="color: var(--slate); font-style: italic;">Raw message content not available</div>
+                        }
+                    </div>
+                </div>
+            </div>
+
+            <!-- Review Modal -->
+            <div class="modal fade" id="reviewModal-@message.Id" tabindex="-1">
+                <div class="modal-dialog">
+                    <div class="modal-content">
+                        <form method="post" asp-page-handler="CompleteReview">
+                            <input type="hidden" name="messageId" value="@message.Id" />
+                            <div class="modal-header">
+                                <h5 class="modal-title">Complete Review</h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                            </div>
+                            <div class="modal-body">
+                                <div class="mb-3">
+                                    <label class="form-label fw-bold">Review Notes <span class="text-danger">*</span></label>
+                                    <textarea name="notes" class="form-control" rows="4" required 
+                                              placeholder="Describe the outcome and any action taken...&#10;&#10;Examples:&#10;• Confirmed not reportable - test outside surveillance criteria&#10;• Manually entered as case #12345&#10;• Configuration updated to handle this lab format&#10;• Escalated to IT - invalid patient data"></textarea>
+                                    <small class="text-muted">Required: Explain what you did with this message</small>
+                                </div>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                                <button type="submit" class="btn btn-primary">Mark as Reviewed</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+
+    <!-- Pagination -->
+    @if (Model.TotalPages > 1)
+    {
+        <div class="review-pagination">
+            <button class="review-page-btn" @(Model.CurrentPage == 1 ? "disabled" : "") onclick="window.location.href='?CurrentPage=@(Model.CurrentPage - 1)&FacilityFilter=@Model.FacilityFilter&DateFromFilter=@Model.DateFromFilter&DateToFilter=@Model.DateToFilter'">
+                ← Previous
+            </button>
+            @for (int i = 1; i <= Model.TotalPages; i++)
+            {
+                <button class="review-page-btn @(i == Model.CurrentPage ? "active" : "")" onclick="window.location.href='?CurrentPage=@i&FacilityFilter=@Model.FacilityFilter&DateFromFilter=@Model.DateFromFilter&DateToFilter=@Model.DateToFilter'">
+                    @i
+                </button>
+            }
+            <button class="review-page-btn" @(Model.CurrentPage == Model.TotalPages ? "disabled" : "") onclick="window.location.href='?CurrentPage=@(Model.CurrentPage + 1)&FacilityFilter=@Model.FacilityFilter&DateFromFilter=@Model.DateFromFilter&DateToFilter=@Model.DateToFilter'">
+                Next →
+            </button>
+        </div>
+    }
+}
+
+<style>
+    .review-card {
+        transition: box-shadow 0.2s;
+    }
+    .review-card:hover {
+        box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+    }
+    .alert-sm {
+        padding: 0.5rem;
+        font-size: 0.875rem;
+    }
+    .patient-context, .case-context {
+        padding: 0.25rem 0;
+    }
+</style>

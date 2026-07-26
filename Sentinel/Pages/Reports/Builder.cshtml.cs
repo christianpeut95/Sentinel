@@ -39,6 +39,8 @@ public class BuilderModel : PageModel
     public string? CollectionQueriesJson { get; set; }
     public string? FieldsJson { get; set; }
     public string? FiltersJson { get; set; }
+    public string? PivotConfigurationJson { get; set; }
+    public string? PreviewConfigurationJson { get; set; }
 
     public async Task<IActionResult> OnGetAsync()
     {
@@ -92,6 +94,10 @@ public class BuilderModel : PageModel
                 dynamicDateOffsetUnit = f.DynamicDateOffsetUnit
             });
             FiltersJson = JsonSerializer.Serialize(filterObjects);
+
+            // Pass pivot and preview configurations to the page
+            PivotConfigurationJson = ReportDefinition.PivotConfiguration;
+            PreviewConfigurationJson = ReportDefinition.PreviewConfiguration;
 
             // Load report data
             ReportData = await _reportDataService.GetReportPreviewAsync(ReportDefinition);

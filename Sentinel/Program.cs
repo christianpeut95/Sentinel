@@ -316,6 +316,7 @@ builder.Services.AddScoped<Sentinel.Services.HL7.ICaseDefinitionMatchingService,
 builder.Services.AddScoped<Sentinel.Services.HL7.ICaseMatchingService, Sentinel.Services.HL7.CaseMatchingService>();
 builder.Services.AddScoped<Sentinel.Services.HL7.CaseDefinitionSpecificityScorer>();
 builder.Services.AddScoped<Sentinel.Services.HL7.HL7DiagnosticService>();
+builder.Services.AddScoped<Sentinel.Services.HL7.HL7ReviewService>();
 builder.Services.AddScoped<Sentinel.Services.HL7.IHL7TestMessageService, Sentinel.Services.HL7.HL7TestMessageService>();
 // HL7 File Monitor Service must be Singleton so all parts of app see the same monitoring state
 builder.Services.AddSingleton<Sentinel.Services.HL7.IHL7FileMonitorService, Sentinel.Services.HL7.HL7FileMonitorService>();

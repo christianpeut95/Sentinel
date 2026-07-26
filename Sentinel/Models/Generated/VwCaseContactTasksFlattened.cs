@@ -1,0 +1,145 @@
+﻿using System;
+using System.Collections.Generic;
+
+namespace Sentinel.Models.Generated;
+
+public partial class VwCaseContactTasksFlattened
+{
+    public Guid? CaseGuid { get; set; }
+
+    public string? CaseNumber { get; set; }
+
+    public int? GenerationNumber { get; set; }
+
+    public string? TransmissionChainPath { get; set; }
+
+    public string? TransmittedByCase { get; set; }
+
+    public int CaseTypeEnum { get; set; }
+
+    public string CaseType { get; set; } = null!;
+
+    public DateTime? DateOfOnset { get; set; }
+
+    public DateTime? DateOfNotification { get; set; }
+
+    public string? CaseStatus { get; set; }
+
+    public string PatientId { get; set; } = null!;
+
+    public string PatientName { get; set; } = null!;
+
+    public string PatientFirstName { get; set; } = null!;
+
+    public string PatientLastName { get; set; } = null!;
+
+    public DateTime? PatientDob { get; set; }
+
+    public int? AgeAtOnset { get; set; }
+
+    public string? PatientSuburb { get; set; }
+
+    public string? PatientState { get; set; }
+
+    public string? PatientMobile { get; set; }
+
+    public string? PatientEmail { get; set; }
+
+    public string? DiseaseName { get; set; }
+
+    public string? DiseaseCode { get; set; }
+
+    public string? Jurisdiction1 { get; set; }
+
+    public string? Jurisdiction2 { get; set; }
+
+    public string? Jurisdiction3 { get; set; }
+
+    public Guid? ExposureEventId { get; set; }
+
+    public string ExposureType { get; set; } = null!;
+
+    public string ExposureStatusDisplay { get; set; } = null!;
+
+    public DateTime? ExposureStartDate { get; set; }
+
+    public DateTime? ExposureEndDate { get; set; }
+
+    public string? ExposureDescription { get; set; }
+
+    public string? ConfidenceLevel { get; set; }
+
+    public string? ContactClassification { get; set; }
+
+    public Guid? EventId { get; set; }
+
+    public string? EventName { get; set; }
+
+    public string? EventType { get; set; }
+
+    public DateTime? EventStartDate { get; set; }
+
+    public DateTime? EventEndDate { get; set; }
+
+    public int? EstimatedAttendees { get; set; }
+
+    public string EventSetting { get; set; } = null!;
+
+    public string? EventOrganizer { get; set; }
+
+    public Guid? LocationId { get; set; }
+
+    public string? LocationName { get; set; }
+
+    public string? LocationType { get; set; }
+
+    public string? LocationAddress { get; set; }
+
+    public string LocationIsHighRisk { get; set; } = null!;
+
+    public string? LocationOrganization { get; set; }
+
+    public Guid? TaskId { get; set; }
+
+    public string? TaskNumber { get; set; }
+
+    public string? TaskTitle { get; set; }
+
+    public string? TaskDescription { get; set; }
+
+    public string TaskStatus { get; set; } = null!;
+
+    public string TaskPriority { get; set; } = null!;
+
+    public DateTime? TaskDueDate { get; set; }
+
+    public DateTime? TaskCreatedAt { get; set; }
+
+    public DateTime? TaskCompletedAt { get; set; }
+
+    public DateTime? TaskCancelledAt { get; set; }
+
+    public bool? IsInterviewTask { get; set; }
+
+    public string? TaskType { get; set; }
+
+    public string AssignmentType { get; set; } = null!;
+
+    public string? AssignedToEmail { get; set; }
+
+    public string AssignedToName { get; set; } = null!;
+
+    public string SurveyStatus { get; set; } = null!;
+
+    public int? IncubationPeriodDays { get; set; }
+
+    public int? DaysUntilTaskDue { get; set; }
+
+    public int? TaskAgeDays { get; set; }
+
+    public string TaskDueStatus { get; set; } = null!;
+
+    public DateTime CaseCreatedAt { get; set; }
+
+    public DateTime CaseUpdatedAt { get; set; }
+}

@@ -2,7 +2,7 @@
 @model Sentinel.Pages.Reports.BuilderModel
 @{
     ViewData["Title"] = Model.ReportId.HasValue ? "Edit Report" : "Report Builder";
-    ViewData["BodyClass"] = "reports-page";
+    Layout = null;
 }
 @functions {
     public string GetCspNonce()
@@ -14,392 +14,480 @@
         return string.Empty;
     }
 }
-
-@section Styles {
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] - Sentinel</title>
     <link href="https://cdn.webdatarocks.com/latest/webdatarocks.css" rel="stylesheet" />
-    <link href="~/css/reports-fullwidth.css" rel="stylesheet" />
-    <style nonce="@GetCspNonce()">
-        /* Loading overlay */
-        #report-loading-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(255, 255, 255, 0.95);
-            z-index: 9999;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            backdrop-filter: blur(2px);
-        }
-
-        #report-loading-overlay.hidden {
-            display: none;
-        }
-
-        .loading-content {
-            text-align: center;
-            padding: 40px;
-            background: white;
-            border-radius: 12px;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
-        }
-
-        .loading-spinner {
-            width: 60px;
-            height: 60px;
-            border: 4px solid #f3f3f3;
-            border-top: 4px solid #0d6efd;
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-            margin: 0 auto 20px;
-        }
-
-        @@keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-
-        .loading-text {
-            font-size: 18px;
-            font-weight: 500;
-            color: #333;
-            margin-bottom: 10px;
-        }
-
-        .loading-subtext {
-            font-size: 14px;
-            color: #666;
-        }
-
-        .loading-progress {
-            margin-top: 15px;
-            font-size: 12px;
-            color: #999;
-            font-family: monospace;
-        }
-    </style>
-}
+    <link href="~/css/report-builder-compact.css" rel="stylesheet" />
+</head>
+<body>
 
 <!-- Loading Overlay -->
-<div id="report-loading-overlay">
-    <div class="loading-content">
-        <div class="loading-spinner"></div>
-        <div class="loading-text">Loading Report</div>
-        <div class="loading-subtext">Restoring filters and collection queries...</div>
-        <div class="loading-progress" id="loading-progress"></div>
+<div id="report-loading-overlay" class="rb-loading-overlay hidden">
+    <div class="rb-loading-content">
+        <div class="rb-loading-spinner"></div>
+        <div class="rb-loading-text">Loading Report</div>
+        <div class="rb-loading-subtext">Restoring filters and collection queries...</div>
+        <div class="rb-loading-progress" id="loading-progress"></div>
     </div>
 </div>
 
-<div class="container-fluid py-4">
-    <div class="row mb-4">
-        <div class="col-12">
-            <div class="d-flex justify-content-between align-items-center">
-                <h2><i class="bi bi-graph-up me-2"></i>@ViewData["Title"]</h2>
-                <div>
-                    <button type="button" class="btn btn-outline-secondary me-2" id="btnPreview">
-                        <i class="bi bi-eye me-1"></i> Preview
-                    </button>
-                    <button type="button" class="btn btn-primary" id="btnSave">
-                        <i class="bi bi-save me-1"></i> Save Report
-                    </button>
-                </div>
-            </div>
+<!-- Main Window -->
+<div class="rb-window">
+    <!-- Title Bar -->
+    <div class="rb-title-bar">
+        <div class="rb-title-text">
+            <span>Sentinel Report Builder</span>
+            @if (Model.ReportId.HasValue)
+            {
+                <span class="rb-text-muted">— Edit Mode</span>
+            }
+        </div>
+        <div class="rb-title-actions">
+            <button type="button" class="rb-toolbar-btn" id="btnBack">
+                ← Back to Reports
+            </button>
         </div>
     </div>
 
-    <div class="row g-3">
-        <!-- Left Panel: Available Fields -->
-        <div class="col-xl-3 col-lg-4">
-            <div class="card shadow-sm">
-                <div class="card-header bg-primary text-white">
-                    <h5 class="mb-0"><i class="bi bi-list-columns me-2"></i>Available Fields</h5>
+    <!-- Main Layout -->
+    <div class="rb-main-layout">
+        <!-- Left Panel (Narrow) -->
+        <div class="rb-left-panel">
+            <!-- Report Info Section -->
+            <div class="rb-panel-section">
+                <div class="rb-panel-header">
+                    <span>Report Info</span>
                 </div>
-                <div class="card-body p-0">
-                    <div class="p-3 border-bottom">
-                        <label class="form-label mb-1 small fw-bold">Entity Type:</label>
-                        <select class="form-select form-select-sm" id="entityTypeSelector">
-                            <optgroup label="Core Entities">
-                                <option value="Case" selected="@(Model.EntityType == "Case")">Cases</option>
-                                <option value="Contact" selected="@(Model.EntityType == "Contact")">Contacts</option>
-                                <option value="Outbreak" selected="@(Model.EntityType == "Outbreak")">Outbreaks</option>
-                                <option value="Patient" selected="@(Model.EntityType == "Patient")">Patients</option>
-                                <option value="Task" selected="@(Model.EntityType == "Task")">Tasks</option>
-                                <option value="Location" selected="@(Model.EntityType == "Location")">Locations</option>
-                                <option value="Event" selected="@(Model.EntityType == "Event")">Events</option>
-                            </optgroup>
-                            <optgroup label="Flattened Views">
-                                <option value="CaseContactTasksFlattened" selected="@(Model.EntityType == "CaseContactTasksFlattened")">Case Tasks + Transmission Chains</option>
-                                <option value="OutbreakTasksFlattened" selected="@(Model.EntityType == "OutbreakTasksFlattened")">Outbreak Tasks</option>
-                                <option value="CaseTimelineAll" selected="@(Model.EntityType == "CaseTimelineAll")">Case Timeline</option>
-                                <option value="ContactTracingMindMapNodes" selected="@(Model.EntityType == "ContactTracingMindMapNodes")">Network Nodes</option>
-                                <option value="ContactTracingMindMapEdges" selected="@(Model.EntityType == "ContactTracingMindMapEdges")">Network Edges</option>
-                                <option value="ContactsListSimple" selected="@(Model.EntityType == "ContactsListSimple")">Contacts List</option>
-                            </optgroup>
-                        </select>
-                        
-                        <!-- Load Default Fields Button -->
-                        <button type="button" class="btn btn-outline-primary btn-sm w-100 mt-2" id="btnLoadDefaults">
-                            <i class="bi bi-magic me-1"></i> Load Default Fields
-                        </button>
+                <div class="rb-panel-body">
+                    <div class="rb-info-group">
+                        <div class="rb-info-label">Entity Type</div>
+                        <div class="rb-info-value">
+                            <select class="rb-entity-selector" id="entityTypeSelector">
+                                <optgroup label="Core Entities">
+                                    <option value="Case" selected="@(Model.EntityType == "Case")">Cases</option>
+                                    <option value="Contact" selected="@(Model.EntityType == "Contact")">Contacts</option>
+                                    <option value="Outbreak" selected="@(Model.EntityType == "Outbreak")">Outbreaks</option>
+                                    <option value="Patient" selected="@(Model.EntityType == "Patient")">Patients</option>
+                                    <option value="Task" selected="@(Model.EntityType == "Task")">Tasks</option>
+                                    <option value="Location" selected="@(Model.EntityType == "Location")">Locations</option>
+                                    <option value="Event" selected="@(Model.EntityType == "Event")">Events</option>
+                                </optgroup>
+                                <optgroup label="Flattened Views">
+                                    <option value="CaseContactTasksFlattened" selected="@(Model.EntityType == "CaseContactTasksFlattened")">Case Tasks + Transmission Chains</option>
+                                    <option value="OutbreakTasksFlattened" selected="@(Model.EntityType == "OutbreakTasksFlattened")">Outbreak Tasks</option>
+                                    <option value="CaseTimelineAll" selected="@(Model.EntityType == "CaseTimelineAll")">Case Timeline</option>
+                                    <option value="ContactTracingMindMapNodes" selected="@(Model.EntityType == "ContactTracingMindMapNodes")">Network Nodes</option>
+                                    <option value="ContactTracingMindMapEdges" selected="@(Model.EntityType == "ContactTracingMindMapEdges")">Network Edges</option>
+                                    <option value="ContactsListSimple" selected="@(Model.EntityType == "ContactsListSimple")">Contacts List</option>
+                                </optgroup>
+                            </select>
+                        </div>
                     </div>
-                    <div class="p-3 border-bottom">
-                        <input type="text" class="form-control form-control-sm" id="fieldSearch" placeholder="?? Search fields...">
+                    <div class="rb-info-group">
+                        <div class="rb-info-label">Record Count</div>
+                        <div class="rb-info-value highlight" id="recordCount">—</div>
                     </div>
-                    <div id="fieldCategories" class="accordion accordion-flush" style="max-height: calc(100vh - 320px); overflow-y: auto;">
-                        @if (Model.AvailableFields != null)
-                        {
-                            @foreach (var category in Model.AvailableFields)
-                            {
-                                var categoryId = category.Key.Replace(" ", "");
-                                <div class="accordion-item">
-                                    <h2 class="accordion-header">
-                                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#@categoryId">
-                                            @category.Key
-                                            <span class="badge bg-secondary ms-auto me-2">@category.Value.Count</span>
-                                        </button>
-                                    </h2>
-                                    <div id="@categoryId" class="accordion-collapse collapse">
-                                        <div class="accordion-body p-0">
-                                            @foreach (var field in category.Value)
-                                            {
-                                                <div class="field-item p-2 border-bottom" 
-                                                     draggable="true"
-                                                     data-field-path="@field.FieldPath"
-                                                     data-display-name="@field.DisplayName"
-                                                     data-data-type="@field.DataType"
-                                                     data-is-custom="@field.IsCustomField.ToString().ToLower()"
-                                                     data-custom-id="@field.CustomFieldDefinitionId">
-                                                    <div class="d-flex align-items-start">
-                                                        <i class="bi bi-grip-vertical text-muted me-2"></i>
-                                                        <div class="flex-grow-1">
-                                                            <small class="d-block fw-bold">@field.DisplayName</small>
-                                                            <small class="text-muted">
-                                                                @field.DataType
-                                                                @if (field.IsCustomField)
-                                                                {
-                                                                    <span class="badge bg-success ms-1">Custom</span>
-                                                                }
-                                                            </small>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            }
-                                        </div>
-                                    </div>
-                                </div>
-                            }
-                        }
+                </div>
+            </div>
+
+            <!-- Quick Actions Section -->
+            <div class="rb-panel-section">
+                <div class="rb-panel-header">
+                    <span>Quick Actions</span>
+                </div>
+                <div class="rb-panel-body">
+                    <button type="button" class="rb-task-link" id="btnAddFields">▸ Add Fields</button>
+                    <button type="button" class="rb-task-link" id="btnAddFilter">▸ Add Filter</button>
+                    <button type="button" class="rb-task-link" id="btnAddCollection">▸ Add Collection Query</button>
+                    <button type="button" class="rb-task-link" id="btnLoadDefaults">▸ Load Default Fields</button>
+                    <button type="button" class="rb-task-link" id="btnClearAll">▸ Clear All</button>
+                </div>
+            </div>
+
+            <!-- Query Summary Section -->
+            <div class="rb-panel-section">
+                <div class="rb-panel-header">
+                    <span>Query Summary</span>
+                </div>
+                <div class="rb-panel-body">
+                    <div class="rb-query-box" id="querySummary">
+                        <span class="kw">SELECT</span> <span class="val">*</span>
+                        <span class="kw">FROM</span> <span class="val">Cases</span>
                     </div>
                 </div>
             </div>
         </div>
 
-        <!-- Main Panel: Report Configuration -->
-        <div class="col-xl-9 col-lg-8">
-            <!-- Report Settings -->
-            <div class="card shadow-sm mb-3">
-                <div class="card-header">
-                    <h5 class="mb-0"><i class="bi bi-gear me-2"></i>Report Settings</h5>
+        <!-- Content Area -->
+        <div class="rb-content-area">
+            <!-- Tab Strip -->
+            <div class="rb-tab-strip">
+                <div class="rb-tab active" data-tab="configure">
+                    <span>Configure</span>
                 </div>
-                <div class="card-body">
-                    <div class="row g-3">
-                        <div class="col-md-6">
-                            <label class="form-label">Report Name <span class="text-danger">*</span></label>
-                            <input type="text" class="form-control" id="reportName" value="@Model.ReportDefinition?.Name" required>
+                <div class="rb-tab" data-tab="preview">
+                    <span>Preview</span>
+                </div>
+                <div class="rb-tab" data-tab="pivot">
+                    <span>Pivot</span>
+                </div>
+            </div>
+
+            <!-- Tab 1: Configure (Split View) -->
+            <div class="rb-tab-content active" id="tabConfigure">
+                <div class="rb-split-view">
+                    <!-- Left Pane: Filters, Collections & Fields -->
+                    <div class="rb-split-pane">
+                        <div class="rb-pane-toolbar">
+                            <span>Filters & Display Fields</span>
+                            <span class="rb-text-muted"><span id="filterCount">0</span> filters · <span id="collectionCount">0</span> queries · <span id="fieldCount">0</span> fields</span>
                         </div>
-                        <div class="col-md-6">
-                            <label class="form-label">Category</label>
-                            <select class="form-select" id="reportCategory">
-                                <option value="">Select category...</option>
-                                <option value="Epidemiological">Epidemiological</option>
-                                <option value="Laboratory">Laboratory</option>
-                                <option value="Outbreak">Outbreak</option>
-                                <option value="Surveillance">Surveillance</option>
-                                <option value="Custom">Custom</option>
-                            </select>
+                        <div class="rb-pane-content">
+                            <!-- Filters Section -->
+                            <div class="rb-section-header">Filters</div>
+                            <div class="rb-list-view" id="filters">
+                                <div class="rb-empty-state">
+                                    <div class="rb-empty-state-text">No filters applied</div>
+                                </div>
+                            </div>
+
+                            <!-- Collection Queries Section -->
+                            <div class="rb-section-header" style="margin-top: 16px;">Collection Queries</div>
+                            <div class="rb-list-view" id="collectionQueries">
+                                <div class="rb-empty-state">
+                                    <div class="rb-empty-state-text">No collection queries</div>
+                                </div>
+                            </div>
+
+                            <!-- Display Fields Section -->
+                            <div class="rb-section-header" style="margin-top: 16px;">Display Fields</div>
+                            <div class="rb-list-view" id="selectedFields">
+                                <div class="rb-empty-state">
+                                    <div class="rb-empty-state-text">No fields selected</div>
+                                </div>
+                            </div>
                         </div>
-                        <div class="col-12">
-                            <label class="form-label">Description</label>
-                            <textarea class="form-control" id="reportDescription" rows="2">@Model.ReportDefinition?.Description</textarea>
+                    </div>
+
+                    <!-- Right Pane: Data Preview -->
+                    <div class="rb-split-pane">
+                        <div class="rb-pane-toolbar">
+                            <span>Data Preview <span class="rb-text-muted" id="previewRecordCount"></span></span>
+                            <div class="rb-toolbar-actions">
+                                <button type="button" class="rb-toolbar-btn" id="btnRefreshPreview">Refresh</button>
+                                <button type="button" class="rb-toolbar-btn" id="btnExportPreview">Export</button>
+                            </div>
                         </div>
-                        <div class="col-12">
-                            <div class="form-check">
-                                <input class="form-check-input" type="checkbox" id="reportPublic">
-                                <label class="form-check-label" for="reportPublic">Share this report with all users</label>
+                        <div class="rb-pane-content no-padding">
+                            <div class="rb-data-grid">
+                                <div class="rb-grid-wrapper" id="previewContainer">
+                                    <div class="rb-empty-state">
+                                        <div class="rb-empty-state-title">No Preview Data</div>
+                                        <div class="rb-empty-state-text">Select fields and filters, then click Refresh to preview data</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Report Metadata (Bottom Bar) -->
+                <div class="rb-config-footer">
+                    <div class="rb-footer-group">
+                        <label class="rb-footer-label">Name</label>
+                        <input type="text" id="reportName" 
+                               placeholder="Enter report name..." 
+                               value="@Model.ReportDefinition?.Name"
+                               class="rb-footer-input">
+                    </div>
+                    <div class="rb-footer-group">
+                        <label class="rb-footer-label">Description</label>
+                        <input type="text" id="reportDescription" 
+                               placeholder="Enter report description..."
+                               value="@Model.ReportDefinition?.Description"
+                               class="rb-footer-input" style="flex: 2;">
+                    </div>
+                    <div class="rb-footer-group">
+                        <label class="rb-footer-label">Category</label>
+                        <select id="reportCategory" class="rb-footer-input">
+                            <option value="">Select category...</option>
+                            <option value="Operational" selected="@(Model.ReportDefinition?.Category == "Operational")">Operational</option>
+                            <option value="Surveillance" selected="@(Model.ReportDefinition?.Category == "Surveillance")">Surveillance</option>
+                            <option value="Epidemiological" selected="@(Model.ReportDefinition?.Category == "Epidemiological")">Epidemiological</option>
+                            <option value="Administrative" selected="@(Model.ReportDefinition?.Category == "Administrative")">Administrative</option>
+                            <option value="Custom" selected="@(Model.ReportDefinition?.Category == "Custom")">Custom</option>
+                        </select>
+                    </div>
+                    <div class="rb-footer-group">
+                        <label class="rb-footer-label" style="display: flex; align-items: center; gap: 8px;">
+                            <input type="checkbox" id="reportPublic" 
+                                   checked="@(Model.ReportDefinition?.IsPublic ?? false)"
+                                   style="width: auto; height: auto;">
+                            <span>Public Report</span>
+                        </label>
+                    </div>
+                    <div class="rb-footer-actions">
+                        <button type="button" class="rb-toolbar-btn primary" id="btnPreview">Preview</button>
+                        <button type="button" class="rb-toolbar-btn primary" id="btnSave">Save Report</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab 2: Preview -->
+            <div class="rb-tab-content" id="tabPreview">
+                <div class="rb-pane-toolbar">
+                    <span>Data Preview <span class="rb-text-muted" id="previewTabRecordCount"></span></span>
+                    <div class="rb-toolbar-actions">
+                        <button type="button" class="rb-toolbar-btn" id="btnRefreshPreviewTab">Refresh</button>
+                        <button type="button" class="rb-toolbar-btn" id="btnExportPreviewTab">Export Preview</button>
+                    </div>
+                </div>
+                <div class="rb-pane-content no-padding">
+                    <div class="rb-data-grid">
+                        <div class="rb-grid-wrapper" id="previewTabContainer">
+                            <div class="rb-empty-state">
+                                <div class="rb-empty-state-title">No Preview Data</div>
+                                <div class="rb-empty-state-text">Select fields and click Preview</div>
                             </div>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <!-- Selected Fields -->
-            <div class="card shadow-sm mb-3">
-                <div class="card-header">
-                    <h5 class="mb-0"><i class="bi bi-check2-square me-2"></i>Selected Fields</h5>
-                </div>
-                <div class="card-body">
-                    <div id="selectedFields" class="list-group">
-                        <div class="text-center text-muted py-4">
-                            <i class="bi bi-arrow-left-circle fs-1"></i>
-                            <p class="mt-2">Drag fields from the left panel to add them to your report</p>
-                        </div>
+            <!-- Tab 3: Pivot Analysis -->
+            <div class="rb-tab-content" id="tabPivot">
+                <div class="rb-pane-toolbar">
+                    <span>Pivot Analysis <span class="rb-text-muted" id="pivotRecordCount"></span></span>
+                    <div class="rb-toolbar-actions">
+                        <button type="button" class="rb-toolbar-btn" id="btnRefreshPivot">Refresh</button>
+                        <button type="button" class="rb-toolbar-btn" id="btnExportPivot">Export</button>
                     </div>
                 </div>
-            </div>
-
-            <!-- Filters -->
-            <div class="card shadow-sm mb-3">
-                <div class="card-header">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <h5 class="mb-0"><i class="bi bi-funnel me-2"></i>Filters</h5>
-                        <div>
-                            <button type="button" class="btn btn-sm btn-outline-success me-2" id="btnAddGroup">
-                                <i class="bi bi-plus-square me-1"></i> Add Group
-                            </button>
-                            <button type="button" class="btn btn-sm btn-outline-primary" id="btnAddFilter">
-                                <i class="bi bi-plus-circle me-1"></i> Add Filter
-                            </button>
-                        </div>
-                    </div>
-                </div>
-                <div class="card-body">
-                    <div id="filters" class="list-group">
-                        <div class="text-center text-muted py-4">
-                            <i class="bi bi-funnel fs-1"></i>
-                            <p class="mt-2">No filters added yet</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Collection Queries (Related Data) -->
-            <div class="card shadow-sm mb-3">
-                <div class="card-header bg-info text-white">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <h5 class="mb-0"><i class="bi bi-diagram-3 me-2"></i>Collection Queries (Related Data)</h5>
-                        <button type="button" class="btn btn-sm btn-light" id="btnAddCollectionQuery">
-                            <i class="bi bi-plus-circle me-1"></i> Add Query
-                        </button>
-                    </div>
-                </div>
-                <div class="card-body">
-                    <div class="alert alert-info small mb-3">
-                        <i class="bi bi-info-circle me-2"></i>
-                        <strong>Collection Queries let you filter or aggregate related data.</strong><br>
-                        Examples: "Has positive PCR result", "Number of exposures > 3", "Sum of lab values", etc.
-                    </div>
-                    <div id="collectionQueries" class="list-group">
-                        <div class="text-center text-muted py-4">
-                            <i class="bi bi-diagram-3 fs-1"></i>
-                            <p class="mt-2">No collection queries added yet</p>
-                            <small class="text-muted">Use collection queries to filter on related data like exposures, tasks, or lab results</small>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Preview -->
-            <div class="card shadow-sm">
-                <div class="card-header">
-                    <h5 class="mb-0"><i class="bi bi-table me-2"></i>Preview</h5>
-                </div>
-                <div class="card-body">
-                    <div id="previewContainer" style="min-height: 400px;">
-                        <div class="text-center text-muted py-5">
-                            <i class="bi bi-eye-slash fs-1"></i>
-                            <p class="mt-2">Click "Preview" to see your report</p>
-                        </div>
+                <div class="rb-pane-content no-padding">
+                    <div id="wdr-pivot" class="wdr-pivot-container">
+                        <div id="wdr-pivot-grid"></div>
                     </div>
                 </div>
             </div>
         </div>
     </div>
+
+    <!-- Status Bar -->
+    <div class="rb-status-bar">
+        <div class="rb-status-item">
+            <span class="rb-status-label">Entity:</span>
+            <span id="statusEntity">Cases</span>
+        </div>
+        <div class="rb-status-item">
+            <span class="rb-status-label">Fields:</span>
+            <span id="statusFields">0</span>
+        </div>
+        <div class="rb-status-item">
+            <span class="rb-status-label">Filters:</span>
+            <span id="statusFilters">0</span>
+        </div>
+        <div class="rb-status-item">
+            <span class="rb-status-label">Collections:</span>
+            <span id="statusCollections">0</span>
+        </div>
+        <div class="rb-status-item" style="margin-left: auto;">
+            <span id="autoSaveStatus" style="opacity: 0.6; font-size: 0.85em;">Auto-save enabled</span>
+        </div>
+    </div>
 </div>
 
-@section Scripts {
+<!-- Field Browser Modal -->
+<div id="fieldBrowserModal" class="rb-modal hidden">
+    <div class="rb-modal-backdrop"></div>
+    <div class="rb-modal-content">
+        <div class="rb-modal-header">
+            <span>Available Fields</span>
+            <button type="button" class="rb-modal-close" id="btnCloseFieldBrowser">×</button>
+        </div>
+        <div class="rb-modal-body">
+            <input type="text" id="fieldSearch" placeholder="Search fields..." class="rb-search-input">
+            <div class="rb-field-browser" id="fieldCategories">
+                <!-- Field categories will be loaded here -->
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Scripts -->
 <script src="https://cdn.webdatarocks.com/latest/webdatarocks.js"></script>
-<script src="~/js/webdatarocks-helper.js"></script>
-<script src="~/js/report-builder.js"></script>
-<script src="~/js/report-builder-collections.js"></script>
-<script src="~/js/report-builder-actions.js"></script>
+<script src="~/js/webdatarocks-helper.js?v=@DateTime.UtcNow.Ticks"></script>
+<script src="~/js/webdatarocks-debug.js?v=@DateTime.UtcNow.Ticks"></script>
+<script src="~/js/report-builder.js?v=@DateTime.UtcNow.Ticks"></script>
+<script src="~/js/report-builder-collections.js?v=@DateTime.UtcNow.Ticks"></script>
+<script src="~/js/report-builder-actions.js?v=@DateTime.UtcNow.Ticks"></script>
+<script nonce="@GetCspNonce()">
+    document.addEventListener('DOMContentLoaded', function() {
+        console.log('🚀 Initializing Report Builder...');
 
-<script>
-console.log('[Builder.cshtml] Script section executing...');
+        // Initialize WebDataRocks modal positioning fix
+        if (window.webDataRocksHelper && typeof window.webDataRocksHelper.fixModalPositioning === 'function') {
+            window.webDataRocksHelper.fixModalPositioning();
+            console.log('✅ WebDataRocks modal positioning fix initialized');
+        }
 
-// Initialize Report Builder with data from Razor model
-document.addEventListener('DOMContentLoaded', () => {
-    console.log('[Builder.cshtml] DOMContentLoaded event fired');
+        // Initialize with saved report data
+        const savedReport = {
+            fields: @Html.Raw(Model.FieldsJson ?? "[]"),
+            filters: @Html.Raw(Model.FiltersJson ?? "[]"),
+            collectionQueries: @Html.Raw(Model.CollectionQueriesJson ?? "[]"),
+            entityType: '@Model.EntityType',
+            reportId: @(Model.ReportId?.ToString() ?? "null"),
+            reportName: '@Model.ReportDefinition?.Name',
+            reportDescription: '@Model.ReportDefinition?.Description',
+            pivotConfiguration: @Html.Raw(!string.IsNullOrEmpty(Model.PivotConfigurationJson) ? $"\"{Model.PivotConfigurationJson.Replace("\\", "\\\\").Replace("\"", "\\\"")}\"" : "null"),
+            previewConfiguration: @Html.Raw(!string.IsNullOrEmpty(Model.PreviewConfigurationJson) ? $"\"{Model.PreviewConfigurationJson.Replace("\\", "\\\\").Replace("\"", "\\\"")}\"" : "null")
+        };
 
-    const savedReport = {
-        reportId: @(Model.ReportId?.ToString() ?? "null"),
-        entityType: '@Model.EntityType',
-        fields: @Html.Raw(Model.FieldsJson ?? "[]"),
-        filters: @Html.Raw(Model.FiltersJson ?? "[]"),
-        collectionQueries: @Html.Raw(Model.CollectionQueriesJson ?? "[]"),
-        pivotConfiguration: '@Html.Raw(Model.ReportDefinition?.PivotConfiguration ?? "")'
-    };
+        console.log('📦 Saved report data:', savedReport);
 
-    console.log('[Builder.cshtml] Saved report data:', savedReport);
+        // Initialize the report builder
+        if (typeof ReportBuilder !== 'undefined') {
+            ReportBuilder.init(savedReport);
+            console.log('✅ ReportBuilder initialized');
+        } else {
+            console.error('❌ ReportBuilder not found!');
+        }
 
-    // Store saved pivot config and report ID in ReportBuilder
-    ReportBuilder.savedPivotConfiguration = savedReport.pivotConfiguration;
-    ReportBuilder.reportId = savedReport.reportId;
+        // Tab switching
+        document.querySelectorAll('.rb-tab').forEach(tab => {
+            tab.addEventListener('click', function() {
+                const targetTab = this.getAttribute('data-tab');
+                console.log('🔄 Switching to tab:', targetTab);
 
-    // Store original entity type for change detection
-    document.getElementById('entityTypeSelector').dataset.originalValue = savedReport.entityType;
-    document.getElementById('entityTypeSelector').dataset.reportId = savedReport.reportId;
+                // Update active states
+                document.querySelectorAll('.rb-tab').forEach(t => t.classList.remove('active'));
+                document.querySelectorAll('.rb-tab-content').forEach(c => c.classList.remove('active'));
 
-    console.log('[Builder.cshtml] About to call ReportBuilder.init()');
+                this.classList.add('active');
+                const content = document.getElementById('tab' + targetTab.charAt(0).toUpperCase() + targetTab.slice(1));
+                if (content) {
+                    content.classList.add('active');
+                }
+            });
+        });
 
-    // Initialize ReportBuilder
-    ReportBuilder.init(savedReport);
+        // Back button
+        const btnBack = document.getElementById('btnBack');
+        if (btnBack) {
+            btnBack.addEventListener('click', () => {
+                window.location.href = '/Reports';
+            });
+        }
 
-    console.log('[Builder.cshtml] ReportBuilder.init() called successfully');
-});
+        // Field browser modal
+        const btnAddFields = document.getElementById('btnAddFields');
+        const fieldBrowserModal = document.getElementById('fieldBrowserModal');
+        const btnCloseFieldBrowser = document.getElementById('btnCloseFieldBrowser');
+
+        if (btnAddFields && fieldBrowserModal) {
+            btnAddFields.addEventListener('click', () => {
+                console.log('🔍 Opening field browser modal');
+                fieldBrowserModal.classList.remove('hidden');
+            });
+        }
+
+        if (btnCloseFieldBrowser && fieldBrowserModal) {
+            btnCloseFieldBrowser.addEventListener('click', () => {
+                fieldBrowserModal.classList.add('hidden');
+            });
+
+            // Close on backdrop click
+            fieldBrowserModal.querySelector('.rb-modal-backdrop')?.addEventListener('click', () => {
+                fieldBrowserModal.classList.add('hidden');
+            });
+        }
+
+        // Preview tab handling
+        const previewTab = document.querySelector('[data-tab="preview"]');
+        if (previewTab) {
+            previewTab.addEventListener('click', function() {
+                console.log('📊 Preview tab clicked');
+                // Auto-load preview if we have fields selected
+                const hasFields = ReportBuilder && ReportBuilder.state && ReportBuilder.state.fields.length > 0;
+                if (hasFields) {
+                    setTimeout(() => {
+                        if (typeof ReportBuilder.preview === 'function') {
+                            console.log('🔄 Auto-loading preview...');
+                            ReportBuilder.preview();
+                        }
+                    }, 100);
+                }
+            });
+        }
+
+        // Pivot tab handling
+        const pivotTab = document.querySelector('[data-tab="pivot"]');
+        if (pivotTab) {
+            pivotTab.addEventListener('click', function() {
+                console.log('📊 Pivot tab clicked');
+                const hasFields = ReportBuilder && ReportBuilder.state && ReportBuilder.state.fields.length > 0;
+                if (hasFields) {
+                    setTimeout(() => {
+                        if (typeof ReportBuilder.loadPivot === 'function') {
+                            console.log('🔄 Auto-loading pivot...');
+                            ReportBuilder.loadPivot();
+                        }
+                    }, 100);
+                }
+            });
+        }
+
+        // Refresh preview button (Configure tab)
+        const btnRefreshPreview = document.getElementById('btnRefreshPreview');
+        if (btnRefreshPreview) {
+            btnRefreshPreview.addEventListener('click', () => {
+                console.log('🔄 Manual preview refresh (Configure tab)');
+                if (typeof ReportBuilder.preview === 'function') {
+                    ReportBuilder.preview();
+                }
+            });
+        }
+
+        // Refresh preview button (Preview tab)
+        const btnRefreshPreviewTab = document.getElementById('btnRefreshPreviewTab');
+        if (btnRefreshPreviewTab) {
+            btnRefreshPreviewTab.addEventListener('click', () => {
+                console.log('🔄 Manual preview refresh (Preview tab)');
+                if (typeof ReportBuilder.preview === 'function') {
+                    ReportBuilder.preview();
+                }
+            });
+        }
+
+        // Refresh pivot button
+        const btnRefreshPivot = document.getElementById('btnRefreshPivot');
+        if (btnRefreshPivot) {
+            btnRefreshPivot.addEventListener('click', () => {
+                console.log('🔄 Manual pivot refresh');
+                if (typeof ReportBuilder.loadPivot === 'function') {
+                    ReportBuilder.loadPivot();
+                }
+            });
+        }
+
+        // Export pivot button
+        const btnExportPivot = document.getElementById('btnExportPivot');
+        if (btnExportPivot) {
+            btnExportPivot.addEventListener('click', () => {
+                console.log('📤 Exporting pivot');
+                if (window.pivotGridInstance) {
+                    window.pivotGridInstance.exportTo('excel');
+                }
+            });
+        }
+
+        console.log('✅ DOM event listeners attached');
+    });
 </script>
 
-<style>
-.field-item {
-    cursor: grab;
-    user-select: none;
-    transition: background-color 0.2s;
-}
-
-.field-item:hover {
-    background-color: #f8f9fa;
-}
-
-.field-item:active {
-    cursor: grabbing;
-}
-
-.selected-field-item {
-    cursor: move;
-    transition: all 0.2s;
-}
-
-.selected-field-item.dragging {
-    opacity: 0.5;
-    background-color: #e7f1ff;
-}
-
-.selected-field-item:hover {
-    background-color: #f8f9fa;
-}
-
-.filter-group {
-    background-color: #f8f9fa;
-    border-left: 4px solid #0d6efd !important;
-}
-
-.filter-group .group-filters {
-    min-height: 60px;
-}
-
-.filter-group .list-group-item {
-    background-color: white;
-}
-</style>
-}
+</body>
+</html>

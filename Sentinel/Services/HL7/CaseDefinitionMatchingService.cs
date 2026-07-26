@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 using Sentinel.Data;
 using Sentinel.Models;
@@ -99,9 +99,17 @@ public class CaseDefinitionMatchingService : ICaseDefinitionMatchingService
         var missingFields = new List<string>();
 
         _logger.LogInformation(
-            "[CASE DEFINITION] Evaluating case definition {CaseDefId} '{Name}' using tree-based evaluation",
+            "[CASE DEFINITION] Evaluating case definition {CaseDefId} '{Name}' (Disease: {Disease}) using tree-based evaluation for SINGLE marker",
             caseDefinition.Id,
-            caseDefinition.Name);
+            caseDefinition.Name,
+            caseDefinition.Disease?.Name ?? "NULL");
+
+        _logger.LogInformation(
+            "[CASE DEFINITION] Single-marker input: PathogenId={PathogenId}, TestMethodId={MethodId}, SpecimenId={SpecimenId}, ResultId={ResultId}",
+            resolvedMarker.PathogenId?.ToString() ?? "NULL",
+            resolvedMarker.TestMethodId?.ToString() ?? "NULL",
+            resolvedMarker.SpecimenTypeId?.ToString() ?? "NULL",
+            resolvedMarker.TestResultId?.ToString() ?? "NULL");
 
         // Use tree-based evaluator instead of flattening by GroupNumber
         var matches = await _treeEvaluator.EvaluateAsync(
@@ -119,7 +127,7 @@ public class CaseDefinitionMatchingService : ICaseDefinitionMatchingService
 
         if (!matches)
         {
-            _logger.LogDebug("[CASE DEFINITION] Case definition {CaseDefId} did not match", caseDefinition.Id);
+            _logger.LogWarning("[CASE DEFINITION] ❌ Case definition {CaseDefId} '{Name}' did NOT match single marker", caseDefinition.Id, caseDefinition.Name);
             return null;
         }
 
@@ -187,6 +195,13 @@ public class CaseDefinitionMatchingService : ICaseDefinitionMatchingService
         List<string> missingFields,
         CancellationToken cancellationToken)
     {
+        _logger.LogInformation(
+            "[CRITERION] Evaluating criterion {CritId} (Parent={ParentId}, GroupNum={GroupNum}, Operator={Operator})",
+            criterion.Id,
+            criterion.ParentCriteriaId?.ToString() ?? "ROOT",
+            criterion.GroupNumber,
+            criterion.LogicalOperator);
+
         var matches = new List<bool>();
         var missingFieldCount = 0;
 
@@ -274,8 +289,16 @@ public class CaseDefinitionMatchingService : ICaseDefinitionMatchingService
             }
             else
             {
-                var pathogenMatch = resolvedMarker.PathogenId.HasValue &&
-                                    acceptablePathogens.Contains(resolvedMarker.PathogenId.Value);
+                // Use disease hierarchy awareness for progressive typing
+                // This allows child pathogens to match parent disease criteria
+                bool pathogenMatch = false;
+                if (resolvedMarker.PathogenId.HasValue)
+                {
+                    pathogenMatch = await IsPathogenAcceptableAsync(
+                        resolvedMarker.PathogenId.Value,
+                        acceptablePathogens,
+                        cancellationToken);
+                }
                 matches.Add(pathogenMatch);
 
                 _logger.LogDebug(
@@ -690,12 +713,12 @@ public class CaseDefinitionMatchingService : ICaseDefinitionMatchingService
 
         if (labResult.Markers == null || !labResult.Markers.Any())
         {
-            _logger.LogWarning("ðŸ”¥ [MULTI-MARKER] No markers in lab result - returning empty");
+            _logger.LogWarning("🔥 [MULTI-MARKER] No markers in lab result - returning empty");
             return results;
         }
 
         _logger.LogWarning(
-            "ðŸ”¥ [MULTI-MARKER] Evaluating {Count} markers together for LabResult {LabResultId}",
+            "🔥 [MULTI-MARKER] Evaluating {Count} markers together for LabResult {LabResultId}",
             labResult.Markers.Count,
             labResult.FriendlyId);
 
@@ -722,7 +745,7 @@ public class CaseDefinitionMatchingService : ICaseDefinitionMatchingService
         foreach (var caseDefinition in caseDefinitions)
         {
             _logger.LogInformation(
-                "[MULTI-MARKER] ðŸ” Checking: '{CaseDefName}' (Disease: {Disease})",
+                "[MULTI-MARKER] 🔍 Checking: '{CaseDefName}' (Disease: {Disease})",
                 caseDefinition.Name,
                 caseDefinition.Disease?.Name ?? "NULL");
 
@@ -734,7 +757,7 @@ public class CaseDefinitionMatchingService : ICaseDefinitionMatchingService
             if (matchResult != null)
             {
                 _logger.LogInformation(
-                    "[MULTI-MARKER] âœ… MATCHED: {CaseDefName} â†’ {Disease}",
+                    "[MULTI-MARKER] ✅ MATCHED: {CaseDefName} → {Disease}",
                     caseDefinition.Name,
                     matchResult.Disease?.Name ?? "NULL");
 
@@ -743,19 +766,19 @@ public class CaseDefinitionMatchingService : ICaseDefinitionMatchingService
             else
             {
                 _logger.LogInformation(
-                    "[MULTI-MARKER] âŒ NO MATCH: {CaseDefName}",
+                    "[MULTI-MARKER] ❌ NO MATCH: {CaseDefName}",
                     caseDefinition.Name);
             }
         }
 
         if (!results.Any())
         {
-            _logger.LogWarning("ðŸ”¥ [MULTI-MARKER] No case definitions matched - returning empty list");
+            _logger.LogWarning("🔥 [MULTI-MARKER] No case definitions matched - returning empty list");
             return results;
         }
 
         _logger.LogWarning(
-            "ðŸ”¥ðŸ”¥ðŸ”¥ [BEFORE FILTER] About to call FilterBySpecificityAsync with {Count} results",
+            "🔥🔥🔥 [BEFORE FILTER] About to call FilterBySpecificityAsync with {Count} results",
             results.Count);
 
         // Filter out less-specific case definitions when multiple definitions for the same disease match
@@ -764,13 +787,13 @@ public class CaseDefinitionMatchingService : ICaseDefinitionMatchingService
         var filteredResults = await FilterBySpecificityAsync(results, labResult, cancellationToken);
 
         _logger.LogWarning(
-            "ðŸ”¥ðŸ”¥ðŸ”¥ [AFTER FILTER] FilterBySpecificityAsync returned {Count} results",
+            "🔥🔥🔥 [AFTER FILTER] FilterBySpecificityAsync returned {Count} results",
             filteredResults.Count);
 
         if (filteredResults.Count < results.Count)
         {
             _logger.LogWarning(
-                "ðŸ”¥ [MULTI-MARKER] Filtered {Original} matches to {Filtered} most specific case definition(s)",
+                "🔥 [MULTI-MARKER] Filtered {Original} matches to {Filtered} most specific case definition(s)",
                 results.Count,
                 filteredResults.Count);
         }
@@ -796,18 +819,18 @@ public class CaseDefinitionMatchingService : ICaseDefinitionMatchingService
     {
         // CRITICAL: Warning-level log to verify this method is being called
         _logger.LogWarning(
-            "ðŸ”¥ [SPECIFICITY FILTER ENTRY] FilterBySpecificityAsync called with {Count} matches",
+            "🔥 [SPECIFICITY FILTER ENTRY] FilterBySpecificityAsync called with {Count} matches",
             matches.Count);
 
         if (matches.Count <= 1)
         {
-            _logger.LogWarning("ðŸ”¥ [SPECIFICITY FILTER] Only 1 match - skipping filter, returning as-is");
+            _logger.LogWarning("🔥 [SPECIFICITY FILTER] Only 1 match - skipping filter, returning as-is");
             return matches;
         }
 
         // PHASE 1: Filter within each disease by specificity score
         _logger.LogWarning(
-            "ðŸ”¥ [SPECIFICITY FILTER] Phase 1: Filtering {Count} matches by specificity score within each disease",
+            "🔥 [SPECIFICITY FILTER] Phase 1: Filtering {Count} matches by specificity score within each disease",
             matches.Count);
 
         var groupedByDisease = matches
@@ -831,11 +854,11 @@ public class CaseDefinitionMatchingService : ICaseDefinitionMatchingService
                 diseaseGroup.Count(),
                 diseaseGroup.First().Disease?.Name ?? "NULL");
 
-            //  Calculate specificity scores
+            //  Calculate marker-based specificity scores
             var scoresById = new Dictionary<int, int>();
             foreach (var match in diseaseGroup)
             {
-                var specificityScore = match.SpecificityScore;
+                var specificityScore = match.MarkerBasedSpecificityScore;
                 scoresById[match.CaseDefinition!.Id] = specificityScore;
             }
 
@@ -844,7 +867,7 @@ public class CaseDefinitionMatchingService : ICaseDefinitionMatchingService
             {
                 var recalculatedScore = scoresById[match.CaseDefinition!.Id];
                 _logger.LogWarning(
-                    "ðŸ”¥ [SPECIFICITY FILTER]   Candidate: '{Name}' - OLD Score: {OldScore}, NEW Score: {NewScore}",
+                    "🔥 [SPECIFICITY FILTER]   Candidate: '{Name}' - OLD Score: {OldScore}, NEW Score: {NewScore}",
                     match.CaseDefinition?.Name,
                     match.SpecificityScore,
                     recalculatedScore);
@@ -854,7 +877,7 @@ public class CaseDefinitionMatchingService : ICaseDefinitionMatchingService
             var maxScore = scoresById.Values.Max();
 
             _logger.LogWarning(
-                "ðŸ”¥ [SPECIFICITY FILTER] Max score for disease '{Disease}': {MaxScore}",
+                "🔥 [SPECIFICITY FILTER] Max score for disease '{Disease}': {MaxScore}",
                 diseaseGroup.First().Disease?.Name,
                 maxScore);
 
@@ -867,14 +890,14 @@ public class CaseDefinitionMatchingService : ICaseDefinitionMatchingService
             {
                 var winner = mostSpecific[0];
                 _logger.LogWarning(
-                    "🔥 [SPECIFICITY FILTER] ✓ Selected '{Name}' as most specific (Score: {Score})",
+                    "?? [SPECIFICITY FILTER] ? Selected '{Name}' as most specific (Score: {Score})",
                     winner.CaseDefinition?.Name,
                     scoresById[winner.CaseDefinition!.Id]);
             }
             else
             {
                 _logger.LogWarning(
-                    "ðŸ”¥ [SPECIFICITY FILTER] âš ï¸ Multiple definitions with score {Score} remain after filtering - keeping all {Count}",
+                    "🔥 [SPECIFICITY FILTER] ⚠️ Multiple definitions with score {Score} remain after filtering - keeping all {Count}",
                     maxScore,
                     mostSpecific.Count);
 
@@ -882,7 +905,7 @@ public class CaseDefinitionMatchingService : ICaseDefinitionMatchingService
                 {
                     var tieScore = scoresById[match.CaseDefinition!.Id];
                     _logger.LogWarning(
-                        "ðŸ”¥ [SPECIFICITY FILTER]   Tie: '{Name}' (Score: {Score})",
+                        "🔥 [SPECIFICITY FILTER]   Tie: '{Name}' (Score: {Score})",
                         match.CaseDefinition?.Name,
                         tieScore);
                 }
@@ -894,14 +917,14 @@ public class CaseDefinitionMatchingService : ICaseDefinitionMatchingService
         if (filteredWithinDisease.Count < matches.Count)
         {
             _logger.LogWarning(
-                "ðŸ”¥ [SPECIFICITY FILTER] Phase 1 complete: Filtered {Original} to {Filtered} matches",
+                "🔥 [SPECIFICITY FILTER] Phase 1 complete: Filtered {Original} to {Filtered} matches",
                 matches.Count,
                 filteredWithinDisease.Count);
         }
         else
         {
             _logger.LogWarning(
-                "ðŸ”¥ [SPECIFICITY FILTER] Phase 1 complete: No filtering occurred (all {Count} matches kept)",
+                "🔥 [SPECIFICITY FILTER] Phase 1 complete: No filtering occurred (all {Count} matches kept)",
                 matches.Count);
         }
 
@@ -1010,52 +1033,72 @@ public class CaseDefinitionMatchingService : ICaseDefinitionMatchingService
             return null;
 
         _logger.LogInformation(
-            "[MULTI-MARKER] ðŸ” Evaluating '{CaseDefName}' (Disease: {Disease}) - {Count} lab criteria using tree-based evaluation",
+            "[MULTI-MARKER] 🔍 Evaluating '{CaseDefName}' (Disease: {Disease}) - {Count} lab criteria using tree-based evaluation",
             caseDefinition.Name,
             caseDefinition.Disease?.Name ?? "NULL",
             laboratoryCriteria.Count);
 
         // Track which criteria were satisfied for specificity scoring
         var satisfiedCriteriaIds = new List<int>();
+        var markerTracker = new Dictionary<int, List<Guid>>();
 
         // Use tree-based evaluator instead of flattening by GroupNumber
         var matches = await _treeEvaluator.EvaluateAsync(
             laboratoryCriteria,
             async (criterion) =>
             {
+                _logger.LogWarning(
+                    "?? [LAMBDA] Evaluating criterion {CritId}, markerTracker has {Count} entries",
+                    criterion.Id,
+                    markerTracker.Count);
+
                 // Check if ANY marker in the lab result satisfies this criterion
                 bool matched = await EvaluateMultiMarkerLaboratoryCriterion(
                     criterion,
                     labResult,
-                    cancellationToken);
+                    cancellationToken,
+                    markerTracker);
+
+                _logger.LogWarning(
+                    "?? [LAMBDA] After evaluation, criterion {CritId} matched={Matched}, markerTracker now has {Count} entries",
+                    criterion.Id,
+                    matched,
+                    markerTracker.Count);
 
                 if (matched)
                 {
-                    satisfiedCriteriaIds.Add(criterion.Id);
                     _logger.LogDebug(
-                        "[MULTI-MARKER EVAL] âœ… Criterion {Id} MATCHED: {Display}",
+                        "[MULTI-MARKER EVAL] ✅ Criterion {Id} MATCHED: {Display}",
                         criterion.Id,
                         criterion.DisplayText);
                 }
                 else
                 {
                     _logger.LogDebug(
-                        "[MULTI-MARKER EVAL] âŒ Criterion {Id} NOT matched: {Display}",
+                        "[MULTI-MARKER EVAL] ❌ Criterion {Id} NOT matched: {Display}",
                         criterion.Id,
                         criterion.DisplayText);
                 }
 
                 return matched;
             },
-            $"MultiMarker-CaseDef={caseDefinition.Id}");
+            $"MultiMarker-CaseDef={caseDefinition.Id}",
+            markerTracker);
 
         if (!matches)
         {
             _logger.LogInformation(
-                "[MULTI-MARKER] âŒ NO MATCH: {CaseDefName}",
+                "[MULTI-MARKER] ❌ NO MATCH: {CaseDefName}",
                 caseDefinition.Name);
             return null;
         }
+
+        // Derive satisfiedCriteriaIds from markerTracker AFTER tree evaluation
+        satisfiedCriteriaIds = markerTracker.Keys.ToList();
+        _logger.LogWarning(
+            "POST-EVAL Derived {Count} criteria: [{Ids}]",
+            satisfiedCriteriaIds.Count,
+            string.Join(", ", satisfiedCriteriaIds));
 
         // Identify completed groups (parent criteria where ALL children matched)
         var completedGroupIds = new List<int>();
@@ -1072,7 +1115,7 @@ public class CaseDefinitionMatchingService : ICaseDefinitionMatchingService
             {
                 completedGroupIds.Add(parent.Id);
                 _logger.LogDebug(
-                    "[MULTI-MARKER EVAL] ðŸŽ¯ Group {ParentId} COMPLETE: all {Count} children satisfied",
+                    "[MULTI-MARKER EVAL] 🎯 Group {ParentId} COMPLETE: all {Count} children satisfied",
                     parent.Id,
                     childIds.Count);
             }
@@ -1080,11 +1123,27 @@ public class CaseDefinitionMatchingService : ICaseDefinitionMatchingService
 
         // All groups passed - this case definition matches!
         _logger.LogInformation(
-            "[MULTI-MARKER] âœ… MATCH with specificity: {CaseDefName} (Satisfied: {Satisfied}, Groups: {Groups}, Score: {Score})",
+            "[MULTI-MARKER] ✅ MATCH with specificity: {CaseDefName} (Satisfied: {Satisfied}, Groups: {Groups}, Score: {Score})",
             caseDefinition.Name,
             satisfiedCriteriaIds.Count,
             completedGroupIds.Count,
             (satisfiedCriteriaIds.Count * 10) + (completedGroupIds.Count * 5));
+
+        // Diagnostic: Log marker tracking results
+        var distinctPathogenCount = markerTracker.Values.SelectMany(m => m).Distinct().Count();
+        _logger.LogWarning(
+            "?? [MARKER TRACKING] Case Def '{Name}': {CriteriaCount} criteria tracked, {PathogenCount} distinct pathogens",
+            caseDefinition.Name,
+            markerTracker.Count,
+            distinctPathogenCount);
+        foreach (var kvp in markerTracker)
+        {
+            _logger.LogWarning(
+                "?? [MARKER TRACKING]   Criterion {CritId}: {PathogenCount} pathogens [{Pathogens}]",
+                kvp.Key,
+                kvp.Value.Count,
+                string.Join(", ", kvp.Value.Select(p => p.ToString().Substring(0, 8))));
+        }
 
         return new CaseDefinitionMatchResult
         {
@@ -1094,17 +1153,20 @@ public class CaseDefinitionMatchingService : ICaseDefinitionMatchingService
             DiseaseId = caseDefinition.DiseaseId,
             ConfirmationStatusId = caseDefinition.ConfirmationStatusId,
             SatisfiedCriteriaIds = satisfiedCriteriaIds,
-            CompletedGroupIds = completedGroupIds
+            CompletedGroupIds = completedGroupIds,
+            MarkersByCriterion = markerTracker
         };
     }
 
     /// <summary>
-    /// Checks if ANY marker in the lab result satisfies the laboratory criterion
+    /// Checks if ANY marker in the lab result satisfies the laboratory criterion.
+    /// If markerTracker is provided, records which pathogen IDs satisfied this criterion.
     /// </summary>
     private async Task<bool> EvaluateMultiMarkerLaboratoryCriterion(
         CaseDefinitionCriteria criterion,
         LabResult labResult,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        Dictionary<int, List<Guid>>? markerTracker = null)
     {
         var specimenTypeId = labResult.SpecimenTypeId;
 
@@ -1115,7 +1177,7 @@ public class CaseDefinitionMatchingService : ICaseDefinitionMatchingService
             if (!specimenTypeId.HasValue || !acceptableSpecimenTypes.Contains(specimenTypeId.Value))
             {
                 _logger.LogInformation(
-                    "[MULTI-MARKER] âŒ Specimen type mismatch: Resolved={Resolved}, Acceptable=[{Acceptable}]",
+                    "[MULTI-MARKER] ❌ Specimen type mismatch: Resolved={Resolved}, Acceptable=[{Acceptable}]",
                     specimenTypeId?.ToString() ?? "NULL",
                     string.Join(",", acceptableSpecimenTypes));
                 return false;
@@ -1123,6 +1185,8 @@ public class CaseDefinitionMatchingService : ICaseDefinitionMatchingService
         }
 
         // Check if ANY marker matches the pathogen/test method/result criteria
+        var matchingPathogenIds = new List<Guid>();
+
         foreach (var marker in labResult.Markers)
         {
             var markerMatches = await EvaluateMarkerAgainstCriterion(
@@ -1132,12 +1196,22 @@ public class CaseDefinitionMatchingService : ICaseDefinitionMatchingService
 
             if (markerMatches)
             {
+                _logger.LogWarning(
+                    "DIAG MATCH: Marker Pathogen={PathogenId} MATCHED criterion {CritId}",
+                    marker.PathogenId?.ToString() ?? "NULL",
+                    criterion.Id);
+
                 _logger.LogInformation(
-                    "[MULTI-MARKER] âœ… Marker {MarkerId} (Pathogen={PathogenId}) matches criterion {CritId}",
+                    "[MULTI-MARKER] ✅ Marker {MarkerId} (Pathogen={PathogenId}) matches criterion {CritId}",
                     marker.Id,
                     marker.PathogenId?.ToString() ?? "NULL",
                     criterion.Id);
-                return true;
+
+                // Track by pathogen ID (marker IDs are Guid.Empty during staging)
+                if (marker.PathogenId.HasValue)
+                {
+                    matchingPathogenIds.Add(marker.PathogenId.Value);
+                }
             }
             else
             {
@@ -1151,8 +1225,22 @@ public class CaseDefinitionMatchingService : ICaseDefinitionMatchingService
             }
         }
 
+        // If we found matching markers, record them in the tracker
+        if (matchingPathogenIds.Any())
+        {
+            if (markerTracker != null)
+            {
+                if (!markerTracker.ContainsKey(criterion.Id))
+                {
+                    markerTracker[criterion.Id] = new List<Guid>();
+                }
+                markerTracker[criterion.Id].AddRange(matchingPathogenIds);
+            }
+            return true;
+        }
+
         _logger.LogInformation(
-            "[MULTI-MARKER] âŒ No markers satisfy criterion {CritId}",
+            "[MULTI-MARKER] ❌ No markers satisfy criterion {CritId}",
             criterion.Id);
 
         return false;
@@ -1167,6 +1255,15 @@ public class CaseDefinitionMatchingService : ICaseDefinitionMatchingService
         CancellationToken cancellationToken)
     {
         var matches = new List<bool>();
+
+        // DIAGNOSTIC: Log criterion pathogen configuration
+        _logger.LogWarning(
+            "DIAG EvalMarker: Criterion {CritId}, Marker Pathogen {PathogenId}, PathogenJson = '{Json}' (IsNull={IsNull}, IsWhitespace={IsWS})",
+            criterion.Id,
+            marker.PathogenId?.ToString() ?? "NULL",
+            criterion.AcceptablePathogensJson ?? "NULL",
+            criterion.AcceptablePathogensJson == null,
+            string.IsNullOrWhiteSpace(criterion.AcceptablePathogensJson));
 
         // Evaluate Pathogen/Biomarker with disease hierarchy support
         if (!string.IsNullOrWhiteSpace(criterion.AcceptablePathogensJson))
@@ -1314,7 +1411,7 @@ public class CaseDefinitionMatchingService : ICaseDefinitionMatchingService
                 cancellationToken))
             {
                 _logger.LogDebug(
-                    "[PATHOGEN HIERARCHY] âœ… Marker pathogen '{MarkerPathogen}' (Disease: {MarkerDisease}) is related to acceptable pathogen '{AcceptablePathogen}' (Disease: {AcceptableDisease})",
+                    "[PATHOGEN HIERARCHY] ✅ Marker pathogen '{MarkerPathogen}' (Disease: {MarkerDisease}) is related to acceptable pathogen '{AcceptablePathogen}' (Disease: {AcceptableDisease})",
                     markerPathogen.Name,
                     markerPathogen.Disease?.Name,
                     acceptablePathogen.Name,
@@ -1324,7 +1421,7 @@ public class CaseDefinitionMatchingService : ICaseDefinitionMatchingService
         }
 
         _logger.LogDebug(
-            "[PATHOGEN HIERARCHY] âŒ Marker pathogen '{MarkerPathogen}' (Disease: {MarkerDisease}) is NOT related to any acceptable pathogens",
+            "[PATHOGEN HIERARCHY] ❌ Marker pathogen '{MarkerPathogen}' (Disease: {MarkerDisease}) is NOT related to any acceptable pathogens",
             markerPathogen.Name,
             markerPathogen.Disease?.Name);
 
@@ -1347,12 +1444,12 @@ public class CaseDefinitionMatchingService : ICaseDefinitionMatchingService
         Guid criterionDiseaseId,
         CancellationToken cancellationToken)
     {
-        if (markerDiseaseId == criterionDiseaseId)
-            return true;
-
         // ONLY allow marker disease to be a descendant of criterion disease (more specific marker matches less specific criterion)
         // Example: STM9 marker (specific) CAN match generic Salmonella criterion
         // Example: STM9 marker (specific) CANNOT match Salmonella 135 criterion (siblings, not ancestor-descendant)
+        // 
+        // NOTE: We do NOT return true for exact disease match here because that would bypass the pathogen ID check.
+        // The exact pathogen ID check in IsPathogenAcceptableAsync (line 1354) already handles same-disease scenarios correctly.
         if (await IsAncestorOfAsync(criterionDiseaseId, markerDiseaseId, cancellationToken))
         {
             _logger.LogDebug(
@@ -1428,9 +1525,79 @@ public class CaseDefinitionMatchResult
 
     /// <summary>
     /// Specificity score: higher = more specific match.
-    /// Calculated as: (satisfied criteria Ã— 10) + (completed groups Ã— 5)
+    /// Calculated as: (satisfied criteria × 10) + (completed groups × 5)
     /// </summary>
     public int SpecificityScore => (SatisfiedCriteriaIds.Count * 10) + (CompletedGroupIds.Count * 5);
+
+    /// <summary>
+    /// Maps criterion IDs to the pathogen IDs (not marker IDs) that supported them in the successful evaluation path.
+    /// Pathogen IDs are used because marker IDs are Guid.Empty during staging before database commit.
+    /// Used for specificity scoring: counts distinct pathogens across the winning branch.
+    /// </summary>
+    public Dictionary<int, List<Guid>> MarkersByCriterion { get; set; } = new();
+
+    /// <summary>
+    /// Calculates specificity score based on the number of distinct pathogens
+    /// supporting the SUCCESSFUL evaluation path only (ignores failed branches).
+    /// Only counts markers from criteria that are in SatisfiedCriteriaIds.
+    /// </summary>
+    public int MarkerBasedSpecificityScore => 
+        MarkersByCriterion
+            .Where(kvp => SatisfiedCriteriaIds.Contains(kvp.Key))
+            .SelectMany(kvp => kvp.Value)
+            .Distinct()
+            .Count();
+}
+
+/// <summary>
+/// Represents the result of evaluating a case definition's criteria tree,
+/// capturing which evaluation paths succeeded and which markers supported them.
+/// Used to determine specificity when multiple definitions match.
+/// </summary>
+public class EvaluationPathResult
+{
+    /// <summary>
+    /// Overall evaluation result: true if the definition matched
+    /// </summary>
+    public bool Success { get; set; }
+
+    /// <summary>
+    /// List of root-level branches or groups that evaluated to true.
+    /// In OR scenarios, this captures ALL successful paths, not just the first.
+    /// </summary>
+    public List<PathElement> SuccessfulPaths { get; set; } = new();
+
+    /// <summary>
+    /// All criteria IDs that were satisfied during evaluation
+    /// </summary>
+    public List<int> SatisfiedCriteriaIds { get; set; } = new();
+}
+
+/// <summary>
+/// Represents a single successful evaluation path element (criterion or group)
+/// with the markers that supported it.
+/// </summary>
+public class PathElement
+{
+    /// <summary>
+    /// The criterion ID that succeeded (individual criterion or group parent)
+    /// </summary>
+    public int CriterionId { get; set; }
+
+    /// <summary>
+    /// The marker IDs (from LabResult.Markers) that satisfied this criterion/group
+    /// </summary>
+    public List<Guid> SupportingMarkerIds { get; set; } = new();
+
+    /// <summary>
+    /// User-friendly description of this path element for diagnostics
+    /// </summary>
+    public string DisplayText { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Whether this element is a group (has children) or an individual criterion
+    /// </summary>
+    public bool IsGroup { get; set; }
 }
 
 #endregion

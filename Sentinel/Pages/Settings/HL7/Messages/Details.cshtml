@@ -158,6 +158,33 @@
     </div>
 </div>
 
+<!-- Manual Review Notes -->
+@if (Model.Message.ManualReviewCompleted && !string.IsNullOrWhiteSpace(Model.Message.ManualReviewNotes))
+{
+    <div class="alert mb-4" role="alert" style="background:var(--signal-lt);border:2px solid var(--signal);color:var(--forest)">
+        <h6 class="alert-heading"><i class="bi bi-check-circle me-2"></i>Review Completed</h6>
+        <div style="font-size:13px;line-height:1.8">
+            @if (Model.Message.ManualReviewDate.HasValue)
+            {
+                <div style="margin-bottom:8px;color:var(--slate)">
+                    <strong>Reviewed:</strong> @Model.Message.ManualReviewDate.Value.ToString("MMM dd, yyyy h:mm tt")
+                    @if (Model.Message.ManualReviewByUser != null)
+                    {
+                        string firstName = Model.Message.ManualReviewByUser.FirstName ?? "";
+                        string lastName = Model.Message.ManualReviewByUser.LastName ?? "";
+                        string displayName = string.IsNullOrWhiteSpace(firstName + lastName) 
+                            ? (Model.Message.ManualReviewByUser.Email ?? "Unknown")
+                            : $"{firstName} {lastName}".Trim();
+                        <span> by @displayName</span>
+                    }
+                </div>
+            }
+            <strong>Notes:</strong>
+            <pre style="margin:8px 0 0 0;font-family:var(--f-sans);font-size:13px;white-space:pre-wrap;color:var(--forest);background:white;padding:12px;border-radius:8px;border:1px solid var(--signal)">@Model.Message.ManualReviewNotes</pre>
+        </div>
+    </div>
+}
+
 <!-- Error Details -->
 @if (!string.IsNullOrWhiteSpace(Model.Message.ErrorMessage))
 {

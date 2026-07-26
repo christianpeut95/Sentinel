@@ -30,9 +30,14 @@ public class ReportDefinition
     public string? Category { get; set; }
 
     /// <summary>
-    /// JSON configuration for WebDataRocks pivot grid
+    /// JSON configuration for WebDataRocks pivot grid (Pivot Analysis tab)
     /// </summary>
     public string? PivotConfiguration { get; set; }
+
+    /// <summary>
+    /// JSON configuration for WebDataRocks preview/table-only grid (Preview tab)
+    /// </summary>
+    public string? PreviewConfiguration { get; set; }
 
     /// <summary>
     /// JSON configuration for collection queries (related data queries)

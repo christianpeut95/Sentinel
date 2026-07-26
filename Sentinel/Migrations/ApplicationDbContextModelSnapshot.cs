@@ -2175,6 +2175,9 @@ namespace Sentinel.Migrations
                     b.Property<DateTime?>("ModifiedAt")
                         .HasColumnType("datetime2");
 
+                    b.Property<bool>("NoSurveillanceItem")
+                        .HasColumnType("bit");
+
                     b.Property<Guid?>("OrderingProviderOrganizationId")
                         .HasColumnType("uniqueidentifier");
 
@@ -2214,6 +2217,9 @@ namespace Sentinel.Migrations
 
                     b.Property<bool>("RequiresManualReview")
                         .HasColumnType("bit");
+
+                    b.Property<int>("ReviewOutcome")
+                        .HasColumnType("int");
 
                     b.Property<string>("SendingApplication")
                         .HasMaxLength(200)
@@ -2573,6 +2579,9 @@ namespace Sentinel.Migrations
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("bit");
 
+                    b.Property<bool>("IsMultiplexClone")
+                        .HasColumnType("bit");
+
                     b.Property<string>("LabInterpretation")
                         .HasMaxLength(2000)
                         .HasColumnType("nvarchar(2000)");
@@ -2588,6 +2597,9 @@ namespace Sentinel.Migrations
                         .HasColumnType("nvarchar(2000)");
 
                     b.Property<Guid?>("OrderingProviderId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid?>("ParentLabResultId")
                         .HasColumnType("uniqueidentifier");
 
                     b.Property<Guid?>("PatientId")
@@ -2626,6 +2638,8 @@ namespace Sentinel.Migrations
                     b.HasIndex("LaboratoryId");
 
                     b.HasIndex("OrderingProviderId");
+
+                    b.HasIndex("ParentLabResultId");
 
                     b.HasIndex("PatientId");
 
@@ -5035,6 +5049,9 @@ namespace Sentinel.Migrations
                     b.Property<string>("PivotConfiguration")
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<string>("PreviewConfiguration")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<int>("RunCount")
                         .HasColumnType("int");
 
@@ -7225,6 +7242,11 @@ namespace Sentinel.Migrations
                         .HasForeignKey("OrderingProviderId")
                         .OnDelete(DeleteBehavior.Restrict);
 
+                    b.HasOne("Sentinel.Models.LabResult", "ParentLabResult")
+                        .WithMany("ClonedLabResults")
+                        .HasForeignKey("ParentLabResultId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("Sentinel.Models.Patient", "Patient")
                         .WithMany()
                         .HasForeignKey("PatientId");
@@ -7257,6 +7279,8 @@ namespace Sentinel.Migrations
                     b.Navigation("Laboratory");
 
                     b.Navigation("OrderingProvider");
+
+                    b.Navigation("ParentLabResult");
 
                     b.Navigation("Patient");
 
@@ -8212,6 +8236,8 @@ namespace Sentinel.Migrations
 
             modelBuilder.Entity("Sentinel.Models.LabResult", b =>
                 {
+                    b.Navigation("ClonedLabResults");
+
                     b.Navigation("Markers");
                 });
 

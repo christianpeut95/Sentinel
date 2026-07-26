@@ -25,6 +25,14 @@ public interface IReportFieldMetadataService
     Task<Dictionary<string, List<ReportFieldMetadata>>> GetFieldsByCategoryAsync(string entityType);
 
     /// <summary>
+    /// Gets recommended (core/essential) fields for an entity type
+    /// These are the most commonly used fields that should appear first in the UI
+    /// </summary>
+    /// <param name="entityType">Case, Outbreak, Patient, etc.</param>
+    /// <returns>List of recommended field metadata</returns>
+    Task<List<ReportFieldMetadata>> GetRecommendedFieldsAsync(string entityType);
+
+    /// <summary>
     /// Gets only custom fields for an entity
     /// </summary>
     /// <param name="entityType">Case, Outbreak, Patient, etc.</param>

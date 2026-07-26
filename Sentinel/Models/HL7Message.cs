@@ -139,6 +139,13 @@ namespace Sentinel.Models
         [DataType(DataType.MultilineText)]
         public string? ManualReviewNotes { get; set; }
 
+        [Display(Name = "Review Outcome")]
+        public HL7ReviewOutcome ReviewOutcome { get; set; } = HL7ReviewOutcome.NotReviewed;
+
+        // No Surveillance Tracking
+        [Display(Name = "No Surveillance Item")]
+        public bool NoSurveillanceItem { get; set; } = false;
+
         // Partial Match Tracking
         [Display(Name = "Partial Match Details (JSON)")]
         public string? PartialMatchDetailsJson { get; set; }

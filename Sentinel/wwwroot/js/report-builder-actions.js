@@ -6,126 +6,31 @@ console.log('[report-builder-actions.js] Loading...');
 // Add these functions to the ReportBuilder object
 
 ReportBuilder.getFilters = function() {
-    const filterElements = document.querySelectorAll('#filters .list-group-item');
+    const filterElements = document.querySelectorAll('#filters .rb-list-item');
     const filters = [];
-    
+
+    console.log('[getFilters] Found', filterElements.length, 'filter elements');
+
     filterElements.forEach((el, i) => {
-        const fieldSelect = el.querySelector('.filter-field');
+        const fieldSelect = el.querySelector('.rb-filter-field');
         const field = fieldSelect?.value;
-        let operator = el.querySelector('.filter-operator')?.value;
+        let operator = el.querySelector('.rb-filter-operator')?.value;
+
+        console.log(`[getFilters] Filter ${i}:`, { field, operator });
 
         if (field && operator) {
-            const filterId = el.dataset.filterId;
-            const groupId = el.dataset.groupId ? parseInt(el.dataset.groupId) : null;
-
             const selectedOption = fieldSelect.options[fieldSelect.selectedIndex];
             const dataType = selectedOption?.dataset.type || 'String';
-            const isCustomField = selectedOption?.dataset.iscustom === 'true';
-            const customFieldId = selectedOption?.dataset.customid ? parseInt(selectedOption.dataset.customid) : null;
 
             let value = '';
-            let isDynamicDate = false;
-            let dynamicDateType = null;
-            let dynamicDateOffset = null;
-            let dynamicDateOffsetUnit = null;
 
-            if (operator === 'Between') {
-                const value1 = el.querySelector('.filter-value')?.value || '';
-                const value2 = el.querySelector('.filter-value-end')?.value || '';
-                value = `${value1}|${value2}`;
-            } else if (operator === 'IsNull' || operator === 'IsNotNull' || operator === 'IsEmpty' || operator === 'IsNotEmpty') {
+            if (operator === 'IsNull' || operator === 'IsNotNull') {
                 value = '';
             } else {
-                const combinedSelect = el.querySelector('.filter-date-combined');
-                if (combinedSelect) {
-                    const combinedValue = combinedSelect.value;
-
-                    const customCondition = el.querySelector('.filter-custom-condition');
-                    const isCustomConditionVisible = customCondition && customCondition.style.display !== 'none';
-
-                    if (combinedValue === 'static') {
-                        value = el.querySelector('.filter-value')?.value || '';
-                        isDynamicDate = false;
-                    } else if (combinedValue === 'custom' || isCustomConditionVisible) {
-                        const customOperator = customCondition?.querySelector('.filter-operator')?.value;
-
-                        const dateTypeRadio = customCondition?.querySelector('input[name^="custom-date-type-"]:checked');
-                        const dateType = dateTypeRadio?.value || 'dynamic';
-
-                        if (dateType === 'static') {
-                            const staticDateInput = customCondition?.querySelector('.filter-custom-static-value');
-                            const staticDateValue = staticDateInput?.value;
-
-                            if (customOperator && staticDateValue) {
-                                operator = customOperator;
-                                value = staticDateValue;
-                                isDynamicDate = false;
-                            }
-                        } else {
-                            const offsetValue = customCondition?.querySelector('.filter-dynamic-offset-value')?.value;
-                            const offsetUnit = customCondition?.querySelector('.filter-dynamic-offset-unit')?.value || 'Days';
-                            const direction = customCondition?.querySelector('.filter-dynamic-offset-direction')?.value || 'past';
-
-                            if (customOperator && offsetValue) {
-                                operator = customOperator;
-
-                                isDynamicDate = true;
-                                dynamicDateOffset = parseInt(offsetValue);
-                                dynamicDateOffsetUnit = offsetUnit;
-                                const capitalizedDirection = direction.charAt(0).toUpperCase() + direction.slice(1);
-                                const capitalizedUnit = offsetUnit.charAt(0).toUpperCase() + offsetUnit.slice(1);
-                                dynamicDateType = capitalizedDirection + capitalizedUnit;
-                                value = '';
-                            }
-                        }
-                    } else if (combinedValue && combinedValue.includes('|')) {
-                        const [presetOperator, presetValue] = combinedValue.split('|');
-
-                        if (presetOperator && el.querySelector('.filter-operator')) {
-                            el.querySelector('.filter-operator').value = presetOperator;
-                            operator = presetOperator;
-                        }
-
-                        if (presetOperator === 'InLast' || presetOperator === 'InNext') {
-                            // InLast/InNext with numeric values are dynamic date filters
-                            isDynamicDate = true;
-                            dynamicDateOffset = parseInt(presetValue);
-                            dynamicDateOffsetUnit = 'Days'; // Default to days for InLast/InNext
-                            const direction = presetOperator === 'InLast' ? 'Past' : 'Next';
-                            dynamicDateType = direction + 'Days';
-                            value = '';
-                        } else if (!isNaN(parseInt(presetValue))) {
-                            value = presetValue;
-                            isDynamicDate = false;
-                        } else {
-                            isDynamicDate = true;
-                            dynamicDateType = presetValue;
-
-                            const presetMatch = presetValue.match(/^(Past|Next)(\d+)(Days|Weeks|Months)$/);
-                            if (presetMatch) {
-                                const [, direction, num, unit] = presetMatch;
-                                dynamicDateOffset = parseInt(num);
-                                dynamicDateOffsetUnit = unit;
-                                dynamicDateType = direction + unit;
-                            }
-                            value = '';
-                        }
-                    } else {
-                        value = el.querySelector('.filter-value')?.value || '';
-                        isDynamicDate = false;
-                    }
-                } else {
-                    value = el.querySelector('.filter-value')?.value || '';
-                }
+                value = el.querySelector('.rb-filter-value')?.value || '';
             }
 
-            const logicOperator = el.querySelector(`input[name="logic-${filterId}"]:checked`)?.value || 'AND';
-
-            let groupLogicOperator = 'AND';
-            if (groupId) {
-                const groupElement = el.closest('.filter-group');
-                groupLogicOperator = groupElement?.querySelector(`input[name="group-logic-${groupId}"]:checked`)?.value || 'AND';
-            }
+            console.log(`[getFilters] Adding filter:`, { field, operator, value, dataType });
 
             filters.push({
                 fieldPath: field,
@@ -133,45 +38,59 @@ ReportBuilder.getFilters = function() {
                 value: value,
                 dataType: dataType,
                 displayOrder: i,
-                isCustomField: isCustomField,
-                customFieldDefinitionId: customFieldId,
-                logicOperator: logicOperator,
-                groupId: groupId,
-                groupLogicOperator: groupLogicOperator,
-                isDynamicDate: isDynamicDate,
-                dynamicDateType: dynamicDateType,
-                dynamicDateOffset: dynamicDateOffset,
-                dynamicDateOffsetUnit: dynamicDateOffsetUnit
+                isCustomField: false,
+                customFieldDefinitionId: null,
+                logicOperator: 'AND',
+                groupId: null,
+                groupLogicOperator: 'AND',
+                isDynamicDate: false,
+                dynamicDateType: null,
+                dynamicDateOffset: null,
+                dynamicDateOffsetUnit: null
             });
         }
     });
 
+    console.log('[getFilters] Returning', filters.length, 'filters:', filters);
     return filters;
 };
 
 ReportBuilder.getCollectionQueries = function() {
     const queryElements = document.querySelectorAll('[id^="collection-query-"]');
     const queries = [];
-    
+
     queryElements.forEach((el) => {
         const queryId = parseInt(el.dataset.queryId);
-        const collectionName = document.getElementById(`collection-${queryId}`)?.value;
+        const collectionPath = document.getElementById(`collection-${queryId}`)?.value;
         const operation = document.getElementById(`operation-${queryId}`)?.value;
         const displayAsColumn = document.getElementById(`display-as-column-${queryId}`)?.checked || false;
         const columnName = document.getElementById(`column-name-${queryId}`)?.value || '';
         const aggregateField = document.getElementById(`aggregate-field-${queryId}`)?.value || null;
-        
-        if (!collectionName || !operation) return;
-        
+
+        if (!collectionPath || !operation) return;
+
+        // Parse nested collection path (e.g., "LabResults.Markers")
+        const pathParts = collectionPath.split('.');
+        const collectionName = pathParts[0];
+        const subCollectionName = pathParts.length > 1 ? pathParts[1] : null;
+
         const query = {
             collectionName: collectionName,
+            subCollectionName: subCollectionName,  // NEW: capture sub-collection
             operation: operation,
             aggregateField: aggregateField,
             displayAsColumn: displayAsColumn,
             columnName: columnName,
             subFilters: []
         };
-        
+
+        console.log('[getCollectionQueries] Serializing query:', {
+            queryId,
+            collectionName,
+            subCollectionName,
+            isNested: !!subCollectionName
+        });
+
         if (!displayAsColumn && ['Count', 'Sum', 'Average', 'Min', 'Max'].includes(operation)) {
             query.comparator = document.getElementById(`comparator-${queryId}`)?.value || 'GreaterThan';
             const valueInput = document.getElementById(`value-${queryId}`);
@@ -292,13 +211,32 @@ ReportBuilder.getCollectionQueries = function() {
 };
 
 ReportBuilder.preview = async function() {
+    console.log('[preview] Starting preview...');
+
     if (this.selectedFields.length === 0) {
         alert('Please select at least one field');
         return;
     }
 
+    // Show loading in preview container
+    const container = document.getElementById('previewContainer');
+    if (!container) {
+        console.error('[preview] previewContainer not found');
+        return;
+    }
+
+    container.innerHTML = `
+        <div class="rb-empty-state">
+            <div class="rb-empty-state-icon">⏳</div>
+            <div class="rb-empty-state-title">Loading Preview...</div>
+            <div class="rb-empty-state-text">Fetching data from server</div>
+        </div>
+    `;
+
     try {
         const filters = this.getFilters();
+        console.log('[preview] Selected fields:', this.selectedFields.length);
+        console.log('[preview] Filters:', filters.length);
 
         const response = await fetch('/api/reports/preview', {
             method: 'POST',
@@ -318,55 +256,73 @@ ReportBuilder.preview = async function() {
             })
         });
 
+        console.log('[preview] Response status:', response.status);
+
         if (!response.ok) {
+            const errorText = await response.text();
+            console.error('[preview] Server error:', errorText);
             throw new Error(`Server error: ${response.status}`);
         }
 
         const result = await response.json();
+        console.log('[preview] Result:', result.success ? `${result.data?.length || 0} rows` : 'failed');
 
         if (result.success) {
             this.renderPreview(result.data, filters);
         } else {
-            alert('Error: ' + result.error);
+            container.innerHTML = `
+                <div class="rb-empty-state">
+                    <div class="rb-empty-state-icon">⚠️</div>
+                    <div class="rb-empty-state-title">Preview Failed</div>
+                    <div class="rb-empty-state-text">${result.error || 'Unknown error'}</div>
+                </div>
+            `;
         }
     } catch (error) {
-        alert('Failed to preview report: ' + error.message);
+        console.error('[preview] Error:', error);
+        container.innerHTML = `
+            <div class="rb-empty-state">
+                <div class="rb-empty-state-icon">❌</div>
+                <div class="rb-empty-state-title">Error Loading Preview</div>
+                <div class="rb-empty-state-text">${error.message}</div>
+            </div>
+        `;
     }
 };
 
 ReportBuilder.renderPreview = function(data, filters) {
     const container = document.getElementById('previewContainer');
+    const recordCountSpan = document.getElementById('previewRecordCount');
 
     if (!data || data.length === 0) {
         container.innerHTML = `
-            <div class="alert alert-info">
-                <i class="bi bi-info-circle me-2"></i>
-                <strong>No data found</strong> - Your filters returned 0 rows. Try adjusting your filter criteria.
+            <div class="rb-empty-state">
+                <div class="rb-empty-state-icon">📊</div>
+                <div class="rb-empty-state-title">No Data Found</div>
+                <div class="rb-empty-state-text">Your filters returned 0 rows. Try adjusting your filter criteria.</div>
             </div>
         `;
+        if (recordCountSpan) recordCountSpan.textContent = '(0 rows)';
         return;
     }
 
-    const filterSummary = filters && filters.length > 0 
-        ? `<div class="mt-2 small text-muted">
-               <strong>Filters applied:</strong> ${filters.length} filter(s) active
-           </div>`
-        : '<div class="mt-2 small text-muted">No filters applied - showing all records</div>';
-
-    const banner = `
-        <div class="alert alert-success mb-3">
-            <i class="bi bi-check-circle me-2"></i>
-            <strong>${data.length} rows</strong> returned
-            ${filterSummary}
-        </div>
-    `;
-
-    if (window.pivotInstance) {
-        window.pivotInstance.dispose();
-        window.pivotInstance = null;
+    // Update record count in toolbar
+    if (recordCountSpan) {
+        const filterText = filters && filters.length > 0 ? ` · ${filters.length} filter(s)` : '';
+        recordCountSpan.textContent = `(${data.length} rows${filterText})`;
     }
 
-    container.innerHTML = banner + '<div id="wdr-pivot"></div>';
+    // Dispose preview-specific pivot instance
+    if (window.previewPivotInstance) {
+        try {
+            window.previewPivotInstance.dispose();
+        } catch (e) {
+            console.warn('[renderPreview] Error disposing previous instance:', e);
+        }
+        window.previewPivotInstance = null;
+    }
+
+    container.innerHTML = '<div id="wdr-preview-pivot"></div>';
 
     const savedPivotConfig = this.savedPivotConfiguration;
     let reportConfig;
@@ -382,23 +338,52 @@ ReportBuilder.renderPreview = function(data, filters) {
         reportConfig = this.getDefaultPivotConfig(data);
     }
 
-    window.pivotInstance = new WebDataRocks({
-        container: "#wdr-pivot",
+    // Calculate available height - preview is in a split pane
+    const containerHeight = container.offsetHeight || 600;
+    const pivotHeight = Math.max(400, containerHeight - 10);
+
+    window.previewPivotInstance = new WebDataRocks({
+        container: "#wdr-preview-pivot",
         toolbar: true,
-        height: 600,
+        height: pivotHeight,
         report: reportConfig,
+        global: {
+            localization: {
+                grid: {
+                    blankMember: "(blank)"
+                }
+            }
+        },
         customizeCell: function(cell, data) {
             if (data.type === "value" && typeof data.value === "string" && /^\d{4}-\d{2}-\d{2}T/.test(data.value)) {
                 cell.text = data.value.split('T')[0];
             }
+        },
+        reportcomplete: function() {
+            console.log('[WebDataRocks Preview] Report rendered');
         }
     });
 };
 
+
 ReportBuilder.getDefaultPivotConfig = function(data) {
+    if (!data || data.length === 0) {
+        return {
+            dataSource: { data: [] },
+            slice: { rows: [], columns: [], measures: [] }
+        };
+    }
+
     const dataKeys = Object.keys(data[0] || {});
 
-    const allMeasures = dataKeys.map(key => ({
+    // Filter to only include selected display fields
+    const selectedFieldPaths = this.selectedFields.map(f => f.fieldPath);
+    const filteredKeys = dataKeys.filter(key => selectedFieldPaths.includes(key));
+
+    // If no fields are selected, fall back to all keys (but this shouldn't happen)
+    const keysToUse = filteredKeys.length > 0 ? filteredKeys : dataKeys;
+
+    const allMeasures = keysToUse.map(key => ({
         uniqueName: key,
         aggregation: "none"
     }));
@@ -431,39 +416,132 @@ ReportBuilder.getDefaultPivotConfig = function(data) {
 };
 
 ReportBuilder.save = async function() {
+    console.log('[save] Starting save process...');
+
     const name = document.getElementById('reportName').value;
+    console.log('[save] Report name:', name);
+
     if (!name) {
         alert('Please enter a report name');
         return;
     }
-    
+
     if (this.selectedFields.length === 0) {
         alert('Please select at least one field');
         return;
     }
-    
+
     try {
         let pivotConfig = null;
-        if (window.pivotInstance) {
+        if (window.pivotGridInstance) {
             try {
-                const report = window.pivotInstance.getReport();
+                const report = window.pivotGridInstance.getReport();
                 pivotConfig = JSON.stringify(report);
             } catch (e) {
                 console.error('Failed to get pivot configuration', e);
             }
         }
-        
+
+        let previewConfig = null;
+        if (window.previewPivotInstance) {
+            try {
+                const report = window.previewPivotInstance.getReport();
+                previewConfig = JSON.stringify(report);
+            } catch (e) {
+                console.error('Failed to get preview configuration', e);
+            }
+        }
+
+        const payload = {
+            reportId: this.reportId,
+            name: name,
+            description: document.getElementById('reportDescription').value,
+            entityType: document.getElementById('entityTypeSelector').value,
+            category: document.getElementById('reportCategory').value,
+            isPublic: document.getElementById('reportPublic').checked,
+            pivotConfiguration: pivotConfig,
+            previewConfiguration: previewConfig,
+            fields: this.selectedFields.map((f, i) => ({
+                fieldPath: f.fieldPath,
+                displayName: f.displayName,
+                dataType: f.dataType,
+                displayOrder: i,
+                isCustomField: f.isCustom || false,
+                customFieldDefinitionId: f.customId ? parseInt(f.customId) : null
+            })),
+            filters: this.getFilters(),
+            collectionQueries: this.getCollectionQueries()
+        };
+
+        console.log('[save] Payload:', payload);
+        console.log('[save] Sending to /api/reports/save...');
+
         const response = await fetch('/api/reports/save', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+
+        console.log('[save] Response status:', response.status);
+
+        const result = await response.json();
+        console.log('[save] Result:', result);
+
+        if (result.success) {
+            // Clear auto-saved draft since we explicitly saved
+            ReportBuilder.clearAutoSavedDraft();
+            alert('Report saved successfully!');
+            window.location.href = '/Reports/Index';
+        } else {
+            alert('Error saving report: ' + result.error);
+        }
+    } catch (error) {
+        console.error('[save] Exception:', error);
+        alert('Failed to save report: ' + error.message);
+    }
+};
+
+// ==================== PIVOT FUNCTIONS ====================
+
+ReportBuilder.loadPivot = async function() {
+    console.log('[loadPivot] Starting pivot load...');
+
+    if (this.selectedFields.length === 0) {
+        alert('Please select at least one field');
+        return;
+    }
+
+    // Switch to pivot tab
+    const pivotTab = document.querySelector('.rb-tab[data-tab="pivot"]');
+    if (pivotTab && !pivotTab.classList.contains('active')) {
+        pivotTab.click();
+    }
+
+    // Show loading in pivot container
+    const container = document.getElementById('wdr-pivot-grid');
+    if (!container) {
+        console.error('[loadPivot] wdr-pivot-grid container not found');
+        return;
+    }
+
+    container.innerHTML = `
+        <div class="rb-empty-state">
+            <div class="rb-empty-state-icon">⏳</div>
+            <div class="rb-empty-state-title">Loading Pivot...</div>
+            <div class="rb-empty-state-text">Fetching data from server</div>
+        </div>
+    `;
+
+    try {
+        const filters = this.getFilters();
+        console.log('[loadPivot] Selected fields:', this.selectedFields.length);
+        console.log('[loadPivot] Filters:', filters.length);
+
+        const response = await fetch('/api/reports/preview', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                reportId: this.reportId,
-                name: name,
-                description: document.getElementById('reportDescription').value,
                 entityType: document.getElementById('entityTypeSelector').value,
-                category: document.getElementById('reportCategory').value,
-                isPublic: document.getElementById('reportPublic').checked,
-                pivotConfiguration: pivotConfig,
                 fields: this.selectedFields.map((f, i) => ({
                     fieldPath: f.fieldPath,
                     displayName: f.displayName,
@@ -472,22 +550,169 @@ ReportBuilder.save = async function() {
                     isCustomField: f.isCustom || false,
                     customFieldDefinitionId: f.customId ? parseInt(f.customId) : null
                 })),
-                filters: this.getFilters(),
+                filters: filters,
                 collectionQueries: this.getCollectionQueries()
             })
         });
-        
+
+        console.log('[loadPivot] Response status:', response.status);
+
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error('[loadPivot] Server error:', errorText);
+            throw new Error(`Server error: ${response.status}`);
+        }
+
         const result = await response.json();
-        
+        console.log('[loadPivot] Result:', result.success ? `${result.data?.length || 0} rows` : 'failed');
+
         if (result.success) {
-            alert('Report saved successfully!');
-            window.location.href = '/Reports/Index';
+            this.renderPivot(result.data, filters);
         } else {
-            alert('Error saving report: ' + result.error);
+            container.innerHTML = `
+                <div class="rb-empty-state">
+                    <div class="rb-empty-state-icon">⚠️</div>
+                    <div class="rb-empty-state-title">Pivot Failed</div>
+                    <div class="rb-empty-state-text">${result.error || 'Unknown error'}</div>
+                </div>
+            `;
         }
     } catch (error) {
-        alert('Failed to save report: ' + error.message);
+        console.error('[loadPivot] Error:', error);
+        container.innerHTML = `
+            <div class="rb-empty-state">
+                <div class="rb-empty-state-icon">❌</div>
+                <div class="rb-empty-state-title">Error Loading Pivot</div>
+                <div class="rb-empty-state-text">${error.message}</div>
+            </div>
+        `;
     }
+};
+
+ReportBuilder.renderPivot = function(data, filters) {
+    const container = document.getElementById('wdr-pivot-grid');
+    const recordCountSpan = document.getElementById('pivotRecordCount');
+
+    if (!container) {
+        console.error('[renderPivot] wdr-pivot-grid container not found');
+        return;
+    }
+
+    if (!data || data.length === 0) {
+        container.innerHTML = `
+            <div class="rb-empty-state">
+                <div class="rb-empty-state-icon">📊</div>
+                <div class="rb-empty-state-title">No Data Found</div>
+                <div class="rb-empty-state-text">Your filters returned 0 rows. Try adjusting your filter criteria.</div>
+            </div>
+        `;
+        if (recordCountSpan) recordCountSpan.textContent = '(0 rows)';
+        return;
+    }
+
+    // Update record count in toolbar
+    if (recordCountSpan) {
+        const filterText = filters && filters.length > 0 ? ` · ${filters.length} filter(s)` : '';
+        recordCountSpan.textContent = `(${data.length} rows${filterText})`;
+    }
+
+    if (window.pivotGridInstance) {
+        try {
+            window.pivotGridInstance.dispose();
+        } catch (e) {
+            console.warn('[renderPivot] Error disposing previous instance:', e);
+        }
+        window.pivotGridInstance = null;
+    }
+
+    container.innerHTML = '<div id="wdr-pivot-actual"></div>';
+
+    const savedPivotConfig = this.savedPivotConfiguration;
+    let reportConfig;
+
+    if (savedPivotConfig && savedPivotConfig.length > 0) {
+        try {
+            reportConfig = JSON.parse(savedPivotConfig);
+            reportConfig.dataSource = { data: data };
+        } catch (e) {
+            reportConfig = this.getPivotConfig(data);
+        }
+    } else {
+        reportConfig = this.getPivotConfig(data);
+    }
+
+    // Calculate available height for the pivot
+    // Account for toolbar (40px) and some margin
+    const containerHeight = container.offsetHeight || 600;
+    const pivotHeight = Math.max(500, containerHeight - 10);
+
+    window.pivotGridInstance = new WebDataRocks({
+        container: "#wdr-pivot-actual",
+        toolbar: true,
+        height: pivotHeight,
+        report: reportConfig,
+        global: {
+            localization: {
+                grid: {
+                    blankMember: "(blank)"
+                }
+            }
+        },
+        customizeCell: function(cell, data) {
+            if (data.type === "value" && typeof data.value === "string" && /^\d{4}-\d{2}-\d{2}T/.test(data.value)) {
+                cell.text = data.value.split('T')[0];
+            }
+        },
+        beforetoolbarcreated: function(toolbar) {
+            // Ensure toolbar is properly initialized
+            console.log('[WebDataRocks] Toolbar created');
+        },
+        reportcomplete: function() {
+            console.log('[WebDataRocks] Report rendered');
+        }
+    });
+
+    console.log('[renderPivot] Pivot rendered with', data.length, 'rows at height', pivotHeight);
+};
+
+ReportBuilder.getPivotConfig = function(data) {
+    if (!data || data.length === 0) {
+        return {
+            dataSource: { data: [] },
+            slice: { rows: [], columns: [], measures: [] }
+        };
+    }
+
+    const dataKeys = Object.keys(data[0] || {});
+
+    // Filter to only include selected display fields
+    const selectedFieldPaths = this.selectedFields.map(f => f.fieldPath);
+    const filteredKeys = dataKeys.filter(key => selectedFieldPaths.includes(key));
+
+    // If no fields are selected, fall back to all keys
+    const keysToUse = filteredKeys.length > 0 ? filteredKeys : dataKeys;
+
+    return {
+        dataSource: {
+            data: data
+        },
+        slice: {
+            rows: [],
+            columns: [{ uniqueName: "Measures" }],
+            measures: keysToUse.slice(0, 4).map(key => ({
+                uniqueName: key,
+                aggregation: "count"
+            }))
+        },
+        options: {
+            grid: {
+                type: "compact",
+                showTotals: true,
+                showGrandTotals: "on"
+            },
+            configuratorActive: true
+        }
+    };
 };
 
 ReportBuilder.loadDefaultFields = async function() {

@@ -1,0 +1,894 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Sentinel — Report Builder Prototype</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700;800&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* ── Tokens ─────────────────────────────────────────── */
+:root {
+  --forest:       #0C2A20;
+  --forest-2:     #13382C;
+  --moss:         #1E5D44;
+  --signal:       #3DD598;
+  --signal-dk:    #159C6E;
+  --signal-lt:    #D9F2E5;
+  --lime:         #C9E86A;
+  --slate:        #6B7A78;
+  --slate-2:      #3E4A48;
+  --slate-lt:     #B8C0BE;
+  --bone:         #F5F3EC;
+  --paper:        #ECEAE1;
+  --chalk:        #FBFAF5;
+  --graphite:     #4A5A55;
+  --hairline:     #D8D4C4;
+  --hairline-dk:  #1E3329;
+  --outbreak:     #E04D2B;
+  --watch:        #E0A43A;
+  --clear:        #3DD598;
+  --info:         #6B8CF5;
+  --f-sans: "Geist", ui-sans-serif, system-ui, sans-serif;
+  --f-mono: "Geist Mono", ui-monospace, Menlo, monospace;
+}
+
+/* ── Reset ───────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; color-scheme: light; }
+body {
+  background: var(--bone);
+  color: var(--forest);
+  font-family: var(--f-sans);
+  font-size: 15px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  font-feature-settings: "ss01","ss02","cv11";
+  padding: 0;
+  margin: 0;
+  overflow-x: hidden;
+}
+
+/* ── Top Bar ───────────────────────────────────────────── */
+.topbar {
+  background: var(--chalk);
+  border-bottom: 1px solid var(--hairline);
+  padding: 16px 32px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.topbar-left {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.topbar-title {
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: -.02em;
+  color: var(--forest);
+}
+
+.topbar-status {
+  font-family: var(--f-mono);
+  font-size: 11px;
+  letter-spacing: .05em;
+  color: var(--slate);
+  padding: 4px 10px;
+  background: var(--paper);
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--watch);
+}
+
+.status-dot.saved { background: var(--clear); }
+.status-dot.error { background: var(--outbreak); }
+
+.topbar-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.btn {
+  font-family: var(--f-sans);
+  font-size: 13px;
+  font-weight: 500;
+  padding: 8px 16px;
+  border-radius: 6px;
+  border: none;
+  cursor: pointer;
+  transition: all .15s;
+  letter-spacing: -.01em;
+}
+
+.btn-secondary {
+  background: var(--paper);
+  color: var(--forest);
+  border: 1px solid var(--hairline);
+}
+
+.btn-secondary:hover {
+  background: var(--chalk);
+  border-color: var(--slate-lt);
+}
+
+.btn-primary {
+  background: var(--signal);
+  color: var(--forest);
+  font-weight: 600;
+}
+
+.btn-primary:hover {
+  background: var(--signal-dk);
+  color: var(--chalk);
+}
+
+/* ── Split Layout ──────────────────────────────────────── */
+.split-container {
+  display: grid;
+  grid-template-columns: 480px 1fr;
+  height: calc(100vh - 65px);
+  overflow: hidden;
+}
+
+/* ── Query Builder Pane ─────────────────────────────────── */
+.query-builder-pane {
+  background: var(--chalk);
+  border-right: 1px solid var(--hairline);
+  overflow-y: auto;
+  padding: 32px 28px;
+}
+
+.pane-header {
+  padding-bottom: 20px;
+  border-bottom: 1px solid var(--hairline);
+  margin-bottom: 28px;
+}
+
+.pane-title {
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: -.01em;
+  margin-bottom: 8px;
+}
+
+.report-name-input {
+  width: 100%;
+  font-family: var(--f-sans);
+  font-size: 15px;
+  padding: 10px 12px;
+  border: 1px solid var(--hairline);
+  border-radius: 6px;
+  background: var(--chalk);
+  margin-bottom: 12px;
+  transition: border-color .15s;
+}
+
+.report-name-input:focus {
+  outline: none;
+  border-color: var(--signal);
+}
+
+.entity-selector {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.entity-selector label {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--graphite);
+}
+
+.entity-selector select {
+  flex: 1;
+  font-family: var(--f-sans);
+  font-size: 14px;
+  padding: 8px 12px;
+  border: 1px solid var(--hairline);
+  border-radius: 6px;
+  background: var(--chalk);
+  cursor: pointer;
+}
+
+/* ── Section Headers ─────────────────────────────────────── */
+.section-header {
+  font-family: var(--f-mono);
+  font-size: 10px;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--graphite);
+  margin: 32px 0 14px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--hairline);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.section-count {
+  background: var(--paper);
+  padding: 2px 8px;
+  border-radius: 3px;
+  font-size: 9px;
+}
+
+/* ── Filter/Collection Items ─────────────────────────────── */
+.filter-item,
+.collection-item {
+  background: var(--paper);
+  border: 1px solid var(--hairline);
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 12px;
+  transition: all .15s;
+}
+
+.filter-item:hover,
+.collection-item:hover {
+  border-color: var(--slate-lt);
+  box-shadow: 0 2px 8px rgba(12, 42, 32, .04);
+}
+
+.item-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.item-label {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--forest);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.item-remove {
+  background: none;
+  border: none;
+  color: var(--slate);
+  cursor: pointer;
+  font-size: 16px;
+  padding: 4px;
+  line-height: 1;
+  transition: color .15s;
+}
+
+.item-remove:hover {
+  color: var(--outbreak);
+}
+
+.filter-display {
+  font-family: var(--f-mono);
+  font-size: 12px;
+  color: var(--graphite);
+  background: var(--chalk);
+  padding: 8px 10px;
+  border-radius: 4px;
+  margin-top: 8px;
+}
+
+.filter-display .operator {
+  color: var(--signal-dk);
+  font-weight: 500;
+}
+
+.filter-display .value {
+  color: var(--forest);
+  font-weight: 500;
+}
+
+/* ── Collection Item Special ─────────────────────────────── */
+.collection-path {
+  font-family: var(--f-mono);
+  font-size: 11px;
+  color: var(--slate);
+  margin-bottom: 10px;
+}
+
+.collection-op {
+  font-size: 13px;
+  color: var(--graphite);
+  margin-bottom: 10px;
+}
+
+.sub-filter {
+  background: var(--chalk);
+  padding: 8px 10px;
+  border-radius: 4px;
+  font-family: var(--f-mono);
+  font-size: 11px;
+  color: var(--graphite);
+  margin-top: 6px;
+}
+
+.explainer {
+  background: var(--signal-lt);
+  padding: 10px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  color: var(--forest-2);
+  line-height: 1.5;
+  margin-top: 10px;
+  border-left: 3px solid var(--signal);
+}
+
+/* ── Add Buttons ─────────────────────────────────────────── */
+.add-btn {
+  width: 100%;
+  font-family: var(--f-sans);
+  font-size: 13px;
+  font-weight: 500;
+  padding: 10px 16px;
+  background: var(--paper);
+  border: 1px dashed var(--hairline);
+  border-radius: 6px;
+  color: var(--graphite);
+  cursor: pointer;
+  transition: all .15s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.add-btn:hover {
+  background: var(--chalk);
+  border-color: var(--slate-lt);
+  color: var(--forest);
+}
+
+/* ── Preview Pane ───────────────────────────────────────── */
+.preview-pane {
+  background: var(--bone);
+  overflow-y: auto;
+  padding: 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.preview-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.preview-title {
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: -.01em;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.row-count {
+  font-family: var(--f-mono);
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--signal-dk);
+  background: var(--signal-lt);
+  padding: 6px 14px;
+  border-radius: 6px;
+}
+
+.preview-actions {
+  display: flex;
+  gap: 8px;
+}
+
+/* ── Query Summary Box ───────────────────────────────────── */
+.query-summary {
+  background: var(--forest);
+  color: var(--bone);
+  border-radius: 10px;
+  padding: 24px;
+  font-family: var(--f-mono);
+  font-size: 13px;
+  line-height: 1.8;
+}
+
+.query-summary-title {
+  font-family: var(--f-sans);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+  color: #8AA298;
+  margin-bottom: 16px;
+}
+
+.query-line {
+  display: flex;
+  padding: 4px 0;
+}
+
+.query-line .keyword {
+  color: var(--lime);
+  font-weight: 500;
+  min-width: 100px;
+}
+
+.query-line .detail {
+  color: var(--signal-lt);
+}
+
+.query-indent {
+  padding-left: 24px;
+  color: #B8C0BE;
+}
+
+/* ── Data Preview Table ──────────────────────────────────── */
+.data-preview {
+  background: var(--chalk);
+  border: 1px solid var(--hairline);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.data-preview-header {
+  padding: 16px 20px;
+  background: var(--paper);
+  border-bottom: 1px solid var(--hairline);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: -.01em;
+  color: var(--graphite);
+}
+
+.preview-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.preview-table thead {
+  background: var(--paper);
+  border-bottom: 1px solid var(--hairline);
+}
+
+.preview-table th {
+  text-align: left;
+  padding: 12px 16px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: .03em;
+  text-transform: uppercase;
+  color: var(--graphite);
+  font-family: var(--f-mono);
+}
+
+.preview-table td {
+  padding: 14px 16px;
+  font-size: 13px;
+  color: var(--forest);
+  border-bottom: 1px solid var(--hairline);
+}
+
+.preview-table tbody tr:hover {
+  background: var(--paper);
+}
+
+.preview-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.preview-footer {
+  padding: 14px 20px;
+  background: var(--paper);
+  border-top: 1px solid var(--hairline);
+  font-size: 12px;
+  color: var(--slate);
+  text-align: center;
+}
+
+/* ── Field Display Items ─────────────────────────────────── */
+.field-item {
+  background: var(--paper);
+  border: 1px solid var(--hairline);
+  border-radius: 6px;
+  padding: 10px 14px;
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 13px;
+  transition: all .15s;
+}
+
+.field-item:hover {
+  border-color: var(--slate-lt);
+}
+
+.field-name {
+  color: var(--forest);
+  font-weight: 500;
+}
+
+.field-badge {
+  font-family: var(--f-mono);
+  font-size: 9px;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  background: var(--signal-lt);
+  color: var(--signal-dk);
+  padding: 3px 7px;
+  border-radius: 3px;
+  font-weight: 600;
+}
+
+/* ── Responsive ──────────────────────────────────────────── */
+@media (max-width: 1200px) {
+  .split-container {
+    grid-template-columns: 400px 1fr;
+  }
+}
+
+@media (max-width: 900px) {
+  .split-container {
+    grid-template-columns: 1fr;
+    height: auto;
+  }
+
+  .query-builder-pane {
+    border-right: none;
+    border-bottom: 1px solid var(--hairline);
+  }
+}
+
+/* ── Loading State ───────────────────────────────────────── */
+.loading-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(245, 243, 236, .9);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 50;
+}
+
+.spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid var(--paper);
+  border-top-color: var(--signal);
+  border-radius: 50%;
+  animation: spin .8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+</style>
+</head>
+<body>
+
+<!-- Top Bar -->
+<div class="topbar">
+  <div class="topbar-left">
+    <div class="topbar-title">Report Builder</div>
+    <div class="topbar-status">
+      <span class="status-dot saved"></span>
+      <span>Saved · 2 min ago</span>
+    </div>
+  </div>
+  <div class="topbar-actions">
+    <button class="btn btn-secondary">Export CSV</button>
+    <button class="btn btn-primary">Save Report</button>
+  </div>
+</div>
+
+<!-- Split Layout -->
+<div class="split-container">
+
+  <!-- Left Pane: Query Builder -->
+  <div class="query-builder-pane">
+
+    <div class="pane-header">
+      <div class="pane-title">Query Configuration</div>
+      <input 
+        type="text" 
+        class="report-name-input" 
+        value="COVID-19 Cases with Lab Results"
+        placeholder="Report name..."
+      />
+      <div class="entity-selector">
+        <label>Entity:</label>
+        <select>
+          <option selected>Case</option>
+          <option>Patient</option>
+          <option>Outbreak</option>
+          <option>Contact</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- Filters Section -->
+    <div class="section-header">
+      <span>Filters</span>
+      <span class="section-count">2</span>
+    </div>
+
+    <div class="filter-item">
+      <div class="item-header">
+        <div class="item-label">
+          <span>🎯</span>
+          <span>Status</span>
+        </div>
+        <button class="item-remove">×</button>
+      </div>
+      <div class="filter-display">
+        <span class="operator">equals</span>
+        <span class="value">"Confirmed"</span>
+      </div>
+    </div>
+
+    <div class="filter-item">
+      <div class="item-header">
+        <div class="item-label">
+          <span>📅</span>
+          <span>Onset Date</span>
+        </div>
+        <button class="item-remove">×</button>
+      </div>
+      <div class="filter-display">
+        <span class="operator">≥</span>
+        <span class="value">2024-01-01</span>
+      </div>
+    </div>
+
+    <button class="add-btn">
+      <span>+</span>
+      <span>Add Filter</span>
+    </button>
+
+    <!-- Collections Section -->
+    <div class="section-header">
+      <span>Collections</span>
+      <span class="section-count">1</span>
+    </div>
+
+    <div class="collection-item">
+      <div class="item-header">
+        <div class="item-label">
+          <span>🔬</span>
+          <span>Lab Results with Markers</span>
+        </div>
+        <button class="item-remove">×</button>
+      </div>
+
+      <div class="collection-path">LabResults → Markers</div>
+
+      <div class="collection-op">Operation: <strong>Has Any</strong></div>
+
+      <div class="sub-filter">
+        Pathogen.Name <span class="operator">equals</span> <span class="value">"COVID-19"</span>
+      </div>
+
+      <div class="explainer">
+        💡 This checks if the case has <strong>any</strong> lab result where at least one marker matches COVID-19
+      </div>
+    </div>
+
+    <button class="add-btn">
+      <span>+</span>
+      <span>Add Collection Query</span>
+    </button>
+
+    <!-- Display Fields Section -->
+    <div class="section-header">
+      <span>Display Fields</span>
+      <span class="section-count">4</span>
+    </div>
+
+    <div class="field-item">
+      <span class="field-name">Case ID</span>
+      <button class="item-remove">×</button>
+    </div>
+
+    <div class="field-item">
+      <span class="field-name">Status</span>
+      <button class="item-remove">×</button>
+    </div>
+
+    <div class="field-item">
+      <span class="field-name">Onset Date</span>
+      <button class="item-remove">×</button>
+    </div>
+
+    <div class="field-item">
+      <span class="field-name">Marker Count</span>
+      <span class="field-badge">Aggregate</span>
+    </div>
+
+    <button class="add-btn">
+      <span>+</span>
+      <span>Add Field</span>
+    </button>
+
+  </div>
+
+  <!-- Right Pane: Preview -->
+  <div class="preview-pane">
+
+    <div class="preview-header">
+      <div class="preview-title">
+        <span>⚡</span>
+        <span>Live Preview</span>
+      </div>
+      <div class="row-count">847 rows</div>
+      <div class="preview-actions">
+        <button class="btn btn-secondary">⟳ Refresh</button>
+        <button class="btn btn-secondary">⊕ Run Full Query</button>
+      </div>
+    </div>
+
+    <!-- Query Summary -->
+    <div class="query-summary">
+      <div class="query-summary-title">Query Summary</div>
+      <div class="query-line">
+        <span class="keyword">Entity:</span>
+        <span class="detail">Case</span>
+      </div>
+      <div class="query-line">
+        <span class="keyword">WHERE:</span>
+      </div>
+      <div class="query-indent">• Status = "Confirmed"</div>
+      <div class="query-indent">• OnsetDate ≥ 2024-01-01</div>
+      <div class="query-line" style="margin-top: 8px;">
+        <span class="keyword">WITH:</span>
+      </div>
+      <div class="query-indent">Collection: LabResults.Markers</div>
+      <div class="query-indent">Operation: Has Any</div>
+      <div class="query-indent">Sub-Filters:</div>
+      <div class="query-indent" style="padding-left: 48px;">└ Pathogen.Name = "COVID-19"</div>
+      <div class="query-line" style="margin-top: 8px;">
+        <span class="keyword">RETURN:</span>
+      </div>
+      <div class="query-indent">• CaseId</div>
+      <div class="query-indent">• Status</div>
+      <div class="query-indent">• OnsetDate</div>
+      <div class="query-indent">• [LabResults.Markers.Count] (aggregate)</div>
+    </div>
+
+    <!-- Data Preview -->
+    <div class="data-preview">
+      <div class="data-preview-header">Data Preview — First 100 rows</div>
+      <table class="preview-table">
+        <thead>
+          <tr>
+            <th>Case ID</th>
+            <th>Status</th>
+            <th>Onset Date</th>
+            <th>Marker Count</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>CASE-001</td>
+            <td>Confirmed</td>
+            <td>2024-01-15</td>
+            <td>3</td>
+          </tr>
+          <tr>
+            <td>CASE-002</td>
+            <td>Confirmed</td>
+            <td>2024-01-18</td>
+            <td>2</td>
+          </tr>
+          <tr>
+            <td>CASE-003</td>
+            <td>Confirmed</td>
+            <td>2024-01-22</td>
+            <td>1</td>
+          </tr>
+          <tr>
+            <td>CASE-007</td>
+            <td>Confirmed</td>
+            <td>2024-01-28</td>
+            <td>4</td>
+          </tr>
+          <tr>
+            <td>CASE-012</td>
+            <td>Confirmed</td>
+            <td>2024-02-03</td>
+            <td>2</td>
+          </tr>
+          <tr>
+            <td>CASE-015</td>
+            <td>Confirmed</td>
+            <td>2024-02-08</td>
+            <td>3</td>
+          </tr>
+          <tr>
+            <td>CASE-018</td>
+            <td>Confirmed</td>
+            <td>2024-02-12</td>
+            <td>1</td>
+          </tr>
+          <tr>
+            <td>CASE-021</td>
+            <td>Confirmed</td>
+            <td>2024-02-15</td>
+            <td>5</td>
+          </tr>
+        </tbody>
+      </table>
+      <div class="preview-footer">
+        Showing 8 of 847 total rows · Last updated 12 seconds ago
+      </div>
+    </div>
+
+  </div>
+
+</div>
+
+<script>
+// Simple demo interactions
+document.querySelectorAll('.item-remove').forEach(btn => {
+  btn.addEventListener('click', function() {
+    if (confirm('Remove this item?')) {
+      this.closest('.filter-item, .collection-item, .field-item').remove();
+      updateCounts();
+    }
+  });
+});
+
+document.querySelectorAll('.add-btn').forEach(btn => {
+  btn.addEventListener('click', function() {
+    alert('This would open a modal to add a new filter/collection/field');
+  });
+});
+
+function updateCounts() {
+  const filterCount = document.querySelectorAll('.filter-item').length;
+  const collectionCount = document.querySelectorAll('.collection-item').length;
+  const fieldCount = document.querySelectorAll('.field-item').length;
+
+  document.querySelectorAll('.section-count')[0].textContent = filterCount;
+  document.querySelectorAll('.section-count')[1].textContent = collectionCount;
+  document.querySelectorAll('.section-count')[2].textContent = fieldCount;
+}
+
+// Simulate real-time status changes
+setInterval(() => {
+  const statusText = document.querySelector('.topbar-status span:last-child');
+  const dot = document.querySelector('.status-dot');
+
+  const states = [
+    { text: 'Saved · 2 min ago', class: 'saved' },
+    { text: 'Modified · just now', class: '' },
+    { text: 'Saved · just now', class: 'saved' }
+  ];
+
+  const state = states[Math.floor(Math.random() * states.length)];
+  statusText.textContent = state.text;
+  dot.className = 'status-dot ' + state.class;
+}, 5000);
+</script>
+
+</body>
+</html>

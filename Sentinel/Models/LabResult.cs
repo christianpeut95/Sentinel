@@ -88,6 +88,19 @@ namespace Sentinel.Models
         // Pathogen/Biomarker Test Results (new system)
         public ICollection<LabResultMarker> Markers { get; set; } = new List<LabResultMarker>();
 
+        // Multiplex Result Support - for lab results that test for multiple diseases
+        // When a multiplex result identifies multiple diseases, we create separate LabResult records
+        // for each disease (one original + N clones), each linked to its own case
+        [Display(Name = "Parent Lab Result ID")]
+        public Guid? ParentLabResultId { get; set; }
+        public LabResult? ParentLabResult { get; set; }
+
+        [Display(Name = "Is Multiplex Clone")]
+        public bool IsMultiplexClone { get; set; } = false;
+
+        // Navigation property for cloned lab results (multiplex results)
+        public ICollection<LabResult> ClonedLabResults { get; set; } = new List<LabResult>();
+
         // Audit fields
         [Display(Name = "Created At")]
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;

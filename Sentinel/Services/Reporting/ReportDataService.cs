@@ -2243,13 +2243,38 @@ public class ReportDataService : IReportDataService
             return false;
         }
 
+        // Handle nested collections (e.g., LabResults.Markers)
+        if (!string.IsNullOrEmpty(query.SubCollectionName))
+        {
+            switch (query.CollectionName)
+            {
+                case "LabResults" when query.SubCollectionName == "Markers":
+                    // Query markers directly (nested under LabResults)
+                    var markerQuery = _context.LabResults
+                        .Where(lr => lr.CaseId == caseGuid)
+                        .SelectMany(lr => lr.Markers)
+                        .Include(m => m.Pathogen)
+                        .Include(m => m.TestMethod)
+                        .Include(m => m.TestResult);
+                    return await ApplySubFiltersAndCheckAnyAsync(markerQuery, query.SubFilters);
+
+                default:
+                    Console.WriteLine($"[CollectionColumns] Unsupported nested collection: {query.CollectionName}.{query.SubCollectionName}");
+                    return false;
+            }
+        }
+
+        // Handle top-level collections
         switch (query.CollectionName)
         {
             case "LabResults":
                 var labQuery = _context.LabResults
                     .Include(lr => lr.SpecimenType)
+                    .Include(lr => lr.Laboratory)
+                    .Include(lr => lr.TestedDisease)
                     .Include(lr => lr.Markers).ThenInclude(m => m.Pathogen)
                     .Include(lr => lr.Markers).ThenInclude(m => m.TestMethod)
+                    .Include(lr => lr.Markers).ThenInclude(m => m.TestResult)
                     .Where(lr => lr.CaseId == caseGuid);
                 return await ApplySubFiltersAndCheckAnyAsync(labQuery, query.SubFilters);
 
@@ -2410,6 +2435,123 @@ public class ReportDataService : IReportDataService
 
             _ => now.Date  // Default to today if type unknown
         };
+    }
+
+    /// <summary>
+    /// Applies sub-filters to a marker query using Dynamic LINQ
+    /// </summary>
+    private IQueryable<LabResultMarker> ApplyMarkerSubFilters(IQueryable<LabResultMarker> query, List<CollectionSubFilter> subFilters)
+    {
+        if (subFilters == null || !subFilters.Any())
+            return query;
+
+        // Build Dynamic LINQ where clauses from sub-filters
+        var whereClauses = new List<string>();
+
+        foreach (var filter in subFilters)
+        {
+            var clause = BuildSubFilterWhereClause(filter);
+            if (!string.IsNullOrEmpty(clause))
+            {
+                whereClauses.Add(clause);
+            }
+        }
+
+        if (!whereClauses.Any())
+            return query;
+
+        // Combine with AND
+        var combinedWhere = string.Join(" && ", whereClauses);
+
+        try
+        {
+            Console.WriteLine($"[MarkerFilter] Generated Dynamic LINQ query: {combinedWhere}");
+            return query.Where(combinedWhere);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[MarkerFilter] Error applying sub-filters: {ex.Message}");
+            Console.WriteLine($"[MarkerFilter] Failed query: {combinedWhere}");
+            return query; // Return unfiltered query on error
+        }
+    }
+
+    /// <summary>
+    /// Determines if a field path references marker properties
+    /// </summary>
+    private bool IsMarkerFilterPath(string fieldPath)
+    {
+        if (string.IsNullOrEmpty(fieldPath))
+            return false;
+
+        // Check if field path references marker properties
+        var markerFields = new[]
+        {
+            "Pathogen", "TestMethod", "TestResult", "QuantitativeValue",
+            "QualitativeResultText", "QuantitativeUnit", "InterpretationFlag",
+            "ResultStatus", "LOINCCode", "TestCode", "ResultFinalizedDate"
+        };
+
+        return markerFields.Any(f => fieldPath.StartsWith(f, StringComparison.OrdinalIgnoreCase));
+    }
+
+    /// <summary>
+    /// Applies marker-specific subfilters to a LabResult query by using .Any() on the Markers collection
+    /// </summary>
+    private async Task<IQueryable<LabResult>> ApplyMarkerSubFiltersToLabResultsAsync(
+        IQueryable<LabResult> labResultQuery,
+        List<CollectionSubFilter> allSubFilters)
+    {
+        if (allSubFilters == null || !allSubFilters.Any())
+            return labResultQuery;
+
+        // Separate marker filters from labresult filters
+        var markerFilters = allSubFilters.Where(f => IsMarkerFilterPath(f.Field)).ToList();
+        var labResultFilters = allSubFilters.Where(f => !IsMarkerFilterPath(f.Field)).ToList();
+
+        // Apply LabResult-level filters directly
+        foreach (var filter in labResultFilters)
+        {
+            var clause = BuildSubFilterWhereClause(filter);
+            if (!string.IsNullOrEmpty(clause))
+            {
+                try
+                {
+                    labResultQuery = labResultQuery.Where(clause);
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"[MarkerFilter] Error applying LabResult filter: {ex.Message}");
+                }
+            }
+        }
+
+        // Apply marker filters using Markers.Any()
+        if (markerFilters.Any())
+        {
+            var markerWhereClauses = markerFilters
+                .Select(BuildSubFilterWhereClause)
+                .Where(c => !string.IsNullOrEmpty(c))
+                .ToList();
+
+            if (markerWhereClauses.Any())
+            {
+                var combinedMarkerWhere = string.Join(" && ", markerWhereClauses);
+                var markerAnyClause = $"Markers.Any({combinedMarkerWhere})";
+
+                try
+                {
+                    Console.WriteLine($"[MarkerFilter] Applying marker filter to LabResults: {markerAnyClause}");
+                    labResultQuery = labResultQuery.Where(markerAnyClause);
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"[MarkerFilter] Error applying marker filters: {ex.Message}");
+                }
+            }
+        }
+
+        return labResultQuery;
     }
 
     /// <summary>
@@ -2719,13 +2861,38 @@ public class ReportDataService : IReportDataService
             return 0;
         }
 
+        // Handle nested collections (e.g., LabResults.Markers)
+        if (!string.IsNullOrEmpty(query.SubCollectionName))
+        {
+            switch (query.CollectionName)
+            {
+                case "LabResults" when query.SubCollectionName == "Markers":
+                    // Count markers directly (nested under LabResults)
+                    var markerQuery = _context.LabResults
+                        .Where(lr => lr.CaseId == caseGuid)
+                        .SelectMany(lr => lr.Markers)
+                        .Include(m => m.Pathogen)
+                        .Include(m => m.TestMethod)
+                        .Include(m => m.TestResult);
+                    return await ApplySubFiltersAndCountAsync(markerQuery, query.SubFilters);
+
+                default:
+                    Console.WriteLine($"[CollectionColumns] Unsupported nested collection for Count: {query.CollectionName}.{query.SubCollectionName}");
+                    return 0;
+            }
+        }
+
+        // Handle top-level collections
         switch (query.CollectionName)
         {
             case "LabResults":
                 var labQuery = _context.LabResults
                     .Include(lr => lr.SpecimenType)
+                    .Include(lr => lr.Laboratory)
+                    .Include(lr => lr.TestedDisease)
                     .Include(lr => lr.Markers).ThenInclude(m => m.Pathogen)
                     .Include(lr => lr.Markers).ThenInclude(m => m.TestMethod)
+                    .Include(lr => lr.Markers).ThenInclude(m => m.TestResult)
                     .Where(lr => lr.CaseId == caseGuid);
                 return await ApplySubFiltersAndCountAsync(labQuery, query.SubFilters);
 
@@ -2949,12 +3116,44 @@ public class ReportDataService : IReportDataService
     {
         if (!(entityId is Guid caseGuid)) return null;
 
+        // Handle nested collections (e.g., LabResults.Markers)
+        if (!string.IsNullOrEmpty(query.SubCollectionName))
+        {
+            switch (query.CollectionName)
+            {
+                case "LabResults" when query.SubCollectionName == "Markers":
+                    // Sum quantitative values across markers
+                    IQueryable<LabResultMarker> markerQuery = _context.LabResults
+                        .Where(lr => lr.CaseId == caseGuid)
+                        .SelectMany(lr => lr.Markers)
+                        .Include(m => m.Pathogen)
+                        .Include(m => m.TestMethod)
+                        .Include(m => m.TestResult);
+
+                    // Apply sub-filters if any
+                    markerQuery = ApplyMarkerSubFilters(markerQuery, query.SubFilters);
+
+                    if (!await markerQuery.AnyAsync()) return null;
+
+                    return query.AggregateField switch
+                    {
+                        "QuantitativeValue" => await markerQuery
+                            .Where(m => m.QuantitativeValue.HasValue)
+                            .SumAsync(m => m.QuantitativeValue),
+                        _ => null
+                    };
+
+                default:
+                    Console.WriteLine($"[CollectionColumns] Unsupported nested collection for Sum: {query.CollectionName}.{query.SubCollectionName}");
+                    return null;
+            }
+        }
+
+        // Handle top-level collections
         switch (query.CollectionName)
         {
             case "LabResults":
-                // Note: Quantitative results are now in markers, not on LabResult directly
-                // This aggregation would need to specify which marker/pathogen to aggregate
-                // Returning null for now - needs redesign for marker-based quantitative values
+                // LabResults no longer have QuantitativeResult directly - use Markers instead
                 return null;
         }
 
@@ -2965,12 +3164,44 @@ public class ReportDataService : IReportDataService
     {
         if (!(entityId is Guid caseGuid)) return null;
 
+        // Handle nested collections (e.g., LabResults.Markers)
+        if (!string.IsNullOrEmpty(query.SubCollectionName))
+        {
+            switch (query.CollectionName)
+            {
+                case "LabResults" when query.SubCollectionName == "Markers":
+                    // Average quantitative values across markers
+                    IQueryable<LabResultMarker> markerQuery = _context.LabResults
+                        .Where(lr => lr.CaseId == caseGuid)
+                        .SelectMany(lr => lr.Markers)
+                        .Include(m => m.Pathogen)
+                        .Include(m => m.TestMethod)
+                        .Include(m => m.TestResult);
+
+                    // Apply sub-filters if any
+                    markerQuery = ApplyMarkerSubFilters(markerQuery, query.SubFilters);
+
+                    if (!await markerQuery.AnyAsync()) return null;
+
+                    return query.AggregateField switch
+                    {
+                        "QuantitativeValue" => await markerQuery
+                            .Where(m => m.QuantitativeValue.HasValue)
+                            .AverageAsync(m => m.QuantitativeValue),
+                        _ => null
+                    };
+
+                default:
+                    Console.WriteLine($"[CollectionColumns] Unsupported nested collection for Average: {query.CollectionName}.{query.SubCollectionName}");
+                    return null;
+            }
+        }
+
+        // Handle top-level collections
         switch (query.CollectionName)
         {
             case "LabResults":
-                // Note: Quantitative results are now in markers, not on LabResult directly
-                // This aggregation would need to specify which marker/pathogen to aggregate
-                // Returning null for now - needs redesign for marker-based quantitative values
+                // LabResults no longer have QuantitativeResult directly - use Markers instead
                 return null;
         }
 
@@ -2981,6 +3212,43 @@ public class ReportDataService : IReportDataService
     {
         if (!(entityId is Guid caseGuid)) return null;
 
+        // Handle nested collections (e.g., LabResults.Markers)
+        if (!string.IsNullOrEmpty(query.SubCollectionName))
+        {
+            switch (query.CollectionName)
+            {
+                case "LabResults" when query.SubCollectionName == "Markers":
+                    // Min values for markers
+                    IQueryable<LabResultMarker> markerQuery = _context.LabResults
+                        .Where(lr => lr.CaseId == caseGuid)
+                        .SelectMany(lr => lr.Markers)
+                        .Include(m => m.Pathogen)
+                        .Include(m => m.TestMethod)
+                        .Include(m => m.TestResult);
+
+                    // Apply sub-filters if any
+                    markerQuery = ApplyMarkerSubFilters(markerQuery, query.SubFilters);
+
+                    if (!await markerQuery.AnyAsync()) return null;
+
+                    return query.AggregateField switch
+                    {
+                        "QuantitativeValue" => await markerQuery
+                            .Where(m => m.QuantitativeValue.HasValue)
+                            .MinAsync(m => m.QuantitativeValue),
+                        "ResultFinalizedDate" => await markerQuery
+                            .Where(m => m.ResultFinalizedDate.HasValue)
+                            .MinAsync(m => m.ResultFinalizedDate),
+                        _ => null
+                    };
+
+                default:
+                    Console.WriteLine($"[CollectionColumns] Unsupported nested collection for Min: {query.CollectionName}.{query.SubCollectionName}");
+                    return null;
+            }
+        }
+
+        // Handle top-level collections
         switch (query.CollectionName)
         {
             case "LabResults":
@@ -2992,9 +3260,9 @@ public class ReportDataService : IReportDataService
                 {
                     "SpecimenCollectionDate" => await labQuery.Where(lr => lr.SpecimenCollectionDate.HasValue).MinAsync(lr => lr.SpecimenCollectionDate),
                     "ResultDate" => await labQuery.Where(lr => lr.ResultDate.HasValue).MinAsync(lr => lr.ResultDate),
-                    // Note: QuantitativeResult moved to markers - needs redesign
                     _ => null
                 };
+
 
             case "ExposureEvents":
                 var expQuery = _context.ExposureEvents.Where(e => e.ExposedCaseId == caseGuid);
@@ -3029,6 +3297,43 @@ public class ReportDataService : IReportDataService
     {
         if (!(entityId is Guid caseGuid)) return null;
 
+        // Handle nested collections (e.g., LabResults.Markers)
+        if (!string.IsNullOrEmpty(query.SubCollectionName))
+        {
+            switch (query.CollectionName)
+            {
+                case "LabResults" when query.SubCollectionName == "Markers":
+                    // Max values for markers
+                    IQueryable<LabResultMarker> markerQuery = _context.LabResults
+                        .Where(lr => lr.CaseId == caseGuid)
+                        .SelectMany(lr => lr.Markers)
+                        .Include(m => m.Pathogen)
+                        .Include(m => m.TestMethod)
+                        .Include(m => m.TestResult);
+
+                    // Apply sub-filters if any
+                    markerQuery = ApplyMarkerSubFilters(markerQuery, query.SubFilters);
+
+                    if (!await markerQuery.AnyAsync()) return null;
+
+                    return query.AggregateField switch
+                    {
+                        "QuantitativeValue" => await markerQuery
+                            .Where(m => m.QuantitativeValue.HasValue)
+                            .MaxAsync(m => m.QuantitativeValue),
+                        "ResultFinalizedDate" => await markerQuery
+                            .Where(m => m.ResultFinalizedDate.HasValue)
+                            .MaxAsync(m => m.ResultFinalizedDate),
+                        _ => null
+                    };
+
+                default:
+                    Console.WriteLine($"[CollectionColumns] Unsupported nested collection for Max: {query.CollectionName}.{query.SubCollectionName}");
+                    return null;
+            }
+        }
+
+        // Handle top-level collections
         switch (query.CollectionName)
         {
             case "LabResults":
@@ -3040,9 +3345,9 @@ public class ReportDataService : IReportDataService
                 {
                     "SpecimenCollectionDate" => await labQuery.Where(lr => lr.SpecimenCollectionDate.HasValue).MaxAsync(lr => lr.SpecimenCollectionDate),
                     "ResultDate" => await labQuery.Where(lr => lr.ResultDate.HasValue).MaxAsync(lr => lr.ResultDate),
-                    // Note: QuantitativeResult moved to markers - needs redesign
                     _ => null
                 };
+
 
             case "ExposureEvents":
                 var expQuery = _context.ExposureEvents.Where(e => e.ExposedCaseId == caseGuid);

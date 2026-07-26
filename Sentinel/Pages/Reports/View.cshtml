@@ -19,10 +19,11 @@
     <!-- WebDataRocks CSS -->
     <link href="https://cdn.webdatarocks.com/latest/webdatarocks.css" rel="stylesheet" />
     <!-- Full-width styling for Reports -->
+    <link href="~/css/sentinel-design-system.css" rel="stylesheet" />
     <link href="~/css/reports-fullwidth.css" rel="stylesheet" />
 }
 
-<div class="container-fluid py-4">
+<div class="wrap container-fluid py-4">
     @if (Model.ReportDefinition == null)
     {
         <div class="alert alert-danger">Report not found.</div>

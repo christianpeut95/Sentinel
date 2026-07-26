@@ -60,6 +60,24 @@ public class ReportFieldsApiController : ControllerBase
     }
 
     /// <summary>
+    /// Get recommended (core) fields for an entity type
+    /// GET: /api/reporting/fields/{entityType}/recommended
+    /// </summary>
+    [HttpGet("{entityType}/recommended")]
+    public async Task<ActionResult<List<ReportFieldMetadata>>> GetRecommendedFields(string entityType)
+    {
+        try
+        {
+            var fields = await _fieldMetadataService.GetRecommendedFieldsAsync(entityType);
+            return Ok(fields);
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
+    }
+
+    /// <summary>
     /// Get only custom fields for an entity
     /// GET: /api/reporting/fields/{entityType}/custom
     /// </summary>

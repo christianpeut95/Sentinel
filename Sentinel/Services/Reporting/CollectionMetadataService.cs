@@ -46,7 +46,7 @@ public class CollectionMetadataService : ICollectionMetadataService
             ["LabResults"] = new()
             {
                 Label = "Lab Results",
-                AllowedOperations = new List<string> { "HasAny", "HasAll", "Count", "Min", "Max", "Sum", "Average" },
+                AllowedOperations = new List<string> { "HasAny", "HasAll", "Count", "Min", "Max" },
                 AggregatableFields = new Dictionary<string, AggregatableFieldInfo>
                 {
                     ["SpecimenCollectionDate"] = new()
@@ -55,27 +55,24 @@ public class CollectionMetadataService : ICollectionMetadataService
                         DataType = "DateTime",
                         AllowedOperations = new List<string> { "Min", "Max" }
                     },
-                    ["TestDate"] = new()
+                    ["ResultDate"] = new()
                     {
-                        Label = "Test Date",
+                        Label = "Result Date",
                         DataType = "DateTime",
                         AllowedOperations = new List<string> { "Min", "Max" }
-                    },
-                    ["QuantitativeResult"] = new()
-                    {
-                        Label = "Quantitative Result",
-                        DataType = "Decimal",
-                        AllowedOperations = new List<string> { "Sum", "Average", "Min", "Max" }
                     }
                 },
                 FilterableFields = new List<CollectionFieldInfo>
                 {
-                    new() { Name = "TestType.Name", Label = "Test Type", DataType = "String" },
-                    new() { Name = "TestResult.Name", Label = "Test Result", DataType = "String" },
                     new() { Name = "SpecimenType.Name", Label = "Specimen Type", DataType = "String" },
                     new() { Name = "SpecimenCollectionDate", Label = "Collection Date", DataType = "DateTime" },
-                    new() { Name = "QuantitativeResult", Label = "Quantitative Result", DataType = "Decimal" }
-                }
+                    new() { Name = "ResultDate", Label = "Result Date", DataType = "DateTime" },
+                    new() { Name = "Laboratory.Name", Label = "Laboratory", DataType = "String" },
+                    new() { Name = "AccessionNumber", Label = "Accession Number", DataType = "String" },
+                    new() { Name = "TestedDisease.Name", Label = "Tested Disease", DataType = "String" }
+                },
+                // Nested collection for biomarkers/pathogens
+                SubCollections = new Dictionary<string, CollectionMetadata> { ["Markers"] = GetMarkersMetadata() }
             },
             
             ["ExposureEvents"] = new()
@@ -216,6 +213,47 @@ public class CollectionMetadataService : ICollectionMetadataService
                     new() { Name = "ConfirmationStatus.Name", Label = "Status", DataType = "String" },
                     new() { Name = "DateOfOnset", Label = "Date of Onset", DataType = "DateTime" }
                 }
+            }
+        };
+    }
+
+    /// <summary>
+    /// Metadata for biomarkers/pathogens within lab results
+    /// </summary>
+    private CollectionMetadata GetMarkersMetadata()
+    {
+        return new CollectionMetadata
+        {
+            Label = "Markers/Biomarkers",
+            AllowedOperations = new List<string> { "HasAny", "HasAll", "Count", "Sum", "Average", "Min", "Max" },
+            AggregatableFields = new Dictionary<string, AggregatableFieldInfo>
+            {
+                ["QuantitativeValue"] = new()
+                {
+                    Label = "Quantitative Value",
+                    DataType = "Decimal",
+                    AllowedOperations = new List<string> { "Sum", "Average", "Min", "Max" }
+                },
+                ["ResultFinalizedDate"] = new()
+                {
+                    Label = "Result Finalized Date",
+                    DataType = "DateTime",
+                    AllowedOperations = new List<string> { "Min", "Max" }
+                }
+            },
+            FilterableFields = new List<CollectionFieldInfo>
+            {
+                new() { Name = "Pathogen.Name", Label = "Pathogen/Biomarker", DataType = "String" },
+                new() { Name = "Pathogen.ShortName", Label = "Pathogen Short Name", DataType = "String" },
+                new() { Name = "TestMethod.Name", Label = "Test Method", DataType = "String" },
+                new() { Name = "TestResult.Name", Label = "Test Result", DataType = "String" },
+                new() { Name = "QualitativeResultText", Label = "Qualitative Result (Text)", DataType = "String" },
+                new() { Name = "QuantitativeValue", Label = "Quantitative Value", DataType = "Decimal" },
+                new() { Name = "QuantitativeUnit", Label = "Quantitative Unit", DataType = "String" },
+                new() { Name = "InterpretationFlag", Label = "Interpretation Flag", DataType = "String" },
+                new() { Name = "ResultStatus", Label = "Result Status", DataType = "String" },
+                new() { Name = "LOINCCode", Label = "LOINC Code", DataType = "String" },
+                new() { Name = "TestCode", Label = "Test Code", DataType = "String" }
             }
         };
     }
