@@ -1,0 +1,247 @@
+@page
+@model Sentinel.Pages.Settings.SmtpSettingsModel
+@{
+    ViewData["Title"] = "SMTP Settings";
+}
+
+<div class="container-fluid mt-4">
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="card shadow-sm">
+                <div class="card-header bg-white">
+                    <h4 class="mb-0">
+                        <i class="bi bi-envelope-at"></i> SMTP Email Configuration
+                    </h4>
+                    <p class="text-muted mb-0 mt-2">Configure email server settings for system notifications and password resets</p>
+                </div>
+                <div class="card-body">
+                    @if (Model.SmtpTestResultValue != null)
+                    {
+                        @if (Model.SmtpTestResultValue.Success)
+                        {
+                            <div class="alert alert-success alert-dismissible fade show" role="alert">
+                                <i class="bi bi-check-circle-fill"></i>
+                                <strong>Success!</strong> @Model.SmtpTestResultValue.Message
+                                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                                <i class="bi bi-exclamation-triangle-fill"></i>
+                                <strong>Connection Failed</strong><br />
+                                @Model.SmtpTestResultValue.Message
+                                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                            </div>
+                        }
+                    }
+
+                    <form method="post">
+                        <div class="row">
+                            <div class="col-md-8">
+                                <div class="mb-3">
+                                    <label asp-for="SmtpHost" class="form-label">SMTP Host <span class="text-danger">*</span></label>
+                                    <input asp-for="SmtpHost" class="form-control" placeholder="smtp.gmail.com" />
+                                    <span asp-validation-for="SmtpHost" class="text-danger"></span>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label asp-for="SmtpPort" class="form-label">Port <span class="text-danger">*</span></label>
+                                    <input asp-for="SmtpPort" type="number" class="form-control" placeholder="587" />
+                                    <span asp-validation-for="SmtpPort" class="text-danger"></span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <div class="form-check">
+                                <input asp-for="EnableSsl" class="form-check-input" type="checkbox" />
+                                <label asp-for="EnableSsl" class="form-check-label">
+                                    Enable SSL/TLS (Recommended)
+                                </label>
+                            </div>
+                            <small class="text-muted">Most modern email providers require SSL/TLS encryption</small>
+                        </div>
+
+                        <hr class="my-4" />
+
+                        <h5 class="mb-3">Authentication</h5>
+                        <div class="mb-3">
+                            <label asp-for="SmtpUsername" class="form-label">Username</label>
+                            <input asp-for="SmtpUsername" class="form-control" placeholder="your-email@example.com" autocomplete="off" />
+                            <span asp-validation-for="SmtpUsername" class="text-danger"></span>
+                            <small class="text-muted">Leave blank if authentication is not required</small>
+                        </div>
+
+                        <div class="mb-3">
+                            <label asp-for="SmtpPassword" class="form-label">Password</label>
+                            <div class="input-group">
+                                <input asp-for="SmtpPassword" type="password" class="form-control" placeholder="••••••••" autocomplete="new-password" id="smtpPassword" />
+                                <button class="btn btn-outline-secondary" type="button" id="togglePassword">
+                                    <i class="bi bi-eye" id="toggleIcon"></i>
+                                </button>
+                            </div>
+                            <span asp-validation-for="SmtpPassword" class="text-danger"></span>
+                            <small class="text-muted">Enter password to change, leave blank to keep existing</small>
+                        </div>
+
+                        <hr class="my-4" />
+
+                        <h5 class="mb-3">Sender Information</h5>
+                        <div class="mb-3">
+                            <label asp-for="FromEmail" class="form-label">From Email Address <span class="text-danger">*</span></label>
+                            <input asp-for="FromEmail" type="email" class="form-control" placeholder="noreply@yourdomain.com" />
+                            <span asp-validation-for="FromEmail" class="text-danger"></span>
+                        </div>
+
+                        <div class="mb-3">
+                            <label asp-for="FromDisplayName" class="form-label">From Display Name <span class="text-danger">*</span></label>
+                            <input asp-for="FromDisplayName" class="form-control" placeholder="Sentinel Surveillance System" />
+                            <span asp-validation-for="FromDisplayName" class="text-danger"></span>
+                        </div>
+
+                        <div class="mb-3">
+                            <label asp-for="TestEmailAddress" class="form-label">Test Email Address</label>
+                            <input asp-for="TestEmailAddress" type="email" class="form-control" placeholder="admin@yourdomain.com" />
+                            <small class="text-muted">Email address to send test messages to</small>
+                        </div>
+
+                        <hr class="my-4" />
+
+                        <div class="d-flex gap-2">
+                            <button type="submit" asp-page-handler="Save" class="btn btn-primary">
+                                <i class="bi bi-save"></i> Save Settings
+                            </button>
+                            <button type="submit" asp-page-handler="Test" class="btn btn-outline-secondary" formnovalidate>
+                                <i class="bi bi-envelope-check"></i> Test Connection
+                            </button>
+                            <a href="/Settings" class="btn btn-outline-secondary ms-auto">
+                                <i class="bi bi-x-circle"></i> Cancel
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <div class="card shadow-sm mt-3">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0">
+                        <i class="bi bi-info-circle"></i> Common SMTP Providers
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Provider</th>
+                                    <th>SMTP Host</th>
+                                    <th>Port</th>
+                                    <th>SSL</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td><strong>Gmail</strong></td>
+                                    <td>smtp.gmail.com</td>
+                                    <td>587</td>
+                                    <td><i class="bi bi-check-lg text-success"></i></td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Outlook/Office 365</strong></td>
+                                    <td>smtp.office365.com</td>
+                                    <td>587</td>
+                                    <td><i class="bi bi-check-lg text-success"></i></td>
+                                </tr>
+                                <tr>
+                                    <td><strong>SendGrid</strong></td>
+                                    <td>smtp.sendgrid.net</td>
+                                    <td>587</td>
+                                    <td><i class="bi bi-check-lg text-success"></i></td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Mailgun</strong></td>
+                                    <td>smtp.mailgun.org</td>
+                                    <td>587</td>
+                                    <td><i class="bi bi-check-lg text-success"></i></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="alert alert-info mb-0">
+                        <i class="bi bi-lightbulb"></i>
+                        <strong>Tip:</strong> For Gmail, you may need to use an App Password instead of your regular password. 
+                        Go to Google Account → Security → 2-Step Verification → App passwords
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4">
+            <div class="card shadow-sm">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0">
+                        <i class="bi bi-question-circle"></i> Help
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <h6>Email Usage</h6>
+                    <p class="small text-muted">
+                        Sentinel uses email for:
+                    </p>
+                    <ul class="small text-muted">
+                        <li>Password reset requests</li>
+                        <li>Account notifications</li>
+                        <li>Case assignment alerts</li>
+                        <li>Outbreak notifications</li>
+                        <li>System alerts</li>
+                    </ul>
+
+                    <h6 class="mt-3">Troubleshooting</h6>
+                    <p class="small text-muted">
+                        If test emails fail:
+                    </p>
+                    <ul class="small text-muted">
+                        <li>Verify host and port are correct</li>
+                        <li>Check SSL/TLS is enabled</li>
+                        <li>Confirm credentials are valid</li>
+                        <li>Check firewall allows outbound SMTP</li>
+                        <li>Review server logs for errors</li>
+                    </ul>
+
+                    <h6 class="mt-3">Security</h6>
+                    <p class="small text-muted">
+                        Passwords are encrypted at rest. For production environments, consider using:
+                    </p>
+                    <ul class="small text-muted">
+                        <li>Dedicated SMTP service (SendGrid, Mailgun)</li>
+                        <li>App passwords instead of account passwords</li>
+                        <li>IP whitelisting where supported</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script>
+        // Toggle password visibility
+        document.getElementById('togglePassword').addEventListener('click', function () {
+            const password = document.getElementById('smtpPassword');
+            const icon = document.getElementById('toggleIcon');
+
+            if (password.type === 'password') {
+                password.type = 'text';
+                icon.classList.remove('bi-eye');
+                icon.classList.add('bi-eye-slash');
+            } else {
+                password.type = 'password';
+                icon.classList.remove('bi-eye-slash');
+                icon.classList.add('bi-eye');
+            }
+        });
+    </script>
+}

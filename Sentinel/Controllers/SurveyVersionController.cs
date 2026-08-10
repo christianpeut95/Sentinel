@@ -7,7 +7,7 @@ using Sentinel.Models;
 
 namespace Sentinel.Controllers
 {
-    [Authorize]
+    [Authorize(Policy = "Permission.Survey.Edit")]
     [ApiController]
     [Route("api/[controller]")]
     [EnableRateLimiting("workflow-api-moderate")] // 60 per minute - survey versioning

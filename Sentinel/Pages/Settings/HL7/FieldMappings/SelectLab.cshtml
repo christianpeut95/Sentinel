@@ -70,15 +70,9 @@
                 <!-- Quick stats -->
                 @if (config.Status == "Active")
                 {
-                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;padding-top:12px;border-top:1px solid var(--hairline)">
-                        <div>
-                            <div style="font-family:var(--f-mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--graphite)">Fields mapped</div>
-                            <div style="font-size:20px;font-weight:500;letter-spacing:-.02em">@config.MappedFieldCount</div>
-                        </div>
-                        <div>
-                            <div style="font-family:var(--f-mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--graphite)">Messages</div>
-                            <div style="font-size:20px;font-weight:500;letter-spacing:-.02em">@config.MessageCount</div>
-                        </div>
+                    <div style="padding-top:12px;border-top:1px solid var(--hairline);margin-bottom:12px">
+                        <div style="font-family:var(--f-mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--graphite)">Fields mapped</div>
+                        <div style="font-size:20px;font-weight:500;letter-spacing:-.02em">@config.MappedFieldCount</div>
                     </div>
                 }
 

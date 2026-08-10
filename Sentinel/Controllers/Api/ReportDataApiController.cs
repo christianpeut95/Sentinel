@@ -9,7 +9,7 @@ namespace Sentinel.Controllers.Api;
 /// <summary>
 /// API endpoints for report data extraction (testing)
 /// </summary>
-[Authorize]
+[Authorize(Policy = "Permission.Report.View")]
 [ApiController]
 [Route("api/reporting/data")]
 [EnableRateLimiting("bulk-export")] // 10 per hour - test data extraction

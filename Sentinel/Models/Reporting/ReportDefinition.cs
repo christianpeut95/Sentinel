@@ -56,6 +56,12 @@ public class ReportDefinition
     public DateTime? ModifiedAt { get; set; }
 
     /// <summary>
+    /// User who most recently changed this report
+    /// </summary>
+    [StringLength(450)]
+    public string? ModifiedByUserId { get; set; }
+
+    /// <summary>
     /// Is this report visible to all users?
     /// </summary>
     public bool IsPublic { get; set; }

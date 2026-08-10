@@ -1,9 +1,11 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Sentinel.Data;
 using Sentinel.Tools;
 
 namespace Sentinel.Pages.Tools;
 
+[Authorize(Policy = "Permission.Settings.ManageOrganization")]
 public class GenerateFieldInventoryModel : PageModel
 {
     private readonly ApplicationDbContext _context;

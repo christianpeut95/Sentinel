@@ -8,7 +8,7 @@ using System.Security.Claims;
 
 namespace Sentinel.Pages.Settings.CaseDefinitions
 {
-    [Authorize]
+    [Authorize(Policy = "Permission.Settings.Edit")]
     public class ReviewModel : PageModel
     {
         private readonly ApplicationDbContext _context;

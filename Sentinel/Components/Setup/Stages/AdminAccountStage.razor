@@ -1,0 +1,186 @@
+@using Microsoft.AspNetCore.Identity
+@using Sentinel.Data
+@using Sentinel.Models
+@using System.ComponentModel.DataAnnotations
+@inject UserManager<ApplicationUser> UserManager
+@inject ILogger<AdminAccountStage> Logger
+
+<div class="stage-card">
+    <div class="stage-header">
+        <h2><i class="bi bi-person-badge"></i> Administrator Account</h2>
+        <p>Create the primary administrator account for Sentinel.</p>
+    </div>
+
+    <div class="stage-body">
+        @if (!string.IsNullOrEmpty(_error))
+        {
+            <div class="alert alert-danger">
+                <i class="bi bi-exclamation-triangle-fill"></i>
+                @_error
+            </div>
+        }
+
+        <EditForm Model="@AdminData" OnValidSubmit="HandleNext">
+            <DataAnnotationsValidator />
+
+            <div class="form-group">
+                <label class="form-label required">Email Address</label>
+                <InputText @bind-Value="AdminData.Email" class="form-control" type="email" placeholder="admin@example.com" />
+                <ValidationMessage For="@(() => AdminData.Email)" class="validation-message" />
+                <span class="form-text">This will be used for login and notifications.</span>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label required">Full Name</label>
+                <InputText @bind-Value="AdminData.FullName" class="form-control" placeholder="John Doe" />
+                <ValidationMessage For="@(() => AdminData.FullName)" class="validation-message" />
+            </div>
+
+            <div class="form-group">
+                <label class="form-label required">Password</label>
+                <InputText @bind-Value="AdminData.Password" class="form-control" type="password" />
+                <ValidationMessage For="@(() => AdminData.Password)" class="validation-message" />
+                <span class="form-text">Minimum 8 characters, at least one uppercase, one lowercase, one number, and one special character.</span>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label required">Confirm Password</label>
+                <InputText @bind-Value="AdminData.ConfirmPassword" class="form-control" type="password" />
+                <ValidationMessage For="@(() => AdminData.ConfirmPassword)" class="validation-message" />
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Recovery Email (optional)</label>
+                <InputText @bind-Value="AdminData.RecoveryEmail" class="form-control" type="email" placeholder="recovery@example.com" />
+                <span class="form-text">Used for account recovery if primary email is unavailable.</span>
+            </div>
+
+            <div style="margin-top: 2rem; padding-top: 2rem; border-top: 1px solid var(--hairline);">
+                <div class="form-check">
+                    <InputCheckbox @bind-Value="AdminData.CreateBackupAdmin" class="form-check-input" id="backupAdminCheck" />
+                    <label class="form-check-label" for="backupAdminCheck">
+                        Create a backup administrator account
+                    </label>
+                </div>
+
+                @if (AdminData.CreateBackupAdmin)
+                {
+                    <div style="margin-top: 1.5rem; padding: 1.5rem; background: var(--paper); border-radius: 8px;">
+                        <h4 style="font-size: 1rem; font-weight: 600; margin: 0 0 1rem; color: var(--forest);">
+                            Backup Administrator
+                        </h4>
+
+                        <div class="form-group">
+                            <label class="form-label">Email Address</label>
+                            <InputText @bind-Value="AdminData.BackupEmail" class="form-control" type="email" placeholder="backup@example.com" />
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label">Full Name</label>
+                            <InputText @bind-Value="AdminData.BackupFullName" class="form-control" placeholder="Jane Doe" />
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label">Password</label>
+                            <InputText @bind-Value="AdminData.BackupPassword" class="form-control" type="password" />
+                            <span class="form-text">Same password requirements as primary administrator.</span>
+                        </div>
+                    </div>
+                }
+            </div>
+
+            <div class="stage-actions">
+                <button type="button" class="btn btn-secondary" @onclick="HandlePrevious">
+                    <i class="bi bi-arrow-left"></i>
+                    <span>Previous</span>
+                </button>
+                <button type="submit" class="btn btn-primary" disabled="@_isCreating">
+                    @if (_isCreating)
+                    {
+                        <span class="spinner"></span>
+                        <span>Creating...</span>
+                    }
+                    else
+                    {
+                        <span>Next</span>
+                        <i class="bi bi-arrow-right"></i>
+                    }
+                </button>
+            </div>
+        </EditForm>
+    </div>
+</div>
+
+@code {
+    [Parameter] public EventCallback OnNext { get; set; }
+    [Parameter] public EventCallback OnPrevious { get; set; }
+    [Parameter] public InitialSetupWizard.AdminAccountData AdminData { get; set; } = new();
+    [Parameter] public EventCallback<InitialSetupWizard.AdminAccountData> AdminDataChanged { get; set; }
+
+    private bool _isCreating = false;
+    private string _error = "";
+
+    private async Task HandleNext()
+    {
+        _error = "";
+
+        // Validate passwords match
+        if (AdminData.Password != AdminData.ConfirmPassword)
+        {
+            _error = "Passwords do not match.";
+            return;
+        }
+
+        // Validate backup admin if needed
+        if (AdminData.CreateBackupAdmin)
+        {
+            if (string.IsNullOrWhiteSpace(AdminData.BackupEmail) ||
+                string.IsNullOrWhiteSpace(AdminData.BackupFullName) ||
+                string.IsNullOrWhiteSpace(AdminData.BackupPassword))
+            {
+                _error = "Please complete all backup administrator fields.";
+                return;
+            }
+
+            if (AdminData.BackupEmail.Equals(AdminData.Email, StringComparison.OrdinalIgnoreCase))
+            {
+                _error = "Backup administrator email must be different from primary administrator.";
+                return;
+            }
+        }
+
+        _isCreating = true;
+        StateHasChanged();
+
+        try
+        {
+            // Check if email already exists
+            var existingUser = await UserManager.FindByEmailAsync(AdminData.Email);
+            if (existingUser != null)
+            {
+                _error = $"A user with email {AdminData.Email} already exists.";
+                _isCreating = false;
+                return;
+            }
+
+            // Validation passed, store data and move to next stage
+            await AdminDataChanged.InvokeAsync(AdminData);
+            await OnNext.InvokeAsync();
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error validating admin account");
+            _error = $"An error occurred: {ex.Message}";
+        }
+        finally
+        {
+            _isCreating = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task HandlePrevious()
+    {
+        await OnPrevious.InvokeAsync();
+    }
+}

@@ -88,7 +88,22 @@ namespace Sentinel.Pages.Settings.Diseases
                     return Page();
                 }
 
-                _context.Attach(Disease).State = EntityState.Modified;
+                // Check if entity is already being tracked
+                var trackedEntity = _context.ChangeTracker.Entries<Disease>()
+                    .FirstOrDefault(e => e.Entity.Id == Disease.Id);
+
+                if (trackedEntity != null)
+                {
+                    // Update the tracked entity instead of attaching a new one
+                    var entry = trackedEntity;
+                    entry.CurrentValues.SetValues(Disease);
+                    entry.State = EntityState.Modified;
+                }
+                else
+                {
+                    // No tracked entity, safe to attach
+                    _context.Attach(Disease).State = EntityState.Modified;
+                }
 
                 try
                 {

@@ -21,7 +21,15 @@ public class DynamicDateResolver : IDynamicDateResolver
         "PastWeeks",     // Requires offset
         "NextWeeks",     // Requires offset
         "PastMonths",    // Requires offset
-        "NextMonths"     // Requires offset
+        "NextMonths",    // Requires offset
+        // Preset values (resolved by mapping to PastDays/PastMonths)
+        "Past7Days",
+        "Past30Days",
+        "Past3Months",
+        "Past6Months",
+        "Past12Months",
+        "Next7Days",
+        "Next30Days"
     };
 
     private static readonly string[] SupportedOffsetUnits = new[]
@@ -101,6 +109,28 @@ public class DynamicDateResolver : IDynamicDateResolver
                 if (!offset.HasValue)
                     throw new ArgumentException("NextMonths requires an offset value");
                 return date.AddMonths(Math.Abs(offset.Value));
+
+            // Preset convenience values
+            case "Past7Days":
+                return date.AddDays(-7);
+
+            case "Past30Days":
+                return date.AddDays(-30);
+
+            case "Past3Months":
+                return date.AddMonths(-3);
+
+            case "Past6Months":
+                return date.AddMonths(-6);
+
+            case "Past12Months":
+                return date.AddMonths(-12);
+
+            case "Next7Days":
+                return date.AddDays(7);
+
+            case "Next30Days":
+                return date.AddDays(30);
 
             default:
                 // If no specific type, apply offset to base date

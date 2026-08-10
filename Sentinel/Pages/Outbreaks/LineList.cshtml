@@ -187,7 +187,8 @@
                 const response = await fetch(`/api/LineList/fields/${outbreakId}`);
                 availableFields = await response.json();
                 renderAvailableFields();
-            } catch (error) {                showError('Failed to load available fields');
+            } catch (error) {
+                showError('Failed to load available fields');
             }
         }
         
@@ -305,10 +306,11 @@
             try {
                 const response = await fetch(`/api/LineList/configurations/${outbreakId}`);
                 const configs = await response.json();
-                
+
                 renderUserConfigurations(configs.userConfigurations);
                 renderSharedConfigurations(configs.sharedConfigurations);
-            } catch (error) {            }
+            } catch (error) {
+            }
         }
         
         function renderUserConfigurations(configs) {
@@ -366,7 +368,8 @@
                     renderSelectedFields();
                     await loadLineListData();
                 }
-            } catch (error) {                showError('Failed to load configuration');
+            } catch (error) {
+                showError('Failed to load configuration');
             }
         }
         
@@ -379,11 +382,32 @@
                 await fetch(`/api/LineList/configurations/${configId}`, { method: 'DELETE' });
                 await loadConfigurations();
                 showSuccess('View deleted successfully');
-            } catch (error) {                showError('Failed to delete view');
+            } catch (error) {
+                showError('Failed to delete view');
             }
         }
         
         async function initializeWithDefault() {
+            // Try to load default configuration
+            try {
+                const response = await fetch(`/api/LineList/configurations/${outbreakId}`);
+                const configs = await response.json();
+
+                // Look for default configuration in user configs
+                const defaultConfig = configs.userConfigurations?.find(c => c.isDefault);
+
+                if (defaultConfig) {
+                    currentConfig = defaultConfig;
+                    selectedFields = JSON.parse(defaultConfig.selectedFields);
+                    renderSelectedFields();
+                    await loadLineListData();
+                    return;
+                }
+            } catch (error) {
+                // Fall through to default fields if error
+            }
+
+            // If no default config, use default fields
             selectedFields = [...defaultFields];
             renderSelectedFields();
             await loadLineListData();
@@ -403,9 +427,10 @@
                 lineListData = await response.json();
                 
                 // Debug logging                if (lineListData.length > 0) {                }
-                
+
                 renderGrid();
-            } catch (error) {                showError('Failed to load line list data');
+            } catch (error) {
+                showError('Failed to load line list data');
             }
         }
         
@@ -430,7 +455,9 @@
                         return value ?? '';
                     }
                 };
-            });            const gridOptions = {
+            });
+
+            const gridOptions = {
                 columnDefs: columnDefs,
                 rowData: lineListData,
                 defaultColDef: {
@@ -496,14 +523,16 @@
             
             try {
                 const config = {
-                    outbreakId: outbreakId,
-                    name: name,
-                    description: document.getElementById('viewDescription').value,
-                    selectedFields: JSON.stringify(selectedFields),
-                    sortConfiguration: '[]',
-                    isShared: document.getElementById('viewIsShared').checked,
-                    isDefault: document.getElementById('viewIsDefault').checked
-                };                const response = await fetch('/api/LineList/configurations', {
+                    OutbreakId: outbreakId,
+                    Name: name,
+                    Description: document.getElementById('viewDescription').value,
+                    SelectedFields: JSON.stringify(selectedFields),
+                    SortConfiguration: '[]',
+                    IsShared: document.getElementById('viewIsShared').checked,
+                    IsDefault: document.getElementById('viewIsDefault').checked
+                };
+
+                const response = await fetch('/api/LineList/configurations', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(config)
@@ -513,9 +542,20 @@
                     const error = await response.json();
                     throw new Error(error.error || 'Failed to save view');
                 }
-                
-                const savedConfig = await response.json();                bootstrap.Modal.getInstance(document.getElementById('saveViewModal')).hide();
+
+                const savedConfig = await response.json();
+
+                bootstrap.Modal.getInstance(document.getElementById('saveViewModal')).hide();
                 await loadConfigurations();
+
+                // If saved as default, load it now
+                if (savedConfig.isDefault) {
+                    currentConfig = savedConfig;
+                    selectedFields = JSON.parse(savedConfig.selectedFields);
+                    renderSelectedFields();
+                    await loadLineListData();
+                }
+
                 showSuccess('View saved successfully');
                 
                 // Clear form
@@ -523,7 +563,8 @@
                 document.getElementById('viewDescription').value = '';
                 document.getElementById('viewIsShared').checked = false;
                 document.getElementById('viewIsDefault').checked = false;
-            } catch (error) {                showError('Failed to save view: ' + error.message);
+            } catch (error) {
+                showError('Failed to save view: ' + error.message);
             }
         }
         
@@ -547,9 +588,10 @@
                 a.click();
                 window.URL.revokeObjectURL(url);
                 document.body.removeChild(a);
-                
+
                 showSuccess('Line list exported successfully');
-            } catch (error) {                showError('Failed to export line list');
+            } catch (error) {
+                showError('Failed to export line list');
             }
         }
         

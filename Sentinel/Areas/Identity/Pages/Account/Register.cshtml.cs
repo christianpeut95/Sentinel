@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.EntityFrameworkCore;
 using Sentinel.Data;
 using Sentinel.Models;
+using Sentinel.Services;
 using System.ComponentModel.DataAnnotations;
 
 namespace Sentinel.Areas.Identity.Pages.Account
@@ -19,13 +20,15 @@ namespace Sentinel.Areas.Identity.Pages.Account
         private readonly IUserEmailStore<ApplicationUser> _emailStore;
         private readonly ILogger<RegisterModel> _logger;
         private readonly ApplicationDbContext _context;
+        private readonly ISystemSettingsService _systemSettingsService;
 
         public RegisterModel(
             UserManager<ApplicationUser> userManager,
             IUserStore<ApplicationUser> userStore,
             SignInManager<ApplicationUser> signInManager,
             ILogger<RegisterModel> logger,
-            ApplicationDbContext context)
+            ApplicationDbContext context,
+            ISystemSettingsService systemSettingsService)
         {
             _userManager = userManager;
             _userStore = userStore;
@@ -33,6 +36,7 @@ namespace Sentinel.Areas.Identity.Pages.Account
             _signInManager = signInManager;
             _logger = logger;
             _context = context;
+            _systemSettingsService = systemSettingsService;
         }
 
         [BindProperty]
@@ -41,6 +45,8 @@ namespace Sentinel.Areas.Identity.Pages.Account
         public string ReturnUrl { get; set; }
 
         public IList<AuthenticationScheme> ExternalLogins { get; set; }
+
+        public bool RegistrationDisabled { get; set; }
 
         public class InputModel
         {
@@ -63,6 +69,14 @@ namespace Sentinel.Areas.Identity.Pages.Account
 
         public async Task OnGetAsync(string returnUrl = null)
         {
+            // Check if setup is complete and public registration is disabled
+            var settings = await _systemSettingsService.GetSettingsAsync();
+            if (settings != null && settings.IsSetupCompleted && !settings.AllowPublicRegistration)
+            {
+                RegistrationDisabled = true;
+                _logger.LogWarning("Registration attempt blocked - public registration is disabled");
+            }
+
             ReturnUrl = returnUrl;
             ExternalLogins = (await _signInManager.GetExternalAuthenticationSchemesAsync()).ToList();
         }
@@ -71,14 +85,23 @@ namespace Sentinel.Areas.Identity.Pages.Account
         {
             returnUrl ??= Url.Content("~/");
             ExternalLogins = (await _signInManager.GetExternalAuthenticationSchemesAsync()).ToList();
-            
+
+            // Check if setup is complete and public registration is disabled
+            var settings = await _systemSettingsService.GetSettingsAsync();
+            if (settings != null && settings.IsSetupCompleted && !settings.AllowPublicRegistration)
+            {
+                ModelState.AddModelError(string.Empty, "Public registration is disabled. Please contact your administrator.");
+                RegistrationDisabled = true;
+                return Page();
+            }
+
             if (ModelState.IsValid)
             {
                 var user = CreateUser();
 
                 await _userStore.SetUserNameAsync(user, Input.Email, CancellationToken.None);
                 await _emailStore.SetEmailAsync(user, Input.Email, CancellationToken.None);
-                
+
                 var result = await _userManager.CreateAsync(user, Input.Password);
 
                 if (result.Succeeded)
@@ -86,31 +109,31 @@ namespace Sentinel.Areas.Identity.Pages.Account
                     _logger.LogInformation("User created a new account with password.");
 
                     var userId = await _userManager.GetUserIdAsync(user);
-                    
-                    // Check if this is the first user in the system
+
+                    // Check if this is the first user in the system (backward compatibility)
+                    // This should only happen if setup was skipped/incomplete
                     var userCount = await _context.Users.CountAsync();
                     if (userCount == 1)
                     {
-                        // First user gets all permissions (auto-admin)
-                        _logger.LogInformation("First user detected - granting all permissions to {Email}", Input.Email);
-                        
+                        _logger.LogWarning("First user detected via registration (setup may have been skipped) - granting all permissions to {Email}", Input.Email);
+
                         var allPermissions = await _context.Permissions.ToListAsync();
                         var userPermissions = allPermissions.Select(p => new UserPermission
                         {
                             UserId = userId,
                             PermissionId = p.Id
                         }).ToList();
-                        
+
                         _context.UserPermissions.AddRange(userPermissions);
                         await _context.SaveChangesAsync();
-                        
+
                         _logger.LogInformation("Granted {Count} permissions to first user", allPermissions.Count);
                     }
-                    
+
                     await _signInManager.SignInAsync(user, isPersistent: false);
                     return LocalRedirect(returnUrl);
                 }
-                
+
                 foreach (var error in result.Errors)
                 {
                     ModelState.AddModelError(string.Empty, error.Description);

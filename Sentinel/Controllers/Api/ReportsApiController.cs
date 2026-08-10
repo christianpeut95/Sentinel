@@ -8,7 +8,7 @@ using System.Security.Claims;
 
 namespace Sentinel.Controllers.Api;
 
-[Authorize]
+[Authorize(Policy = "Permission.Report.Edit")]
 [ApiController]
 [Route("api/reports")]
 [EnableRateLimiting("workflow-api-moderate")] // 60 per minute - report management
@@ -66,6 +66,7 @@ public class ReportsApiController : ControllerBase
             CollectionQueriesJson = original.CollectionQueriesJson,
             CreatedByUserId = userId,
             CreatedAt = DateTime.UtcNow,
+            ModifiedByUserId = userId,
             IsPublic = false,
             IsTemplate = false,
             FolderId = original.FolderId
@@ -135,6 +136,7 @@ public class ReportsApiController : ControllerBase
 
         report.FolderId = request.FolderId;
         report.ModifiedAt = DateTime.UtcNow;
+        report.ModifiedByUserId = userId;
 
         await _context.SaveChangesAsync();
 
@@ -156,6 +158,7 @@ public class ReportsApiController : ControllerBase
 
         report.FolderId = null;
         report.ModifiedAt = DateTime.UtcNow;
+        report.ModifiedByUserId = userId;
 
         await _context.SaveChangesAsync();
 

@@ -9,7 +9,7 @@
             <option value="@question.Name">@question.Title (@question.Type)</option>
         }
     </select>
-    <small class="text-muted">Only matrix/matrixdynamic/matrixdropdown questions shown</small>
+    <small class="text-muted">Only matrix, dynamic matrix, and dynamic-panel questions shown</small>
 </div>
 
 @code {
@@ -63,7 +63,7 @@
             if (element.TryGetProperty("type", out var type))
             {
                 var typeStr = type.GetString();
-                if (typeStr == "matrix" || typeStr == "matrixdynamic" || typeStr == "matrixdropdown")
+                if (typeStr == "matrix" || typeStr == "matrixdynamic" || typeStr == "matrixdropdown" || typeStr == "paneldynamic")
                 {
                     var name = element.TryGetProperty("name", out var n) ? n.GetString() : "";
                     var title = element.TryGetProperty("title", out var t) ? t.GetString() : name;

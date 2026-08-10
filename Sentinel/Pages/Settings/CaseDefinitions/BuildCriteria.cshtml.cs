@@ -12,7 +12,7 @@ using System.Text.Json;
 
 namespace Sentinel.Pages.Settings.CaseDefinitions
 {
-    [Authorize]
+    [Authorize(Policy = "Permission.Settings.Edit")]
     public class BuildCriteriaModel : PageModel
     {
         private readonly ApplicationDbContext _context;

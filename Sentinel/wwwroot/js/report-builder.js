@@ -38,12 +38,15 @@ const ReportBuilder = {
             const entityType = document.getElementById('entityTypeSelector')?.value || 'Case';
             const reportName = document.getElementById('reportName')?.value || '';
 
+            // Get actual filter configuration from DOM, not just IDs
+            const serializedFilters = this.getFilters ? this.getFilters() : [];
+
             const draftData = {
                 timestamp: new Date().toISOString(),
                 entityType: entityType,
                 reportName: reportName,
                 selectedFields: this.selectedFields,
-                filters: this.filters,
+                filters: serializedFilters,
                 collectionQueries: this.collectionQueries,
                 nextFilterId: this.nextFilterId,
                 nextCollectionQueryId: this.nextCollectionQueryId
@@ -209,15 +212,40 @@ const ReportBuilder = {
                 const draftDate = new Date(draft.timestamp);
                 const timeAgo = this.getTimeAgo(draftDate);
 
-                if (confirm(`Found an auto-saved draft from ${timeAgo} (${draftDate.toLocaleString()}).\n\nRestore this draft?`)) {
-                    console.log('[ReportBuilder.init] Restoring auto-saved draft');
-                    savedReport = draft;
-                } else {
-                    console.log('[ReportBuilder.init] User declined draft restore');
-                    this.clearAutoSavedDraft();
-                }
+                // Capture 'this' context for use in callbacks
+                const self = this;
+
+                ReportBuilderNotifications.confirm(
+                    `Found an auto-saved draft from ${timeAgo} (${draftDate.toLocaleString()}).\n\nWould you like to restore this draft?`,
+                    () => {
+                        console.log('[ReportBuilder.init] Restoring auto-saved draft');
+                        const draft = self.loadAutoSavedDraft();
+                        if (draft) {
+                            // Continue initialization with the draft as savedReport
+                            self.continueInitialization(draft);
+                        }
+                    },
+                    () => {
+                        console.log('[ReportBuilder.init] User declined draft restore');
+                        self.clearAutoSavedDraft();
+                        // Continue initialization without draft
+                        self.continueInitialization(null);
+                    },
+                    { title: 'Restore Draft?' }
+                );
+                return; // Exit early since restore is async
             }
 
+            this.continueInitialization(savedReport);
+        } catch (error) {
+            console.error('[ReportBuilder.init] Error during initialization:', error);
+            this.hideLoading();
+            ReportBuilderNotifications.showToast('Error initializing report builder: ' + error.message, 'error', 5000);
+        }
+    },
+
+    continueInitialization(savedReport) {
+        try {
             if (savedReport) {
                 this.showLoading('Loading Report', 'Restoring filters and collection queries...');
             }
@@ -256,7 +284,7 @@ const ReportBuilder = {
         } catch (error) {
             console.error('[ReportBuilder.init] Error during initialization:', error);
             this.hideLoading();
-            alert('Error initializing report builder: ' + error.message);
+            ReportBuilderNotifications.showToast('Error initializing report builder: ' + error.message, 'error', 5000);
         }
     },
 
@@ -419,19 +447,25 @@ const ReportBuilder = {
         };
         return iconMap[dataType] || '•';
     },
-    
+
     loadSavedReport(savedReport) {
         // Store savedReport for use in restoreFilter
         this.currentSavedReport = savedReport;
 
-        // Store pivot and preview configurations if present
-        if (savedReport.pivotConfiguration) {
-            this.savedPivotConfiguration = savedReport.pivotConfiguration;
-            console.log('[loadSavedReport] Stored pivot configuration');
-        }
-        if (savedReport.previewConfiguration) {
-            this.savedPreviewConfiguration = savedReport.previewConfiguration;
-            console.log('[loadSavedReport] Stored preview configuration');
+        // If this is an autosaved draft (has timestamp), clear preview config to avoid stale state
+        if (savedReport.timestamp) {
+            this.savedPreviewConfiguration = null;
+            console.log('[loadSavedReport] Draft detected - cleared preview configuration');
+        } else {
+            // Store pivot and preview configurations if present (server saved report)
+            if (savedReport.pivotConfiguration) {
+                this.savedPivotConfiguration = savedReport.pivotConfiguration;
+                console.log('[loadSavedReport] Stored pivot configuration');
+            }
+            if (savedReport.previewConfiguration) {
+                this.savedPreviewConfiguration = savedReport.previewConfiguration;
+                console.log('[loadSavedReport] Stored preview configuration');
+            }
         }
 
         // Load saved fields
@@ -582,7 +616,7 @@ const ReportBuilder = {
             // Filter is in a group - find it within that group's container
             const groupContainer = document.querySelector(`.group-filters[data-group-id="${filter.groupId}"]`);
             if (groupContainer) {
-                const filterElements = groupContainer.querySelectorAll('.list-group-item');
+                const filterElements = groupContainer.querySelectorAll('.rb-list-item');
                 // Calculate the index within this group
                 const filtersBeforeThisInGroup = this.currentSavedReport.filters
                     .slice(0, filterIndex)
@@ -591,7 +625,7 @@ const ReportBuilder = {
             }
         } else {
             // Standalone filter
-            const filterElements = document.querySelectorAll('#filters > .list-group-item');
+            const filterElements = document.querySelectorAll('#filters > .rb-list-item');
             const filtersBeforeThisStandalone = this.currentSavedReport.filters
                 .slice(0, filterIndex)
                 .filter(f => !f.groupId).length;
@@ -603,7 +637,7 @@ const ReportBuilder = {
             return;
         }
 
-        const fieldSelect = filterEl.querySelector('.filter-field');
+        const fieldSelect = filterEl.querySelector('.rb-filter-field');
         if (fieldSelect) {
             fieldSelect.value = filter.fieldPath;
             fieldSelect.dispatchEvent(new Event('change'));
@@ -619,25 +653,26 @@ const ReportBuilder = {
             }, 100);
         }
 
-        // Wait for field change to create the combined date dropdown
+        // Wait for field change to create the combined date dropdown or value input
         setTimeout(() => {
-            const combinedSelect = filterEl.querySelector('.filter-date-combined');
+            const valueContainer = filterEl.querySelector('.rb-filter-value-container');
+            const combinedSelect = valueContainer?.querySelector('.filter-date-combined');
 
             // If no combined dropdown exists, this is not a date field - restore as regular filter
             if (!combinedSelect) {
-                const operatorSelect = filterEl.querySelector('.filter-operator');
+                const operatorSelect = filterEl.querySelector('.rb-filter-operator');
                 if (operatorSelect) {
                     operatorSelect.value = filter.operator;
                     operatorSelect.dispatchEvent(new Event('change'));
                 }
-                
+
                 setTimeout(() => {
-                    const valueInput = filterEl.querySelector('.filter-value');
+                    const valueInput = filterEl.querySelector('.rb-filter-value');
                     if (valueInput) valueInput.value = filter.value;
                 }, 50);
                 return;
             }
-            
+
             // DATE FIELD RESTORATION
             let restoredPreset = null;
 
@@ -894,6 +929,8 @@ const ReportBuilder = {
         const btnAddFilter = document.getElementById('btnAddFilter');
         const btnAddGroup = document.getElementById('btnAddGroup');
         const btnAddCollection = document.getElementById('btnAddCollection');
+        const btnAddFilterInline = document.getElementById('btnAddFilterInline');
+        const btnAddCollectionInline = document.getElementById('btnAddCollectionInline');
         const btnLoadDefaults = document.getElementById('btnLoadDefaults');
         const entityTypeSelector = document.getElementById('entityTypeSelector');
 
@@ -945,6 +982,23 @@ const ReportBuilder = {
             console.warn('[setupEventListeners] btnAddCollection not found');
         }
 
+        // Wire up inline "Add" buttons for Filters and Collection Queries
+        if (btnAddFilterInline) {
+            btnAddFilterInline.addEventListener('click', () => { 
+                console.log('[btnAddFilterInline] Clicked'); 
+                this.addFilter(); 
+            });
+            console.log('[setupEventListeners] btnAddFilterInline wired');
+        }
+
+        if (btnAddCollectionInline) {
+            btnAddCollectionInline.addEventListener('click', () => { 
+                console.log('[btnAddCollectionInline] Clicked'); 
+                this.addCollectionQuery(); 
+            });
+            console.log('[setupEventListeners] btnAddCollectionInline wired');
+        }
+
         if (btnLoadDefaults) {
             btnLoadDefaults.addEventListener('click', () => { 
                 console.log('[btnLoadDefaults] Clicked'); 
@@ -971,10 +1025,24 @@ const ReportBuilder = {
                 const reportId = e.target.dataset.reportId;
 
                 if (reportId && reportId !== 'null') {
-                    if (!confirm('Changing the entity type will clear all fields, filters, and collection queries. Are you sure?')) {
-                        e.target.value = e.target.dataset.originalValue;
-                        return;
-                    }
+                    const newValue = e.target.value;
+                    const originalValue = e.target.dataset.originalValue;
+
+                    ReportBuilderNotifications.confirm(
+                        'Changing the entity type will clear all fields, filters, and collection queries.',
+                        () => {
+                            window.location.href = '?entityType=' + newValue;
+                        },
+                        () => {
+                            e.target.value = originalValue;
+                        },
+                        { 
+                            title: 'Change Entity Type?',
+                            danger: true,
+                            confirmText: 'Change & Clear All'
+                        }
+                    );
+                    return;
                 }
 
                 window.location.href = '?entityType=' + e.target.value;
@@ -1057,7 +1125,7 @@ const ReportBuilder = {
         const container = document.getElementById('filters');
 
         if (this.selectedFields.length === 0) {
-            alert('Please add fields first');
+            ReportBuilderNotifications.showToast('Please add fields before creating filters', 'warning');
             return;
         }
 
@@ -1115,15 +1183,26 @@ const ReportBuilder = {
     },
 
     setupSmartFilter(filterId) {
-        const fieldSelect = document.querySelector(`.filter-field[data-filter-id="${filterId}"]`);
+        const fieldSelect = document.querySelector(`.rb-filter-field[data-filter-id="${filterId}"]`);
         const operatorSelect = document.getElementById(`operator-${filterId}`);
         const valueInput = document.getElementById(`value-${filterId}`);
 
-        if (!fieldSelect || !operatorSelect || !valueInput) return;
+        if (!fieldSelect || !operatorSelect || !valueInput) {
+            console.warn(`[setupSmartFilter] Elements not found for filter ${filterId}`, { 
+                fieldSelect: !!fieldSelect, 
+                operatorSelect: !!operatorSelect, 
+                valueInput: !!valueInput 
+            });
+            return;
+        }
+
+        console.log(`[setupSmartFilter] Setting up filter ${filterId}`);
 
         fieldSelect.addEventListener('change', (e) => {
             const selectedOption = e.target.options[e.target.selectedIndex];
             const dataType = selectedOption.dataset.type || 'String';
+
+            console.log('[MainFilter] Field changed to', e.target.value, 'DataType:', dataType, 'Option dataset:', selectedOption.dataset);
 
             this.updateOperators(operatorSelect, dataType);
             this.updateValueInput(valueInput, dataType, operatorSelect.value);
@@ -1132,11 +1211,14 @@ const ReportBuilder = {
         operatorSelect.addEventListener('change', (e) => {
             const selectedOption = fieldSelect.options[fieldSelect.selectedIndex];
             const dataType = selectedOption.dataset.type || 'String';
+
+            console.log('[MainFilter] Operator changed to', e.target.value, 'DataType:', dataType);
+
             this.updateValueInput(valueInput, dataType, e.target.value);
         });
     },
 
-    updateOperators(selectElement, dataType) {
+    updateOperators(selectElement, dataType, hideOperatorForDates = true) {
         const operatorsByType = {
             'String': [
                 { value: 'Equals', label: 'Equals' },
@@ -1172,19 +1254,7 @@ const ReportBuilder = {
                 { value: 'IsNull', label: 'Is Null' },
                 { value: 'IsNotNull', label: 'Is Not Null' }
             ],
-            'DateTime': [
-                { value: 'Equals', label: 'On Date' },
-                { value: 'NotEquals', label: 'Not On Date' },
-                { value: 'GreaterThan', label: 'After' },
-                { value: 'LessThan', label: 'Before' },
-                { value: 'GreaterThanOrEqual', label: 'On or After' },
-                { value: 'LessThanOrEqual', label: 'On or Before' },
-                { value: 'Between', label: 'Between Dates' },
-                { value: 'IsNull', label: 'Is Null' },
-                { value: 'IsNotNull', label: 'Is Not Null' },
-                { value: 'InLast', label: 'In Last X Days' },
-                { value: 'InNext', label: 'In Next X Days' }
-            ],
+            'DateTime': this.getDateOperators(),
             'Boolean': [
                 { value: 'Equals', label: 'Is' },
                 { value: 'IsNull', label: 'Is Null' },
@@ -1202,36 +1272,82 @@ const ReportBuilder = {
         selectElement.innerHTML = operators.map(op => 
             `<option value="${op.value}">${op.label}</option>`
         ).join('');
+
+        console.log(`[updateOperators] DataType: ${dataType}, Normalized: ${normalizedType}, Operators: ${operators.length}, hideOperatorForDates: ${hideOperatorForDates}`);
+    },
+
+    getDateOperators() {
+        return [
+            { value: 'Equals', label: 'is' },
+            { value: 'NotEquals', label: 'is not' }
+        ];
     },
 
     updateValueInput(inputElement, dataType, operator) {
-        const parentCol = inputElement.closest('.col-md-4');
-        if (!parentCol) return;
+        // Detect context: check if it's a sub-filter or main filter
+        const isSubFilter = inputElement.closest('.rb-subfilter-row') !== null;
+
+        // For sub-filters, use the container wrapper; for main filters, replace the input inline
+        let valueContainer;
+        if (isSubFilter) {
+            valueContainer = inputElement.closest('.rb-subfilter-value-container');
+        } else {
+            // For main filters in the new inline structure, we'll replace the input element itself
+            // But we need to find the parent to support complex UI like date pickers
+            const filterRow = inputElement.closest('.rb-filter-row');
+            if (filterRow) {
+                // For inline main filters, we need a wrapper approach too
+                // Check if we already have a container, otherwise create one
+                valueContainer = filterRow.querySelector('.rb-filter-value-container');
+                if (!valueContainer) {
+                    // Wrap the existing input in a container
+                    const wrapper = document.createElement('div');
+                    wrapper.className = 'rb-filter-value-container';
+                    inputElement.parentNode.insertBefore(wrapper, inputElement);
+                    wrapper.appendChild(inputElement);
+                    valueContainer = wrapper;
+                }
+            }
+        }
+
+        if (!valueContainer) {
+            console.warn('[updateValueInput] No value container found', { isSubFilter, inputElement });
+            return;
+        }
 
         const uniqueId = inputElement.id || `filter-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
+        console.log(`[updateValueInput] DataType: ${dataType}, Operator: ${operator}, isSubFilter: ${isSubFilter}`);
+
+        // Find operator select in the same row for visibility control
+        const filterRow = valueContainer.closest('.rb-filter-row, .rb-subfilter-row');
+        const operatorSelect = filterRow?.querySelector('.rb-filter-operator, .rb-subfilter-operator');
+
         if (operator === 'Between') {
             const inputType = dataType.includes('Date') ? 'date' : 'number';
-            parentCol.innerHTML = `
-                <input type="${inputType}" class="form-control form-control-sm filter-value mb-1" 
+            const cssClass = isSubFilter ? 'form-control form-control-sm rb-subfilter-value' : 'rb-filter-value';
+            valueContainer.innerHTML = `
+                <input type="${inputType}" class="${cssClass} mb-1" 
                        placeholder="From" style="width: 100%;">
-                <input type="${inputType}" class="form-control form-control-sm filter-value-end" 
+                <input type="${inputType}" class="${cssClass.replace('rb-subfilter-value', 'rb-subfilter-value-end').replace('rb-filter-value', 'rb-filter-value-end')}" 
                        placeholder="To" style="width: 100%;">
             `;
             return;
         }
 
         if (operator === 'InLast' || operator === 'InNext') {
-            parentCol.innerHTML = `
-                <input type="number" class="form-control form-control-sm filter-value" 
+            const cssClass = isSubFilter ? 'form-control form-control-sm rb-subfilter-value' : 'rb-filter-value';
+            valueContainer.innerHTML = `
+                <input type="number" class="${cssClass}" 
                        placeholder="Number of days" min="1" style="width: 100%;">
             `;
             return;
         }
 
         if (operator === 'IsNull' || operator === 'IsNotNull' || operator === 'IsEmpty' || operator === 'IsNotEmpty') {
-            parentCol.innerHTML = `
-                <input type="text" class="form-control form-control-sm filter-value" 
+            const cssClass = isSubFilter ? 'form-control form-control-sm rb-subfilter-value' : 'rb-filter-value';
+            valueContainer.innerHTML = `
+                <input type="text" class="${cssClass}" 
                        placeholder="(no value needed)" disabled style="width: 100%;">
             `;
             return;
@@ -1241,158 +1357,46 @@ const ReportBuilder = {
                                dataType.includes('Int') || dataType.includes('Number') ? 'number' :
                                dataType.includes('Bool') ? 'checkbox' : 'text';
 
-        const filterRow = parentCol.closest('.row');
-        const operatorCol = filterRow?.querySelector('.col-md-3');
-
         if (normalizedType === 'checkbox') {
-            if (operatorCol) operatorCol.style.display = '';
+            // Show operator for both main and sub filters
+            if (operatorSelect) operatorSelect.style.display = '';
 
-            parentCol.innerHTML = `
+            const cssClass = isSubFilter ? 'form-check-input rb-subfilter-value' : 'form-check-input rb-filter-value';
+            valueContainer.innerHTML = `
                 <div class="form-check mt-2">
-                    <input type="checkbox" class="form-check-input filter-value" id="value-${uniqueId}">
+                    <input type="checkbox" class="${cssClass}" id="value-${uniqueId}">
                     <label class="form-check-label" for="value-${uniqueId}">True</label>
                 </div>
             `;
         } else if (normalizedType === 'date') {
-            if (operatorCol) operatorCol.style.display = 'none';
+            // For main filters, hide operator; for sub-filters, keep it visible
+            if (operatorSelect && !isSubFilter) {
+                operatorSelect.style.display = 'none';
+            } else if (operatorSelect) {
+                operatorSelect.style.display = '';
+            }
 
-            parentCol.innerHTML = `
-                <select class="form-control form-control-sm filter-date-combined" style="width: 100%;">
-                    <option value="">Select date condition...</option>
-                    <optgroup label="Specific Date">
-                        <option value="static">Pick a specific date...</option>
-                        <option value="Equals|Today">is today</option>
-                        <option value="Equals|Yesterday">is yesterday</option>
-                        <option value="Equals|Tomorrow">is tomorrow</option>
-                    </optgroup>
-                    <optgroup label="Relative Dates">
-                        <option value="Equals|StartOfWeek">is start of this week</option>
-                        <option value="Equals|EndOfWeek">is end of this week</option>
-                        <option value="Equals|StartOfMonth">is start of this month</option>
-                        <option value="Equals|EndOfMonth">is end of this month</option>
-                    </optgroup>
-                    <optgroup label="Within Last...">
-                        <option value="InLast|7">is within the last 7 days</option>
-                        <option value="InLast|30">is within the last 30 days</option>
-                        <option value="InLast|90">is within the last 90 days</option>
-                        <option value="InLast|180">is within the last 180 days</option>
-                        <option value="InLast|365">is within the last 365 days</option>
-                    </optgroup>
-                    <optgroup label="More Than...Ago">
-                        <option value="LessThan|Past7Days">is more than 7 days ago</option>
-                        <option value="LessThan|Past30Days">is more than 30 days ago</option>
-                        <option value="LessThan|Past3Months">is more than 3 months ago</option>
-                        <option value="LessThan|Past6Months">is more than 6 months ago</option>
-                        <option value="LessThan|Past12Months">is more than 12 months ago</option>
-                    </optgroup>
-                    <optgroup label="Within Next...">
-                        <option value="InNext|7">is within the next 7 days</option>
-                        <option value="InNext|30">is within the next 30 days</option>
-                        <option value="InNext|90">is within the next 90 days</option>
-                    </optgroup>
-                    <optgroup label="Less Than...Away">
-                        <option value="GreaterThan|Next7Days">is less than 7 days away</option>
-                        <option value="GreaterThan|Next30Days">is less than 30 days away</option>
-                    </optgroup>
-                    <optgroup label="Custom">
-                        <option value="custom">Custom condition...</option>
-                    </optgroup>
-                </select>
-                <input type="date" class="form-control form-control-sm filter-value mt-1" 
-                       placeholder="Select date" style="width: 100%; display: none;">
-                <div class="filter-custom-condition mt-1" style="display: none;">
-                    <div class="btn-group btn-group-sm w-100 mb-1" role="group">
-                        <input type="radio" class="btn-check" name="custom-date-type-${uniqueId}" id="custom-dynamic-${uniqueId}" value="dynamic" checked>
-                        <label class="btn btn-outline-primary" for="custom-dynamic-${uniqueId}">
-                            <i class="bi bi-clock-history"></i> Dynamic Date
-                        </label>
-                        <input type="radio" class="btn-check" name="custom-date-type-${uniqueId}" id="custom-static-${uniqueId}" value="static">
-                        <label class="btn btn-outline-primary" for="custom-static-${uniqueId}">
-                            <i class="bi bi-calendar-date"></i> Static Date
-                        </label>
-                    </div>
-
-                    <select class="form-select form-select-sm filter-operator mb-1">
-                        <option value="Equals">is exactly</option>
-                        <option value="GreaterThan">is after</option>
-                        <option value="LessThan">is before</option>
-                        <option value="GreaterThanOrEqual">is on or after</option>
-                        <option value="LessThanOrEqual">is on or before</option>
-                    </select>
-
-                    <div class="filter-custom-dynamic">
-                        <div class="input-group input-group-sm">
-                            <input type="number" class="form-control filter-dynamic-offset-value" 
-                                   placeholder="#" min="1" style="max-width: 70px;">
-                            <select class="form-select filter-dynamic-offset-unit" style="max-width: 100px;">
-                                <option value="Days">days</option>
-                                <option value="Weeks">weeks</option>
-                                <option value="Months">months</option>
-                                <option value="Years">years</option>
-                            </select>
-                            <select class="form-select filter-dynamic-offset-direction" style="max-width: 90px;">
-                                <option value="past">ago</option>
-                                <option value="next">from now</option>
-                            </select>
-                        </div>
-                    </div>
-
-                    <div class="filter-custom-static" style="display: none;">
-                        <input type="date" class="form-control form-control-sm filter-custom-static-value">
-                    </div>
-                </div>
-            `;
+            valueContainer.innerHTML = this.getDateFilterHTML(uniqueId);
 
             setTimeout(() => {
-                const combinedSelect = parentCol.querySelector('.filter-date-combined');
-                const dateInput = parentCol.querySelector('.filter-value');
-                const customCondition = parentCol.querySelector('.filter-custom-condition');
-
-                if (combinedSelect && dateInput && customCondition) {
-                    combinedSelect.addEventListener('change', (e) => {
-                        const value = e.target.value;
-
-                        if (value === 'static') {
-                            dateInput.style.display = '';
-                            customCondition.style.display = 'none';
-                        } else if (value === 'custom') {
-                            dateInput.style.display = 'none';
-                            customCondition.style.display = '';
-                        } else {
-                            dateInput.style.display = 'none';
-                            customCondition.style.display = 'none';
-                        }
-                    });
-
-                    const customDynamicControls = customCondition.querySelector('.filter-custom-dynamic');
-                    const customStaticControls = customCondition.querySelector('.filter-custom-static');
-                    const dateTypeRadios = customCondition.querySelectorAll('input[name^="custom-date-type-"]');
-
-                    dateTypeRadios.forEach(radio => {
-                        radio.addEventListener('change', (e) => {
-                            if (e.target.value === 'dynamic') {
-                                customDynamicControls.style.display = '';
-                                customStaticControls.style.display = 'none';
-                            } else {
-                                customDynamicControls.style.display = 'none';
-                                customStaticControls.style.display = '';
-                            }
-                        });
-                    });
-                }
+                this.setupDateFilterListeners(valueContainer, uniqueId);
             }, 0);
         } else if (normalizedType === 'number') {
-            if (operatorCol) operatorCol.style.display = '';
+            // Show operator for both main and sub filters
+            if (operatorSelect) operatorSelect.style.display = '';
 
-            parentCol.innerHTML = `
-                <input type="number" class="form-control form-control-sm filter-value" 
+            const cssClass = isSubFilter ? 'form-control form-control-sm rb-subfilter-value' : 'rb-filter-value';
+            valueContainer.innerHTML = `
+                <input type="number" class="${cssClass}" 
                        placeholder="Enter number" step="any" style="width: 100%;">
             `;
         } else {
-            if (operatorCol) operatorCol.style.display = '';
+            // Show operator for both main and sub filters
+            if (operatorSelect) operatorSelect.style.display = '';
 
-            parentCol.innerHTML = `
-                <input type="text" class="form-control form-control-sm filter-value" 
+            const cssClass = isSubFilter ? 'form-control form-control-sm rb-subfilter-value' : 'rb-filter-value';
+            valueContainer.innerHTML = `
+                <input type="text" class="${cssClass}" 
                        placeholder="Enter value" style="width: 100%;">
             `;
         }
@@ -1446,7 +1450,7 @@ const ReportBuilder = {
         const filterId = this.nextFilterId++;
 
         if (this.selectedFields.length === 0) {
-            alert('Please add fields first');
+            ReportBuilderNotifications.showToast('Please add fields before creating filters', 'warning');
             return;
         }
 
@@ -1539,72 +1543,54 @@ const ReportBuilder = {
     clearAll() {
         console.log('[clearAll] Clearing all fields, filters, and collection queries');
 
-        if (!confirm('This will clear all selected fields, filters, and collection queries. Are you sure?')) {
-            return;
-        }
+        // Capture 'this' context for use in callback
+        const self = this;
 
-        // Clear selected fields
-        this.selectedFields = [];
-        this.renderSelectedFields();
+        ReportBuilderNotifications.confirm(
+            'This will clear all selected fields, filters, and collection queries.',
+            () => {
+                // Clear selected fields
+                self.selectedFields = [];
 
-        // Clear filters
-        this.filters = [];
-        this.filterGroups = [];
-        this.nextFilterId = 1;
-        this.nextGroupId = 1;
-        const filtersContainer = document.getElementById('filters');
-        if (filtersContainer) {
-            filtersContainer.innerHTML = `
-                <div class="rb-empty-state">
-                    <div class="rb-empty-state-text">No filters applied</div>
-                </div>
-            `;
-        }
+                // Clear filters
+                self.filters = [];
+                const filtersContainer = document.getElementById('filters');
+                if (filtersContainer) {
+                    filtersContainer.innerHTML = `
+                        <div class="rb-empty-state">
+                            <div class="rb-empty-state-text">No filters. Use Add Filter button to create filters.</div>
+                        </div>
+                    `;
+                }
 
-        // Clear collection queries
-        this.collectionQueries = [];
-        this.nextCollectionQueryId = 1;
-        const collectionsContainer = document.getElementById('collectionQueries');
-        if (collectionsContainer) {
-            collectionsContainer.innerHTML = `
-                <div class="rb-empty-state">
-                    <div class="rb-empty-state-text">No collection queries</div>
-                </div>
-            `;
-        }
+                // Clear collection queries
+                self.collectionQueries = [];
+                const collectionContainer = document.getElementById('collectionQueries');
+                if (collectionContainer) {
+                    collectionContainer.innerHTML = `
+                        <div class="rb-empty-state">
+                            <div class="rb-empty-state-text">No collection queries. Use Add Collection Query button to filter related data.</div>
+                        </div>
+                    `;
+                }
 
-        // Update status bar
-        this.updateStatusBar();
+                // Render selected fields
+                self.renderSelectedFields();
+                self.updateStatusBar();
+                self.scheduleAutoSave();
 
-        // Clear auto-saved draft
-        this.clearAutoSavedDraft();
-
-        console.log('[clearAll] Complete');
+                ReportBuilderNotifications.showToast('All fields, filters, and queries cleared', 'success');
+            },
+            null,
+            { 
+                title: 'Clear All?',
+                danger: true,
+                confirmText: 'Clear All'
+            }
+        );
     },
 
-    // Smart filtering functions
-    setupSmartFilter(filterId) {
-        const fieldSelect = document.querySelector(`.filter-field[data-filter-id="${filterId}"]`);
-        const operatorSelect = document.getElementById(`operator-${filterId}`);
-        const valueInput = document.getElementById(`value-${filterId}`);
-
-        if (!fieldSelect || !operatorSelect || !valueInput) return;
-
-        fieldSelect.addEventListener('change', (e) => {
-            const selectedOption = e.target.options[e.target.selectedIndex];
-            const dataType = selectedOption.dataset.type || 'String';
-
-            this.updateOperators(operatorSelect, dataType);
-            this.updateValueInput(valueInput, dataType, operatorSelect.value);
-        });
-
-        operatorSelect.addEventListener('change', (e) => {
-            const selectedOption = fieldSelect.options[fieldSelect.selectedIndex];
-            const dataType = selectedOption.dataset.type || 'String';
-            this.updateValueInput(valueInput, dataType, e.target.value);
-        });
-    },
-
+    // Smart filtering functions for collection sub-filters
     setupSubFilterSmartInput(queryId, subFilterId) {
         const fieldSelect = document.querySelector(`[data-subfilter-id="${subFilterId}"][data-query-id="${queryId}"]`);
         const operatorSelect = document.getElementById(`subfilter-operator-${queryId}-${subFilterId}`);
@@ -1642,197 +1628,44 @@ const ReportBuilder = {
         });
     },
 
-    updateOperators(selectElement, dataType) {
-        const operatorsByType = {
-            'String': [
-                { value: 'Equals', label: 'Equals' },
-                { value: 'NotEquals', label: 'Not Equals' },
-                { value: 'Contains', label: 'Contains' },
-                { value: 'NotContains', label: 'Does Not Contain' },
-                { value: 'StartsWith', label: 'Starts With' },
-                { value: 'EndsWith', label: 'Ends With' },
-                { value: 'IsNull', label: 'Is Null' },
-                { value: 'IsNotNull', label: 'Is Not Null' },
-                { value: 'IsEmpty', label: 'Is Empty' },
-                { value: 'IsNotEmpty', label: 'Is Not Empty' }
-            ],
-            'Int32': [
-                { value: 'Equals', label: 'Equals' },
-                { value: 'NotEquals', label: 'Not Equals' },
-                { value: 'GreaterThan', label: 'Greater Than (>)' },
-                { value: 'LessThan', label: 'Less Than (<)' },
-                { value: 'GreaterThanOrEqual', label: 'Greater Than or Equal (≥)' },
-                { value: 'LessThanOrEqual', label: 'Less Than or Equal (≤)' },
-                { value: 'Between', label: 'Between' },
-                { value: 'IsNull', label: 'Is Null' },
-                { value: 'IsNotNull', label: 'Is Not Null' }
-            ],
-            'Decimal': [
-                { value: 'Equals', label: 'Equals' },
-                { value: 'NotEquals', label: 'Not Equals' },
-                { value: 'GreaterThan', label: 'Greater Than (>)' },
-                { value: 'LessThan', label: 'Less Than (<)' },
-                { value: 'GreaterThanOrEqual', label: 'Greater Than or Equal (≥)' },
-                { value: 'LessThanOrEqual', label: 'Less Than or Equal (≤)' },
-                { value: 'Between', label: 'Between' },
-                { value: 'IsNull', label: 'Is Null' },
-                { value: 'IsNotNull', label: 'Is Not Null' }
-            ],
-            'DateTime': [
-                { value: 'Equals', label: 'On Date' },
-                { value: 'NotEquals', label: 'Not On Date' },
-                { value: 'GreaterThan', label: 'After' },
-                { value: 'LessThan', label: 'Before' },
-                { value: 'GreaterThanOrEqual', label: 'On or After' },
-                { value: 'LessThanOrEqual', label: 'On or Before' },
-                { value: 'Between', label: 'Between Dates' },
-                { value: 'IsNull', label: 'Is Null' },
-                { value: 'IsNotNull', label: 'Is Not Null' },
-                { value: 'InLast', label: 'In Last X Days' },
-                { value: 'InNext', label: 'In Next X Days' }
-            ],
-            'Boolean': [
-                { value: 'Equals', label: 'Is' },
-                { value: 'IsNull', label: 'Is Null' },
-                { value: 'IsNotNull', label: 'Is Not Null' }
-            ]
-        };
-
-        const normalizedType = dataType.includes('Int') || dataType.includes('Number') ? 'Int32' :
-                               dataType.includes('Decimal') || dataType.includes('Double') ? 'Decimal' :
-                               dataType.includes('Date') ? 'DateTime' :
-                               dataType.includes('Bool') ? 'Boolean' : 'String';
-
-        const operators = operatorsByType[normalizedType] || operatorsByType['String'];
-
-        selectElement.innerHTML = operators.map(op =>
-            `<option value="${op.value}">${op.label}</option>`
-        ).join('');
-
-        // For date fields, hide the operator column because the combined dropdown handles everything
-        if (normalizedType === 'DateTime') {
-            const filterRow = selectElement.closest('.row');
-            const operatorCol = selectElement.closest('.col-md-3');
-            if (operatorCol) {
-                operatorCol.style.display = 'none';
-            }
-        }
-    },
-
-    updateValueInput(inputElement, dataType, operator) {
-        const parentCol = inputElement.closest('.col-md-4');
-        if (!parentCol) return;
-
-        const uniqueId = inputElement.id || `filter-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-
-        if (operator === 'Between') {
-            const inputType = dataType.includes('Date') ? 'date' : 'number';
-            parentCol.innerHTML = `
-                <input type="${inputType}" class="form-control form-control-sm filter-value mb-1" 
-                       placeholder="From" style="width: 100%;">
-                <input type="${inputType}" class="form-control form-control-sm filter-value-end" 
-                       placeholder="To" style="width: 100%;">
-            `;
-            return;
-        }
-
-        // For date fields, InLast/InNext are handled by the combined dropdown, not a number input
-        // Only create number input for InLast/InNext if it's NOT a date field
-        if ((operator === 'InLast' || operator === 'InNext') && !dataType.includes('Date')) {
-            parentCol.innerHTML = `
-                <input type="number" class="form-control form-control-sm filter-value" 
-                       placeholder="Number of days" min="1" style="width: 100%;">
-            `;
-            return;
-        }
-
-        if (operator === 'IsNull' || operator === 'IsNotNull' || operator === 'IsEmpty' || operator === 'IsNotEmpty') {
-            parentCol.innerHTML = `
-                <input type="text" class="form-control form-control-sm filter-value" 
-                       placeholder="(no value needed)" disabled style="width: 100%;">
-            `;
-            return;
-        }
-
-        const normalizedType = dataType.includes('Date') ? 'date' :
-                               dataType.includes('Int') || dataType.includes('Number') ? 'number' :
-                               dataType.includes('Bool') ? 'checkbox' : 'text';
-
-        const filterRow = parentCol.closest('.row');
-        const operatorCol = filterRow?.querySelector('.col-md-3');
-
-        if (normalizedType === 'checkbox') {
-            if (operatorCol) operatorCol.style.display = '';
-
-            parentCol.innerHTML = `
-                <div class="form-check mt-2">
-                    <input type="checkbox" class="form-check-input filter-value" id="value-${uniqueId}">
-                    <label class="form-check-label" for="value-${uniqueId}">True</label>
-                </div>
-            `;
-        } else if (normalizedType === 'date') {
-            if (operatorCol) operatorCol.style.display = 'none';
-
-            parentCol.innerHTML = this.getDateFilterHTML(uniqueId);
-
-            setTimeout(() => {
-                this.setupDateFilterListeners(parentCol, uniqueId);
-            }, 0);
-        } else if (normalizedType === 'number') {
-            if (operatorCol) operatorCol.style.display = '';
-
-            parentCol.innerHTML = `
-                <input type="number" class="form-control form-control-sm filter-value" 
-                       placeholder="Enter number" step="any" style="width: 100%;">
-            `;
-        } else {
-            if (operatorCol) operatorCol.style.display = '';
-
-            parentCol.innerHTML = `
-                <input type="text" class="form-control form-control-sm filter-value" 
-                       placeholder="Enter value" style="width: 100%;">
-            `;
-        }
-    },
-
     getDateFilterHTML(uniqueId) {
         return `
             <select class="form-control form-control-sm filter-date-combined" style="width: 100%;">
                 <option value="">Select date condition...</option>
                 <optgroup label="Specific Date">
                     <option value="static">Pick a specific date...</option>
-                    <option value="Equals|Today">is today</option>
-                    <option value="Equals|Yesterday">is yesterday</option>
-                    <option value="Equals|Tomorrow">is tomorrow</option>
+                    <option value="Equals|Today">today</option>
+                    <option value="Equals|Yesterday">yesterday</option>
+                    <option value="Equals|Tomorrow">tomorrow</option>
                 </optgroup>
                 <optgroup label="Relative Dates">
-                    <option value="Equals|StartOfWeek">is start of this week</option>
-                    <option value="Equals|EndOfWeek">is end of this week</option>
-                    <option value="Equals|StartOfMonth">is start of this month</option>
-                    <option value="Equals|EndOfMonth">is end of this month</option>
+                    <option value="Equals|StartOfWeek">start of this week</option>
+                    <option value="Equals|EndOfWeek">end of this week</option>
+                    <option value="Equals|StartOfMonth">start of this month</option>
+                    <option value="Equals|EndOfMonth">end of this month</option>
                 </optgroup>
                 <optgroup label="Within Last...">
-                    <option value="InLast|7">is within the last 7 days</option>
-                    <option value="InLast|30">is within the last 30 days</option>
-                    <option value="InLast|90">is within the last 90 days</option>
-                    <option value="InLast|180">is within the last 180 days</option>
-                    <option value="InLast|365">is within the last 365 days</option>
+                    <option value="InLast|7">within the last 7 days</option>
+                    <option value="InLast|30">within the last 30 days</option>
+                    <option value="InLast|90">within the last 90 days</option>
+                    <option value="InLast|180">within the last 180 days</option>
+                    <option value="InLast|365">within the last 365 days</option>
                 </optgroup>
                 <optgroup label="More Than...Ago">
-                    <option value="LessThan|Past7Days">is more than 7 days ago</option>
-                    <option value="LessThan|Past30Days">is more than 30 days ago</option>
-                    <option value="LessThan|Past3Months">is more than 3 months ago</option>
-                    <option value="LessThan|Past6Months">is more than 6 months ago</option>
-                    <option value="LessThan|Past12Months">is more than 12 months ago</option>
+                    <option value="LessThan|Past7Days">more than 7 days ago</option>
+                    <option value="LessThan|Past30Days">more than 30 days ago</option>
+                    <option value="LessThan|Past3Months">more than 3 months ago</option>
+                    <option value="LessThan|Past6Months">more than 6 months ago</option>
+                    <option value="LessThan|Past12Months">more than 12 months ago</option>
                 </optgroup>
                 <optgroup label="Within Next...">
-                    <option value="InNext|7">is within the next 7 days</option>
-                    <option value="InNext|30">is within the next 30 days</option>
-                    <option value="InNext|90">is within the next 90 days</option>
+                    <option value="InNext|7">within the next 7 days</option>
+                    <option value="InNext|30">within the next 30 days</option>
+                    <option value="InNext|90">within the next 90 days</option>
                 </optgroup>
-                <optgroup label="Less Than...Away">
-                    <option value="GreaterThan|Next7Days">is less than 7 days away</option>
-                    <option value="GreaterThan|Next30Days">is less than 30 days away</option>
+                <optgroup label="More Than...Away">
+                    <option value="GreaterThan|Next7Days">more than 7 days away</option>
+                    <option value="GreaterThan|Next30Days">more than 30 days away</option>
                 </optgroup>
                 <optgroup label="Custom">
                     <option value="custom">Custom condition...</option>

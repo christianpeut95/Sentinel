@@ -10,7 +10,7 @@ using System.Security.Claims;
 
 namespace Sentinel.Pages.Cases
 {
-    [Authorize]
+    [Authorize(Policy = "Permission.Task.Create")]
     public class AddTaskModel : PageModel
     {
         private readonly ApplicationDbContext _context;

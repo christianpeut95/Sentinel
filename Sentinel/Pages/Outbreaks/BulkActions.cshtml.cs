@@ -31,7 +31,7 @@ public class BulkActionsModel : PageModel
     public string ActionType { get; set; } = string.Empty;
 
     [BindProperty]
-    public int? TemplateId { get; set; }
+    public Guid? TemplateId { get; set; }
 
     [BindProperty]
     public List<Guid> CaseIds { get; set; } = new();
@@ -128,13 +128,16 @@ public class BulkActionsModel : PageModel
     {
         TaskTemplates = new SelectList(
             await _context.TaskTemplates
+                .Where(t => t.IsActive)
                 .OrderBy(t => t.Name)
                 .ToListAsync(),
             "Id",
             "Name");
 
+        // Only show the current published version of each survey
         SurveyTemplates = new SelectList(
             await _context.SurveyTemplates
+                .Where(s => s.IsActive && s.VersionStatus == SurveyVersionStatus.Active)
                 .OrderBy(s => s.Name)
                 .ToListAsync(),
             "Id",

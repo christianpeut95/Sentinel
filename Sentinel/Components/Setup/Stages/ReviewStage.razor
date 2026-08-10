@@ -1,0 +1,391 @@
+@using Microsoft.AspNetCore.Identity
+@using Microsoft.EntityFrameworkCore
+@using Sentinel.Data
+@using Sentinel.Models
+@using Sentinel.Services
+@using System.Text.Json
+@using System.Text.Json.Nodes
+@inject ApplicationDbContext DbContext
+@inject UserManager<ApplicationUser> UserManager
+@inject RoleManager<IdentityRole> RoleManager
+@inject ISystemSettingsService SystemSettingsService
+@inject IConfiguration Configuration
+@inject IWebHostEnvironment Environment
+@inject ILogger<ReviewStage> Logger
+
+<div class="stage-card">
+    <div class="stage-header">
+        <h2><i class="bi bi-check-circle"></i> Review & Complete Setup</h2>
+        <p>Review your configuration and complete the setup process.</p>
+    </div>
+
+    <div class="stage-body">
+        @if (!string.IsNullOrEmpty(_error))
+        {
+            <div class="alert alert-danger">
+                <i class="bi bi-exclamation-triangle-fill"></i>
+                <strong>Setup failed:</strong> @_error
+            </div>
+        }
+
+        @if (_isCompleting)
+        {
+            <div class="alert alert-info">
+                <div style="display: flex; align-items: center; gap: 1rem;">
+                    <span class="spinner"></span>
+                    <div>
+                        <strong>@_currentStep</strong>
+                        <br />
+                        <small>Please wait while we configure your system...</small>
+                    </div>
+                </div>
+            </div>
+        }
+
+        <!-- Administrator Account -->
+        <div class="review-section">
+            <h3><i class="bi bi-person-badge"></i> Administrator Account</h3>
+            <div class="review-item">
+                <span class="review-label">Email</span>
+                <span class="review-value">@AdminData.Email</span>
+            </div>
+            <div class="review-item">
+                <span class="review-label">Full Name</span>
+                <span class="review-value">@AdminData.FullName</span>
+            </div>
+            @if (!string.IsNullOrEmpty(AdminData.RecoveryEmail))
+            {
+                <div class="review-item">
+                    <span class="review-label">Recovery Email</span>
+                    <span class="review-value">@AdminData.RecoveryEmail</span>
+                </div>
+            }
+            @if (AdminData.CreateBackupAdmin)
+            {
+                <div class="review-item">
+                    <span class="review-label">Backup Admin</span>
+                    <span class="review-value">@AdminData.BackupEmail</span>
+                </div>
+            }
+        </div>
+
+        <!-- HTTPS & Domain -->
+        <div class="review-section">
+            <h3><i class="bi bi-shield-lock"></i> HTTPS & Domain</h3>
+            <div class="review-item">
+                <span class="review-label">Application URL</span>
+                <span class="review-value">@HttpsData.ApplicationUrl</span>
+            </div>
+            <div class="review-item">
+                <span class="review-label">Enforce HTTPS</span>
+                <span class="review-value">@(HttpsData.EnforceHttps ? "Yes" : "No")</span>
+            </div>
+            @if (!string.IsNullOrEmpty(HttpsData.DomainName))
+            {
+                <div class="review-item">
+                    <span class="review-label">Domain Name</span>
+                    <span class="review-value">@HttpsData.DomainName</span>
+                </div>
+            }
+        </div>
+
+        <!-- Organization -->
+        <div class="review-section">
+            <h3><i class="bi bi-building"></i> Organization</h3>
+            <div class="review-item">
+                <span class="review-label">Name</span>
+                <span class="review-value">@OrgData.Name</span>
+            </div>
+            <div class="review-item">
+                <span class="review-label">Country</span>
+                <span class="review-value">@OrgData.Country</span>
+            </div>
+            @if (!string.IsNullOrEmpty(OrgData.City))
+            {
+                <div class="review-item">
+                    <span class="review-label">City</span>
+                    <span class="review-value">@OrgData.City</span>
+                </div>
+            }
+        </div>
+
+        <!-- Time Zone -->
+        <div class="review-section">
+            <h3><i class="bi bi-clock"></i> Time Zone</h3>
+            <div class="review-item">
+                <span class="review-label">Selected Time Zone</span>
+                <span class="review-value">@TimeZoneId</span>
+            </div>
+        </div>
+
+        <!-- Geocoding -->
+        @if (!string.IsNullOrEmpty(GeoData.Provider))
+        {
+            <div class="review-section">
+                <h3><i class="bi bi-geo-alt"></i> Geocoding</h3>
+                <div class="review-item">
+                    <span class="review-label">Provider</span>
+                    <span class="review-value">@GeoData.Provider</span>
+                </div>
+                @if (!string.IsNullOrEmpty(GeoData.ApiKey))
+                {
+                    <div class="review-item">
+                        <span class="review-label">API Key</span>
+                        <span class="review-value masked">••••••••</span>
+                    </div>
+                }
+            </div>
+        }
+
+        <!-- Backup -->
+        <div class="review-section">
+            <h3><i class="bi bi-hdd"></i> Backup</h3>
+            <div class="review-item">
+                <span class="review-label">Backup Path</span>
+                <span class="review-value">@BackupData.BackupPath</span>
+            </div>
+            <div class="review-item">
+                <span class="review-label">Retention</span>
+                <span class="review-value">@BackupData.RetentionDays days</span>
+            </div>
+        </div>
+
+        <!-- SMTP -->
+        @if (!string.IsNullOrEmpty(SmtpData.Host))
+        {
+            <div class="review-section">
+                <h3><i class="bi bi-envelope"></i> SMTP</h3>
+                <div class="review-item">
+                    <span class="review-label">Host</span>
+                    <span class="review-value">@SmtpData.Host:@SmtpData.Port</span>
+                </div>
+                <div class="review-item">
+                    <span class="review-label">From Email</span>
+                    <span class="review-value">@SmtpData.FromEmail</span>
+                </div>
+                <div class="review-item">
+                    <span class="review-label">SSL/TLS</span>
+                    <span class="review-value">@(SmtpData.EnableSsl ? "Enabled" : "Disabled")</span>
+                </div>
+            </div>
+        }
+
+        <div class="stage-actions">
+            <button type="button" class="btn btn-secondary" @onclick="HandlePrevious" disabled="@_isCompleting">
+                <i class="bi bi-arrow-left"></i>
+                <span>Previous</span>
+            </button>
+            <button type="button" class="btn btn-primary" @onclick="CompleteSetup" disabled="@_isCompleting">
+                @if (_isCompleting)
+                {
+                    <span class="spinner"></span>
+                    <span>Completing Setup...</span>
+                }
+                else
+                {
+                    <i class="bi bi-check-lg"></i>
+                    <span>Complete Setup</span>
+                }
+            </button>
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter] public EventCallback OnComplete { get; set; }
+    [Parameter] public EventCallback OnPrevious { get; set; }
+    [Parameter] public InitialSetupWizard.AdminAccountData AdminData { get; set; } = new();
+    [Parameter] public InitialSetupWizard.HttpsConfigData HttpsData { get; set; } = new();
+    [Parameter] public InitialSetupWizard.OrganizationData OrgData { get; set; } = new();
+    [Parameter] public string TimeZoneId { get; set; } = "UTC";
+    [Parameter] public InitialSetupWizard.GeocodingData GeoData { get; set; } = new();
+    [Parameter] public InitialSetupWizard.BackupData BackupData { get; set; } = new();
+    [Parameter] public InitialSetupWizard.SmtpData SmtpData { get; set; } = new();
+
+    private bool _isCompleting = false;
+    private string _error = "";
+    private string _currentStep = "";
+
+    private async Task CompleteSetup()
+    {
+        _isCompleting = true;
+        _error = "";
+        StateHasChanged();
+
+        try
+        {
+            // Step 1: Apply pending migrations
+            _currentStep = "Applying database migrations...";
+            StateHasChanged();
+            await DbContext.Database.MigrateAsync();
+            Logger.LogInformation("Database migrations applied");
+
+            // Step 2: Create roles
+            _currentStep = "Creating system roles...";
+            StateHasChanged();
+            var rolesToCreate = new[] { "Administrator", "Supervisor", "User" };
+            foreach (var roleName in rolesToCreate)
+            {
+                if (!await RoleManager.RoleExistsAsync(roleName))
+                {
+                    await RoleManager.CreateAsync(new IdentityRole(roleName));
+                    Logger.LogInformation("Created role: {RoleName}", roleName);
+                }
+            }
+
+            // Step 3: Create admin user
+            _currentStep = "Creating administrator account...";
+            StateHasChanged();
+            var adminUser = new ApplicationUser
+            {
+                UserName = AdminData.Email,
+                Email = AdminData.Email,
+                EmailConfirmed = true,
+                FirstName = AdminData.FullName?.Split(' ').FirstOrDefault(),
+                LastName = AdminData.FullName?.Split(' ').Skip(1).FirstOrDefault()
+            };
+
+            var createResult = await UserManager.CreateAsync(adminUser, AdminData.Password);
+            if (!createResult.Succeeded)
+            {
+                _error = string.Join("; ", createResult.Errors.Select(e => e.Description));
+                _isCompleting = false;
+                return;
+            }
+
+            await UserManager.AddToRoleAsync(adminUser, "Administrator");
+            Logger.LogInformation("Created admin user: {Email}", AdminData.Email);
+
+            // Step 4: Create backup admin if requested
+            if (AdminData.CreateBackupAdmin && !string.IsNullOrEmpty(AdminData.BackupEmail))
+            {
+                _currentStep = "Creating backup administrator...";
+                StateHasChanged();
+
+                var backupUser = new ApplicationUser
+                {
+                    UserName = AdminData.BackupEmail,
+                    Email = AdminData.BackupEmail,
+                    EmailConfirmed = true,
+                    FirstName = AdminData.BackupFullName?.Split(' ').FirstOrDefault() ?? "Backup",
+                    LastName = AdminData.BackupFullName?.Split(' ').Skip(1).FirstOrDefault() ?? "Administrator"
+                };
+
+                var backupResult = await UserManager.CreateAsync(backupUser, AdminData.BackupPassword!);
+                if (backupResult.Succeeded)
+                {
+                    await UserManager.AddToRoleAsync(backupUser, "Administrator");
+                    Logger.LogInformation("Created backup admin user: {Email}", AdminData.BackupEmail);
+                }
+            }
+
+            // Step 5: Save system settings and organization data
+            _currentStep = "Saving system settings and organization data...";
+            StateHasChanged();
+
+            var settings = await SystemSettingsService.GetSettingsAsync();
+            if (settings != null)
+            {
+                settings.ApplicationUrl = HttpsData.ApplicationUrl;
+                settings.EnforceHttps = HttpsData.EnforceHttps;
+                settings.AllowPublicRegistration = false; // Lock down registration
+
+                // Save SMTP if configured
+                if (!string.IsNullOrEmpty(SmtpData.Host))
+                {
+                    await SystemSettingsService.SaveSmtpSettingsAsync(
+                        SmtpData.Host,
+                        SmtpData.Port,
+                        SmtpData.EnableSsl,
+                        SmtpData.Username,
+                        SmtpData.Password,
+                        SmtpData.FromEmail,
+                        SmtpData.FromDisplayName
+                    );
+                }
+
+                // Save organization data and timezone to appsettings.json
+                try
+                {
+                    var appsettingsPath = Path.Combine(Environment.ContentRootPath, "appsettings.json");
+                    var json = await File.ReadAllTextAsync(appsettingsPath);
+                    var jsonDoc = JsonNode.Parse(json);
+
+                    if (jsonDoc != null)
+                    {
+                        // Ensure Organization section exists
+                        if (jsonDoc["Organization"] == null)
+                        {
+                            jsonDoc["Organization"] = new JsonObject();
+                        }
+
+                        // Save organization data
+                        jsonDoc["Organization"]!["Name"] = JsonValue.Create(OrgData.Name);
+                        jsonDoc["Organization"]!["Country"] = JsonValue.Create(OrgData.Country);
+                        jsonDoc["Organization"]!["State"] = JsonValue.Create(OrgData.State);
+                        jsonDoc["Organization"]!["City"] = JsonValue.Create(OrgData.City);
+                        jsonDoc["Organization"]!["PostalCode"] = JsonValue.Create(OrgData.PostalCode);
+                        jsonDoc["Organization"]!["CountryCode"] = JsonValue.Create(OrgData.CountryCode?.ToUpperInvariant());
+                        jsonDoc["Organization"]!["TimeZoneId"] = JsonValue.Create(TimeZoneId);
+
+                        // Ensure Geocoding section exists and save geocoding settings
+                        if (jsonDoc["Geocoding"] == null)
+                        {
+                            jsonDoc["Geocoding"] = new JsonObject();
+                        }
+                        jsonDoc["Geocoding"]!["Provider"] = JsonValue.Create(GeoData.Provider);
+                        if (!string.IsNullOrEmpty(GeoData.ApiKey))
+                        {
+                            jsonDoc["Geocoding"]!["ApiKey"] = JsonValue.Create(GeoData.ApiKey);
+                        }
+                        if (!string.IsNullOrEmpty(GeoData.Email))
+                        {
+                            jsonDoc["Geocoding"]!["Email"] = JsonValue.Create(GeoData.Email);
+                        }
+
+                        // Ensure Backup section exists and save backup settings
+                        if (jsonDoc["Backup"] == null)
+                        {
+                            jsonDoc["Backup"] = new JsonObject();
+                        }
+                        jsonDoc["Backup"]!["Path"] = JsonValue.Create(BackupData.BackupPath);
+                        jsonDoc["Backup"]!["RetentionDays"] = JsonValue.Create(BackupData.RetentionDays);
+
+                        // Write back to file
+                        var options = new JsonSerializerOptions { WriteIndented = true };
+                        await File.WriteAllTextAsync(appsettingsPath, jsonDoc.ToJsonString(options));
+                        Logger.LogInformation("Organization, geocoding, and backup settings saved to appsettings.json");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Logger.LogError(ex, "Failed to save settings to appsettings.json");
+                    // Don't fail the setup, just log the error
+                }
+
+                // Mark setup as complete
+                await SystemSettingsService.CompleteSetupAsync(adminUser.Id);
+                Logger.LogInformation("Setup completed successfully");
+            }
+
+            // Step 6: Complete
+            _currentStep = "Setup complete! Redirecting...";
+            StateHasChanged();
+            await Task.Delay(1000);
+
+            await OnComplete.InvokeAsync();
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Setup failed");
+            _error = ex.Message;
+            _isCompleting = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task HandlePrevious()
+    {
+        await OnPrevious.InvokeAsync();
+    }
+}

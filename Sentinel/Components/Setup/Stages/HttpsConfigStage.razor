@@ -1,0 +1,84 @@
+@using System.ComponentModel.DataAnnotations
+
+<div class="stage-card">
+    <div class="stage-header">
+        <h2><i class="bi bi-shield-lock"></i> HTTPS & Domain Configuration</h2>
+        <p>Configure HTTPS settings and your application's domain name.</p>
+    </div>
+
+    <div class="stage-body">
+        <EditForm Model="@HttpsData" OnValidSubmit="HandleNext">
+            <DataAnnotationsValidator />
+
+            <div class="form-group">
+                <label class="form-label required">Application URL</label>
+                <InputText @bind-Value="HttpsData.ApplicationUrl" class="form-control" placeholder="https://sentinel.example.com" />
+                <ValidationMessage For="@(() => HttpsData.ApplicationUrl)" class="validation-message" />
+                <span class="form-text">The base URL where Sentinel will be accessed.</span>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Domain Name (optional)</label>
+                <InputText @bind-Value="HttpsData.DomainName" class="form-control" placeholder="sentinel.example.com" />
+                <span class="form-text">Your custom domain name (if different from Application URL).</span>
+            </div>
+
+            <div class="form-check" style="margin-bottom: 1.5rem;">
+                <InputCheckbox @bind-Value="HttpsData.EnforceHttps" class="form-check-input" id="enforceHttpsCheck" />
+                <label class="form-check-label" for="enforceHttpsCheck">
+                    Enforce HTTPS (Recommended)
+                </label>
+            </div>
+
+            @if (HttpsData.EnforceHttps)
+            {
+                <div class="alert alert-info">
+                    <i class="bi bi-info-circle"></i>
+                    HTTPS enforcement will redirect all HTTP requests to HTTPS. Ensure you have a valid SSL certificate configured.
+                </div>
+            }
+            else
+            {
+                <div class="alert alert-warning">
+                    <i class="bi bi-exclamation-triangle-fill"></i>
+                    Running without HTTPS is not recommended for production environments. Patient data should always be encrypted in transit.
+                </div>
+            }
+
+            <div class="form-group">
+                <label class="form-label">SSL Certificate Path (optional)</label>
+                <InputText @bind-Value="HttpsData.SslCertPath" class="form-control" placeholder="/path/to/certificate.pfx" />
+                <span class="form-text">Path to your SSL certificate file if using Kestrel directly.</span>
+            </div>
+
+            <div class="stage-actions">
+                <button type="button" class="btn btn-secondary" @onclick="HandlePrevious">
+                    <i class="bi bi-arrow-left"></i>
+                    <span>Previous</span>
+                </button>
+                <button type="submit" class="btn btn-primary">
+                    <span>Next</span>
+                    <i class="bi bi-arrow-right"></i>
+                </button>
+            </div>
+        </EditForm>
+    </div>
+</div>
+
+@code {
+    [Parameter] public EventCallback OnNext { get; set; }
+    [Parameter] public EventCallback OnPrevious { get; set; }
+    [Parameter] public InitialSetupWizard.HttpsConfigData HttpsData { get; set; } = new();
+    [Parameter] public EventCallback<InitialSetupWizard.HttpsConfigData> HttpsDataChanged { get; set; }
+
+    private async Task HandleNext()
+    {
+        await HttpsDataChanged.InvokeAsync(HttpsData);
+        await OnNext.InvokeAsync();
+    }
+
+    private async Task HandlePrevious()
+    {
+        await OnPrevious.InvokeAsync();
+    }
+}

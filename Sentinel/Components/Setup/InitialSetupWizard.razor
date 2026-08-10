@@ -1,0 +1,205 @@
+@using Sentinel.Components.Setup.Stages
+@using Sentinel.Services
+@inject ISystemSettingsService SystemSettingsService
+@inject NavigationManager Navigation
+@inject ILogger<InitialSetupWizard> Logger
+
+<div class="setup-wizard">
+    @if (!_tokenValidated)
+    {
+        <TokenValidationStage OnTokenValidated="HandleTokenValidated" />
+    }
+    else
+    {
+        <div class="wizard-container">
+            <div class="wizard-header">
+                <div class="wizard-logo">
+                    <div class="logo-icon">
+                        <img src="/Icons/sentinel-icon.svg" alt="Sentinel" />
+                    </div>
+                    <div class="logo-text">
+                        <h1>Sentinel Setup</h1>
+                        <p class="logo-subtitle">Disease Surveillance System</p>
+                    </div>
+                </div>
+                <div class="wizard-progress">
+                    <div class="progress-info">
+                        <span class="progress-text">Step @((int)_currentStage) of @_totalStages</span>
+                        <span class="progress-percent">@(_progress.ToString("F0"))%</span>
+                    </div>
+                    <div class="progress-bar">
+                        <div class="progress-fill" style="width: @(_progress)%"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="wizard-stages">
+                @switch (_currentStage)
+                {
+                    case WizardStage.DatabaseConnection:
+                        <DatabaseConnectionStage OnNext="HandleNext" OnPrevious="HandlePrevious" />
+                        break;
+                    case WizardStage.AdminAccount:
+                        <AdminAccountStage OnNext="HandleNext" OnPrevious="HandlePrevious" @bind-AdminData="_adminData" />
+                        break;
+                    case WizardStage.HttpsConfig:
+                        <HttpsConfigStage OnNext="HandleNext" OnPrevious="HandlePrevious" @bind-HttpsData="_httpsData" />
+                        break;
+                    case WizardStage.Organization:
+                        <OrganizationStage OnNext="HandleNext" OnPrevious="HandlePrevious" @bind-OrgData="_orgData" />
+                        break;
+                    case WizardStage.TimeZone:
+                        <TimeZoneStage OnNext="HandleNext" OnPrevious="HandlePrevious" @bind-TimeZoneId="_timeZoneId" />
+                        break;
+                    case WizardStage.Geocoding:
+                        <GeocodingStage OnNext="HandleNext" OnPrevious="HandlePrevious" OnSkip="HandleSkip" @bind-GeoData="_geoData" />
+                        break;
+                    case WizardStage.Backup:
+                        <BackupStage OnNext="HandleNext" OnPrevious="HandlePrevious" @bind-BackupData="_backupData" />
+                        break;
+                    case WizardStage.Smtp:
+                        <SmtpStage OnNext="HandleNext" OnPrevious="HandlePrevious" OnSkip="HandleSkip" @bind-SmtpData="_smtpData" />
+                        break;
+                    case WizardStage.Review:
+                        <ReviewStage 
+                            AdminData="_adminData"
+                            HttpsData="_httpsData"
+                            OrgData="_orgData"
+                            TimeZoneId="_timeZoneId"
+                            GeoData="_geoData"
+                            BackupData="_backupData"
+                            SmtpData="_smtpData"
+                            OnComplete="HandleComplete"
+                            OnPrevious="HandlePrevious" />
+                        break;
+                }
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    private bool _tokenValidated = false;
+    private WizardStage _currentStage = WizardStage.DatabaseConnection;
+    private int _totalStages = 9; // Excluding token validation
+    private double _progress => ((int)_currentStage / (double)_totalStages) * 100;
+
+    // Data models for each stage
+    private AdminAccountData _adminData = new();
+    private HttpsConfigData _httpsData = new();
+    private OrganizationData _orgData = new();
+    private string _timeZoneId = "UTC";
+    private GeocodingData _geoData = new();
+    private BackupData _backupData = new();
+    private SmtpData _smtpData = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        // No need to check setup completion here - SetupRedirectMiddleware handles this
+        // If we reach this component, we're authorized to be here
+    }
+
+    private void HandleTokenValidated()
+    {
+        _tokenValidated = true;
+        StateHasChanged();
+    }
+
+    private void HandleNext()
+    {
+        if (_currentStage < WizardStage.Review)
+        {
+            _currentStage++;
+            StateHasChanged();
+        }
+    }
+
+    private void HandlePrevious()
+    {
+        if (_currentStage > WizardStage.DatabaseConnection)
+        {
+            _currentStage--;
+            StateHasChanged();
+        }
+    }
+
+    private void HandleSkip()
+    {
+        HandleNext();
+    }
+
+    private async Task HandleComplete()
+    {
+        Logger.LogInformation("Setup wizard completed, redirecting to login");
+        Navigation.NavigateTo("/Identity/Account/Login?setupComplete=true");
+    }
+
+    public enum WizardStage
+    {
+        DatabaseConnection = 1,
+        AdminAccount = 2,
+        HttpsConfig = 3,
+        Organization = 4,
+        TimeZone = 5,
+        Geocoding = 6,
+        Backup = 7,
+        Smtp = 8,
+        Review = 9
+    }
+
+    // Data models
+    public class AdminAccountData
+    {
+        public string Email { get; set; } = "";
+        public string Password { get; set; } = "";
+        public string ConfirmPassword { get; set; } = "";
+        public string FullName { get; set; } = "";
+        public string? RecoveryEmail { get; set; }
+        public bool CreateBackupAdmin { get; set; }
+        public string? BackupEmail { get; set; }
+        public string? BackupPassword { get; set; }
+        public string? BackupFullName { get; set; }
+    }
+
+    public class HttpsConfigData
+    {
+        public string ApplicationUrl { get; set; } = "";
+        public bool EnforceHttps { get; set; } = true;
+        public string? DomainName { get; set; }
+        public string? SslCertPath { get; set; }
+    }
+
+    public class OrganizationData
+    {
+        public string Name { get; set; } = "";
+        public string Country { get; set; } = "";
+        public string? State { get; set; }
+        public string? City { get; set; }
+        public string? PostalCode { get; set; }
+        public string? CountryCode { get; set; }
+    }
+
+    public class GeocodingData
+    {
+        public string Provider { get; set; } = "Nominatim";
+        public string? ApiKey { get; set; }
+        public string? Email { get; set; }
+    }
+
+    public class BackupData
+    {
+        public string BackupPath { get; set; } = "";
+        public int RetentionDays { get; set; } = 30;
+    }
+
+    public class SmtpData
+    {
+        public string Host { get; set; } = "";
+        public int Port { get; set; } = 587;
+        public bool EnableSsl { get; set; } = true;
+        public string? Username { get; set; }
+        public string? Password { get; set; }
+        public string FromEmail { get; set; } = "";
+        public string FromDisplayName { get; set; } = "";
+    }
+}

@@ -454,13 +454,24 @@
                         <i class="bi bi-chevron-right setting-row-chevron"></i>
                     </a>
 
-                    <a asp-page="/Settings/Backups/Index" class="setting-row">
+                    <a href="/settings/backups" class="setting-row">
                         <div class="setting-row-icon">
                             <i class="bi bi-hdd-stack"></i>
                         </div>
                         <div class="setting-row-info">
                             <div class="setting-row-title">Database Backups</div>
                             <div class="setting-row-desc">Create, restore, and manage automated database backups</div>
+                        </div>
+                        <i class="bi bi-chevron-right setting-row-chevron"></i>
+                    </a>
+
+                    <a asp-page="/Settings/SmtpSettings" class="setting-row">
+                        <div class="setting-row-icon">
+                            <i class="bi bi-envelope-at"></i>
+                        </div>
+                        <div class="setting-row-info">
+                            <div class="setting-row-title">SMTP Settings</div>
+                            <div class="setting-row-desc">Configure email server for notifications and password resets</div>
                         </div>
                         <i class="bi bi-chevron-right setting-row-chevron"></i>
                     </a>

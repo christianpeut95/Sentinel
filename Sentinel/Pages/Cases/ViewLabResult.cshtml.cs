@@ -7,7 +7,7 @@ using Sentinel.Models;
 
 namespace Sentinel.Pages.Cases
 {
-    [Authorize]
+    [Authorize(Policy = "Permission.Laboratory.View")]
     public class ViewLabResultModel : PageModel
     {
         private readonly ApplicationDbContext _context;

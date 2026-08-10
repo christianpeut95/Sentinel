@@ -652,7 +652,9 @@
                 <button id="login-submit" type="submit" class="btn-login">Sign In</button>
 
                 <div class="login-links">
+                    @* Password reset feature disabled - uncomment to enable
                     <a id="forgot-password" asp-page="./ForgotPassword" class="login-link">Forgot your password?</a>
+                    *@
                     @if (Model.ExternalLogins?.Count > 0)
                     {
                         <span style="color: var(--graphite); margin: 0 8px; opacity: 0.5;">•</span>

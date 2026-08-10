@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.EntityFrameworkCore;
@@ -7,6 +8,7 @@ using Sentinel.Services;
 
 namespace Sentinel.Pages.Patients
 {
+    [Authorize(Policy = "Permission.Audit.View")]
     public class AuditHistoryModel : PageModel
     {
         private readonly IAuditService _auditService;

@@ -7,7 +7,7 @@ using System.Security.Claims;
 
 namespace Sentinel.Controllers.Api;
 
-[Authorize]
+[Authorize(Policy = "Permission.Report.Edit")]
 [ApiController]
 [Route("api/reports/folders")]
 [EnableRateLimiting("workflow-api-moderate")] // 60 per minute - folder management

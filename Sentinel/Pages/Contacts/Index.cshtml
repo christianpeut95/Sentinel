@@ -618,9 +618,9 @@ else
                                         {
                                             <div class="exposure-item">
                                                 <i class="bi bi-arrow-right"></i>
-                                                <a asp-page="/Cases/Details" asp-route-id="@exposure.ExposedCaseId" class="related-case-link">
-                                                    @(exposure.ExposedCase?.Patient?.FamilyName ?? "Case")
-                                                    (@exposure.ExposedCase?.FriendlyId)
+                                                <a asp-page="/Cases/Details" asp-route-id="@exposure.SourceCaseId" class="related-case-link">
+                                                    @(exposure.SourceCase?.Patient?.FamilyName ?? "Case")
+                                                    (@exposure.SourceCase?.FriendlyId)
                                                 </a>
                                                 @if (exposure.ContactClassification != null)
                                                 {

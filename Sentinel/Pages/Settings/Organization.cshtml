@@ -32,10 +32,7 @@
         <i class="bi bi-info-circle me-2"></i>Organization Information
     </div>
     <div class="card-body">
-        <p class="text-muted">
-            Configure your organization's details and default location settings. 
-            The locale information is used to provide more relevant address lookup results when geocoding patient addresses.
-        </p>
+     
 
         <form method="post">
             <div class="row">
@@ -107,32 +104,10 @@
                     </label>
                     <select asp-for="TimeZoneId" class="form-select" required>
                         <option value="">-- Select Timezone --</option>
-                        <optgroup label="Australia">
-                            <option value="Australia/Sydney">Sydney (AEDT/AEST)</option>
-                            <option value="Australia/Melbourne">Melbourne (AEDT/AEST)</option>
-                            <option value="Australia/Brisbane">Brisbane (AEST - no DST)</option>
-                            <option value="Australia/Perth">Perth (AWST)</option>
-                            <option value="Australia/Adelaide">Adelaide (ACDT/ACST)</option>
-                            <option value="Australia/Darwin">Darwin (ACST - no DST)</option>
-                            <option value="Australia/Hobart">Hobart (AEDT/AEST)</option>
-                        </optgroup>
-                        <optgroup label="New Zealand">
-                            <option value="Pacific/Auckland">Auckland (NZDT/NZST)</option>
-                            <option value="Pacific/Chatham">Chatham Islands</option>
-                        </optgroup>
-                        <optgroup label="Pacific">
-                            <option value="Pacific/Fiji">Fiji</option>
-                            <option value="Pacific/Port_Moresby">Papua New Guinea</option>
-                            <option value="Pacific/Guam">Guam</option>
-                        </optgroup>
-                        <optgroup label="Asia">
-                            <option value="Asia/Singapore">Singapore</option>
-                            <option value="Asia/Hong_Kong">Hong Kong</option>
-                            <option value="Asia/Tokyo">Tokyo</option>
-                        </optgroup>
-                        <optgroup label="Other">
-                            <option value="UTC">UTC (Coordinated Universal Time)</option>
-                        </optgroup>
+                        @foreach (var tz in TimeZoneInfo.GetSystemTimeZones().OrderBy(t => t.BaseUtcOffset).ThenBy(t => t.DisplayName))
+                        {
+                            <option value="@tz.Id">@tz.DisplayName</option>
+                        }
                     </select>
                     <span asp-validation-for="TimeZoneId" class="text-danger"></span>
                     <small class="form-text text-muted">
@@ -141,11 +116,6 @@
                 </div>
             </div>
 
-            <div class="alert alert-info mt-3">
-                <i class="bi bi-info-circle me-2"></i>
-                <strong>How this helps:</strong> When searching for addresses, the system will prioritize results from your configured location. 
-                For example, if you set Country Code to "AU", searching for "Sydney" will prioritize Sydney, Australia over Sydney, Canada.
-            </div>
 
             <div class="d-flex justify-content-between align-items-center mt-4">
                 <a asp-page="/Settings/Index" class="btn btn-secondary">

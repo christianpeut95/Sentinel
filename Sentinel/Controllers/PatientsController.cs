@@ -37,7 +37,7 @@ namespace Sentinel.Controllers
 
     [Route("api/[controller]")]
     [ApiController]
-    [Authorize]
+    [Authorize(Policy = "Permission.Patient.Search")]
     [EnableRateLimiting("sensitive-data")]
     public class PatientsController : ControllerBase
     {

@@ -104,6 +104,9 @@ namespace Sentinel.Data
         // Pathogen/Biomarker System
         public DbSet<Sentinel.Models.Pathogens.Pathogen> Pathogens { get; set; }
 
+        // System Settings
+        public DbSet<SystemSettings> SystemSettings { get; set; }
+
         // Symptom Tracking System
         public DbSet<Symptom> Symptoms { get; set; }
         public DbSet<CaseSymptom> CaseSymptoms { get; set; }
@@ -2481,7 +2484,18 @@ namespace Sentinel.Data
                         // Load disease if needed
                         if (caseEntity.DiseaseId.HasValue && caseEntity.Disease == null)
                         {
-                            caseEntity.Disease = await Diseases.FindAsync(caseEntity.DiseaseId.Value);
+                            // Check if disease is already tracked before loading it
+                            var diseaseEntry = ChangeTracker.Entries<Disease>()
+                                .FirstOrDefault(e => e.Entity.Id == caseEntity.DiseaseId.Value);
+
+                            if (diseaseEntry != null)
+                            {
+                                caseEntity.Disease = diseaseEntry.Entity;
+                            }
+                            else
+                            {
+                                caseEntity.Disease = await Diseases.FindAsync(caseEntity.DiseaseId.Value);
+                            }
                         }
                     }
                     else

@@ -1,12 +1,14 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Sentinel.Services.HL7;
 
 namespace Sentinel.Controllers.Api
 {
-    [Authorize]
+    [Authorize(Policy = "Permission.HL7.View")]
     [ApiController]
     [Route("api/hl7/diagnostics")]
+    [EnableRateLimiting("workflow-api")] // 100 per minute - diagnostic operations
     public class HL7DiagnosticsApiController : ControllerBase
     {
         private readonly HL7DiagnosticService _diagnosticService;

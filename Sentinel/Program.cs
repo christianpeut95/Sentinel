@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Sentinel.Data;
 using Sentinel.Models;
 using Sentinel.Services;
+using Sentinel.Middleware;
 using AntDesign;
 using System.Text.Json;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
@@ -265,6 +266,26 @@ builder.Services.AddControllers();
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 
+// ── Encryption & Email Services ────────────────────────
+// Data Protection for encrypting sensitive configuration
+builder.Services.AddDataProtection();
+
+// Encryption service for SMTP passwords and other secrets
+builder.Services.AddSingleton<Sentinel.Services.IEncryptionService, Sentinel.Services.EncryptionService>();
+
+// System settings service
+builder.Services.AddScoped<Sentinel.Services.ISystemSettingsService, Sentinel.Services.SystemSettingsService>();
+
+// Email service - use Mock in Development, Smtp in Production
+if (builder.Environment.IsDevelopment())
+{
+    builder.Services.AddScoped<Sentinel.Services.Email.IEmailService, Sentinel.Services.Email.MockEmailService>();
+}
+else
+{
+    builder.Services.AddScoped<Sentinel.Services.Email.IEmailService, Sentinel.Services.Email.SmtpEmailService>();
+}
+
 // app services
 builder.Services.AddScoped<Sentinel.Services.IPatientDuplicateCheckService, Sentinel.Services.PatientDuplicateCheckService>();
 builder.Services.AddScoped<Sentinel.Services.ILocationDuplicateCheckService, Sentinel.Services.LocationDuplicateCheckService>();
@@ -288,6 +309,7 @@ builder.Services.AddScoped<Sentinel.Services.IDuplicateDetectionService, Sentine
 builder.Services.AddScoped<Sentinel.Services.IJurisdictionService, Sentinel.Services.JurisdictionService>();
 builder.Services.AddScoped<Sentinel.Services.Reporting.IReportFieldMetadataService, Sentinel.Services.Reporting.ReportFieldMetadataService>();
 builder.Services.AddScoped<Sentinel.Services.Reporting.IReportDataService, Sentinel.Services.Reporting.ReportDataService>();
+builder.Services.AddScoped<Sentinel.Services.Reporting.CollectionQueryFilterBuilder>();
 builder.Services.AddScoped<Sentinel.Services.Reporting.IReportFolderService, Sentinel.Services.Reporting.ReportFolderService>();
 builder.Services.AddScoped<Sentinel.Services.Reporting.ICollectionMetadataService, Sentinel.Services.Reporting.CollectionMetadataService>();
 builder.Services.AddScoped<Sentinel.Services.Reporting.IDynamicDateResolver, Sentinel.Services.Reporting.DynamicDateResolver>();
@@ -395,7 +417,12 @@ app.UseRouting();
 
 app.UseSession(); // Add session middleware (must be before authentication)
 
-app.UseRateLimiter(); // Rate limiting middleware
+// ── Setup Redirect Middleware ──────────────────────────────────
+// Redirect all requests to /Setup if initial setup is not completed
+// Must come AFTER UseRouting() but BEFORE UseAuthentication()
+app.UseSetupRedirect();
+
+// app.UseRateLimiter(); // Rate limiting middleware - DISABLED FOR TESTING
 
 app.UseAuthentication();
 app.UseAuthorization();
@@ -1179,5 +1206,109 @@ using (var scope = app.Services.CreateScope())
     dbContext.SetEvaluationQueue(queue);
 }
 
+// ╔══════════════════════════════════════════════════════════════════════╗
+// ║ SETUP TOKEN GENERATION                                               ║
+// ║ Generate a secure token on first run for initial setup access       ║
+// ╚══════════════════════════════════════════════════════════════════════╝
+using (var scope = app.Services.CreateScope())
+{
+    var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+    var encryptionService = scope.ServiceProvider.GetRequiredService<Sentinel.Services.IEncryptionService>();
+    var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+
+    try
+    {
+        // Check if SystemSettings table exists and has data
+        var settings = await context.SystemSettings.FirstOrDefaultAsync();
+
+        if (settings == null)
+        {
+            // First-time setup - generate token
+            logger.LogInformation("No system settings found - generating setup token for first-time setup");
+
+            // Generate cryptographically secure random token (48 bytes = 64 base64 chars)
+            var tokenBytes = new byte[48];
+            using (var rng = System.Security.Cryptography.RandomNumberGenerator.Create())
+            {
+                rng.GetBytes(tokenBytes);
+            }
+            var plainToken = Convert.ToBase64String(tokenBytes);
+
+            // Hash token for storage
+            var hashedToken = encryptionService.Hash(plainToken);
+
+            // Create system settings record
+            settings = new Sentinel.Models.SystemSettings
+            {
+                Id = Guid.NewGuid(),
+                SetupToken = hashedToken,
+                SetupTokenGeneratedAt = DateTime.UtcNow,
+                SetupTokenExpiresAt = DateTime.UtcNow.AddHours(48),
+                IsSetupCompleted = false,
+                AllowPublicRegistration = false,
+                EnforceHttps = true,
+                SmtpEnableSsl = true,
+                HL7ProcessingEnabled = false,
+                SurveillanceStartupCompleted = false,
+                SurveillanceStartupProgressPercentage = 0,
+                CreatedAt = DateTime.UtcNow
+            };
+
+            context.SystemSettings.Add(settings);
+            await context.SaveChangesAsync();
+
+            // Save plain token to file
+            var tokenFilePath = Path.Combine(AppContext.BaseDirectory, "setup-token.txt");
+            await File.WriteAllTextAsync(tokenFilePath, plainToken);
+
+            // Log token to console with ASCII art box
+            logger.LogCritical("");
+            logger.LogCritical("╔════════════════════════════════════════════════════════════════════╗");
+            logger.LogCritical("║                    🛡️  SENTINEL SETUP TOKEN  🛡️                    ║");
+            logger.LogCritical("╠════════════════════════════════════════════════════════════════════╣");
+            logger.LogCritical("║                                                                    ║");
+            logger.LogCritical("║   ⚠️  IMPORTANT: Save this token immediately!                      ║");
+            logger.LogCritical("║                                                                    ║");
+            logger.LogCritical("║   📋 Setup Token:                                                  ║");
+            logger.LogCritical("║   {0}   ║", plainToken);
+            logger.LogCritical("║                                                                    ║");
+            logger.LogCritical("║   📁 Also saved to: {0,-44} ║", tokenFilePath.Length > 44 ? "..." + tokenFilePath.Substring(tokenFilePath.Length - 44) : tokenFilePath);
+            logger.LogCritical("║                                                                    ║");
+            logger.LogCritical("║   ⏰ Expires: {0:yyyy-MM-dd HH:mm} UTC                            ║", settings.SetupTokenExpiresAt);
+            logger.LogCritical("║                                                                    ║");
+            logger.LogCritical("║   🌐 Navigate to: /Setup to begin configuration                   ║");
+            logger.LogCritical("║                                                                    ║");
+            logger.LogCritical("║   ℹ️  This token is required to access the setup wizard           ║");
+            logger.LogCritical("║                                                                    ║");
+            logger.LogCritical("╚════════════════════════════════════════════════════════════════════╝");
+            logger.LogCritical("");
+        }
+        else if (!settings.IsSetupCompleted && settings.SetupToken != null)
+        {
+            // Setup in progress - remind about token location
+            var tokenFilePath = Path.Combine(AppContext.BaseDirectory, "setup-token.txt");
+            if (File.Exists(tokenFilePath))
+            {
+                logger.LogWarning("Setup not completed. Token available at: {Path}", tokenFilePath);
+                logger.LogWarning("Setup expires: {Expiry}", settings.SetupTokenExpiresAt);
+            }
+            else
+            {
+                logger.LogWarning("Setup not completed but token file is missing. You may need to regenerate the token by deleting the SystemSettings record.");
+            }
+        }
+        else if (settings.IsSetupCompleted)
+        {
+            logger.LogInformation("Sentinel setup completed at {CompletedAt}", settings.SetupCompletedAt);
+        }
+    }
+    catch (Exception ex)
+    {
+        logger.LogError(ex, "Failed to initialize system settings / setup token");
+        // Don't throw - allow app to start, but setup wizard will handle missing settings
+    }
+}
+
 app.Run();
+
 

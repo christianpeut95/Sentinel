@@ -9,7 +9,7 @@ using Sentinel.DTOs;
 
 namespace Sentinel.Controllers.Api;
 
-[Authorize]
+[Authorize(Policy = "Permission.Report.Edit")]
 [ApiController]
 [Route("api/reports")]
 [EnableRateLimiting("bulk-export-moderate")] // 20 per hour - report building/testing
@@ -234,6 +234,7 @@ public class ReportBuilderApiController : ControllerBase
             reportDef.IsPublic = request.IsPublic;
             reportDef.PivotConfiguration = request.PivotConfiguration;
             reportDef.ModifiedAt = DateTime.UtcNow;
+            reportDef.ModifiedByUserId = User.Identity?.Name;
 
             // Save collection queries as JSON
             if (request.CollectionQueries != null && request.CollectionQueries.Any())

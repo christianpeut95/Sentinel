@@ -8,7 +8,7 @@ using System.Text.Json;
 
 namespace Sentinel.Controllers;
 
-[Authorize]
+[Authorize(Policy = "Permission.Outbreak.Export")]
 [ApiController]
 [Route("api/[controller]")]
 [EnableRateLimiting("bulk-export")] // Default: strict limit for data exports

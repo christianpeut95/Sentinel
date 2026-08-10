@@ -9,7 +9,7 @@ using Sentinel.Services.HL7;
 
 namespace Sentinel.Pages.Settings.HL7
 {
-    [Authorize]
+    [Authorize(Policy = "Permission.HL7.View")]
     public class TestingModel : PageModel
     {
         private readonly ApplicationDbContext _context;

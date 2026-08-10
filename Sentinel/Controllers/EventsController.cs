@@ -11,7 +11,7 @@ namespace Sentinel.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
-    [Authorize]
+    [Authorize(Policy = "Permission.Event.View")]
     [EnableRateLimiting("workflow-api")]
     public class EventsController : ControllerBase
     {

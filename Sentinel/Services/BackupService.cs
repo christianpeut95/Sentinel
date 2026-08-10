@@ -32,7 +32,12 @@ namespace Sentinel.Services
             _logger = logger;
             _connectionString = configuration.GetConnectionString("DefaultConnection")
                 ?? throw new InvalidOperationException("Connection string not found");
-            _backupPath = configuration["Backup:Path"] ?? @"C:\DatabaseBackups\SurveillanceMVP";
+
+            // Get backup path from configuration or use default, handling both null and empty values
+            var configuredPath = configuration["Backup:Path"];
+            _backupPath = string.IsNullOrWhiteSpace(configuredPath) 
+                ? @"C:\DatabaseBackups\SurveillanceMVP" 
+                : configuredPath;
 
             // Ensure backup directory exists
             if (!Directory.Exists(_backupPath))

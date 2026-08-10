@@ -136,27 +136,83 @@
         .btn-group {
             gap: 10px;
         }
-        
-        .status-indicator {
-            display: inline-block;
-            padding: 4px 12px;
-            border-radius: 4px;
-            font-size: 0.875rem;
-            background: #d1ecf1;
-            color: #0c5460;
-            margin-right: 15px;
+
+        .version-indicator {
+            display: inline-flex;
+            align-items: center;
+            padding: 5px 14px;
+            border-radius: 5px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            margin-right: 10px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }
-        
+
+        .status-indicator {
+            display: inline-flex;
+            align-items: center;
+            padding: 5px 12px;
+            border-radius: 4px;
+            font-size: 0.85rem;
+            font-weight: 500;
+            margin-right: 10px;
+        }
+
+        .status-draft {
+            background: #f8f9fa;
+            border: 1px solid #adb5bd;
+            color: #495057;
+        }
+
+        .status-active {
+            background: #d1f4e0;
+            border: 1px solid #00a67e;
+            color: #00714d;
+        }
+
+        .status-archived {
+            background: #f8f9fa;
+            border: 1px solid #ced4da;
+            color: #6c757d;
+        }
+
+        .category-indicator {
+            display: inline-flex;
+            align-items: center;
+            padding: 5px 12px;
+            border-radius: 4px;
+            font-size: 0.85rem;
+            background: #e7f3ff;
+            border: 1px solid #b3d9ff;
+            color: #0056b3;
+            margin-right: 10px;
+        }
+
+        .system-template-indicator {
+            display: inline-flex;
+            align-items: center;
+            padding: 5px 12px;
+            border-radius: 4px;
+            font-size: 0.85rem;
+            font-weight: 500;
+            background: #fff3cd;
+            border: 1px solid #ffc107;
+            color: #856404;
+            margin-right: 10px;
+        }
+
         .save-status {
             font-size: 0.875rem;
             color: #666;
             margin-right: 15px;
         }
-        
+
         .save-status.saved {
             color: #28a745;
         }
-        
+
         .save-status.error {
             color: #dc3545;
         }
@@ -232,12 +288,55 @@
                 <h1 class="designer-title">
                     <i class="bi bi-pencil-square me-2"></i>@Model.SurveyName
                 </h1>
-                @if (!string.IsNullOrEmpty(Model.Category))
+
+                @if (!string.IsNullOrEmpty(Model.VersionNumber))
                 {
-                    <span class="status-indicator">
-                        <i class="bi bi-tag me-1"></i>@Model.Category
+                    <span class="version-indicator">
+                        <i class="bi bi-tag me-1"></i>Version @Model.VersionNumber
                     </span>
                 }
+
+                @if (!string.IsNullOrEmpty(Model.VersionStatus))
+                {
+                    var statusClass = Model.VersionStatus switch
+                    {
+                        "Draft" => "status-draft",
+                        "Active" => "status-active",
+                        "Archived" => "status-archived",
+                        _ => "status-draft"
+                    };
+
+                    <span class="status-indicator @statusClass">
+                        @if (Model.VersionStatus == "Draft")
+                        {
+                            <i class="bi bi-file-earmark me-1"></i>
+                        }
+                        else if (Model.VersionStatus == "Active")
+                        {
+                            <i class="bi bi-check-circle me-1"></i>
+                        }
+                        else if (Model.VersionStatus == "Archived")
+                        {
+                            <i class="bi bi-archive me-1"></i>
+                        }
+                        @Model.VersionStatus
+                    </span>
+                }
+
+                @if (!string.IsNullOrEmpty(Model.Category))
+                {
+                    <span class="category-indicator">
+                        <i class="bi bi-folder me-1"></i>@Model.Category
+                    </span>
+                }
+
+                @if (Model.IsSystemTemplate)
+                {
+                    <span class="system-template-indicator">
+                        <i class="bi bi-shield-lock me-1"></i>System Template
+                    </span>
+                }
+
                 <span class="save-status" id="saveStatus">
                     <i class="bi bi-check-circle me-1"></i>All changes saved
                 </span>

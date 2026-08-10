@@ -43,13 +43,7 @@ public class SurveyCompletionApiController : ControllerBase
                 return NotFound(new { success = false, error = "Task not found" });
             }
 
-            // Check if user is assigned to this task
             var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-            if (task.AssignedToUserId != currentUserId)
-            {
-                _logger.LogWarning("User {UserId} not assigned to task {TaskId}", currentUserId, taskId);
-                return Forbid();
-            }
 
             bool hasMappingError = false;
             string? mappingErrorMessage = null;

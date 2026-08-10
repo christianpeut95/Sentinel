@@ -9,7 +9,7 @@ using System.Text;
 
 namespace Sentinel.Pages.Settings.Jurisdictions
 {
-    [Authorize]
+    [Authorize(Policy = "Permission.Location.Import")]
     public class BulkPopulationUploadModel : PageModel
     {
         private readonly ApplicationDbContext _context;

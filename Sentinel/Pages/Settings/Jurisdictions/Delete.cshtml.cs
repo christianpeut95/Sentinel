@@ -7,9 +7,7 @@ using Sentinel.Models.Lookups;
 
 namespace Sentinel.Pages.Settings.Jurisdictions
 {
-    // TEMPORARY: Authorization disabled for testing - re-enable in production
-    // [Authorize(Policy = "Permission.Settings.Delete")]
-    [Authorize]
+    [Authorize(Policy = "Permission.Location.Delete")]
     public class DeleteModel : PageModel
     {
         private readonly ApplicationDbContext _context;

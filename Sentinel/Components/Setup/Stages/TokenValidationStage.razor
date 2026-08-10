@@ -1,0 +1,86 @@
+@using Sentinel.Services
+@inject ISystemSettingsService SystemSettingsService
+
+<div class="token-stage">
+    <div class="token-card">
+        <div class="token-icon">
+            <img src="/Icons/sentinel-icon.svg" alt="Sentinel" style="width: 42px; height: 42px;" />
+        </div>
+        <h2>Welcome to Sentinel</h2>
+        <p>Enter the setup token from your server to begin the initial configuration.</p>
+
+        @if (!string.IsNullOrEmpty(_error))
+        {
+            <div class="alert alert-danger">
+                <i class="bi bi-exclamation-triangle-fill"></i>
+                @_error
+            </div>
+        }
+
+        <EditForm Model="@this" OnValidSubmit="ValidateToken">
+            <DataAnnotationsValidator />
+
+            <div class="token-input-group">
+                <label class="form-label required">Setup Token</label>
+                <InputText @bind-Value="_token" class="form-control token-input" placeholder="Enter setup token" disabled="@_isValidating" />
+                <span class="form-text">Check the setup-token.txt file in your server directory or console logs.</span>
+            </div>
+
+            <button type="submit" class="btn btn-primary" style="width: 100%;" disabled="@_isValidating">
+                @if (_isValidating)
+                {
+                    <span class="spinner"></span>
+                    <span>Validating...</span>
+                }
+                else
+                {
+                    <span>Continue</span>
+                    <i class="bi bi-arrow-right"></i>
+                }
+            </button>
+        </EditForm>
+
+        <div style="margin-top: 2rem; padding-top: 2rem; border-top: 1px solid var(--hairline); text-align: center;">
+            <p style="font-size: 0.813rem; color: var(--slate); margin: 0;">
+               
+            </p>
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter] public EventCallback OnTokenValidated { get; set; }
+
+    private string _token = "";
+    private string _error = "";
+    private bool _isValidating = false;
+
+    private async Task ValidateToken()
+    {
+        _error = "";
+        _isValidating = true;
+
+        try
+        {
+            var isValid = await SystemSettingsService.ValidateTokenAsync(_token);
+
+            if (isValid)
+            {
+                await OnTokenValidated.InvokeAsync();
+            }
+            else
+            {
+                _error = "Invalid or expired setup token. Please check your setup-token.txt file or server logs.";
+            }
+        }
+        catch (Exception ex)
+        {
+            _error = $"An error occurred: {ex.Message}";
+        }
+        finally
+        {
+            _isValidating = false;
+            StateHasChanged();
+        }
+    }
+}

@@ -3,6 +3,10 @@
 ##
 ## Get latest from https://github.com/github/gitignore/blob/main/VisualStudio.gitignore
 
+# Sentinel Setup Token - NEVER commit this file!
+setup-token.txt
+**/setup-token.txt
+
 # Copilot-generated documentation/debugging files
 **/[A-Z_]*_[A-Z_]*.md
 **/FEATURE_*.md

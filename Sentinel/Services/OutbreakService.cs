@@ -741,34 +741,177 @@ public class OutbreakService : IOutbreakService
     }
 
 
-    public async Task<bool> BulkAssignTaskAsync(int outbreakId, int taskTemplateId, List<Guid> caseIds, string userId)
+    public async Task<bool> BulkAssignTaskAsync(int outbreakId, Guid taskTemplateId, List<Guid> caseIds, string userId)
     {
-        // TODO: Implement bulk task assignment
+        // Validate task template exists
+        var taskTemplate = await _context.TaskTemplates
+            .FirstOrDefaultAsync(tt => tt.Id == taskTemplateId);
+
+        if (taskTemplate == null)
+        {
+            return false;
+        }
+
+        // Initialize tracking variables
+        int successCount = 0;
+        int failureCount = 0;
+
+        // Iterate through all case IDs
+        foreach (var caseId in caseIds)
+        {
+            try
+            {
+                // Load case entity
+                var caseEntity = await _context.Cases
+                    .Include(c => c.Disease)
+                    .Include(c => c.Patient)
+                    .FirstOrDefaultAsync(c => c.Id == caseId);
+
+                // Skip if case not found
+                if (caseEntity == null)
+                {
+                    failureCount++;
+                    continue;
+                }
+
+                // Create task from template
+                await _taskService.CreateTaskFromTemplateForCaseAsync(caseId, taskTemplateId);
+                successCount++;
+            }
+            catch
+            {
+                // Log failure and continue with next case
+                failureCount++;
+            }
+        }
+
+        // Create timeline event with accurate count
         await AddTimelineEventAsync(new OutbreakTimeline
         {
             OutbreakId = outbreakId,
             EventDate = DateTime.UtcNow,
             Title = "Bulk Task Assigned",
-            Description = $"Task assigned to {caseIds.Count} cases/contacts",
+            Description = $"Task assigned to {successCount} of {caseIds.Count} cases/contacts",
             EventType = TimelineEventType.BulkTaskAssigned
         }, userId);
 
-        return true;
+        // Return true if at least one task was created successfully
+        return successCount > 0;
     }
 
-    public async Task<bool> BulkAssignSurveyAsync(int outbreakId, int surveyTemplateId, List<Guid> caseIds, string userId)
+    public async Task<bool> BulkAssignSurveyAsync(int outbreakId, Guid surveyTemplateId, List<Guid> caseIds, string userId)
     {
-        // TODO: Implement bulk survey assignment
+        // Validate survey template exists and is the active/published version
+        var surveyTemplate = await _context.SurveyTemplates
+            .Where(st => st.Id == surveyTemplateId 
+                      && st.IsActive 
+                      && st.VersionStatus == SurveyVersionStatus.Active)
+            .FirstOrDefaultAsync();
+
+        if (surveyTemplate == null)
+        {
+            return false;
+        }
+
+        // Get a default task type for surveys (try to find "Survey" type, or use first available)
+        var surveyTaskType = await _context.TaskTypes
+            .Where(tt => tt.IsActive && (tt.Name == "Survey" || tt.Code == "SURVEY"))
+            .FirstOrDefaultAsync();
+
+        if (surveyTaskType == null)
+        {
+            // Fallback to any active task type
+            surveyTaskType = await _context.TaskTypes
+                .Where(tt => tt.IsActive)
+                .FirstOrDefaultAsync();
+        }
+
+        if (surveyTaskType == null)
+        {
+            return false;
+        }
+
+        // Initialize tracking variables
+        int successCount = 0;
+        int failureCount = 0;
+
+        // Iterate through all case IDs
+        foreach (var caseId in caseIds)
+        {
+            try
+            {
+                // Load case entity
+                var caseEntity = await _context.Cases
+                    .Include(c => c.Disease)
+                    .Include(c => c.Patient)
+                    .FirstOrDefaultAsync(c => c.Id == caseId);
+
+                // Skip if case not found
+                if (caseEntity == null)
+                {
+                    failureCount++;
+                    continue;
+                }
+
+                // Create an ad-hoc task with the survey template
+                var task = new CaseTask
+                {
+                    Id = Guid.NewGuid(),
+                    CaseId = caseId,
+                    Title = $"Complete Survey: {surveyTemplate.Name}",
+                    Description = surveyTemplate.Description ?? $"Please complete the {surveyTemplate.Name} survey",
+                    TaskTypeId = surveyTaskType.Id,
+                    Priority = TaskPriority.Medium,
+                    AssignmentType = TaskAssignmentType.Investigator,
+                    DueDate = DateTime.UtcNow.AddDays(7), // Default 7 days to complete
+                    Status = CaseTaskStatus.Pending,
+                    CreatedAt = DateTime.UtcNow
+                };
+
+                // Create a task template inline to link the survey
+                var taskTemplate = new TaskTemplate
+                {
+                    Id = Guid.NewGuid(),
+                    Name = $"Survey: {surveyTemplate.Name}",
+                    Description = surveyTemplate.Description,
+                    TaskTypeId = surveyTaskType.Id,
+                    DefaultPriority = TaskPriority.Medium,
+                    SurveyTemplateId = surveyTemplateId,
+                    TriggerType = TaskTrigger.Manual,
+                    IsActive = false // Ad-hoc template, not reusable
+                };
+
+                _context.TaskTemplates.Add(taskTemplate);
+                task.TaskTemplateId = taskTemplate.Id;
+
+                _context.CaseTasks.Add(task);
+                successCount++;
+            }
+            catch
+            {
+                // Log failure and continue with next case
+                failureCount++;
+            }
+        }
+
+        // Save all changes
+        if (successCount > 0)
+        {
+            await _context.SaveChangesAsync();
+        }
+
+        // Create timeline event with accurate count
         await AddTimelineEventAsync(new OutbreakTimeline
         {
             OutbreakId = outbreakId,
             EventDate = DateTime.UtcNow,
             Title = "Bulk Survey Assigned",
-            Description = $"Survey assigned to {caseIds.Count} cases/contacts",
+            Description = $"Survey '{surveyTemplate.Name}' (v{surveyTemplate.VersionNumber}) assigned to {successCount} of {caseIds.Count} cases/contacts",
             EventType = TimelineEventType.BulkSurveyAssigned
         }, userId);
 
-        return true;
+        // Return true if at least one survey task was created successfully
+        return successCount > 0;
     }
 
     // ========== RECURSIVE TASK METHODS ==========

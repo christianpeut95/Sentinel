@@ -10,7 +10,7 @@ using Sentinel.Services;
 
 namespace Sentinel.Pages.Settings.Surveys
 {
-    [Authorize]
+    [Authorize(Policy = "Permission.Survey.View")]
     public class SubmissionLogModel : PageModel
     {
         private readonly ApplicationDbContext _context;

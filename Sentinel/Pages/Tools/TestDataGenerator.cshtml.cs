@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.AspNetCore.Mvc.Rendering;
@@ -8,6 +9,7 @@ using System.Threading.Tasks;
 
 namespace Sentinel.Pages.Tools
 {
+    [Authorize(Policy = "Permission.Settings.ManageOrganization")]
     public class TestDataGeneratorModel : PageModel
     {
         private readonly TestDataGeneratorService _testDataGenerator;

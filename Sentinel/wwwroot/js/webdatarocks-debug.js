@@ -3,7 +3,7 @@
  * Add this script to diagnose modal positioning issues
  */
 (function() {
-    console.log('[WDR Debug] Starting WebDataRocks element monitor');
+    console.log('[WDR Debug] Starting WebDataRocks element monitor (mutation logging disabled)');
 
     // Log all WebDataRocks elements and their computed styles
     function debugWebDataRocksElements() {
@@ -41,7 +41,9 @@
         }
     }
 
-    // Monitor for new elements
+    // DISABLED: Mutation observer was causing excessive logging
+    // Uncomment below to re-enable DOM mutation monitoring if needed for debugging
+    /*
     const observer = new MutationObserver((mutations) => {
         mutations.forEach((mutation) => {
             mutation.addedNodes.forEach((node) => {
@@ -72,9 +74,10 @@
         childList: true,
         subtree: true
     });
+    */
 
     // Log on demand
     window.debugWDR = debugWebDataRocksElements;
 
-    console.log('[WDR Debug] Monitor active. Call window.debugWDR() to log all elements.');
+    console.log('[WDR Debug] Monitor loaded. Call window.debugWDR() to manually log WebDataRocks elements.');
 })();

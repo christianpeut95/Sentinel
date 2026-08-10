@@ -123,7 +123,7 @@
                     <div id="surveySection" style="display: none;">
                         <div class="mb-3">
                             <label for="surveyTemplate" class="form-label">Survey Template</label>
-                            <select name="TemplateId" id="surveyTemplate" class="form-select">
+                            <select name="TemplateId" id="surveyTemplate" class="form-select" disabled>
                                 <option value="">-- Select Survey Template --</option>
                                 @foreach (var template in Model.SurveyTemplates)
                                 {
@@ -192,12 +192,16 @@
                     document.getElementById('taskSection').style.display = 'block';
                     document.getElementById('surveySection').style.display = 'none';
                     document.getElementById('taskTemplate').required = true;
+                    document.getElementById('taskTemplate').disabled = false;
                     document.getElementById('surveyTemplate').required = false;
+                    document.getElementById('surveyTemplate').disabled = true;
                 } else {
                     document.getElementById('taskSection').style.display = 'none';
                     document.getElementById('surveySection').style.display = 'block';
                     document.getElementById('taskTemplate').required = false;
+                    document.getElementById('taskTemplate').disabled = true;
                     document.getElementById('surveyTemplate').required = true;
+                    document.getElementById('surveyTemplate').disabled = false;
                 }
             });
         });

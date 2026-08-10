@@ -1,0 +1,109 @@
+@using System.ComponentModel.DataAnnotations
+@inject IConfiguration Configuration
+
+<div class="stage-card">
+    <div class="stage-header">
+        <h2><i class="bi bi-geo-alt"></i> Geocoding Configuration</h2>
+        <p>Configure geocoding services for location-based features (optional).</p>
+    </div>
+
+    <div class="stage-body">
+        <EditForm Model="@GeoData" OnValidSubmit="HandleNext">
+            <div class="alert alert-info">
+                <i class="bi bi-info-circle"></i>
+                Geocoding converts addresses into geographic coordinates. This is optional but recommended for mapping features.
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Geocoding Provider</label>
+                <InputSelect @bind-Value="GeoData.Provider" class="form-control">
+                    <option value="Nominatim">Nominatim (OpenStreetMap - Free)</option>
+                    <option value="Google">Google Maps Geocoding API</option>
+                </InputSelect>
+                <span class="form-text">Select a geocoding service provider. Currently supports Nominatim and Google.</span>
+            </div>
+
+            @if (GeoData.Provider == "Nominatim")
+            {
+                <div class="form-group">
+                    <label class="form-label">Email Address</label>
+                    <InputText @bind-Value="GeoData.Email" class="form-control" type="email" placeholder="your-email@example.com" />
+                    <span class="form-text">Nominatim requires an email address for usage tracking (no API key needed).</span>
+                </div>
+
+                <div class="alert alert-warning">
+                    <i class="bi bi-exclamation-triangle-fill"></i>
+                    Nominatim has rate limits. For high-volume usage, consider a paid service like Google Maps.
+                </div>
+            }
+            else
+            {
+                <div class="form-group">
+                    <label class="form-label">API Key</label>
+                    <InputText @bind-Value="GeoData.ApiKey" class="form-control" type="password" placeholder="Enter your API key" />
+                    <span class="form-text">Your @GeoData.Provider API key.</span>
+                </div>
+            }
+
+            <div class="stage-actions">
+                <button type="button" class="btn btn-secondary" @onclick="HandlePrevious">
+                    <i class="bi bi-arrow-left"></i>
+                    <span>Previous</span>
+                </button>
+                <div style="display: flex; gap: 0.75rem;">
+                    <button type="button" class="btn btn-link" @onclick="HandleSkip">
+                        Skip for now
+                    </button>
+                    <button type="submit" class="btn btn-primary">
+                        <span>Next</span>
+                        <i class="bi bi-arrow-right"></i>
+                    </button>
+                </div>
+            </div>
+        </EditForm>
+    </div>
+</div>
+
+@code {
+    [Parameter] public EventCallback OnNext { get; set; }
+    [Parameter] public EventCallback OnPrevious { get; set; }
+    [Parameter] public EventCallback OnSkip { get; set; }
+    [Parameter] public InitialSetupWizard.GeocodingData GeoData { get; set; } = new();
+    [Parameter] public EventCallback<InitialSetupWizard.GeocodingData> GeoDataChanged { get; set; }
+
+    protected override void OnInitialized()
+    {
+        // Prefill from appsettings.json
+        var provider = Configuration["Geocoding:Provider"];
+        var email = Configuration["Geocoding:Email"];
+        var apiKey = Configuration["Geocoding:ApiKey"];
+
+        if (!string.IsNullOrEmpty(provider))
+            GeoData.Provider = provider;
+
+        if (!string.IsNullOrEmpty(email))
+            GeoData.Email = email;
+
+        if (!string.IsNullOrEmpty(apiKey))
+            GeoData.ApiKey = apiKey;
+    }
+
+    private async Task HandleNext()
+    {
+        await GeoDataChanged.InvokeAsync(GeoData);
+        await OnNext.InvokeAsync();
+    }
+
+    private async Task HandlePrevious()
+    {
+        await OnPrevious.InvokeAsync();
+    }
+
+    private async Task HandleSkip()
+    {
+        // Clear data when skipping
+        GeoData = new InitialSetupWizard.GeocodingData();
+        await GeoDataChanged.InvokeAsync(GeoData);
+        await OnSkip.InvokeAsync();
+    }
+}

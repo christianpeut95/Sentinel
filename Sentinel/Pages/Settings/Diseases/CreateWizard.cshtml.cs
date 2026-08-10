@@ -131,7 +131,6 @@ namespace Sentinel.Pages.Settings.Diseases
         private async Task CreateChildDiseasesAsync(Guid parentId, string? userId)
         {
             var lines = ChildDiseaseList.Split(new[] { '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries);
-            var parentDisease = await _context.Diseases.FindAsync(parentId);
 
             // Track codes to ensure uniqueness within this batch
             var usedCodes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);

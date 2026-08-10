@@ -14,15 +14,22 @@ public interface IReportFieldMetadataService
     /// </summary>
     /// <param name="entityType">Case, Outbreak, Patient, etc.</param>
     /// <param name="excludeNavigationFields">If true, excludes all fields from related entities (for survey mappings)</param>
+    /// <param name="context">Usage context to apply appropriate field filtering (Mapper hides more fields than Report)</param>
     /// <returns>List of field metadata</returns>
-    Task<List<ReportFieldMetadata>> GetFieldsForEntityAsync(string entityType, bool excludeNavigationFields = false);
+    Task<List<ReportFieldMetadata>> GetFieldsForEntityAsync(
+        string entityType, 
+        bool excludeNavigationFields = false,
+        FieldUsageContext context = FieldUsageContext.General);
 
     /// <summary>
     /// Gets fields grouped by category for UI display
     /// </summary>
     /// <param name="entityType">Case, Outbreak, Patient, etc.</param>
+    /// <param name="context">Usage context to apply appropriate field filtering</param>
     /// <returns>Dictionary of category name to list of fields</returns>
-    Task<Dictionary<string, List<ReportFieldMetadata>>> GetFieldsByCategoryAsync(string entityType);
+    Task<Dictionary<string, List<ReportFieldMetadata>>> GetFieldsByCategoryAsync(
+        string entityType,
+        FieldUsageContext context = FieldUsageContext.General);
 
     /// <summary>
     /// Gets recommended (core/essential) fields for an entity type

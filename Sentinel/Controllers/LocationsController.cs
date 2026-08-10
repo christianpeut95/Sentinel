@@ -11,7 +11,7 @@ namespace Sentinel.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
-    [Authorize]
+    [Authorize(Policy = "Permission.Location.View")]
     [EnableRateLimiting("workflow-api")]
     public class LocationsController : ControllerBase
     {

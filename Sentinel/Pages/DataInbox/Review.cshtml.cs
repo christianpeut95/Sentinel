@@ -131,7 +131,7 @@ public class ReviewModel : PageModel
         _logger.LogInformation("   SelectedPatientId: {SelectedPatientId}", SelectedPatientId ?? "(NULL)");
         _logger.LogInformation("   ReviewNotes: {ReviewNotes}", ReviewNotes ?? "(NULL)");
         _logger.LogInformation("========================================");
-        
+
         if (string.IsNullOrEmpty(SelectedPatientId))
         {
             _logger.LogWarning("?? SelectedPatientId is null or empty - returning error");
@@ -141,159 +141,179 @@ public class ReviewModel : PageModel
 
         try
         {
-            // Get the full ReviewQueue entity to access all JSON fields
-            var reviewQueue = await _context.ReviewQueue
-                .Include(r => r.Task)
-                    .ThenInclude(t => t!.Case)  // Load Task.Case
-                .Include(r => r.Task)
-                    .ThenInclude(t => t!.TaskTemplate)  // Load Task.TaskTemplate
-                .FirstOrDefaultAsync(r => r.Id == id);
-                
-            if (reviewQueue == null)
-            {
-                TempData["ErrorMessage"] = "Review item not found.";
-                return RedirectToPage("./Index");
-            }
+            // Use execution strategy to handle retries with transactions
+            var strategy = _context.Database.CreateExecutionStrategy();
 
-            _logger.LogInformation("?? Loaded ReviewQueue {ReviewId}:", id);
-            _logger.LogInformation("   - Has Task: {HasTask}", reviewQueue.Task != null);
-            _logger.LogInformation("   - TaskId: {TaskId}", reviewQueue.TaskId);
-            if (reviewQueue.Task != null)
+            await strategy.ExecuteAsync(async () =>
             {
-                _logger.LogInformation("   - Has Case: {HasCase}", reviewQueue.Task.Case != null);
-                _logger.LogInformation("   - CaseId: {CaseId}", reviewQueue.Task.CaseId);
-            }
+                await using var transaction = await _context.Database.BeginTransactionAsync();
 
-            Guid patientId;
-            
-            // STEP 1: Create new patient OR use existing
-            if (SelectedPatientId == "CREATE_NEW")
-            {
-                _logger.LogInformation("Creating new patient from duplicate review {ReviewId}", id);
-                
-                // Extract patient data from ProposedEntityDataJson
-                var newPatient = await ExtractPatientFromProposedData(reviewQueue.ProposedEntityDataJson);
-                if (newPatient == null)
+                try
                 {
-                    TempData["ErrorMessage"] = "Could not extract patient data from survey.";
-                    return RedirectToPage(new { id });
-                }
-                
-                // Save new patient
-                _context.Patients.Add(newPatient);
-                await _context.SaveChangesAsync();
-                patientId = newPatient.Id;
-                
-                _logger.LogInformation("Created new patient {PatientId} ({FriendlyId}) from duplicate review", 
-                    patientId, newPatient.FriendlyId);
-            }
-            else
-            {
-                _logger.LogInformation("Using existing patient {PatientId} for duplicate review {ReviewId}", 
-                    SelectedPatientId, id);
-                    
-                // Use selected existing patient
-                if (!Guid.TryParse(SelectedPatientId, out patientId))
-                {
-                    TempData["ErrorMessage"] = "Invalid patient ID selected.";
-                    return RedirectToPage(new { id });
-                }
-            }
+                    // Get the full ReviewQueue entity to access all JSON fields
+                    var reviewQueue = await _context.ReviewQueue
+                        .Include(r => r.Task)
+                            .ThenInclude(t => t!.Case)  // Load Task.Case
+                        .Include(r => r.Task)
+                            .ThenInclude(t => t!.TaskTemplate)  // Load Task.TaskTemplate
+                        .FirstOrDefaultAsync(r => r.Id == id);
 
-            // STEP 2: Continue processing survey collection mapping with the selected PatientId
-            _logger.LogInformation("?? DIAGNOSTIC: About to check Task and Case for reprocessing");
-            _logger.LogInformation("   - reviewQueue.Task is null: {IsNull}", reviewQueue.Task == null);
-            _logger.LogInformation("   - reviewQueue.TaskId: {TaskId}", reviewQueue.TaskId);
-            
-            if (reviewQueue.Task != null)
-            {
-                _logger.LogInformation("?? Task found! Processing survey collection mapping for Task {TaskId} with Patient {PatientId}", 
-                    reviewQueue.TaskId, patientId);
-                
-                _logger.LogInformation("   - reviewQueue.Task.Case is null: {IsNull}", reviewQueue.Task.Case == null);
-                _logger.LogInformation("   - reviewQueue.Task.CaseId: {CaseId}", reviewQueue.Task.CaseId);
-                
-                // Update the task's case to link to the selected/created patient
-                if (reviewQueue.Task.Case != null)
-                {
-                    _logger.LogInformation("?? Case found! Case {CaseId} current PatientId: {CurrentPatientId}", 
-                        reviewQueue.Task.CaseId, reviewQueue.Task.Case.PatientId);
-                    
-                    // Only update PatientId if it's NULL (not already set)
-                    // DO NOT overwrite an existing patient association!
-                    if (reviewQueue.Task.Case.PatientId == null || reviewQueue.Task.Case.PatientId == Guid.Empty)
+                    if (reviewQueue == null)
                     {
-                        _logger.LogInformation("?? Case has no patient - linking to {PatientId}", patientId);
-                        reviewQueue.Task.Case.PatientId = patientId;
+                        TempData["ErrorMessage"] = "Review item not found.";
+                        return;
+                    }
+
+                    _logger.LogInformation("?? Loaded ReviewQueue {ReviewId}:", id);
+                    _logger.LogInformation("   - Has Task: {HasTask}", reviewQueue.Task != null);
+                    _logger.LogInformation("   - TaskId: {TaskId}", reviewQueue.TaskId);
+                    if (reviewQueue.Task != null)
+                    {
+                        _logger.LogInformation("   - Has Case: {HasCase}", reviewQueue.Task.Case != null);
+                        _logger.LogInformation("   - CaseId: {CaseId}", reviewQueue.Task.CaseId);
+                    }
+
+                    Guid patientId;
+
+                    // STEP 1: Create new patient OR use existing
+                    if (SelectedPatientId == "CREATE_NEW")
+                    {
+                        _logger.LogInformation("Creating new patient from duplicate review {ReviewId}", id);
+
+                        // Extract patient data from ProposedEntityDataJson
+                        var newPatient = await ExtractPatientFromProposedData(reviewQueue.ProposedEntityDataJson);
+                        if (newPatient == null)
+                        {
+                            TempData["ErrorMessage"] = "Could not extract patient data from survey.";
+                            return;
+                        }
+
+                        // Save new patient
+                        _context.Patients.Add(newPatient);
                         await _context.SaveChangesAsync();
-                        _logger.LogInformation("?? Successfully linked Case {CaseId} to Patient {PatientId}", 
-                            reviewQueue.Task.CaseId, patientId);
+                        patientId = newPatient.Id;
+
+                        _logger.LogInformation("Created new patient {PatientId} ({FriendlyId}) from duplicate review", 
+                            patientId, newPatient.FriendlyId);
                     }
                     else
                     {
-                        _logger.LogInformation("?? Case already has patient {ExistingPatientId} - NOT changing it!", 
-                            reviewQueue.Task.Case.PatientId);
-                        _logger.LogInformation("?? Related entities will be linked to resolved patient {ResolvedPatientId}", 
-                            patientId);
+                        _logger.LogInformation("Using existing patient {PatientId} for duplicate review {ReviewId}", 
+                            SelectedPatientId, id);
+
+                        // Use selected existing patient
+                        if (!Guid.TryParse(SelectedPatientId, out patientId))
+                        {
+                            TempData["ErrorMessage"] = "Invalid patient ID selected.";
+                            return;
+                        }
                     }
-                    
-                    // STEP 2B: Re-process collection mappings now that patient is resolved
-                    _logger.LogInformation("========================================");
-                    _logger.LogInformation("?? STARTING REPROCESSING OF COLLECTION MAPPINGS");
-                    _logger.LogInformation("   Patient ID: {PatientId}", patientId);
-                    _logger.LogInformation("   Case ID: {CaseId}", reviewQueue.Task.CaseId);
-                    _logger.LogInformation("   Task ID: {TaskId}", reviewQueue.TaskId);
-                    _logger.LogInformation("   Patient Already Created/Selected: TRUE");
-                    _logger.LogInformation("========================================");
-                    
-                    try
+
+                    // STEP 2: Continue processing survey collection mapping with the selected PatientId
+                    _logger.LogInformation("?? DIAGNOSTIC: About to check Task and Case for reprocessing");
+                    _logger.LogInformation("   - reviewQueue.Task is null: {IsNull}", reviewQueue.Task == null);
+                    _logger.LogInformation("   - reviewQueue.TaskId: {TaskId}", reviewQueue.TaskId);
+
+                    if (reviewQueue.Task != null)
                     {
-                        // ? CRITICAL: Patient was either created above (CREATE_NEW) or selected (existing)
-                        // In BOTH cases, the patient already exists - don't create it again!
-                        await ReprocessCollectionMappingsAsync(reviewQueue, patientId, patientAlreadyExists: true);
-                        _logger.LogInformation("?? Reprocessing completed successfully");
+                        _logger.LogInformation("?? Task found! Processing survey collection mapping for Task {TaskId} with Patient {PatientId}", 
+                            reviewQueue.TaskId, patientId);
+
+                        _logger.LogInformation("   - reviewQueue.Task.Case is null: {IsNull}", reviewQueue.Task.Case == null);
+                        _logger.LogInformation("   - reviewQueue.Task.CaseId: {CaseId}", reviewQueue.Task.CaseId);
+
+                        // Update the task's case to link to the selected/created patient
+                        if (reviewQueue.Task.Case != null)
+                        {
+                            _logger.LogInformation("?? Case found! Case {CaseId} current PatientId: {CurrentPatientId}", 
+                                reviewQueue.Task.CaseId, reviewQueue.Task.Case.PatientId);
+
+                            // Only update PatientId if it's NULL (not already set)
+                            // DO NOT overwrite an existing patient association!
+                            if (reviewQueue.Task.Case.PatientId == null || reviewQueue.Task.Case.PatientId == Guid.Empty)
+                            {
+                                _logger.LogInformation("?? Case has no patient - linking to {PatientId}", patientId);
+                                reviewQueue.Task.Case.PatientId = patientId;
+                                await _context.SaveChangesAsync();
+                                _logger.LogInformation("?? Successfully linked Case {CaseId} to Patient {PatientId}", 
+                                    reviewQueue.Task.CaseId, patientId);
+                            }
+                            else
+                            {
+                                _logger.LogInformation("?? Case already has patient {ExistingPatientId} - NOT changing it!", 
+                                    reviewQueue.Task.Case.PatientId);
+                                _logger.LogInformation("?? Related entities will be linked to resolved patient {ResolvedPatientId}", 
+                                    patientId);
+                            }
+
+                            // STEP 2B: Re-process collection mappings now that patient is resolved
+                            _logger.LogInformation("========================================");
+                            _logger.LogInformation("?? STARTING REPROCESSING OF COLLECTION MAPPINGS");
+                            _logger.LogInformation("   Patient ID: {PatientId}", patientId);
+                            _logger.LogInformation("   Case ID: {CaseId}", reviewQueue.Task.CaseId);
+                            _logger.LogInformation("   Task ID: {TaskId}", reviewQueue.TaskId);
+                            _logger.LogInformation("   Patient Already Created/Selected: TRUE");
+                            _logger.LogInformation("========================================");
+
+                            // ? CRITICAL: Patient was either created above (CREATE_NEW) or selected (existing)
+                            // In BOTH cases, the patient already exists - don't create it again!
+                            await ReprocessCollectionMappingsAsync(reviewQueue, patientId, patientAlreadyExists: true);
+                            _logger.LogInformation("?? Reprocessing completed successfully");
+                        }
+                        else
+                        {
+                            _logger.LogWarning("?? PROBLEM: Task.Case is NULL! Cannot reprocess collection mappings.");
+                            _logger.LogWarning("   This means the Case navigation property wasn't loaded from the database.");
+                            _logger.LogWarning("   Check the Include() statements in the query at line 137.");
+                        }
                     }
-                    catch (Exception reprocessEx)
+                    else
                     {
-                        _logger.LogError(reprocessEx, "?? Reprocessing failed: {Message}", reprocessEx.Message);
-                        TempData["WarningMessage"] = "Patient resolved but failed to create related entities. Check logs.";
-                        throw;
+                        _logger.LogWarning("?? PROBLEM: Task is NULL! Cannot reprocess collection mappings.");
+                        _logger.LogWarning("   This means either:");
+                        _logger.LogWarning("   1. The ReviewQueue record has no TaskId");
+                        _logger.LogWarning("   2. The Task navigation property wasn't loaded (check Include() at line 138)");
+                        _logger.LogWarning("   3. The Task was deleted from the database");
+                    }
+
+                    // STEP 3: Mark review as confirmed
+                    var result = await _reviewService.ConfirmReviewAsync(id, 
+                        $"Resolved duplicate: {(SelectedPatientId == "CREATE_NEW" ? "Created new patient" : $"Linked to patient {SelectedPatientId}")}. {ReviewNotes}");
+
+                    if (result)
+                    {
+                        await transaction.CommitAsync();
+                        TempData["SuccessMessage"] = SelectedPatientId == "CREATE_NEW" 
+                            ? "? New patient created and survey processed successfully." 
+                            : "? Survey linked to existing patient successfully.";
+                    }
+                    else
+                    {
+                        await transaction.RollbackAsync();
+                        TempData["ErrorMessage"] = "Failed to resolve duplicate.";
                     }
                 }
-                else
+                catch (Exception ex)
                 {
-                    _logger.LogWarning("?? PROBLEM: Task.Case is NULL! Cannot reprocess collection mappings.");
-                    _logger.LogWarning("   This means the Case navigation property wasn't loaded from the database.");
-                    _logger.LogWarning("   Check the Include() statements in the query at line 137.");
+                    await transaction.RollbackAsync();
+                    _context.ChangeTracker.Clear();
+                    _logger.LogError(ex, "Error in transaction for duplicate resolution {ReviewId}", id);
+                    TempData["ErrorMessage"] = "Patient resolved but failed to create related entities. No records were saved; correct the mapping and try again.";
+                    throw; // Re-throw to allow strategy to retry if needed
                 }
-            }
-            else
+            });
+
+            // Check TempData to determine redirect
+            if (TempData["ErrorMessage"] != null)
             {
-                _logger.LogWarning("?? PROBLEM: Task is NULL! Cannot reprocess collection mappings.");
-                _logger.LogWarning("   This means either:");
-                _logger.LogWarning("   1. The ReviewQueue record has no TaskId");
-                _logger.LogWarning("   2. The Task navigation property wasn't loaded (check Include() at line 138)");
-                _logger.LogWarning("   3. The Task was deleted from the database");
+                return RedirectToPage(new { id });
             }
 
-            // STEP 3: Mark review as confirmed
-            var result = await _reviewService.ConfirmReviewAsync(id, 
-                $"Resolved duplicate: {(SelectedPatientId == "CREATE_NEW" ? "Created new patient" : $"Linked to patient {SelectedPatientId}")}. {ReviewNotes}");
-
-            if (result)
-            {
-                TempData["SuccessMessage"] = SelectedPatientId == "CREATE_NEW" 
-                    ? "? New patient created and survey processed successfully." 
-                    : "? Survey linked to existing patient successfully.";
-                return RedirectToPage("./Index");
-            }
-
-            TempData["ErrorMessage"] = "Failed to resolve duplicate.";
-            return RedirectToPage(new { id });
+            return RedirectToPage("./Index");
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error resolving duplicate for review {ReviewId}", id);
+            _logger.LogError(ex, "Transaction failed for review {ReviewId}", id);
             TempData["ErrorMessage"] = $"Error: {ex.Message}";
             return RedirectToPage(new { id });
         }
@@ -310,86 +330,108 @@ public class ReviewModel : PageModel
         _logger.LogCritical("   - Review ID: {Id}", id);
         _logger.LogCritical("   - This is the ALWAYS-REVIEW handler (PendingCreation)");
         _logger.LogCritical("========================================");
-        
+
         try
         {
-            // Get the full ReviewQueue entity
-            var reviewQueue = await _context.ReviewQueue
-                .Include(r => r.Task)
-                    .ThenInclude(t => t!.Case)
-                .Include(r => r.Task)
-                    .ThenInclude(t => t!.TaskTemplate)
-                .FirstOrDefaultAsync(r => r.Id == id);
-                
-            if (reviewQueue == null)
+            // Use execution strategy to handle retries with transactions
+            var strategy = _context.Database.CreateExecutionStrategy();
+
+            await strategy.ExecuteAsync(async () =>
             {
-                TempData["ErrorMessage"] = "Review item not found.";
-                return RedirectToPage("./Index");
-            }
-            
-            _logger.LogInformation("? Loaded ReviewQueue {ReviewId} (ChangeType: {ChangeType})", 
-                id, reviewQueue.ChangeType);
-            
-            // Extract patient data from ProposedEntityDataJson
-            var newPatient = await ExtractPatientFromProposedData(reviewQueue.ProposedEntityDataJson);
-            if (newPatient == null)
+                await using var transaction = await _context.Database.BeginTransactionAsync();
+
+                try
+                {
+                    // Get the full ReviewQueue entity
+                    var reviewQueue = await _context.ReviewQueue
+                        .Include(r => r.Task)
+                            .ThenInclude(t => t!.Case)
+                        .Include(r => r.Task)
+                            .ThenInclude(t => t!.TaskTemplate)
+                        .FirstOrDefaultAsync(r => r.Id == id);
+
+                    if (reviewQueue == null)
+                    {
+                        TempData["ErrorMessage"] = "Review item not found.";
+                        return;
+                    }
+
+                    _logger.LogInformation("? Loaded ReviewQueue {ReviewId} (ChangeType: {ChangeType})", 
+                        id, reviewQueue.ChangeType);
+
+                    // Extract patient data from ProposedEntityDataJson
+                    var newPatient = await ExtractPatientFromProposedData(reviewQueue.ProposedEntityDataJson);
+                    if (newPatient == null)
+                    {
+                        TempData["ErrorMessage"] = "Could not extract patient data from review item.";
+                        return;
+                    }
+
+                    // Create patient
+                    _context.Patients.Add(newPatient);
+                    await _context.SaveChangesAsync();
+
+                    _logger.LogInformation("? Created new patient {PatientId} ({FriendlyId}) from always-review", 
+                        newPatient.Id, newPatient.FriendlyId);
+
+                    // Link case to patient if needed
+                    if (reviewQueue.Task?.Case != null && 
+                        (reviewQueue.Task.Case.PatientId == null || reviewQueue.Task.Case.PatientId == Guid.Empty))
+                    {
+                        reviewQueue.Task.Case.PatientId = newPatient.Id;
+                        await _context.SaveChangesAsync();
+
+                        _logger.LogInformation("? Linked Case {CaseId} to new Patient {PatientId}", 
+                            reviewQueue.Task.CaseId, newPatient.Id);
+                    }
+
+                    // Reprocess collection mappings to create related entities
+                    // ? CRITICAL: Patient already created above, so mark it as existing!
+                    _logger.LogInformation("?? Starting reprocessing for always-review scenario");
+                    _logger.LogInformation("   Patient ALREADY CREATED in handler - will be treated as existing during reprocessing");
+
+                    // A failed dependent mapping is fatal: do not confirm the review or
+                    // leave an orphan Patient behind.
+                    await ReprocessCollectionMappingsAsync(reviewQueue, newPatient.Id, patientAlreadyExists: true);
+                    _logger.LogInformation("? Reprocessing completed successfully");
+
+                    // Mark review as confirmed
+                    var result = await _reviewService.ConfirmReviewAsync(id, 
+                        $"Approved always-review: Created patient {newPatient.FriendlyId}");
+
+                    if (result)
+                    {
+                        await transaction.CommitAsync();
+                        TempData["SuccessMessage"] = "? Patient created and related entities processed successfully.";
+                    }
+                    else
+                    {
+                        await transaction.RollbackAsync();
+                        TempData["ErrorMessage"] = "Failed to confirm review.";
+                    }
+                }
+                catch (Exception ex)
+                {
+                    await transaction.RollbackAsync();
+                    _context.ChangeTracker.Clear();
+                    _logger.LogError(ex, "Error resolving always-review for review {ReviewId}", id);
+                    TempData["ErrorMessage"] = "The contact and exposure could not be created. No records were saved; correct the mapping and try again.";
+                    throw; // Re-throw to allow strategy to retry if needed
+                }
+            });
+
+            // Check TempData to determine redirect
+            if (TempData["ErrorMessage"] != null)
             {
-                TempData["ErrorMessage"] = "Could not extract patient data from review item.";
                 return RedirectToPage(new { id });
             }
-            
-            // Create patient
-            _context.Patients.Add(newPatient);
-            await _context.SaveChangesAsync();
-            
-            _logger.LogInformation("? Created new patient {PatientId} ({FriendlyId}) from always-review", 
-                newPatient.Id, newPatient.FriendlyId);
-            
-            // Link case to patient if needed
-            if (reviewQueue.Task?.Case != null && 
-                (reviewQueue.Task.Case.PatientId == null || reviewQueue.Task.Case.PatientId == Guid.Empty))
-            {
-                reviewQueue.Task.Case.PatientId = newPatient.Id;
-                await _context.SaveChangesAsync();
-                
-                _logger.LogInformation("? Linked Case {CaseId} to new Patient {PatientId}", 
-                    reviewQueue.Task.CaseId, newPatient.Id);
-            }
-            
-            // Reprocess collection mappings to create related entities
-            // ? CRITICAL: Patient already created above, so mark it as existing!
-            _logger.LogInformation("?? Starting reprocessing for always-review scenario");
-            _logger.LogInformation("   Patient ALREADY CREATED in handler - will be treated as existing during reprocessing");
-            
-            try
-            {
-                // Call with existing patient (same as duplicate scenario)
-                await ReprocessCollectionMappingsAsync(reviewQueue, newPatient.Id, patientAlreadyExists: true);
-                _logger.LogInformation("? Reprocessing completed successfully");
-            }
-            catch (Exception reprocessEx)
-            {
-                _logger.LogError(reprocessEx, "? Reprocessing failed: {Message}", reprocessEx.Message);
-                TempData["WarningMessage"] = "Patient created but failed to create related entities. Check logs.";
-            }
-            
-            // Mark review as confirmed
-            var result = await _reviewService.ConfirmReviewAsync(id, 
-                $"Approved always-review: Created patient {newPatient.FriendlyId}");
-            
-            if (result)
-            {
-                TempData["SuccessMessage"] = "? Patient created and related entities processed successfully.";
-                return RedirectToPage("./Index");
-            }
-            
-            TempData["ErrorMessage"] = "Failed to confirm review.";
-            return RedirectToPage(new { id });
+
+            return RedirectToPage("./Index");
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error resolving always-review for review {ReviewId}", id);
-            TempData["ErrorMessage"] = $"Error: {ex.Message}";
+            _logger.LogError(ex, "Transaction failed for review {ReviewId}", id);
+            TempData["ErrorMessage"] = "The contact and exposure could not be created. No records were saved; correct the mapping and try again.";
             return RedirectToPage(new { id });
         }
     }
@@ -727,6 +769,8 @@ public class ReviewModel : PageModel
             {
                 _logger.LogWarning("Errors during collection reprocessing: {Errors}", 
                     string.Join("; ", result.Errors));
+                throw new InvalidOperationException(
+                    "Collection mapping reprocessing failed: " + string.Join("; ", result.Errors));
             }
 
             // Save all entities created

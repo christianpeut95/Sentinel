@@ -9,7 +9,7 @@ using System.ComponentModel.DataAnnotations;
 
 namespace Sentinel.Pages.Settings.CaseDefinitions
 {
-    [Authorize]
+    [Authorize(Policy = "Permission.Settings.Edit")]
     public class EditModel : PageModel
     {
         private readonly ApplicationDbContext _context;

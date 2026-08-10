@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.EntityFrameworkCore;
 using Sentinel.Data;
@@ -5,6 +6,7 @@ using Sentinel.Models.Lookups;
 
 namespace Sentinel.Pages.Settings.HL7.DiseaseMatching
 {
+    [Authorize(Policy = "Permission.HL7.View")]
     public class IndexModel : PageModel
     {
         private readonly ApplicationDbContext _context;

@@ -46,9 +46,9 @@ public interface IOutbreakService
     Task<List<OutbreakTimeline>> GetTimelineAsync(int outbreakId);
     
     Task<OutbreakStatistics> GetStatisticsAsync(int outbreakId);
-    
-    Task<bool> BulkAssignTaskAsync(int outbreakId, int taskTemplateId, List<Guid> caseIds, string userId);
-    Task<bool> BulkAssignSurveyAsync(int outbreakId, int surveyTemplateId, List<Guid> caseIds, string userId);
+
+    Task<bool> BulkAssignTaskAsync(int outbreakId, Guid taskTemplateId, List<Guid> caseIds, string userId);
+    Task<bool> BulkAssignSurveyAsync(int outbreakId, Guid surveyTemplateId, List<Guid> caseIds, string userId);
 
     // Recursive task methods
     Task<List<CaseTask>> GetAllTasksRecursivelyAsync(int outbreakId);

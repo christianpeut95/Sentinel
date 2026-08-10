@@ -41,6 +41,8 @@ public class BuilderModel : PageModel
     public string? FiltersJson { get; set; }
     public string? PivotConfigurationJson { get; set; }
     public string? PreviewConfigurationJson { get; set; }
+    public string CreatedByDisplayName { get; set; } = "Not yet saved";
+    public string ModifiedByDisplayName { get; set; } = "Not yet saved";
 
     public async Task<IActionResult> OnGetAsync()
     {
@@ -99,12 +101,24 @@ public class BuilderModel : PageModel
             PivotConfigurationJson = ReportDefinition.PivotConfiguration;
             PreviewConfigurationJson = ReportDefinition.PreviewConfiguration;
 
+            CreatedByDisplayName = await GetUserDisplayNameAsync(ReportDefinition.CreatedByUserId);
+            ModifiedByDisplayName = string.IsNullOrWhiteSpace(ReportDefinition.ModifiedByUserId)
+                ? "Not recorded"
+                : await GetUserDisplayNameAsync(ReportDefinition.ModifiedByUserId);
+
             // Load report data
             ReportData = await _reportDataService.GetReportPreviewAsync(ReportDefinition);
         }
+        else
+        {
+            var currentUserName = User.Identity?.Name;
+            CreatedByDisplayName = await GetUserDisplayNameAsync(currentUserName);
+            ModifiedByDisplayName = CreatedByDisplayName;
+        }
 
         // Load available fields for entity type (after potentially overriding from saved report)
-        AvailableFields = await _fieldMetadataService.GetFieldsByCategoryAsync(EntityType);
+        // Use Report context to include audit fields for technical reporting
+        AvailableFields = await _fieldMetadataService.GetFieldsByCategoryAsync(EntityType, FieldUsageContext.Report);
 
         return Page();
     }
@@ -152,6 +166,7 @@ public class BuilderModel : PageModel
             reportDef.IsPublic = request.IsPublic;
             reportDef.PivotConfiguration = request.PivotConfiguration;
             reportDef.ModifiedAt = DateTime.UtcNow;
+            reportDef.ModifiedByUserId = User.Identity?.Name;
 
             // Save collection queries as JSON
             if (request.CollectionQueries != null && request.CollectionQueries.Any())
@@ -221,6 +236,32 @@ public class BuilderModel : PageModel
                 StatusCode = 500
             };
         }
+    }
+
+    private async Task<string> GetUserDisplayNameAsync(string? userKey)
+    {
+        if (string.IsNullOrWhiteSpace(userKey))
+        {
+            return "Unknown";
+        }
+
+        var user = await _context.Users
+            .AsNoTracking()
+            .Where(u => u.Id == userKey || u.UserName == userKey || u.Email == userKey)
+            .Select(u => new { u.FirstName, u.LastName, u.UserName, u.Email })
+            .FirstOrDefaultAsync();
+
+        if (user == null)
+        {
+            return userKey;
+        }
+
+        var fullName = string.Join(" ", new[] { user.FirstName, user.LastName }
+            .Where(value => !string.IsNullOrWhiteSpace(value)));
+
+        return !string.IsNullOrWhiteSpace(fullName)
+            ? fullName
+            : user.UserName ?? user.Email ?? userKey;
     }
 
     [IgnoreAntiforgeryToken]

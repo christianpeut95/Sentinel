@@ -27,12 +27,18 @@ public class ReportFieldMetadataService : IReportFieldMetadataService
         _context = context;
     }
 
-    public async Task<List<ReportFieldMetadata>> GetFieldsForEntityAsync(string entityType, bool excludeNavigationFields = false)
+    public async Task<List<ReportFieldMetadata>> GetFieldsForEntityAsync(
+        string entityType, 
+        bool excludeNavigationFields = false,
+        FieldUsageContext context = FieldUsageContext.General)
     {
+        // Create cache key that includes context
+        string cacheKey = $"{entityType}_{excludeNavigationFields}_{context}";
+
         // Check cache first
-        if (_fieldCache.ContainsKey(entityType) && DateTime.UtcNow < _cacheExpiry)
+        if (_fieldCache.ContainsKey(cacheKey) && DateTime.UtcNow < _cacheExpiry)
         {
-            return _fieldCache[entityType];
+            return _fieldCache[cacheKey];
         }
 
         var fields = new List<ReportFieldMetadata>();
@@ -45,16 +51,21 @@ public class ReportFieldMetadataService : IReportFieldMetadataService
         var customFields = await GetCustomFieldsForEntityAsync(entityType);
         fields.AddRange(customFields);
 
+        // Apply context-based filtering using SystemFieldFilter
+        fields = fields.Where(f => !SystemFieldFilter.ShouldExcludeField(f, context)).ToList();
+
         // Update cache
-        _fieldCache[entityType] = fields;
+        _fieldCache[cacheKey] = fields;
         _cacheExpiry = DateTime.UtcNow.Add(CacheDuration);
 
         return fields;
     }
 
-    public async Task<Dictionary<string, List<ReportFieldMetadata>>> GetFieldsByCategoryAsync(string entityType)
+    public async Task<Dictionary<string, List<ReportFieldMetadata>>> GetFieldsByCategoryAsync(
+        string entityType,
+        FieldUsageContext context = FieldUsageContext.General)
     {
-        var allFields = await GetFieldsForEntityAsync(entityType);
+        var allFields = await GetFieldsForEntityAsync(entityType, excludeNavigationFields: false, context: context);
 
         return allFields
             .GroupBy(f => f.Category)
@@ -247,8 +258,8 @@ public class ReportFieldMetadataService : IReportFieldMetadataService
             if (property.IsShadowProperty())
                 continue;
 
-            // Skip blacklisted fields (security/system fields)
-            if (IsBlacklistedField(property.Name))
+            // Skip security/sensitive fields only (audit fields handled by SystemFieldFilter)
+            if (IsSecuritySensitiveField(property.Name))
                 continue;
 
             var clrType = property.ClrType;
@@ -307,8 +318,8 @@ public class ReportFieldMetadataService : IReportFieldMetadataService
                     targetProp.IsPrimaryKey())
                     continue;
 
-                // Skip blacklisted fields
-                if (IsBlacklistedField(targetProp.Name))
+                // Skip security/sensitive fields only
+                if (IsSecuritySensitiveField(targetProp.Name))
                     continue;
 
                 // Skip binary data types
@@ -377,6 +388,59 @@ public class ReportFieldMetadataService : IReportFieldMetadataService
             fields.Add(collectionField);
         }
 
+        // Add virtual collections for Patient (Cases and Contacts are not navigation properties)
+        if (entityType == "Patient")
+        {
+            var caseEntityType = _context.Model.FindEntityType(typeof(Case));
+            if (caseEntityType != null)
+            {
+                var caseSubFields = GetCollectionSubFields(caseEntityType);
+                var caseSubFieldsMetadata = GetCollectionSubFieldsMetadata(caseEntityType);
+
+                // Add Cases virtual collection
+                fields.Add(new ReportFieldMetadata
+                {
+                    EntityType = entityType,
+                    FieldPath = "Cases",
+                    DisplayName = "Cases (Collection)",
+                    DataType = "Collection",
+                    Category = "Related Collections",
+                    IsNullable = true,
+                    IsNavigationProperty = false, // Virtual, not a real navigation
+                    IsCollection = true,
+                    NavigationDepth = 1,
+                    CollectionElementType = "Case",
+                    CollectionSubFields = caseSubFields,
+                    CollectionSubFieldsMetadata = caseSubFieldsMetadata,
+                    Description = "Query related cases (e.g., 'Has any Cases where...')",
+                    IsFilterable = true,
+                    IsGroupable = false,
+                    IsAggregatable = false
+                });
+
+                // Add Contacts virtual collection
+                fields.Add(new ReportFieldMetadata
+                {
+                    EntityType = entityType,
+                    FieldPath = "Contacts",
+                    DisplayName = "Contacts (Collection)",
+                    DataType = "Collection",
+                    Category = "Related Collections",
+                    IsNullable = true,
+                    IsNavigationProperty = false, // Virtual, not a real navigation
+                    IsCollection = true,
+                    NavigationDepth = 1,
+                    CollectionElementType = "Case",
+                    CollectionSubFields = caseSubFields,
+                    CollectionSubFieldsMetadata = caseSubFieldsMetadata,
+                    Description = "Query related contacts (e.g., 'Has any Contacts where...')",
+                    IsFilterable = true,
+                    IsGroupable = false,
+                    IsAggregatable = false
+                });
+            }
+        }
+
         return fields;
     }
 
@@ -393,8 +457,10 @@ public class ReportFieldMetadataService : IReportFieldMetadataService
             if (prop.IsShadowProperty() || prop.IsPrimaryKey() || prop.IsForeignKey())
                 continue;
 
-            // Skip audit fields
-            if (prop.Name.StartsWith("Created") || prop.Name.StartsWith("Modified"))
+            // Skip audit trail fields (but keep domain fields like CreatedAt, CompletedAt, etc.)
+            if (prop.Name == "CreatedBy" || prop.Name == "ModifiedBy" || 
+                prop.Name == "CreatedById" || prop.Name == "ModifiedById" ||
+                prop.Name == "UpdatedAt" || prop.Name == "UpdatedBy" || prop.Name == "UpdatedById")
                 continue;
 
             subFields.Add(prop.Name);
@@ -427,8 +493,10 @@ public class ReportFieldMetadataService : IReportFieldMetadataService
             if (prop.IsShadowProperty() || prop.IsPrimaryKey() || prop.IsForeignKey())
                 continue;
 
-            // Skip audit fields
-            if (prop.Name.StartsWith("Created") || prop.Name.StartsWith("Modified"))
+            // Skip audit trail fields (but keep domain fields like CreatedAt, CompletedAt, etc.)
+            if (prop.Name == "CreatedBy" || prop.Name == "ModifiedBy" || 
+                prop.Name == "CreatedById" || prop.Name == "ModifiedById" ||
+                prop.Name == "UpdatedAt" || prop.Name == "UpdatedBy" || prop.Name == "UpdatedById")
                 continue;
 
             subFieldsMetadata.Add(new CollectionSubFieldMetadata
@@ -730,12 +798,13 @@ public class ReportFieldMetadataService : IReportFieldMetadataService
     }
 
     /// <summary>
-    /// Blacklist of field names that should never be exposed in field mappings or reports.
-    /// Includes security-sensitive fields, internal system fields, and audit metadata.
+    /// Security-sensitive field names that should NEVER be exposed anywhere.
+    /// Includes passwords, tokens, and other sensitive data.
+    /// Note: Audit fields (CreatedAt, ModifiedAt, etc.) are now handled by SystemFieldFilter.
     /// </summary>
-    private static bool IsBlacklistedField(string fieldName)
+    private static bool IsSecuritySensitiveField(string fieldName)
     {
-        var blacklist = new[]
+        var securitySensitiveFields = new[]
         {
             // Security & Authentication (Identity/AspNetUsers)
             "PasswordHash",
@@ -747,40 +816,7 @@ public class ReportFieldMetadataService : IReportFieldMetadataService
             "LockoutEnabled",
             "LockoutEnd",
             "AccessFailedCount",
-            
-            // Audit & Tracking (system-managed)
-            "CreatedAt",
-            "CreatedDate",
-            "CreatedBy",
-            "ModifiedAt",
-            "ModifiedDate",
-            "LastModified",
-            "ModifiedBy",
-            "UpdatedAt",
-            
-            // Soft Delete (system-managed)
-            "IsDeleted",
-            "DeletedAt",
-            "DeletedDate",
-            "DeletedBy",
-            
-            // Navigation/Hierarchy (internal structure)
-            "ParentId",
-            "PathIds",
-            "Level",
-            "LeftIndex",
-            "RightIndex",
-            
-            // Technical/Geospatial (too low-level for mapping)
-            "Latitude",
-            "Longitude",
-            "GeographyPoint",
-            
-            // Versioning/Concurrency (system-managed)
-            "RowVersion",
-            "Version",
-            "Timestamp",
-            
+
             // JSON Storage Fields (use typed fields instead)
             "SurveyResponseJson",
             "SurveyDefinitionJson",
@@ -803,9 +839,6 @@ public class ReportFieldMetadataService : IReportFieldMetadataService
             "SortOrder",
             "UsageCount",
             "LastUsedAt",
-            
-            // Internal IDs - Note: Id is already filtered via IsPrimaryKey() in schema introspection
-            // NOT listed here so it remains available in relatedEntityFields for source selection
         };
 
         // Block every field that is a reference to a user account by ID.
@@ -831,7 +864,7 @@ public class ReportFieldMetadataService : IReportFieldMetadataService
         if (blockedForeignKeys.Contains(fieldName))
             return true;
 
-        return blacklist.Contains(fieldName, StringComparer.OrdinalIgnoreCase);
+        return securitySensitiveFields.Contains(fieldName, StringComparer.OrdinalIgnoreCase);
     }
 
     /// <summary>

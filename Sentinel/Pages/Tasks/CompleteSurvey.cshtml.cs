@@ -62,13 +62,7 @@ namespace Sentinel.Pages.Tasks
             if (Task == null)
                 return NotFound();
 
-            // Check if user is assigned to this task
             var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-            if (Task.AssignedToUserId != currentUserId)
-            {
-                TempData["ErrorMessage"] = "You are not assigned to this task.";
-                return RedirectToPage("/Dashboard/MyTasks");
-            }
 
             // Check if task is already completed
             if (Task.Status == CaseTaskStatus.Completed)
@@ -123,13 +117,7 @@ namespace Sentinel.Pages.Tasks
                     return NotFound();
                 }
 
-                // Check if user is assigned to this task
                 var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-                if (task.AssignedToUserId != currentUserId)
-                {
-                    _logger.LogWarning("User {UserId} not assigned to task {TaskId}", currentUserId, id);
-                    return Forbid();
-                }
 
                 // Save survey response
                 _logger.LogInformation("Saving survey response for task {TaskId}", id);

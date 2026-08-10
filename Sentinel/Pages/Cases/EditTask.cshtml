@@ -4,8 +4,32 @@
 
 @{
     ViewData["Title"] = "Edit Task";
-    Layout = "~/Pages/Shared/_LayoutSentinel.cshtml";
+    Layout = null;
 }
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Edit Task</title>
+
+    <!-- Bootstrap + Icons -->
+    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="~/lib/bootstrap-icons/font/bootstrap-icons.min.css" />
+
+    <!-- Sentinel Design System -->
+    <link rel="stylesheet" href="~/css/sentinel-design-system.css" asp-append-version="true" />
+
+    <style>
+        body {
+            background: var(--bone, #F5F3EC);
+            padding: 1rem;
+            font-family: var(--f-sans, 'Geist', ui-sans-serif, system-ui, -apple-system, sans-serif);
+        }
+    </style>
+</head>
+<body>
 
 <div class="container-fluid" style="max-width: 800px;">
     <div class="card">
@@ -63,7 +87,8 @@
                         <label for="assignedToUserSearch" class="form-label">Assign To User</label>
                         <input type="text" id="assignedToUserSearch" class="form-control" 
                                placeholder="Type to search users..." 
-                               value="@Model.Task.AssignedToUser?.UserName" />
+                               value="@Model.Task.AssignedToUser?.UserName" 
+                               autocomplete="off" />
                         <input type="hidden" asp-for="Task.AssignedToUserId" id="assignedToUserId" />
                         <small class="form-text text-muted">Leave blank to keep current assignment or unassign</small>
                     </div>
@@ -82,64 +107,68 @@
                         </button>
                     </div>
                 </form>
+                    </div>
+                </div>
             </div>
-        </div>
-    </div>
-</div>
 
-@section Scripts {
-    <link rel="stylesheet" href="https://code.jquery.com/ui/1.13.2/themes/base/jquery-ui.css">
-    <script src="https://code.jquery.com/ui/1.13.2/jquery-ui.min.js"></script>
-    <style>
-        /* jQuery UI Autocomplete styling */
-        .ui-autocomplete {
-            max-height: 200px;
-            overflow-y: auto;
-            overflow-x: hidden;
-            font-size: 0.85rem;
-            z-index: 9999 !important;
-        }
-        .ui-menu-item {
-            padding: 0.4rem 0.6rem;
-        }
-    </style>
+            <!-- jQuery and jQuery UI -->
+            <script src="~/lib/jquery/dist/jquery.min.js"></script>
+            <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+            <link rel="stylesheet" href="https://code.jquery.com/ui/1.13.2/themes/base/jquery-ui.css">
+            <script src="https://code.jquery.com/ui/1.13.2/jquery-ui.min.js"></script>
+            <style>
+                /* jQuery UI Autocomplete styling */
+                .ui-autocomplete {
+                    max-height: 200px;
+                    overflow-y: auto;
+                    overflow-x: hidden;
+                    font-size: 0.85rem;
+                    z-index: 9999 !important;
+                }
+                .ui-menu-item {
+                    padding: 0.4rem 0.6rem;
+                }
+            </style>
 
-    <script>
-        // User autocomplete for assignment
-        $(document).ready(function() {
-            $("#assignedToUserSearch").autocomplete({
-                source: function(request, response) {
-                    $.ajax({
-                        url: '/api/Patients/SearchUsers',
-                        data: { term: request.term },
-                        dataType: 'json',
-                        success: function(data) {
-                            response(data.map(function(item) {
-                                return {
-                                    label: item.text,
-                                    value: item.text,
-                                    id: item.id
-                                };
-                            }));
+            <script>
+                // User autocomplete for assignment
+                $(document).ready(function() {
+                    $("#assignedToUserSearch").autocomplete({
+                        source: function(request, response) {
+                            $.ajax({
+                                url: '/api/Patients/SearchUsers',
+                                data: { term: request.term },
+                                dataType: 'json',
+                                success: function(data) {
+                                    response(data.map(function(item) {
+                                        return {
+                                            label: item.text,
+                                            value: item.text,
+                                            id: item.id
+                                        };
+                                    }));
+                                },
+                                error: function(xhr, status, error) {                            response([]);
+                                }
+                            });
                         },
-                        error: function(xhr, status, error) {                            response([]);
+                        minLength: 2,
+                        select: function(event, ui) {
+                            $("#assignedToUserId").val(ui.item.id);
+                            return true;
+                        },
+                        change: function(event, ui) {
+                            // If field is cleared, clear the hidden ID field
+                            if (!ui.item) {
+                                $("#assignedToUserId").val('');
+                            }
                         }
                     });
-                },
-                minLength: 2,
-                select: function(event, ui) {
-                    $("#assignedToUserId").val(ui.item.id);
-                    return true;
-                },
-                change: function(event, ui) {
-                    // If field is cleared, clear the hidden ID field
-                    if (!ui.item) {
-                        $("#assignedToUserId").val('');
-                    }
-                }
-            });
-        });
-    </script>
+                });
+            </script>
 
-    @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
-}
+            <script src="~/lib/jquery-validation/dist/jquery.validate.min.js"></script>
+            <script src="~/lib/jquery-validation-unobtrusive/jquery.validate.unobtrusive.min.js"></script>
+
+            </body>
+            </html>

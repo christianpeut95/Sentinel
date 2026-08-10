@@ -5,11 +5,13 @@
 @using Sentinel.Data
 @using Microsoft.EntityFrameworkCore
 @using Microsoft.AspNetCore.Components.Web
+@using Microsoft.AspNetCore.Authorization
 @inject ICollectionMappingService CollectionMappingService
 @inject ApplicationDbContext Context
 @inject ILogger<ConfigureCollectionBlazor> Logger
 @inject NavigationManager Navigation
 
+@attribute [Authorize(Policy = "Permission.Survey.Edit")]
 @rendermode RenderMode.InteractiveServer
 
 <PageTitle>Configure Collection Mapping</PageTitle>
@@ -508,6 +510,23 @@ public string? ReturnUrl { get; set; }
                         }
                     }
                 }
+                else if (element.TryGetProperty("templateElements", out var templateElements))
+                {
+                    Logger.LogCritical("Found 'templateElements' property with {Count} fields", templateElements.GetArrayLength());
+
+                    foreach (var templateElement in templateElements.EnumerateArray())
+                    {
+                        if (templateElement.TryGetProperty("name", out var nameElement))
+                        {
+                            var fieldName = nameElement.GetString();
+                            if (!string.IsNullOrEmpty(fieldName))
+                            {
+                                matrixColumns.Add(fieldName);
+                                Logger.LogCritical("Added dynamic-panel field: '{FieldName}'", fieldName);
+                            }
+                        }
+                    }
+                }
                 else
                 {
                     Logger.LogCritical("? Question found but NO 'columns' property! Type={Type}", questionType);
@@ -588,6 +607,10 @@ public string? ReturnUrl { get; set; }
                 errorMessage = "Mapping not found.";
                 return;
             }
+
+            // Keep the mapping's response key in sync with the configured collection source.
+            mapping.SurveyQuestionName = config!.SourceQuestionName;
+            mapping.Complexity = MappingComplexity.Collection;
 
             // Serialize config
             mapping.CollectionConfigJson = System.Text.Json.JsonSerializer.Serialize(config);

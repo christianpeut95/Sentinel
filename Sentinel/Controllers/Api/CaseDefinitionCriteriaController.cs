@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Sentinel.Data;
 using Sentinel.Models;
@@ -8,9 +9,10 @@ using System.Text.Json;
 
 namespace Sentinel.Controllers.Api
 {
-    [Authorize]
+    [Authorize(Policy = "Permission.Settings.Edit")]
     [ApiController]
     [Route("api/case-definitions/{definitionId}/criteria")]
+    [EnableRateLimiting("workflow-api-moderate")] // 60 per minute - case definition criteria management
     public class CaseDefinitionCriteriaController : ControllerBase
     {
         private readonly ApplicationDbContext _context;

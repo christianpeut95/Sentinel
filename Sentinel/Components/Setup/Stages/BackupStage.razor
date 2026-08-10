@@ -1,0 +1,67 @@
+@using System.ComponentModel.DataAnnotations
+
+<div class="stage-card">
+    <div class="stage-header">
+        <h2><i class="bi bi-hdd"></i> Backup Configuration</h2>
+        <p>Configure automated database backups.</p>
+    </div>
+
+    <div class="stage-body">
+        <EditForm Model="@BackupData" OnValidSubmit="HandleNext">
+            <DataAnnotationsValidator />
+
+            <div class="alert alert-info">
+                <i class="bi bi-info-circle"></i>
+                Regular backups are essential for data protection. Configure where backup files will be stored.
+            </div>
+
+            <div class="form-group">
+                <label class="form-label required">Backup Directory Path</label>
+                <InputText @bind-Value="BackupData.BackupPath" class="form-control" placeholder="/var/backups/sentinel" />
+                <ValidationMessage For="@(() => BackupData.BackupPath)" class="validation-message" />
+                <span class="form-text">Full path to the directory where backup files will be stored.</span>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label required">Retention Period (days)</label>
+                <InputNumber @bind-Value="BackupData.RetentionDays" class="form-control" min="1" max="365" />
+                <ValidationMessage For="@(() => BackupData.RetentionDays)" class="validation-message" />
+                <span class="form-text">Number of days to keep backup files before automatic deletion.</span>
+            </div>
+
+            <div class="alert alert-warning">
+                <i class="bi bi-exclamation-triangle-fill"></i>
+                <strong>Important:</strong> Ensure the backup directory exists and the application has write permissions.
+            </div>
+
+            <div class="stage-actions">
+                <button type="button" class="btn btn-secondary" @onclick="HandlePrevious">
+                    <i class="bi bi-arrow-left"></i>
+                    <span>Previous</span>
+                </button>
+                <button type="submit" class="btn btn-primary">
+                    <span>Next</span>
+                    <i class="bi bi-arrow-right"></i>
+                </button>
+            </div>
+        </EditForm>
+    </div>
+</div>
+
+@code {
+    [Parameter] public EventCallback OnNext { get; set; }
+    [Parameter] public EventCallback OnPrevious { get; set; }
+    [Parameter] public InitialSetupWizard.BackupData BackupData { get; set; } = new();
+    [Parameter] public EventCallback<InitialSetupWizard.BackupData> BackupDataChanged { get; set; }
+
+    private async Task HandleNext()
+    {
+        await BackupDataChanged.InvokeAsync(BackupData);
+        await OnNext.InvokeAsync();
+    }
+
+    private async Task HandlePrevious()
+    {
+        await OnPrevious.InvokeAsync();
+    }
+}

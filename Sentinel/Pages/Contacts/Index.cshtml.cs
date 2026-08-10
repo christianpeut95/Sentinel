@@ -109,11 +109,11 @@ namespace Sentinel.Pages.Contacts
                         query = query.Where(c => c.ConfirmationStatusId.HasValue);
                         break;
                     case "WithExposures":
-                        var contactsWithTransmissions = _context.ExposureEvents
-                            .Where(e => e.SourceCaseId.HasValue && e.ExposureType == ExposureType.Contact)
-                            .Select(e => e.SourceCaseId!.Value)
+                        var contactsWithExposures = _context.ExposureEvents
+                            .Where(e => e.ExposureType == ExposureType.Contact)
+                            .Select(e => e.ExposedCaseId)
                             .Distinct();
-                        query = query.Where(c => contactsWithTransmissions.Contains(c.Id));
+                        query = query.Where(c => contactsWithExposures.Contains(c.Id));
                         break;
                 }
             }
@@ -149,21 +149,21 @@ namespace Sentinel.Pages.Contacts
                 .Take(PageSize)
                 .ToListAsync();
             
-            // Load exposure events where these contacts are the SOURCE (transmissions)
-            // This shows which cases these contacts exposed (downstream)
+            // Load exposure events where these contacts are the EXPOSED (target)
+            // This shows which cases these contacts were exposed by (upstream)
             var contactIdsOnPage = Contacts.Select(c => c.Id).ToList();
             var exposures = await _context.ExposureEvents
-                .Include(e => e.ExposedCase)
+                .Include(e => e.SourceCase)
                     .ThenInclude(c => c!.Patient)
                 .Include(e => e.ContactClassification)
-                .Where(e => e.SourceCaseId.HasValue && contactIdsOnPage.Contains(e.SourceCaseId.Value))
+                .Where(e => contactIdsOnPage.Contains(e.ExposedCaseId))
                 .Where(e => e.ExposureType == ExposureType.Contact)
                 .OrderByDescending(e => e.ExposureStartDate)
                 .ToListAsync();
-            
-            // Group exposures by the contact (SourceCaseId)
+
+            // Group exposures by the contact (ExposedCaseId)
             ContactExposures = exposures
-                .GroupBy(e => e.SourceCaseId!.Value)
+                .GroupBy(e => e.ExposedCaseId)
                 .ToDictionary(g => g.Key, g => g.ToList());
         }
         

@@ -79,7 +79,8 @@
   border-right: 1px solid var(--hairline);
   display: flex;
   flex-direction: column;
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto;
 }
 
 .rb-panel-section {
@@ -189,6 +190,93 @@
   font-size: 20px;
   text-align: center;
   border: 2px solid var(--hairline);
+}
+
+.rb-sidebar-field {
+  margin-bottom: 10px;
+}
+
+.rb-sidebar-field label {
+  display: block;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  color: var(--slate);
+  margin-bottom: 4px;
+  letter-spacing: .03em;
+}
+
+.rb-sidebar-field input,
+.rb-sidebar-field textarea,
+.rb-sidebar-field select {
+  width: 100%;
+  font-family: var(--f-sans);
+  font-size: 12px;
+  line-height: 1.4;
+  padding: 6px 8px;
+  color: var(--forest);
+  background: var(--chalk);
+  border: 1px solid var(--hairline);
+  border-radius: 2px;
+}
+
+.rb-sidebar-field textarea {
+  resize: vertical;
+  min-height: 58px;
+}
+
+.rb-sidebar-field input:focus,
+.rb-sidebar-field textarea:focus,
+.rb-sidebar-field select:focus {
+  outline: 2px solid var(--signal);
+  outline-offset: 0;
+}
+
+.rb-sidebar-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: 2px 0 12px;
+  font-size: 12px;
+  color: var(--forest);
+  cursor: pointer;
+}
+
+.rb-sidebar-checkbox input {
+  accent-color: var(--signal-dk);
+}
+
+.rb-sidebar-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+
+.rb-sidebar-actions .rb-toolbar-btn {
+  width: 100%;
+}
+
+.rb-audit-list {
+  display: grid;
+  gap: 7px;
+}
+
+.rb-audit-row {
+  display: grid;
+  grid-template-columns: 82px minmax(0, 1fr);
+  gap: 8px;
+  align-items: start;
+  font-size: 11px;
+}
+
+.rb-audit-label {
+  color: var(--slate);
+}
+
+.rb-audit-value {
+  color: var(--forest);
+  font-weight: 500;
+  overflow-wrap: anywhere;
 }
 
 /* ── Query Display Box ───────────────────────────────── */
@@ -1386,7 +1474,8 @@
 
 /* ── Left Panel Width Adjustment ────────────────────────────────── */
 .rb-left-panel {
-  width: 260px;  /* Narrower to match compact reference */
+  width: 300px;
+  flex: 0 0 300px;
 }
 
 /* ── Status Bar ────────────────────────────────────────────────── */
@@ -1424,6 +1513,30 @@
 
 .rb-section-header:first-child {
   padding-top: 0;
+}
+
+/* Section header add button */
+.rb-section-add-btn {
+  background: var(--primary-blue);
+  color: white;
+  border: none;
+  border-radius: 3px;
+  padding: 3px 8px;
+  font-size: 10px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.rb-section-add-btn:hover {
+  background: var(--hover-blue);
+}
+
+.rb-section-add-btn:active {
+  background: var(--active-blue);
+  transform: translateY(1px);
 }
 
 

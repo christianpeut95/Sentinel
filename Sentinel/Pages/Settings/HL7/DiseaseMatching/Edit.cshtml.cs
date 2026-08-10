@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.EntityFrameworkCore;
@@ -7,6 +8,7 @@ using Sentinel.Models.Lookups;
 
 namespace Sentinel.Pages.Settings.HL7.DiseaseMatching
 {
+    [Authorize(Policy = "Permission.HL7.Configure")]
     public class EditModel : PageModel
     {
         private readonly ApplicationDbContext _context;

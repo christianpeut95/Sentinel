@@ -87,9 +87,6 @@ namespace Sentinel.Pages.Settings.HL7.FieldMappings
                 _logger.LogInformation("Config {ConfigId} final status: {Status} - {Message}",
                     config.Id, status, statusMessage);
 
-                // Get message count (if tracking is implemented)
-                var messageCount = 0; // TODO: Link to actual message processing stats
-
                 Configurations.Add(new LabConfigurationCard
                 {
                     Id = config.Id,
@@ -97,8 +94,7 @@ namespace Sentinel.Pages.Settings.HL7.FieldMappings
                     Description = config.SendingFacility ?? "No facility specified",
                     Status = status,
                     StatusMessage = statusMessage,
-                    MappedFieldCount = mappings.Count(m => !string.IsNullOrEmpty(m.FieldPath) && m.FieldPath != "SKIPPED"),
-                    MessageCount = messageCount
+                    MappedFieldCount = mappings.Count(m => !string.IsNullOrEmpty(m.FieldPath) && m.FieldPath != "SKIPPED")
                 });
             }
         }
@@ -137,6 +133,5 @@ namespace Sentinel.Pages.Settings.HL7.FieldMappings
         public string Status { get; set; } = "NotConfigured"; // Active, NeedsAttention, NotConfigured
         public string StatusMessage { get; set; } = string.Empty;
         public int MappedFieldCount { get; set; }
-        public int MessageCount { get; set; }
     }
 }

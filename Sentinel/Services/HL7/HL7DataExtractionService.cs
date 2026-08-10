@@ -707,15 +707,26 @@ public class HL7DataExtractionService : IHL7DataExtractionService
                 break;
 
             case PatientMatchingStrategy.StrictMatch:
-                var strictMatches = await MatchByDemographicsAsync(patientData, strict: true, cancellationToken);
-                if (strictMatches.Count == 1)
+                // Try identifier match first
+                matchedPatient = await MatchByIdentifierAsync(patientData, cancellationToken);
+
+                // If no match by identifier, try strict demographic match
+                if (matchedPatient == null)
                 {
-                    matchedPatient = strictMatches[0];
-                    result.MatchMethod = "StrictMatch";
+                    var strictMatches = await MatchByDemographicsAsync(patientData, strict: true, cancellationToken);
+                    if (strictMatches.Count == 1)
+                    {
+                        matchedPatient = strictMatches[0];
+                        result.MatchMethod = "StrictMatch";
+                    }
+                    else if (strictMatches.Count > 1)
+                    {
+                        result.ConflictingPatients = strictMatches;
+                    }
                 }
-                else if (strictMatches.Count > 1)
+                else
                 {
-                    result.ConflictingPatients = strictMatches;
+                    result.MatchMethod = "StrictMatch (Identifier)";
                 }
                 break;
 
@@ -3896,9 +3907,25 @@ public class HL7DataExtractionService : IHL7DataExtractionService
             var strategy = configuration?.PatientMatchingStrategy ?? PatientMatchingStrategy.StrictMatch;
             Patient? existingPatient = null;
 
-            if (strategy == PatientMatchingStrategy.StrictMatch || strategy == PatientMatchingStrategy.IdentifierOnly)
+            if (strategy == PatientMatchingStrategy.IdentifierOnly)
             {
                 existingPatient = await MatchByIdentifierAsync(patientData, cancellationToken);
+            }
+            else if (strategy == PatientMatchingStrategy.StrictMatch)
+            {
+                // Try identifier match first
+                existingPatient = await MatchByIdentifierAsync(patientData, cancellationToken);
+
+                // If no match by identifier, try strict demographic match
+                if (existingPatient == null)
+                {
+                    var strictMatches = await MatchByDemographicsAsync(patientData, strict: true, cancellationToken);
+                    if (strictMatches.Count == 1)
+                    {
+                        existingPatient = strictMatches[0];
+                    }
+                    // If multiple matches, we intentionally don't pick one (requires manual review)
+                }
             }
             else if (strategy == PatientMatchingStrategy.FuzzyMatch)
             {
@@ -5182,10 +5209,18 @@ public class HL7DataExtractionService : IHL7DataExtractionService
                             else
                             {
                                 // Result restriction exists - must match one of the acceptable results
-                                // TODO: This needs proper TestResult lookup, for now just check text
-                                resultMatch = marker.NormalizedResultValue != null &&
-                                            (marker.NormalizedResultValue.Contains("Positive", StringComparison.OrdinalIgnoreCase) ||
-                                             marker.NormalizedResultValue.Contains("Detected", StringComparison.OrdinalIgnoreCase));
+                                // Primary: Check if resolved TestResult ID matches the acceptable list
+                                if (marker.ResolvedTestResultId.HasValue)
+                                {
+                                    resultMatch = acceptableResults.Contains(marker.ResolvedTestResultId.Value);
+                                }
+                                else
+                                {
+                                    // Fallback: If result not resolved to ID, check text for common positive indicators
+                                    resultMatch = marker.NormalizedResultValue != null &&
+                                                (marker.NormalizedResultValue.Contains("Positive", StringComparison.OrdinalIgnoreCase) ||
+                                                 marker.NormalizedResultValue.Contains("Detected", StringComparison.OrdinalIgnoreCase));
+                                }
                             }
 
                             if (pathogenMatch && specimenMatch && testMethodMatch && resultMatch)
@@ -5888,9 +5923,14 @@ public class HL7DataExtractionService : IHL7DataExtractionService
             _logger.LogInformation("[REINFECTION CHECK] Existing Case DateOfNotification: {DateOfNotification}", existingCase.DateOfNotification?.ToString("yyyy-MM-dd") ?? "NULL");
             _logger.LogInformation("[REINFECTION CHECK] New Lab Result SpecimenCollectionDate: {SpecimenDate}", stagedLabResult.SpecimenCollectionDate?.ToString("yyyy-MM-dd") ?? "NULL");
 
-            // TODO: Load reinfection window configuration from disease settings
-            // For now, use a default 90-day window
-            var reinfectionWindowDays = 90;
+            // Load reinfection window configuration from disease settings
+            var reinfectionRule = await _context.DiseaseReinfectionRules
+                .Where(r => r.DiseaseId == diseaseMatch.Disease.Id && r.IsActive)
+                .FirstOrDefaultAsync(cancellationToken);
+
+            var reinfectionWindowDays = reinfectionRule?.ReinfectionWindowDays ?? 90; // Default to 90 days if no rule found
+            _logger.LogInformation("[REINFECTION CHECK] Reinfection window loaded from {Source}: {Window} days", 
+                reinfectionRule != null ? "disease settings" : "default", reinfectionWindowDays);
 
             // Use fallback chain: DateOfOnset → DateOfNotification → DateTime.MinValue
             // This matches the logic in CaseMatchingService for consistency
@@ -5902,7 +5942,6 @@ public class HL7DataExtractionService : IHL7DataExtractionService
                 caseDate.ToString("yyyy-MM-dd"), 
                 existingCase.DateOfOnset.HasValue ? "DateOfOnset" : existingCase.DateOfNotification.HasValue ? "DateOfNotification" : "MinValue");
             _logger.LogInformation("[REINFECTION CHECK] Calculated days since case: {Days:F0}", daysSinceCase);
-            _logger.LogInformation("[REINFECTION CHECK] Reinfection window: {Window} days", reinfectionWindowDays);
 
             if (Math.Abs(daysSinceCase) <= reinfectionWindowDays)
             {

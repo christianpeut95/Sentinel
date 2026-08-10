@@ -1,0 +1,95 @@
+@using System.ComponentModel.DataAnnotations
+@using System.Globalization
+
+<div class="stage-card">
+    <div class="stage-header">
+        <h2><i class="bi bi-building"></i> Organization Information</h2>
+        <p>Enter your organization's details.</p>
+    </div>
+
+    <div class="stage-body">
+        <EditForm Model="@OrgData" OnValidSubmit="HandleNext">
+            <DataAnnotationsValidator />
+
+            <div class="form-group">
+                <label class="form-label required">Organization Name</label>
+                <InputText @bind-Value="OrgData.Name" class="form-control" placeholder="Health Department" />
+                <ValidationMessage For="@(() => OrgData.Name)" class="validation-message" />
+            </div>
+
+            <div class="form-group">
+                <label class="form-label required">Country</label>
+                <InputSelect @bind-Value="OrgData.Country" class="form-control">
+                    <option value="">-- Select Country --</option>
+                    @foreach (var country in _countries)
+                    {
+                        <option value="@country">@country</option>
+                    }
+                </InputSelect>
+                <ValidationMessage For="@(() => OrgData.Country)" class="validation-message" />
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">State / Province</label>
+                <InputText @bind-Value="OrgData.State" class="form-control" placeholder="California" />
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">City</label>
+                <InputText @bind-Value="OrgData.City" class="form-control" placeholder="San Francisco" />
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Postal Code</label>
+                <InputText @bind-Value="OrgData.PostalCode" class="form-control" placeholder="94102" />
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Country Code (ISO 3166-1 alpha-2)</label>
+                <InputText @bind-Value="OrgData.CountryCode" class="form-control" placeholder="US" maxlength="2" />
+                <span class="form-text">Two-letter country code (e.g., US, CA, GB, AU)</span>
+            </div>
+
+            <div class="stage-actions">
+                <button type="button" class="btn btn-secondary" @onclick="HandlePrevious">
+                    <i class="bi bi-arrow-left"></i>
+                    <span>Previous</span>
+                </button>
+                <button type="submit" class="btn btn-primary">
+                    <span>Next</span>
+                    <i class="bi bi-arrow-right"></i>
+                </button>
+            </div>
+        </EditForm>
+    </div>
+</div>
+
+@code {
+    [Parameter] public EventCallback OnNext { get; set; }
+    [Parameter] public EventCallback OnPrevious { get; set; }
+    [Parameter] public InitialSetupWizard.OrganizationData OrgData { get; set; } = new();
+    [Parameter] public EventCallback<InitialSetupWizard.OrganizationData> OrgDataChanged { get; set; }
+
+    private List<string> _countries = new();
+
+    protected override void OnInitialized()
+    {
+        _countries = CultureInfo.GetCultures(CultureTypes.SpecificCultures)
+            .Select(c => new RegionInfo(c.Name))
+            .Select(r => r.EnglishName)
+            .Distinct()
+            .OrderBy(name => name)
+            .ToList();
+    }
+
+    private async Task HandleNext()
+    {
+        await OrgDataChanged.InvokeAsync(OrgData);
+        await OnNext.InvokeAsync();
+    }
+
+    private async Task HandlePrevious()
+    {
+        await OnPrevious.InvokeAsync();
+    }
+}

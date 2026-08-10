@@ -10,7 +10,7 @@ namespace Sentinel.Controllers.Api;
 /// API endpoints for report field discovery
 /// Used by report builder UI to get available fields
 /// </summary>
-[Authorize]
+[Authorize(Policy = "Permission.Report.View")]
 [ApiController]
 [Route("api/reporting/fields")]
 [EnableRateLimiting("lookup-api")] // 200 per minute - field metadata
@@ -25,14 +25,16 @@ public class ReportFieldsApiController : ControllerBase
 
     /// <summary>
     /// Get all available fields for an entity type
-    /// GET: /api/reporting/fields/{entityType}
+    /// GET: /api/reporting/fields/{entityType}?context=Report
     /// </summary>
     [HttpGet("{entityType}")]
-    public async Task<ActionResult<List<ReportFieldMetadata>>> GetFields(string entityType)
+    public async Task<ActionResult<List<ReportFieldMetadata>>> GetFields(
+        string entityType,
+        [FromQuery] FieldUsageContext context = FieldUsageContext.Report)
     {
         try
         {
-            var fields = await _fieldMetadataService.GetFieldsForEntityAsync(entityType);
+            var fields = await _fieldMetadataService.GetFieldsForEntityAsync(entityType, excludeNavigationFields: false, context: context);
             return Ok(fields);
         }
         catch (Exception ex)

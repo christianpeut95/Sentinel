@@ -9,7 +9,7 @@ using Sentinel.Services;
 
 namespace Sentinel.Pages.Settings.Jurisdictions
 {
-    [Authorize]
+    [Authorize(Policy = "Permission.Location.Import")]
     [RequestSizeLimit(100_000_000)]
     [RequestFormLimits(MultipartBodyLengthLimit = 100_000_000)]
     public class BulkImportModel : PageModel

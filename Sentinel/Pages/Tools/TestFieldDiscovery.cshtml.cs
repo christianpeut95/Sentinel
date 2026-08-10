@@ -1,9 +1,11 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Sentinel.Models.Reporting;
 using Sentinel.Services.Reporting;
 
 namespace Sentinel.Pages.Tools;
 
+[Authorize(Policy = "Permission.Settings.ManageOrganization")]
 public class TestFieldDiscoveryModel : PageModel
 {
     private readonly IReportFieldMetadataService _fieldMetadataService;

@@ -395,7 +395,8 @@
                 AvailableQuestions = allQuestions
                     .Where(q => q.Type == "matrix" || 
                                q.Type == "matrixdynamic" || 
-                               q.Type == "matrixdropdown")
+                               q.Type == "matrixdropdown" ||
+                               q.Type == "paneldynamic")
                     .ToList();
                 
                 if (!AvailableQuestions.Any())
@@ -481,7 +482,8 @@
                         var question = FindQuestionRecursive(elements, questionName);
                         if (question != null)
                         {
-                            var columns = question["columns"] as JArray;
+                            var columns = question["columns"] as JArray
+                                ?? question["templateElements"] as JArray;
                             if (columns != null)
                             {
                                 MatrixColumns = columns

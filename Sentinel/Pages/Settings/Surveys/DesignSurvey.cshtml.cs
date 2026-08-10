@@ -8,7 +8,7 @@ using System.Text.Json;
 
 namespace Sentinel.Pages.Settings.Surveys
 {
-    [Authorize]
+    [Authorize(Policy = "Permission.Survey.Edit")]
     [IgnoreAntiforgeryToken] // Allow AJAX POST without antiforgery token
     public class DesignSurveyModel : PageModel
     {
@@ -24,6 +24,9 @@ namespace Sentinel.Pages.Settings.Surveys
         public string SurveyTemplateId { get; set; } = string.Empty;
         public string SurveyName { get; set; } = "New Survey";
         public string? Category { get; set; }
+        public string? VersionNumber { get; set; }
+        public string? VersionStatus { get; set; }
+        public bool IsSystemTemplate { get; set; }
         public string? SurveyDefinitionJson { get; set; }
         public string? OutputMappingJson { get; set; }
         public string? InputMappingJson { get; set; }
@@ -57,6 +60,9 @@ namespace Sentinel.Pages.Settings.Surveys
             SurveyTemplateId = surveyTemplate.Id.ToString();
             SurveyName = surveyTemplate.Name;
             Category = surveyTemplate.Category;
+            VersionNumber = surveyTemplate.VersionNumber?.ToString();
+            VersionStatus = surveyTemplate.VersionStatus.ToString();
+            IsSystemTemplate = surveyTemplate.IsSystemTemplate;
 
             // Pass the survey JSON directly (will be serialized in the view)
             if (!string.IsNullOrWhiteSpace(surveyTemplate.SurveyDefinitionJson))

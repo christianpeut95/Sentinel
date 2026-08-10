@@ -187,7 +187,18 @@
                                                class="btn btn-outline-info" title="Manage Permissions">
                                                 <i class="bi bi-shield-lock"></i>
                                             </a>
-                                            <a asp-page="./Delete" asp-route-id="@user.Id" 
+                                            @* Password reset feature disabled - uncomment to enable
+                                            <form method="post" asp-page-handler="SendPasswordReset" style="display: inline;">
+                                                <input type="hidden" name="userId" value="@user.Id" />
+                                                <button type="submit" 
+                                                        class="btn btn-outline-warning btn-sm" 
+                                                        title="Send Password Reset Email"
+                                                        onclick="return confirm('Send password reset email to @user.Email?');">
+                                                    <i class="bi bi-key"></i>
+                                                </button>
+                                            </form>
+                                            *@
+                                            <a asp-page="./Delete" asp-route-id="@user.Id"
                                                class="btn btn-outline-danger" title="Delete User">
                                                 <i class="bi bi-trash"></i>
                                             </a>
@@ -241,8 +252,8 @@
                 </div>
             </div>
         </div>
-    }
-</div>
+    
+
 
 <style>
     .user-avatar {

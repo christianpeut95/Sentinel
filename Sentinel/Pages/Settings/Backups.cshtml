@@ -1,0 +1,156 @@
+@page "/settings/backups"
+@model Sentinel.Pages.Settings.BackupsModel
+
+@{
+    ViewData["Title"] = "Database Backups";
+    Layout = "~/Pages/Shared/_LayoutSentinel.cshtml";
+}
+
+<!-- Page Header -->
+<div class="sentinel-card-header mb-4">
+    <div class="d-flex align-items-center justify-content-between">
+        <div>
+            <h1 class="sentinel-card-title mb-2">
+                <i class="bi bi-hdd-stack me-2"></i>
+                Database Backups
+            </h1>
+            <p class="sentinel-card-subtitle text-muted mb-0">
+                Create, restore, and manage automated database backups
+            </p>
+        </div>
+        <div>
+            <form method="post" asp-page-handler="CreateBackup">
+                <button type="submit" class="btn-sentinel-primary">
+                    <i class="bi bi-plus-circle me-2"></i>
+                    <span>Create Backup</span>
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Configuration Info -->
+<div class="sentinel-card mb-4">
+    <div class="d-flex align-items-center gap-3">
+        <i class="bi bi-folder2-open text-primary fs-4"></i>
+        <div>
+            <label class="sentinel-label mb-1">Backup Directory Path</label>
+            <div class="text-mono text-meta">@Model.CurrentBackupPath</div>
+        </div>
+    </div>
+</div>
+
+@if (!string.IsNullOrEmpty(Model.StatusMessage))
+{
+    <div class="alert @(Model.StatusIsError ? "alert-danger" : "alert-success") alert-dismissible fade show mb-4" role="alert">
+        <i class="bi @(Model.StatusIsError ? "bi-exclamation-triangle-fill" : "bi-check-circle-fill") me-2"></i>
+        @Model.StatusMessage
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+}
+
+<!-- Backup History Table -->
+<div class="sentinel-card">
+    @if (Model.Backups == null || !Model.Backups.Any())
+    {
+        <div class="text-center py-5">
+            <i class="bi bi-inbox display-4 text-muted"></i>
+            <p class="text-muted mt-3">No backups found. Create your first backup to get started.</p>
+        </div>
+    }
+    else
+    {
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead style="background: var(--paper); border-bottom: 2px solid var(--hairline);">
+                    <tr>
+                        <th class="text-label" style="padding: 12px;">File Name</th>
+                        <th class="text-label" style="padding: 12px;">Type</th>
+                        <th class="text-label" style="padding: 12px;">Size</th>
+                        <th class="text-label" style="padding: 12px;">Created</th>
+                        <th class="text-label" style="padding: 12px;">Duration</th>
+                        <th class="text-label" style="padding: 12px;">Status</th>
+                        <th class="text-label" style="padding: 12px;">Created By</th>
+                        <th class="text-label text-end" style="padding: 12px;">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var backup in Model.Backups)
+                    {
+                        <tr style="border-bottom: 1px solid var(--hairline);">
+                            <td style="padding: 14px;">
+                                <div class="d-flex align-items-center gap-2">
+                                    @if (backup.FileExists)
+                                    {
+                                        <i class="bi bi-file-earmark-zip" style="color: var(--signal-dk);"></i>
+                                    }
+                                    else
+                                    {
+                                        <i class="bi bi-file-earmark-x" style="color: var(--status-outbreak);"></i>
+                                    }
+                                    <span class="text-mono">@backup.BackupFileName</span>
+                                </div>
+                            </td>
+                            <td style="padding: 14px;">
+                                <span class="chip chip-info">
+                                    <span class="dot"></span>
+                                    @backup.BackupType
+                                </span>
+                            </td>
+                            <td style="padding: 14px;">
+                                <span class="text-mono">@backup.SizeInMB.ToString("F2") MB</span>
+                            </td>
+                            <td style="padding: 14px;">
+                                <div class="text-meta">
+                                    <div>@backup.StartTime.ToString("MMM dd, yyyy")</div>
+                                    <div style="color: var(--graphite);">@backup.StartTime.ToString("h:mm tt")</div>
+                                </div>
+                            </td>
+                            <td style="padding: 14px;">
+                                <span class="text-meta">@Model.FormatDuration(backup.Duration)</span>
+                            </td>
+                            <td style="padding: 14px;">
+                                @if (backup.Success)
+                                {
+                                    <span class="chip chip-clear">
+                                        <span class="dot"></span>
+                                        Success
+                                    </span>
+                                }
+                                else
+                                {
+                                    <span class="chip chip-outbreak" title="@backup.ErrorMessage">
+                                        <span class="dot"></span>
+                                        Failed
+                                    </span>
+                                }
+                            </td>
+                            <td style="padding: 14px;">
+                                <span class="text-meta">@(backup.CreatedBy ?? "System")</span>
+                            </td>
+                            <td class="text-end" style="padding: 14px;">
+                                <div class="btn-group btn-group-sm" role="group">
+                                    @if (backup.FileExists)
+                                    {
+                                        <form method="post" asp-page-handler="DeleteBackup" asp-route-fileName="@backup.BackupFileName" style="display: inline;" 
+                                              onsubmit="return confirm('Are you sure you want to delete this backup? This action cannot be undone.');">
+                                            <button type="submit" class="btn btn-outline-danger btn-sm" title="Delete this backup">
+                                                <i class="bi bi-trash"></i>
+                                            </button>
+                                        </form>
+                                    }
+                                    else
+                                    {
+                                        <button class="btn btn-outline-secondary btn-sm" disabled title="File not found">
+                                            <i class="bi bi-file-earmark-x"></i>
+                                        </button>
+                                    }
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>

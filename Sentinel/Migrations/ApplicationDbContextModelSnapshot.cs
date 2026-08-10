@@ -5041,6 +5041,10 @@ namespace Sentinel.Migrations
                     b.Property<DateTime?>("ModifiedAt")
                         .HasColumnType("datetime2");
 
+                    b.Property<string>("ModifiedByUserId")
+                        .HasMaxLength(450)
+                        .HasColumnType("nvarchar(450)");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(200)
@@ -5796,6 +5800,122 @@ namespace Sentinel.Migrations
                         .IsUnique();
 
                     b.ToTable("SurveyTemplateDiseases");
+                });
+
+            modelBuilder.Entity("Sentinel.Models.SystemSettings", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<bool>("AllowPublicRegistration")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("ApplicationName")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("ApplicationUrl")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("DomainName")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<bool>("EnforceHttps")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("HL7DefaultArchivePath")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<string>("HL7DefaultDropPath")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<bool>("HL7ProcessingEnabled")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsSetupCompleted")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime?>("ModifiedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("ModifiedByUserId")
+                        .HasMaxLength(450)
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<DateTime?>("SetupCompletedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("SetupCompletedByUserId")
+                        .HasMaxLength(450)
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<string>("SetupToken")
+                        .HasMaxLength(128)
+                        .HasColumnType("nvarchar(128)");
+
+                    b.Property<DateTime?>("SetupTokenExpiresAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("SetupTokenGeneratedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("SmtpConfigured")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("SmtpEnableSsl")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("SmtpFromDisplayName")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("SmtpFromEmail")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("SmtpHost")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("SmtpPasswordEncrypted")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<int?>("SmtpPort")
+                        .HasColumnType("int");
+
+                    b.Property<string>("SmtpUsername")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("SslCertificatePath")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<string>("SurveillanceStartupChecklistJson")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<bool>("SurveillanceStartupCompleted")
+                        .HasColumnType("bit");
+
+                    b.Property<int>("SurveillanceStartupProgressPercentage")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ModifiedByUserId");
+
+                    b.HasIndex("SetupCompletedByUserId");
+
+                    b.ToTable("SystemSettings");
                 });
 
             modelBuilder.Entity("Sentinel.Models.TaskCallAttempt", b =>
@@ -8047,6 +8167,21 @@ namespace Sentinel.Migrations
                     b.Navigation("Disease");
 
                     b.Navigation("SurveyTemplate");
+                });
+
+            modelBuilder.Entity("Sentinel.Models.SystemSettings", b =>
+                {
+                    b.HasOne("Sentinel.Models.ApplicationUser", "ModifiedByUser")
+                        .WithMany()
+                        .HasForeignKey("ModifiedByUserId");
+
+                    b.HasOne("Sentinel.Models.ApplicationUser", "SetupCompletedByUser")
+                        .WithMany()
+                        .HasForeignKey("SetupCompletedByUserId");
+
+                    b.Navigation("ModifiedByUser");
+
+                    b.Navigation("SetupCompletedByUser");
                 });
 
             modelBuilder.Entity("Sentinel.Models.TaskCallAttempt", b =>

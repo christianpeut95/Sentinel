@@ -17,15 +17,18 @@ public class ReportDataService : IReportDataService
     private readonly ApplicationDbContext _context;
     private readonly IReportFieldMetadataService _fieldMetadataService;
     private readonly IDynamicDateResolver _dynamicDateResolver;
+    private readonly CollectionQueryFilterBuilder _collectionFilterBuilder;
 
     public ReportDataService(
         ApplicationDbContext context,
         IReportFieldMetadataService fieldMetadataService,
-        IDynamicDateResolver dynamicDateResolver)
+        IDynamicDateResolver dynamicDateResolver,
+        CollectionQueryFilterBuilder collectionFilterBuilder)
     {
         _context = context;
         _fieldMetadataService = fieldMetadataService;
         _dynamicDateResolver = dynamicDateResolver;
+        _collectionFilterBuilder = collectionFilterBuilder;
     }
 
     public async Task<List<Dictionary<string, object?>>> GetReportDataAsync(ReportDefinition reportDefinition)
@@ -55,15 +58,47 @@ public class ReportDataService : IReportDataService
         ReportDefinition reportDefinition,
         List<CollectionQueryDto> collectionQueries)
     {
-        // First get the base data
-        var data = await GetReportPreviewAsync(reportDefinition);
-        
-        // Then add collection query columns
+        // Check if we have any collection query filters
+        // SQL-level filters: queries with SubFilters (e.g., HasAny with conditions)
+        // Post-processing filters: queries with Comparator (e.g., Count > 5)
+        var hasSqlCollectionFilters = collectionQueries?.Any(q => 
+            !q.DisplayAsColumn && q.SubFilters?.Any() == true) == true;
+        var hasPostProcessingFilters = collectionQueries?.Any(q => 
+            !q.DisplayAsColumn && !string.IsNullOrEmpty(q.Comparator)) == true;
+        var hasCollectionFilters = hasSqlCollectionFilters || hasPostProcessingFilters;
+
+        // When collection filters are present, we MUST fetch all rows first,
+        // then filter, THEN limit to 100. Otherwise we'll miss valid results.
+        var options = new DataExtractionOptions
+        {
+            MaxRows = hasCollectionFilters ? null : 100,  // No limit if collection filters exist
+            IncludeCustomFields = true,
+            IncludeNavigationProperties = true
+        };
+
+        // Get base data with SQL-level collection filters
+        var data = await ExtractDataAsync(reportDefinition, options, collectionQueries);
+
+        Console.WriteLine($"[GetReportPreview] Fetched {data.Count} rows (sqlFilters={hasSqlCollectionFilters}, postFilters={hasPostProcessingFilters})");
+
+        // Then add collection query columns and apply filters
         if (collectionQueries?.Any() == true)
         {
             data = await AddCollectionColumnsAsync(data, collectionQueries, reportDefinition.EntityType);
+
+            // Apply collection query filters (queries with DisplayAsColumn = false)
+            data = ApplyCollectionQueryFilters(data, collectionQueries);
+
+            Console.WriteLine($"[GetReportPreview] After filtering: {data.Count} rows");
+
+            // NOW limit to 100 rows for preview display
+            if (data.Count > 100)
+            {
+                Console.WriteLine($"[GetReportPreview] Limiting to 100 rows for preview");
+                data = data.Take(100).ToList();
+            }
         }
-        
+
         return data;
     }
 
@@ -176,7 +211,8 @@ public class ReportDataService : IReportDataService
 
     private async Task<List<Dictionary<string, object?>>> ExtractDataAsync(
         ReportDefinition reportDefinition,
-        DataExtractionOptions options)
+        DataExtractionOptions options,
+        List<CollectionQueryDto>? collectionQueries = null)
     {
         Console.WriteLine($"[ReportData] Starting data extraction for {reportDefinition.EntityType}");
 
@@ -211,6 +247,32 @@ public class ReportDataService : IReportDataService
         // STEP 4: Apply filters (passes pre-loaded custom field definitions)
         baseQuery = ApplyFiltersAsync(baseQuery, reportDefinition, customFieldDefinitions);
         Console.WriteLine($"[ReportData] Filters applied: {reportDefinition.Filters.Count}");
+
+        // STEP 4.5: Apply SQL-level collection filters (if any)
+        if (collectionQueries?.Any() == true)
+        {
+            var sqlCollectionFilters = collectionQueries
+                .Where(q => !q.DisplayAsColumn && q.SubFilters?.Any() == true)
+                .ToList();
+
+            if (sqlCollectionFilters.Any())
+            {
+                Console.WriteLine($"[ReportData] Applying {sqlCollectionFilters.Count} SQL-level collection filters");
+
+                foreach (var collectionQuery in sqlCollectionFilters)
+                {
+                    var filterClause = _collectionFilterBuilder.BuildCollectionFilterClause(
+                        collectionQuery, 
+                        reportDefinition.EntityType);
+
+                    if (!string.IsNullOrEmpty(filterClause))
+                    {
+                        Console.WriteLine($"[ReportData] Collection filter: {filterClause}");
+                        baseQuery = baseQuery.Where(filterClause);
+                    }
+                }
+            }
+        }
 
         // STEP 5: Apply row limit if specified
         if (options.MaxRows.HasValue)
@@ -887,6 +949,12 @@ public class ReportDataService : IReportDataService
             var castToObjectMethod = typeof(Queryable).GetMethod("Cast")!.MakeGenericMethod(typeof(object));
             query = (IQueryable<object>)castToObjectMethod.Invoke(null, new[] { typedQuery })!;
         }
+        catch (ArgumentException argEx)
+        {
+            // Validation errors should be surfaced to the user
+            Console.WriteLine($"[VALIDATION ERROR] Filter validation failed for {filter.FieldPath}: {argEx.Message}");
+            throw; // Re-throw validation errors so they reach the user
+        }
         catch (Exception ex)
         {
             // Log filter application error WITH inner exception details
@@ -896,6 +964,7 @@ public class ReportDataService : IReportDataService
                 Console.WriteLine($"Inner Exception: {ex.InnerException.Message}");
                 Console.WriteLine($"Stack Trace: {ex.InnerException.StackTrace}");
             }
+            // For other errors, swallow and continue (backward compatible)
         }
 
         return query;
@@ -908,7 +977,12 @@ public class ReportDataService : IReportDataService
         var dataType = filter.DataType ?? "String";
 
         // Resolve dynamic dates to actual date values
-        if (filter.IsDynamicDate && (dataType == "DateTime" || dataType == "Date" || dataType == "DateOnly"))
+        // BUT skip operators that build their own date ranges (InLast, InNext, Between)
+        if (filter.IsDynamicDate 
+            && (dataType == "DateTime" || dataType == "Date" || dataType == "DateOnly")
+            && filter.Operator != "InLast" 
+            && filter.Operator != "InNext" 
+            && filter.Operator != "Between")
         {
             try
             {
@@ -1047,7 +1121,7 @@ public class ReportDataService : IReportDataService
     {
         // Build sub-filter conditions
         var subFilterConditions = subFilters?.Select(sf =>
-            BuildSubFilterCondition(sf.Field, sf.Operator, sf.Value, sf.DataType)
+            BuildSubFilterCondition(sf)
         ).Where(c => !string.IsNullOrEmpty(c)).ToList() ?? new List<string>();
 
         var combinedCondition = subFilterConditions.Any()
@@ -1078,14 +1152,32 @@ public class ReportDataService : IReportDataService
         // Build condition based on data type
         if (dataType == "DateTime" || dataType == "Date")
         {
+            // Parse date value to get start and end of day
+            if (!DateTime.TryParse(escapedValue, out var dateValue))
+            {
+                Console.WriteLine($"[SubFilter] Could not parse date: {escapedValue}");
+                return "";
+            }
+
+            var startOfDay = dateValue.Date;
+            var endOfDay = startOfDay.AddDays(1);
+            var startStr = startOfDay.ToString("yyyy-MM-dd");
+            var endStr = endOfDay.ToString("yyyy-MM-dd");
+
             return op switch
             {
-                "Equals" => $"{field}.HasValue && {field}.Value.Date == DateTime.Parse(\"{escapedValue}\").Date",
-                "GreaterThan" => $"{field}.HasValue && {field}.Value > DateTime.Parse(\"{escapedValue}\")",
-                "LessThan" => $"{field}.HasValue && {field}.Value < DateTime.Parse(\"{escapedValue}\")",
-                "GreaterThanOrEqual" => $"{field}.HasValue && {field}.Value >= DateTime.Parse(\"{escapedValue}\")",
-                "LessThanOrEqual" => $"{field}.HasValue && {field}.Value <= DateTime.Parse(\"{escapedValue}\")",
-                _ => $"{field}.HasValue && {field}.Value == DateTime.Parse(\"{escapedValue}\")"
+                // Equals: matches the entire day (00:00:00 to 23:59:59)
+                "Equals" => $"{field}.HasValue && {field}.Value >= DateTime.Parse(\"{startStr}\") && {field}.Value < DateTime.Parse(\"{endStr}\")",
+                "NotEquals" => $"!{field}.HasValue || {field}.Value < DateTime.Parse(\"{startStr}\") || {field}.Value >= DateTime.Parse(\"{endStr}\")",
+                // GreaterThan: after the entire day (>= start of next day)
+                "GreaterThan" => $"{field}.HasValue && {field}.Value >= DateTime.Parse(\"{endStr}\")",
+                // LessThan: before the entire day (< start of day)
+                "LessThan" => $"{field}.HasValue && {field}.Value < DateTime.Parse(\"{startStr}\")",
+                // GreaterThanOrEqual: on or after the day (>= start of day)
+                "GreaterThanOrEqual" => $"{field}.HasValue && {field}.Value >= DateTime.Parse(\"{startStr}\")",
+                // LessThanOrEqual: on or before the day (<= end of day, which is < start of next day)
+                "LessThanOrEqual" => $"{field}.HasValue && {field}.Value < DateTime.Parse(\"{endStr}\")",
+                _ => $"{field}.HasValue && {field}.Value >= DateTime.Parse(\"{startStr}\") && {field}.Value < DateTime.Parse(\"{endStr}\")"
             };
         }
         else if (dataType == "Int32" || dataType == "Number" || dataType == "Decimal")
@@ -1114,6 +1206,40 @@ public class ReportDataService : IReportDataService
                 _ => $"{field} == \"{escapedValue}\""
             };
         }
+    }
+
+    /// <summary>
+    /// Build condition for a single sub-filter with dynamic date support
+    /// </summary>
+    private string BuildSubFilterCondition(CollectionSubFilter subFilter)
+    {
+        var field = subFilter.Field;
+        var op = subFilter.Operator;
+        var value = subFilter.Value ?? "";
+        var dataType = subFilter.DataType ?? "String";
+
+        // Resolve dynamic dates
+        if (subFilter.IsDynamicDate && (dataType == "DateTime" || dataType == "Date" || dataType == "DateOnly"))
+        {
+            try
+            {
+                var resolvedDate = _dynamicDateResolver.ResolveDate(
+                    subFilter.DynamicDateType ?? "Today",
+                    subFilter.DynamicDateOffset,
+                    subFilter.DynamicDateOffsetUnit
+                );
+                value = resolvedDate.ToString("yyyy-MM-dd");
+                Console.WriteLine($"[Collection SubFilter] Resolved {subFilter.DynamicDateType} (offset: {subFilter.DynamicDateOffset} {subFilter.DynamicDateOffsetUnit}) to {value}");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[Collection SubFilter] Failed to resolve dynamic date: {ex.Message}");
+                // Fall back to original value
+            }
+        }
+
+        // Call the original overload
+        return BuildSubFilterCondition(field, op, value, dataType);
     }
 
     /// <summary>
@@ -1170,28 +1296,33 @@ public class ReportDataService : IReportDataService
         // Standard date operators - parse the date value
         if (!DateTime.TryParse(value, out var dateValue))
         {
-            Console.WriteLine($"[WHERE CLAUSE ERROR] Could not parse date: {value} for operator: {operatorType}");
-            return "";
+            Console.WriteLine($"[VALIDATION ERROR] Invalid date value '{value}' for operator '{operatorType}' on field '{fieldExpression}'");
+            throw new ArgumentException($"Invalid date value: '{value}'. Please enter a valid date.");
         }
 
-        var startOfDay = dateValue.Date;
+        // Ensure we're working with dates only (strip time component)
+        // Use UTC to match how dates are likely stored in the database
+        var startOfDay = DateTime.SpecifyKind(dateValue.Date, DateTimeKind.Utc);
         var endOfDay = startOfDay.AddDays(1);
 
-        // ISO 8601 format with T separator
+        // ISO 8601 format with T separator - Critical: Use yyyy-MM-dd format only to avoid timezone issues
         var startStr = startOfDay.ToString("yyyy-MM-ddTHH:mm:ss");
         var endStr = endOfDay.ToString("yyyy-MM-ddTHH:mm:ss");
 
+        Console.WriteLine($"[DATE RANGE] Input: {value}, Parsed: {dateValue:yyyy-MM-dd}, UTC Range: {startStr} to {endStr}");
+
         // For non-nullable DateTime fields, don't check .HasValue
+        // Use .Date property to ensure date-only comparison and avoid timezone issues
         if (!isNullable)
         {
             return operatorType switch
             {
-                "Equals" => $"{fieldExpression} >= DateTime.Parse(\"{startStr}\") && {fieldExpression} < DateTime.Parse(\"{endStr}\")",
-                "NotEquals" => $"{fieldExpression} < DateTime.Parse(\"{startStr}\") || {fieldExpression} >= DateTime.Parse(\"{endStr}\")",
-                "GreaterThan" => $"{fieldExpression} >= DateTime.Parse(\"{endStr}\")",
-                "LessThan" => $"{fieldExpression} < DateTime.Parse(\"{startStr}\")",
-                "GreaterThanOrEqual" => $"{fieldExpression} >= DateTime.Parse(\"{startStr}\")",
-                "LessThanOrEqual" => $"{fieldExpression} < DateTime.Parse(\"{endStr}\")",
+                "Equals" => $"{fieldExpression}.Date >= DateTime.Parse(\"{startStr}\").Date && {fieldExpression}.Date < DateTime.Parse(\"{endStr}\").Date",
+                "NotEquals" => $"{fieldExpression}.Date < DateTime.Parse(\"{startStr}\").Date || {fieldExpression}.Date >= DateTime.Parse(\"{endStr}\").Date",
+                "GreaterThan" => $"{fieldExpression}.Date >= DateTime.Parse(\"{endStr}\").Date",
+                "LessThan" => $"{fieldExpression}.Date < DateTime.Parse(\"{startStr}\").Date",
+                "GreaterThanOrEqual" => $"{fieldExpression}.Date >= DateTime.Parse(\"{startStr}\").Date",
+                "LessThanOrEqual" => $"{fieldExpression}.Date < DateTime.Parse(\"{endStr}\").Date",
                 _ => ""
             };
         }
@@ -1199,12 +1330,12 @@ public class ReportDataService : IReportDataService
         // For nullable DateTime fields, check .HasValue
         return operatorType switch
         {
-            "Equals" => $"{fieldExpression}.HasValue && {fieldExpression}.Value >= DateTime.Parse(\"{startStr}\") && {fieldExpression}.Value < DateTime.Parse(\"{endStr}\")",
-            "NotEquals" => $"!{fieldExpression}.HasValue || {fieldExpression}.Value < DateTime.Parse(\"{startStr}\") || {fieldExpression}.Value >= DateTime.Parse(\"{endStr}\")",
-            "GreaterThan" => $"{fieldExpression}.HasValue && {fieldExpression}.Value >= DateTime.Parse(\"{endStr}\")",
-            "LessThan" => $"{fieldExpression}.HasValue && {fieldExpression}.Value < DateTime.Parse(\"{startStr}\")",
-            "GreaterThanOrEqual" => $"{fieldExpression}.HasValue && {fieldExpression}.Value >= DateTime.Parse(\"{startStr}\")",
-            "LessThanOrEqual" => $"{fieldExpression}.HasValue && {fieldExpression}.Value < DateTime.Parse(\"{endStr}\")",
+            "Equals" => $"{fieldExpression}.HasValue && {fieldExpression}.Value.Date >= DateTime.Parse(\"{startStr}\").Date && {fieldExpression}.Value.Date < DateTime.Parse(\"{endStr}\").Date",
+            "NotEquals" => $"!{fieldExpression}.HasValue || {fieldExpression}.Value.Date < DateTime.Parse(\"{startStr}\").Date || {fieldExpression}.Value.Date >= DateTime.Parse(\"{endStr}\").Date",
+            "GreaterThan" => $"{fieldExpression}.HasValue && {fieldExpression}.Value.Date >= DateTime.Parse(\"{endStr}\").Date",
+            "LessThan" => $"{fieldExpression}.HasValue && {fieldExpression}.Value.Date < DateTime.Parse(\"{startStr}\").Date",
+            "GreaterThanOrEqual" => $"{fieldExpression}.HasValue && {fieldExpression}.Value.Date >= DateTime.Parse(\"{startStr}\").Date",
+            "LessThanOrEqual" => $"{fieldExpression}.HasValue && {fieldExpression}.Value.Date < DateTime.Parse(\"{endStr}\").Date",
             _ => ""
         };
     }
@@ -1212,10 +1343,15 @@ public class ReportDataService : IReportDataService
     private string BuildDateBetweenClause(string fieldPath, string value, bool isNullable)
     {
         var parts = value.Split('|');
-        if (parts.Length != 2) return "";
+        if (parts.Length != 2)
+        {
+            throw new ArgumentException($"Invalid date range format: '{value}'. Expected format: 'startDate|endDate'.");
+        }
 
         if (!DateTime.TryParse(parts[0], out var startDate) || !DateTime.TryParse(parts[1], out var endDate))
-            return "";
+        {
+            throw new ArgumentException($"Invalid date values in range: '{value}'. Both start and end must be valid dates.");
+        }
 
         var startOfDay = startDate.Date;
         var endOfDay = endDate.Date.AddDays(1); // Include the entire end date
@@ -1233,7 +1369,10 @@ public class ReportDataService : IReportDataService
 
     private string BuildInLastDaysClause(string fieldPath, string value, bool isNullable)
     {
-        if (!int.TryParse(value, out var days)) return "";
+        if (!int.TryParse(value, out var days))
+        {
+            throw new ArgumentException($"Invalid number of days for 'InLast' operator: '{value}'. Please enter a valid integer.");
+        }
 
         // InLast should filter dates BETWEEN (today - X days) AND today
         var startDate = DateTime.UtcNow.Date.AddDays(-days);
@@ -1253,7 +1392,10 @@ public class ReportDataService : IReportDataService
 
     private string BuildInNextDaysClause(string fieldPath, string value, bool isNullable)
     {
-        if (!int.TryParse(value, out var days)) return "";
+        if (!int.TryParse(value, out var days))
+        {
+            throw new ArgumentException($"Invalid number of days for 'InNext' operator: '{value}'. Please enter a valid integer.");
+        }
 
         // InNext should filter dates BETWEEN today AND (today + X days)
         var startDate = DateTime.UtcNow.Date; // Start of today
@@ -1273,6 +1415,24 @@ public class ReportDataService : IReportDataService
 
     private string BuildNumericWhereClause(string fieldExpression, string operatorType, string value)
     {
+        // Null operators don't need value validation
+        if (operatorType == "IsNull" || operatorType == "IsNotNull")
+        {
+            return operatorType switch
+            {
+                "IsNull" => $"{fieldExpression} == null",
+                "IsNotNull" => $"{fieldExpression} != null",
+                _ => ""
+            };
+        }
+
+        // Validate numeric value before building clause
+        if (!IsValidNumericValue(value, operatorType))
+        {
+            Console.WriteLine($"[VALIDATION ERROR] Invalid numeric value '{value}' for operator '{operatorType}' on field '{fieldExpression}'");
+            throw new ArgumentException($"Invalid numeric value: '{value}'. Please enter a valid number.");
+        }
+
         // For numeric fields, don't wrap value in quotes
         return operatorType switch
         {
@@ -1283,10 +1443,28 @@ public class ReportDataService : IReportDataService
             "GreaterThanOrEqual" => $"{fieldExpression} >= {value}",
             "LessThanOrEqual" => $"{fieldExpression} <= {value}",
             "Between" => BuildNumericBetweenClause(fieldExpression, value),
-            "IsNull" => $"{fieldExpression} == null",
-            "IsNotNull" => $"{fieldExpression} != null",
             _ => ""
         };
+    }
+
+    private bool IsValidNumericValue(string value, string operatorType)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+            return false;
+
+        // Between operator expects two numbers separated by |
+        if (operatorType == "Between")
+        {
+            var parts = value.Split('|');
+            if (parts.Length != 2)
+                return false;
+
+            return decimal.TryParse(parts[0].Trim(), out _) && 
+                   decimal.TryParse(parts[1].Trim(), out _);
+        }
+
+        // All other operators expect a single numeric value
+        return decimal.TryParse(value.Trim(), out _);
     }
 
     private string BuildNumericBetweenClause(string fieldPath, string value)
@@ -1854,6 +2032,14 @@ public class ReportDataService : IReportDataService
             foreach (var field in reportDefinition.Fields)
             {
                 var value = ExtractDirectPropertyValue(entity, field.FieldPath);
+
+                // Format DateTime values as date-only strings to avoid timezone issues in the client
+                if (value is DateTime dt && (field.DataType == "DateTime" || field.DataType == "Date"))
+                {
+                    // Return only the date portion as ISO 8601 date string
+                    value = dt.ToString("yyyy-MM-dd");
+                }
+
                 row[field.DisplayName] = value;
             }
 
@@ -1878,23 +2064,39 @@ public class ReportDataService : IReportDataService
             // Handle custom fields
             if (field.IsCustomField && field.CustomFieldDefinitionId.HasValue)
             {
-                return ExtractCustomFieldValue(entity, field, customFieldData);
+                var value = ExtractCustomFieldValue(entity, field, customFieldData);
+                return FormatDateTimeValue(value, field.DataType);
             }
 
             // Handle navigation properties
             if (field.FieldPath.Contains('.'))
             {
-                return ExtractNavigationPropertyValue(entity, field.FieldPath);
+                var value = ExtractNavigationPropertyValue(entity, field.FieldPath);
+                return FormatDateTimeValue(value, field.DataType);
             }
 
             // Handle direct properties
-            return ExtractDirectPropertyValue(entity, field.FieldPath);
+            var directValue = ExtractDirectPropertyValue(entity, field.FieldPath);
+            return FormatDateTimeValue(directValue, field.DataType);
         }
         catch (Exception ex)
         {
             Console.WriteLine($"Error extracting field {field.FieldPath}: {ex.Message}");
             return null;
         }
+    }
+
+    /// <summary>
+    /// Format DateTime values as date-only strings to avoid timezone issues in the client
+    /// </summary>
+    private object? FormatDateTimeValue(object? value, string? dataType)
+    {
+        if (value is DateTime dt && (dataType == "DateTime" || dataType == "Date"))
+        {
+            // Return only the date portion as ISO 8601 date string
+            return dt.ToString("yyyy-MM-dd");
+        }
+        return value;
     }
 
     private object? ExtractCustomFieldValue(
@@ -2127,44 +2329,194 @@ public class ReportDataService : IReportDataService
         string entityType)
     {
         Console.WriteLine($"[CollectionColumns] Processing {collectionQueries.Count} collection queries for {rows.Count} rows");
-        
-        // Get only queries that should be displayed as columns
+
+        // Get queries that need column values computed:
+        // 1. Display queries (DisplayAsColumn = true) - will be shown in final output
+        // 2. Filter queries (DisplayAsColumn = false with Comparator) - need temp columns for filtering
         var displayQueries = collectionQueries
             .Where(q => q.DisplayAsColumn)
             .ToList();
-            
-        if (!displayQueries.Any())
+
+        var filterQueries = collectionQueries
+            .Where(q => !q.DisplayAsColumn && !string.IsNullOrEmpty(q.Comparator))
+            .ToList();
+
+        // Combine both types - we need to calculate values for both
+        var queriesToProcess = displayQueries.Concat(filterQueries).ToList();
+
+        if (!queriesToProcess.Any())
         {
-            Console.WriteLine($"[CollectionColumns] No display queries found");
+            Console.WriteLine($"[CollectionColumns] No display or filter queries found");
             return rows;
         }
-        
+
         Console.WriteLine($"[CollectionColumns] {displayQueries.Count} queries will be displayed as columns");
-        
+        Console.WriteLine($"[CollectionColumns] {filterQueries.Count} queries are filter queries (temporary columns)");
+
         // For each row
         foreach (var row in rows)
         {
             var entityId = GetEntityIdObjectFromRow(row, entityType);
-            
+
             if (entityId == null)
             {
-                Console.WriteLine($"[CollectionColumns] Warning: Could not extract entity ID from row");
+                Console.WriteLine($"[CollectionColumns] ❌ Warning: Could not extract entity ID from row");
+                Console.WriteLine($"[CollectionColumns] Available keys in row: {string.Join(", ", row.Keys)}");
                 continue;
             }
-            
-            // For each collection query
-            foreach (var query in displayQueries)
+
+            Console.WriteLine($"[CollectionColumns] ✅ Found entity ID: {entityId} (Type: {entityId.GetType().Name})");
+
+            // For each collection query (both display and filter)
+            foreach (var query in queriesToProcess)
             {
                 var columnName = query.ColumnName ?? $"{query.CollectionName} {query.Operation}";
                 var value = await CalculateCollectionValueAsync(entityId, query, entityType);
                 row[columnName] = value;
-                
-                Console.WriteLine($"[CollectionColumns] Added column '{columnName}' = '{value}' for entity {entityId}");
+
+                Console.WriteLine($"[CollectionColumns] Added column '{columnName}' = '{value}' for entity {entityId} (DisplayAsColumn={query.DisplayAsColumn})");
             }
         }
         
         Console.WriteLine($"[CollectionColumns] Finished adding collection columns");
         return rows;
+    }
+
+    /// <summary>
+    /// Filters rows based on collection queries with DisplayAsColumn = false
+    /// </summary>
+    private List<Dictionary<string, object?>> ApplyCollectionQueryFilters(
+        List<Dictionary<string, object?>> rows,
+        List<CollectionQueryDto> collectionQueries)
+    {
+        // Get filter queries (not displayed as columns)
+        var filterQueries = collectionQueries
+            .Where(q => !q.DisplayAsColumn && !string.IsNullOrEmpty(q.Comparator))
+            .ToList();
+
+        if (!filterQueries.Any())
+        {
+            Console.WriteLine($"[CollectionFilters] No filter queries found");
+            return rows;
+        }
+
+        Console.WriteLine($"[CollectionFilters] Applying {filterQueries.Count} filter queries to {rows.Count} rows");
+
+        var filteredRows = new List<Dictionary<string, object?>>();
+
+        foreach (var row in rows)
+        {
+            bool includeRow = true;
+
+            foreach (var query in filterQueries)
+            {
+                var columnName = query.ColumnName ?? $"{query.CollectionName} {query.Operation}";
+
+                if (!row.ContainsKey(columnName))
+                {
+                    Console.WriteLine($"[CollectionFilters] Warning: Column '{columnName}' not found in row");
+                    includeRow = false;
+                    break;
+                }
+
+                var value = row[columnName];
+                var passes = EvaluateComparison(value, query.Comparator, query.Value);
+
+                Console.WriteLine($"[CollectionFilters] Row filter: {columnName} ({value}) {query.Comparator} {query.Value} = {passes}");
+
+                if (!passes)
+                {
+                    includeRow = false;
+                    break;
+                }
+            }
+
+            if (includeRow)
+            {
+                // Remove filter columns from the row (keep only display columns)
+                foreach (var query in filterQueries)
+                {
+                    var columnName = query.ColumnName ?? $"{query.CollectionName} {query.Operation}";
+                    row.Remove(columnName);
+                }
+
+                filteredRows.Add(row);
+            }
+        }
+
+        Console.WriteLine($"[CollectionFilters] Filtered {rows.Count} rows to {filteredRows.Count} rows");
+        return filteredRows;
+    }
+
+    /// <summary>
+    /// Evaluates a comparison between a value and a target
+    /// </summary>
+    private bool EvaluateComparison(object? value, string comparator, double? targetValue)
+    {
+        try
+        {
+            // Handle null values
+            if (value == null)
+            {
+                return comparator == "IsNull";
+            }
+
+            if (comparator == "IsNotNull")
+            {
+                return value != null;
+            }
+
+            if (!targetValue.HasValue)
+            {
+                return false;
+            }
+
+            // Parse numeric values
+            if (int.TryParse(value.ToString(), out var intValue))
+            {
+                return comparator switch
+                {
+                    "Equals" => intValue == targetValue.Value,
+                    "NotEquals" => intValue != targetValue.Value,
+                    "GreaterThan" => intValue > targetValue.Value,
+                    "LessThan" => intValue < targetValue.Value,
+                    "GreaterThanOrEqual" => intValue >= targetValue.Value,
+                    "LessThanOrEqual" => intValue <= targetValue.Value,
+                    _ => false
+                };
+            }
+
+            // Parse decimal values
+            if (decimal.TryParse(value.ToString(), out var decValue))
+            {
+                return comparator switch
+                {
+                    "Equals" => decValue == (decimal)targetValue.Value,
+                    "NotEquals" => decValue != (decimal)targetValue.Value,
+                    "GreaterThan" => decValue > (decimal)targetValue.Value,
+                    "LessThan" => decValue < (decimal)targetValue.Value,
+                    "GreaterThanOrEqual" => decValue >= (decimal)targetValue.Value,
+                    "LessThanOrEqual" => decValue <= (decimal)targetValue.Value,
+                    _ => false
+                };
+            }
+
+            // String comparison as fallback
+            var stringValue = value.ToString() ?? "";
+            var stringTarget = targetValue.Value.ToString();
+
+            return comparator switch
+            {
+                "Equals" => stringValue.Equals(stringTarget, StringComparison.OrdinalIgnoreCase),
+                "NotEquals" => !stringValue.Equals(stringTarget, StringComparison.OrdinalIgnoreCase),
+                _ => false
+            };
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[CollectionFilters] Error evaluating comparison: {ex.Message}");
+            return false;
+        }
     }
 
     /// <summary>
@@ -2282,16 +2634,18 @@ public class ReportDataService : IReportDataService
             case "Exposures":
                 var exposureQuery = _context.ExposureEvents
                     .Include(e => e.Location)
-                    .Include(e => e.ExposureType)
                     .Where(e => e.ExposedCaseId == caseGuid);
                 return await ApplySubFiltersAndCheckAnyAsync(exposureQuery, query.SubFilters);
                 
             case "Tasks":
+            case "CaseTasks":
                 var taskQuery = _context.CaseTasks.Where(t => t.CaseId == caseGuid);
                 return await ApplySubFiltersAndCheckAnyAsync(taskQuery, query.SubFilters);
                 
             case "Symptoms":
             case "CaseSymptomTracking":
+            case "DiseaseSymptoms":
+            case "CaseSymptoms":
                 var symptomQuery = _context.CaseSymptoms
                     .Include(s => s.Symptom)
                     .Where(s => s.CaseId == caseGuid);
@@ -2344,6 +2698,7 @@ public class ReportDataService : IReportDataService
         switch (query.CollectionName)
         {
             case "OutbreakCases":
+            case "Cases":
                 var outcaseQuery = _context.OutbreakCases.Where(oc => oc.OutbreakId == outbreakId);
                 return await ApplySubFiltersAndCheckAnyAsync(outcaseQuery, query.SubFilters);
                 
@@ -2561,8 +2916,52 @@ public class ReportDataService : IReportDataService
     {
         var field = filter.Field;
         var value = filter.Value?.Replace("\"", "\\\"") ?? "";
-        
+
+        // Special handling for enum fields - convert text to enum value
+        if (field == "Classification")
+        {
+            // Handle IsNull/IsNotNull/IsEmpty/IsNotEmpty operators
+            // For enums, IsEmpty is treated as IsNull since enums can't be "empty"
+            if (filter.Operator == "IsNull" || filter.Operator == "IsEmpty")
+            {
+                return $"{field} == null";
+            }
+            if (filter.Operator == "IsNotNull" || filter.Operator == "IsNotEmpty")
+            {
+                return $"{field} != null";
+            }
+
+            // For other operators that need a value, try to parse the enum
+            if (!string.IsNullOrEmpty(value))
+            {
+                // Try to parse the enum value
+                if (Enum.TryParse<CaseClassification>(value, true, out var enumValue))
+                {
+                    int enumInt = (int)enumValue;
+
+                    switch (filter.Operator)
+                    {
+                        case "Equals":
+                            return $"{field} == {enumInt}";
+                        case "NotEquals":
+                            return $"{field} != {enumInt}";
+                        case "Contains":
+                        case "NotContains":
+                            // For enums, "Contains" is treated as "Equals" and "NotContains" as "NotEquals"
+                            // since enum values are discrete, not strings
+                            if (filter.Operator == "Contains")
+                                return $"{field} == {enumInt}";
+                            else
+                                return $"{field} != {enumInt}";
+                        default:
+                            return "";
+                    }
+                }
+            }
+        }
+
         // Determine if this is likely a numeric comparison
+
         bool isNumericValue = double.TryParse(value, out _);
         
         // Handle navigation properties (e.g., TestResult.Name)
@@ -2900,16 +3299,18 @@ public class ReportDataService : IReportDataService
             case "Exposures":
                 var exposureQuery = _context.ExposureEvents
                     .Include(e => e.Location)
-                    .Include(e => e.ExposureType)
                     .Where(e => e.ExposedCaseId == caseGuid);
                 return await ApplySubFiltersAndCountAsync(exposureQuery, query.SubFilters);
 
             case "Tasks":
+            case "CaseTasks":
                 var taskQuery = _context.CaseTasks.Where(t => t.CaseId == caseGuid);
                 return await ApplySubFiltersAndCountAsync(taskQuery, query.SubFilters);
                 
             case "Symptoms":
             case "CaseSymptomTracking":
+            case "DiseaseSymptoms":
+            case "CaseSymptoms":
                 var symptomQuery = _context.CaseSymptoms
                     .Include(s => s.Symptom)
                     .Where(s => s.CaseId == caseGuid);
@@ -2956,6 +3357,7 @@ public class ReportDataService : IReportDataService
         switch (query.CollectionName)
         {
             case "OutbreakCases":
+            case "Cases":
                 var outcaseQuery = _context.OutbreakCases.Where(oc => oc.OutbreakId == outbreakId);
                 return await ApplySubFiltersAndCountAsync(outcaseQuery, query.SubFilters);
                 

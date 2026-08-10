@@ -1,0 +1,350 @@
+/* Survey Version Management Styles */
+/* Professional, clean design */
+
+:root {
+    --survey-forest: #2d4a3e;
+    --survey-moss: #5a7c6b;
+    --survey-signal: #00a67e;
+    --survey-signal-dk: #008f6b;
+    --survey-signal-lt: #f0faf7;
+    --survey-bone: #f8f9fa;
+    --survey-paper: #ffffff;
+    --survey-chalk: #fafafa;
+    --survey-slate: #64748b;
+    --survey-border: #dee2e6;
+    --survey-draft: #6c757d;
+    --survey-active: #00a67e;
+    --survey-archived: #94a3b8;
+}
+
+/* Hero Header */
+.survey-hero-header {
+    padding: 1.25rem 1.5rem;
+    background-color: var(--survey-bone);
+    border-radius: 0.5rem;
+    border: 1px solid var(--survey-border);
+}
+
+.survey-hero-eyebrow {
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--survey-moss);
+    margin-bottom: 0.5rem;
+}
+
+.survey-hero-title {
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--survey-forest);
+    margin: 0;
+    line-height: 1.2;
+}
+
+/* Meta Badges */
+.survey-meta-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.25rem 0.625rem;
+    border-radius: 0.375rem;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    background-color: var(--survey-bone);
+    border: 1px solid var(--survey-border);
+    color: #495057;
+}
+
+.survey-meta-badge i {
+    opacity: 0.7;
+}
+
+/* Version Card */
+.survey-versions-card .card-header {
+    background-color: var(--survey-bone);
+    color: #212529;
+    font-weight: 600;
+    padding: 0.875rem 1.25rem;
+    border-bottom: 2px solid var(--survey-border);
+}
+
+.survey-versions-card .card-header h5 {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 600;
+}
+
+.survey-versions-table {
+    /* No padding on container, rows have their own padding */
+}
+
+/* Version Row */
+.version-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem 1.25rem;
+    border-bottom: 1px solid var(--survey-border);
+    transition: background-color 0.15s ease;
+    background-color: white;
+}
+
+.version-row:hover {
+    background-color: var(--survey-bone);
+}
+
+.version-row:last-child {
+    border-bottom: none;
+}
+
+.version-row-active {
+    background-color: var(--survey-signal-lt);
+    border-left: 3px solid var(--survey-signal);
+}
+
+.version-row-active:hover {
+    background-color: #e8f5f1;
+}
+
+.version-row-current {
+    box-shadow: inset 0 0 0 1px var(--survey-signal);
+}
+
+/* Version Main Content */
+.version-main {
+    flex: 1;
+    min-width: 0;
+}
+
+.version-header {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 0.5rem;
+}
+
+.version-number {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.version-number-text {
+    font-size: 1.125rem;
+    font-weight: 700;
+    color: var(--survey-forest);
+}
+
+.version-number i {
+    color: var(--survey-moss);
+}
+
+.version-current-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.125rem 0.5rem;
+    background-color: var(--survey-signal);
+    color: white;
+    font-size: 0.75rem;
+    font-weight: 600;
+    border-radius: 0.375rem;
+    text-transform: uppercase;
+    letter-spacing: 0.025em;
+}
+
+/* Version Status Badges */
+.version-status {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.version-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.25rem 0.625rem;
+    border-radius: 0.375rem;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    border: 1px solid;
+}
+
+.version-badge-draft {
+    background-color: #f8f9fa;
+    border-color: #adb5bd;
+    color: #495057;
+}
+
+.version-badge-active {
+    background-color: var(--survey-signal-lt);
+    border-color: var(--survey-signal);
+    color: var(--survey-signal-dk);
+}
+
+.version-badge-archived {
+    background-color: #f8f9fa;
+    border-color: #ced4da;
+    color: #6c757d;
+}
+
+/* Version Meta */
+.version-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    margin-top: 0.5rem;
+    font-size: 0.875rem;
+    color: var(--survey-slate);
+}
+
+.version-meta-item {
+    display: flex;
+    align-items: center;
+}
+
+.version-meta-item i {
+    opacity: 0.7;
+}
+
+/* Version Notes */
+.version-notes {
+    margin-top: 0.75rem;
+    padding: 0.625rem 0.75rem;
+    background-color: #fffbeb;
+    border-left: 3px solid #fbbf24;
+    border-radius: 0.25rem;
+    font-size: 0.8125rem;
+    color: #713f12;
+}
+
+.version-notes i {
+    color: #f59e0b;
+}
+
+/* Version Actions */
+.version-actions {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+    flex-shrink: 0;
+}
+
+.version-actions .btn {
+    white-space: nowrap;
+}
+
+/* Survey Info Card */
+.survey-info-card .card-header {
+    background-color: var(--survey-chalk);
+    border-bottom: 2px solid #e5e7eb;
+    font-weight: 600;
+}
+
+.survey-info-card .card-header h6 {
+    color: var(--survey-forest);
+}
+
+.survey-info-section {
+    margin-bottom: 1rem;
+}
+
+.survey-info-section:last-child {
+    margin-bottom: 0;
+}
+
+.survey-info-label {
+    display: block;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--survey-slate);
+    margin-bottom: 0.375rem;
+}
+
+.survey-info-text {
+    font-size: 0.9375rem;
+    color: #1f2937;
+    line-height: 1.5;
+}
+
+/* Survey Tag */
+.survey-tag {
+    display: inline-block;
+    padding: 0.25rem 0.625rem;
+    background-color: #f3f4f6;
+    border: 1px solid #d1d5db;
+    border-radius: 0.375rem;
+    font-size: 0.8125rem;
+    color: #374151;
+}
+
+/* Disease List */
+.survey-disease-list li {
+    padding: 0.5rem 0;
+    border-bottom: 1px solid #f3f4f6;
+}
+
+.survey-disease-list li:last-child {
+    border-bottom: none;
+}
+
+/* Task List */
+.survey-task-list li {
+    padding: 0.5rem 0;
+    border-bottom: 1px solid #f3f4f6;
+}
+
+.survey-task-list li:last-child {
+    border-bottom: none;
+    padding-bottom: 0;
+}
+
+.survey-task-list a {
+    color: var(--survey-signal-dk);
+    transition: color 0.2s ease;
+}
+
+.survey-task-list a:hover {
+    color: var(--survey-signal);
+}
+
+/* Responsive Adjustments */
+@media (max-width: 991.98px) {
+    .survey-hero-title {
+        font-size: 1.5rem;
+    }
+
+    .version-row {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 1rem;
+    }
+
+    .version-actions {
+        width: 100%;
+        justify-content: flex-start;
+    }
+
+    .version-header {
+        flex-wrap: wrap;
+    }
+}
+
+@media (max-width: 575.98px) {
+    .survey-hero-header {
+        padding: 1rem;
+    }
+
+    .version-row {
+        padding: 1rem;
+    }
+
+    .version-actions {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .version-actions .btn {
+        width: 100%;
+    }
+}

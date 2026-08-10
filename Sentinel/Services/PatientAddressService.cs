@@ -331,7 +331,25 @@ namespace Sentinel.Services
 
         private async Task<bool> IsCaseWithinReviewWindowAsync(Case caseEntity, DiseaseAddressSettings settings)
         {
-            var disease = caseEntity.Disease ?? await _context.Diseases.FindAsync(caseEntity.DiseaseId);
+            Disease? disease = caseEntity.Disease;
+
+            // If disease not already loaded, try to get it from context
+            if (disease == null && caseEntity.DiseaseId.HasValue)
+            {
+                // Check if disease is already tracked before loading it
+                var diseaseEntry = _context.ChangeTracker.Entries<Disease>()
+                    .FirstOrDefault(e => e.Entity.Id == caseEntity.DiseaseId.Value);
+
+                if (diseaseEntry != null)
+                {
+                    disease = diseaseEntry.Entity;
+                }
+                else
+                {
+                    disease = await _context.Diseases.FindAsync(caseEntity.DiseaseId.Value);
+                }
+            }
+
             if (disease == null)
             {
                 _logger.LogWarning("Disease not found for Case {CaseId}", caseEntity.Id);

@@ -8,7 +8,7 @@ using Sentinel.Models.Lookups;
 
 namespace Sentinel.Pages.Settings.CaseDefinitions
 {
-    [Authorize]
+    [Authorize(Policy = "Permission.Settings.View")]
     public class IndexModel : PageModel
     {
         private readonly ApplicationDbContext _context;

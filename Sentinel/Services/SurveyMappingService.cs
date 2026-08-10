@@ -172,10 +172,14 @@ namespace Sentinel.Services
         public async Task<List<ReportFieldMetadata>> GetAvailableFieldsAsync(string entityType)
         {
             // excludeNavigationFields=true: only direct entity fields, not related lookup entities
-            var fields = await _fieldMetadataService.GetFieldsForEntityAsync(entityType, excludeNavigationFields: true);
+            // context=Mapper: hide system fields, audit fields, foreign keys, primary keys
+            var fields = await _fieldMetadataService.GetFieldsForEntityAsync(
+                entityType, 
+                excludeNavigationFields: true,
+                context: FieldUsageContext.Mapper);
 
             // In the survey field-mapping context a user should not be able to reassign ownership
-            // (e.g. change which Patient a Case belongs to). These are blocked here only — collection
+            // (e.g. change which Patient a Case belongs to). These are blocked here only â€” collection
             // mappings intentionally need PatientId/CaseId to link newly created entities.
             var surveyOwnershipBlocked = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
             {
@@ -254,9 +258,11 @@ namespace Sentinel.Services
             if (type == "html")
                 return;
 
-            // Handle matrix questions (matrixdropdown, matrixdynamic)
-            if (type == "matrixdropdown" || type == "matrixdynamic")
+            // Collection submissions are stored under the parent question name. Keep
+            // that root question as well as the individual cells used by simple mappings.
+            if (type == "matrix" || type == "matrixdropdown" || type == "matrixdynamic")
             {
+                AddCollectionRootQuestion(element, name, type, questions);
                 ExtractMatrixFields(element, name, questions);
                 return;
             }
@@ -264,7 +270,21 @@ namespace Sentinel.Services
             // Handle panel dynamic
             if (type == "paneldynamic")
             {
+                AddCollectionRootQuestion(element, name, type, questions);
                 ExtractPanelDynamicFields(element, name, questions);
+                return;
+            }
+
+            // A collection question may be nested in a static survey panel.
+            if (type == "panel")
+            {
+                if (element.TryGetProperty("elements", out var panelElements))
+                {
+                    foreach (var panelElement in panelElements.EnumerateArray())
+                    {
+                        ExtractQuestionsFromElement(panelElement, questions);
+                    }
+                }
                 return;
             }
 
@@ -297,6 +317,27 @@ namespace Sentinel.Services
             questions.Add(question);
         }
 
+        private static void AddCollectionRootQuestion(
+            JsonElement element,
+            string name,
+            string type,
+            List<SurveyQuestion> questions)
+        {
+            var title = element.TryGetProperty("title", out var titleElement)
+                ? titleElement.GetString() ?? name
+                : name;
+
+            questions.Add(new SurveyQuestion
+            {
+                Name = name,
+                Title = title,
+                DisplayName = title,
+                Type = type,
+                FieldPath = name,
+                IsArray = type is "matrixdynamic" or "paneldynamic"
+            });
+        }
+
         private void ExtractMatrixFields(JsonElement matrix, string matrixName, List<SurveyQuestion> questions)
         {
             if (!matrix.TryGetProperty("columns", out var columns))
@@ -309,7 +350,7 @@ namespace Sentinel.Services
             if (matrix.TryGetProperty("title", out var titleElement))
                 matrixTitle = titleElement.GetString() ?? matrixName;
 
-            // For each row × column combination, create a field entry
+            // For each row Ã— column combination, create a field entry
             foreach (var row in rows.EnumerateArray())
             {
                 string rowValue;
@@ -1793,12 +1834,44 @@ namespace Sentinel.Services
             {
                 try
                 {
+                    // The collection configuration is the authoritative source question.
+                    // This also repairs older mappings whose main question was forced to
+                    // an unrelated scalar field by the pre-collection editor.
+                    if (string.IsNullOrEmpty(mapping.CollectionConfigJson))
+                    {
+                        _logger.LogError("Collection mapping '{Question}' has no configuration JSON", mapping.SurveyQuestionName);
+                        result.ErrorCount++;
+                        result.Errors.Add($"Collection mapping '{mapping.SurveyQuestionName}' missing configuration");
+                        continue;
+                    }
+
+                    var config = JsonConvert.DeserializeObject<CollectionMappingConfig>(mapping.CollectionConfigJson);
+                    if (config == null)
+                    {
+                        _logger.LogError("Failed to deserialize collection configuration for '{Question}'", mapping.SurveyQuestionName);
+                        result.ErrorCount++;
+                        result.Errors.Add($"Invalid collection configuration for '{mapping.SurveyQuestionName}'");
+                        continue;
+                    }
+
+                    var sourceQuestionName = string.IsNullOrWhiteSpace(config.SourceQuestionName)
+                        ? mapping.SurveyQuestionName
+                        : config.SourceQuestionName;
+
+                    if (!string.Equals(mapping.SurveyQuestionName, sourceQuestionName, StringComparison.Ordinal))
+                    {
+                        _logger.LogWarning(
+                            "Collection mapping source mismatch: mapping question '{MappingQuestion}' differs from configuration question '{ConfigQuestion}'. Using the configured collection source.",
+                            mapping.SurveyQuestionName,
+                            sourceQuestionName);
+                    }
+
                     // Get survey response data for this question
-                    if (!surveyResponses.TryGetValue(mapping.SurveyQuestionName, out var questionData))
+                    if (!surveyResponses.TryGetValue(sourceQuestionName, out var questionData))
                     {
                         _logger.LogWarning(
                             "Collection question '{Question}' not found in survey responses",
-                            mapping.SurveyQuestionName
+                            sourceQuestionName
                         );
                         result.SkippedCount++;
                         continue;
@@ -1807,7 +1880,7 @@ namespace Sentinel.Services
                     // DEBUG: Log what type of data we actually received
                     _logger.LogInformation(
                         "Collection question '{Question}' found. Data type: {Type}, Value: {Value}",
-                        mapping.SurveyQuestionName,
+                        sourceQuestionName,
                         questionData?.GetType().Name ?? "null",
                         questionData?.ToString()?.Substring(0, Math.Min(200, questionData?.ToString()?.Length ?? 0)) ?? "null"
                     );
@@ -1822,7 +1895,7 @@ namespace Sentinel.Services
                     {
                         _logger.LogInformation(
                             "Collection question '{Question}' is JsonElement. ValueKind: {Kind}",
-                            mapping.SurveyQuestionName,
+                            sourceQuestionName,
                             jsonElement.ValueKind
                         );
                         
@@ -1860,7 +1933,7 @@ namespace Sentinel.Services
                         rowData = jArray;
                         _logger.LogInformation(
                             "Collection question '{Question}' is array format (matrixdynamic) with {Count} rows",
-                            mapping.SurveyQuestionName,
+                            sourceQuestionName,
                             jArray.Count
                         );
                     }
@@ -1878,7 +1951,7 @@ namespace Sentinel.Services
                         }
                         _logger.LogInformation(
                             "Collection question '{Question}' is object format (matrixdropdown) with {Count} rows. Properties: {Props}",
-                            mapping.SurveyQuestionName,
+                            sourceQuestionName,
                             rowData.Count,
                             string.Join(", ", jObject.Properties().Select(p => p.Name))
                         );
@@ -1887,14 +1960,14 @@ namespace Sentinel.Services
                     {
                         _logger.LogInformation(
                             "Collection question '{Question}' is string format, attempting to parse...",
-                            mapping.SurveyQuestionName
+                            sourceQuestionName
                         );
                         try
                         {
                             // Try parsing as array first
                             rowData = JArray.Parse(jsonString);
                             _logger.LogInformation("Parsed collection question '{Question}' from string as array with {Count} items", 
-                                mapping.SurveyQuestionName, rowData.Count);
+                                sourceQuestionName, rowData.Count);
                         }
                         catch
                         {
@@ -1911,7 +1984,7 @@ namespace Sentinel.Services
                                     }
                                 }
                                 _logger.LogInformation("Parsed collection question '{Question}' from string as object with {Count} rows", 
-                                    mapping.SurveyQuestionName, rowData.Count);
+                                    sourceQuestionName, rowData.Count);
                             }
                             catch (Exception ex)
                             {
@@ -1923,7 +1996,7 @@ namespace Sentinel.Services
                     {
                         _logger.LogWarning(
                             "Collection question '{Question}' has unexpected data type: {Type}",
-                            mapping.SurveyQuestionName,
+                            sourceQuestionName,
                             questionData?.GetType().FullName ?? "null"
                         );
                     }
@@ -1932,43 +2005,16 @@ namespace Sentinel.Services
                     {
                         _logger.LogInformation(
                             "Collection question '{Question}' has no rows - skipping",
-                            mapping.SurveyQuestionName
+                            sourceQuestionName
                         );
                         result.SkippedCount++;
-                        continue;
-                    }
-
-                    // Parse collection configuration
-                    if (string.IsNullOrEmpty(mapping.CollectionConfigJson))
-                    {
-                        _logger.LogError(
-                            "Collection mapping '{Question}' has no configuration JSON",
-                            mapping.SurveyQuestionName
-                        );
-                        result.ErrorCount++;
-                        result.Errors.Add($"Collection mapping '{mapping.SurveyQuestionName}' missing configuration");
-                        continue;
-                    }
-
-                    var config = JsonConvert.DeserializeObject<CollectionMappingConfig>(
-                        mapping.CollectionConfigJson
-                    );
-
-                    if (config == null)
-                    {
-                        _logger.LogError(
-                            "Failed to deserialize collection configuration for '{Question}'",
-                            mapping.SurveyQuestionName
-                        );
-                        result.ErrorCount++;
-                        result.Errors.Add($"Invalid collection configuration for '{mapping.SurveyQuestionName}'");
                         continue;
                     }
 
                     // Process the collection via CollectionMappingService
                     _logger.LogInformation(
                         "Processing collection '{Question}' with {RowCount} rows, target entity: {EntityType}",
-                        mapping.SurveyQuestionName,
+                        sourceQuestionName,
                         rowData.Count,
                         config.TargetEntityType
                     );
@@ -1998,7 +2044,7 @@ namespace Sentinel.Services
                     // Use context-aware processing for multi-entity support (Patient + Contact + Exposure)
                     var collectionResult = await _collectionMappingService.ProcessCollectionWithContextAsync(
                         surveyResponseId: Guid.Empty, // TODO: Track survey responses
-                        questionName: mapping.SurveyQuestionName,
+                        questionName: sourceQuestionName,
                         rowData: rowData,
                         config: config,
                         context: submissionContext
@@ -2011,7 +2057,7 @@ namespace Sentinel.Services
                     // Build per-row detail for the activity log
                     var collectionDetail = new CollectionMappingDetail
                     {
-                        QuestionName = mapping.SurveyQuestionName,
+                        QuestionName = sourceQuestionName,
                         TargetEntityType = config.TargetEntityType ?? "Unknown",
                         RowsFound = rowData.Count,
                         EntitiesCreated = collectionResult.EntitiesCreated.Count(e => e.IsPrimaryEntity),

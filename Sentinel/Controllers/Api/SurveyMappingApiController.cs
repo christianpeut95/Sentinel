@@ -8,7 +8,7 @@ using Sentinel.Services;
 
 namespace Sentinel.Controllers.Api
 {
-    [Authorize]
+    [Authorize(Policy = "Permission.Survey.Edit")]
     [ApiController]
     [Route("api/[controller]")]
     [EnableRateLimiting("lookup-api")] // 200 per minute - mapping configuration metadata

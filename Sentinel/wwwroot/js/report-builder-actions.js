@@ -23,14 +23,110 @@ ReportBuilder.getFilters = function() {
             const dataType = selectedOption?.dataset.type || 'String';
 
             let value = '';
+            let isDynamicDate = false;
+            let dynamicDateType = null;
+            let dynamicDateOffset = null;
+            let dynamicDateOffsetUnit = null;
 
-            if (operator === 'IsNull' || operator === 'IsNotNull') {
+            // Check if this is a date field with combined dropdown UI
+            const valueContainer = el.querySelector('.rb-filter-value-container');
+            const combinedDateSelect = valueContainer?.querySelector('.filter-date-combined');
+
+            if (dataType.includes('Date') && combinedDateSelect) {
+                const combinedValue = combinedDateSelect.value;
+                console.log(`[getFilters] Date filter combined value:`, combinedValue);
+
+                if (combinedValue && combinedValue !== '') {
+                    if (combinedValue === 'static') {
+                        // User selected "Pick a specific date..." - read from date input
+                        const dateInput = valueContainer.querySelector('.filter-value');
+                        value = dateInput?.value || '';
+                        isDynamicDate = false;
+                    } else if (combinedValue === 'custom') {
+                        // User selected custom condition
+                        const customCondition = valueContainer.querySelector('.filter-custom-condition');
+
+                        // Check if dynamic or static
+                        const isDynamic = customCondition?.querySelector('input[value="dynamic"]:checked') !== null;
+
+                        if (isDynamic) {
+                            // Read dynamic date inputs
+                            const offsetValue = customCondition?.querySelector('.filter-dynamic-offset-value')?.value;
+                            const offsetUnit = customCondition?.querySelector('.filter-dynamic-offset-unit')?.value;
+                            const direction = customCondition?.querySelector('.filter-dynamic-offset-direction')?.value;
+
+                            // Read the operator from custom condition
+                            const customOperator = customCondition?.querySelector('.filter-operator')?.value;
+                            operator = customOperator || operator;
+
+                            dynamicDateOffset = offsetValue ? parseInt(offsetValue) : null;
+                            dynamicDateOffsetUnit = offsetUnit || 'Days';
+                            isDynamicDate = true;
+
+                            // Map direction + unit to dynamic date type based on operator
+                            // For range operators (InLast, InNext), use those directly
+                            // For comparison operators (GreaterThan, LessThan, etc.), use PastDays/NextDays/PastWeeks/etc.
+                            if (operator === 'InLast' || operator === 'InNext') {
+                                // Range operators - keep operator as dynamicDateType
+                                dynamicDateType = operator;
+                            } else {
+                                // Comparison operators - need point-in-time dynamic date types
+                                const capitalizedDirection = direction === 'past' ? 'Past' : 'Next';
+                                const capitalizedUnit = offsetUnit.charAt(0).toUpperCase() + offsetUnit.slice(1);
+                                dynamicDateType = capitalizedDirection + capitalizedUnit;
+                            }
+
+                            value = offsetValue || '';
+                        } else {
+                            // Static custom date
+                            const staticDateInput = customCondition?.querySelector('.filter-custom-static-value');
+                            value = staticDateInput?.value || '';
+                            isDynamicDate = false;
+
+                            // Read the operator from custom condition
+                            const customOperator = customCondition?.querySelector('.filter-operator')?.value;
+                            operator = customOperator || operator;
+                        }
+                    } else {
+                        // Preset value like "InLast|7" or "Equals|Today"
+                        const parts = combinedValue.split('|');
+                        if (parts.length === 2) {
+                            operator = parts[0];
+                            const presetValue = parts[1];
+
+                            // Check if it's a numeric offset (InLast/InNext)
+                            if (operator === 'InLast' || operator === 'InNext') {
+                                dynamicDateType = operator;
+                                dynamicDateOffset = parseInt(presetValue);
+                                dynamicDateOffsetUnit = 'Days';
+                                isDynamicDate = true;
+                                value = presetValue;
+                            } else {
+                                // Named dynamic dates like Today, Yesterday, StartOfWeek, etc.
+                                dynamicDateType = presetValue;
+                                isDynamicDate = true;
+                                value = '';
+                            }
+                                                }
+                                            }
+                                        }
+                                    } else if (operator === 'IsNull' || operator === 'IsNotNull') {
                 value = '';
             } else {
+                // Regular non-date field or field without combined UI
                 value = el.querySelector('.rb-filter-value')?.value || '';
             }
 
-            console.log(`[getFilters] Adding filter:`, { field, operator, value, dataType });
+            console.log(`[getFilters] Adding filter:`, { 
+                field, 
+                operator, 
+                value, 
+                dataType, 
+                isDynamicDate, 
+                dynamicDateType, 
+                dynamicDateOffset, 
+                dynamicDateOffsetUnit 
+            });
 
             filters.push({
                 fieldPath: field,
@@ -43,10 +139,10 @@ ReportBuilder.getFilters = function() {
                 logicOperator: 'AND',
                 groupId: null,
                 groupLogicOperator: 'AND',
-                isDynamicDate: false,
-                dynamicDateType: null,
-                dynamicDateOffset: null,
-                dynamicDateOffsetUnit: null
+                isDynamicDate: isDynamicDate,
+                dynamicDateType: dynamicDateType,
+                dynamicDateOffset: dynamicDateOffset,
+                dynamicDateOffsetUnit: dynamicDateOffsetUnit
             });
         }
     });
@@ -99,9 +195,9 @@ ReportBuilder.getCollectionQueries = function() {
         
         const subFilterElements = el.querySelectorAll('[id^="subfilter-"]');
         subFilterElements.forEach((subEl) => {
-            const fieldSelect = subEl.querySelector('.subfilter-field');
+            const fieldSelect = subEl.querySelector('.rb-subfilter-field');
             const field = fieldSelect?.value;
-            let operator = subEl.querySelector('.subfilter-operator')?.value;
+            let operator = subEl.querySelector('.rb-subfilter-operator')?.value;
 
             if (field && operator) {
                 const selectedOption = fieldSelect.options[fieldSelect.selectedIndex];
@@ -120,7 +216,7 @@ ReportBuilder.getCollectionQueries = function() {
                     const isCustomConditionVisible = customCondition && customCondition.style.display !== 'none';
 
                     if (combinedValue === 'static') {
-                        value = subEl.querySelector('.subfilter-value')?.value || '';
+                        value = subEl.querySelector('.rb-subfilter-value')?.value || '';
                         isDynamicDate = false;
                     } else if (combinedValue === 'custom' || isCustomConditionVisible) {
                         const customOperator = customCondition?.querySelector('.filter-operator')?.value;
@@ -184,11 +280,11 @@ ReportBuilder.getCollectionQueries = function() {
                             value = '';
                         }
                     } else {
-                        value = subEl.querySelector('.subfilter-value')?.value || '';
+                        value = subEl.querySelector('.rb-subfilter-value')?.value || '';
                         isDynamicDate = false;
                     }
                 } else {
-                    value = subEl.querySelector('.subfilter-value')?.value || '';
+                    value = subEl.querySelector('.rb-subfilter-value')?.value || '';
                 }
 
                 query.subFilters.push({
@@ -324,17 +420,21 @@ ReportBuilder.renderPreview = function(data, filters) {
 
     container.innerHTML = '<div id="wdr-preview-pivot"></div>';
 
-    const savedPivotConfig = this.savedPivotConfiguration;
+    // Use the saved preview configuration, not the pivot configuration
+    const savedPreviewConfig = this.savedPreviewConfiguration;
     let reportConfig;
 
-    if (savedPivotConfig && savedPivotConfig.length > 0) {
+    if (savedPreviewConfig && savedPreviewConfig.length > 0) {
         try {
-            reportConfig = JSON.parse(savedPivotConfig);
+            reportConfig = JSON.parse(savedPreviewConfig);
             reportConfig.dataSource = { data: data };
+            console.log('[renderPreview] Using saved preview configuration');
         } catch (e) {
+            console.warn('[renderPreview] Failed to parse saved config, using default:', e);
             reportConfig = this.getDefaultPivotConfig(data);
         }
     } else {
+        console.log('[renderPreview] No saved configuration, using default');
         reportConfig = this.getDefaultPivotConfig(data);
     }
 
@@ -361,6 +461,14 @@ ReportBuilder.renderPreview = function(data, filters) {
         },
         reportcomplete: function() {
             console.log('[WebDataRocks Preview] Report rendered');
+            // Capture the configuration whenever the report is updated
+            try {
+                const currentReport = window.previewPivotInstance.getReport();
+                ReportBuilder.savedPreviewConfiguration = JSON.stringify(currentReport);
+                console.log('[WebDataRocks Preview] Configuration captured');
+            } catch (e) {
+                console.warn('[WebDataRocks Preview] Failed to capture configuration:', e);
+            }
         }
     });
 };
@@ -422,12 +530,12 @@ ReportBuilder.save = async function() {
     console.log('[save] Report name:', name);
 
     if (!name) {
-        alert('Please enter a report name');
+        ReportBuilderNotifications.showToast('Please enter a report name', 'warning');
         return;
     }
 
     if (this.selectedFields.length === 0) {
-        alert('Please select at least one field');
+        ReportBuilderNotifications.showToast('Please select at least one field', 'warning');
         return;
     }
 
@@ -490,14 +598,16 @@ ReportBuilder.save = async function() {
         if (result.success) {
             // Clear auto-saved draft since we explicitly saved
             ReportBuilder.clearAutoSavedDraft();
-            alert('Report saved successfully!');
-            window.location.href = '/Reports/Index';
+            ReportBuilderNotifications.showToast('Report saved successfully!', 'success', 2000);
+            setTimeout(() => {
+                window.location.href = '/Reports/Index';
+            }, 2000);
         } else {
-            alert('Error saving report: ' + result.error);
+            ReportBuilderNotifications.showToast('Error saving report: ' + result.error, 'error', 5000);
         }
     } catch (error) {
         console.error('[save] Exception:', error);
-        alert('Failed to save report: ' + error.message);
+        ReportBuilderNotifications.showToast('Failed to save report: ' + error.message, 'error', 5000);
     }
 };
 
@@ -507,7 +617,7 @@ ReportBuilder.loadPivot = async function() {
     console.log('[loadPivot] Starting pivot load...');
 
     if (this.selectedFields.length === 0) {
-        alert('Please select at least one field');
+        ReportBuilderNotifications.showToast('Please select at least one field', 'warning');
         return;
     }
 
@@ -669,6 +779,14 @@ ReportBuilder.renderPivot = function(data, filters) {
         },
         reportcomplete: function() {
             console.log('[WebDataRocks] Report rendered');
+            // Capture the configuration whenever the report is updated
+            try {
+                const currentReport = window.pivotGridInstance.getReport();
+                ReportBuilder.savedPivotConfiguration = JSON.stringify(currentReport);
+                console.log('[WebDataRocks] Configuration captured');
+            } catch (e) {
+                console.warn('[WebDataRocks] Failed to capture configuration:', e);
+            }
         }
     });
 
@@ -720,14 +838,23 @@ ReportBuilder.loadDefaultFields = async function() {
     const btnLoadDefaults = document.getElementById('btnLoadDefaults');
     
     if (!entityType) {
-        alert('Please select an entity type first');
+        ReportBuilderNotifications.showToast('Please select an entity type first', 'warning');
         return;
     }
-    
+
     if (this.selectedFields.length > 0) {
-        if (!confirm('This will replace your current field selection. Continue?')) {
-            return;
-        }
+        // Capture 'this' context for use in callback
+        const self = this;
+
+        ReportBuilderNotifications.confirm(
+            'This will replace your current field selection.',
+            () => {
+                self.applyDefaultFieldsImpl(entityType);
+            },
+            null,
+            { title: 'Replace Field Selection?', confirmText: 'Replace' }
+        );
+        return;
     }
     
     try {
@@ -774,10 +901,10 @@ ReportBuilder.loadDefaultFields = async function() {
             }, 3000);
             
         } else {
-            alert('Failed to load default fields: ' + (result.error || 'Unknown error'));
+            ReportBuilderNotifications.showToast('Failed to load default fields: ' + (result.error || 'Unknown error'), 'error', 5000);
         }
     } catch (error) {
-        alert('Failed to load default fields: ' + error.message);
+        ReportBuilderNotifications.showToast('Failed to load default fields: ' + error.message, 'error', 5000);
     } finally {
         btnLoadDefaults.disabled = false;
         btnLoadDefaults.innerHTML = '<i class="bi bi-magic me-1"></i> Load Default Fields';

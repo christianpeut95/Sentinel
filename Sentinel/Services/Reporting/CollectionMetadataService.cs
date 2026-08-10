@@ -103,8 +103,8 @@ public class CollectionMetadataService : ICollectionMetadataService
                     new() { Name = "ExposureEndDate", Label = "End Date", DataType = "DateTime" }
                 }
             },
-            
-            ["CaseTasks"] = new()
+
+            ["Tasks"] = new()
             {
                 Label = "Tasks",
                 AllowedOperations = new List<string> { "HasAny", "HasAll", "Count", "Min", "Max" },
@@ -136,10 +136,11 @@ public class CollectionMetadataService : ICollectionMetadataService
                     new() { Name = "Priority", Label = "Priority", DataType = "Enum" },
                     new() { Name = "AssignedToUser.Email", Label = "Assigned To", DataType = "String" },
                     new() { Name = "DueDate", Label = "Due Date", DataType = "DateTime" }
-                }
+                },
+                SubCollections = new Dictionary<string, CollectionMetadata>()
             },
             
-            ["DiseaseSymptoms"] = new()
+            ["CaseSymptoms"] = new()
             {
                 Label = "Symptoms",
                 AllowedOperations = new List<string> { "HasAny", "HasAll", "Count" }, // No aggregation
@@ -149,19 +150,8 @@ public class CollectionMetadataService : ICollectionMetadataService
                     new() { Name = "Symptom.Name", Label = "Symptom", DataType = "String" },
                     new() { Name = "Severity", Label = "Severity", DataType = "Enum" },
                     new() { Name = "OnsetDate", Label = "Onset Date", DataType = "DateTime" }
-                }
-            },
-            
-            ["Contacts"] = new()
-            {
-                Label = "Contacts",
-                AllowedOperations = new List<string> { "HasAny", "HasAll", "Count" },
-                AggregatableFields = new Dictionary<string, AggregatableFieldInfo>(),
-                FilterableFields = new List<CollectionFieldInfo>
-                {
-                    new() { Name = "ContactType", Label = "Contact Type", DataType = "Enum" },
-                    new() { Name = "DateIdentified", Label = "Date Identified", DataType = "DateTime" }
-                }
+                },
+                SubCollections = new Dictionary<string, CollectionMetadata>()
             }
         };
     }
@@ -170,16 +160,19 @@ public class CollectionMetadataService : ICollectionMetadataService
     {
         return new Dictionary<string, CollectionMetadata>
         {
-            ["Cases"] = new()
+            ["OutbreakCases"] = new()
             {
                 Label = "Cases",
                 AllowedOperations = new List<string> { "HasAny", "HasAll", "Count" },
                 AggregatableFields = new Dictionary<string, AggregatableFieldInfo>(),
                 FilterableFields = new List<CollectionFieldInfo>
                 {
-                    new() { Name = "ConfirmationStatus.Name", Label = "Status", DataType = "String" },
-                    new() { Name = "DateOfOnset", Label = "Date of Onset", DataType = "DateTime" }
-                }
+                    new() { Name = "Classification", Label = "Classification", DataType = "String" },
+                    new() { Name = "Case.ConfirmationStatus.Name", Label = "Case Status", DataType = "String" },
+                    new() { Name = "Case.DateOfOnset", Label = "Date of Onset", DataType = "DateTime" },
+                    new() { Name = "IsIndexCase", Label = "Is Index Case", DataType = "Boolean" }
+                },
+                SubCollections = new Dictionary<string, CollectionMetadata>()
             }
         };
     }
@@ -212,7 +205,36 @@ public class CollectionMetadataService : ICollectionMetadataService
                     new() { Name = "Disease.Name", Label = "Disease", DataType = "String" },
                     new() { Name = "ConfirmationStatus.Name", Label = "Status", DataType = "String" },
                     new() { Name = "DateOfOnset", Label = "Date of Onset", DataType = "DateTime" }
-                }
+                },
+                SubCollections = new Dictionary<string, CollectionMetadata>()
+            },
+
+            ["Contacts"] = new()
+            {
+                Label = "Contacts",
+                AllowedOperations = new List<string> { "HasAny", "HasAll", "Count", "Min", "Max" },
+                AggregatableFields = new Dictionary<string, AggregatableFieldInfo>
+                {
+                    ["DateOfOnset"] = new()
+                    {
+                        Label = "Date of Onset",
+                        DataType = "DateTime",
+                        AllowedOperations = new List<string> { "Min", "Max" }
+                    },
+                    ["DateOfNotification"] = new()
+                    {
+                        Label = "Date of Notification",
+                        DataType = "DateTime",
+                        AllowedOperations = new List<string> { "Min", "Max" }
+                    }
+                },
+                FilterableFields = new List<CollectionFieldInfo>
+                {
+                    new() { Name = "Disease.Name", Label = "Disease", DataType = "String" },
+                    new() { Name = "ConfirmationStatus.Name", Label = "Status", DataType = "String" },
+                    new() { Name = "DateOfOnset", Label = "Date of Onset", DataType = "DateTime" }
+                },
+                SubCollections = new Dictionary<string, CollectionMetadata>()
             }
         };
     }
@@ -254,7 +276,8 @@ public class CollectionMetadataService : ICollectionMetadataService
                 new() { Name = "ResultStatus", Label = "Result Status", DataType = "String" },
                 new() { Name = "LOINCCode", Label = "LOINC Code", DataType = "String" },
                 new() { Name = "TestCode", Label = "Test Code", DataType = "String" }
-            }
+            },
+            SubCollections = new Dictionary<string, CollectionMetadata>()
         };
     }
 }

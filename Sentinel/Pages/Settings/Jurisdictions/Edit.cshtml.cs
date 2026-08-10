@@ -10,9 +10,7 @@ using System.ComponentModel.DataAnnotations;
 
 namespace Sentinel.Pages.Settings.Jurisdictions
 {
-    // TEMPORARY: Authorization disabled for testing - re-enable in production
-    // [Authorize(Policy = "Permission.Settings.Edit")]
-    [Authorize]
+    [Authorize(Policy = "Permission.Location.Edit")]
     [RequestSizeLimit(100_000_000)] // Allow up to 100MB
     [RequestFormLimits(MultipartBodyLengthLimit = 100_000_000)] // Allow up to 100MB multipart
     public class EditModel : PageModel

@@ -88,6 +88,19 @@ public class CollectionMappingService : ICollectionMappingService
                 .ToList()
         );
     }
+
+    // "Contact" is the user-facing name for a contact Case. Contacts are persisted
+    // in the Cases table with Type = Contact, rather than in a separate table.
+    private static bool IsContactCaseAlias(string entityType) =>
+        entityType.Equals("Contact", StringComparison.OrdinalIgnoreCase);
+
+    private static string GetPersistenceEntityType(string entityType) =>
+        IsContactCaseAlias(entityType) ? nameof(Case) : entityType;
+
+    private static bool EntityTypesReferToSameCaseRow(string requestedEntityType, string createdEntityType) =>
+        requestedEntityType.Equals(createdEntityType, StringComparison.OrdinalIgnoreCase) ||
+        (IsContactCaseAlias(requestedEntityType) && createdEntityType.Equals(nameof(Case), StringComparison.OrdinalIgnoreCase)) ||
+        (requestedEntityType.Equals(nameof(Case), StringComparison.OrdinalIgnoreCase) && IsContactCaseAlias(createdEntityType));
     
     public async Task<ValidationResult> ValidateMappingConfigAsync(CollectionMappingConfig config)
     {
@@ -840,6 +853,12 @@ public class CollectionMappingService : ICollectionMappingService
                 {
                     _logger.LogError(ex, "Error creating related entity {EntityType}", relatedConfig.EntityType);
                     result.Errors.Add($"Failed to create {relatedConfig.EntityType}: {ex.Message}");
+
+                    // Later related entities can depend on this entity's ID. Continuing
+                    // would create incomplete dependants (for example an ExposureEvent
+                    // without the contact Case ID), so fail this row immediately.
+                    result.Success = false;
+                    return;
                 }
             }
         }
@@ -856,8 +875,10 @@ public class CollectionMappingService : ICollectionMappingService
         CreatedEntityInfo primaryEntity,
         List<CreatedEntityInfo> previouslyCreatedEntities)
     {
-        // Get field metadata for related entity
-        var fields = await GetEntityFieldsAsync(config.EntityType);
+        // Resolve logical Contact mappings to the persisted Case entity while retaining
+        // the logical name in CreatedEntityInfo for related-entity references.
+        var persistenceEntityType = GetPersistenceEntityType(config.EntityType);
+        var fields = await GetEntityFieldsAsync(persistenceEntityType);
         var entityData = new Dictionary<string, object>();
         
         // Process mappings
@@ -883,14 +904,36 @@ public class CollectionMappingService : ICollectionMappingService
                 );
             }
         }
+
+        if (IsContactCaseAlias(config.EntityType))
+        {
+            // A contact Case belongs to the Patient created from the same survey row.
+            // Keep this implicit relationship safe even if an older mapping omitted it.
+            entityData.TryAdd(nameof(Case.PatientId), primaryEntityId);
+            entityData.TryAdd(nameof(Case.Type), CaseType.Contact);
+        }
+
+        if (persistenceEntityType == nameof(ExposureEvent) &&
+            (!entityData.TryGetValue(nameof(ExposureEvent.ExposedCaseId), out var exposedCaseId) ||
+             exposedCaseId is not Guid caseId || caseId == Guid.Empty))
+        {
+            throw new InvalidOperationException(
+                "ExposureEvent.ExposedCaseId must resolve to the newly created contact Case before an exposure can be created.");
+        }
         
         // Create the entity
-        return await CreateEntityFromDataAsync(
-            config.EntityType,
+        var relatedEntity = await CreateEntityFromDataAsync(
+            persistenceEntityType,
             entityData,
             fields,
             context.CaseId
         );
+
+        // Preserve the configured logical entity name so both
+        // {RelatedEntity.Contact.Id} and {RelatedEntity.Case.Id} can refer to it.
+        relatedEntity.EntityType = config.EntityType;
+        relatedEntity.PrimaryEntityId = primaryEntityId;
+        return relatedEntity;
     }
     
     /// <summary>
@@ -996,8 +1039,8 @@ public class CollectionMappingService : ICollectionMappingService
         var fieldName = parts[1];   // e.g., "Id"
         
         // Find the entity in previously created entities
-        var entity = createdEntities.FirstOrDefault(e => 
-            e.EntityType.Equals(entityType, StringComparison.OrdinalIgnoreCase));
+        var entity = createdEntities.FirstOrDefault(e =>
+            EntityTypesReferToSameCaseRow(entityType, e.EntityType));
         
         if (entity == null)
         {
@@ -1730,10 +1773,10 @@ public class CollectionMappingService : ICollectionMappingService
             sb.AppendLine("**Problem**: The Contact (Case) is missing a PatientId.");
             sb.AppendLine();
             sb.AppendLine("**Fix**: Add this mapping to the Case entity in your collection config:");
-            sb.AppendLine("   • SourceType: 'Primary'");
-            sb.AppendLine("   • Source: '{Primary.Id}'");
-            sb.AppendLine("   • Target: 'Case.PatientId'");
-            sb.AppendLine("   • Required: ?");
+            sb.AppendLine("   ï¿½ SourceType: 'Primary'");
+            sb.AppendLine("   ï¿½ Source: '{Primary.Id}'");
+            sb.AppendLine("   ï¿½ Target: 'Case.PatientId'");
+            sb.AppendLine("   ï¿½ Required: ?");
             sb.AppendLine();
             sb.AppendLine("**Quick SQL Fix**:");
             sb.AppendLine("See: fix_household_contacts_mapping.sql");
@@ -1747,10 +1790,10 @@ public class CollectionMappingService : ICollectionMappingService
             sb.AppendLine("**Problem**: The Exposure is missing a SourceCaseId (source/transmitter case).");
             sb.AppendLine();
             sb.AppendLine("**Fix**: Add this mapping to the ExposureEvent entity:");
-            sb.AppendLine("   • SourceType: 'Context'");
-            sb.AppendLine("   • Source: '{{Context.CaseId}}'");
-            sb.AppendLine("   • Target: 'ExposureEvent.SourceCaseId'");
-            sb.AppendLine("   • Required: ? (yes for Contact exposures)");
+            sb.AppendLine("   ï¿½ SourceType: 'Context'");
+            sb.AppendLine("   ï¿½ Source: '{{Context.CaseId}}'");
+            sb.AppendLine("   ï¿½ Target: 'ExposureEvent.SourceCaseId'");
+            sb.AppendLine("   ï¿½ Required: ? (yes for Contact exposures)");
         }
         else if (message.Contains("FK_Cases_Diseases_DiseaseId"))
         {
@@ -1761,10 +1804,10 @@ public class CollectionMappingService : ICollectionMappingService
             sb.AppendLine("**Problem**: The Case is missing a DiseaseId.");
             sb.AppendLine();
             sb.AppendLine("**Fix**: Add this mapping to the Case entity:");
-            sb.AppendLine("   • SourceType: 'Context'");
-            sb.AppendLine("   • Source: '{{Context.DiseaseId}}'");
-            sb.AppendLine("   • Target: 'Case.DiseaseId'");
-            sb.AppendLine("   • Required: ?");
+            sb.AppendLine("   ï¿½ SourceType: 'Context'");
+            sb.AppendLine("   ï¿½ Source: '{{Context.DiseaseId}}'");
+            sb.AppendLine("   ï¿½ Target: 'Case.DiseaseId'");
+            sb.AppendLine("   ï¿½ Required: ?");
         }
         else if (message.Contains("FOREIGN KEY"))
         {
@@ -1775,10 +1818,10 @@ public class CollectionMappingService : ICollectionMappingService
             sb.AppendLine("**Problem**: An entity is missing a required FK field.");
             sb.AppendLine();
             sb.AppendLine("**Common Missing Fields**:");
-            sb.AppendLine("   • Case.PatientId ? Use '{Primary.Id}' from Primary source");
-            sb.AppendLine("   • Case.DiseaseId ? Use '{{Context.DiseaseId}}' from Context");
-            sb.AppendLine("   • ExposureEvent.SourceCaseId ? Use '{{Context.CaseId}}' from Context");
-            sb.AppendLine("   • ExposureEvent.ExposedCaseId ? Use '{RelatedEntity.Case.Id}'");
+            sb.AppendLine("   ï¿½ Case.PatientId ? Use '{Primary.Id}' from Primary source");
+            sb.AppendLine("   ï¿½ Case.DiseaseId ? Use '{{Context.DiseaseId}}' from Context");
+            sb.AppendLine("   ï¿½ ExposureEvent.SourceCaseId ? Use '{{Context.CaseId}}' from Context");
+            sb.AppendLine("   ï¿½ ExposureEvent.ExposedCaseId ? Use '{RelatedEntity.Case.Id}'");
         }
 
         return sb.ToString();

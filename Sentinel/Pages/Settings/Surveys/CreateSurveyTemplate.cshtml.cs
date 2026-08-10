@@ -9,7 +9,7 @@ using System.Text.Json;
 
 namespace Sentinel.Pages.Settings.Surveys
 {
-    [Authorize]
+    [Authorize(Policy = "Permission.Survey.Create")]
     public class CreateSurveyTemplateModel : PageModel
     {
         private readonly ApplicationDbContext _context;

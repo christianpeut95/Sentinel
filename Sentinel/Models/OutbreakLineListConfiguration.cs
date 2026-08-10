@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using Microsoft.AspNetCore.Mvc.ModelBinding.Validation;
 
 namespace Sentinel.Models;
 
@@ -11,7 +12,9 @@ public class OutbreakLineListConfiguration
     
     [Required]
     public int OutbreakId { get; set; }
-    public Outbreak Outbreak { get; set; } = null!;
+
+    [ValidateNever]
+    public Outbreak? Outbreak { get; set; }
     
     [Required]
     [StringLength(100)]
@@ -42,6 +45,8 @@ public class OutbreakLineListConfiguration
     /// User ID if personal configuration, null if shared
     /// </summary>
     public string? UserId { get; set; }
+
+    [ValidateNever]
     public ApplicationUser? User { get; set; }
     
     /// <summary>
@@ -56,8 +61,10 @@ public class OutbreakLineListConfiguration
     
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime? ModifiedAt { get; set; }
-    
+
     public string? CreatedByUserId { get; set; }
+
+    [ValidateNever]
     public ApplicationUser? CreatedByUser { get; set; }
 }
 

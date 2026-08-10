@@ -1,13 +1,15 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Sentinel.Models.Timeline;
 using Sentinel.Services;
 
 namespace Sentinel.Controllers.Api
 {
-    [Authorize]
+    [Authorize(Policy = "Permission.Case.Edit")]
     [ApiController]
     [Route("api/timeline")]
+    [EnableRateLimiting("workflow-api-moderate")] // 60 per minute - timeline narrative editing
     public class TimelineEntryApiController : ControllerBase
     {
         private readonly INaturalLanguageParserService _parserService;

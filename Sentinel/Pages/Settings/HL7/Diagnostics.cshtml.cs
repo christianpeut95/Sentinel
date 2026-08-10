@@ -4,7 +4,7 @@ using Microsoft.AspNetCore.Mvc.RazorPages;
 
 namespace Sentinel.Pages.Settings.HL7
 {
-    [Authorize]
+    [Authorize(Policy = "Permission.HL7.View")]
     public class DiagnosticsModel : PageModel
     {
         [BindProperty(SupportsGet = true)]

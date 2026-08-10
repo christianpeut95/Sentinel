@@ -14,7 +14,7 @@ namespace Sentinel.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
-    [Authorize]
+    [Authorize(Policy = "Permission.Case.Search")]
     [EnableRateLimiting("sensitive-data")]
     public class CasesController : ControllerBase
     {

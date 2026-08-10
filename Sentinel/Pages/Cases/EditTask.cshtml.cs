@@ -48,7 +48,38 @@ namespace Sentinel.Pages.Cases
             }
 
             LoadDropdowns();
+
+            // Check if this is an AJAX request for modal content
+            if (Request.Headers["X-Requested-With"] == "XMLHttpRequest" || Request.Query.ContainsKey("handler"))
+            {
+                return Partial("_EditTaskPartial", this);
+            }
+
             return Page();
+        }
+
+        public async Task<IActionResult> OnGetModalContentAsync(Guid? id, Guid? caseId)
+        {
+            if (id == null || caseId == null)
+            {
+                return NotFound();
+            }
+
+            CaseId = caseId.Value;
+
+            Task = await _context.CaseTasks
+                .Include(t => t.TaskTemplate)
+                .Include(t => t.TaskType)
+                .Include(t => t.AssignedToUser)
+                .FirstOrDefaultAsync(t => t.Id == id && t.CaseId == caseId);
+
+            if (Task == null)
+            {
+                return NotFound();
+            }
+
+            LoadDropdowns();
+            return Partial("_EditTaskPartial", this);
         }
 
         public async Task<IActionResult> OnPostAsync()
@@ -56,6 +87,13 @@ namespace Sentinel.Pages.Cases
             if (!ModelState.IsValid)
             {
                 LoadDropdowns();
+
+                // If AJAX request, return JSON error
+                if (Request.Headers["X-Requested-With"] == "XMLHttpRequest")
+                {
+                    return new JsonResult(new { success = false, message = "Validation failed" });
+                }
+
                 return Page();
             }
 
@@ -63,6 +101,10 @@ namespace Sentinel.Pages.Cases
 
             if (taskToUpdate == null)
             {
+                if (Request.Headers["X-Requested-With"] == "XMLHttpRequest")
+                {
+                    return new JsonResult(new { success = false, message = "Task not found" });
+                }
                 return NotFound();
             }
 
@@ -81,6 +123,10 @@ namespace Sentinel.Pages.Cases
             {
                 if (!TaskExists(Task.Id))
                 {
+                    if (Request.Headers["X-Requested-With"] == "XMLHttpRequest")
+                    {
+                        return new JsonResult(new { success = false, message = "Task no longer exists" });
+                    }
                     return NotFound();
                 }
                 else
@@ -89,7 +135,13 @@ namespace Sentinel.Pages.Cases
                 }
             }
 
-            // Close window and refresh parent
+            // If AJAX request, return JSON success
+            if (Request.Headers["X-Requested-With"] == "XMLHttpRequest")
+            {
+                return new JsonResult(new { success = true, message = "Task updated successfully" });
+            }
+
+            // Close window and refresh parent (for popup window mode)
             return Content("<script>window.opener.location.reload(); window.close();</script>", "text/html");
         }
 

@@ -1,0 +1,86 @@
+@using System.ComponentModel.DataAnnotations
+
+<div class="stage-card">
+    <div class="stage-header">
+        <h2><i class="bi bi-clock"></i> Time Zone Configuration</h2>
+        <p>Select your organization's time zone for accurate timestamps and scheduling.</p>
+    </div>
+
+    <div class="stage-body">
+        <EditForm Model="@this" OnValidSubmit="HandleNext">
+            <div class="form-group">
+                <label class="form-label required">Time Zone</label>
+                <InputSelect @bind-Value="TimeZoneId" class="form-control">
+                    <option value="">-- Select Time Zone --</option>
+                    @foreach (var tz in _timeZones)
+                    {
+                        <option value="@tz.Id">@tz.DisplayName</option>
+                    }
+                </InputSelect>
+                <span class="form-text">All timestamps will be displayed in this time zone.</span>
+            </div>
+
+            <div class="alert alert-info">
+                <i class="bi bi-info-circle"></i>
+                <strong>Current Selection:</strong> @(_selectedTimeZone?.DisplayName ?? "None")
+                <br />
+                <small>UTC Offset: @(_selectedTimeZone?.BaseUtcOffset.ToString() ?? "N/A")</small>
+            </div>
+
+            <div class="stage-actions">
+                <button type="button" class="btn btn-secondary" @onclick="HandlePrevious">
+                    <i class="bi bi-arrow-left"></i>
+                    <span>Previous</span>
+                </button>
+                <button type="submit" class="btn btn-primary" disabled="@string.IsNullOrEmpty(TimeZoneId)">
+                    <span>Next</span>
+                    <i class="bi bi-arrow-right"></i>
+                </button>
+            </div>
+        </EditForm>
+    </div>
+</div>
+
+@code {
+    [Parameter] public EventCallback OnNext { get; set; }
+    [Parameter] public EventCallback OnPrevious { get; set; }
+    [Parameter] public string TimeZoneId { get; set; } = "UTC";
+    [Parameter] public EventCallback<string> TimeZoneIdChanged { get; set; }
+
+    private List<TimeZoneInfo> _timeZones = new();
+    private TimeZoneInfo? _selectedTimeZone;
+
+    protected override void OnInitialized()
+    {
+        _timeZones = TimeZoneInfo.GetSystemTimeZones()
+            .OrderBy(tz => tz.BaseUtcOffset)
+            .ThenBy(tz => tz.DisplayName)
+            .ToList();
+
+        UpdateSelectedTimeZone();
+    }
+
+    protected override void OnParametersSet()
+    {
+        UpdateSelectedTimeZone();
+    }
+
+    private void UpdateSelectedTimeZone()
+    {
+        if (!string.IsNullOrEmpty(TimeZoneId))
+        {
+            _selectedTimeZone = TimeZoneInfo.FindSystemTimeZoneById(TimeZoneId);
+        }
+    }
+
+    private async Task HandleNext()
+    {
+        await TimeZoneIdChanged.InvokeAsync(TimeZoneId);
+        await OnNext.InvokeAsync();
+    }
+
+    private async Task HandlePrevious()
+    {
+        await OnPrevious.InvokeAsync();
+    }
+}

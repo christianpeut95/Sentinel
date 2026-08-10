@@ -9,7 +9,7 @@ using System.Text.Json;
 
 namespace Sentinel.Pages.Cases
 {
-    [Authorize]
+    [Authorize(Policy = "Permission.Laboratory.Edit")]
     public class EditLabResultModel : PageModel
     {
         private readonly ApplicationDbContext _context;
@@ -222,7 +222,8 @@ namespace Sentinel.Pages.Cases
 
             if (Guid.TryParse(disease, out var diseaseId))
             {
-                query = query.Where(p => p.DiseaseId == diseaseId);
+                // Filter by disease OR pathogens without a disease (generic tests)
+                query = query.Where(p => p.DiseaseId == diseaseId || p.DiseaseId == null);
             }
 
             if (!string.IsNullOrWhiteSpace(term))

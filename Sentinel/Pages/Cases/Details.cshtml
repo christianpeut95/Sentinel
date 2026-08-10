@@ -2,6 +2,7 @@
 @model Sentinel.Pages.Cases.DetailsModel
 @using Sentinel.Models
 @using Sentinel.Models.Lookups
+@using System.Text.Encodings.Web
 
 @{
     ViewData["Title"] = "Case Details";
@@ -16,6 +17,20 @@
             return nonceStr;
         }
         return string.Empty;
+    }
+
+    public string EscapeJs(string? value)
+    {
+        if (string.IsNullOrEmpty(value))
+            return string.Empty;
+        // Escape for JavaScript string literals
+        return value
+            .Replace("\\", "\\\\")  // Must be first - escape backslashes
+            .Replace("'", "\\'")    // Escape single quotes
+            .Replace("\"", "\\\"")  // Escape double quotes  
+            .Replace("\n", "\\n")   // Escape newlines
+            .Replace("\r", "\\r")   // Escape carriage returns
+            .Replace("\t", "\\t");  // Escape tabs
     }
 }
 
@@ -1902,6 +1917,9 @@
                                         var isCompletedWithSurvey = task.Status == CaseTaskStatus.Completed && hasSurvey && !string.IsNullOrEmpty(task.SurveyResponseJson);
                                     }
 
+
+
+
                                     @if (isCompletedWithSurvey)
                                     {
                                         <a asp-page="/Tasks/ViewSurveyResult" asp-route-id="@task.Id" class="btn btn-sm btn-link p-0 me-1" title="View Survey Results">
@@ -1918,10 +1936,17 @@
                                         }
                                         else
                                         {
-                                            <button type="button" class="btn btn-sm btn-link p-0 me-1" onclick="openCompleteTaskModal('@task.Id', '@task.TaskTemplate?.Name')" title="Complete">
+                                            <button type="button" class="btn btn-sm btn-link p-0 me-1" onclick="openCompleteTaskModal('@task.Id', '@EscapeJs(task.TaskTemplate?.Name)')" title="Complete">
                                                 <i class="bi bi-check-circle"></i>
                                             </button>
                                         }
+                                    }
+
+                                    @if (task.Status != CaseTaskStatus.Completed && task.Status != CaseTaskStatus.Cancelled)
+                                    {
+                                        <button type="button" class="btn btn-sm btn-link p-0 me-1" onclick="window.open('/Cases/EditTask?id=@task.Id&caseId=@task.CaseId', '_blank', 'width=900,height=700')" title="Edit Task">
+                                            <i class="bi bi-pencil"></i>
+                                        </button>
                                     }
                                 </td>
                             </tr>
@@ -2053,6 +2078,156 @@
                     </button>
                 </div>
             </form>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Task Modal -->
+<div class="modal fade" id="editTaskModal" tabindex="-1" aria-labelledby="editTaskModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content" id="editTaskModalContent">
+            <div class="modal-header">
+                <h5 class="modal-title" id="editTaskModalLabel">
+                    <i class="bi bi-pencil-square me-2"></i>Loading...
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body text-center py-5">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+                <p class="mt-3 text-muted">Loading task details...</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- View All Lab Results Modal -->
+<div class="modal fade" id="viewAllLabResultsModal" tabindex="-1" aria-labelledby="viewAllLabResultsModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="viewAllLabResultsModalLabel">
+                    <i class="bi bi-clipboard-pulse me-2"></i>All Lab Results (@Model.LabResults.Count)
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                @if (Model.LabResults.Any())
+                {
+                    <div class="table-responsive">
+                        <table class="sn-table w-100">
+                            <thead>
+                                <tr>
+                                    <th>Lab Result ID</th>
+                                    <th>Laboratory</th>
+                                    <th>Biomarkers</th>
+                                    <th>Collection Date</th>
+                                    <th>Result Date</th>
+                                    <th style="text-align: right;">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var labResult in Model.LabResults.OrderByDescending(lr => lr.SpecimenCollectionDate ?? lr.ResultDate))
+                                {
+                                    var hasMarkers = labResult.Markers.Any();
+                                    <tr>
+                                        <td>
+                                            <div style="display: flex; align-items: center; gap: 8px;">
+                                                <span class="text-mono" style="font-weight: 500; color: var(--forest);">@labResult.FriendlyId</span>
+                                                @if (labResult.IsAmended)
+                                                {
+                                                    <span class="chip" style="background: #FBEDD1; color: #6A4410; font-size: 10px; padding: 2px 6px; border: 1px solid #EBD196;">
+                                                        <i class="bi bi-pencil-square"></i> AMENDED
+                                                    </span>
+                                                }
+                                            </div>
+                                        </td>
+                                        <td>
+                                            @if (labResult.Laboratory != null)
+                                            {
+                                                <span>@labResult.Laboratory.Name</span>
+                                            }
+                                            else
+                                            {
+                                                <span class="text-muted">-</span>
+                                            }
+                                        </td>
+                                        <td>
+                                            @if (hasMarkers)
+                                            {
+                                                <div style="display: flex; flex-wrap: wrap; gap: 6px;">
+                                                    @foreach (var marker in labResult.Markers.OrderBy(m => m.DisplayOrder).Take(5))
+                                                    {
+                                                        var (bgColor, borderColor, textColor, icon) = marker.QualitativeResultText?.ToLower() switch
+                                                        {
+                                                            "detected" or "positive" or "reactive" => ("#FBE2D8", "#F2BBA4", "#7A2A15", "exclamation-circle-fill"),
+                                                            "not detected" or "negative" or "non-reactive" => ("var(--signal-lt)", "#9BE8C6", "#0A3F2C", "check-circle-fill"),
+                                                            "indeterminate" or "equivocal" => ("#FBEDD1", "#EBD196", "#6A4410", "question-circle-fill"),
+                                                            _ => ("var(--chalk)", "var(--hairline)", "var(--graphite)", "circle")
+                                                        };
+
+                                                        <span style="background: @bgColor; border: 1px solid @borderColor; color: @textColor; padding: 4px 10px; border-radius: 12px; font-size: 11px; font-weight: 500; display: inline-flex; align-items: center; gap: 4px; white-space: nowrap;">
+                                                            <i class="bi bi-@icon" style="font-size: 9px;"></i>
+                                                            @(marker.Pathogen?.Name ?? "Unknown")
+                                                        </span>
+                                                    }
+                                                    @if (labResult.Markers.Count > 5)
+                                                    {
+                                                        <span style="background: var(--chalk); border: 1px solid var(--hairline); color: var(--graphite); padding: 4px 10px; border-radius: 12px; font-size: 11px; font-weight: 500;">
+                                                            +@(labResult.Markers.Count - 5) more
+                                                        </span>
+                                                    }
+                                                </div>
+                                            }
+                                            else
+                                            {
+                                                <span class="text-muted">No markers</span>
+                                            }
+                                        </td>
+                                        <td>
+                                            @if (labResult.SpecimenCollectionDate.HasValue)
+                                            {
+                                                <span>@labResult.SpecimenCollectionDate.Value.ToString("dd MMM yyyy")</span>
+                                                @if (labResult.SpecimenType != null)
+                                                {
+                                                    <div class="text-meta" style="font-size: 11px; margin-top: 2px;">@labResult.SpecimenType.Name</div>
+                                                }
+                                            }
+                                            else
+                                            {
+                                                <span class="text-muted">-</span>
+                                            }
+                                        </td>
+                                        <td>
+                                            @if (labResult.ResultDate.HasValue)
+                                            {
+                                                <span>@labResult.ResultDate.Value.ToString("dd MMM yyyy")</span>
+                                            }
+                                            else
+                                            {
+                                                <span class="text-muted">-</span>
+                                            }
+                                        </td>
+                                        <td style="text-align: right;">
+                                            <button type="button" class="btn btn-sm btn-link p-0" onclick="window.open('/Cases/ViewLabResult?labResultId=@labResult.Id&caseId=@labResult.CaseId', '_blank', 'width=1000,height=800')" title="View Lab Result">
+                                                <i class="bi bi-eye"></i>
+                                            </button>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+                else
+                {
+                    <p class="text-muted text-center py-4">No lab results available</p>
+                }
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
         </div>
     </div>
 </div>
@@ -2189,10 +2364,17 @@
                                             }
                                             else
                                             {
-                                                <button type="button" class="btn btn-sm btn-link p-0 me-1" onclick="openCompleteTaskModal('@task.Id', '@task.TaskTemplate?.Name')" title="Complete">
+                                                <button type="button" class="btn btn-sm btn-link p-0 me-1" onclick="openCompleteTaskModal('@task.Id', '@EscapeJs(task.TaskTemplate?.Name)')" title="Complete">
                                                     <i class="bi bi-check-circle"></i>
                                                 </button>
                                             }
+                                        }
+
+                                        @if (task.Status != CaseTaskStatus.Completed && task.Status != CaseTaskStatus.Cancelled)
+                                        {
+                                            <button type="button" class="btn btn-sm btn-link p-0 me-1" onclick="window.open('/Cases/EditTask?id=@task.Id&caseId=@task.CaseId', '_blank', 'width=900,height=700')" title="Edit Task">
+                                                <i class="bi bi-pencil"></i>
+                                            </button>
                                         }
                                     </td>
                                 </tr>
@@ -2211,7 +2393,7 @@
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn-sentinel-secondary" data-bs-dismiss="modal">Close</button>
-                <button type="button" class="btn-sentinel-primary" onclick="openAddTask(); $('#viewAllTasksModal').modal('hide');">
+                <button type="button" class="btn-sentinel-primary" onclick="openAddTask(); if(typeof jQuery !== 'undefined') jQuery('#viewAllTasksModal').modal('hide');">            
                     <i class="bi bi-plus-circle me-1"></i>Add New Task
                 </button>
             </div>
@@ -2549,7 +2731,7 @@
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn-sentinel-secondary" data-bs-dismiss="modal">Close</button>
-                <button type="button" class="btn-sentinel-primary" onclick="openAddExposure(); $('#viewAllTransmissionsModal').modal('hide');">
+                <button type="button" class="btn-sentinel-primary" onclick="openAddExposure(); if(typeof jQuery !== 'undefined') jQuery('#viewAllTransmissionsModal').modal('hide');">
                     <i class="bi bi-plus-circle me-1"></i>Add New Exposure
                 </button>
             </div>
@@ -2557,7 +2739,7 @@
     </div>
 </div>
 
-<script>
+<script nonce="@GetCspNonce()">
     // Global function to handle exposure type visibility
     function updateExposureTypeVisibility() {
         var exposureTypeSelect = document.getElementById('modalExposureTypeSelect');
@@ -2670,7 +2852,158 @@
         alert('Show call history for task: ' + taskId);
     }
 
-    $(document).ready(function() {
+    function openEditTaskModal(taskId, caseId) {
+        var modal = new bootstrap.Modal(document.getElementById('editTaskModal'));
+        modal.show();
+
+        fetch('/Cases/EditTask?id=' + taskId + '&caseId=' + caseId + '&handler=ModalContent', {
+            method: 'GET',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Failed to load task');
+            }
+            return response.text();
+        })
+        .then(html => {
+            document.getElementById('editTaskModalContent').innerHTML = html;
+
+            // Initialize form submission handler
+            var form = document.querySelector('#editTaskModal form');
+            if (form) {
+                form.addEventListener('submit', function(e) {
+                    e.preventDefault();
+                    submitEditTaskForm(form);
+                });
+            }
+
+            // Initialize user autocomplete for assignment - ensure jQuery is available
+            setTimeout(function() {
+                if (typeof jQuery !== 'undefined') {
+                    var $searchInput = jQuery("#assignedToUserSearch");
+                    console.log('Initializing autocomplete for:', $searchInput.length, 'element(s)');
+
+                    // Destroy any existing autocomplete instance
+                    if ($searchInput.hasClass('ui-autocomplete-input')) {
+                        $searchInput.autocomplete('destroy');
+                    }
+
+                    $searchInput.autocomplete({
+                        appendTo: "#editTaskModal",  // Render inside modal to fix z-index issues
+                        source: function(request, response) {
+                            console.log('Autocomplete source called with term:', request.term);
+                            jQuery.ajax({
+                                url: '/api/Patients/SearchUsers',
+                                data: { term: request.term },
+                                dataType: 'json',
+                                success: function(data) {
+                                    console.log('Autocomplete API response:', data);
+                                    response(data.map(function(item) {
+                                        return {
+                                            label: item.text,
+                                            value: item.text,
+                                            id: item.id
+                                        };
+                                    }));
+                                },
+                                error: function(xhr, status, error) {
+                                    console.error('Autocomplete API error:', status, error);
+                                    response([]);
+                                }
+                            });
+                        },
+                        minLength: 2,
+                        select: function(event, ui) {
+                            console.log('Autocomplete item selected:', ui.item);
+                            jQuery("#assignedToUserId").val(ui.item.id);
+                            return true;
+                        },
+                        change: function(event, ui) {
+                            // If field is cleared, clear the hidden ID field
+                            if (!ui.item) {
+                                jQuery("#assignedToUserId").val('');
+                            }
+                        }
+                    });
+                    console.log('Autocomplete initialized successfully');
+                } else {
+                    console.error('jQuery not available for autocomplete initialization');
+                }
+            }, 100);  // Small delay to ensure DOM is fully rendered
+        })
+        .catch(error => {
+            console.error('Error loading task:', error);
+            document.getElementById('editTaskModalContent').innerHTML = `
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="bi bi-exclamation-triangle me-2"></i>Error</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="alert alert-danger">
+                        <i class="bi bi-exclamation-circle me-2"></i>
+                        Failed to load task details. Please try again.
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                </div>`;
+        });
+    }
+
+    function submitEditTaskForm(form) {
+        var formData = new FormData(form);
+        var submitButton = form.querySelector('button[type="submit"]');
+        var originalText = submitButton.innerHTML;
+
+        submitButton.disabled = true;
+        submitButton.innerHTML = '<i class="bi bi-hourglass-split spinner-border spinner-border-sm me-1"></i> Saving...';
+
+        fetch(form.action, {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+        .then(response => {
+            if (!response.ok) {
+                return response.text().then(text => { throw new Error(text); });
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.success) {
+                // Close modal and reload page
+                var modal = bootstrap.Modal.getInstance(document.getElementById('editTaskModal'));
+                modal.hide();
+                location.reload();
+            } else {
+                // Show error message
+                alert('Error: ' + (data.message || 'Failed to save changes'));
+                submitButton.disabled = false;
+                submitButton.innerHTML = originalText;
+            }
+        })
+        .catch(error => {
+            console.error('Error saving task:', error);
+            alert('Failed to save changes. Please try again.');
+            submitButton.disabled = false;
+            submitButton.innerHTML = originalText;
+        });
+    }
+
+    // Wait for jQuery to be loaded before initializing jQuery-dependent features
+    function initializeJQueryFeatures() {
+        if (typeof jQuery === 'undefined') {
+            // jQuery not loaded yet, try again in 50ms
+            setTimeout(initializeJQueryFeatures, 50);
+            return;
+        }
+
+        jQuery(document).ready(function() {
     // Attach event listener to exposure type dropdown
     var exposureTypeSelect = document.getElementById('modalExposureTypeSelect');
     if (exposureTypeSelect) {
@@ -2678,8 +3011,8 @@
     }
 
             // Initialize Select2 for Events
-            $('.select2-modal-event').select2({
-                dropdownParent: $('#addExposureModal'),
+            jQuery('.select2-modal-event').select2({
+                dropdownParent: jQuery('#addExposureModal'),
                 theme: 'bootstrap-5',
                 placeholder: 'Type to search for event...',
                 allowClear: true,
@@ -2705,8 +3038,8 @@
             });
 
             // Initialize Select2 for Locations
-            $('.select2-modal-location').select2({
-                dropdownParent: $('#addExposureModal'),
+            jQuery('.select2-modal-location').select2({
+                dropdownParent: jQuery('#addExposureModal'),
                 theme: 'bootstrap-5',
                 placeholder: 'Type to search for location...',
                 allowClear: true,
@@ -2732,8 +3065,8 @@
             });
 
             // Initialize Select2 for Cases
-            $('.select2-modal-case').select2({
-                dropdownParent: $('#addExposureModal'),
+            jQuery('.select2-modal-case').select2({
+                dropdownParent: jQuery('#addExposureModal'),
                 theme: 'bootstrap-5',
                 placeholder: 'Type to search for case...',
                 allowClear: true,
@@ -2762,8 +3095,8 @@
             });
 
             // Initialize Select2 for Countries
-            $('.select2-modal-country').select2({
-                dropdownParent: $('#addExposureModal'),
+            jQuery('.select2-modal-country').select2({
+                dropdownParent: jQuery('#addExposureModal'),
                 theme: 'bootstrap-5',
                 placeholder: 'Type to search for country...',
                 allowClear: true,
@@ -2788,6 +3121,11 @@
                 }
             });
         });
+    }
+
+    // Start trying to initialize jQuery features
+    initializeJQueryFeatures();
+
 
         // ========================================================================
         // COPY ADDRESS FROM PATIENT

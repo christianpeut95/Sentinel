@@ -57,6 +57,111 @@
     <div class="rb-main-layout">
         <!-- Left Panel (Narrow) -->
         <div class="rb-left-panel">
+            <!-- Report Details Section -->
+            <div class="rb-panel-section">
+                <div class="rb-panel-header">
+                    <span>Report Details</span>
+                </div>
+                <div class="rb-panel-body">
+                    <div class="rb-sidebar-field">
+                            <label class="rb-info-label" for="reportName">Name</label>
+                        <input class="rb-collection-input" type="text" id="reportName"
+                               placeholder="Enter report name..."
+                               value="@Model.ReportDefinition?.Name">
+                    </div>
+                    <div class="rb-sidebar-field">
+                        <label class="rb-info-label" for="reportDescription">Description</label>
+                        <textarea class= "rb-collection-input" id="reportDescription"
+                                  rows="3"
+                                  placeholder="Enter report description...">@Model.ReportDefinition?.Description</textarea>
+                    </div>
+                    <div class="rb-sidebar-field">
+                        <label for="reportCategory">Category</label>
+                        <select id="reportCategory">
+                            <option value="">Select category...</option>
+                            <option value="Operational" selected="@(Model.ReportDefinition?.Category == "Operational")">Operational</option>
+                            <option value="Surveillance" selected="@(Model.ReportDefinition?.Category == "Surveillance")">Surveillance</option>
+                            <option value="Epidemiological" selected="@(Model.ReportDefinition?.Category == "Epidemiological")">Epidemiological</option>
+                            <option value="Administrative" selected="@(Model.ReportDefinition?.Category == "Administrative")">Administrative</option>
+                            <option value="Custom" selected="@(Model.ReportDefinition?.Category == "Custom")">Custom</option>
+                        </select>
+                    </div>
+                    <label class="rb-sidebar-checkbox" for="reportPublic">
+                        <input type="checkbox" id="reportPublic"
+                               checked="@(Model.ReportDefinition?.IsPublic ?? false)">
+                        <span>Public report</span>
+                    </label>
+                    <div class="rb-sidebar-actions">
+                        <button type="button" class="rb-toolbar-btn" id="btnPreview">Refresh Preview</button>
+                        <button type="button" class="rb-toolbar-btn primary" id="btnSave">Save Report</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Audit Information Section -->
+            <div class="rb-panel-section">
+                <div class="rb-panel-header">
+                    <span>History</span>
+                </div>
+                <div class="rb-panel-body rb-audit-list">
+                    <div class="rb-audit-row">
+                        <span class="rb-audit-label">Created by</span>
+                        <span class="rb-audit-value">@Model.CreatedByDisplayName</span>
+                    </div>
+                    <div class="rb-audit-row">
+                        <span class="rb-audit-label">Created</span>
+                        @if (Model.ReportDefinition != null)
+                        {
+                            <time class="rb-audit-value js-local-time"
+                                  datetime="@Model.ReportDefinition.CreatedAt.ToString("O")">
+                                @Model.ReportDefinition.CreatedAt.ToString("dd MMM yyyy, HH:mm") UTC
+                            </time>
+                        }
+                        else
+                        {
+                            <span class="rb-audit-value">After first save</span>
+                        }
+                    </div>
+                    <div class="rb-audit-row">
+                        <span class="rb-info-label">Last changed by</span>
+                        <span class="rb-audit-value">@Model.ModifiedByDisplayName</span>
+                    </div>
+                    <div class="rb-audit-row">
+                        <span class="rb-audit-label">Last changed</span>
+                        @if (Model.ReportDefinition != null)
+                        {
+                            var lastChangedAt = Model.ReportDefinition.ModifiedAt ?? Model.ReportDefinition.CreatedAt;
+                            <time class="rb-audit-value js-local-time"
+                                  datetime="@lastChangedAt.ToString("O")">
+                                @lastChangedAt.ToString("dd MMM yyyy, HH:mm") UTC
+                            </time>
+                        }
+                        else
+                        {
+                            <span class="rb-audit-value">Not yet saved</span>
+                        }
+                    </div>
+                    <div class="rb-audit-row">
+                        <span class="rb-audit-label">Last run</span>
+                        @if (Model.ReportDefinition?.LastRunDate != null)
+                        {
+                            <time class="rb-audit-value js-local-time"
+                                  datetime="@Model.ReportDefinition.LastRunDate.Value.ToString("O")">
+                                @Model.ReportDefinition.LastRunDate.Value.ToString("dd MMM yyyy, HH:mm") UTC
+                            </time>
+                        }
+                        else
+                        {
+                            <span class="rb-audit-value">Never</span>
+                        }
+                    </div>
+                    <div class="rb-audit-row">
+                        <span class="rb-audit-label">Run count</span>
+                        <span class="rb-audit-value">@(Model.ReportDefinition?.RunCount ?? 0)</span>
+                    </div>
+                </div>
+            </div>
+
             <!-- Report Info Section -->
             <div class="rb-panel-section">
                 <div class="rb-panel-header">
@@ -79,9 +184,6 @@
                                 <optgroup label="Flattened Views">
                                     <option value="CaseContactTasksFlattened" selected="@(Model.EntityType == "CaseContactTasksFlattened")">Case Tasks + Transmission Chains</option>
                                     <option value="OutbreakTasksFlattened" selected="@(Model.EntityType == "OutbreakTasksFlattened")">Outbreak Tasks</option>
-                                    <option value="CaseTimelineAll" selected="@(Model.EntityType == "CaseTimelineAll")">Case Timeline</option>
-                                    <option value="ContactTracingMindMapNodes" selected="@(Model.EntityType == "ContactTracingMindMapNodes")">Network Nodes</option>
-                                    <option value="ContactTracingMindMapEdges" selected="@(Model.EntityType == "ContactTracingMindMapEdges")">Network Edges</option>
                                     <option value="ContactsListSimple" selected="@(Model.EntityType == "ContactsListSimple")">Contacts List</option>
                                 </optgroup>
                             </select>
@@ -129,9 +231,6 @@
                 <div class="rb-tab active" data-tab="configure">
                     <span>Configure</span>
                 </div>
-                <div class="rb-tab" data-tab="preview">
-                    <span>Preview</span>
-                </div>
                 <div class="rb-tab" data-tab="pivot">
                     <span>Pivot</span>
                 </div>
@@ -148,7 +247,10 @@
                         </div>
                         <div class="rb-pane-content">
                             <!-- Filters Section -->
-                            <div class="rb-section-header">Filters</div>
+                            <div class="rb-section-header" style="display: flex; justify-content: space-between; align-items: center;">
+                                <span>Filters</span>
+                                <button type="button" class="rb-section-add-btn" id="btnAddFilterInline" title="Add Filter">+ Add</button>
+                            </div>
                             <div class="rb-list-view" id="filters">
                                 <div class="rb-empty-state">
                                     <div class="rb-empty-state-text">No filters applied</div>
@@ -156,7 +258,10 @@
                             </div>
 
                             <!-- Collection Queries Section -->
-                            <div class="rb-section-header" style="margin-top: 16px;">Collection Queries</div>
+                            <div class="rb-section-header" style="margin-top: 16px; display: flex; justify-content: space-between; align-items: center;">
+                                <span>Collection Queries</span>
+                                <button type="button" class="rb-section-add-btn" id="btnAddCollectionInline" title="Add Collection Query">+ Add</button>
+                            </div>
                             <div class="rb-list-view" id="collectionQueries">
                                 <div class="rb-empty-state">
                                     <div class="rb-empty-state-text">No collection queries</div>
@@ -195,70 +300,9 @@
                     </div>
                 </div>
 
-                <!-- Report Metadata (Bottom Bar) -->
-                <div class="rb-config-footer">
-                    <div class="rb-footer-group">
-                        <label class="rb-footer-label">Name</label>
-                        <input type="text" id="reportName" 
-                               placeholder="Enter report name..." 
-                               value="@Model.ReportDefinition?.Name"
-                               class="rb-footer-input">
-                    </div>
-                    <div class="rb-footer-group">
-                        <label class="rb-footer-label">Description</label>
-                        <input type="text" id="reportDescription" 
-                               placeholder="Enter report description..."
-                               value="@Model.ReportDefinition?.Description"
-                               class="rb-footer-input" style="flex: 2;">
-                    </div>
-                    <div class="rb-footer-group">
-                        <label class="rb-footer-label">Category</label>
-                        <select id="reportCategory" class="rb-footer-input">
-                            <option value="">Select category...</option>
-                            <option value="Operational" selected="@(Model.ReportDefinition?.Category == "Operational")">Operational</option>
-                            <option value="Surveillance" selected="@(Model.ReportDefinition?.Category == "Surveillance")">Surveillance</option>
-                            <option value="Epidemiological" selected="@(Model.ReportDefinition?.Category == "Epidemiological")">Epidemiological</option>
-                            <option value="Administrative" selected="@(Model.ReportDefinition?.Category == "Administrative")">Administrative</option>
-                            <option value="Custom" selected="@(Model.ReportDefinition?.Category == "Custom")">Custom</option>
-                        </select>
-                    </div>
-                    <div class="rb-footer-group">
-                        <label class="rb-footer-label" style="display: flex; align-items: center; gap: 8px;">
-                            <input type="checkbox" id="reportPublic" 
-                                   checked="@(Model.ReportDefinition?.IsPublic ?? false)"
-                                   style="width: auto; height: auto;">
-                            <span>Public Report</span>
-                        </label>
-                    </div>
-                    <div class="rb-footer-actions">
-                        <button type="button" class="rb-toolbar-btn primary" id="btnPreview">Preview</button>
-                        <button type="button" class="rb-toolbar-btn primary" id="btnSave">Save Report</button>
-                    </div>
-                </div>
             </div>
 
-            <!-- Tab 2: Preview -->
-            <div class="rb-tab-content" id="tabPreview">
-                <div class="rb-pane-toolbar">
-                    <span>Data Preview <span class="rb-text-muted" id="previewTabRecordCount"></span></span>
-                    <div class="rb-toolbar-actions">
-                        <button type="button" class="rb-toolbar-btn" id="btnRefreshPreviewTab">Refresh</button>
-                        <button type="button" class="rb-toolbar-btn" id="btnExportPreviewTab">Export Preview</button>
-                    </div>
-                </div>
-                <div class="rb-pane-content no-padding">
-                    <div class="rb-data-grid">
-                        <div class="rb-grid-wrapper" id="previewTabContainer">
-                            <div class="rb-empty-state">
-                                <div class="rb-empty-state-title">No Preview Data</div>
-                                <div class="rb-empty-state-text">Select fields and click Preview</div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Tab 3: Pivot Analysis -->
+            <!-- Tab 2: Pivot Analysis -->
             <div class="rb-tab-content" id="tabPivot">
                 <div class="rb-pane-toolbar">
                     <span>Pivot Analysis <span class="rb-text-muted" id="pivotRecordCount"></span></span>
@@ -321,6 +365,7 @@
 <script src="https://cdn.webdatarocks.com/latest/webdatarocks.js"></script>
 <script src="~/js/webdatarocks-helper.js?v=@DateTime.UtcNow.Ticks"></script>
 <script src="~/js/webdatarocks-debug.js?v=@DateTime.UtcNow.Ticks"></script>
+<script src="~/js/report-builder-notifications.js?v=@DateTime.UtcNow.Ticks"></script>
 <script src="~/js/report-builder.js?v=@DateTime.UtcNow.Ticks"></script>
 <script src="~/js/report-builder-collections.js?v=@DateTime.UtcNow.Ticks"></script>
 <script src="~/js/report-builder-actions.js?v=@DateTime.UtcNow.Ticks"></script>
@@ -406,24 +451,6 @@
             });
         }
 
-        // Preview tab handling
-        const previewTab = document.querySelector('[data-tab="preview"]');
-        if (previewTab) {
-            previewTab.addEventListener('click', function() {
-                console.log('📊 Preview tab clicked');
-                // Auto-load preview if we have fields selected
-                const hasFields = ReportBuilder && ReportBuilder.state && ReportBuilder.state.fields.length > 0;
-                if (hasFields) {
-                    setTimeout(() => {
-                        if (typeof ReportBuilder.preview === 'function') {
-                            console.log('🔄 Auto-loading preview...');
-                            ReportBuilder.preview();
-                        }
-                    }, 100);
-                }
-            });
-        }
-
         // Pivot tab handling
         const pivotTab = document.querySelector('[data-tab="pivot"]');
         if (pivotTab) {
@@ -452,17 +479,6 @@
             });
         }
 
-        // Refresh preview button (Preview tab)
-        const btnRefreshPreviewTab = document.getElementById('btnRefreshPreviewTab');
-        if (btnRefreshPreviewTab) {
-            btnRefreshPreviewTab.addEventListener('click', () => {
-                console.log('🔄 Manual preview refresh (Preview tab)');
-                if (typeof ReportBuilder.preview === 'function') {
-                    ReportBuilder.preview();
-                }
-            });
-        }
-
         // Refresh pivot button
         const btnRefreshPivot = document.getElementById('btnRefreshPivot');
         if (btnRefreshPivot) {
@@ -484,6 +500,20 @@
                 }
             });
         }
+
+        document.querySelectorAll('.js-local-time').forEach(timeElement => {
+            const value = new Date(timeElement.dateTime);
+            if (!Number.isNaN(value.getTime())) {
+                timeElement.textContent = value.toLocaleString([], {
+                    dateStyle: 'medium',
+                    timeStyle: 'short'
+                });
+                timeElement.title = value.toLocaleString([], {
+                    dateStyle: 'full',
+                    timeStyle: 'long'
+                });
+            }
+        });
 
         console.log('✅ DOM event listeners attached');
     });

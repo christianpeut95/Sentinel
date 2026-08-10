@@ -19,7 +19,7 @@ ReportBuilder.addCollectionQuery = async function() {
     const collections = await this.getAvailableCollections(entityType);
 
     if (collections.length === 0) {
-        alert('No related collections available for this entity type');
+        ReportBuilderNotifications.showToast('No related collections available for this entity type', 'info');
         return;
     }
 
@@ -358,11 +358,22 @@ ReportBuilder.updateCollectionFields = async function(queryId) {
             console.error('[updateCollectionFields] Field API request failed:', fieldResponse.status);
         }
 
+        // Clear existing sub-filters since collection type changed
+        const subfiltersContainer = document.getElementById(`subfilters-${queryId}`);
+        if (subfiltersContainer) {
+            subfiltersContainer.innerHTML = '<div class="rb-empty-state-sm">No sub-filters</div>';
+            const query = this.collectionQueries.find(q => q.id === queryId);
+            if (query) {
+                query.subFilters = [];
+            }
+            console.log('[updateCollectionFields] Cleared existing sub-filters for new collection type');
+        }
+
         await this.updateCollectionOperator(queryId);
 
     } catch (error) {
         console.error('[updateCollectionFields] ❌ Error:', error);
-        alert('Failed to load collection metadata. Please try again.');
+        ReportBuilderNotifications.showToast('Failed to load collection metadata. Please try again.', 'error', 5000);
     }
 };
 
@@ -464,14 +475,14 @@ ReportBuilder.addCollectionSubFilter = function(queryId) {
     const collectionSelect = document.getElementById(`collection-${queryId}`);
 
     if (!collectionSelect.value) {
-        alert('Please select a collection first');
+        ReportBuilderNotifications.showToast('Please select a collection first', 'warning');
         return;
     }
 
     const query = this.collectionQueries.find(q => q.id === queryId);
 
     if (!query || !query.collectionSubFields || query.collectionSubFields.length === 0) {
-        alert('No fields available for this collection type. Please select a collection first.');
+        ReportBuilderNotifications.showToast('No fields available for this collection type. Please select a collection first.', 'info');
         return;
     }
 
@@ -514,17 +525,10 @@ ReportBuilder.addCollectionSubFilter = function(queryId) {
             </select>
             <select class="rb-subfilter-operator" id="subfilter-operator-${queryId}-${subFilterId}">
                 <option value="Equals">=</option>
-                <option value="NotEquals">!=</option>
-                <option value="Contains">contains</option>
-                <option value="StartsWith">starts with</option>
-                <option value="GreaterThan">&gt;</option>
-                <option value="LessThan">&lt;</option>
-                <option value="GreaterThanOrEqual">&gt;=</option>
-                <option value="LessThanOrEqual">&lt;=</option>
-                <option value="IsNull">is null</option>
-                <option value="IsNotNull">is not null</option>
             </select>
-            <input type="text" class="rb-subfilter-value" id="subfilter-value-${queryId}-${subFilterId}" placeholder="Value">
+            <div class="rb-subfilter-value-container" id="subfilter-value-container-${queryId}-${subFilterId}">
+                <input type="text" class="rb-subfilter-value" id="subfilter-value-${queryId}-${subFilterId}" placeholder="Value">
+            </div>
             <button class="rb-item-action" onclick="ReportBuilder.removeCollectionSubFilter(${queryId}, ${subFilterId})" title="Remove sub-filter">×</button>
         </div>
     `;
@@ -537,6 +541,12 @@ ReportBuilder.addCollectionSubFilter = function(queryId) {
     }
 
     this.setupSubFilterSmartInput(queryId, subFilterId);
+
+    // Initialize operators for the default String type
+    const operatorSelect = document.getElementById(`subfilter-operator-${queryId}-${subFilterId}`);
+    if (operatorSelect) {
+        this.updateOperators(operatorSelect, 'String', false);
+    }
 };
 
 ReportBuilder.setupSubFilterSmartInput = function(queryId, subFilterId) {
@@ -557,7 +567,8 @@ ReportBuilder.setupSubFilterSmartInput = function(queryId, subFilterId) {
 
         console.log('[SubFilter] Field changed to', e.target.value, 'DataType:', dataType, 'Option dataset:', selectedOption.dataset);
 
-        this.updateOperators(operatorSelect, dataType);
+        // Pass false to keep operator dropdown visible for sub-filters
+        this.updateOperators(operatorSelect, dataType, false);
 
         valueContainer.innerHTML = '<input type="text" class="form-control form-control-sm subfilter-value" placeholder="Value">';
         const tempInput = valueContainer.querySelector('input');

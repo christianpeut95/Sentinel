@@ -1,4 +1,6 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Sentinel.Services;
 using System.Threading.Tasks;
 using System.Collections.Generic;
@@ -6,8 +8,10 @@ using System.Linq;
 
 namespace Sentinel.Controllers.Api
 {
+    [Authorize]
     [ApiController]
     [Route("api/location-lookup")]
+    [EnableRateLimiting("lookup-api")] // 200 per minute - geocoding/address lookup
     public class LocationLookupApiController : ControllerBase
     {
         private readonly ILocationLookupService _locationLookup;

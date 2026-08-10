@@ -1,0 +1,170 @@
+@using Sentinel.Data
+@using Microsoft.EntityFrameworkCore
+@inject ApplicationDbContext DbContext
+@inject ILogger<DatabaseConnectionStage> Logger
+
+<div class="stage-card">
+    <div class="stage-header">
+        <h2><i class="bi bi-database"></i> Database Connection</h2>
+        <p>Verify your database connection is working properly.</p>
+    </div>
+
+    <div class="stage-body">
+        @if (_testResult != null)
+        {
+            @if (_testResult.Success)
+            {
+                <div class="alert alert-success">
+                    <i class="bi bi-check-circle-fill"></i>
+                    <strong>Database connection successful!</strong>
+                    <br />
+                    <small>@_testResult.Message</small>
+                </div>
+            }
+            else
+            {
+                <div class="alert alert-danger">
+                    <i class="bi bi-exclamation-triangle-fill"></i>
+                    <strong>Connection failed</strong>
+                    <br />
+                    <small>@_testResult.Message</small>
+                </div>
+            }
+        }
+        else
+        {
+            <div class="alert alert-info">
+                <i class="bi bi-info-circle"></i>
+                Your connection string is configured in appsettings.json. Click "Test Connection" to verify.
+            </div>
+        }
+
+        <div class="form-group">
+            <label class="form-label">Connection String</label>
+            <textarea class="form-control" rows="3" readonly>@_connectionString</textarea>
+            <span class="form-text">Configured in appsettings.json</span>
+        </div>
+
+        <button type="button" class="btn btn-secondary" @onclick="TestConnection" disabled="@_isTesting">
+            @if (_isTesting)
+            {
+                <span class="spinner"></span>
+                <span>Testing...</span>
+            }
+            else
+            {
+                <i class="bi bi-plug"></i>
+                <span>Test Connection</span>
+            }
+        </button>
+    </div>
+
+    <div class="stage-actions">
+        <div></div>
+        <button type="button" class="btn btn-primary" @onclick="HandleNext" disabled="@(!_testResult?.Success ?? true)">
+            <span>Next</span>
+            <i class="bi bi-arrow-right"></i>
+        </button>
+    </div>
+</div>
+
+@code {
+    [Parameter] public EventCallback OnNext { get; set; }
+    [Parameter] public EventCallback OnPrevious { get; set; }
+
+    private string _connectionString = "";
+    private bool _isTesting = false;
+    private TestResult? _testResult;
+
+    protected override void OnInitialized()
+    {
+        // Mask the connection string for display
+        var fullConnectionString = DbContext.Database.GetConnectionString() ?? "";
+        _connectionString = MaskConnectionString(fullConnectionString);
+    }
+
+    private async Task TestConnection()
+    {
+        _isTesting = true;
+        _testResult = null;
+        StateHasChanged();
+
+        try
+        {
+            var canConnect = await DbContext.Database.CanConnectAsync();
+
+            if (canConnect)
+            {
+                var pendingMigrations = await DbContext.Database.GetPendingMigrationsAsync();
+                var hasPending = pendingMigrations.Any();
+
+                _testResult = new TestResult
+                {
+                    Success = true,
+                    Message = hasPending 
+                        ? $"Connected successfully. {pendingMigrations.Count()} pending migration(s) will be applied automatically."
+                        : "Connected successfully. Database is up to date."
+                };
+
+                Logger.LogInformation("Database connection test successful");
+            }
+            else
+            {
+                _testResult = new TestResult
+                {
+                    Success = false,
+                    Message = "Unable to connect to the database. Please check your connection string in appsettings.json."
+                };
+
+                Logger.LogWarning("Database connection test failed");
+            }
+        }
+        catch (Exception ex)
+        {
+            _testResult = new TestResult
+            {
+                Success = false,
+                Message = $"Connection error: {ex.Message}"
+            };
+
+            Logger.LogError(ex, "Database connection test failed with exception");
+        }
+        finally
+        {
+            _isTesting = false;
+            StateHasChanged();
+        }
+    }
+
+    private string MaskConnectionString(string connectionString)
+    {
+        // Mask sensitive parts of the connection string
+        var parts = connectionString.Split(';');
+        var masked = parts.Select(part =>
+        {
+            if (part.Contains("Password", StringComparison.OrdinalIgnoreCase) ||
+                part.Contains("Pwd", StringComparison.OrdinalIgnoreCase))
+            {
+                var keyValue = part.Split('=');
+                if (keyValue.Length == 2)
+                {
+                    return $"{keyValue[0]}=********";
+                }
+            }
+            return part;
+        });
+
+        return string.Join(";", masked);
+    }
+
+    private async Task HandleNext()
+    {
+        await OnNext.InvokeAsync();
+    }
+
+    private class TestResult
+    {
+        public bool Success { get; set; }
+        public string Message { get; set; } = "";
+    }
+}
