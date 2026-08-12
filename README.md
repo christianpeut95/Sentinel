@@ -475,6 +475,4 @@ Built with: ASP.NET Core, Entity Framework Core, SurveyJS, AG Grid, WebDataRocks
 
 Design system typefaces: [Geist Sans](https://vercel.com/font) and Geist Mono by Vercel.
 
----
 
-*Built with love for public health*
