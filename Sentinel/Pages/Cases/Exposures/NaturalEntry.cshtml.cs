@@ -8,6 +8,7 @@ using Sentinel.Models;
 namespace Sentinel.Pages.Cases.Exposures
 {
     [Authorize(Policy = "Permission.Exposure.Create")]
+    [Authorize(Policy = "Permission.Case.Edit")]
     public class NaturalEntryModel : PageModel
     {
         private readonly ApplicationDbContext _context;

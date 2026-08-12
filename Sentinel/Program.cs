@@ -8,11 +8,40 @@ using AntDesign;
 using System.Text.Json;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
 using System.Threading.RateLimiting;
+using Serilog;
+using Serilog.Events;
+using Serilog.Formatting.Compact;
+using Serilog.Sinks.MSSqlServer;
+
+// Configure Serilog before creating the builder (file logging only for now)
+Log.Logger = new LoggerConfiguration()
+    .MinimumLevel.Information()
+    .MinimumLevel.Override("Microsoft", LogEventLevel.Warning)
+    .MinimumLevel.Override("Microsoft.Hosting.Lifetime", LogEventLevel.Information)
+    .MinimumLevel.Override("System", LogEventLevel.Warning)
+    .Enrich.FromLogContext()
+    .Enrich.WithMachineName()
+    .Enrich.WithThreadId()
+    .Enrich.WithEnvironmentName()
+    .WriteTo.Console()
+    .WriteTo.File(
+        new CompactJsonFormatter(),
+        path: "logs/sentinel-.json",
+        rollingInterval: RollingInterval.Day,
+        retainedFileCountLimit: 30,
+        fileSizeLimitBytes: 100_000_000, // 100MB
+        rollOnFileSizeLimit: true)
+    .WriteTo.File(
+        path: "logs/sentinel-.txt",
+        rollingInterval: RollingInterval.Day,
+        retainedFileCountLimit: 30,
+        outputTemplate: "{Timestamp:yyyy-MM-dd HH:mm:ss.fff zzz} [{Level:u3}] {Message:lj}{NewLine}{Exception}")
+    .CreateLogger();
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Set demo mode flag from configuration (drives version display, demo UI, etc.)
-Sentinel.Constants.AppVersion.IsDemoMode = builder.Configuration.GetValue<bool>("Demo:EnableDemoMode");
+// Use Serilog for all logging
+builder.Host.UseSerilog();
 
 // Environment variable overrides for sensitive configuration
 // Priority: Environment Variables > appsettings.json
@@ -58,6 +87,39 @@ builder.Services.Configure<Microsoft.AspNetCore.Http.Features.FormOptions>(optio
 // Database
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
     ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
+
+// Now that we have the connection string, add SQL Server sink to Serilog
+Log.Logger = new LoggerConfiguration()
+    .MinimumLevel.Information()
+    .MinimumLevel.Override("Microsoft", LogEventLevel.Warning)
+    .MinimumLevel.Override("Microsoft.Hosting.Lifetime", LogEventLevel.Information)
+    .MinimumLevel.Override("System", LogEventLevel.Warning)
+    .Enrich.FromLogContext()
+    .Enrich.WithMachineName()
+    .Enrich.WithThreadId()
+    .Enrich.WithEnvironmentName()
+    .WriteTo.Console()
+    .WriteTo.File(
+        new CompactJsonFormatter(),
+        path: "logs/sentinel-.json",
+        rollingInterval: RollingInterval.Day,
+        retainedFileCountLimit: 30,
+        fileSizeLimitBytes: 100_000_000, // 100MB
+        rollOnFileSizeLimit: true)
+    .WriteTo.File(
+        path: "logs/sentinel-.txt",
+        rollingInterval: RollingInterval.Day,
+        retainedFileCountLimit: 30,
+        outputTemplate: "{Timestamp:yyyy-MM-dd HH:mm:ss.fff zzz} [{Level:u3}] {Message:lj}{NewLine}{Exception}")
+    .WriteTo.MSSqlServer(
+        connectionString: connectionString,
+        sinkOptions: new MSSqlServerSinkOptions
+        {
+            TableName = "SentinelLogs",
+            SchemaName = "dbo",
+            AutoCreateSqlTable = true
+        })
+    .CreateLogger();
 
 // Register the CaseCreationInterceptor (must be registered before DbContext)
 builder.Services.AddSingleton<CaseCreationInterceptor>();
@@ -275,6 +337,20 @@ builder.Services.AddSingleton<Sentinel.Services.IEncryptionService, Sentinel.Ser
 
 // System settings service
 builder.Services.AddScoped<Sentinel.Services.ISystemSettingsService, Sentinel.Services.SystemSettingsService>();
+builder.Services.AddSingleton<Sentinel.Services.IApplicationVersionProvider, Sentinel.Services.ApplicationVersionProvider>();
+
+// Telemetry service for privacy-safe logging and metrics
+builder.Services.AddSingleton<Sentinel.Services.Telemetry.ITelemetryService, Sentinel.Services.Telemetry.TelemetryService>();
+
+// Usage monitoring services
+builder.Services.AddSingleton<Sentinel.Services.Telemetry.ActivityTracker>();
+builder.Services.AddScoped<Sentinel.Services.Telemetry.UsageSnapshotBuilder>();
+builder.Services.AddHttpClient<Sentinel.Services.Telemetry.UsageReportClient>();
+builder.Services.AddHostedService<Sentinel.Services.Telemetry.UsageMonitoringHostedService>();
+
+// Error reporting services
+builder.Services.AddSingleton<Sentinel.Services.Telemetry.BreadcrumbTracker>();
+builder.Services.AddHttpClient<Sentinel.Services.Telemetry.ErrorReportClient>();
 
 // Email service - use Mock in Development, Smtp in Production
 if (builder.Environment.IsDevelopment())
@@ -299,6 +375,9 @@ builder.Services.AddScoped<Sentinel.Services.IPatientIdGeneratorService, Sentine
 builder.Services.AddScoped<Sentinel.Services.ICaseIdGeneratorService, Sentinel.Services.CaseIdGeneratorService>();
 builder.Services.AddScoped<Sentinel.Services.IPermissionService, Sentinel.Services.PermissionService>();
 builder.Services.AddScoped<Sentinel.Services.IDiseaseAccessService, Sentinel.Services.DiseaseAccessService>();
+builder.Services.AddScoped<Sentinel.Services.ICaseAccessService, Sentinel.Services.CaseAccessService>();
+builder.Services.AddSingleton<Sentinel.Services.IProtectedFileStorageService, Sentinel.Services.ProtectedFileStorageService>();
+builder.Services.AddHostedService<Sentinel.Services.ProtectedFileStorageMigrationService>();
 builder.Services.AddScoped<Sentinel.Services.CustomFieldService>();
 builder.Services.AddScoped<Sentinel.Services.ITaskService, Sentinel.Services.TaskService>();
 builder.Services.AddScoped<Sentinel.Services.ITaskAssignmentService, Sentinel.Services.TaskAssignmentService>();
@@ -310,6 +389,11 @@ builder.Services.AddScoped<Sentinel.Services.IJurisdictionService, Sentinel.Serv
 builder.Services.AddScoped<Sentinel.Services.Reporting.IReportFieldMetadataService, Sentinel.Services.Reporting.ReportFieldMetadataService>();
 builder.Services.AddScoped<Sentinel.Services.Reporting.IReportDataService, Sentinel.Services.Reporting.ReportDataService>();
 builder.Services.AddScoped<Sentinel.Services.Reporting.CollectionQueryFilterBuilder>();
+
+// Feedback Services
+builder.Services.AddScoped<Sentinel.Services.Telemetry.SystemInfoProvider>();
+builder.Services.AddScoped<Sentinel.Services.Feedback.DiagnosticsBuilder>();
+builder.Services.AddHttpClient<Sentinel.Services.Feedback.FeedbackApiClient>();
 builder.Services.AddScoped<Sentinel.Services.Reporting.IReportFolderService, Sentinel.Services.Reporting.ReportFolderService>();
 builder.Services.AddScoped<Sentinel.Services.Reporting.ICollectionMetadataService, Sentinel.Services.Reporting.CollectionMetadataService>();
 builder.Services.AddScoped<Sentinel.Services.Reporting.IDynamicDateResolver, Sentinel.Services.Reporting.DynamicDateResolver>();
@@ -411,6 +495,23 @@ else
 app.UseStatusCodePagesWithReExecute("/not-found");
 
 app.UseHttpsRedirection();
+
+// Sensitive data used to be written under wwwroot/uploads and wwwroot/data.
+// Deny those legacy paths before static-file middleware so stale files cannot
+// be retrieved by a guessed URL during or after migration.
+app.Use(async (context, next) =>
+{
+    if (context.Request.Path.StartsWithSegments("/uploads") ||
+        context.Request.Path.StartsWithSegments("/data/timeline-entries") ||
+        context.Request.Path.StartsWithSegments("/data/timeline-backups"))
+    {
+        context.Response.StatusCode = StatusCodes.Status404NotFound;
+        return;
+    }
+
+    await next();
+});
+
 app.UseStaticFiles();
 
 app.UseRouting();
@@ -422,7 +523,13 @@ app.UseSession(); // Add session middleware (must be before authentication)
 // Must come AFTER UseRouting() but BEFORE UseAuthentication()
 app.UseSetupRedirect();
 
-// app.UseRateLimiter(); // Rate limiting middleware - DISABLED FOR TESTING
+app.UseRateLimiter();
+
+// Page view tracking middleware for usage monitoring
+app.UseMiddleware<Sentinel.Middleware.PageViewTrackingMiddleware>();
+
+// Error reporting middleware (captures unhandled exceptions)
+app.UseMiddleware<Sentinel.Middleware.ErrorReportingMiddleware>();
 
 app.UseAuthentication();
 app.UseAuthorization();
@@ -467,7 +574,7 @@ app.MapGet("/api/address-suggest", async (HttpRequest req, Sentinel.Services.ILo
     });
 
     return Results.Json(legacyFormat);
-});
+}).RequireAuthorization();
 
 // Minimal API endpoint for place/business suggestions with location bias (for timeline feature)
 app.MapGet("/api/places-suggest", async (HttpRequest req, Sentinel.Services.ILocationLookupService locationService) =>
@@ -503,7 +610,7 @@ app.MapGet("/api/places-suggest", async (HttpRequest req, Sentinel.Services.ILoc
     });
 
     return Results.Json(formattedResults);
-});
+}).RequireAuthorization();
 
 
 
@@ -543,7 +650,7 @@ app.MapGet("/api/jurisdictions/search", async (string? term, int? typeId, Applic
         .ToListAsync();
 
     return Results.Json(jurisdictions);
-});
+}).RequireAuthorization();
 
 // API endpoint for organization autocomplete
 app.MapGet("/api/organizations/search", async (string term, ApplicationDbContext context) =>
@@ -565,11 +672,14 @@ app.MapGet("/api/organizations/search", async (string term, ApplicationDbContext
         .ToListAsync();
 
     return Results.Json(organizations);
-});
+}).RequireAuthorization();
 
 // API endpoint to get lab results for a case
-app.MapGet("/api/cases/{caseId}/lab-results", async (Guid caseId, ApplicationDbContext context) =>
+app.MapGet("/api/cases/{caseId}/lab-results", async (Guid caseId, ApplicationDbContext context, Sentinel.Services.ICaseAccessService caseAccessService) =>
 {
+    if (!await caseAccessService.CanAccessCaseAsync(caseId))
+        return Results.NotFound();
+
     var labResults = await context.LabResults
         .Include(lr => lr.SpecimenType)
         .Include(lr => lr.ResultUnits)
@@ -599,24 +709,28 @@ app.MapGet("/api/cases/{caseId}/lab-results", async (Guid caseId, ApplicationDbC
         .ToListAsync();
 
     return Results.Json(labResults);
-});
+}).RequireAuthorization("Permission.Case.View");
 
 // API endpoint to delete a lab result
-app.MapDelete("/api/lab-results/{id}", async (Guid id, ApplicationDbContext context) =>
+app.MapDelete("/api/lab-results/{id}", async (Guid id, ApplicationDbContext context, Sentinel.Services.ICaseAccessService caseAccessService) =>
 {
-    var labResult = await context.LabResults.FindAsync(id);
-    if (labResult == null)
+    var labResult = await context.LabResults
+        .FirstOrDefaultAsync(lr => lr.Id == id);
+    if (labResult?.CaseId is not Guid caseId || !await caseAccessService.CanAccessCaseAsync(caseId))
         return Results.NotFound();
 
     context.LabResults.Remove(labResult);
     await context.SaveChangesAsync();
 
     return Results.Ok();
-});
+}).RequireAuthorization("Permission.Laboratory.Delete");
 
 // API endpoint to get exposures for a case
-app.MapGet("/api/cases/{caseId}/exposures", async (Guid caseId, ApplicationDbContext context) =>
+app.MapGet("/api/cases/{caseId}/exposures", async (Guid caseId, ApplicationDbContext context, Sentinel.Services.ICaseAccessService caseAccessService) =>
 {
+    if (!await caseAccessService.CanAccessCaseAsync(caseId))
+        return Results.NotFound();
+
     var exposures = await context.ExposureEvents
         .Include(e => e.Location)
         .Include(e => e.Event)
@@ -635,24 +749,31 @@ app.MapGet("/api/cases/{caseId}/exposures", async (Guid caseId, ApplicationDbCon
         .ToListAsync();
 
     return Results.Json(exposures);
-});
+}).RequireAuthorization("Permission.Exposure.View");
 
 // API endpoint to delete an exposure
-app.MapDelete("/api/exposures/{id}", async (Guid id, ApplicationDbContext context) =>
+app.MapDelete("/api/exposures/{id}", async (Guid id, ApplicationDbContext context, Sentinel.Services.ICaseAccessService caseAccessService) =>
 {
-    var exposure = await context.ExposureEvents.FindAsync(id);
-    if (exposure == null)
+    var exposure = await context.ExposureEvents
+        .FirstOrDefaultAsync(e => e.Id == id);
+    if (exposure == null || !await caseAccessService.CanAccessAllCasesAsync(
+            exposure.SourceCaseId.HasValue
+                ? new[] { exposure.ExposedCaseId, exposure.SourceCaseId.Value }
+                : new[] { exposure.ExposedCaseId }))
         return Results.NotFound();
 
     context.ExposureEvents.Remove(exposure);
     await context.SaveChangesAsync();
 
     return Results.Ok();
-});
+}).RequireAuthorization("Permission.Exposure.Delete");
 
 // API endpoint to get patient address for a case
-app.MapGet("/api/patients/{caseId}/address", async (Guid caseId, ApplicationDbContext context) =>
+app.MapGet("/api/patients/{caseId}/address", async (Guid caseId, ApplicationDbContext context, Sentinel.Services.ICaseAccessService caseAccessService) =>
 {
+    if (!await caseAccessService.CanAccessCaseAsync(caseId))
+        return Results.NotFound();
+
     var caseEntity = await context.Cases
         .Include(c => c.Patient)
         .FirstOrDefaultAsync(c => c.Id == caseId);
@@ -672,7 +793,7 @@ app.MapGet("/api/patients/{caseId}/address", async (Guid caseId, ApplicationDbCo
         latitude = patient.Latitude,
         longitude = patient.Longitude
     });
-});
+}).RequireAuthorization("Permission.Patient.View");
 
 // API endpoint for user autocomplete (for task assignment)
 app.MapGet("/api/users/search", async (string? term, Microsoft.AspNetCore.Identity.UserManager<ApplicationUser> userManager) =>
@@ -693,7 +814,7 @@ app.MapGet("/api/users/search", async (string? term, Microsoft.AspNetCore.Identi
         .ToList();
 
     return Results.Json(users);
-});
+}).RequireAuthorization();
 
 // API endpoint for disease exposure requirements
 app.MapGet("/api/diseases/{id:guid}/exposure-requirements", async (Guid id, IExposureRequirementService service) =>
@@ -712,7 +833,7 @@ app.MapGet("/api/diseases/{id:guid}/exposure-requirements", async (Guid id, IExp
         requireCoordinates = disease?.RequireGeographicCoordinates ?? false,
         allowDomestic = disease?.AllowDomesticAcquisition ?? true
     });
-});
+}).RequireAuthorization();
 
 // API endpoint to reorder case definition criteria
 app.MapPatch("/api/case-definitions/{id:int}/criteria/{criterionId:int}/reorder", async (int id, int criterionId, ApplicationDbContext context, HttpRequest request, ILogger<Program> logger) =>
@@ -781,7 +902,7 @@ app.MapPatch("/api/case-definitions/{id:int}/criteria/{criterionId:int}/reorder"
     logger.LogInformation("Changes saved successfully");
 
     return Results.Ok();
-});
+}).RequireAuthorization("Permission.Settings.Edit");
 
 // API endpoint to move criteria to a different parent
 app.MapPatch("/api/case-definitions/{id:int}/criteria/{criterionId:int}/move-to-parent", async (int id, int criterionId, ApplicationDbContext context, HttpRequest request) =>
@@ -817,7 +938,7 @@ app.MapPatch("/api/case-definitions/{id:int}/criteria/{criterionId:int}/move-to-
     await context.SaveChangesAsync();
 
     return Results.Ok();
-});
+}).RequireAuthorization("Permission.Settings.Edit");
 
 // API endpoint to get a single criterion by ID
 app.MapGet("/api/case-definitions/{id:int}/criteria/{criterionId:int}", async (int id, int criterionId, ApplicationDbContext context) =>
@@ -842,7 +963,7 @@ app.MapGet("/api/case-definitions/{id:int}/criteria/{criterionId:int}", async (i
         displayText = criterion.DisplayText,
         displayOrder = criterion.DisplayOrder
     });
-});
+}).RequireAuthorization("Permission.Settings.Edit");
 
 // API endpoint to update laboratory criterion
 app.MapPut("/api/case-definitions/{id:int}/criteria/{criterionId:int}/laboratory", async (int id, int criterionId, ApplicationDbContext context, HttpRequest request) =>
@@ -929,7 +1050,7 @@ app.MapPut("/api/case-definitions/{id:int}/criteria/{criterionId:int}/laboratory
     await context.SaveChangesAsync();
 
     return Results.Ok(new { success = true, criterionId = criterion.Id });
-});
+}).RequireAuthorization("Permission.Settings.Edit");
 
 // API endpoint to update clinical criterion
 app.MapPut("/api/case-definitions/{id:int}/criteria/{criterionId:int}/clinical", async (int id, int criterionId, ApplicationDbContext context, HttpRequest request) =>
@@ -981,7 +1102,7 @@ app.MapPut("/api/case-definitions/{id:int}/criteria/{criterionId:int}/clinical",
     await context.SaveChangesAsync();
 
     return Results.Ok(new { success = true, criterionId = criterion.Id });
-});
+}).RequireAuthorization("Permission.Settings.Edit");
 
 // API endpoint to update custom field criterion
 app.MapPut("/api/case-definitions/{id:int}/criteria/{criterionId:int}/custom-field", async (int id, int criterionId, ApplicationDbContext context, HttpRequest request) =>
@@ -1027,7 +1148,7 @@ app.MapPut("/api/case-definitions/{id:int}/criteria/{criterionId:int}/custom-fie
     await context.SaveChangesAsync();
 
     return Results.Ok(new { success = true, criterionId = criterion.Id });
-});
+}).RequireAuthorization("Permission.Settings.Edit");
 
 // API endpoint to update case field criterion
 app.MapPut("/api/case-definitions/{id:int}/criteria/{criterionId:int}/case-field", async (int id, int criterionId, ApplicationDbContext context, HttpRequest request) =>
@@ -1064,7 +1185,7 @@ app.MapPut("/api/case-definitions/{id:int}/criteria/{criterionId:int}/case-field
     await context.SaveChangesAsync();
 
     return Results.Ok(new { success = true, criterionId = criterion.Id });
-});
+}).RequireAuthorization("Permission.Settings.Edit");
 
 // Apply migrations and seed data on startup with retry logic
 using (var scope = app.Services.CreateScope())
@@ -1155,7 +1276,7 @@ app.MapGet("/health", async (ApplicationDbContext dbContext) =>
 }).AllowAnonymous();
 
 // Helper method to ensure reporting views exist and are correct
-static async Task EnsureReportingViewsExistAsync(ApplicationDbContext dbContext, ILogger logger)
+static async Task EnsureReportingViewsExistAsync(ApplicationDbContext dbContext, Microsoft.Extensions.Logging.ILogger logger)
 {
     var scriptPath = Path.Combine(AppContext.BaseDirectory, "Scripts", "RecreateReportingViews.sql");
     
@@ -1301,6 +1422,12 @@ using (var scope = app.Services.CreateScope())
         {
             logger.LogInformation("Sentinel setup completed at {CompletedAt}", settings.SetupCompletedAt);
         }
+
+        // Ensure every installation has a stable, persisted identifier before hosted
+        // services begin. This also repairs installations created before InstallationId
+        // was introduced or where it was otherwise missing.
+        var systemSettingsService = scope.ServiceProvider.GetRequiredService<Sentinel.Services.ISystemSettingsService>();
+        await systemSettingsService.GetInstallationIdAsync();
     }
     catch (Exception ex)
     {

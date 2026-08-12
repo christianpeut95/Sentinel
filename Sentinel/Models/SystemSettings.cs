@@ -108,6 +108,46 @@ namespace Sentinel.Models
         [Display(Name = "Surveillance Startup Progress Percentage")]
         public int SurveillanceStartupProgressPercentage { get; set; } = 0;
 
+        // ── User Feedback ────────────────────────────────────────────────────────
+        /// <summary>
+        /// Unique identifier for this Sentinel installation, used to link feedback submissions
+        /// </summary>
+        [Display(Name = "Installation ID")]
+        [StringLength(36)]
+        public string? InstallationId { get; set; }
+
+        /// <summary>
+        /// Enable or disable the feedback widget (opt-out approach, enabled by default)
+        /// </summary>
+        [Display(Name = "Enable Feedback Widget")]
+        public bool EnableFeedbackWidget { get; set; } = true;
+
+        /// <summary>
+        /// Enable or disable anonymous usage statistics collection and hourly reporting
+        /// </summary>
+        [Display(Name = "Enable Anonymous Usage Statistics")]
+        public bool EnableUsageMonitoring { get; set; } = true;
+
+        // -- Telemetry & Logging ----------------------------------------------------
+        [Display(Name = "Enable Telemetry")]
+        public bool TelemetryEnabled { get; set; } = true;
+
+        [Display(Name = "Enable Local Logging")]
+        public bool LocalLoggingEnabled { get; set; } = true;
+
+        [Display(Name = "Log Retention Days")]
+        public int? LogRetentionDays { get; set; } = 30;
+
+        [Display(Name = "Minimum Log Level")]
+        [StringLength(50)]
+        public string? MinimumLogLevel { get; set; } = "Information";
+
+        [Display(Name = "Include User Information")]
+        public bool IncludeUserInformation { get; set; } = true;
+
+        [Display(Name = "Include System Information")]
+        public bool IncludeSystemInformation { get; set; } = true;
+
         // ── Audit Fields ───────────────────────────────────────────
         [Display(Name = "Created At")]
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;

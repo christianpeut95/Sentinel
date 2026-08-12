@@ -1,7 +1,9 @@
 @using Microsoft.AspNetCore.Identity
 @using Sentinel.Models
+@using Sentinel.Services
 @inject UserManager<ApplicationUser> UserManager
 @inject Microsoft.Extensions.Configuration.IConfiguration Configuration
+@inject ISystemSettingsService SystemSettingsService
 @*
   Sentinel Design System Layout v0.2
   Watchful. Modern. Quiet.
@@ -26,6 +28,9 @@
     <!-- Sentinel Design System -->
     <link rel="stylesheet" href="~/css/sentinel-design-system.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+
+    <!-- Feedback Widget -->
+    <link rel="stylesheet" href="~/css/feedback-widget.css" asp-append-version="true" />
     
     <link href="/_content/AntDesign/css/ant-design-blazor.css" rel="stylesheet" />
     
@@ -355,6 +360,16 @@
             }
         });
     </script>
+
+    @* Feedback Widget - Only load if enabled and user is authenticated *@
+    @if (User.Identity?.IsAuthenticated == true)
+    {
+        var settings = await SystemSettingsService.GetSettingsAsync();
+        if (settings?.EnableFeedbackWidget == true)
+        {
+            <script src="~/js/feedback-widget.js" asp-append-version="true"></script>
+        }
+    }
 
     @await RenderSectionAsync("Scripts", required: false)
 </body>

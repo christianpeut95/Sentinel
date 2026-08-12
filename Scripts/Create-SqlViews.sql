@@ -81,7 +81,7 @@ SELECT
         WHEN 1 THEN 'Contact'
         ELSE 'Unknown'
     END AS CaseType,
-    
+
     -- Transmission chain (simplified - not recursive)
     0 AS GenerationNumber,
     c.CaseNumber AS TransmissionChainPath,
@@ -89,33 +89,33 @@ SELECT
         WHEN ee.SourceCaseId IS NOT NULL THEN csrc.CaseNumber
         ELSE NULL
     END AS TransmittedByCase,
-    
+
     -- Case details
     c.DateOfOnset,
     c.DateOfNotification,
     cs.Name AS CaseStatus,
-    
+
     -- Patient information
     p.Id AS PatientId,
-    CONCAT(p.FirstName, ' ', p.LastName) AS PatientName,
-    p.FirstName AS PatientFirstName,
-    p.LastName AS PatientLastName,
+    CONCAT(p.GivenName, ' ', p.FamilyName) AS PatientName,
+    p.GivenName AS PatientFirstName,
+    p.FamilyName AS PatientLastName,
     p.DateOfBirth AS PatientDOB,
     DATEDIFF(YEAR, p.DateOfBirth, COALESCE(c.DateOfOnset, c.CreatedAt)) AS AgeAtOnset,
-    p.Suburb AS PatientSuburb,
-    p.State AS PatientState,
-    p.Mobile AS PatientMobile,
-    p.Email AS PatientEmail,
-    
+    p.City AS PatientSuburb,
+    st.Name AS PatientState,
+    p.MobilePhone AS PatientMobile,
+    p.EmailAddress AS PatientEmail,
+
     -- Disease
     d.Name AS DiseaseName,
     d.Code AS DiseaseCode,
-    
+
     -- Jurisdiction
     j1.Name AS Jurisdiction1,
     j2.Name AS Jurisdiction2,
     j3.Name AS Jurisdiction3,
-    
+
     -- Exposure details
     ee.Id AS ExposureEventId,
     CASE 
@@ -124,26 +124,26 @@ SELECT
         WHEN ee.ExposureTypeEnum = 2 THEN 'Contact'
         ELSE 'Unknown'
     END AS ExposureType,
-    
+
     CASE 
         WHEN ee.ExposureStatusEnum = 0 THEN 'Suspected'
         WHEN ee.ExposureStatusEnum = 1 THEN 'Probable'
         WHEN ee.ExposureStatusEnum = 2 THEN 'Confirmed'
         ELSE NULL
     END AS ExposureStatusDisplay,
-    
+
     ee.ExposureDate,
     ee.ExposureLocation,
-    
+
     cc.Name AS ContactClassification,
-    
+
     CASE 
         WHEN ee.ConfidenceLevelEnum = 0 THEN 'Low'
         WHEN ee.ConfidenceLevelEnum = 1 THEN 'Medium'
         WHEN ee.ConfidenceLevelEnum = 2 THEN 'High'
         ELSE NULL
     END AS ConfidenceLevel,
-    
+
     -- Task details (one row per task)
     t.Id AS TaskId,
     t.Title AS TaskTitle,
@@ -156,25 +156,26 @@ SELECT
         WHEN 4 THEN 'Cancelled'
         ELSE 'Unknown'
     END AS TaskStatus,
-    
+
     t.DueDate AS TaskDueDate,
     t.CompletedDate AS TaskCompletedDate,
     t.CreatedAt AS TaskCreatedAt,
-    
+
     CONCAT(uAssigned.FirstName, ' ', uAssigned.LastName) AS AssignedToName,
     uAssigned.Email AS AssignedToEmail,
-    
+
     CASE t.AssignmentTypeEnum
         WHEN 0 THEN 'User'
         WHEN 1 THEN 'Group'
         WHEN 2 THEN 'Role'
         ELSE 'Unknown'
     END AS AssignmentType,
-    
+
     c.CreatedAt AS CaseCreatedAt,
     c.UpdatedAt AS CaseUpdatedAt
 FROM Cases c
 INNER JOIN Patients p ON c.PatientId = p.Id
+LEFT JOIN States st ON p.StateId = st.Id
 LEFT JOIN Diseases d ON c.DiseaseId = d.Id
 LEFT JOIN CaseStatuses cs ON c.CaseStatusId = cs.Id
 LEFT JOIN ExposureEvents ee ON c.ExposureEventId = ee.Id

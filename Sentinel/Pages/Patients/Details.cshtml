@@ -521,7 +521,7 @@
                         @if (!string.IsNullOrEmpty(note.AttachmentFileName))
                         {
                             <div class="mt-2">
-                                <a href="@note.AttachmentPath" target="_blank" class="btn-sentinel-secondary" style="padding: 4px 10px; font-size: 12px;">
+                                <a href="/attachments/notes/@note.Id" class="btn-sentinel-secondary" style="padding: 4px 10px; font-size: 12px;">
                                     <i class="bi bi-paperclip"></i> @note.AttachmentFileName
                                 </a>
                             </div>
@@ -602,7 +602,7 @@
                         @if (!string.IsNullOrEmpty(note.AttachmentFileName))
                         {
                             <div class="mt-2">
-                                <a href="@note.AttachmentPath" target="_blank" class="btn-sentinel-secondary" style="padding: 4px 10px; font-size: 12px;">
+                                <a href="/attachments/notes/@note.Id" class="btn-sentinel-secondary" style="padding: 4px 10px; font-size: 12px;">
                                     <i class="bi bi-paperclip"></i> @note.AttachmentFileName
                                 </a>
                             </div>

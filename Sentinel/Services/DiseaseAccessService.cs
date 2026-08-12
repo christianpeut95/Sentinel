@@ -21,6 +21,7 @@ namespace Sentinel.Services
         {
             // 1. Check if disease exists and get its access level with parent info
             var disease = await _context.Diseases
+                .IgnoreQueryFilters()
                 .Include(d => d.ParentDisease)
                 .FirstOrDefaultAsync(d => d.Id == diseaseId);
                 
@@ -49,6 +50,7 @@ namespace Sentinel.Services
                 if (diseaseToCheck.ParentDiseaseId.HasValue)
                 {
                     diseaseToCheck = await _context.Diseases
+                        .IgnoreQueryFilters()
                         .Include(d => d.ParentDisease)
                         .FirstOrDefaultAsync(d => d.Id == diseaseToCheck.ParentDiseaseId.Value);
                 }
@@ -107,6 +109,7 @@ namespace Sentinel.Services
         {
             // Get all diseases with their parent information
             var allDiseases = await _context.Diseases
+                .IgnoreQueryFilters()
                 .Include(d => d.ParentDisease)
                 .ToListAsync();
 
@@ -380,6 +383,7 @@ namespace Sentinel.Services
             
             // Get immediate children
             var children = await _context.Diseases
+                .IgnoreQueryFilters()
                 .Where(d => d.ParentDiseaseId == parentDiseaseId)
                 .Select(d => d.Id)
                 .ToListAsync();

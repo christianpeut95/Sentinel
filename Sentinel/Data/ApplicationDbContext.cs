@@ -1146,12 +1146,48 @@ namespace Sentinel.Data
 
             // Global Query Filters for Soft Delete
             builder.Entity<Patient>().HasQueryFilter(p => !p.IsDeleted);
-            builder.Entity<LabResult>().HasQueryFilter(lr => !lr.IsDeleted);
-            builder.Entity<Note>().HasQueryFilter(n => !n.IsDeleted);
+            // Case-scoped children must honour the same disease boundary as their parent case.
+            // Unassigned laboratory results are retained for internal HL7 processing only.
+            builder.Entity<LabResult>().HasQueryFilter(lr =>
+                !lr.IsDeleted &&
+                (lr.CaseId == null || lr.Case != null));
+            builder.Entity<LabResultMarker>().HasQueryFilter(m =>
+                !m.IsDeleted &&
+                m.LabResult != null);
+            builder.Entity<LabResultMarkerHistory>().HasQueryFilter(h =>
+                h.LabResultMarker != null &&
+                h.HL7Message != null);
+            builder.Entity<Note>().HasQueryFilter(n =>
+                !n.IsDeleted &&
+                (n.CaseId == null || n.Case != null));
             builder.Entity<Symptom>().HasQueryFilter(s => !s.IsDeleted);
-            builder.Entity<CaseSymptom>().HasQueryFilter(cs => !cs.IsDeleted);
+            builder.Entity<CaseSymptom>().HasQueryFilter(cs =>
+                !cs.IsDeleted &&
+                cs.Case != null);
             builder.Entity<DiseaseSymptom>().HasQueryFilter(ds => !ds.IsDeleted);
-            builder.Entity<ExposureEvent>().HasQueryFilter(ee => !ee.IsDeleted);
+            // Exposure content can disclose details of both the exposed and source cases.
+            // Do not return it unless every linked case is visible to the current request.
+            builder.Entity<ExposureEvent>().HasQueryFilter(ee =>
+                !ee.IsDeleted &&
+                ee.ExposedCase != null &&
+                (ee.SourceCaseId == null || ee.SourceCase != null));
+            builder.Entity<CaseTask>().HasQueryFilter(ct => ct.Case != null);
+            builder.Entity<TaskCallAttempt>().HasQueryFilter(a => a.Task != null);
+            builder.Entity<CaseClassificationHistory>().HasQueryFilter(cch => cch.Case != null);
+            builder.Entity<OutbreakCase>().HasQueryFilter(oc => oc.Case != null);
+            builder.Entity<CaseCustomFieldString>().HasQueryFilter(cf => cf.Case != null);
+            builder.Entity<CaseCustomFieldNumber>().HasQueryFilter(cf => cf.Case != null);
+            builder.Entity<CaseCustomFieldDate>().HasQueryFilter(cf => cf.Case != null);
+            builder.Entity<CaseCustomFieldBoolean>().HasQueryFilter(cf => cf.Case != null);
+            builder.Entity<CaseCustomFieldLookup>().HasQueryFilter(cf => cf.Case != null);
+            builder.Entity<ReviewQueue>().HasQueryFilter(rq =>
+                (rq.CaseId == null || rq.Case != null) &&
+                (rq.DiseaseId == null || rq.Disease != null) &&
+                (rq.TaskId == null || rq.Task != null));
+            builder.Entity<SurveySubmissionLog>().HasQueryFilter(sl =>
+                (sl.CaseId == null || sl.Case != null) &&
+                (sl.TaskId == null || sl.Task != null) &&
+                (sl.ReviewQueueItemId == null || sl.ReviewQueueItem != null));
 
             // Global Query Filter for Case - combines soft delete AND disease access control
             builder.Entity<Case>().HasQueryFilter(c => 
@@ -1160,16 +1196,16 @@ namespace Sentinel.Data
                  c.Disease!.AccessLevel == DiseaseAccessLevel.Public ||
                  _httpContextAccessor == null ||
                  _httpContextAccessor.HttpContext == null ||
-                 _httpContextAccessor.HttpContext.Items["AccessibleDiseaseIds"] == null ||
-                 ((List<Guid>)_httpContextAccessor.HttpContext.Items["AccessibleDiseaseIds"]).Contains(c.DiseaseId.Value)));
+                 (_httpContextAccessor.HttpContext.Items["AccessibleDiseaseIds"] != null &&
+                  ((List<Guid>)_httpContextAccessor.HttpContext.Items["AccessibleDiseaseIds"]).Contains(c.DiseaseId.Value))));
 
             // Global Query Filter for Disease - disease access control for dropdowns/selections
             builder.Entity<Disease>().HasQueryFilter(d => 
                 d.AccessLevel == DiseaseAccessLevel.Public ||
                 _httpContextAccessor == null ||
                 _httpContextAccessor.HttpContext == null ||
-                _httpContextAccessor.HttpContext.Items["AccessibleDiseaseIds"] == null ||
-                ((List<Guid>)_httpContextAccessor.HttpContext.Items["AccessibleDiseaseIds"]).Contains(d.Id));
+                (_httpContextAccessor.HttpContext.Items["AccessibleDiseaseIds"] != null &&
+                 ((List<Guid>)_httpContextAccessor.HttpContext.Items["AccessibleDiseaseIds"]).Contains(d.Id)));
 
             // Flattened Report Views (SQL views managed by migrations)
             builder.Entity<Models.Views.CaseContactTaskFlattened>()
@@ -1479,8 +1515,12 @@ namespace Sentinel.Data
             builder.Entity<LabResultMarkerHistory>()
                 .HasIndex(h => new { h.LabResultMarkerId, h.ChangedAt });
 
-            // Soft Delete for HL7Message
-            builder.Entity<HL7Message>().HasQueryFilter(h => !h.IsDeleted);
+            // HL7 messages and their raw segments are case-scoped when a case has been linked.
+            builder.Entity<HL7Message>().HasQueryFilter(h =>
+                !h.IsDeleted &&
+                (h.CaseId == null || h.Case != null));
+            builder.Entity<HL7MessageSegment>().HasQueryFilter(s => s.HL7Message != null);
+            builder.Entity<HL7ParsingIssue>().HasQueryFilter(i => i.HL7Message != null);
         }
 
         public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)

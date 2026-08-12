@@ -1,0 +1,182 @@
+@using Sentinel.Services
+@inject IApplicationVersionProvider ApplicationVersion
+
+<div class="stage-card">
+    <div class="stage-header">
+        <h2><i class="bi bi-person-plus"></i> Register Sentinel <span class="optional-label">Optional</span></h2>
+        <p>Help us understand where Sentinel is being used and shape future development.</p>
+    </div>
+
+    <div class="stage-body">
+        <div class="info-panel registration-info-panel">
+            <div class="info-icon">
+                <i class="bi bi-heart"></i>
+            </div>
+            <div class="info-content">
+                <h4>Stay connected</h4>
+                <p>
+                    Registering is optional. If you choose to register, your details are sent directly to our Mailchimp
+                    list so we can understand Sentinel adoption. You can also opt in to occasional development updates
+                    and opportunities to contribute feedback or take part in testing.
+                </p>
+            </div>
+        </div>
+
+        <form action="https://app.us14.list-manage.com/subscribe/post?u=1d67d9ef14a5bd287f8afc862&amp;id=addb71233f&amp;f_id=006bc2e1f0"
+              method="post"
+              target="_blank">
+            <div class="form-group">
+                <label class="form-label required" for="registration-email">Email address</label>
+                <input id="registration-email" name="EMAIL" type="email" class="form-control" required @bind="RegistrationData.Email" />
+                <span class="form-text">Used only for this optional registration and, if selected, development updates.</span>
+            </div>
+
+            <div class="registration-grid">
+                <div class="form-group">
+                    <label class="form-label" for="registration-first-name">First name</label>
+                    <input id="registration-first-name" name="FNAME" type="text" class="form-control" @bind="RegistrationData.FirstName" />
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="registration-last-name">Last name</label>
+                    <input id="registration-last-name" name="LNAME" type="text" class="form-control" @bind="RegistrationData.LastName" />
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label" for="registration-organization">Organisation</label>
+                <input id="registration-organization" name="COMPANY" type="text" class="form-control" @bind="RegistrationData.Organization" />
+            </div>
+
+            <div class="form-group">
+                <label class="form-label" for="registration-country">Country</label>
+                <input id="registration-country" name="MMERGE9" type="text" class="form-control" @bind="RegistrationData.Country" />
+            </div>
+
+            <div class="form-group">
+                <div class="form-check">
+                    <input id="registration-updates" name="MMERGE10" value="Yes" type="checkbox" class="form-check-input" @bind="RegistrationData.ReceiveDevelopmentUpdates" />
+                    <label class="form-check-label" for="registration-updates">
+                        Receive occasional Sentinel development updates and opportunities to be involved.
+                    </label>
+                </div>
+            </div>
+
+            <input type="hidden" name="MMERGE7[day]" value="@RegistrationData.InstallationDate.Day" />
+            <input type="hidden" name="MMERGE7[month]" value="@RegistrationData.InstallationDate.Month" />
+            <input type="hidden" name="MMERGE7[year]" value="@RegistrationData.InstallationDate.Year" />
+            <input type="hidden" name="MMERGE8" value="@ApplicationVersion.InformationalVersion" />
+            <div aria-hidden="true" class="mailchimp-honeypot">
+                <input type="text" name="b_1d67d9ef14a5bd287f8afc862_addb71233f" tabindex="-1" value="" />
+            </div>
+
+            <div class="stage-actions registration-actions">
+                <button type="button" class="btn btn-secondary" @onclick="HandlePrevious">
+                    <i class="bi bi-arrow-left"></i>
+                    <span>Previous</span>
+                </button>
+                <div class="registration-next-actions">
+                    <button type="submit" class="btn btn-secondary">
+                        <i class="bi bi-send"></i>
+                        <span>Register with Sentinel</span>
+                    </button>
+                    <button type="button" class="btn btn-primary" @onclick="HandleNext">
+                        <span>Continue Setup</span>
+                        <i class="bi bi-arrow-right"></i>
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+@code {
+    [Parameter] public EventCallback OnNext { get; set; }
+    [Parameter] public EventCallback OnPrevious { get; set; }
+    [Parameter] public InitialSetupWizard.AdminAccountData AdminData { get; set; } = new();
+    [Parameter] public InitialSetupWizard.OrganizationData OrgData { get; set; } = new();
+    [Parameter] public InitialSetupWizard.RegistrationData RegistrationData { get; set; } = new();
+    [Parameter] public EventCallback<InitialSetupWizard.RegistrationData> RegistrationDataChanged { get; set; }
+
+    private bool _defaultsApplied;
+
+    protected override void OnParametersSet()
+    {
+        if (_defaultsApplied)
+        {
+            return;
+        }
+
+        RegistrationData.Email = string.IsNullOrWhiteSpace(RegistrationData.Email) ? AdminData.Email : RegistrationData.Email;
+        RegistrationData.FirstName = string.IsNullOrWhiteSpace(RegistrationData.FirstName) ? AdminData.FullName?.Split(' ').FirstOrDefault() ?? "" : RegistrationData.FirstName;
+        RegistrationData.LastName = string.IsNullOrWhiteSpace(RegistrationData.LastName) ? AdminData.FullName?.Split(' ').Skip(1).FirstOrDefault() ?? "" : RegistrationData.LastName;
+        RegistrationData.Organization = string.IsNullOrWhiteSpace(RegistrationData.Organization) ? OrgData.Name : RegistrationData.Organization;
+        RegistrationData.Country = string.IsNullOrWhiteSpace(RegistrationData.Country) ? OrgData.Country : RegistrationData.Country;
+        _defaultsApplied = true;
+    }
+
+    private async Task HandleNext()
+    {
+        await RegistrationDataChanged.InvokeAsync(RegistrationData);
+        await OnNext.InvokeAsync();
+    }
+
+    private async Task HandlePrevious()
+    {
+        await OnPrevious.InvokeAsync();
+    }
+}
+
+<style>
+    .optional-label {
+        font-family: var(--f-mono);
+        font-size: 0.65em;
+        font-weight: 500;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--slate);
+    }
+
+    .registration-info-panel {
+        margin-bottom: 1.5rem;
+    }
+
+    .registration-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 1rem;
+    }
+
+    .mailchimp-honeypot {
+        position: absolute;
+        left: -5000px;
+    }
+
+    .registration-actions {
+        align-items: center;
+    }
+
+    .registration-next-actions {
+        display: flex;
+        gap: 0.75rem;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+    }
+
+    @@media (max-width: 768px) {
+        .registration-grid {
+            grid-template-columns: 1fr;
+            gap: 0;
+        }
+
+        .registration-actions,
+        .registration-next-actions {
+            align-items: stretch;
+            flex-direction: column;
+        }
+
+        .registration-actions .btn,
+        .registration-next-actions .btn {
+            justify-content: center;
+        }
+    }
+</style>

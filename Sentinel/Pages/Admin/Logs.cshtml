@@ -1,0 +1,208 @@
+@page
+@model Sentinel.Pages.Admin.LogsModel
+@{
+    ViewData["Title"] = "System Logs";
+}
+
+<div class="container-fluid">
+    <div class="row mb-3">
+        <div class="col">
+            <h2>System Logs</h2>
+            <p class="text-muted">View application logs and telemetry events</p>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header">
+            <div class="row">
+                <div class="col-md-3">
+                    <label for="levelFilter" class="form-label">Log Level</label>
+                    <select id="levelFilter" class="form-select" asp-for="LevelFilter" asp-items="Model.LogLevels">
+                        <option value="">All Levels</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label for="fromDate" class="form-label">From Date</label>
+                    <input type="datetime-local" id="fromDate" class="form-control" asp-for="FromDate" />
+                </div>
+                <div class="col-md-3">
+                    <label for="toDate" class="form-label">To Date</label>
+                    <input type="datetime-local" id="toDate" class="form-control" asp-for="ToDate" />
+                </div>
+                <div class="col-md-3 d-flex align-items-end">
+                    <button type="button" class="btn btn-primary" onclick="loadLogs()">
+                        <i class="bi bi-search"></i> Search
+                    </button>
+                    <button type="button" class="btn btn-secondary ms-2" onclick="clearFilters()">
+                        <i class="bi bi-x-circle"></i> Clear
+                    </button>
+                </div>
+            </div>
+        </div>
+        <div class="card-body">
+            <div id="logsContainer">
+                <div class="text-center py-5">
+                    <i class="bi bi-journal-text" style="font-size: 3rem; color: #ccc;"></i>
+                    <p class="text-muted">Click "Search" to load logs</p>
+                </div>
+            </div>
+        </div>
+        <div class="card-footer">
+            <div class="row">
+                <div class="col">
+                    <span id="logCount" class="text-muted"></span>
+                </div>
+                <div class="col text-end">
+                    <button type="button" class="btn btn-sm btn-outline-primary" onclick="previousPage()" id="prevBtn" disabled>
+                        <i class="bi bi-chevron-left"></i> Previous
+                    </button>
+                    <button type="button" class="btn btn-sm btn-outline-primary" onclick="nextPage()" id="nextBtn" disabled>
+                        Next <i class="bi bi-chevron-right"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        let currentPage = 1;
+        const pageSize = 50;
+        let totalRecords = 0;
+
+        async function loadLogs() {
+            const levelFilter = document.getElementById('levelFilter').value;
+            const fromDate = document.getElementById('fromDate').value;
+            const toDate = document.getElementById('toDate').value;
+
+            try {
+                const response = await fetch(`/api/admin/logs?page=${currentPage}&pageSize=${pageSize}&level=${levelFilter}&from=${fromDate}&to=${toDate}`);
+                const data = await response.json();
+
+                displayLogs(data.logs);
+                totalRecords = data.totalCount;
+                updatePagination();
+            } catch (error) {
+                console.error('Error loading logs:', error);
+                document.getElementById('logsContainer').innerHTML = `
+                    <div class="alert alert-danger">
+                        <i class="bi bi-exclamation-triangle"></i> Error loading logs: ${error.message}
+                    </div>`;
+            }
+        }
+
+        function displayLogs(logs) {
+            if (!logs || logs.length === 0) {
+                document.getElementById('logsContainer').innerHTML = `
+                    <div class="text-center py-5">
+                        <i class="bi bi-inbox" style="font-size: 3rem; color: #ccc;"></i>
+                        <p class="text-muted">No logs found</p>
+                    </div>`;
+                return;
+            }
+
+            const logsHtml = logs.map(log => {
+                const levelClass = getLevelClass(log.Level);
+                const levelIcon = getLevelIcon(log.Level);
+                return `
+                    <div class="log-entry border-start border-3 ${levelClass} p-3 mb-2 bg-light">
+                        <div class="row">
+                            <div class="col-auto">
+                                <i class="bi ${levelIcon}"></i>
+                            </div>
+                            <div class="col">
+                                <div class="d-flex justify-content-between">
+                                    <strong>${log.Level}</strong>
+                                    <small class="text-muted">${new Date(log.TimeStamp).toLocaleString()}</small>
+                                </div>
+                                <div class="mt-1">${escapeHtml(log.Message)}</div>
+                                ${log.Exception ? `<pre class="mt-2 p-2 bg-white border">${escapeHtml(log.Exception)}</pre>` : ''}
+                            </div>
+                        </div>
+                    </div>`;
+            }).join('');
+
+            document.getElementById('logsContainer').innerHTML = logsHtml;
+        }
+
+        function getLevelClass(level) {
+            const levelMap = {
+                'Error': 'border-danger',
+                'Warning': 'border-warning',
+                'Information': 'border-info',
+                'Debug': 'border-secondary',
+                'Critical': 'border-danger',
+                'Fatal': 'border-danger'
+            };
+            return levelMap[level] || 'border-secondary';
+        }
+
+        function getLevelIcon(level) {
+            const iconMap = {
+                'Error': 'bi-x-circle-fill text-danger',
+                'Warning': 'bi-exclamation-triangle-fill text-warning',
+                'Information': 'bi-info-circle-fill text-info',
+                'Debug': 'bi-bug-fill text-secondary',
+                'Critical': 'bi-x-octagon-fill text-danger',
+                'Fatal': 'bi-x-octagon-fill text-danger'
+            };
+            return iconMap[level] || 'bi-circle-fill text-secondary';
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function updatePagination() {
+            const totalPages = Math.ceil(totalRecords / pageSize);
+            document.getElementById('logCount').textContent = `Showing ${((currentPage - 1) * pageSize) + 1}-${Math.min(currentPage * pageSize, totalRecords)} of ${totalRecords}`;
+            document.getElementById('prevBtn').disabled = currentPage <= 1;
+            document.getElementById('nextBtn').disabled = currentPage >= totalPages;
+        }
+
+        function previousPage() {
+            if (currentPage > 1) {
+                currentPage--;
+                loadLogs();
+            }
+        }
+
+        function nextPage() {
+            const totalPages = Math.ceil(totalRecords / pageSize);
+            if (currentPage < totalPages) {
+                currentPage++;
+                loadLogs();
+            }
+        }
+
+        function clearFilters() {
+            document.getElementById('levelFilter').value = '';
+            document.getElementById('fromDate').value = '';
+            document.getElementById('toDate').value = '';
+            currentPage = 1;
+            loadLogs();
+        }
+
+        // Set default date range (last 24 hours)
+        document.addEventListener('DOMContentLoaded', function() {
+            const toDate = new Date();
+            const fromDate = new Date(toDate.getTime() - (24 * 60 * 60 * 1000));
+
+            document.getElementById('toDate').value = toDate.toISOString().slice(0, 16);
+            document.getElementById('fromDate').value = fromDate.toISOString().slice(0, 16);
+        });
+    </script>
+
+    <style>
+        .log-entry {
+            border-radius: 4px;
+            transition: box-shadow 0.2s;
+        }
+        .log-entry:hover {
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+    </style>
+}

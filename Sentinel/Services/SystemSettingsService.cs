@@ -15,6 +15,11 @@ namespace Sentinel.Services
         Task<SystemSettings> CompleteSetupAsync(string userId);
         Task<SystemSettings> UpdateSettingsAsync(SystemSettings settings);
         Task SaveSmtpSettingsAsync(string host, int port, bool enableSsl, string? username, string? password, string fromEmail, string fromDisplayName);
+        Task<bool> GetFeedbackWidgetEnabledAsync();
+        Task UpdateFeedbackWidgetSettingAsync(bool enabled);
+        Task<string?> GetInstallationIdAsync();
+        Task<bool> GetUsageMonitoringEnabledAsync();
+        Task UpdateUsageMonitoringSettingAsync(bool enabled);
     }
 
     public class SystemSettingsService : ISystemSettingsService
@@ -159,6 +164,76 @@ namespace Sentinel.Services
             await _context.SaveChangesAsync();
 
             _logger.LogInformation("SMTP settings saved for host {Host}", host);
+        }
+
+        public async Task<bool> GetFeedbackWidgetEnabledAsync()
+        {
+            var settings = await GetSettingsAsync();
+            // Default to true if settings don't exist yet or if property is not set
+            return settings?.EnableFeedbackWidget ?? true;
+        }
+
+        public async Task UpdateFeedbackWidgetSettingAsync(bool enabled)
+        {
+            var settings = await GetSettingsAsync();
+
+            if (settings == null)
+            {
+                throw new InvalidOperationException("System settings not initialized");
+            }
+
+            settings.EnableFeedbackWidget = enabled;
+            settings.ModifiedAt = DateTime.UtcNow;
+
+            await _context.SaveChangesAsync();
+
+            _logger.LogInformation("Feedback widget setting updated to {Enabled}", enabled);
+        }
+
+        public async Task<string?> GetInstallationIdAsync()
+        {
+            var settings = await GetSettingsAsync();
+
+            if (settings == null)
+            {
+                return null;
+            }
+
+            // Generate InstallationId if it doesn't exist
+            if (string.IsNullOrWhiteSpace(settings.InstallationId))
+            {
+                settings.InstallationId = Guid.NewGuid().ToString("D").ToLowerInvariant();
+                settings.ModifiedAt = DateTime.UtcNow;
+                await _context.SaveChangesAsync();
+
+                _logger.LogInformation("Generated a new installation ID");
+            }
+
+            return settings.InstallationId;
+        }
+
+        public async Task<bool> GetUsageMonitoringEnabledAsync()
+        {
+            var settings = await GetSettingsAsync();
+            // Default to true (opt-out approach)
+            return settings?.EnableUsageMonitoring ?? true;
+        }
+
+        public async Task UpdateUsageMonitoringSettingAsync(bool enabled)
+        {
+            var settings = await GetSettingsAsync();
+
+            if (settings == null)
+            {
+                throw new InvalidOperationException("System settings not initialized");
+            }
+
+            settings.EnableUsageMonitoring = enabled;
+            settings.ModifiedAt = DateTime.UtcNow;
+
+            await _context.SaveChangesAsync();
+
+            _logger.LogInformation("Usage monitoring setting updated to {Enabled}", enabled);
         }
     }
 }

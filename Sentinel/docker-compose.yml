@@ -17,6 +17,10 @@ services:
       - Geocoding__ApiKey=${GEOCODING_API_KEY}
       - Geocoding__Email=${GEOCODING_EMAIL}
       - Geocoding__DefaultCountry=${GEOCODING_DEFAULT_COUNTRY:-AU}
+      # Sensitive uploads and timeline data. This volume is intentionally not web-served.
+      - FileStorage__RootPath=/var/lib/sentinel/files
+    volumes:
+      - sentinel-file-data:/var/lib/sentinel/files
     restart: unless-stopped
     depends_on:
       - sentinel-db
@@ -52,6 +56,8 @@ services:
 
 volumes:
   sentinel-db-data:
+    driver: local
+  sentinel-file-data:
     driver: local
 
 networks:

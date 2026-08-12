@@ -26,6 +26,7 @@ namespace Sentinel.Pages.Cases
         private readonly ITaskService _taskService;
         private readonly IJurisdictionService _jurisdictionService;
         private readonly IPatientAddressService _patientAddressService;
+        private readonly IProtectedFileStorageService _fileStorage;
         private readonly ILogger<DetailsModel> _logger;
         private readonly Services.CaseDefinitionEvaluation.ICaseDefinitionEvaluationService? _evaluationService;
 
@@ -38,6 +39,7 @@ namespace Sentinel.Pages.Cases
             ITaskService taskService, 
             IJurisdictionService jurisdictionService,
             IPatientAddressService patientAddressService,
+            IProtectedFileStorageService fileStorage,
             ILogger<DetailsModel> logger,
             Services.CaseDefinitionEvaluation.ICaseDefinitionEvaluationService? evaluationService = null)
         {
@@ -49,6 +51,7 @@ namespace Sentinel.Pages.Cases
             _taskService = taskService;
             _jurisdictionService = jurisdictionService;
             _patientAddressService = patientAddressService;
+            _fileStorage = fileStorage;
             _logger = logger;
             _evaluationService = evaluationService;
         }
@@ -94,6 +97,8 @@ namespace Sentinel.Pages.Cases
         // LabResult properties - NOT bound automatically to avoid validation conflicts  
         public LabResult NewLabResult { get; set; } = default!;
         public IFormFile? LabResultAttachment { get; set; }
+
+        public bool CanEditCase { get; private set; }
 
 
 
@@ -148,6 +153,7 @@ namespace Sentinel.Pages.Cases
             }
 
             Case = caseEntity;
+            CanEditCase = await UserCanEditCaseAsync();
 
             // Load manual override user name if applicable
             if (Case.ConfirmationStatusManualOverride && !string.IsNullOrEmpty(Case.ConfirmationStatusManualOverrideByUserId))
@@ -251,6 +257,13 @@ namespace Sentinel.Pages.Cases
             return Page();
         }
 
+        private async Task<bool> UserCanEditCaseAsync()
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            return !string.IsNullOrWhiteSpace(userId)
+                && await _permissionService.HasPermissionAsync(userId, PermissionModule.Case, PermissionAction.Edit);
+        }
+
         private async Task LoadLabResultDropdowns()
         {
             LaboratoriesList = new SelectList(
@@ -327,6 +340,11 @@ namespace Sentinel.Pages.Cases
 
         public async Task<IActionResult> OnPostAddNoteAsync(Guid id)
         {
+            if (!await UserCanEditCaseAsync())
+            {
+                return Forbid();
+            }
+
             // Manually bind the Note from form data
             NewNote = new Note();
             await TryUpdateModelAsync(NewNote, "NewNote");
@@ -348,20 +366,13 @@ namespace Sentinel.Pages.Cases
             // Handle file attachment
             if (Attachment != null && Attachment.Length > 0)
             {
-                var uploadsFolder = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "uploads", "notes");
-                Directory.CreateDirectory(uploadsFolder);
-
-                var uniqueFileName = $"{Guid.NewGuid()}_{Attachment.FileName}";
-                var filePath = Path.Combine(uploadsFolder, uniqueFileName);
-
-                using (var fileStream = new FileStream(filePath, FileMode.Create))
-                {
-                    await Attachment.CopyToAsync(fileStream);
-                }
-
-                NewNote.AttachmentPath = $"/uploads/notes/{uniqueFileName}";
-                NewNote.AttachmentFileName = Attachment.FileName;
-                NewNote.AttachmentSize = Attachment.Length;
+                var storedFile = await _fileStorage.SaveAttachmentAsync(
+                    Attachment,
+                    ProtectedFileStorageService.NotesCategory,
+                    HttpContext.RequestAborted);
+                NewNote.AttachmentPath = storedFile.StorageKey;
+                NewNote.AttachmentFileName = storedFile.OriginalFileName;
+                NewNote.AttachmentSize = storedFile.Length;
             }
 
             _context.Notes.Add(NewNote);
@@ -383,6 +394,11 @@ namespace Sentinel.Pages.Cases
 
         public async Task<IActionResult> OnPostAddLabResultAsync(Guid id)
         {
+            if (!await UserCanEditCaseAsync())
+            {
+                return Forbid();
+            }
+
             // Manually bind the LabResult from form data
             NewLabResult = new LabResult();
             await TryUpdateModelAsync(NewLabResult, "NewLabResult");
@@ -431,20 +447,13 @@ namespace Sentinel.Pages.Cases
             // Handle file attachment
             if (LabResultAttachment != null && LabResultAttachment.Length > 0)
             {
-                var uploadsFolder = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "uploads", "labresults");
-                Directory.CreateDirectory(uploadsFolder);
-
-                var uniqueFileName = $"{Guid.NewGuid()}_{LabResultAttachment.FileName}";
-                var filePath = Path.Combine(uploadsFolder, uniqueFileName);
-
-                using (var fileStream = new FileStream(filePath, FileMode.Create))
-                {
-                    await LabResultAttachment.CopyToAsync(fileStream);
-                }
-
-                NewLabResult.AttachmentPath = $"/uploads/labresults/{uniqueFileName}";
-                NewLabResult.AttachmentFileName = LabResultAttachment.FileName;
-                NewLabResult.AttachmentSize = LabResultAttachment.Length;
+                var storedFile = await _fileStorage.SaveAttachmentAsync(
+                    LabResultAttachment,
+                    ProtectedFileStorageService.LabResultsCategory,
+                    HttpContext.RequestAborted);
+                NewLabResult.AttachmentPath = storedFile.StorageKey;
+                NewLabResult.AttachmentFileName = storedFile.OriginalFileName;
+                NewLabResult.AttachmentSize = storedFile.Length;
             }
 
             try
@@ -528,20 +537,13 @@ namespace Sentinel.Pages.Cases
             // Handle file attachment
             if (LabResultAttachment != null && LabResultAttachment.Length > 0)
             {
-                var uploadsFolder = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "uploads", "labresults");
-                Directory.CreateDirectory(uploadsFolder);
-
-                var uniqueFileName = $"{Guid.NewGuid()}_{LabResultAttachment.FileName}";
-                var filePath = Path.Combine(uploadsFolder, uniqueFileName);
-
-                using (var fileStream = new FileStream(filePath, FileMode.Create))
-                {
-                    await LabResultAttachment.CopyToAsync(fileStream);
-                }
-
-                existingLabResult.AttachmentPath = $"/uploads/labresults/{uniqueFileName}";
-                existingLabResult.AttachmentFileName = LabResultAttachment.FileName;
-                existingLabResult.AttachmentSize = LabResultAttachment.Length;
+                var storedFile = await _fileStorage.SaveAttachmentAsync(
+                    LabResultAttachment,
+                    ProtectedFileStorageService.LabResultsCategory,
+                    HttpContext.RequestAborted);
+                existingLabResult.AttachmentPath = storedFile.StorageKey;
+                existingLabResult.AttachmentFileName = storedFile.OriginalFileName;
+                existingLabResult.AttachmentSize = storedFile.Length;
             }
 
             try
@@ -612,7 +614,7 @@ namespace Sentinel.Pages.Cases
                     isAmended = labResult.IsAmended,
                     notes = labResult.Notes,
                     labInterpretation = labResult.LabInterpretation,
-                    attachmentPath = labResult.AttachmentPath,
+                    attachmentPath = labResult.AttachmentPath == null ? null : $"/attachments/lab-results/{labResult.Id}",
                     attachmentFileName = labResult.AttachmentFileName,
                     markers = labResult.Markers.Select(m => new
                     {
@@ -784,6 +786,11 @@ namespace Sentinel.Pages.Cases
             string? Description,
             bool IsReportingExposure)
         {
+            if (!await UserCanEditCaseAsync())
+            {
+                return Forbid();
+            }
+
             try
             {
                 var exposure = new ExposureEvent
@@ -1105,6 +1112,11 @@ namespace Sentinel.Pages.Cases
         [Authorize(Policy = "Permission.Case.Edit")]
         public async Task<IActionResult> OnPostAddTaskFromTemplateAsync(Guid id, Guid taskTemplateId)
         {
+            if (!await UserCanEditCaseAsync())
+            {
+                return Forbid();
+            }
+
             try
             {
                 // ?? STEP 1: Load Case
@@ -1233,6 +1245,11 @@ namespace Sentinel.Pages.Cases
             Guid? surveyTemplateId,
             string? customSurveyJson)
         {
+            if (!await UserCanEditCaseAsync())
+            {
+                return Forbid();
+            }
+
             try
             {
                 var caseEntity = await _context.Cases.FindAsync(id);
@@ -1346,6 +1363,11 @@ namespace Sentinel.Pages.Cases
             bool IncludeSurvey,
             Guid? SurveyTemplateId)
         {
+            if (!await UserCanEditCaseAsync())
+            {
+                return Forbid();
+            }
+
             _logger?.LogInformation("? CreateTask handler called - Title: {Title}, TaskTypeId: {TaskTypeId}", 
                 Title, TaskTypeId);
 

@@ -137,6 +137,15 @@
             </div>
         }
 
+        <!-- User Feedback -->
+        <div class="review-section">
+            <h3><i class="bi bi-chat-square-text"></i> User Feedback</h3>
+            <div class="review-item">
+                <span class="review-label">Feedback Widget</span>
+                <span class="review-value">@(EnableFeedback ? "Enabled" : "Disabled")</span>
+            </div>
+        </div>
+
         <!-- Backup -->
         <div class="review-section">
             <h3><i class="bi bi-hdd"></i> Backup</h3>
@@ -197,6 +206,7 @@
     [Parameter] public InitialSetupWizard.AdminAccountData AdminData { get; set; } = new();
     [Parameter] public InitialSetupWizard.HttpsConfigData HttpsData { get; set; } = new();
     [Parameter] public InitialSetupWizard.OrganizationData OrgData { get; set; } = new();
+    [Parameter] public bool EnableFeedback { get; set; } = true;
     [Parameter] public string TimeZoneId { get; set; } = "UTC";
     [Parameter] public InitialSetupWizard.GeocodingData GeoData { get; set; } = new();
     [Parameter] public InitialSetupWizard.BackupData BackupData { get; set; } = new();
@@ -253,7 +263,7 @@
                 return;
             }
 
-            await UserManager.AddToRoleAsync(adminUser, "Administrator");
+            await UserManager.AddToRoleAsync(adminUser, "Admin");
             Logger.LogInformation("Created admin user: {Email}", AdminData.Email);
 
             // Step 4: Create backup admin if requested
@@ -274,7 +284,7 @@
                 var backupResult = await UserManager.CreateAsync(backupUser, AdminData.BackupPassword!);
                 if (backupResult.Succeeded)
                 {
-                    await UserManager.AddToRoleAsync(backupUser, "Administrator");
+                    await UserManager.AddToRoleAsync(backupUser, "Admin");
                     Logger.LogInformation("Created backup admin user: {Email}", AdminData.BackupEmail);
                 }
             }
@@ -289,6 +299,9 @@
                 settings.ApplicationUrl = HttpsData.ApplicationUrl;
                 settings.EnforceHttps = HttpsData.EnforceHttps;
                 settings.AllowPublicRegistration = false; // Lock down registration
+
+                // Save feedback widget setting
+                await SystemSettingsService.UpdateFeedbackWidgetSettingAsync(EnableFeedback);
 
                 // Save SMTP if configured
                 if (!string.IsNullOrEmpty(SmtpData.Host))

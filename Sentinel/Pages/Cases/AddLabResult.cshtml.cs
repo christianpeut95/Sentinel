@@ -5,18 +5,22 @@ using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
 using Sentinel.Data;
 using Sentinel.Models;
+using Sentinel.Services;
 using System.Text.Json;
 
 namespace Sentinel.Pages.Cases
 {
     [Authorize(Policy = "Permission.Laboratory.Create")]
+    [Authorize(Policy = "Permission.Case.Edit")]
     public class AddLabResultModel : PageModel
     {
         private readonly ApplicationDbContext _context;
+        private readonly IProtectedFileStorageService _fileStorage;
 
-        public AddLabResultModel(ApplicationDbContext context)
+        public AddLabResultModel(ApplicationDbContext context, IProtectedFileStorageService fileStorage)
         {
             _context = context;
+            _fileStorage = fileStorage;
         }
 
         [BindProperty]
@@ -149,20 +153,13 @@ namespace Sentinel.Pages.Cases
             // Handle attachment upload
             if (LabResultAttachment != null && LabResultAttachment.Length > 0)
             {
-                var uploadsFolder = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "uploads", "lab-results");
-                Directory.CreateDirectory(uploadsFolder);
-
-                var uniqueFileName = $"{Guid.NewGuid()}_{LabResultAttachment.FileName}";
-                var filePath = Path.Combine(uploadsFolder, uniqueFileName);
-
-                using (var fileStream = new FileStream(filePath, FileMode.Create))
-                {
-                    await LabResultAttachment.CopyToAsync(fileStream);
-                }
-
-                LabResult.AttachmentPath = $"/uploads/lab-results/{uniqueFileName}";
-                LabResult.AttachmentFileName = LabResultAttachment.FileName;
-                LabResult.AttachmentSize = LabResultAttachment.Length;
+                var storedFile = await _fileStorage.SaveAttachmentAsync(
+                    LabResultAttachment,
+                    ProtectedFileStorageService.LabResultsCategory,
+                    HttpContext.RequestAborted);
+                LabResult.AttachmentPath = storedFile.StorageKey;
+                LabResult.AttachmentFileName = storedFile.OriginalFileName;
+                LabResult.AttachmentSize = storedFile.Length;
             }
 
             _context.LabResults.Add(LabResult);

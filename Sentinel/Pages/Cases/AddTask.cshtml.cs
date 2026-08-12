@@ -11,6 +11,7 @@ using System.Security.Claims;
 namespace Sentinel.Pages.Cases
 {
     [Authorize(Policy = "Permission.Task.Create")]
+    [Authorize(Policy = "Permission.Case.Edit")]
     public class AddTaskModel : PageModel
     {
         private readonly ApplicationDbContext _context;

@@ -1,0 +1,355 @@
+/**
+ * Sentinel Feedback Widget Styles
+ * Matches Sentinel Design System aesthetics
+ */
+
+/* Floating Feedback Button */
+.sentinel-feedback-btn {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    width: 56px;
+    height: 56px;
+    border-radius: 28px;
+    background: var(--signal-dk, #0C2A20);
+    color: var(--signal, #3DD598);
+    border: none;
+    box-shadow: 0 4px 12px rgba(12, 42, 32, 0.3);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    transition: all 0.2s ease;
+    z-index: 1000;
+}
+
+.sentinel-feedback-btn:hover {
+    background: #0f3328;
+    box-shadow: 0 6px 16px rgba(12, 42, 32, 0.4);
+    transform: translateY(-2px);
+}
+
+.sentinel-feedback-btn:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 8px rgba(12, 42, 32, 0.3);
+}
+
+/* Modal Backdrop */
+.sentinel-feedback-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 9999;
+    display: none;
+}
+
+.sentinel-feedback-modal.show {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.sentinel-feedback-backdrop {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(12, 42, 32, 0.6);
+    backdrop-filter: blur(4px);
+}
+
+/* Modal Dialog */
+.sentinel-feedback-dialog {
+    position: relative;
+    width: 90%;
+    max-width: 600px;
+    max-height: 90vh;
+    background: var(--paper, #F6F5F0);
+    border-radius: 12px;
+    box-shadow: 0 8px 32px rgba(12, 42, 32, 0.3);
+    display: flex;
+    flex-direction: column;
+    animation: slideUp 0.3s ease;
+}
+
+@keyframes slideUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Modal Header */
+.sentinel-feedback-header {
+    padding: 20px 24px;
+    border-bottom: 1px solid var(--hairline, #D8D4C4);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.sentinel-feedback-header h3 {
+    margin: 0;
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: var(--forest, #0C2A20);
+}
+
+.sentinel-feedback-close {
+    background: none;
+    border: none;
+    font-size: 28px;
+    line-height: 1;
+    color: var(--graphite, #5A5A52);
+    cursor: pointer;
+    padding: 0;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 4px;
+    transition: background 0.15s ease;
+}
+
+.sentinel-feedback-close:hover {
+    background: var(--chalk, #E8E6DC);
+}
+
+/* Modal Body */
+.sentinel-feedback-body {
+    padding: 24px;
+    overflow-y: auto;
+    flex: 1;
+}
+
+/* Form Groups */
+.sentinel-feedback-body .form-group {
+    margin-bottom: 20px;
+}
+
+.sentinel-feedback-body label {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 6px;
+    font-weight: 500;
+    color: var(--forest, #0C2A20);
+    font-size: 0.875rem;
+}
+
+.sentinel-feedback-body .char-count {
+    font-size: 0.75rem;
+    color: var(--graphite, #5A5A52);
+    font-weight: 400;
+}
+
+.sentinel-feedback-body .form-control {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid var(--hairline, #D8D4C4);
+    border-radius: 6px;
+    background: white;
+    font-size: 0.9375rem;
+    color: var(--forest, #0C2A20);
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.sentinel-feedback-body .form-control:focus {
+    outline: none;
+    border-color: var(--signal-dk, #0C2A20);
+    box-shadow: 0 0 0 3px rgba(61, 213, 152, 0.1);
+}
+
+.sentinel-feedback-body textarea.form-control {
+    resize: vertical;
+    min-height: 80px;
+}
+
+/* Checkbox */
+.sentinel-feedback-body .custom-control {
+    position: relative;
+    display: flex;
+    align-items: center;
+    padding-left: 0;
+}
+
+.sentinel-feedback-body .custom-control-input {
+    width: 18px;
+    height: 18px;
+    margin-right: 8px;
+    cursor: pointer;
+}
+
+.sentinel-feedback-body .custom-control-label {
+    margin-bottom: 0;
+    cursor: pointer;
+    font-weight: 400;
+}
+
+/* Privacy Note */
+.privacy-note {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    margin-top: 8px;
+}
+
+/* Diagnostics Details */
+#diagnostics-details {
+    font-size: 0.875rem;
+    margin-top: 12px;
+}
+
+#diagnostics-details ul {
+    font-size: 0.813rem;
+    padding-left: 20px;
+}
+
+#diagnostics-details li {
+    margin-bottom: 4px;
+}
+
+/* Alert */
+.sentinel-feedback-body .alert {
+    padding: 12px 16px;
+    border-radius: 6px;
+    margin-bottom: 16px;
+    font-size: 0.875rem;
+}
+
+.sentinel-feedback-body .alert-success {
+    background: #d4edda;
+    border: 1px solid #c3e6cb;
+    color: #155724;
+}
+
+.sentinel-feedback-body .alert-danger {
+    background: #f8d7da;
+    border: 1px solid #f5c6cb;
+    color: #721c24;
+}
+
+.sentinel-feedback-body .alert-info {
+    background: #d1ecf1;
+    border: 1px solid #bee5eb;
+    color: #0c5460;
+}
+
+/* Actions */
+.sentinel-feedback-actions {
+    display: flex;
+    gap: 12px;
+    justify-content: flex-end;
+    margin-top: 24px;
+    padding-top: 20px;
+    border-top: 1px solid var(--hairline, #D8D4C4);
+}
+
+.sentinel-feedback-actions .btn {
+    padding: 10px 20px;
+    border-radius: 6px;
+    font-weight: 500;
+    font-size: 0.9375rem;
+    border: none;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.sentinel-feedback-actions .btn-secondary {
+    background: var(--chalk, #E8E6DC);
+    color: var(--forest, #0C2A20);
+}
+
+.sentinel-feedback-actions .btn-secondary:hover {
+    background: #dbd9cc;
+}
+
+.sentinel-feedback-actions .btn-primary {
+    background: var(--signal-dk, #0C2A20);
+    color: var(--signal, #3DD598);
+}
+
+.sentinel-feedback-actions .btn-primary:hover {
+    background: #0f3328;
+}
+
+.sentinel-feedback-actions .btn-primary:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+/* Spinner */
+.spinner-border {
+    display: inline-block;
+    width: 1rem;
+    height: 1rem;
+    vertical-align: text-bottom;
+    border: 0.15em solid currentColor;
+    border-right-color: transparent;
+    border-radius: 50%;
+    animation: spinner-border 0.75s linear infinite;
+}
+
+@keyframes spinner-border {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+.spinner-border-sm {
+    width: 0.875rem;
+    height: 0.875rem;
+    border-width: 0.125em;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .sentinel-feedback-btn {
+        bottom: 16px;
+        right: 16px;
+        width: 48px;
+        height: 48px;
+        font-size: 20px;
+    }
+
+    .sentinel-feedback-dialog {
+        width: 95%;
+        max-height: 95vh;
+    }
+
+    .sentinel-feedback-header {
+        padding: 16px 20px;
+    }
+
+    .sentinel-feedback-body {
+        padding: 20px;
+    }
+
+    .sentinel-feedback-actions {
+        flex-direction: column-reverse;
+    }
+
+    .sentinel-feedback-actions .btn {
+        width: 100%;
+    }
+}
+
+/* Mobile landscape */
+@media (max-width: 768px) and (orientation: landscape) {
+    .sentinel-feedback-dialog {
+        max-height: 95vh;
+    }
+
+    .sentinel-feedback-body {
+        max-height: calc(95vh - 140px);
+    }
+}

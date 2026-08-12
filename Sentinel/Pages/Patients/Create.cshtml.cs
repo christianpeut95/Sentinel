@@ -28,8 +28,19 @@ namespace Sentinel.Pages.Patients
         private readonly ICaseIdGeneratorService _caseIdGenerator;
         private readonly IJurisdictionService _jurisdictionService;
         private readonly IServiceProvider _serviceProvider;
+        private readonly Sentinel.Services.Telemetry.ActivityTracker _activityTracker;
 
-        public CreateModel(ApplicationDbContext context, IGeocodingService geocoder, IPatientDuplicateCheckService duplicateChecker, IPatientCustomFieldService customFieldService, IAuditService auditService, IPatientIdGeneratorService patientIdGenerator, ICaseIdGeneratorService caseIdGenerator, IJurisdictionService jurisdictionService, IServiceProvider serviceProvider)
+        public CreateModel(
+            ApplicationDbContext context, 
+            IGeocodingService geocoder, 
+            IPatientDuplicateCheckService duplicateChecker, 
+            IPatientCustomFieldService customFieldService, 
+            IAuditService auditService, 
+            IPatientIdGeneratorService patientIdGenerator, 
+            ICaseIdGeneratorService caseIdGenerator, 
+            IJurisdictionService jurisdictionService, 
+            IServiceProvider serviceProvider,
+            Sentinel.Services.Telemetry.ActivityTracker activityTracker)
         {
             _context = context;
             _geocoder = geocoder;
@@ -40,6 +51,7 @@ namespace Sentinel.Pages.Patients
             _caseIdGenerator = caseIdGenerator;
             _jurisdictionService = jurisdictionService;
             _serviceProvider = serviceProvider;
+            _activityTracker = activityTracker;
         }
 
         public List<PotentialDuplicate> PotentialDuplicates { get; set; } = new();
@@ -174,6 +186,9 @@ namespace Sentinel.Pages.Patients
                         _context.Patients.Add(Patient);
                         await _context.SaveChangesAsync();
                         saved = true; // Success!
+
+                        // Track patient creation for usage monitoring
+                        _activityTracker.TrackPatientCreated();
 
                         // Auto-detect jurisdictions in background (fire-and-forget)
                         // This won't block the user's response

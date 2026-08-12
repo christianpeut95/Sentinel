@@ -15,6 +15,7 @@ using CsvHelper.Configuration;
 namespace Sentinel.Pages.Cases.Contacts;
 
 [Authorize(Policy = "Permission.Case.Create")]
+    [Authorize(Policy = "Permission.Case.Edit")]
 public class BulkCreateModel : PageModel
 {
     private readonly ApplicationDbContext _context;

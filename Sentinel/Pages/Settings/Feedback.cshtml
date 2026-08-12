@@ -1,0 +1,259 @@
+@page
+@model Sentinel.Pages.Settings.FeedbackModel
+@{
+    ViewData["Title"] = "Feedback & Bug Reports";
+}
+
+<div class="container-fluid mt-4">
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="card shadow-sm">
+                <div class="card-header bg-white">
+                    <h4 class="mb-0">
+                        <i class="bi bi-chat-dots"></i> Feedback & Bug Reports
+                    </h4>
+                    <p class="text-muted mb-0 mt-2">Configure the feedback widget to report bugs, suggest features, and submit feedback directly to the Sentinel team</p>
+                </div>
+                <div class="card-body">
+                    @if (!string.IsNullOrEmpty(Model.Message))
+                    {
+                        <div class="alert alert-success alert-dismissible fade show" role="alert">
+                            <i class="bi bi-check-circle-fill"></i>
+                            <strong>Success!</strong> @Model.Message
+                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                        </div>
+                    }
+
+                    <form method="post">
+                        <div class="mb-4">
+                            <div class="form-check form-switch">
+                                <input asp-for="EnableFeedbackWidget" class="form-check-input" type="checkbox" role="switch" id="enableFeedbackSwitch" style="width: 3em; height: 1.5em;">
+                                <label class="form-check-label ms-2" for="enableFeedbackSwitch" style="font-size: 1.1rem; font-weight: 500;">
+                                    Enable Feedback Widget
+                                </label>
+                            </div>
+                            <small class="text-muted ms-5 ps-1">When enabled, a floating feedback button will appear on all pages for authenticated users to submit feedback</small>
+                        </div>
+
+                        <hr class="my-4" />
+
+                        <h5 class="mb-3"><i class="bi bi-graph-up"></i> Anonymous Usage Statistics</h5>
+                        <div class="mb-4">
+                            <div class="form-check form-switch">
+                                <input asp-for="EnableUsageMonitoring" class="form-check-input" type="checkbox" role="switch" id="enableUsageMonitoringSwitch" style="width: 3em; height: 1.5em;">
+                                <label class="form-check-label ms-2" for="enableUsageMonitoringSwitch" style="font-size: 1.1rem; font-weight: 500;">
+                                    Enable Anonymous Usage Statistics
+                                </label>
+                            </div>
+                            <small class="text-muted ms-5 ps-1">When enabled, anonymous usage statistics are submitted hourly to help improve Sentinel</small>
+                        </div>
+
+                        <div class="info-panel p-3 mb-4" style="background: #E8F5E9; border: 1px solid #A5D6A7; border-radius: 8px;">
+                            <p class="mb-2"><strong><i class="bi bi-bar-chart"></i> What is tracked:</strong></p>
+                            <ul class="mb-0" style="list-style: none; padding-left: 0;">
+                                <li class="mb-1">
+                                    <i class="bi bi-check-circle text-success"></i>
+                                    Page views (sanitized routes only)
+                                </li>
+                                <li class="mb-1">
+                                    <i class="bi bi-check-circle text-success"></i>
+                                    Login attempts and unique user counts
+                                </li>
+                                <li class="mb-1">
+                                    <i class="bi bi-check-circle text-success"></i>
+                                    Record creation counts (patients, surveys, etc.)
+                                </li>
+                                <li class="mb-1">
+                                    <i class="bi bi-check-circle text-success"></i>
+                                    System totals and configuration snapshots
+                                </li>
+                                <li class="mb-1">
+                                    <i class="bi bi-check-circle text-success"></i>
+                                    HL7 file processing activity
+                                </li>
+                            </ul>
+                        </div>
+
+                        <div class="alert alert-info" role="alert">
+                            <i class="bi bi-shield-lock"></i>
+                            <strong>Privacy Guarantee:</strong> No patient data, no personal information, only aggregate counts. All data is anonymized and linked only to your installation ID.
+                        </div>
+
+                        <hr class="my-4" />
+
+                        <h5 class="mb-3"><i class="bi bi-shield-check"></i> Privacy-Safe Feedback System</h5>
+                        <div class="info-panel p-3 mb-4" style="background: #F5F3EC; border: 1px solid #D8D4C4; border-radius: 8px;">
+                            <ul class="mb-0" style="list-style: none; padding-left: 0;">
+                                <li class="mb-2">
+                                    <i class="bi bi-check-circle text-success"></i>
+                                    <strong>Privacy-protected:</strong> Diagnostic data never includes patient information
+                                </li>
+                                <li class="mb-2">
+                                    <i class="bi bi-check-circle text-success"></i>
+                                    <strong>Installation ID:</strong> <code>@Model.InstallationId</code>
+                                </li>
+                                <li class="mb-2">
+                                    <i class="bi bi-check-circle text-success"></i>
+                                    <strong>API Endpoint:</strong> Sentinel Feedback Service
+                                </li>
+                                <li>
+                                    <i class="bi bi-check-circle text-success"></i>
+                                    <strong>Appears as:</strong> A circular floating button in the bottom-right corner of every page
+                                </li>
+                            </ul>
+                        </div>
+
+                        @if (Model.EnableFeedbackWidget)
+                        {
+                            <div class="alert alert-info" role="alert">
+                                <i class="bi bi-info-circle"></i>
+                                <strong>Widget Active:</strong> The feedback button is currently visible on all pages. Click it to test the feedback form.
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="alert alert-warning" role="alert">
+                                <i class="bi bi-exclamation-triangle"></i>
+                                <strong>Widget Disabled:</strong> The feedback button is hidden and users cannot submit feedback from within the application.
+                            </div>
+                        }
+
+                        <div class="d-flex gap-2 mt-4">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-save"></i> Save Settings
+                            </button>
+                            <a asp-page="/Settings/Index" class="btn btn-secondary">
+                                <i class="bi bi-arrow-left"></i> Back to Settings
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <div class="card shadow-sm mt-4">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0">
+                        <i class="bi bi-ui-radios"></i> Feedback Types
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted">The feedback widget supports the following categories:</p>
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <div class="d-flex gap-2 p-3" style="background: #FFEBEE; border-radius: 8px;">
+                                <div style="font-size: 24px;">🐛</div>
+                                <div>
+                                    <strong>Bug</strong>
+                                    <p class="mb-0 small text-muted">Something isn't working as expected</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="d-flex gap-2 p-3" style="background: #E3F2FD; border-radius: 8px;">
+                                <div style="font-size: 24px;">✨</div>
+                                <div>
+                                    <strong>Feature Request</strong>
+                                    <p class="mb-0 small text-muted">Suggest new functionality</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="d-flex gap-2 p-3" style="background: #FFF3E0; border-radius: 8px;">
+                                <div style="font-size: 24px;">🤔</div>
+                                <div>
+                                    <strong>Confusing</strong>
+                                    <p class="mb-0 small text-muted">UI/UX is unclear or difficult</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="d-flex gap-2 p-3" style="background: #F3E5F5; border-radius: 8px;">
+                                <div style="font-size: 24px;">💬</div>
+                                <div>
+                                    <strong>General</strong>
+                                    <p class="mb-0 small text-muted">Other feedback or comments</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4">
+            <div class="card shadow-sm">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0">
+                        <i class="bi bi-lightbulb"></i> Widget Preview
+                    </h5>
+                </div>
+                <div class="card-body text-center py-5">
+                    <p class="text-muted mb-4">This is how the feedback button appears:</p>
+                    <div class="d-inline-flex align-items-center justify-content-center" style="background: #0C2A20; color: #3DD598; border-radius: 50%; width: 56px; height: 56px; box-shadow: 0 4px 12px rgba(12, 42, 32, 0.3); font-size: 24px;">
+                        <i class="bi bi-chat-dots"></i>
+                    </div>
+                    <p class="text-muted mt-4 mb-0">
+                        <small>Fixed to the bottom-right corner<br />Opens feedback form on click</small>
+                    </p>
+                </div>
+            </div>
+
+            <div class="card shadow-sm mt-3">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0">
+                        <i class="bi bi-shield-lock"></i> Privacy Protection
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <h6 class="text-success"><i class="bi bi-check-circle"></i> Safe to Include</h6>
+                    <ul class="small text-muted mb-3">
+                        <li>Version and installation ID</li>
+                        <li>OS and browser info</li>
+                        <li>Page route templates</li>
+                        <li>Error counts</li>
+                        <li>User role (not name)</li>
+                    </ul>
+
+                    <h6 class="text-danger"><i class="bi bi-x-circle"></i> Never Included</h6>
+                    <ul class="small text-muted mb-0">
+                        <li>Patient data</li>
+                        <li>Clinical information</li>
+                        <li>Survey answers</li>
+                        <li>Credentials</li>
+                        <li>Database contents</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="card shadow-sm mt-3">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0">
+                        <i class="bi bi-question-circle"></i> Help
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <h6>Why collect feedback?</h6>
+                    <p class="small text-muted">
+                        User feedback helps identify bugs, improve features, and understand how users interact with Sentinel. 
+                        This leads to a better experience for everyone.
+                    </p>
+
+                    <h6 class="mt-3">What data is collected?</h6>
+                    <p class="small text-muted">
+                        Only safe diagnostic information and your installation ID are collected. 
+                        Patient data is never included.
+                    </p>
+
+                    <h6 class="mt-3">Can I disable it later?</h6>
+                    <p class="small text-muted mb-0">
+                        Yes! You can enable or disable the feedback widget at any time from this page.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

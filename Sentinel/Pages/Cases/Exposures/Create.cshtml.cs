@@ -11,6 +11,7 @@ using System.Security.Claims;
 namespace Sentinel.Pages.Cases.Exposures
 {
     [Authorize(Policy = "Permission.Exposure.Create")]
+    [Authorize(Policy = "Permission.Case.Edit")]
     public class CreateModel : PageModel
     {
         private readonly ApplicationDbContext _context;

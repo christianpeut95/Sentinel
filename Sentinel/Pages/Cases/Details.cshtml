@@ -213,7 +213,10 @@
 {
     <div class="alert alert-warning alert-dismissible fade show" role="alert" style="border-radius: 10px; border-left: 3px solid var(--status-watch); background: #FBEDD1; color: var(--forest); margin-bottom: var(--spacing-4);">
         <i class="bi bi-exclamation-triangle-fill me-2" style="color: var(--status-watch);"></i>@TempData["ExposureWarning"]
-        <a asp-page="/Cases/Exposures/Create" asp-route-caseId="@Model.Case.Id" class="alert-link ms-2" style="color: var(--forest); font-weight: 600;">Add exposure now</a>
+        @if (Model.CanEditCase)
+        {
+            <a asp-page="/Cases/Exposures/Create" asp-route-caseId="@Model.Case.Id" class="alert-link ms-2" style="color: var(--forest); font-weight: 600;">Add exposure now</a>
+        }
         <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
     </div>
 }
@@ -404,34 +407,37 @@
 
         <!-- Quick Actions with Sentinel button styling -->
         <div style="display: flex; flex-wrap: wrap; gap: var(--spacing-2); margin-top: var(--spacing-4); padding-top: var(--spacing-4); border-top: 1px solid var(--hairline);">
-            <a asp-page="./Edit" asp-route-id="@Model.Case.Id" class="btn btn-sentinel-primary btn-sm">
-                <i class="bi bi-pencil"></i> Edit Case
-            </a>
-            @if (Model.PatientHasDifferentAddress)
+            @if (Model.CanEditCase)
             {
-                <button type="button" class="btn btn-sm" style="background: var(--status-watch); color: white; border: none; font-weight: 600;" onclick="copyAddressFromPatient()" title="Copy address and jurisdiction data from patient record">
-                    <i class="bi bi-arrow-down-circle"></i> Copy Address from Patient
-                    @if (Model.PatientJurisdictionMappingInProgress)
-                    {
-                        <i class="bi bi-hourglass-split ms-1" title="Jurisdiction mapping in progress"></i>
-                    }
+                <a asp-page="./Edit" asp-route-id="@Model.Case.Id" class="btn btn-sentinel-primary btn-sm">
+                    <i class="bi bi-pencil"></i> Edit Case
+                </a>
+                @if (Model.PatientHasDifferentAddress)
+                {
+                    <button type="button" class="btn btn-sm" style="background: var(--status-watch); color: white; border: none; font-weight: 600;" onclick="copyAddressFromPatient()" title="Copy address and jurisdiction data from patient record">
+                        <i class="bi bi-arrow-down-circle"></i> Copy Address from Patient
+                        @if (Model.PatientJurisdictionMappingInProgress)
+                        {
+                            <i class="bi bi-hourglass-split ms-1" title="Jurisdiction mapping in progress"></i>
+                        }
+                    </button>
+                }
+                <button type="button" class="btn btn-sentinel-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addNoteModal">
+                    <i class="bi bi-plus-circle"></i> Add Note
+                </button>
+                <button type="button" class="btn btn-sentinel-primary btn-sm" onclick="openAddLabResult()">
+                    <i class="bi bi-plus-circle"></i> Add Lab Result
+                </button>
+                <button type="button" class="btn btn-sentinel-primary btn-sm" onclick="openAddExposure()">
+                    <i class="bi bi-plus-circle"></i> Add Exposure
+                </button>
+                <a asp-page="/Cases/Contacts/BulkCreate" asp-route-caseId="@Model.Case.Id" class="btn btn-sentinel-primary btn-sm">
+                    <i class="bi bi-people-fill"></i> Bulk Create Contacts
+                </a>
+                <button type="button" class="btn btn-sentinel-primary btn-sm" onclick="openAddTask()">
+                    <i class="bi bi-plus-circle"></i> Add Task
                 </button>
             }
-            <button type="button" class="btn btn-sentinel-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addNoteModal">
-                <i class="bi bi-plus-circle"></i> Add Note
-            </button>
-            <button type="button" class="btn btn-sentinel-primary btn-sm" onclick="openAddLabResult()">
-                <i class="bi bi-plus-circle"></i> Add Lab Result
-            </button>
-            <button type="button" class="btn btn-sentinel-primary btn-sm" onclick="openAddExposure()">
-                <i class="bi bi-plus-circle"></i> Add Exposure
-            </button>
-            <a asp-page="/Cases/Contacts/BulkCreate" asp-route-caseId="@Model.Case.Id" class="btn btn-sentinel-primary btn-sm">
-                <i class="bi bi-people-fill"></i> Bulk Create Contacts
-            </a>
-            <button type="button" class="btn btn-sentinel-primary btn-sm" onclick="openAddTask()">
-                <i class="bi bi-plus-circle"></i> Add Task
-            </button>
             @if (Model.Case.DiseaseId.HasValue)
             {
                 <form method="post" asp-page-handler="EvaluateDefinitions" asp-route-id="@Model.Case.Id" style="display: inline;">
@@ -1085,9 +1091,12 @@
                     <button type="button" class="sn-btn sn-btn--ghost sn-btn--sm" data-bs-toggle="modal" data-bs-target="#viewAllLabResultsModal">
                         <i class="bi bi-list-ul"></i> View All
                     </button>
-                    <button type="button" class="sn-btn sn-btn--signal sn-btn--sm" onclick="openAddLabResult()">
-                        <i class="bi bi-plus-circle"></i> Add
-                    </button>
+                    @if (Model.CanEditCase)
+                    {
+                        <button type="button" class="sn-btn sn-btn--signal sn-btn--sm" onclick="openAddLabResult()">
+                            <i class="bi bi-plus-circle"></i> Add
+                        </button>
+                    }
                 </div>
             </div>
             <div class="sentinel-card-body">
@@ -1327,9 +1336,12 @@
                 <div style="text-align: center; padding: var(--spacing-6) var(--spacing-4);">
                     <i class="bi bi-clipboard-pulse" style="font-size: 3rem; color: var(--hairline); display: block; margin-bottom: var(--spacing-3);"></i>
                     <p style="color: var(--graphite); margin-bottom: var(--spacing-3);">No lab results yet</p>
-                    <button type="button" class="sn-btn sn-btn--signal sn-btn--sm" onclick="openAddLabResult()">
-                        <i class="bi bi-plus-circle"></i> Add Lab Result
-                    </button>
+                    @if (Model.CanEditCase)
+                    {
+                        <button type="button" class="sn-btn sn-btn--signal sn-btn--sm" onclick="openAddLabResult()">
+                            <i class="bi bi-plus-circle"></i> Add Lab Result
+                        </button>
+                    }
                 </div>
             }
             </div>
@@ -1355,9 +1367,12 @@
                             <i class="bi bi-diagram-3"></i> Create Outbreak
                         </a>
                     }
-                    <button type="button" class="btn btn-sentinel-secondary btn-sm" onclick="openAddExposure()">
-                        <i class="bi bi-plus-circle"></i> Add
-                    </button>
+                    @if (Model.CanEditCase)
+                    {
+                        <button type="button" class="btn btn-sentinel-secondary btn-sm" onclick="openAddExposure()">
+                            <i class="bi bi-plus-circle"></i> Add
+                        </button>
+                    }
                 </div>
             </div>
             <div class="sentinel-card-body">
@@ -1536,14 +1551,17 @@
                 <div style="text-align: center; padding: var(--spacing-6) var(--spacing-4);">
                     <i class="bi bi-diagram-3" style="font-size: 3rem; color: var(--hairline); display: block; margin-bottom: var(--spacing-3);"></i>
                     <p style="color: var(--graphite); margin-bottom: var(--spacing-3);">No exposures recorded</p>
-                    <div class="btn-group" role="group">
-                        <a asp-page="/Cases/Exposures/NaturalEntry" asp-route-caseId="@Model.Case.Id" class="btn btn-sentinel-primary btn-sm">
-                            <i class="bi bi-calendar-week me-1"></i>Natural Entry
-                        </a>
-                        <button type="button" class="btn btn-sentinel-secondary btn-sm" onclick="openAddExposure()">
-                            <i class="bi bi-ui-checks me-1"></i>Traditional Form
-                        </button>
-                    </div>
+                    @if (Model.CanEditCase)
+                    {
+                        <div class="btn-group" role="group">
+                            <a asp-page="/Cases/Exposures/NaturalEntry" asp-route-caseId="@Model.Case.Id" class="btn btn-sentinel-primary btn-sm">
+                                <i class="bi bi-calendar-week me-1"></i>Natural Entry
+                            </a>
+                            <button type="button" class="btn btn-sentinel-secondary btn-sm" onclick="openAddExposure()">
+                                <i class="bi bi-ui-checks me-1"></i>Traditional Form
+                            </button>
+                        </div>
+                    }
                 </div>
             }
             </div>
@@ -1563,21 +1581,27 @@
                        title="Create Contact Tracing Event">
                         <i class="bi bi-diagram-3"></i>
                     </a>
-                    <a asp-page="/Cases/Contacts/BulkCreate"
-                       asp-route-caseId="@Model.Case.Id"
-                       class="btn btn-sentinel-primary btn-sm"
-                       title="Bulk Add Contacts">
-                        <i class="bi bi-people-fill"></i>
-                    </a>
+                    @if (Model.CanEditCase)
+                    {
+                        <a asp-page="/Cases/Contacts/BulkCreate"
+                           asp-route-caseId="@Model.Case.Id"
+                           class="btn btn-sentinel-primary btn-sm"
+                           title="Bulk Add Contacts">
+                            <i class="bi bi-people-fill"></i>
+                        </a>
+                    }
                     @if (Model.Transmissions.Count > 5)
                     {
                         <button type="button" class="btn btn-sentinel-secondary btn-sm" data-bs-toggle="modal" data-bs-target="#viewAllTransmissionsModal" title="View All">
                             <i class="bi bi-list-ul"></i>
                         </button>
                     }
-                    <button type="button" class="btn btn-sentinel-secondary btn-sm" onclick="openAddExposure()" title="Add Exposure">
-                        <i class="bi bi-plus-circle"></i>
-                    </button>
+                    @if (Model.CanEditCase)
+                    {
+                        <button type="button" class="btn btn-sentinel-secondary btn-sm" onclick="openAddExposure()" title="Add Exposure">
+                            <i class="bi bi-plus-circle"></i>
+                        </button>
+                    }
                 </div>
             </div>
             <div class="sentinel-card-body">
@@ -1726,17 +1750,20 @@
                                 <td class="text-end">
                                     @if (exposure.ExposureType == Sentinel.Models.ExposureType.Location || exposure.ExposureType == Sentinel.Models.ExposureType.Event)
                                     {
-                                        <a asp-page="/Cases/Contacts/BulkCreate"
-                                           asp-route-caseId="@Model.Case.Id"
-                                           asp-route-locationId="@exposure.LocationId"
-                                           asp-route-eventId="@exposure.EventId"
-                                           asp-route-exposureStartDate="@exposure.ExposureStartDate.ToString("o")"
-                                           asp-route-exposureEndDate="@exposure.ExposureEndDate?.ToString("o")"
-                                           class="btn btn-sm btn-link p-0 me-1"
-                                           style="color: var(--status-info);"
-                                           title="Bulk Add Contacts for this exposure">
-                                            <i class="bi bi-people-fill"></i>
-                                        </a>
+                                        @if (Model.CanEditCase)
+                                        {
+                                            <a asp-page="/Cases/Contacts/BulkCreate"
+                                               asp-route-caseId="@Model.Case.Id"
+                                               asp-route-locationId="@exposure.LocationId"
+                                               asp-route-eventId="@exposure.EventId"
+                                               asp-route-exposureStartDate="@exposure.ExposureStartDate.ToString("o")"
+                                               asp-route-exposureEndDate="@exposure.ExposureEndDate?.ToString("o")"
+                                               class="btn btn-sm btn-link p-0 me-1"
+                                               style="color: var(--status-info);"
+                                               title="Bulk Add Contacts for this exposure">
+                                                <i class="bi bi-people-fill"></i>
+                                            </a>
+                                        }
                                     }
                                     <button type="button" class="btn btn-sm btn-link p-0" style="color: var(--signal-dk);" onclick="openEditExposure('@exposure.Id')" title="Edit Exposure">
                                         <i class="bi bi-pencil"></i>
@@ -1789,9 +1816,12 @@
                             <i class="bi bi-list-ul"></i> View All
                         </button>
                     }
-                    <button type="button" class="btn btn-sentinel-secondary btn-sm" onclick="openAddTask()">
-                        <i class="bi bi-plus-circle"></i> Add
-                    </button>
+                    @if (Model.CanEditCase)
+                    {
+                        <button type="button" class="btn btn-sentinel-secondary btn-sm" onclick="openAddTask()">
+                            <i class="bi bi-plus-circle"></i> Add
+                        </button>
+                    }
                 </div>
             </div>
             <div class="sentinel-card-body">
@@ -1969,7 +1999,10 @@
                 <div style="text-align: center; padding: var(--spacing-6) var(--spacing-4);">
                     <i class="bi bi-list-check" style="font-size: 3rem; color: var(--hairline); display: block; margin-bottom: var(--spacing-3);"></i>
                     <p style="color: var(--graphite); margin-bottom: var(--spacing-3);">No tasks yet</p>
-                    <button type="button" class="btn btn-sentinel-secondary btn-sm" onclick="openAddTask()">Add Task</button>
+                    @if (Model.CanEditCase)
+                    {
+                        <button type="button" class="btn btn-sentinel-secondary btn-sm" onclick="openAddTask()">Add Task</button>
+                    }
                 </div>
             }
             </div>
@@ -1982,9 +2015,12 @@
                 <i class="bi bi-chat-left-text" style="color: var(--signal-dk);"></i>
                 Notes (@Model.Notes.Count)
             </h3>
-            <button type="button" class="btn btn-sentinel-secondary btn-sm" data-bs-toggle="modal" data-bs-target="#addNoteModal">
-                <i class="bi bi-plus-circle me-1"></i>Add
-            </button>
+            @if (Model.CanEditCase)
+            {
+                <button type="button" class="btn btn-sentinel-secondary btn-sm" data-bs-toggle="modal" data-bs-target="#addNoteModal">
+                    <i class="bi bi-plus-circle me-1"></i>Add
+                </button>
+            }
         </div>
         <div class="sentinel-card-body">
 
@@ -2007,7 +2043,7 @@
                         @if (!string.IsNullOrEmpty(note.AttachmentFileName))
                         {
                             <div class="mt-1">
-                                <a href="@note.AttachmentPath" class="btn btn-sentinel-secondary btn-sm" target="_blank">
+                                <a href="/attachments/notes/@note.Id" class="btn btn-sentinel-secondary btn-sm">
                                     <i class="bi bi-paperclip"></i> @note.AttachmentFileName
                                 </a>
                             </div>
@@ -2036,7 +2072,10 @@
             <div style="text-align: center; padding: var(--spacing-6) var(--spacing-4);">
                 <i class="bi bi-chat-left-text" style="font-size: 3rem; color: var(--hairline); display: block; margin-bottom: var(--spacing-3);"></i>
                 <p style="color: var(--graphite); margin-bottom: var(--spacing-3);">No notes yet</p>
-                <button type="button" class="btn btn-sentinel-secondary btn-sm" data-bs-toggle="modal" data-bs-target="#addNoteModal">Add Note</button>
+                @if (Model.CanEditCase)
+                {
+                    <button type="button" class="btn btn-sentinel-secondary btn-sm" data-bs-toggle="modal" data-bs-target="#addNoteModal">Add Note</button>
+                }
             </div>
         }
         </div>
@@ -2393,9 +2432,12 @@
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn-sentinel-secondary" data-bs-dismiss="modal">Close</button>
-                <button type="button" class="btn-sentinel-primary" onclick="openAddTask(); if(typeof jQuery !== 'undefined') jQuery('#viewAllTasksModal').modal('hide');">            
-                    <i class="bi bi-plus-circle me-1"></i>Add New Task
-                </button>
+                @if (Model.CanEditCase)
+                {
+                    <button type="button" class="btn-sentinel-primary" onclick="openAddTask(); if(typeof jQuery !== 'undefined') jQuery('#viewAllTasksModal').modal('hide');">
+                        <i class="bi bi-plus-circle me-1"></i>Add New Task
+                    </button>
+                }
             </div>
         </div>
     </div>
@@ -2731,9 +2773,12 @@
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn-sentinel-secondary" data-bs-dismiss="modal">Close</button>
-                <button type="button" class="btn-sentinel-primary" onclick="openAddExposure(); if(typeof jQuery !== 'undefined') jQuery('#viewAllTransmissionsModal').modal('hide');">
-                    <i class="bi bi-plus-circle me-1"></i>Add New Exposure
-                </button>
+                @if (Model.CanEditCase)
+                {
+                    <button type="button" class="btn-sentinel-primary" onclick="openAddExposure(); if(typeof jQuery !== 'undefined') jQuery('#viewAllTransmissionsModal').modal('hide');">
+                        <i class="bi bi-plus-circle me-1"></i>Add New Exposure
+                    </button>
+                }
             </div>
         </div>
     </div>

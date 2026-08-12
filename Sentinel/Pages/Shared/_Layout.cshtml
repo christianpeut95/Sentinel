@@ -1,7 +1,9 @@
 @using Microsoft.AspNetCore.Identity
 @using Sentinel.Models
+@using Sentinel.Services
 @inject UserManager<ApplicationUser> UserManager
 @inject Microsoft.Extensions.Configuration.IConfiguration Configuration
+@inject IApplicationVersionProvider ApplicationVersion
 @*
   Sidebar-based layout using Bootstrap 5 + Bootstrap Icons
 *@
@@ -694,8 +696,8 @@
             <div class="user-section">
                 <partial name="_LoginPartial" />
                 <div style="margin-top: 16px; padding-top: 16px; border-top: 1px solid rgba(255, 255, 255, 0.2); text-align: center; font-size: 0.75rem; color: rgba(255, 255, 255, 0.6);">
-                    <div>@Sentinel.Constants.AppVersion.ProductName @Sentinel.Constants.AppVersion.FullVersionString</div>
-                    <div style="font-size: 0.7rem; margin-top: 2px;">@Sentinel.Constants.AppVersion.ReleaseDate</div>
+                    <div>@ApplicationVersion.ProductName @ApplicationVersion.FullVersion</div>
+                    <div style="font-size: 0.7rem; margin-top: 2px;">Build @ApplicationVersion.InformationalVersion</div>
                 </div>
             </div>
         </aside>

@@ -1,6 +1,7 @@
 @page
 @model Sentinel.Pages.Settings.IndexModel
-@using Sentinel.Constants
+@using Sentinel.Services
+@inject IApplicationVersionProvider ApplicationVersion
 
 @{
     ViewData["Title"] = "Settings";
@@ -307,7 +308,7 @@
         <div class="settings-sidebar">
             <div class="settings-sidebar-header">
                 <h1>Settings</h1>
-                <p>@AppVersion.ProductName @AppVersion.FullVersionString</p>
+                <p>@ApplicationVersion.ProductName @ApplicationVersion.FullVersion</p>
             </div>
 
             <!-- Search -->
@@ -405,7 +406,7 @@
                     <div class="settings-category-info">
                         <div class="settings-category-name">System Administration</div>
                     </div>
-                    <span class="settings-category-count">4</span>
+                    <span class="settings-category-count">6</span>
                 </a>
             </div>
         </div>
@@ -472,6 +473,17 @@
                         <div class="setting-row-info">
                             <div class="setting-row-title">SMTP Settings</div>
                             <div class="setting-row-desc">Configure email server for notifications and password resets</div>
+                        </div>
+                        <i class="bi bi-chevron-right setting-row-chevron"></i>
+                    </a>
+
+                    <a asp-page="/Settings/Feedback" class="setting-row">
+                        <div class="setting-row-icon">
+                            <i class="bi bi-chat-square-text"></i>
+                        </div>
+                        <div class="setting-row-info">
+                            <div class="setting-row-title">User Feedback</div>
+                            <div class="setting-row-desc">Configure the feedback widget to collect user feedback and bug reports</div>
                         </div>
                         <i class="bi bi-chevron-right setting-row-chevron"></i>
                     </a>
@@ -1060,6 +1072,31 @@
                         </div>
                         <i class="bi bi-chevron-right setting-row-chevron"></i>
                     </a>
+
+                    <a href="/Settings/Telemetry" class="setting-row">
+                        <div class="setting-row-icon">
+                            <i class="bi bi-graph-up"></i>
+                        </div>
+                        <div class="setting-row-info">
+                            <div class="setting-row-title">Telemetry & Logging</div>
+                            <div class="setting-row-desc">Configure local logging, telemetry settings, and privacy options</div>
+                        </div>
+                        <i class="bi bi-chevron-right setting-row-chevron"></i>
+                    </a>
+
+                    @if (User.IsInRole("Admin"))
+                    {
+                        <a href="/Admin/Logs" class="setting-row">
+                            <div class="setting-row-icon">
+                                <i class="bi bi-journal-text"></i>
+                            </div>
+                            <div class="setting-row-info">
+                                <div class="setting-row-title">View System Logs</div>
+                                <div class="setting-row-desc">Browse and filter application logs for troubleshooting and monitoring</div>
+                            </div>
+                            <i class="bi bi-chevron-right setting-row-chevron"></i>
+                        </a>
+                    }
                 </div>
             </div>
         </div>

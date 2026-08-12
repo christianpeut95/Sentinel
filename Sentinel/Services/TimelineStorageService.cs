@@ -39,24 +39,42 @@ namespace Sentinel.Services
         private readonly IWebHostEnvironment _environment;
         private readonly IHttpContextAccessor _httpContextAccessor;
         private readonly ILogger<TimelineStorageService> _logger;
-        private const string TimelineDataFolder = "data/timeline-entries";
-        private const string BackupFolder = "data/timeline-backups";
+        private readonly string _storageRoot;
+        private const string TimelineDataFolder = "timelines";
+        private const string BackupFolder = "timeline-backups";
 
         public TimelineStorageService(
             IWebHostEnvironment environment,
             IHttpContextAccessor httpContextAccessor,
+            IConfiguration configuration,
             ILogger<TimelineStorageService> logger)
         {
             _environment = environment;
             _httpContextAccessor = httpContextAccessor;
             _logger = logger;
+            var configuredRoot = configuration["FileStorage:RootPath"];
+            configuredRoot = string.IsNullOrWhiteSpace(configuredRoot)
+                ? Path.Combine("App_Data", "SentinelFiles")
+                : configuredRoot;
+            _storageRoot = Path.GetFullPath(Path.IsPathRooted(configuredRoot)
+                ? configuredRoot
+                : Path.Combine(_environment.ContentRootPath, configuredRoot));
+
+            var webRoot = Path.GetFullPath(_environment.WebRootPath);
+            if (_storageRoot.Equals(webRoot, StringComparison.OrdinalIgnoreCase) ||
+                _storageRoot.StartsWith(webRoot + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
+            {
+                throw new InvalidOperationException("FileStorage:RootPath must be outside wwwroot.");
+            }
+
             EnsureDirectoriesExist();
+            MigrateLegacyTimelineFiles();
         }
 
         private void EnsureDirectoriesExist()
         {
-            var timelinePath = Path.Combine(_environment.WebRootPath, TimelineDataFolder);
-            var backupPath = Path.Combine(_environment.WebRootPath, BackupFolder);
+            var timelinePath = Path.Combine(_storageRoot, TimelineDataFolder);
+            var backupPath = Path.Combine(_storageRoot, BackupFolder);
             
             if (!Directory.Exists(timelinePath))
                 Directory.CreateDirectory(timelinePath);
@@ -67,12 +85,41 @@ namespace Sentinel.Services
 
         private string GetTimelineFilePath(Guid caseId)
         {
-            return Path.Combine(_environment.WebRootPath, TimelineDataFolder, $"{caseId}_timeline.json");
+            return Path.Combine(_storageRoot, TimelineDataFolder, $"{caseId}_timeline.json");
         }
 
         private string GetBackupFilePath(Guid caseId, DateTime timestamp)
         {
-            return Path.Combine(_environment.WebRootPath, BackupFolder, $"{caseId}_{timestamp:yyyyMMddHHmmss}_backup.json");
+            return Path.Combine(_storageRoot, BackupFolder, $"{caseId}_{timestamp:yyyyMMddHHmmss}_backup.json");
+        }
+
+        private void MigrateLegacyTimelineFiles()
+        {
+            MoveLegacyFiles("data/timeline-entries", TimelineDataFolder);
+            MoveLegacyFiles("data/timeline-backups", BackupFolder);
+        }
+
+        private void MoveLegacyFiles(string legacyRelativeFolder, string protectedRelativeFolder)
+        {
+            var legacyDirectory = Path.Combine(_environment.WebRootPath, legacyRelativeFolder);
+            if (!Directory.Exists(legacyDirectory))
+                return;
+
+            var destinationDirectory = Path.Combine(_storageRoot, protectedRelativeFolder);
+            Directory.CreateDirectory(destinationDirectory);
+
+            foreach (var sourceFile in Directory.EnumerateFiles(legacyDirectory, "*.json", SearchOption.TopDirectoryOnly))
+            {
+                var destinationFile = Path.Combine(destinationDirectory, Path.GetFileName(sourceFile));
+                if (File.Exists(destinationFile))
+                {
+                    _logger.LogWarning("Legacy timeline file {SourceFile} was not moved because the protected destination exists", sourceFile);
+                    continue;
+                }
+
+                File.Move(sourceFile, destinationFile);
+                _logger.LogInformation("Moved legacy timeline file to protected storage: {FileName}", Path.GetFileName(sourceFile));
+            }
         }
 
         public async Task<CaseTimelineData?> LoadTimelineAsync(Guid caseId)

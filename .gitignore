@@ -455,3 +455,12 @@ Sentinel/User-Documentation/
 Sentinel/Migrations_ARCHIVED_DO_NOT_USE/
 Sentinel/.github/
 /Sentinel/wwwroot/data
+
+# Protected user uploads and timeline data. These are stored outside wwwroot
+# and must be persisted through the deployment volume, never committed.
+/Sentinel/App_Data/SentinelFiles/
+/Sentinel/wwwroot/uploads/
+
+# Local-only development diagnostic endpoint (never commit or publish)
+/Sentinel/Pages/Tools/TestUnhandledException.cshtml
+/Sentinel/Pages/Tools/TestUnhandledException.cshtml.cs

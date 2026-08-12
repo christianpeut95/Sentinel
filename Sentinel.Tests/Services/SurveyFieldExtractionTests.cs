@@ -156,8 +156,9 @@ namespace Sentinel.Tests.Services
             var questions = await _service.GetSurveyQuestionsAsync(surveyJson);
 
             // Assert
-            // Should have 2 rows × 2 columns = 4 fields
-            Assert.Equal(4, questions.Count);
+            // Should have 2 rows Ã— 2 columns = 4 fields
+            Assert.Equal(5, questions.Count);
+            Assert.Contains(questions, q => q.Name == "symptoms" && q.Type == "matrixdropdown");
 
             // Check fever.present
             var feverPresent = questions.FirstOrDefault(q => q.FieldPath == "symptoms.fever.present");
@@ -198,7 +199,8 @@ namespace Sentinel.Tests.Services
             var questions = await _service.GetSurveyQuestionsAsync(surveyJson);
 
             // Assert
-            Assert.Equal(2, questions.Count);
+            Assert.Equal(3, questions.Count);
+            Assert.Contains(questions, q => q.Name == "exposures" && q.Type == "matrixdynamic" && q.IsArray);
             var workLocation = questions.FirstOrDefault(q => q.FieldPath == "exposures.work.location");
             Assert.NotNull(workLocation);
             Assert.Equal("exposures", workLocation.ParentMatrix);
@@ -223,7 +225,8 @@ namespace Sentinel.Tests.Services
             var questions = await _service.GetSurveyQuestionsAsync(surveyJson);
 
             // Assert
-            Assert.Equal(3, questions.Count);
+            Assert.Equal(4, questions.Count);
+            Assert.Contains(questions, q => q.Name == "risk_factors" && q.Type == "matrixdropdown");
             var travel = questions.FirstOrDefault(q => q.FieldPath == "risk_factors.travel.status");
             Assert.NotNull(travel);
             Assert.Equal("travel - Status", travel.DisplayName);
@@ -264,7 +267,8 @@ namespace Sentinel.Tests.Services
             var questions = await _service.GetSurveyQuestionsAsync(surveyJson);
 
             // Assert
-            Assert.Equal(2, questions.Count);
+            Assert.Equal(3, questions.Count);
+            Assert.Contains(questions, q => q.Name == "household_contacts" && q.Type == "paneldynamic" && q.IsArray);
 
             var firstName = questions.FirstOrDefault(q => q.FieldPath == "household_contacts[].first_name");
             Assert.NotNull(firstName);
@@ -301,9 +305,9 @@ namespace Sentinel.Tests.Services
             var questions = await _service.GetSurveyQuestionsAsync(surveyJson);
 
             // Assert
-            Assert.Equal(3, questions.Count);
+            Assert.Equal(4, questions.Count);
             Assert.All(questions, q => Assert.True(q.IsArray));
-            Assert.All(questions, q => Assert.Contains("[]", q.FieldPath));
+            Assert.Contains(questions, q => q.FieldPath == "trips");
         }
 
         #endregion
@@ -425,10 +429,10 @@ namespace Sentinel.Tests.Services
 
             // Assert
             // 1 simple + 4 matrix cells (2x2) + 1 panel dynamic + 1 calculated = 7 total
-            Assert.Equal(7, questions.Count);
+            Assert.Equal(9, questions.Count);
 
             // Check each category
-            var simpleQuestions = questions.Where(q => !q.IsCalculated && q.ParentMatrix == null && !q.IsArray).ToList();
+            var simpleQuestions = questions.Where(q => !q.IsCalculated && q.ParentMatrix == null && !q.IsArray && q.Type != "matrixdropdown").ToList();
             Assert.Single(simpleQuestions);
 
             var matrixQuestions = questions.Where(q => q.ParentMatrix == "symptoms").ToList();

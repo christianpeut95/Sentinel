@@ -15,19 +15,27 @@ namespace Sentinel.Controllers.Api
         private readonly INaturalLanguageParserService _parserService;
         private readonly ITimelineStorageService _storageService;
         private readonly IEntityMemoryService _memoryService;
+        private readonly ICaseAccessService _caseAccessService;
         private readonly ILogger<TimelineEntryApiController> _logger;
 
         public TimelineEntryApiController(
             INaturalLanguageParserService parserService,
             ITimelineStorageService storageService,
             IEntityMemoryService memoryService,
+            ICaseAccessService caseAccessService,
             ILogger<TimelineEntryApiController> logger)
         {
             _parserService = parserService;
             _storageService = storageService;
             _memoryService = memoryService;
+            _caseAccessService = caseAccessService;
             _logger = logger;
         }
+
+        private Task<bool> CanAccessCaseAsync(Guid caseId) =>
+            caseId == Guid.Empty
+                ? Task.FromResult(false)
+                : _caseAccessService.CanAccessCaseAsync(caseId);
 
         /// <summary>
         /// Parse narrative text and extract entities
@@ -79,6 +87,9 @@ namespace Sentinel.Controllers.Api
         {
             try
             {
+                if (!await CanAccessCaseAsync(caseId))
+                    return NotFound();
+
                 var people = await _memoryService.GetKnownPeopleAsync(caseId);
                 var locations = await _memoryService.GetKnownLocationsAsync(caseId);
                 var conventions = await _memoryService.GetConventionsAsync(caseId);
@@ -105,6 +116,9 @@ namespace Sentinel.Controllers.Api
         {
             try
             {
+                if (!await CanAccessCaseAsync(caseId))
+                    return NotFound();
+
                 var timeline = await _storageService.LoadTimelineAsync(caseId);
                 
                 if (timeline == null)
@@ -134,6 +148,9 @@ namespace Sentinel.Controllers.Api
                     return BadRequest(new { error = "Invalid timeline data" });
                 }
 
+                if (!await CanAccessCaseAsync(timelineData.CaseId))
+                    return NotFound();
+
                 await _storageService.SaveTimelineAsync(timelineData);
                 _memoryService.ClearCache(timelineData.CaseId);
 
@@ -156,6 +173,9 @@ namespace Sentinel.Controllers.Api
         {
             try
             {
+                if (!await CanAccessCaseAsync(request.CaseId))
+                    return NotFound();
+
                 var timeline = await _storageService.LoadTimelineAsync(request.CaseId);
                 
                 if (timeline == null)
@@ -215,6 +235,9 @@ namespace Sentinel.Controllers.Api
         {
             try
             {
+                if (!await CanAccessCaseAsync(request.CaseId))
+                    return NotFound();
+
                 await _memoryService.AddConventionAsync(
                     request.CaseId, 
                     request.ConventionName, 
@@ -237,6 +260,9 @@ namespace Sentinel.Controllers.Api
         {
             try
             {
+                if (!await CanAccessCaseAsync(caseId))
+                    return NotFound();
+
                 await _storageService.DeleteTimelineAsync(caseId);
                 _memoryService.ClearCache(caseId);
 
@@ -257,6 +283,9 @@ namespace Sentinel.Controllers.Api
         {
             try
             {
+                if (!await CanAccessCaseAsync(caseId))
+                    return NotFound();
+
                 var timeline = await _storageService.LoadTimelineAsync(caseId);
 
                 if (timeline == null || timeline.EntityGroups == null)
@@ -285,6 +314,9 @@ namespace Sentinel.Controllers.Api
                 {
                     return BadRequest(new { error = "Group name and entity IDs are required" });
                 }
+
+                if (!await CanAccessCaseAsync(request.CaseId))
+                    return NotFound();
 
                 var timeline = await _storageService.LoadTimelineAsync(request.CaseId);
 
@@ -356,6 +388,9 @@ namespace Sentinel.Controllers.Api
         {
             try
             {
+                if (!await CanAccessCaseAsync(caseId))
+                    return NotFound();
+
                 var timeline = await _storageService.LoadTimelineAsync(caseId);
 
                 if (timeline == null || !timeline.EntityGroups.ContainsKey(groupId))

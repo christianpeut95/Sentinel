@@ -295,17 +295,45 @@ namespace Sentinel.Services
         private async Task<WidgetData> GetCasesByDiseaseDataAsync(string userId, Dictionary<string, object> settings, List<Guid> pinnedDiseaseIds)
         {
             var timeWindow = settings.ContainsKey("timeWindow") ? settings["timeWindow"]?.ToString() : "30d";
-            var cutoffTime = GetCutoffTime(timeWindow ?? "30d");
+            var periodEnd = DateTime.UtcNow;
+            var cutoffTime = GetCutoffTime(timeWindow ?? "30d", periodEnd);
 
-            // Query Cases directly using DateOfNotification instead of relying on audit logs
+            // Case does not persist a CreatedAt value.  The audit trail is therefore the
+            // authoritative creation timestamp for the dashboard's "created" branch.
+            // A case can have one audit row for each populated field, so reduce these to
+            // unique case identifiers before applying the filter.
+            var createdCaseEntityIds = await _context.AuditLogs
+                .AsNoTracking()
+                .Where(log => log.EntityType == nameof(Case)
+                    && log.Action == nameof(EntityState.Added)
+                    && log.ChangedAt >= cutoffTime
+                    && log.ChangedAt <= periodEnd)
+                .Select(log => log.EntityId)
+                .Distinct()
+                .ToListAsync();
+
+            var recentlyCreatedCaseIds = new HashSet<Guid>();
+            foreach (var entityId in createdCaseEntityIds)
+            {
+                if (Guid.TryParse(entityId, out var caseId))
+                {
+                    recentlyCreatedCaseIds.Add(caseId);
+                }
+            }
+
+            // Count a case once when it was either notified or created within the selected
+            // closed interval.  The upper bound prevents future-dated notifications from
+            // inflating every dashboard time window.
             var casesQuery = _context.Cases
                 .Include(c => c.Disease)
                 .Include(c => c.ConfirmationStatus)
                 .Where(c => !c.IsDeleted 
                     && c.Type == CaseType.Case 
                     && c.DiseaseId.HasValue
-                    && c.DateOfNotification.HasValue
-                    && c.DateOfNotification >= cutoffTime);
+                    && ((c.DateOfNotification.HasValue
+                            && c.DateOfNotification >= cutoffTime
+                            && c.DateOfNotification <= periodEnd)
+                        || recentlyCreatedCaseIds.Contains(c.Id)));
 
             // Filter by pinned diseases if any
             if (pinnedDiseaseIds.Any())
@@ -512,17 +540,19 @@ namespace Sentinel.Services
             };
         }
 
-        private DateTime GetCutoffTime(string timeWindow)
+        private DateTime GetCutoffTime(string timeWindow, DateTime? utcNow = null)
         {
+            var now = utcNow ?? DateTime.UtcNow;
+
             return timeWindow switch
             {
-                "24h" => DateTime.UtcNow.AddHours(-24),
-                "48h" => DateTime.UtcNow.AddHours(-48),
-                "7d" => DateTime.UtcNow.AddDays(-7),
-                "30d" => DateTime.UtcNow.AddDays(-30),
-                "thisWeek" => DateTime.UtcNow.Date.AddDays(-(int)DateTime.UtcNow.DayOfWeek),
-                "thisMonth" => new DateTime(DateTime.UtcNow.Year, DateTime.UtcNow.Month, 1),
-                _ => DateTime.UtcNow.AddHours(-24)
+                "24h" => now.AddHours(-24),
+                "48h" => now.AddHours(-48),
+                "7d" => now.AddDays(-7),
+                "30d" => now.AddDays(-30),
+                "thisWeek" => now.Date.AddDays(-(int)now.DayOfWeek),
+                "thisMonth" => new DateTime(now.Year, now.Month, 1),
+                _ => now.AddHours(-24)
             };
         }
     }

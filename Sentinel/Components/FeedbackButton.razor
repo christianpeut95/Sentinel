@@ -1,0 +1,116 @@
+@using Sentinel.Services
+@using Microsoft.JSInterop
+@inject ISystemSettingsService SystemSettings
+@inject IJSRuntime JS
+@inject ILogger<FeedbackButton> Logger
+
+@if (_isEnabled && _installationId != null)
+{
+    <div class="feedback-button" @onclick="OpenFeedback">
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+        </svg>
+        <span>Feedback</span>
+    </div>
+}
+
+@code {
+    private bool _isEnabled = false;
+    private string? _installationId;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            _isEnabled = await SystemSettings.GetFeedbackWidgetEnabledAsync();
+            _installationId = await SystemSettings.GetInstallationIdAsync();
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Failed to load feedback widget settings");
+            _isEnabled = false;
+        }
+    }
+
+    private async Task OpenFeedback()
+    {
+        try
+        {
+            // Open Quackback with installation metadata
+            await JS.InvokeVoidAsync("eval", $@"
+                if (typeof Quackback !== 'undefined') {{
+                    Quackback('open', {{
+                        metadata: {{
+                            installationId: '{_installationId}',
+                            timestamp: '{DateTime.UtcNow:o}'
+                        }}
+                    }});
+                }}
+            ");
+
+            Logger.LogInformation("Feedback widget opened for installation {InstallationId}", _installationId);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Failed to open feedback widget");
+        }
+    }
+}
+
+<style>
+    .feedback-button {
+        position: fixed;
+        bottom: 24px;
+        right: 24px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 12px 18px;
+        background: #0C2A20; /* --forest */
+        color: #3DD598; /* --signal */
+        border: 1px solid #1E3329; /* --hairline-dk */
+        border-radius: 24px;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Geist", sans-serif;
+        font-size: 14px;
+        font-weight: 500;
+        letter-spacing: -0.01em;
+        cursor: pointer;
+        box-shadow: 0 4px 12px rgba(12, 42, 32, 0.3), 0 2px 4px rgba(12, 42, 32, 0.2);
+        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        z-index: 9999;
+        user-select: none;
+    }
+
+    .feedback-button:hover {
+        background: #13382C; /* --forest-2 */
+        box-shadow: 0 6px 16px rgba(12, 42, 32, 0.4), 0 3px 6px rgba(12, 42, 32, 0.25);
+        transform: translateY(-1px);
+    }
+
+    .feedback-button:active {
+        transform: translateY(0);
+        box-shadow: 0 2px 8px rgba(12, 42, 32, 0.3);
+    }
+
+    .feedback-button svg {
+        width: 18px;
+        height: 18px;
+        stroke: currentColor;
+    }
+
+    .feedback-button span {
+        line-height: 1;
+    }
+
+    /* Responsive: collapse to icon-only on narrow screens */
+    @@media (max-width: 640px) {
+        .feedback-button {
+            padding: 12px;
+            border-radius: 50%;
+        }
+
+        .feedback-button span {
+            display: none;
+        }
+    }
+</style>

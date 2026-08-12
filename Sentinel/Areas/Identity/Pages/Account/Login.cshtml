@@ -1,7 +1,8 @@
 @page
 @model LoginModel
-@using Sentinel.Constants
+@using Sentinel.Services
 @inject Microsoft.Extensions.Configuration.IConfiguration Configuration
+@inject IApplicationVersionProvider ApplicationVersion
 
 @{
     ViewData["Title"] = "Sign In";
@@ -522,7 +523,7 @@
 
     <!-- Version Info -->
     <div class="version-info">
-        Version @AppVersion.Version • @AppVersion.ReleaseDate
+        Version @ApplicationVersion.DisplayVersion
     </div>
 
     <!-- Login Container -->
@@ -533,7 +534,7 @@
                 <div class="logo-icon">
                     <img src="~/Icons/sentinel-icon.svg" alt="Sentinel Logo" style="width: 64px; height: 64px;" />
                 </div>
-                <h1 class="login-title">@AppVersion.ProductName</h1>
+                <h1 class="login-title">@ApplicationVersion.ProductName</h1>
                 <p class="login-subtitle">Disease Surveillance System</p>
             </div>
 
@@ -552,7 +553,7 @@
                                 <i class="bi bi-person-badge"></i>
                                 <div>
                                     <strong>Emma</strong>
-                                    <small>Surveillance Manager • Full system access</small>
+                                    <small>Surveillance Manager â€¢ Full system access</small>
                                 </div>
                             </button>
                         </form>
@@ -564,7 +565,7 @@
                                 <i class="bi bi-person-badge"></i>
                                 <div>
                                     <strong>Isabella</strong>
-                                    <small>Surveillance Officer • Operational access</small>
+                                    <small>Surveillance Officer â€¢ Operational access</small>
                                 </div>
                             </button>
                         </form>
@@ -576,7 +577,7 @@
                                 <i class="bi bi-person-check"></i>
                                 <div>
                                     <strong>John</strong>
-                                    <small>Contact Tracer • Interview queue & surveys</small>
+                                    <small>Contact Tracer â€¢ Interview queue & surveys</small>
                                 </div>
                             </button>
                         </form>
@@ -588,7 +589,7 @@
                                 <i class="bi bi-person-gear"></i>
                                 <div>
                                     <strong>Caitlin</strong>
-                                    <small>Contact Tracing Supervisor • Task management</small>
+                                    <small>Contact Tracing Supervisor â€¢ Task management</small>
                                 </div>
                             </button>
                         </form>
@@ -600,7 +601,7 @@
                                 <i class="bi bi-shield-check"></i>
                                 <div>
                                     <strong>Megge</strong>
-                                    <small>STI/BBV Officer • STI/BBV surveillance</small>
+                                    <small>STI/BBV Officer â€¢ STI/BBV surveillance</small>
                                 </div>
                             </button>
                         </form>
@@ -657,7 +658,7 @@
                     *@
                     @if (Model.ExternalLogins?.Count > 0)
                     {
-                        <span style="color: var(--graphite); margin: 0 8px; opacity: 0.5;">•</span>
+                        <span style="color: var(--graphite); margin: 0 8px; opacity: 0.5;">â€¢</span>
                         <a id="external-login" asp-page="./ExternalLogin" asp-route-returnUrl="@Model.ReturnUrl" class="login-link">External login</a>
                     }
                 </div>

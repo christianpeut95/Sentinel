@@ -15,13 +15,20 @@ namespace Sentinel.Areas.Identity.Pages.Account
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly ILogger<LoginModel> _logger;
         private readonly IConfiguration _configuration;
+        private readonly Sentinel.Services.Telemetry.ActivityTracker _activityTracker;
 
-        public LoginModel(SignInManager<ApplicationUser> signInManager, UserManager<ApplicationUser> userManager, ILogger<LoginModel> logger, IConfiguration configuration)
+        public LoginModel(
+            SignInManager<ApplicationUser> signInManager, 
+            UserManager<ApplicationUser> userManager, 
+            ILogger<LoginModel> logger, 
+            IConfiguration configuration,
+            Sentinel.Services.Telemetry.ActivityTracker activityTracker)
         {
             _signInManager = signInManager;
             _userManager = userManager;
             _logger = logger;
             _configuration = configuration;
+            _activityTracker = activityTracker;
         }
 
         [BindProperty]
@@ -101,6 +108,7 @@ namespace Sentinel.Areas.Identity.Pages.Account
                 if (result.Succeeded)
                 {
                     _logger.LogInformation($"User {user.Email} logged in successfully.");
+                    _activityTracker.TrackLogin(success: true, userId: user.Id);
                     return LocalRedirect(returnUrl);
                 }
                 if (result.RequiresTwoFactor)
@@ -110,11 +118,13 @@ namespace Sentinel.Areas.Identity.Pages.Account
                 if (result.IsLockedOut)
                 {
                     _logger.LogWarning($"User account locked out: {Input.Email}");
+                    _activityTracker.TrackLogin(success: false);
                     return RedirectToPage("./Lockout");
                 }
                 else
                 {
                     _logger.LogWarning($"Login failed: Invalid password for user {Input.Email}");
+                    _activityTracker.TrackLogin(success: false);
                     ModelState.AddModelError(string.Empty, "Incorrect password. Please try again or use 'Forgot your password?' to reset it.");
                     return Page();
                 }
@@ -140,11 +150,13 @@ namespace Sentinel.Areas.Identity.Pages.Account
             if (result.Succeeded)
             {
                 _logger.LogInformation($"Demo user {email} logged in successfully.");
+                _activityTracker.TrackLogin(success: true, userId: user.Id);
                 return LocalRedirect(returnUrl);
             }
             else
             {
                 _logger.LogWarning($"Demo login failed for {email}");
+                _activityTracker.TrackLogin(success: false);
                 ModelState.AddModelError(string.Empty, "Demo login failed. Check server logs.");
                 return Page();
             }

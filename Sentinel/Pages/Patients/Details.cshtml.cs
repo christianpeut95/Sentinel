@@ -23,6 +23,7 @@ namespace Sentinel.Pages.Patients
         private readonly IPermissionService _permissionService;
         private readonly IDiseaseAccessService _diseaseAccessService;
         private readonly IJurisdictionService _jurisdictionService;
+        private readonly IProtectedFileStorageService _fileStorage;
 
         public DetailsModel(
             ApplicationDbContext context, 
@@ -30,7 +31,8 @@ namespace Sentinel.Pages.Patients
             IPatientCustomFieldService customFieldService, 
             IPermissionService permissionService,
             IDiseaseAccessService diseaseAccessService,
-            IJurisdictionService jurisdictionService)
+            IJurisdictionService jurisdictionService,
+            IProtectedFileStorageService fileStorage)
         {
             _context = context;
             _auditService = auditService;
@@ -38,6 +40,7 @@ namespace Sentinel.Pages.Patients
             _permissionService = permissionService;
             _diseaseAccessService = diseaseAccessService;
             _jurisdictionService = jurisdictionService;
+            _fileStorage = fileStorage;
         }
 
         public Patient Patient { get; set; } = default!;
@@ -149,20 +152,13 @@ namespace Sentinel.Pages.Patients
             // Handle file attachment
             if (Attachment != null && Attachment.Length > 0)
             {
-                var uploadsFolder = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "uploads", "notes");
-                Directory.CreateDirectory(uploadsFolder);
-
-                var uniqueFileName = $"{Guid.NewGuid()}_{Attachment.FileName}";
-                var filePath = Path.Combine(uploadsFolder, uniqueFileName);
-
-                using (var fileStream = new FileStream(filePath, FileMode.Create))
-                {
-                    await Attachment.CopyToAsync(fileStream);
-                }
-
-                NewNote.AttachmentPath = $"/uploads/notes/{uniqueFileName}";
-                NewNote.AttachmentFileName = Attachment.FileName;
-                NewNote.AttachmentSize = Attachment.Length;
+                var storedFile = await _fileStorage.SaveAttachmentAsync(
+                    Attachment,
+                    ProtectedFileStorageService.NotesCategory,
+                    HttpContext.RequestAborted);
+                NewNote.AttachmentPath = storedFile.StorageKey;
+                NewNote.AttachmentFileName = storedFile.OriginalFileName;
+                NewNote.AttachmentSize = storedFile.Length;
             }
 
             _context.Notes.Add(NewNote);

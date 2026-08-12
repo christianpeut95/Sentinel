@@ -561,7 +561,10 @@
 {
     <div class="alert alert-warning alert-dismissible fade show" role="alert">
         <i class="bi bi-exclamation-triangle-fill me-2"></i>@TempData["ExposureWarning"]
-        <a asp-page="/Cases/Exposures/Create" asp-route-caseId="@Model.Contact.Id" class="alert-link ms-2">Add exposure now</a>
+        @if (Model.CanEditCase)
+        {
+            <a asp-page="/Cases/Exposures/Create" asp-route-caseId="@Model.Contact.Id" class="alert-link ms-2">Add exposure now</a>
+        }
         <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
     </div>
 }
@@ -609,21 +612,24 @@
 
         <!-- Quick Actions -->
         <div class="quick-actions">
-            <a asp-page="./Edit" asp-route-id="@Model.Contact.Id" class="quick-action-btn primary">
-                <i class="bi bi-pencil"></i> Edit Contact
-            </a>
-            <button type="button" class="quick-action-btn success" data-bs-toggle="modal" data-bs-target="#addNoteModal">
-                <i class="bi bi-plus-circle"></i> Add Note
-            </button>
-            <button type="button" class="quick-action-btn success" onclick="openAddLabResult()">
-                <i class="bi bi-plus-circle"></i> Add Lab Result
-            </button>
-            <button type="button" class="quick-action-btn success" onclick="openAddExposure()">
-                <i class="bi bi-plus-circle"></i> Add Exposure
-            </button>
-            <button type="button" class="quick-action-btn success" onclick="openAddTask()">
-                <i class="bi bi-plus-circle"></i> Add Task
-            </button>
+            @if (Model.CanEditCase)
+            {
+                <a asp-page="./Edit" asp-route-id="@Model.Contact.Id" class="quick-action-btn primary">
+                    <i class="bi bi-pencil"></i> Edit Contact
+                </a>
+                <button type="button" class="quick-action-btn success" data-bs-toggle="modal" data-bs-target="#addNoteModal">
+                    <i class="bi bi-plus-circle"></i> Add Note
+                </button>
+                <button type="button" class="quick-action-btn success" onclick="openAddLabResult()">
+                    <i class="bi bi-plus-circle"></i> Add Lab Result
+                </button>
+                <button type="button" class="quick-action-btn success" onclick="openAddExposure()">
+                    <i class="bi bi-plus-circle"></i> Add Exposure
+                </button>
+                <button type="button" class="quick-action-btn success" onclick="openAddTask()">
+                    <i class="bi bi-plus-circle"></i> Add Task
+                </button>
+            }
             @if (Model.Contact.Patient != null)
             {
                 <a asp-page="/Patients/Details" asp-route-id="@Model.Contact.PatientId" class="quick-action-btn">
@@ -857,7 +863,10 @@
                 <div class="empty-state">
                     <i class="bi bi-heart-pulse"></i>
                     <p>No symptoms recorded</p>
-                    <a asp-page="./Edit" asp-route-id="@Model.Contact.Id" class="info-card-action">Add Symptoms</a>
+                    @if (Model.CanEditCase)
+                    {
+                        <a asp-page="./Edit" asp-route-id="@Model.Contact.Id" class="info-card-action">Add Symptoms</a>
+                    }
                 </div>
             }
         </div>
@@ -869,9 +878,12 @@
                     <i class="bi bi-clipboard-pulse"></i>
                     Lab Results (@Model.LabResults.Count)
                 </h3>
-                <button type="button" class="info-card-action" onclick="openAddLabResult()">
-                    <i class="bi bi-plus-circle"></i> Add
-                </button>
+                @if (Model.CanEditCase)
+                {
+                    <button type="button" class="info-card-action" onclick="openAddLabResult()">
+                        <i class="bi bi-plus-circle"></i> Add
+                    </button>
+                }
             </div>
             @if (Model.LabResults.Any())
             {
@@ -993,7 +1005,10 @@
                 <div class="empty-state">
                     <i class="bi bi-clipboard-pulse"></i>
                     <p>No lab results yet</p>
-                    <button type="button" class="info-card-action" onclick="openAddLabResult()">Add Lab Result</button>
+                    @if (Model.CanEditCase)
+                    {
+                        <button type="button" class="info-card-action" onclick="openAddLabResult()">Add Lab Result</button>
+                    }
                 </div>
             }
         </div>
@@ -1138,15 +1153,18 @@
                     Transmissions (@Model.Transmissions.Count)
                 </h3>
                 <div class="d-flex gap-1">
-                    <a asp-page="/Cases/Contacts/BulkCreate"
-                       asp-route-caseId="@Model.Contact.Id"
-                       class="btn btn-sm btn-outline-primary"
-                       title="Bulk Add Contacts">
-                        <i class="bi bi-people-fill"></i>
-                    </a>
-                    <button type="button" class="btn btn-sm btn-outline-success" onclick="openAddExposure()" title="Add Exposure">
-                        <i class="bi bi-plus-circle"></i>
-                    </button>
+                    @if (Model.CanEditCase)
+                    {
+                        <a asp-page="/Cases/Contacts/BulkCreate"
+                           asp-route-caseId="@Model.Contact.Id"
+                           class="btn btn-sm btn-outline-primary"
+                           title="Bulk Add Contacts">
+                            <i class="bi bi-people-fill"></i>
+                        </a>
+                        <button type="button" class="btn btn-sm btn-outline-success" onclick="openAddExposure()" title="Add Exposure">
+                            <i class="bi bi-plus-circle"></i>
+                        </button>
+                    }
                 </div>
             </div>
             @if (Model.Transmissions.Any())
@@ -1241,9 +1259,12 @@
                     <i class="bi bi-list-check"></i>
                     Tasks (@Model.Tasks.Count)
                 </h3>
-                <button type="button" class="info-card-action" onclick="openAddTask()">
-                    <i class="bi bi-plus-circle"></i> Add
-                </button>
+                @if (Model.CanEditCase)
+                {
+                    <button type="button" class="info-card-action" onclick="openAddTask()">
+                        <i class="bi bi-plus-circle"></i> Add
+                    </button>
+                }
             </div>
             @if (Model.Tasks.Any())
             {
@@ -1406,7 +1427,10 @@
                 <div class="empty-state">
                     <i class="bi bi-list-check"></i>
                     <p>No tasks yet</p>
-                    <button type="button" class="info-card-action" onclick="openAddTask()">Add Task</button>
+                    @if (Model.CanEditCase)
+                    {
+                        <button type="button" class="info-card-action" onclick="openAddTask()">Add Task</button>
+                    }
                 </div>
             }
         </div>
@@ -1418,9 +1442,12 @@
                     <i class="bi bi-chat-left-text"></i>
                     Notes (@Model.Notes.Count)
                 </h3>
-                <button type="button" class="info-card-action" data-bs-toggle="modal" data-bs-target="#addNoteModal">
-                    <i class="bi bi-plus-circle"></i> Add
-                </button>
+                @if (Model.CanEditCase)
+                {
+                    <button type="button" class="info-card-action" data-bs-toggle="modal" data-bs-target="#addNoteModal">
+                        <i class="bi bi-plus-circle"></i> Add
+                    </button>
+                }
             </div>
             @if (Model.Notes.Any())
             {
@@ -1458,6 +1485,14 @@
                                 </form>
                             </div>
                             <p class="mb-1" style="font-size: 0.875rem;">@note.Content</p>
+                            @if (!string.IsNullOrEmpty(note.AttachmentFileName))
+                            {
+                                <div class="mt-1">
+                                    <a href="/attachments/notes/@note.Id" class="btn btn-sentinel-secondary btn-sm">
+                                        <i class="bi bi-paperclip"></i> @note.AttachmentFileName
+                                    </a>
+                                </div>
+                            }
                             <div class="note-meta">
                                 <i class="bi bi-person me-1"></i>@(note.CreatedBy ?? "Unknown")
                                 <span class="mx-1">•</span>
@@ -1678,9 +1713,12 @@
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                <button type="button" class="btn btn-primary" onclick="openAddExposure()">
-                    <i class="bi bi-plus-circle me-1"></i>Add New Exposure
-                </button>
+                @if (Model.CanEditCase)
+                {
+                    <button type="button" class="btn btn-primary" onclick="openAddExposure()">
+                        <i class="bi bi-plus-circle me-1"></i>Add New Exposure
+                    </button>
+                }
             </div>
         </div>
     </div>
@@ -1794,7 +1832,12 @@
                     <!-- Note: This form is deprecated. Please use the dedicated Add/Edit Lab Result pages instead -->
                     <div class="alert alert-info">
                         <i class="bi bi-info-circle me-2"></i>
-                        <strong>Note:</strong> Please use the dedicated <a href="/Cases/AddLabResult/@Model.Contact.Id" class="alert-link">Add Lab Result</a> page for multi-marker test entry.
+                        <strong>Note:</strong> Please use the dedicated
+                        @if (Model.CanEditCase)
+                        {
+                            <a href="/Cases/AddLabResult/@Model.Contact.Id" class="alert-link">Add Lab Result</a>
+                        }
+                        page for multi-marker test entry.
                     </div>
 
                     <!-- Section 1: Test Details -->

@@ -48,6 +48,16 @@
                     case WizardStage.Organization:
                         <OrganizationStage OnNext="HandleNext" OnPrevious="HandlePrevious" @bind-OrgData="_orgData" />
                         break;
+                    case WizardStage.Registration:
+                        <RegistrationStage OnNext="HandleNext"
+                                           OnPrevious="HandlePrevious"
+                                           AdminData="_adminData"
+                                           OrgData="_orgData"
+                                           @bind-RegistrationData="_registrationData" />
+                        break;
+                    case WizardStage.Feedback:
+                        <FeedbackStage OnNext="HandleNext" OnPrevious="HandlePrevious" @bind-EnableFeedback="_enableFeedback" />
+                        break;
                     case WizardStage.TimeZone:
                         <TimeZoneStage OnNext="HandleNext" OnPrevious="HandlePrevious" @bind-TimeZoneId="_timeZoneId" />
                         break;
@@ -65,6 +75,7 @@
                             AdminData="_adminData"
                             HttpsData="_httpsData"
                             OrgData="_orgData"
+                            EnableFeedback="_enableFeedback"
                             TimeZoneId="_timeZoneId"
                             GeoData="_geoData"
                             BackupData="_backupData"
@@ -81,13 +92,15 @@
 @code {
     private bool _tokenValidated = false;
     private WizardStage _currentStage = WizardStage.DatabaseConnection;
-    private int _totalStages = 9; // Excluding token validation
+    private int _totalStages = 11; // Excluding token validation
     private double _progress => ((int)_currentStage / (double)_totalStages) * 100;
 
     // Data models for each stage
     private AdminAccountData _adminData = new();
     private HttpsConfigData _httpsData = new();
     private OrganizationData _orgData = new();
+    private RegistrationData _registrationData = new();
+    private bool _enableFeedback = true;
     private string _timeZoneId = "UTC";
     private GeocodingData _geoData = new();
     private BackupData _backupData = new();
@@ -140,11 +153,13 @@
         AdminAccount = 2,
         HttpsConfig = 3,
         Organization = 4,
-        TimeZone = 5,
-        Geocoding = 6,
-        Backup = 7,
-        Smtp = 8,
-        Review = 9
+        Registration = 5,
+        Feedback = 6,
+        TimeZone = 7,
+        Geocoding = 8,
+        Backup = 9,
+        Smtp = 10,
+        Review = 11
     }
 
     // Data models
@@ -177,6 +192,17 @@
         public string? City { get; set; }
         public string? PostalCode { get; set; }
         public string? CountryCode { get; set; }
+    }
+
+    public class RegistrationData
+    {
+        public string Email { get; set; } = "";
+        public string FirstName { get; set; } = "";
+        public string LastName { get; set; } = "";
+        public string Organization { get; set; } = "";
+        public string Country { get; set; } = "";
+        public bool ReceiveDevelopmentUpdates { get; set; }
+        public DateOnly InstallationDate { get; set; } = DateOnly.FromDateTime(DateTime.UtcNow);
     }
 
     public class GeocodingData

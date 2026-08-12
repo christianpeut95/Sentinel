@@ -1,0 +1,277 @@
+<div class="stage-card">
+    <div class="stage-header">
+        <h2><i class="bi bi-chat-dots"></i> User Feedback</h2>
+        <p>Help us improve Sentinel by sharing your feedback, reporting bugs, and suggesting features.</p>
+    </div>
+
+    <div class="stage-body">
+        <div class="info-panel">
+            <div class="info-icon">
+                <i class="bi bi-shield-check"></i>
+            </div>
+            <div class="info-content">
+                <h4>Privacy-Safe Feedback System</h4>
+                <p>
+                    The feedback widget connects directly to the Sentinel development team. Submit bugs, feature requests,
+                    or general feedback with optional technical diagnostics that help us diagnose and fix issues faster.
+                </p>
+                <ul class="feature-list">
+                    <li><i class="bi bi-check-circle text-success"></i> <strong>Patient privacy protected:</strong> Diagnostic data never includes patient information</li>
+                    <li><i class="bi bi-check-circle text-success"></i> <strong>Opt-out anytime:</strong> Disable the widget in Settings whenever you want</li>
+                    <li><i class="bi bi-check-circle text-success"></i> <strong>Installation ID:</strong> Feedback is linked to your installation, not individual users</li>
+                    <li><i class="bi bi-check-circle text-success"></i> <strong>Optional diagnostics:</strong> Choose whether to include technical information with each submission</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="privacy-panel">
+            <div class="privacy-icon">
+                <i class="bi bi-lock-fill"></i>
+            </div>
+            <div class="privacy-content">
+                <h4>What Gets Sent?</h4>
+                <div class="privacy-columns">
+                    <div class="privacy-safe">
+                        <h5>✓ Safe to Include</h5>
+                        <ul>
+                            <li>Sentinel version and installation ID</li>
+                            <li>Operating system and browser info</li>
+                            <li>Page route (e.g., /Cases/{'{'}id{'}'}/Edit)</li>
+                            <li>Error counts (not messages)</li>
+                            <li>Your role (not name/email)</li>
+                            <li>Database type (not connection string)</li>
+                        </ul>
+                    </div>
+                    <div class="privacy-never">
+                        <h5>✗ Never Included</h5>
+                        <ul>
+                            <li>Patient names, IDs, or demographics</li>
+                            <li>Clinical data or lab results</li>
+                            <li>Survey answers or custom fields</li>
+                            <li>Credentials or tokens</li>
+                            <li>Database contents</li>
+                            <li>Your email (unless you provide it)</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="feedback-preview">
+            <div class="preview-label">Widget Preview</div>
+            <div class="preview-button-container">
+                <div class="preview-feedback-button">
+                    <i class="bi bi-chat-dots"></i>
+                </div>
+            </div>
+            <p class="preview-note">This button will appear in the bottom-right corner of every page</p>
+        </div>
+
+        <div class="form-group">
+            <div class="form-check">
+                <InputCheckbox @bind-Value="EnableFeedback" class="form-check-input" id="enableFeedbackCheck" />
+                <label class="form-check-label" for="enableFeedbackCheck">
+                    <strong>Enable the feedback widget</strong>
+                </label>
+            </div>
+            <span class="form-text">You can change this setting anytime from the Settings page</span>
+        </div>
+
+        <div class="stage-actions">
+            <button type="button" class="btn btn-secondary" @onclick="HandlePrevious">
+                <i class="bi bi-arrow-left"></i>
+                <span>Previous</span>
+            </button>
+            <button type="button" class="btn btn-primary" @onclick="HandleNext">
+                <span>Next</span>
+                <i class="bi bi-arrow-right"></i>
+            </button>
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter] public EventCallback OnNext { get; set; }
+    [Parameter] public EventCallback OnPrevious { get; set; }
+    [Parameter] public bool EnableFeedback { get; set; } = true;
+    [Parameter] public EventCallback<bool> EnableFeedbackChanged { get; set; }
+
+    private async Task HandleNext()
+    {
+        await EnableFeedbackChanged.InvokeAsync(EnableFeedback);
+        await OnNext.InvokeAsync();
+    }
+
+    private async Task HandlePrevious()
+    {
+        await OnPrevious.InvokeAsync();
+    }
+}
+
+<style>
+    .info-panel {
+        display: flex;
+        gap: 20px;
+        padding: 20px;
+        background: #F5F3EC; /* --bone */
+        border: 1px solid #D8D4C4; /* --hairline */
+        border-radius: 8px;
+        margin-bottom: 20px;
+    }
+
+    .info-icon {
+        flex-shrink: 0;
+    }
+
+    .info-icon i {
+        font-size: 28px;
+        color: #3DD598; /* --signal */
+    }
+
+    .info-content h4 {
+        font-size: 16px;
+        font-weight: 600;
+        margin-bottom: 10px;
+        color: #0C2A20; /* --forest */
+    }
+
+    .info-content p {
+        margin-bottom: 12px;
+        color: #4A5A55; /* --graphite */
+        line-height: 1.6;
+    }
+
+    .feature-list {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+    }
+
+    .feature-list li {
+        display: flex;
+        align-items: flex-start;
+        gap: 10px;
+        margin-bottom: 8px;
+        font-size: 14px;
+        color: #4A5A55; /* --graphite */
+    }
+
+    .feature-list li i {
+        margin-top: 2px;
+        flex-shrink: 0;
+    }
+
+    .privacy-panel {
+        display: flex;
+        gap: 20px;
+        padding: 20px;
+        background: #FFF9E6;
+        border: 1px solid #FFE4A8;
+        border-radius: 8px;
+        margin-bottom: 20px;
+    }
+
+    .privacy-icon {
+        flex-shrink: 0;
+    }
+
+    .privacy-icon i {
+        font-size: 28px;
+        color: #FF9800;
+    }
+
+    .privacy-content h4 {
+        font-size: 16px;
+        font-weight: 600;
+        margin-bottom: 12px;
+        color: #0C2A20;
+    }
+
+    .privacy-columns {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 20px;
+    }
+
+    .privacy-safe h5,
+    .privacy-never h5 {
+        font-size: 14px;
+        font-weight: 600;
+        margin-bottom: 8px;
+        color: #0C2A20;
+    }
+
+    .privacy-safe h5 {
+        color: #2E7D32;
+    }
+
+    .privacy-never h5 {
+        color: #C62828;
+    }
+
+    .privacy-safe ul,
+    .privacy-never ul {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+    }
+
+    .privacy-safe li,
+    .privacy-never li {
+        font-size: 13px;
+        margin-bottom: 4px;
+        color: #4A5A55;
+    }
+
+    .feedback-preview {
+        background: #FBFAF5; /* --chalk */
+        border: 1px solid #D8D4C4; /* --hairline */
+        border-radius: 8px;
+        padding: 24px;
+        margin-bottom: 28px;
+        text-align: center;
+    }
+
+    .preview-label {
+        font-family: "Geist Mono", ui-monospace, monospace;
+        font-size: 10px;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        color: #6B7A78; /* --slate */
+        margin-bottom: 16px;
+    }
+
+    .preview-button-container {
+        display: flex;
+        justify-content: center;
+        margin-bottom: 16px;
+    }
+
+    .preview-feedback-button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 56px;
+        height: 56px;
+        background: #0C2A20; /* --forest */
+        color: #3DD598; /* --signal */
+        border: 1px solid #1E3329;
+        border-radius: 28px;
+        font-size: 24px;
+        box-shadow: 0 4px 12px rgba(12, 42, 32, 0.3);
+        pointer-events: none;
+    }
+
+    .preview-note {
+        font-size: 13px;
+        color: #6B7A78; /* --slate */
+        margin: 0;
+    }
+
+    @@media (max-width: 768px) {
+        .privacy-columns {
+            grid-template-columns: 1fr;
+            gap: 16px;
+        }
+    }
+</style>

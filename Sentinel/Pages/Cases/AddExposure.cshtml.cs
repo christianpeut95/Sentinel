@@ -9,6 +9,7 @@ using Sentinel.Models;
 namespace Sentinel.Pages.Cases
 {
     [Authorize(Policy = "Permission.Exposure.Create")]
+    [Authorize(Policy = "Permission.Case.Edit")]
     public class AddExposureModel : PageModel
     {
         private readonly ApplicationDbContext _context;

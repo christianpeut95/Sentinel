@@ -1,0 +1,198 @@
+@page
+@model Sentinel.Pages.Settings.TelemetryModel
+@{
+    ViewData["Title"] = "Telemetry & Logging Settings";
+}
+
+<div class="container-fluid">
+    <div class="row mb-3">
+        <div class="col">
+            <h2>Telemetry & Logging Settings</h2>
+            <p class="text-muted">Configure application logging and telemetry collection</p>
+        </div>
+    </div>
+
+    @if (!string.IsNullOrEmpty(Model.Message))
+    {
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            <i class="bi bi-check-circle"></i> @Model.Message
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
+
+    @if (!string.IsNullOrEmpty(Model.ErrorMessage))
+    {
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            <i class="bi bi-exclamation-triangle"></i> @Model.ErrorMessage
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
+
+    <form method="post">
+        <div class="card mb-3">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="bi bi-gear"></i> General Settings
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" asp-for="TelemetryEnabled" id="telemetryEnabled">
+                                <label class="form-check-label" for="telemetryEnabled">
+                                    <strong>Enable Telemetry</strong>
+                                </label>
+                            </div>
+                            <small class="text-muted d-block mt-1">
+                                Enable collection of application usage metrics and error reporting.
+                                All telemetry is privacy-safe and does not include patient data.
+                            </small>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" asp-for="LocalLoggingEnabled" id="localLoggingEnabled">
+                                <label class="form-check-label" for="localLoggingEnabled">
+                                    <strong>Enable Local Logging</strong>
+                                </label>
+                            </div>
+                            <small class="text-muted d-block mt-1">
+                                Enable local structured logging to files and database.
+                            </small>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label asp-for="LogRetentionDays" class="form-label">Log Retention (Days)</label>
+                            <input type="number" class="form-control" asp-for="LogRetentionDays" min="1" max="365">
+                            <small class="text-muted">How long to keep logs before automatic deletion (1-365 days)</small>
+                            <span asp-validation-for="LogRetentionDays" class="text-danger"></span>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label asp-for="MinimumLogLevel" class="form-label">Minimum Log Level</label>
+                            <select class="form-select" asp-for="MinimumLogLevel">
+                                <option value="Debug">Debug (Most Verbose)</option>
+                                <option value="Information">Information (Recommended)</option>
+                                <option value="Warning">Warning</option>
+                                <option value="Error">Error</option>
+                                <option value="Critical">Critical (Least Verbose)</option>
+                            </select>
+                            <small class="text-muted">The minimum severity level to log</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card mb-3">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="bi bi-shield-check"></i> Privacy & Security
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-info">
+                    <i class="bi bi-info-circle"></i>
+                    <strong>Privacy Guarantee:</strong> This telemetry system is designed with privacy-first principles.
+                    <ul class="mb-0 mt-2">
+                        <li><strong>NO patient data</strong> is ever logged or transmitted</li>
+                        <li><strong>NO laboratory results</strong> or markers are included</li>
+                        <li><strong>NO survey answers</strong> or custom field values</li>
+                        <li><strong>NO screenshots</strong> or sensitive UI captures</li>
+                        <li>Only application-level metadata, counts, and performance metrics</li>
+                    </ul>
+                </div>
+
+                <div class="row mt-3">
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" asp-for="IncludeUserInformation" id="includeUserInfo">
+                                <label class="form-check-label" for="includeUserInfo">
+                                    <strong>Include User Information</strong>
+                                </label>
+                            </div>
+                            <small class="text-muted d-block mt-1">
+                                Include anonymized user IDs and roles in log entries (recommended for troubleshooting)
+                            </small>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" asp-for="IncludeSystemInformation" id="includeSystemInfo">
+                                <label class="form-check-label" for="includeSystemInfo">
+                                    <strong>Include System Information</strong>
+                                </label>
+                            </div>
+                            <small class="text-muted d-block mt-1">
+                                Include OS version, .NET version, and hardware specs
+                            </small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card mb-3">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="bi bi-info-circle"></i> Installation Information
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <label class="form-label">Installation ID</label>
+                        <div class="input-group">
+                            <input type="text" class="form-control" value="@Model.InstallationId" readonly>
+                            <button class="btn btn-outline-secondary" type="button" onclick="copyInstallationId()">
+                                <i class="bi bi-clipboard"></i> Copy
+                            </button>
+                        </div>
+                        <small class="text-muted">Unique identifier for this Sentinel installation</small>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Current Log Count</label>
+                        <div class="input-group">
+                            <input type="text" class="form-control" value="@Model.CurrentLogCount" readonly>
+                            <a href="/Admin/Logs" class="btn btn-outline-primary" type="button">
+                                <i class="bi bi-eye"></i> View Logs
+                            </a>
+                        </div>
+                        <small class="text-muted">Total number of log entries in the database</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="d-flex justify-content-between">
+            <a href="/Settings" class="btn btn-link">
+                <i class="bi bi-arrow-left"></i> Back to Settings
+            </a>
+            <button type="submit" class="btn btn-primary">
+                <i class="bi bi-save"></i> Save Settings
+            </button>
+        </div>
+    </form>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script>
+        function copyInstallationId() {
+            const installationId = '@Model.InstallationId';
+            navigator.clipboard.writeText(installationId).then(() => {
+                alert('Installation ID copied to clipboard!');
+            });
+        }
+    </script>
+}

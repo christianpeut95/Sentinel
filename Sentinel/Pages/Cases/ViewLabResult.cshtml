@@ -254,7 +254,7 @@
         <div class="section-title">
             <i class="bi bi-paperclip"></i>Attachment
         </div>
-        <a href="@labResult.AttachmentPath" target="_blank" class="btn btn-sm btn-outline-primary">
+        <a href="/attachments/lab-results/@labResult.Id" class="btn btn-sm btn-outline-primary">
             <i class="bi bi-download me-1"></i>@(labResult.AttachmentFileName ?? "Download")
         </a>
     }
@@ -303,7 +303,7 @@
                                     <div style="font-weight: 600; margin-bottom: 4px;">@labResult.AttachmentFileName</div>
                                     <div class="text-meta">@(labResult.AttachmentSize.HasValue ? $"{labResult.AttachmentSize.Value / 1024:N0} KB" : "Unknown size")</div>
                                 </div>
-                                <a href="@labResult.AttachmentPath" target="_blank" class="sn-btn sn-btn--ghost sn-btn--sm">
+                                <a href="/attachments/lab-results/@labResult.Id" class="sn-btn sn-btn--ghost sn-btn--sm">
                                     <i class="bi bi-download"></i> Download
                                 </a>
                             </div>

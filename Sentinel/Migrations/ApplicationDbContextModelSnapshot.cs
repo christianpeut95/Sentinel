@@ -5826,6 +5826,12 @@ namespace Sentinel.Migrations
                         .HasMaxLength(200)
                         .HasColumnType("nvarchar(200)");
 
+                    b.Property<bool>("EnableFeedbackWidget")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("EnableUsageMonitoring")
+                        .HasColumnType("bit");
+
                     b.Property<bool>("EnforceHttps")
                         .HasColumnType("bit");
 
@@ -5840,8 +5846,28 @@ namespace Sentinel.Migrations
                     b.Property<bool>("HL7ProcessingEnabled")
                         .HasColumnType("bit");
 
+                    b.Property<bool>("IncludeSystemInformation")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IncludeUserInformation")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("InstallationId")
+                        .HasMaxLength(36)
+                        .HasColumnType("nvarchar(36)");
+
                     b.Property<bool>("IsSetupCompleted")
                         .HasColumnType("bit");
+
+                    b.Property<bool>("LocalLoggingEnabled")
+                        .HasColumnType("bit");
+
+                    b.Property<int?>("LogRetentionDays")
+                        .HasColumnType("int");
+
+                    b.Property<string>("MinimumLogLevel")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
 
                     b.Property<DateTime?>("ModifiedAt")
                         .HasColumnType("datetime2");
@@ -5908,6 +5934,9 @@ namespace Sentinel.Migrations
 
                     b.Property<int>("SurveillanceStartupProgressPercentage")
                         .HasColumnType("int");
+
+                    b.Property<bool>("TelemetryEnabled")
+                        .HasColumnType("bit");
 
                     b.HasKey("Id");
 

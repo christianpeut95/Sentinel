@@ -41,16 +41,11 @@
                 </span>
             </div>
 
-            <!-- Release Date -->
+            <!-- Build Identifier -->
             <p style="color: #9ca3af; font-size: 0.875rem; margin-bottom: 0.5rem;">
-                Released: @Model.ReleaseDate
+                Build: @Model.InformationalVersion
             </p>
             
-            <!-- Build Date -->
-            <p style="color: #9ca3af; font-size: 0.875rem; margin-bottom: 3rem;">
-                Built: @Model.BuildDate
-            </p>
-
             <hr class="my-4" />
 
             <!-- System Information -->
@@ -64,13 +59,16 @@
                                 <td><strong>@Model.Version</strong></td>
                             </tr>
                             <tr>
-                                <td class="text-muted">Release Date:</td>
-                                <td><strong>@Model.ReleaseDate</strong></td>
+                                <td class="text-muted">Build Identifier:</td>
+                                <td><strong>@Model.InformationalVersion</strong></td>
                             </tr>
-                            <tr>
-                                <td class="text-muted">Build Date:</td>
-                                <td><strong>@Model.BuildDate</strong></td>
-                            </tr>
+                            @if (!string.IsNullOrEmpty(Model.CommitHash))
+                            {
+                                <tr>
+                                    <td class="text-muted">Commit:</td>
+                                    <td><strong>@Model.CommitHash</strong></td>
+                                </tr>
+                            }
                             <tr>
                                 <td class="text-muted">Framework:</td>
                                 <td><strong>.NET 10.0</strong></td>
