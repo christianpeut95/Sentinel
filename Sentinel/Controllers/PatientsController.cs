@@ -107,6 +107,7 @@ namespace Sentinel.Controllers
         }
 
         [HttpGet("{id}")]
+        [Authorize(Policy = "Permission.Patient.View")]
         public async Task<IActionResult> GetById(Guid id)
         {
             var patient = await _context.Patients
@@ -159,6 +160,7 @@ namespace Sentinel.Controllers
         }
 
         [HttpPut("{id}")]
+        [Authorize(Policy = "Permission.Patient.View")]
         [Authorize(Policy = "Permission.Patient.Edit")]
         public async Task<IActionResult> UpdatePatient(Guid id, [FromBody] UpdatePatientRequest request)
         {
@@ -247,6 +249,7 @@ namespace Sentinel.Controllers
         }
 
         [HttpGet("{id}/duplicates")]
+        [Authorize(Policy = "Permission.Patient.View")]
         public async Task<IActionResult> GetDuplicates(Guid id)
         {
             var patient = await _context.Patients.FindAsync(id);

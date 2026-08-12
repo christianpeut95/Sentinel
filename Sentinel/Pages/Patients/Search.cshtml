@@ -233,12 +233,18 @@
                                     <td><small class="text-muted">@patient.CreatedAt.ToString("dd MMM yyyy")</small></td>
                                     <td class="text-end">
                                         <div class="btn-group btn-group-sm" role="group">
-                                            <a asp-page="./Details" asp-route-id="@patient.Id" class="btn-sentinel-secondary" style="padding: 4px 10px; font-size: 12px;" title="View details">
-                                                <i class="bi bi-eye"></i> View
-                                            </a>
-                                            <a asp-page="./Edit" asp-route-id="@patient.Id" class="btn-sentinel-secondary" style="padding: 4px 10px; font-size: 12px;" title="Edit">
-                                                <i class="bi bi-pencil"></i>
-                                            </a>
+                                            @if (Model.CanViewPatients)
+                                            {
+                                                <a asp-page="./Details" asp-route-id="@patient.Id" class="btn-sentinel-secondary" style="padding: 4px 10px; font-size: 12px;" title="View details">
+                                                    <i class="bi bi-eye"></i> View
+                                                </a>
+                                            }
+                                            @if (Model.CanEditPatients)
+                                            {
+                                                <a asp-page="./Edit" asp-route-id="@patient.Id" class="btn-sentinel-secondary" style="padding: 4px 10px; font-size: 12px;" title="Edit">
+                                                    <i class="bi bi-pencil"></i>
+                                                </a>
+                                            }
                                         </div>
                                     </td>
                                 </tr>

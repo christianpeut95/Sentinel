@@ -5,7 +5,8 @@ using Sentinel.Services;
 
 namespace Sentinel.Pages.Patients
 {
-    [Authorize]
+    [Authorize(Policy = "Permission.Patient.View")]
+    [Authorize(Policy = "Permission.Patient.Merge")]
     public class SelectMergeModel : PageModel
     {
         private readonly IPatientMergeService _mergeService;

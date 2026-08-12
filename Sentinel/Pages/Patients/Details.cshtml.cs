@@ -24,6 +24,7 @@ namespace Sentinel.Pages.Patients
         private readonly IDiseaseAccessService _diseaseAccessService;
         private readonly IJurisdictionService _jurisdictionService;
         private readonly IProtectedFileStorageService _fileStorage;
+        private readonly ICaseAccessService _caseAccessService;
 
         public DetailsModel(
             ApplicationDbContext context, 
@@ -32,7 +33,8 @@ namespace Sentinel.Pages.Patients
             IPermissionService permissionService,
             IDiseaseAccessService diseaseAccessService,
             IJurisdictionService jurisdictionService,
-            IProtectedFileStorageService fileStorage)
+            IProtectedFileStorageService fileStorage,
+            ICaseAccessService caseAccessService)
         {
             _context = context;
             _auditService = auditService;
@@ -41,6 +43,7 @@ namespace Sentinel.Pages.Patients
             _diseaseAccessService = diseaseAccessService;
             _jurisdictionService = jurisdictionService;
             _fileStorage = fileStorage;
+            _caseAccessService = caseAccessService;
         }
 
         public Patient Patient { get; set; } = default!;
@@ -50,6 +53,13 @@ namespace Sentinel.Pages.Patients
         public List<Note> PatientNotes { get; set; } = new List<Note>();
         public List<Note> CaseCommunicationNotes { get; set; } = new List<Note>();
         public List<Case> Cases { get; set; } = new List<Case>();
+        public bool CanEditPatient { get; private set; }
+        public bool CanDeletePatient { get; private set; }
+        public bool CanMergePatient { get; private set; }
+        public bool CanViewAuditHistory { get; private set; }
+        public bool CanViewCases { get; private set; }
+        public bool CanCreateCase { get; private set; }
+        public bool CanDeleteCases { get; private set; }
         
         // Jurisdiction properties
         public List<JurisdictionType> ActiveJurisdictionTypes { get; set; } = new();
@@ -88,6 +98,7 @@ namespace Sentinel.Pages.Patients
             if (patient is not null)
             {
                 Patient = patient;
+                await LoadPagePermissionsAsync();
 
                 // Load active jurisdiction types for display
                 ActiveJurisdictionTypes = await _jurisdictionService.GetActiveJurisdictionTypesAsync();
@@ -98,30 +109,38 @@ namespace Sentinel.Pages.Patients
 
                 // Load notes directly linked to this patient
                 PatientNotes = await _context.Notes
-                    .Where(n => n.PatientId == id)
+                    .Where(n => n.PatientId == id && n.CaseId == null)
                     .OrderByDescending(n => n.CreatedAt)
                     .ToListAsync();
 
-                // Get accessible disease IDs for filtering cases
-                var userId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
-                var accessibleDiseaseIds = await _diseaseAccessService.GetAccessibleDiseaseIdsAsync(userId);
+                if (CanViewCases)
+                {
+                    // Get accessible disease IDs for filtering cases.
+                    var userId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
+                    var accessibleDiseaseIds = await _diseaseAccessService.GetAccessibleDiseaseIdsAsync(userId);
 
-                // Load cases for this patient (filtered by disease access)
-                Cases = await _context.Cases
-                    .Include(c => c.Disease)
-                    .Include(c => c.ConfirmationStatus)
-                    .Where(c => c.PatientId == id && 
-                               (c.DiseaseId == null || accessibleDiseaseIds.Contains(c.DiseaseId.Value)))
-                    .OrderByDescending(c => c.DateOfNotification)
-                    .ToListAsync();
+                    // Load cases for this patient only when the user can view cases.
+                    Cases = await _context.Cases
+                        .Include(c => c.Disease)
+                        .Include(c => c.ConfirmationStatus)
+                        .Where(c => c.PatientId == id &&
+                                   (c.DiseaseId == null || accessibleDiseaseIds.Contains(c.DiseaseId.Value)))
+                        .OrderByDescending(c => c.DateOfNotification)
+                        .ToListAsync();
 
-                // Load communication notes (Phone Call, Email, SMS) from related cases
-                var communicationTypes = new[] { "Phone Call", "Email", "SMS" };
-                CaseCommunicationNotes = await _context.Notes
-                    .Include(n => n.Case)
-                    .Where(n => n.Case!.PatientId == id && communicationTypes.Contains(n.Type))
-                    .OrderByDescending(n => n.CreatedAt)
-                    .ToListAsync();
+                    // Do not expose communications from a case outside the user's
+                    // disease-access scope through the patient screen.
+                    var communicationTypes = new[] { "Phone Call", "Email", "SMS" };
+                    CaseCommunicationNotes = await _context.Notes
+                        .Include(n => n.Case)
+                        .Where(n => n.Case != null &&
+                                    n.Case.PatientId == id &&
+                                    communicationTypes.Contains(n.Type) &&
+                                    (n.Case.DiseaseId == null ||
+                                     accessibleDiseaseIds.Contains(n.Case.DiseaseId.Value)))
+                        .OrderByDescending(n => n.CreatedAt)
+                        .ToListAsync();
+                }
 
                 // Log the view action
                 var viewUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
@@ -138,6 +157,16 @@ namespace Sentinel.Pages.Patients
 
         public async Task<IActionResult> OnPostAddNoteAsync(Guid id)
         {
+            if (!await UserCanEditPatientAsync())
+            {
+                return Forbid();
+            }
+
+            if (!await _context.Patients.AnyAsync(p => p.Id == id))
+            {
+                return NotFound();
+            }
+
             if (!ModelState.IsValid)
             {
                 TempData["ErrorMessage"] = "Please fill in all required fields.";
@@ -146,6 +175,11 @@ namespace Sentinel.Pages.Patients
 
             NewNote.Id = Guid.NewGuid();
             NewNote.PatientId = id;
+            NewNote.CaseId = null;
+            NewNote.OutbreakId = null;
+            NewNote.Patient = null;
+            NewNote.Case = null;
+            NewNote.Outbreak = null;
             NewNote.CreatedBy = User.Identity?.Name ?? "Unknown";
             NewNote.CreatedAt = DateTime.UtcNow;
 
@@ -180,19 +214,16 @@ namespace Sentinel.Pages.Patients
 
         public async Task<IActionResult> OnPostDeleteNoteAsync(Guid id, Guid noteId)
         {
-            // Check if user has Patient.Delete permission
-            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-            if (!await _permissionService.HasPermissionAsync(userId, PermissionModule.Patient, PermissionAction.Delete))
+            if (!await UserCanDeletePatientAsync())
             {
-                TempData["ErrorMessage"] = "You do not have permission to delete notes.";
-                return RedirectToPage(new { id });
+                return Forbid();
             }
 
-            var note = await _context.Notes.FindAsync(noteId);
+            var note = await _context.Notes
+                .FirstOrDefaultAsync(n => n.Id == noteId && n.PatientId == id && n.CaseId == null);
             if (note == null)
             {
-                TempData["ErrorMessage"] = "Note not found.";
-                return RedirectToPage(new { id });
+                return NotFound();
             }
 
             await _context.SoftDeleteAsync(note);
@@ -213,33 +244,22 @@ namespace Sentinel.Pages.Patients
 
         public async Task<IActionResult> OnPostDeleteCaseNoteAsync(Guid id, Guid noteId)
         {
-            // Check if user has Case.Delete permission (since these are case communications)
-            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-            if (!await _permissionService.HasPermissionAsync(userId, PermissionModule.Case, PermissionAction.Delete))
+            if (!await UserCanDeleteCaseAsync())
             {
-                TempData["ErrorMessage"] = "You do not have permission to delete case communications.";
-                return RedirectToPage(new { id });
+                return Forbid();
             }
 
-            var note = await _context.Notes.FindAsync(noteId);
+            var note = await _context.Notes
+                .Include(n => n.Case)
+                .FirstOrDefaultAsync(n => n.Id == noteId && n.CaseId != null && n.Case!.PatientId == id);
             if (note == null)
             {
-                TempData["ErrorMessage"] = "Note not found.";
-                return RedirectToPage(new { id });
+                return NotFound();
             }
 
-            // Verify this note belongs to a case related to this patient
-            if (note.CaseId == null)
+            if (!await _caseAccessService.CanAccessCaseAsync(note.CaseId!.Value))
             {
-                TempData["ErrorMessage"] = "This note is not a case communication.";
-                return RedirectToPage(new { id });
-            }
-
-            var caseEntity = await _context.Cases.FindAsync(note.CaseId.Value);
-            if (caseEntity == null || caseEntity.PatientId != id)
-            {
-                TempData["ErrorMessage"] = "This note does not belong to a case for this patient.";
-                return RedirectToPage(new { id });
+                return NotFound();
             }
 
             await _context.SoftDeleteAsync(note);
@@ -256,6 +276,34 @@ namespace Sentinel.Pages.Patients
 
             TempData["SuccessMessage"] = "Case communication deleted successfully.";
             return RedirectToPage(new { id });
+        }
+
+        private async Task LoadPagePermissionsAsync()
+        {
+            CanEditPatient = await UserCanEditPatientAsync();
+            CanDeletePatient = await UserCanDeletePatientAsync();
+            CanMergePatient = await UserHasPermissionAsync(PermissionModule.Patient, PermissionAction.Merge);
+            CanViewAuditHistory = await UserHasPermissionAsync(PermissionModule.Audit, PermissionAction.View);
+            CanViewCases = await UserHasPermissionAsync(PermissionModule.Case, PermissionAction.View);
+            CanCreateCase = await UserHasPermissionAsync(PermissionModule.Case, PermissionAction.Create);
+            CanDeleteCases = await UserCanDeleteCaseAsync();
+        }
+
+        private Task<bool> UserCanEditPatientAsync() =>
+            UserHasPermissionAsync(PermissionModule.Patient, PermissionAction.Edit);
+
+        private Task<bool> UserCanDeletePatientAsync() =>
+            UserHasPermissionAsync(PermissionModule.Patient, PermissionAction.Delete);
+
+        private async Task<bool> UserCanDeleteCaseAsync() =>
+            await UserHasPermissionAsync(PermissionModule.Case, PermissionAction.View) &&
+            await UserHasPermissionAsync(PermissionModule.Case, PermissionAction.Delete);
+
+        private async Task<bool> UserHasPermissionAsync(PermissionModule module, PermissionAction action)
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            return !string.IsNullOrWhiteSpace(userId) &&
+                   await _permissionService.HasPermissionAsync(userId, module, action);
         }
     }
 }

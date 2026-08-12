@@ -6,6 +6,7 @@ using System.Security.Claims;
 
 namespace Sentinel.Pages.Patients
 {
+    [Authorize(Policy = "Permission.Patient.View")]
     [Authorize(Policy = "Permission.Patient.Merge")]
     public class MergeModel : PageModel
     {

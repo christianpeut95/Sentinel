@@ -275,14 +275,20 @@
                 </h1>
             </div>
             <div class="d-flex gap-2 flex-wrap">
-                <a asp-page="Search" class="btn-sentinel-secondary">
-                    <i class="bi bi-search"></i>
-                    Advanced Search
-                </a>
-                <a asp-page="Create" class="btn-sentinel-primary">
-                    <i class="bi bi-plus-circle"></i>
-                    Add New Patient
-                </a>
+                @if (Model.CanSearchPatients)
+                {
+                    <a asp-page="Search" class="btn-sentinel-secondary">
+                        <i class="bi bi-search"></i>
+                        Advanced Search
+                    </a>
+                }
+                @if (Model.CanCreatePatient)
+                {
+                    <a asp-page="Create" class="btn-sentinel-primary">
+                        <i class="bi bi-plus-circle"></i>
+                        Add New Patient
+                    </a>
+                }
             </div>
         </div>
 
@@ -354,10 +360,13 @@
         <i class="bi bi-person-circle" style="font-size: 48px; color: var(--signal); opacity: 0.3;"></i>
         <h3 style="margin-top: var(--spacing-4); font-weight: 600; color: var(--forest);">No Patients Yet</h3>
         <p style="color: var(--graphite); margin-bottom: var(--spacing-5);">Add your first patient to the surveillance system.</p>
-        <a asp-page="Create" class="btn-sentinel-primary">
-            <i class="bi bi-plus-circle"></i>
-            Add First Patient
-        </a>
+        @if (Model.CanCreatePatient)
+        {
+            <a asp-page="Create" class="btn-sentinel-primary">
+                <i class="bi bi-plus-circle"></i>
+                Add First Patient
+            </a>
+        }
     </div>
 }
 else
@@ -457,9 +466,12 @@ else
                                 <a asp-page="./Details" asp-route-id="@patient.Id" class="btn-icon-sm" title="View Details">
                                     <i class="bi bi-eye"></i>
                                 </a>
-                                <a asp-page="./Edit" asp-route-id="@patient.Id" class="btn-icon-sm" title="Edit">
-                                    <i class="bi bi-pencil"></i>
-                                </a>
+                                @if (Model.CanEditPatient)
+                                {
+                                    <a asp-page="./Edit" asp-route-id="@patient.Id" class="btn-icon-sm" title="Edit">
+                                        <i class="bi bi-pencil"></i>
+                                    </a>
+                                }
                             </td>
                         </tr>
                     }

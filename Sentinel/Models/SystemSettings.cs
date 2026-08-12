@@ -33,9 +33,6 @@ namespace Sentinel.Models
         public DateTime? SetupTokenExpiresAt { get; set; }
 
         // ── Registration Control ───────────────────────────────────
-        [Display(Name = "Allow Public Registration")]
-        public bool AllowPublicRegistration { get; set; } = false;
-
         // ── Application Identity ───────────────────────────────────
         [Display(Name = "Application Name")]
         [StringLength(200)]

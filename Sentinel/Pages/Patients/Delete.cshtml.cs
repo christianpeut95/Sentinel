@@ -11,6 +11,7 @@ using Sentinel.Models;
 
 namespace Sentinel.Pages.Patients
 {
+    [Authorize(Policy = "Permission.Patient.View")]
     [Authorize(Policy = "Permission.Patient.Delete")]
     public class DeleteModel : PageModel
     {

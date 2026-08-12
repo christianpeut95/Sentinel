@@ -29,6 +29,8 @@ namespace Sentinel.Pages.Patients
         private readonly IJurisdictionService _jurisdictionService;
         private readonly IServiceProvider _serviceProvider;
         private readonly Sentinel.Services.Telemetry.ActivityTracker _activityTracker;
+        private readonly IPermissionService _permissionService;
+        private readonly IDiseaseAccessService _diseaseAccessService;
 
         public CreateModel(
             ApplicationDbContext context, 
@@ -40,7 +42,9 @@ namespace Sentinel.Pages.Patients
             ICaseIdGeneratorService caseIdGenerator, 
             IJurisdictionService jurisdictionService, 
             IServiceProvider serviceProvider,
-            Sentinel.Services.Telemetry.ActivityTracker activityTracker)
+            Sentinel.Services.Telemetry.ActivityTracker activityTracker,
+            IPermissionService permissionService,
+            IDiseaseAccessService diseaseAccessService)
         {
             _context = context;
             _geocoder = geocoder;
@@ -52,6 +56,8 @@ namespace Sentinel.Pages.Patients
             _jurisdictionService = jurisdictionService;
             _serviceProvider = serviceProvider;
             _activityTracker = activityTracker;
+            _permissionService = permissionService;
+            _diseaseAccessService = diseaseAccessService;
         }
 
         public List<PotentialDuplicate> PotentialDuplicates { get; set; } = new();
@@ -100,6 +106,11 @@ namespace Sentinel.Pages.Patients
 
         public async Task<IActionResult> OnPostAsync()
         {
+            if (ShouldCreateContactCase() && !await CanCreateContactCaseAsync(DiseaseId!.Value))
+            {
+                return Forbid();
+            }
+
             if (!ModelState.IsValid)
             {
                 ViewData["CountryOfBirthId"] = new SelectList(_context.Countries.OrderBy(c => c.Name), "Id", "Name");
@@ -235,7 +246,7 @@ namespace Sentinel.Pages.Patients
                 }
 
                 // Handle popup mode for creating contacts from exposure workflow
-                if (Mode == "popup" && ReturnContext == "exposure" && DiseaseId.HasValue)
+                if (ShouldCreateContactCase())
                 {
                     // Auto-create a Contact case for this patient
                     var newCase = new Case
@@ -311,6 +322,11 @@ namespace Sentinel.Pages.Patients
             if (diseaseId == Guid.Empty)
             {
                 return BadRequest("DiseaseId is required");
+            }
+
+            if (!await CanLinkExistingPatientAsContactAsync(diseaseId))
+            {
+                return Forbid();
             }
 
             // Check if patient exists
@@ -394,6 +410,27 @@ namespace Sentinel.Pages.Patients
                 </body>
                 </html>
             ", "text/html");
+        }
+
+        private bool ShouldCreateContactCase() =>
+            string.Equals(Mode, "popup", StringComparison.OrdinalIgnoreCase) &&
+            string.Equals(ReturnContext, "exposure", StringComparison.OrdinalIgnoreCase) &&
+            DiseaseId.HasValue;
+
+        private async Task<bool> CanCreateContactCaseAsync(Guid diseaseId)
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            return !string.IsNullOrWhiteSpace(userId) &&
+                   await _permissionService.HasPermissionAsync(userId, PermissionModule.Case, PermissionAction.Create) &&
+                   await _diseaseAccessService.CanAccessDiseaseAsync(userId, diseaseId);
+        }
+
+        private async Task<bool> CanLinkExistingPatientAsContactAsync(Guid diseaseId)
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            return !string.IsNullOrWhiteSpace(userId) &&
+                   await _permissionService.HasPermissionAsync(userId, PermissionModule.Patient, PermissionAction.View) &&
+                   await CanCreateContactCaseAsync(diseaseId);
         }
 
         // AJAX handler for jurisdiction detection

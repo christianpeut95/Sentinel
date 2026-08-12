@@ -622,15 +622,6 @@
                     <div asp-validation-summary="ModelOnly" class="alert" role="alert"></div>
                 }
 
-                @if (!ModelState.IsValid)
-                {
-                    <div class="info-box">
-                        <i class="bi bi-info-circle"></i>
-                        <strong>Troubleshooting:</strong> Make sure you're using the email address that was registered for your account. 
-                        Password must be at least 6 characters. Contact your administrator if you continue to have issues.
-                    </div>
-                }
-
                 <div class="form-group">
                     <label asp-for="Input.Email" class="form-label">Email</label>
                     <input asp-for="Input.Email" class="form-control" placeholder="name@example.com" autocomplete="username" />

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Security.Claims;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -9,6 +10,7 @@ using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
 using Sentinel.Data;
 using Sentinel.Models;
+using Sentinel.Services;
 
 namespace Sentinel.Pages.Patients
 {
@@ -16,10 +18,12 @@ namespace Sentinel.Pages.Patients
     public class SearchModel : PageModel
     {
         private readonly ApplicationDbContext _context;
+        private readonly IPermissionService _permissionService;
 
-        public SearchModel(ApplicationDbContext context)
+        public SearchModel(ApplicationDbContext context, IPermissionService permissionService)
         {
             _context = context;
+            _permissionService = permissionService;
         }
 
         [BindProperty(SupportsGet = true)]
@@ -79,6 +83,8 @@ namespace Sentinel.Pages.Patients
         public IList<Patient> SearchResults { get; set; } = new List<Patient>();
         public bool HasSearched { get; set; }
         public int TotalResults { get; set; }
+        public bool CanViewPatients { get; private set; }
+        public bool CanEditPatients { get; private set; }
 
         public SelectList SexAtBirths { get; set; } = default!;
         public SelectList Genders { get; set; } = default!;
@@ -90,6 +96,7 @@ namespace Sentinel.Pages.Patients
 
         public async Task OnGetAsync()
         {
+            await LoadPermissionsAsync();
             await LoadDropdownsAsync();
 
             if (HasAnySearchCriteria())
@@ -251,6 +258,18 @@ namespace Sentinel.Pages.Patients
         public IActionResult OnPostClear()
         {
             return RedirectToPage();
+        }
+
+        private async Task LoadPermissionsAsync()
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrWhiteSpace(userId))
+            {
+                return;
+            }
+
+            CanViewPatients = await _permissionService.HasPermissionAsync(userId, PermissionModule.Patient, PermissionAction.View);
+            CanEditPatients = await _permissionService.HasPermissionAsync(userId, PermissionModule.Patient, PermissionAction.Edit);
         }
     }
 }

@@ -8,6 +8,7 @@ using Sentinel.Services;
 
 namespace Sentinel.Pages.Patients
 {
+    [Authorize(Policy = "Permission.Patient.View")]
     [Authorize(Policy = "Permission.Audit.View")]
     public class AuditHistoryModel : PageModel
     {

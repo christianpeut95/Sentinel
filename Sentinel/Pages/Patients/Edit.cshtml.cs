@@ -1,10 +1,12 @@
 using System;
 using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations;
 using System.Linq;
 using System.Security.Claims;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.ModelBinding;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
@@ -16,6 +18,7 @@ using Sentinel.Services;
 
 namespace Sentinel.Pages.Patients
 {
+    [Authorize(Policy = "Permission.Patient.View")]
     [Authorize(Policy = "Permission.Patient.Edit")]
     public class EditModel : PageModel
     {
@@ -41,7 +44,7 @@ namespace Sentinel.Pages.Patients
         }
 
         [BindProperty]
-        public Patient Patient { get; set; } = default!;
+        public PatientEditInputModel Patient { get; set; } = new();
 
         public string? OriginalAddress { get; set; }
         public string? OriginalCity { get; set; }
@@ -57,72 +60,26 @@ namespace Sentinel.Pages.Patients
 
         public async Task<IActionResult> OnGetAsync(Guid? id)
         {
-            if (id == null) return NotFound();
-
-            var patient = await _context.Patients
-                .Include(p => p.CountryOfBirth)
-                .Include(p => p.State)
-                .Include(p => p.Ancestry)
-                .Include(p => p.LanguageSpokenAtHome)
-                .Include(p => p.Occupation)
-                .Include(p => p.Jurisdiction1).ThenInclude(j => j!.JurisdictionType)
-                .Include(p => p.Jurisdiction2).ThenInclude(j => j!.JurisdictionType)
-                .Include(p => p.Jurisdiction3).ThenInclude(j => j!.JurisdictionType)
-                .Include(p => p.Jurisdiction4).ThenInclude(j => j!.JurisdictionType)
-                .Include(p => p.Jurisdiction5).ThenInclude(j => j!.JurisdictionType)
-                .FirstOrDefaultAsync(m => m.Id == id);
-
-            if (patient == null) return NotFound();
-
-            Patient = patient;
-
-            // Store original address for comparison
-            OriginalAddress = patient.AddressLine;
-            OriginalCity = patient.City;
-            OriginalState = patient.State?.Code; // Display state code for reference
-            OriginalPostalCode = patient.PostalCode;
-
-            ViewData["CountryOfBirthId"] = new SelectList(_context.Countries.OrderBy(c => c.Name), "Id", "Name");
-            ViewData["StateId"] = new SelectList(_context.States.Where(s => s.IsActive).OrderBy(s => s.Code), "Id", "Code");
-            ViewData["AncestryId"] = new SelectList(_context.Ancestries.OrderBy(e => e.DisplayOrder).ThenBy(e => e.Name), "Id", "Name");
-            ViewData["LanguageSpokenAtHomeId"] = new SelectList(_context.Languages.OrderBy(l => l.Name), "Id", "Name");
-            ViewData["AtsiStatusId"] = new SelectList(_context.AtsiStatuses.Where(a => a.IsActive).OrderBy(a => a.DisplayOrder).ThenBy(a => a.Name), "Id", "Name");
-            ViewData["SexAtBirthId"] = new SelectList(_context.SexAtBirths.Where(s => s.IsActive).OrderBy(s => s.DisplayOrder).ThenBy(s => s.Name), "Id", "Name");
-            ViewData["GenderId"] = new SelectList(_context.Genders.Where(g => g.IsActive).OrderBy(g => g.DisplayOrder).ThenBy(g => g.Name), "Id", "Name");
-            // Occupation uses autocomplete, no ViewData needed
-
-            // Load jurisdiction types only (not all jurisdictions - using autocomplete)
-            ActiveJurisdictionTypes = await _jurisdictionService.GetActiveJurisdictionTypesAsync();
-
-            CustomFields = await _customFieldService.GetCreateEditFieldsAsync();
-            FieldsByCategory = CustomFields.GroupBy(f => f.Category).ToDictionary(g => g.Key, g => g.ToList());
-            CustomFieldValues = await _customFieldService.GetPatientFieldValuesAsync(id.Value);
+            if (id is not Guid patientId || !await LoadPatientForEditAsync(patientId, populateInput: true))
+            {
+                return NotFound();
+            }
 
             return Page();
         }
 
         public async Task<IActionResult> OnPostAsync()
         {
+            ValidateInput();
+            await ValidateJurisdictionAssignmentsAsync();
+
             if (!ModelState.IsValid)
             {
-                ViewData["CountryOfBirthId"] = new SelectList(_context.Countries.OrderBy(c => c.Name), "Id", "Name");
-                ViewData["StateId"] = new SelectList(_context.States.Where(s => s.IsActive).OrderBy(s => s.Code), "Id", "Code");
-                ViewData["AncestryId"] = new SelectList(_context.Ancestries.OrderBy(e => e.DisplayOrder).ThenBy(e => e.Name), "Id", "Name");
-                ViewData["LanguageSpokenAtHomeId"] = new SelectList(_context.Languages.OrderBy(l => l.Name), "Id", "Name");
-                ViewData["AtsiStatusId"] = new SelectList(_context.AtsiStatuses.Where(a => a.IsActive).OrderBy(a => a.DisplayOrder).ThenBy(a => a.Name), "Id", "Name");
-                ViewData["SexAtBirthId"] = new SelectList(_context.SexAtBirths.Where(s => s.IsActive).OrderBy(s => s.DisplayOrder).ThenBy(s => s.Name), "Id", "Name");
-                ViewData["GenderId"] = new SelectList(_context.Genders.Where(g => g.IsActive).OrderBy(g => g.DisplayOrder).ThenBy(g => g.Name), "Id", "Name");
-                // Occupation uses autocomplete, no ViewData needed
-                
-                // Reload jurisdiction data
-                ActiveJurisdictionTypes = await _jurisdictionService.GetActiveJurisdictionTypesAsync();
-                JurisdictionsByType = await _jurisdictionService.GetGroupedJurisdictionsAsync();
-                
-                // Reload custom fields
-                CustomFields = await _customFieldService.GetCreateEditFieldsAsync();
-                FieldsByCategory = CustomFields.GroupBy(f => f.Category).ToDictionary(g => g.Key, g => g.ToList());
-                CustomFieldValues = await _customFieldService.GetPatientFieldValuesAsync(Patient.Id);
-                
+                if (!await LoadPatientForEditAsync(Patient.Id, populateInput: false))
+                {
+                    return NotFound();
+                }
+
                 TempData["ErrorMessage"] = "Please correct the errors and try again.";
                 return Page();
             }
@@ -130,7 +87,9 @@ namespace Sentinel.Pages.Patients
             try
             {
                 // Get the original patient from database to compare addresses
-                var originalPatient = await _context.Patients.AsNoTracking()
+                var originalPatient = await _context.Patients
+                    .AsNoTracking()
+                    .Include(p => p.State)
                     .FirstOrDefaultAsync(p => p.Id == Patient.Id);
 
                 if (originalPatient == null)
@@ -145,40 +104,40 @@ namespace Sentinel.Pages.Patients
                                      originalPatient.StateId != Patient.StateId ||
                                      originalPatient.PostalCode != Patient.PostalCode;
 
-                // Build current address string
+                var stateCode = Patient.StateId.HasValue
+                    ? await _context.States
+                        .Where(s => s.Id == Patient.StateId.Value)
+                        .Select(s => s.Code)
+                        .FirstOrDefaultAsync()
+                    : null;
+
+                // Build the address from allow-listed fields only.
                 var address = string.Join(", ",
-                    new string?[] { Patient.AddressLine, Patient.City, Patient.State?.Code, Patient.PostalCode }
+                    new string?[] { Patient.AddressLine, Patient.City, stateCode, Patient.PostalCode }
                     .Where(s => !string.IsNullOrWhiteSpace(s)));
 
                 bool geocodingSucceeded = false;
                 bool geocodingAttempted = false;
+                var latitude = originalPatient.Latitude;
+                var longitude = originalPatient.Longitude;
 
-                // Only geocode if address has changed and we have coordinates to update
+                // Coordinates are server-managed. Never trust hidden fields submitted by the browser.
                 if (addressChanged && !string.IsNullOrWhiteSpace(address))
                 {
                     geocodingAttempted = true;
                     try
                     {
                         var (lat, lon) = await _geocoder.GeocodeAsync(address);
-                        Patient.Latitude = lat;
-                        Patient.Longitude = lon;
+                        latitude = lat;
+                        longitude = lon;
                         geocodingSucceeded = true;
                     }
                     catch
                     {
-                        // Don't block save if geocoding fails
-                        // Keep existing coordinates if geocoding fails
+                        // Don't block the update if geocoding fails. Preserve existing coordinates.
                     }
                 }
-                else if (!addressChanged)
-                {
-                    // Preserve existing coordinates if address didn't change
-                    Patient.Latitude = originalPatient.Latitude;
-                    Patient.Longitude = originalPatient.Longitude;
-                }
 
-                // Load the tracked entity from the database and update its properties
-                // This allows EF Core to properly detect which properties changed
                 var trackedPatient = await _context.Patients.FindAsync(Patient.Id);
                 if (trackedPatient == null)
                 {
@@ -186,18 +145,20 @@ namespace Sentinel.Pages.Patients
                     return RedirectToPage("./Index");
                 }
 
-                // Preserve the original FriendlyId - it should NEVER change after creation
-                Patient.FriendlyId = originalPatient.FriendlyId;
-                
-                // If for some reason the original didn't have one, generate it now
-                if (string.IsNullOrWhiteSpace(Patient.FriendlyId))
+                // Map only the fields explicitly supported by the edit screen.
+                // Do not copy the input object wholesale: it intentionally has no audit,
+                // deletion, identity, or navigation properties.
+                ApplyInputToPatient(trackedPatient, Patient);
+                trackedPatient.Latitude = latitude;
+                trackedPatient.Longitude = longitude;
+
+                // A FriendlyId remains immutable after creation. Retain the existing value,
+                // generating one only for legacy records that do not have one.
+                if (string.IsNullOrWhiteSpace(trackedPatient.FriendlyId))
                 {
-                    Patient.FriendlyId = await _patientIdGenerator.GenerateNextPatientIdAsync();
+                    trackedPatient.FriendlyId = await _patientIdGenerator.GenerateNextPatientIdAsync();
                 }
 
-                // Update only the properties from the posted Patient
-                _context.Entry(trackedPatient).CurrentValues.SetValues(Patient);
-                
                 await _context.SaveChangesAsync();
 
                 // Process address change for related cases
@@ -223,12 +184,15 @@ namespace Sentinel.Pages.Patients
                 }
 
                 // Auto-detect jurisdictions in background (fire-and-forget) - don't make user wait
-                _ = Task.Run(async () => await AutoDetectJurisdictionsInBackgroundAsync(Patient.Id, Patient.Latitude, Patient.Longitude));
+                _ = Task.Run(async () => await AutoDetectJurisdictionsInBackgroundAsync(
+                    trackedPatient.Id,
+                    trackedPatient.Latitude,
+                    trackedPatient.Longitude));
 
                 // Log all field changes for audit
                 var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
                 var ipAddress = HttpContext.Connection.RemoteIpAddress?.ToString();
-                await LogPatientChangesAsync(originalPatient, Patient, userId, ipAddress);
+                await LogPatientChangesAsync(originalPatient, trackedPatient, userId, ipAddress);
 
 
                 // Save custom field values
@@ -282,21 +246,147 @@ namespace Sentinel.Pages.Patients
             }
             catch (Exception ex)
             {
-                ViewData["CountryOfBirthId"] = new SelectList(_context.Countries.OrderBy(c => c.Name), "Id", "Name");
-                ViewData["AncestryId"] = new SelectList(_context.Ancestries.OrderBy(e => e.DisplayOrder).ThenBy(e => e.Name), "Id", "Name");
-                ViewData["LanguageSpokenAtHomeId"] = new SelectList(_context.Languages.OrderBy(l => l.Name), "Id", "Name");
-                ViewData["AtsiStatusId"] = new SelectList(_context.AtsiStatuses.Where(a => a.IsActive).OrderBy(a => a.DisplayOrder).ThenBy(a => a.Name), "Id", "Name");
-                ViewData["SexAtBirthId"] = new SelectList(_context.SexAtBirths.Where(s => s.IsActive).OrderBy(s => s.DisplayOrder).ThenBy(s => s.Name), "Id", "Name");
-                ViewData["GenderId"] = new SelectList(_context.Genders.Where(g => g.IsActive).OrderBy(g => g.DisplayOrder).ThenBy(g => g.Name), "Id", "Name");
-                
-                // Reload custom fields
-                CustomFields = await _customFieldService.GetCreateEditFieldsAsync();
-                FieldsByCategory = CustomFields.GroupBy(f => f.Category).ToDictionary(g => g.Key, g => g.ToList());
-                CustomFieldValues = await _customFieldService.GetPatientFieldValuesAsync(Patient.Id);
-                
+                if (!await LoadPatientForEditAsync(Patient.Id, populateInput: false))
+                {
+                    return NotFound();
+                }
+
                 TempData["ErrorMessage"] = $"An error occurred while updating the patient: {ex.Message}";
                 return Page();
             }
+        }
+
+        private async Task<bool> LoadPatientForEditAsync(Guid patientId, bool populateInput)
+        {
+            if (patientId == Guid.Empty)
+            {
+                return false;
+            }
+
+            var patient = await _context.Patients
+                .AsNoTracking()
+                .Include(p => p.CountryOfBirth)
+                .Include(p => p.State)
+                .Include(p => p.Ancestry)
+                .Include(p => p.LanguageSpokenAtHome)
+                .Include(p => p.Occupation)
+                .Include(p => p.Jurisdiction1).ThenInclude(j => j!.JurisdictionType)
+                .Include(p => p.Jurisdiction2).ThenInclude(j => j!.JurisdictionType)
+                .Include(p => p.Jurisdiction3).ThenInclude(j => j!.JurisdictionType)
+                .Include(p => p.Jurisdiction4).ThenInclude(j => j!.JurisdictionType)
+                .Include(p => p.Jurisdiction5).ThenInclude(j => j!.JurisdictionType)
+                .FirstOrDefaultAsync(p => p.Id == patientId);
+
+            if (patient == null)
+            {
+                return false;
+            }
+
+            if (populateInput)
+            {
+                Patient = PatientEditInputModel.FromPatient(patient);
+            }
+            else
+            {
+                // Retain posted allow-listed values after a validation failure while
+                // reloading display-only values which are not model-bound.
+                Patient.PopulateDisplayValues(patient);
+            }
+
+            OriginalAddress = patient.AddressLine;
+            OriginalCity = patient.City;
+            OriginalState = patient.State?.Code;
+            OriginalPostalCode = patient.PostalCode;
+
+            await LoadEditPageDataAsync(patientId);
+            return true;
+        }
+
+        private async Task LoadEditPageDataAsync(Guid patientId)
+        {
+            ViewData["CountryOfBirthId"] = new SelectList(_context.Countries.OrderBy(c => c.Name), "Id", "Name");
+            ViewData["StateId"] = new SelectList(_context.States.Where(s => s.IsActive).OrderBy(s => s.Code), "Id", "Code");
+            ViewData["AncestryId"] = new SelectList(_context.Ancestries.OrderBy(e => e.DisplayOrder).ThenBy(e => e.Name), "Id", "Name");
+            ViewData["LanguageSpokenAtHomeId"] = new SelectList(_context.Languages.OrderBy(l => l.Name), "Id", "Name");
+            ViewData["AtsiStatusId"] = new SelectList(_context.AtsiStatuses.Where(a => a.IsActive).OrderBy(a => a.DisplayOrder).ThenBy(a => a.Name), "Id", "Name");
+            ViewData["SexAtBirthId"] = new SelectList(_context.SexAtBirths.Where(s => s.IsActive).OrderBy(s => s.DisplayOrder).ThenBy(s => s.Name), "Id", "Name");
+            ViewData["GenderId"] = new SelectList(_context.Genders.Where(g => g.IsActive).OrderBy(g => g.DisplayOrder).ThenBy(g => g.Name), "Id", "Name");
+
+            ActiveJurisdictionTypes = await _jurisdictionService.GetActiveJurisdictionTypesAsync();
+            JurisdictionsByType = await _jurisdictionService.GetGroupedJurisdictionsAsync();
+
+            CustomFields = await _customFieldService.GetCreateEditFieldsAsync();
+            FieldsByCategory = CustomFields.GroupBy(f => f.Category).ToDictionary(g => g.Key, g => g.ToList());
+            CustomFieldValues = await _customFieldService.GetPatientFieldValuesAsync(patientId);
+        }
+
+        private void ValidateInput()
+        {
+            if (!Patient.IsDeceased)
+            {
+                Patient.DateOfDeath = null;
+            }
+
+            if (Patient.DateOfBirth.HasValue && Patient.DateOfDeath.HasValue &&
+                Patient.DateOfDeath.Value.Date < Patient.DateOfBirth.Value.Date)
+            {
+                ModelState.AddModelError("Patient.DateOfDeath", "Date of death cannot be before date of birth.");
+            }
+        }
+
+        private async Task ValidateJurisdictionAssignmentsAsync()
+        {
+            var assignments = new (int FieldNumber, int? JurisdictionId)[]
+            {
+                (1, Patient.Jurisdiction1Id),
+                (2, Patient.Jurisdiction2Id),
+                (3, Patient.Jurisdiction3Id),
+                (4, Patient.Jurisdiction4Id),
+                (5, Patient.Jurisdiction5Id)
+            };
+
+            foreach (var assignment in assignments.Where(a => a.JurisdictionId.HasValue))
+            {
+                var isValid = await _context.Jurisdictions.AnyAsync(j =>
+                    j.Id == assignment.JurisdictionId!.Value &&
+                    j.JurisdictionType != null &&
+                    j.JurisdictionType.FieldNumber == assignment.FieldNumber);
+
+                if (!isValid)
+                {
+                    ModelState.AddModelError(
+                        $"Patient.Jurisdiction{assignment.FieldNumber}Id",
+                        "Select a valid jurisdiction for this field.");
+                }
+            }
+        }
+
+        private static void ApplyInputToPatient(Patient target, PatientEditInputModel input)
+        {
+            target.GivenName = input.GivenName;
+            target.FamilyName = input.FamilyName;
+            target.DateOfBirth = input.DateOfBirth;
+            target.SexAtBirthId = input.SexAtBirthId;
+            target.GenderId = input.GenderId;
+            target.HomePhone = input.HomePhone;
+            target.MobilePhone = input.MobilePhone;
+            target.EmailAddress = input.EmailAddress;
+            target.AddressLine = input.AddressLine;
+            target.City = input.City;
+            target.StateId = input.StateId;
+            target.PostalCode = input.PostalCode;
+            target.CountryOfBirthId = input.CountryOfBirthId;
+            target.LanguageSpokenAtHomeId = input.LanguageSpokenAtHomeId;
+            target.AncestryId = input.AncestryId;
+            target.AtsiStatusId = input.AtsiStatusId;
+            target.OccupationId = input.OccupationId;
+            target.IsDeceased = input.IsDeceased;
+            target.DateOfDeath = input.DateOfDeath;
+            target.Jurisdiction1Id = input.Jurisdiction1Id;
+            target.Jurisdiction2Id = input.Jurisdiction2Id;
+            target.Jurisdiction3Id = input.Jurisdiction3Id;
+            target.Jurisdiction4Id = input.Jurisdiction4Id;
+            target.Jurisdiction5Id = input.Jurisdiction5Id;
         }
 
         private bool PatientExists(Guid id)
@@ -472,6 +562,141 @@ namespace Sentinel.Pages.Patients
                 // Don't fail - just log the error
                 Console.WriteLine($"? Background task error: Failed to auto-detect jurisdictions: {ex.Message}");
             }
+        }
+    }
+
+    /// <summary>
+    /// The explicit allow-list for patient editing. This deliberately excludes
+    /// database-managed identity, audit, deletion, navigation, and collection fields.
+    /// </summary>
+    public sealed class PatientEditInputModel
+    {
+        public Guid Id { get; set; }
+
+        [Required]
+        [Display(Name = "First Name")]
+        public string GivenName { get; set; } = string.Empty;
+
+        [Required]
+        [Display(Name = "Last Name")]
+        public string FamilyName { get; set; } = string.Empty;
+
+        [DataType(DataType.Date)]
+        [Display(Name = "Date of Birth")]
+        public DateTime? DateOfBirth { get; set; }
+
+        [Display(Name = "Sex at Birth")]
+        public int? SexAtBirthId { get; set; }
+
+        [Display(Name = "Gender")]
+        public int? GenderId { get; set; }
+
+        [Display(Name = "Home Phone")]
+        [DataType(DataType.PhoneNumber)]
+        public string? HomePhone { get; set; }
+
+        [Display(Name = "Mobile Phone")]
+        [DataType(DataType.PhoneNumber)]
+        public string? MobilePhone { get; set; }
+
+        [Display(Name = "Email Address")]
+        [DataType(DataType.EmailAddress)]
+        public string? EmailAddress { get; set; }
+
+        [Display(Name = "Address")]
+        public string? AddressLine { get; set; }
+
+        [Display(Name = "Suburb")]
+        public string? City { get; set; }
+
+        public int? StateId { get; set; }
+
+        [Display(Name = "Postcode")]
+        public string? PostalCode { get; set; }
+
+        [Display(Name = "Country of Birth")]
+        public int? CountryOfBirthId { get; set; }
+
+        [Display(Name = "Language Spoken at Home")]
+        public int? LanguageSpokenAtHomeId { get; set; }
+
+        [Display(Name = "Ancestry")]
+        public int? AncestryId { get; set; }
+
+        [Display(Name = "Aboriginal and Torres Strait Islander Status")]
+        public int? AtsiStatusId { get; set; }
+
+        [Display(Name = "Occupation")]
+        public int? OccupationId { get; set; }
+
+        [Display(Name = "Deceased")]
+        public bool IsDeceased { get; set; }
+
+        [Display(Name = "Date of Death")]
+        [DataType(DataType.Date)]
+        public DateTime? DateOfDeath { get; set; }
+
+        public int? Jurisdiction1Id { get; set; }
+        public int? Jurisdiction2Id { get; set; }
+        public int? Jurisdiction3Id { get; set; }
+        public int? Jurisdiction4Id { get; set; }
+        public int? Jurisdiction5Id { get; set; }
+
+        // These values support display only. They are never trusted from a POST.
+        [BindNever] public double? Latitude { get; set; }
+        [BindNever] public double? Longitude { get; set; }
+        [BindNever] public Occupation? Occupation { get; set; }
+        [BindNever] public Jurisdiction? Jurisdiction1 { get; set; }
+        [BindNever] public Jurisdiction? Jurisdiction2 { get; set; }
+        [BindNever] public Jurisdiction? Jurisdiction3 { get; set; }
+        [BindNever] public Jurisdiction? Jurisdiction4 { get; set; }
+        [BindNever] public Jurisdiction? Jurisdiction5 { get; set; }
+
+        public static PatientEditInputModel FromPatient(Patient patient)
+        {
+            var input = new PatientEditInputModel
+            {
+                Id = patient.Id,
+                GivenName = patient.GivenName,
+                FamilyName = patient.FamilyName,
+                DateOfBirth = patient.DateOfBirth,
+                SexAtBirthId = patient.SexAtBirthId,
+                GenderId = patient.GenderId,
+                HomePhone = patient.HomePhone,
+                MobilePhone = patient.MobilePhone,
+                EmailAddress = patient.EmailAddress,
+                AddressLine = patient.AddressLine,
+                City = patient.City,
+                StateId = patient.StateId,
+                PostalCode = patient.PostalCode,
+                CountryOfBirthId = patient.CountryOfBirthId,
+                LanguageSpokenAtHomeId = patient.LanguageSpokenAtHomeId,
+                AncestryId = patient.AncestryId,
+                AtsiStatusId = patient.AtsiStatusId,
+                OccupationId = patient.OccupationId,
+                IsDeceased = patient.IsDeceased,
+                DateOfDeath = patient.DateOfDeath,
+                Jurisdiction1Id = patient.Jurisdiction1Id,
+                Jurisdiction2Id = patient.Jurisdiction2Id,
+                Jurisdiction3Id = patient.Jurisdiction3Id,
+                Jurisdiction4Id = patient.Jurisdiction4Id,
+                Jurisdiction5Id = patient.Jurisdiction5Id
+            };
+
+            input.PopulateDisplayValues(patient);
+            return input;
+        }
+
+        public void PopulateDisplayValues(Patient patient)
+        {
+            Latitude = patient.Latitude;
+            Longitude = patient.Longitude;
+            Occupation = patient.Occupation;
+            Jurisdiction1 = patient.Jurisdiction1;
+            Jurisdiction2 = patient.Jurisdiction2;
+            Jurisdiction3 = patient.Jurisdiction3;
+            Jurisdiction4 = patient.Jurisdiction4;
+            Jurisdiction5 = patient.Jurisdiction5;
         }
     }
 }

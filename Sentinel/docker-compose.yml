@@ -10,8 +10,8 @@ services:
     environment:
       - ASPNETCORE_ENVIRONMENT=${ASPNETCORE_ENVIRONMENT:-Production}
       - ASPNETCORE_URLS=http://+:8080;https://+:8081
-      # Connection string (use secrets or environment variables)
-      - ConnectionStrings__DefaultConnection=${CONNECTION_STRING}
+      # The bundled SQL Server is available to Sentinel on the Docker network.
+      - ConnectionStrings__DefaultConnection=Server=sentinel-db,1433;Database=SentinelDb;User Id=sa;Password=${SQL_PASSWORD:?Set SQL_PASSWORD in .env};Encrypt=True;TrustServerCertificate=True;
       # Geocoding configuration
       - Geocoding__Provider=${GEOCODING_PROVIDER:-google}
       - Geocoding__ApiKey=${GEOCODING_API_KEY}
@@ -36,11 +36,9 @@ services:
   sentinel-db:
     image: mcr.microsoft.com/mssql/server:2022-latest
     container_name: sentinel-db
-    ports:
-      - "1433:1433"
     environment:
       - ACCEPT_EULA=Y
-      - SA_PASSWORD=${SQL_PASSWORD:-YourStrong!Password123}
+      - MSSQL_SA_PASSWORD=${SQL_PASSWORD:?Set SQL_PASSWORD in .env}
       - MSSQL_PID=Developer
     volumes:
       - sentinel-db-data:/var/opt/mssql
@@ -48,7 +46,7 @@ services:
     networks:
       - sentinel-network
     healthcheck:
-      test: ["CMD-SHELL", "/opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P ${SQL_PASSWORD:-YourStrong!Password123} -Q 'SELECT 1' || exit 1"]
+      test: ["CMD-SHELL", "/opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P \"$$MSSQL_SA_PASSWORD\" -Q 'SELECT 1' || exit 1"]
       interval: 30s
       timeout: 3s
       retries: 3

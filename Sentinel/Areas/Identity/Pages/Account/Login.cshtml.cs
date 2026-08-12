@@ -11,6 +11,9 @@ namespace Sentinel.Areas.Identity.Pages.Account
     [AllowAnonymous]
     public class LoginModel : PageModel
     {
+        private const string GenericSignInFailureMessage =
+            "The sign-in attempt was unsuccessful. Please check your credentials and try again.";
+
         private readonly SignInManager<ApplicationUser> _signInManager;
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly ILogger<LoginModel> _logger;
@@ -62,7 +65,7 @@ namespace Sentinel.Areas.Identity.Pages.Account
         {
             if (!string.IsNullOrEmpty(ErrorMessage))
             {
-                ModelState.AddModelError(string.Empty, ErrorMessage);
+                ModelState.AddModelError(string.Empty, GenericSignInFailureMessage);
             }
 
             returnUrl ??= Url.Content("~/");
@@ -88,26 +91,33 @@ namespace Sentinel.Areas.Identity.Pages.Account
                 
                 if (user == null)
                 {
-                    _logger.LogWarning($"Login failed: No user found with email {Input.Email}");
-                    ModelState.AddModelError(string.Empty, "No account found with this email address. Please check your email or contact your administrator.");
-                    return Page();
+                    _logger.LogWarning("Login attempt failed because no matching account was found");
+                    return ReturnGenericSignInFailure();
+                }
+
+                if (!await EnsureLockoutEnabledAsync(user))
+                {
+                    return ReturnGenericSignInFailure();
                 }
                 
                 // Check if email is confirmed (if required)
                 if (!user.EmailConfirmed && _userManager.Options.SignIn.RequireConfirmedAccount)
                 {
-                    _logger.LogWarning($"Login failed: Email not confirmed for {Input.Email}");
-                    ModelState.AddModelError(string.Empty, "Your email address has not been confirmed. Please contact your administrator.");
-                    return Page();
+                    _logger.LogWarning("Login attempt rejected because confirmation is required for user {UserId}", user.Id);
+                    return ReturnGenericSignInFailure();
                 }
                 
                 string usernameOrEmail = user.UserName ?? Input.Email;
                 
-                var result = await _signInManager.PasswordSignInAsync(usernameOrEmail, Input.Password, Input.RememberMe, lockoutOnFailure: false);
+                var result = await _signInManager.PasswordSignInAsync(
+                    usernameOrEmail,
+                    Input.Password,
+                    Input.RememberMe,
+                    lockoutOnFailure: true);
                 
                 if (result.Succeeded)
                 {
-                    _logger.LogInformation($"User {user.Email} logged in successfully.");
+                    _logger.LogInformation("User {UserId} logged in successfully", user.Id);
                     _activityTracker.TrackLogin(success: true, userId: user.Id);
                     return LocalRedirect(returnUrl);
                 }
@@ -117,17 +127,12 @@ namespace Sentinel.Areas.Identity.Pages.Account
                 }
                 if (result.IsLockedOut)
                 {
-                    _logger.LogWarning($"User account locked out: {Input.Email}");
-                    _activityTracker.TrackLogin(success: false);
-                    return RedirectToPage("./Lockout");
+                    _logger.LogWarning("Login attempt rejected because user {UserId} is locked out", user.Id);
+                    return ReturnGenericSignInFailure();
                 }
-                else
-                {
-                    _logger.LogWarning($"Login failed: Invalid password for user {Input.Email}");
-                    _activityTracker.TrackLogin(success: false);
-                    ModelState.AddModelError(string.Empty, "Incorrect password. Please try again or use 'Forgot your password?' to reset it.");
-                    return Page();
-                }
+
+                _logger.LogWarning("Login attempt rejected for user {UserId}", user.Id);
+                return ReturnGenericSignInFailure();
             }
 
             return Page();
@@ -136,30 +141,70 @@ namespace Sentinel.Areas.Identity.Pages.Account
         public async Task<IActionResult> OnPostDemoLoginAsync(string email, string password, string returnUrl = null)
         {
             returnUrl ??= Url.Content("~/");
+
+            if (!IsDemoMode)
+            {
+                _logger.LogWarning("Demo login attempted while demo mode is disabled");
+                return ReturnGenericSignInFailure();
+            }
             
             var user = await _userManager.FindByEmailAsync(email);
             if (user == null)
             {
-                _logger.LogWarning($"Demo login failed: User {email} not found");
-                ModelState.AddModelError(string.Empty, "Demo user not found. Make sure demo seeding completed.");
-                return Page();
+                _logger.LogWarning("Demo login attempt failed because no matching account was found");
+                return ReturnGenericSignInFailure();
+            }
+
+            if (!await EnsureLockoutEnabledAsync(user))
+            {
+                return ReturnGenericSignInFailure();
             }
             
-            var result = await _signInManager.PasswordSignInAsync(user.UserName!, password, isPersistent: false, lockoutOnFailure: false);
+            var result = await _signInManager.PasswordSignInAsync(
+                user.UserName!,
+                password,
+                isPersistent: false,
+                lockoutOnFailure: true);
             
             if (result.Succeeded)
             {
-                _logger.LogInformation($"Demo user {email} logged in successfully.");
+                _logger.LogInformation("Demo user {UserId} logged in successfully", user.Id);
                 _activityTracker.TrackLogin(success: true, userId: user.Id);
                 return LocalRedirect(returnUrl);
             }
-            else
+
+            if (result.IsLockedOut)
             {
-                _logger.LogWarning($"Demo login failed for {email}");
-                _activityTracker.TrackLogin(success: false);
-                ModelState.AddModelError(string.Empty, "Demo login failed. Check server logs.");
-                return Page();
+                _logger.LogWarning("Demo login attempt rejected because user {UserId} is locked out", user.Id);
             }
+
+            return ReturnGenericSignInFailure();
+        }
+
+        private async Task<bool> EnsureLockoutEnabledAsync(ApplicationUser user)
+        {
+            if (await _userManager.GetLockoutEnabledAsync(user))
+            {
+                return true;
+            }
+
+            // Options.Lockout.AllowedForNewUsers covers newly-created accounts. Enable
+            // legacy accounts on their next sign-in attempt as well, so the password
+            // failure policy is enforced consistently.
+            var result = await _userManager.SetLockoutEnabledAsync(user, enabled: true);
+            if (!result.Succeeded)
+            {
+                _logger.LogError("Unable to enable failed-password lockout for user {UserId}", user.Id);
+            }
+
+            return result.Succeeded;
+        }
+
+        private PageResult ReturnGenericSignInFailure()
+        {
+            _activityTracker.TrackLogin(success: false);
+            ModelState.AddModelError(string.Empty, GenericSignInFailureMessage);
+            return Page();
         }
     }
 }

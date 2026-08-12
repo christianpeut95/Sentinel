@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Security.Claims;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -8,6 +9,7 @@ using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.EntityFrameworkCore;
 using Sentinel.Data;
 using Sentinel.Models;
+using Sentinel.Services;
 
 namespace Sentinel.Pages.Patients
 {
@@ -15,10 +17,12 @@ namespace Sentinel.Pages.Patients
     public class IndexModel : PageModel
     {
         private readonly Sentinel.Data.ApplicationDbContext _context;
+        private readonly IPermissionService _permissionService;
 
-        public IndexModel(Sentinel.Data.ApplicationDbContext context)
+        public IndexModel(Sentinel.Data.ApplicationDbContext context, IPermissionService permissionService)
         {
             _context = context;
+            _permissionService = permissionService;
         }
 
         public IList<Patient> Patients { get;set; } = default!;
@@ -29,6 +33,9 @@ namespace Sentinel.Pages.Patients
         public int TotalPages { get; set; }
         public int PageSize { get; set; } = 20;
         public int TotalCount { get; set; }
+        public bool CanCreatePatient { get; private set; }
+        public bool CanEditPatient { get; private set; }
+        public bool CanSearchPatients { get; private set; }
         
         // Sorting properties
         [BindProperty(SupportsGet = true)]
@@ -44,6 +51,8 @@ namespace Sentinel.Pages.Patients
 
         public async Task OnGetAsync()
         {
+            await LoadPermissionsAsync();
+
             var query = _context.Patients
                 .Include(p => p.CountryOfBirth)
                 .Include(p => p.Ancestry)
@@ -127,6 +136,19 @@ namespace Sentinel.Pages.Patients
         {
             var newSortOrder = (SortBy == columnName && SortOrder == "asc") ? "desc" : "asc";
             return $"?SortBy={columnName}&SortOrder={newSortOrder}&CurrentPage=1";
+        }
+
+        private async Task LoadPermissionsAsync()
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrWhiteSpace(userId))
+            {
+                return;
+            }
+
+            CanCreatePatient = await _permissionService.HasPermissionAsync(userId, PermissionModule.Patient, PermissionAction.Create);
+            CanEditPatient = await _permissionService.HasPermissionAsync(userId, PermissionModule.Patient, PermissionAction.Edit);
+            CanSearchPatients = await _permissionService.HasPermissionAsync(userId, PermissionModule.Patient, PermissionAction.Search);
         }
     }
 }

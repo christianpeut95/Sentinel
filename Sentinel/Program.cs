@@ -316,8 +316,11 @@ builder.Services.AddRazorPages(options =>
     // Require authentication for all pages by default
     options.Conventions.AuthorizeFolder("/");
     
-    // Allow anonymous access to Identity pages (login, register, forgot password, etc.)
-    options.Conventions.AllowAnonymousToAreaFolder("Identity", "/Account");
+    // Only sign-in and account-recovery pages are public. Account provisioning is
+    // performed by the protected setup wizard or by an authorised administrator.
+    options.Conventions.AllowAnonymousToAreaPage("Identity", "/Account/Login");
+    options.Conventions.AllowAnonymousToAreaPage("Identity", "/Account/ForgotPassword");
+    options.Conventions.AllowAnonymousToAreaPage("Identity", "/Account/ResetPassword");
 })
 .AddSessionStateTempDataProvider(); // Use session instead of cookies for TempData
 
@@ -1366,7 +1369,6 @@ using (var scope = app.Services.CreateScope())
                 SetupTokenGeneratedAt = DateTime.UtcNow,
                 SetupTokenExpiresAt = DateTime.UtcNow.AddHours(48),
                 IsSetupCompleted = false,
-                AllowPublicRegistration = false,
                 EnforceHttps = true,
                 SmtpEnableSsl = true,
                 HL7ProcessingEnabled = false,

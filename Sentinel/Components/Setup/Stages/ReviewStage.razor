@@ -298,8 +298,6 @@
             {
                 settings.ApplicationUrl = HttpsData.ApplicationUrl;
                 settings.EnforceHttps = HttpsData.EnforceHttps;
-                settings.AllowPublicRegistration = false; // Lock down registration
-
                 // Save feedback widget setting
                 await SystemSettingsService.UpdateFeedbackWidgetSettingAsync(EnableFeedback);
 
