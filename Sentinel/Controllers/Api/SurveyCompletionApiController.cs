@@ -86,13 +86,14 @@ public class SurveyCompletionApiController : ControllerBase
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error saving survey for task {TaskId}: {ErrorMessage}", taskId, ex.Message);
+            _logger.LogError(ex, "Error saving survey for task {TaskId}", taskId);
 
             // For any other exception, return error
             return StatusCode(500, new
             {
                 success = false,
-                error = ex.Message
+                error = "The survey could not be saved. Your responses have not been submitted; please try again.",
+                traceId = HttpContext.TraceIdentifier
             });
         }
     }

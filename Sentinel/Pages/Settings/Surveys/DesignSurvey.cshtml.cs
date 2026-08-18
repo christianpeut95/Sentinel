@@ -112,7 +112,8 @@ namespace Sentinel.Pages.Settings.Surveys
             }
             catch (JsonException ex)
             {
-                return BadRequest($"Invalid JSON format: {ex.Message}");
+                _logger.LogWarning(ex, "Invalid survey JSON submitted for template {TemplateId}", id);
+                return BadRequest("The survey definition is not valid JSON. Correct it and try again.");
             }
 
             if (id == null || id == Guid.Empty)
@@ -197,7 +198,11 @@ namespace Sentinel.Pages.Settings.Surveys
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error saving survey template {TemplateId}", surveyTemplate.Id);
-                return StatusCode(500, $"Error saving survey: {ex.Message}");
+                return StatusCode(500, new
+                {
+                    error = "The survey could not be saved. Check the survey configuration and try again.",
+                    traceId = HttpContext.TraceIdentifier
+                });
             }
         }
 

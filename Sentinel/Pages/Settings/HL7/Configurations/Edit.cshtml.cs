@@ -9,7 +9,7 @@ using Sentinel.Services.HL7;
 
 namespace Sentinel.Pages.Settings.HL7.Configurations
 {
-    [Authorize(Policy = "Permission.Settings.ManageSystemLookups")]
+    [Authorize(Policy = "Permission.HL7.Configure")]
     public class EditModel : PageModel
     {
         private readonly ApplicationDbContext _context;

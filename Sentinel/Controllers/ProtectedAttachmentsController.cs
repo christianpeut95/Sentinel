@@ -46,7 +46,7 @@ public sealed class ProtectedAttachmentsController : Controller
             return NotFound();
         }
 
-        return Download(note.AttachmentPath, note.AttachmentFileName);
+        return Download(note.AttachmentPath, note.AttachmentFileName, ProtectedFileStorageService.NotesCategory);
     }
 
     [HttpGet("lab-results/{id:guid}")]
@@ -64,7 +64,7 @@ public sealed class ProtectedAttachmentsController : Controller
             return NotFound();
         }
 
-        return Download(labResult.AttachmentPath, labResult.AttachmentFileName);
+        return Download(labResult.AttachmentPath, labResult.AttachmentFileName, ProtectedFileStorageService.LabResultsCategory);
     }
 
     private async Task<bool> CanAccessNoteAsync(Note note, CancellationToken cancellationToken)
@@ -99,8 +99,11 @@ public sealed class ProtectedAttachmentsController : Controller
                await _permissionService.HasPermissionAsync(userId, module, action);
     }
 
-    private IActionResult Download(string storageKey, string? originalFileName)
+    private IActionResult Download(string storageKey, string? originalFileName, string expectedCategory)
     {
+        if (!storageKey.StartsWith(expectedCategory + "/", StringComparison.OrdinalIgnoreCase))
+            return NotFound();
+
         var stream = _fileStorage.OpenRead(storageKey);
         if (stream == null)
             return NotFound();

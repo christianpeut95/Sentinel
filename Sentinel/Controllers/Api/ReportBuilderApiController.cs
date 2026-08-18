@@ -19,17 +19,20 @@ public class ReportBuilderApiController : ControllerBase
     private readonly IReportDataService _reportDataService;
     private readonly ICollectionMetadataService _collectionMetadataService;
     private readonly ApplicationDbContext _context;
+    private readonly ILogger<ReportBuilderApiController> _logger;
 
     public ReportBuilderApiController(
         IReportFieldMetadataService fieldMetadataService,
         IReportDataService reportDataService,
         ICollectionMetadataService collectionMetadataService,
-        ApplicationDbContext context)
+        ApplicationDbContext context,
+        ILogger<ReportBuilderApiController> logger)
     {
         _fieldMetadataService = fieldMetadataService;
         _reportDataService = reportDataService;
         _collectionMetadataService = collectionMetadataService;
         _context = context;
+        _logger = logger;
     }
 
     [HttpPost("preview")]
@@ -130,15 +133,13 @@ public class ReportBuilderApiController : ControllerBase
         }
         catch (Exception ex)
         {
-            // Log the full exception
-            Console.WriteLine($"Preview error: {ex}");
+            _logger.LogError(ex, "Unable to generate report-builder preview");
 
             return StatusCode(500, new
             {
                 success = false,
-                error = ex.Message,
-                stackTrace = ex.StackTrace,
-                innerException = ex.InnerException?.Message
+                error = "The report preview could not be generated. Check the selected fields and filters, then try again.",
+                traceId = HttpContext.TraceIdentifier
             });
         }
     }
@@ -295,13 +296,13 @@ public class ReportBuilderApiController : ControllerBase
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Save error: {ex}");
+            _logger.LogError(ex, "Unable to save report {ReportId}", request.ReportId);
 
             return StatusCode(500, new
             {
                 success = false,
-                error = ex.Message,
-                stackTrace = ex.StackTrace
+                error = "The report could not be saved. Check the report configuration and try again.",
+                traceId = HttpContext.TraceIdentifier
             });
         }
     }
@@ -337,10 +338,12 @@ public class ReportBuilderApiController : ControllerBase
         }
         catch (Exception ex)
         {
+            _logger.LogError(ex, "Unable to delete report {ReportId}", id);
             return StatusCode(500, new
             {
                 success = false,
-                error = ex.Message
+                error = "The report could not be deleted. Please try again.",
+                traceId = HttpContext.TraceIdentifier
             });
         }
     }
@@ -355,10 +358,12 @@ public class ReportBuilderApiController : ControllerBase
         }
         catch (Exception ex)
         {
+            _logger.LogError(ex, "Unable to load collection metadata for {EntityType}", entityType);
             return StatusCode(500, new
             {
                 success = false,
-                error = ex.Message
+                error = "Collection metadata could not be loaded. Please try again.",
+                traceId = HttpContext.TraceIdentifier
             });
         }
     }

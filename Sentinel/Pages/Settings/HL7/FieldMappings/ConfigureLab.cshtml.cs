@@ -8,7 +8,7 @@ namespace Sentinel.Pages.Settings.HL7.FieldMappings
     /// DEPRECATED: This Razor Page has been replaced by the Blazor-based wizard at /Settings/HL7/ConfigureLab/{id}
     /// This file only exists to redirect old bookmarks/links to the new location.
     /// </summary>
-    [Authorize(Policy = "Permission.Settings.ManageSystemLookups")]
+    [Authorize(Policy = "Permission.HL7.Configure")]
     [Obsolete("Use the new Blazor wizard at /Settings/HL7/ConfigureLab/{id} instead")]
     public class ConfigureLabModel : PageModel
     {

@@ -9,10 +9,47 @@ namespace Sentinel.Services
     public class DashboardService : IDashboardService
     {
         private readonly ApplicationDbContext _context;
+        private readonly IPermissionService _permissionService;
+        private readonly ILogger<DashboardService> _logger;
 
-        public DashboardService(ApplicationDbContext context)
+        private static readonly IReadOnlyDictionary<string, string[]> WidgetPermissions =
+            new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["recent-activity"] = ["Case.View"],
+                ["cases-by-disease"] = ["Case.View"],
+                ["quick-stats"] = ["Case.View"],
+                ["hl7-overview"] = ["HL7.View"],
+                ["tasks-surveys"] = ["Task.View", "Case.View"],
+                ["outbreak-tracker"] = ["Outbreak.View"],
+                ["data-review-queue"] = ["Case.View"]
+            };
+
+        public DashboardService(
+            ApplicationDbContext context,
+            IPermissionService permissionService,
+            ILogger<DashboardService> logger)
         {
             _context = context;
+            _permissionService = permissionService;
+            _logger = logger;
+        }
+
+        public async Task<bool> CanAccessWidgetAsync(string widgetId, string userId)
+        {
+            if (!WidgetPermissions.TryGetValue(widgetId, out var permissions))
+            {
+                return false;
+            }
+
+            foreach (var permission in permissions)
+            {
+                if (!await _permissionService.HasPermissionAsync(userId, permission))
+                {
+                    return false;
+                }
+            }
+
+            return true;
         }
 
         public async Task<DashboardConfig> GetUserDashboardConfigAsync(string userId)
@@ -78,6 +115,16 @@ namespace Sentinel.Services
         {
             settings ??= new Dictionary<string, object>();
 
+            if (!await CanAccessWidgetAsync(widgetId, userId))
+            {
+                return new WidgetData
+                {
+                    WidgetId = widgetId,
+                    Title = "Access denied",
+                    ErrorMessage = "You do not have permission to view this dashboard item."
+                };
+            }
+
             // Get user's pinned diseases
             var userConfig = await GetUserDashboardConfigAsync(userId);
             var pinnedDiseaseIds = userConfig.PinnedDiseases.Select(id => Guid.Parse(id)).ToList();
@@ -98,7 +145,13 @@ namespace Sentinel.Services
             }
             catch (Exception ex)
             {
-                return new WidgetData { WidgetId = widgetId, Title = "Error", ErrorMessage = ex.Message };
+                _logger.LogError(ex, "Unable to load dashboard widget {WidgetId} for user {UserId}", widgetId, userId);
+                return new WidgetData
+                {
+                    WidgetId = widgetId,
+                    Title = "Dashboard item unavailable",
+                    ErrorMessage = "This dashboard item could not be loaded. Please refresh the page or try again later."
+                };
             }
         }
 

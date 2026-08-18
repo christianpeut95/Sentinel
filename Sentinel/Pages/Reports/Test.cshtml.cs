@@ -10,10 +10,12 @@ namespace Sentinel.Pages.Reports;
 public class TestModel : PageModel
 {
     private readonly IReportDataService _reportDataService;
+    private readonly ILogger<TestModel> _logger;
 
-    public TestModel(IReportDataService reportDataService)
+    public TestModel(IReportDataService reportDataService, ILogger<TestModel> logger)
     {
         _reportDataService = reportDataService;
+        _logger = logger;
     }
 
     public List<Dictionary<string, object?>>? ReportData { get; set; }
@@ -40,7 +42,8 @@ public class TestModel : PageModel
         }
         catch (Exception ex)
         {
-            ErrorMessage = $"Error: {ex.Message}\n\nStack: {ex.StackTrace}";
+            _logger.LogError(ex, "Unable to load report test data");
+            ErrorMessage = $"The report test data could not be loaded. Please try again. Reference: {HttpContext.TraceIdentifier}";
         }
     }
 }

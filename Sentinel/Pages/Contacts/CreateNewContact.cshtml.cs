@@ -22,19 +22,22 @@ namespace Sentinel.Pages.Contacts
         private readonly IAuditService _auditService;
         private readonly IDiseaseAccessService _diseaseAccessService;
         private readonly ITaskService _taskService;
+        private readonly ILogger<CreateNewContactModel> _logger;
 
         public CreateNewContactModel(
             ApplicationDbContext context,
             ICaseIdGeneratorService caseIdGenerator,
             IAuditService auditService,
             IDiseaseAccessService diseaseAccessService,
-            ITaskService taskService)
+            ITaskService taskService,
+            ILogger<CreateNewContactModel> logger)
         {
             _context = context;
             _caseIdGenerator = caseIdGenerator;
             _auditService = auditService;
             _diseaseAccessService = diseaseAccessService;
             _taskService = taskService;
+            _logger = logger;
         }
 
         public List<DiseaseDto> Diseases { get; set; } = new();
@@ -169,7 +172,13 @@ namespace Sentinel.Pages.Contacts
             }
             catch (Exception ex)
             {
-                return new JsonResult(new { success = false, message = ex.Message });
+                _logger.LogError(ex, "Unable to create a new contact");
+                return new JsonResult(new
+                {
+                    success = false,
+                    message = "The contact could not be created. Check the entered information and try again.",
+                    traceId = HttpContext.TraceIdentifier
+                }) { StatusCode = 500 };
             }
         }
 
@@ -222,7 +231,13 @@ namespace Sentinel.Pages.Contacts
             }
             catch (Exception ex)
             {
-                return new JsonResult(new { success = false, message = ex.Message });
+                _logger.LogError(ex, "Unable to link contact {ContactCaseId} to source case {SourceCaseId}", request.ContactCaseId, request.SourceCaseId);
+                return new JsonResult(new
+                {
+                    success = false,
+                    message = "The contact could not be linked to the source case. Please try again.",
+                    traceId = HttpContext.TraceIdentifier
+                }) { StatusCode = 500 };
             }
         }
 

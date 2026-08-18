@@ -7,7 +7,7 @@ using Sentinel.Models;
 
 namespace Sentinel.Pages.Settings.HL7.Messages
 {
-    [Authorize(Policy = "Permission.Settings.ManageSystemLookups")]
+    [Authorize(Policy = "Permission.HL7.View")]
     public class IndexModel : PageModel
     {
         private readonly ApplicationDbContext _context;

@@ -31,6 +31,7 @@ namespace Sentinel.Pages.Patients
         private readonly Sentinel.Services.Telemetry.ActivityTracker _activityTracker;
         private readonly IPermissionService _permissionService;
         private readonly IDiseaseAccessService _diseaseAccessService;
+        private readonly ILogger<CreateModel> _logger;
 
         public CreateModel(
             ApplicationDbContext context, 
@@ -44,7 +45,8 @@ namespace Sentinel.Pages.Patients
             IServiceProvider serviceProvider,
             Sentinel.Services.Telemetry.ActivityTracker activityTracker,
             IPermissionService permissionService,
-            IDiseaseAccessService diseaseAccessService)
+            IDiseaseAccessService diseaseAccessService,
+            ILogger<CreateModel> logger)
         {
             _context = context;
             _geocoder = geocoder;
@@ -58,6 +60,7 @@ namespace Sentinel.Pages.Patients
             _activityTracker = activityTracker;
             _permissionService = permissionService;
             _diseaseAccessService = diseaseAccessService;
+            _logger = logger;
         }
 
         public List<PotentialDuplicate> PotentialDuplicates { get; set; } = new();
@@ -311,7 +314,8 @@ namespace Sentinel.Pages.Patients
                 CustomFields = await _customFieldService.GetCreateEditFieldsAsync();
                 FieldsByCategory = CustomFields.GroupBy(f => f.Category).ToDictionary(g => g.Key, g => g.ToList());
                 
-                TempData["ErrorMessage"] = $"An error occurred while creating the patient: {ex.Message}";
+                _logger.LogError(ex, "Unable to create patient");
+                TempData["ErrorMessage"] = "The patient could not be created. Check the entered information and try again.";
                 return Page();
             }
         }
@@ -455,7 +459,13 @@ namespace Sentinel.Pages.Patients
             }
             catch (Exception ex)
             {
-                return new JsonResult(new { success = false, error = ex.Message });
+                _logger.LogError(ex, "Unable to detect jurisdictions for a patient address");
+                return new JsonResult(new
+                {
+                    success = false,
+                    error = "Jurisdictions could not be detected for this address. Please try again.",
+                    traceId = HttpContext.TraceIdentifier
+                }) { StatusCode = 500 };
             }
         }
 

@@ -5,7 +5,7 @@ using Sentinel.Data;
 
 namespace Sentinel.Pages.Settings.HL7.FieldMappings
 {
-    [Authorize(Policy = "Permission.Settings.ManageSystemLookups")]
+    [Authorize(Policy = "Permission.HL7.Configure")]
     public class SelectLabModel : PageModel
     {
         private readonly ApplicationDbContext _context;

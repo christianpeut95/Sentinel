@@ -475,11 +475,13 @@ namespace Sentinel.Pages.Cases
             }
             catch (DbUpdateException dbEx)
             {
-                TempData["ErrorMessage"] = $"Database error: {dbEx.InnerException?.Message ?? dbEx.Message}";
+                _logger.LogError(dbEx, "Unable to add laboratory result to case {CaseId}", id);
+                TempData["ErrorMessage"] = "The laboratory result could not be saved. Check the entered information and try again.";
             }
             catch (Exception ex)
             {
-                TempData["ErrorMessage"] = $"Failed to save lab result: {ex.Message}";
+                _logger.LogError(ex, "Unable to add laboratory result to case {CaseId}", id);
+                TempData["ErrorMessage"] = "The laboratory result could not be saved. Please try again.";
             }
 
             return RedirectToPage(new { id });
@@ -564,11 +566,13 @@ namespace Sentinel.Pages.Cases
             }
             catch (DbUpdateException dbEx)
             {
-                TempData["ErrorMessage"] = $"Database error: {dbEx.InnerException?.Message ?? dbEx.Message}";
+                _logger.LogError(dbEx, "Unable to update laboratory result {LabResultId} on case {CaseId}", labResultId, id);
+                TempData["ErrorMessage"] = "The laboratory result could not be updated. Check the entered information and try again.";
             }
             catch (Exception ex)
             {
-                TempData["ErrorMessage"] = $"Failed to update lab result: {ex.Message}";
+                _logger.LogError(ex, "Unable to update laboratory result {LabResultId} on case {CaseId}", labResultId, id);
+                TempData["ErrorMessage"] = "The laboratory result could not be updated. Please try again.";
             }
 
             return RedirectToPage(new { id });
@@ -765,7 +769,8 @@ namespace Sentinel.Pages.Cases
             }
             catch (Exception ex)
             {
-                TempData["ErrorMessage"] = $"Error deleting exposure: {ex.Message}";
+                _logger.LogError(ex, "Unable to delete exposure {ExposureId} from case {CaseId}", exposureId, id);
+                TempData["ErrorMessage"] = "The exposure could not be deleted. Please try again.";
             }
 
             return RedirectToPage(new { id });
@@ -858,7 +863,7 @@ namespace Sentinel.Pages.Cases
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error adding exposure to case {CaseId}", CaseId);
-                TempData["ErrorMessage"] = $"Error adding exposure: {ex.Message}";
+                TempData["ErrorMessage"] = "The exposure could not be added. Check the entered information and try again.";
             }
 
             return RedirectToPage(new { id = CaseId });
@@ -1676,7 +1681,7 @@ namespace Sentinel.Pages.Cases
                 return new JsonResult(new
                 {
                     success = false,
-                    message = $"Error copying address: {ex.Message}"
+                    message = "The address could not be copied. Please try again."
                 });
             }
         }
@@ -1715,7 +1720,7 @@ namespace Sentinel.Pages.Cases
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error evaluating case definitions for case {CaseId}", id);
-                TempData["ErrorMessage"] = $"Error evaluating definitions: {ex.Message}";
+                TempData["ErrorMessage"] = "Case definitions could not be evaluated. Please try again.";
                 return RedirectToPage(new { id });
             }
         }
@@ -1760,7 +1765,7 @@ namespace Sentinel.Pages.Cases
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error applying classification for case {CaseId}", id);
-                TempData["ErrorMessage"] = $"Error applying classification: {ex.Message}";
+                TempData["ErrorMessage"] = "The classification could not be applied. Please try again.";
                 return RedirectToPage(new { id });
             }
         }
@@ -1815,7 +1820,7 @@ namespace Sentinel.Pages.Cases
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error clearing manual override for case {CaseId}", id);
-                TempData["ErrorMessage"] = $"Error re-enabling automatic evaluation: {ex.Message}";
+                TempData["ErrorMessage"] = "Automatic evaluation could not be re-enabled. Please try again.";
                 return RedirectToPage(new { id });
             }
         }

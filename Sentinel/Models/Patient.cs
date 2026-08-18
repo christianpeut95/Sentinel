@@ -103,6 +103,12 @@ namespace Sentinel.Models
         public int? Jurisdiction5Id { get; set; }
         public Jurisdiction? Jurisdiction5 { get; set; }
 
+        /// <summary>
+        /// Cases associated with this patient. Used by the optional case-scoped
+        /// patient visibility policy so it inherits the Case query filter.
+        /// </summary>
+        public ICollection<Case> Cases { get; set; } = new List<Case>();
+
         public ICollection<Note> Notes { get; set; } = new List<Note>();
 
         [Display(Name = "Created")]

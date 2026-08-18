@@ -16,15 +16,18 @@ public class BuilderModel : PageModel
     private readonly IReportFieldMetadataService _fieldMetadataService;
     private readonly IReportDataService _reportDataService;
     private readonly ApplicationDbContext _context;
+    private readonly ILogger<BuilderModel> _logger;
 
     public BuilderModel(
         IReportFieldMetadataService fieldMetadataService,
         IReportDataService reportDataService,
-        ApplicationDbContext context)
+        ApplicationDbContext context,
+        ILogger<BuilderModel> logger)
     {
         _fieldMetadataService = fieldMetadataService;
         _reportDataService = reportDataService;
         _context = context;
+        _logger = logger;
     }
 
     [BindProperty(SupportsGet = true)]
@@ -227,10 +230,12 @@ public class BuilderModel : PageModel
         }
         catch (Exception ex)
         {
+            _logger.LogError(ex, "Unable to save report from the report builder {ReportId}", request.ReportId);
             return new JsonResult(new
             {
                 success = false,
-                error = ex.Message
+                error = "The report could not be saved. Check the report configuration and try again.",
+                traceId = HttpContext.TraceIdentifier
             })
             {
                 StatusCode = 500
@@ -340,15 +345,13 @@ public class BuilderModel : PageModel
         }
         catch (Exception ex)
         {
-            // Log the full exception
-            Console.WriteLine($"Preview error: {ex}");
+            _logger.LogError(ex, "Unable to generate report preview from the report builder");
             
             return new JsonResult(new
             {
                 success = false,
-                error = ex.Message,
-                stackTrace = ex.StackTrace,
-            innerException = ex.InnerException?.Message
+                error = "The report preview could not be generated. Check the selected fields and filters, then try again.",
+                traceId = HttpContext.TraceIdentifier
             });
         }
     }

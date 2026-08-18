@@ -35,10 +35,12 @@ namespace Sentinel.Models.Telemetry
         public RequestContext Request { get; set; } = new();
 
         [JsonPropertyName("runtime")]
-        public RuntimeContext Runtime { get; set; } = new();
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public RuntimeContext? Runtime { get; set; }
 
         [JsonPropertyName("breadcrumbs")]
-        public List<Breadcrumb> Breadcrumbs { get; set; } = new();
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public List<Breadcrumb>? Breadcrumbs { get; set; }
 
         [JsonPropertyName("redaction")]
         public RedactionInfo Redaction { get; set; } = new();
@@ -68,15 +70,26 @@ namespace Sentinel.Models.Telemetry
         public string ExceptionType { get; set; } = string.Empty;
 
         [JsonPropertyName("message")]
-        public string Message { get; set; } = string.Empty;
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public string? Message { get; set; }
+
+        /// <summary>
+        /// Stable, non-reversible grouping key derived only from the exception
+        /// type, semantic page identifier and HTTP method.
+        /// </summary>
+        [JsonPropertyName("fingerprint")]
+        public string? Fingerprint { get; set; }
 
         [JsonPropertyName("source")]
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
         public string? Source { get; set; }
 
         [JsonPropertyName("targetMethod")]
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
         public string? TargetMethod { get; set; }
 
         [JsonPropertyName("stackTrace")]
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
         public string? StackTrace { get; set; }
     }
 
@@ -92,9 +105,11 @@ namespace Sentinel.Models.Telemetry
         public int? StatusCode { get; set; }
 
         [JsonPropertyName("traceId")]
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
         public string? TraceId { get; set; }
 
         [JsonPropertyName("correlationId")]
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
         public string? CorrelationId { get; set; }
     }
 

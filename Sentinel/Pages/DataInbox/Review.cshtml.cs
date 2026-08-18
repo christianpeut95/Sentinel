@@ -314,7 +314,7 @@ public class ReviewModel : PageModel
         catch (Exception ex)
         {
             _logger.LogError(ex, "Transaction failed for review {ReviewId}", id);
-            TempData["ErrorMessage"] = $"Error: {ex.Message}";
+            TempData["ErrorMessage"] = "The review item could not be completed. No changes were saved. Please try again or contact an administrator with the request reference.";
             return RedirectToPage(new { id });
         }
     }

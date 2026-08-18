@@ -16,7 +16,9 @@ namespace Sentinel.Models
         Survey,
         Location,
         Event,
-        Exposure
+        Exposure,
+        Contact,
+        Occupation
     }
 
     public enum PermissionAction
@@ -38,7 +40,9 @@ namespace Sentinel.Models
         ResetPassword,
         Configure,
         Process,
-        GenerateTestFiles
+        GenerateTestFiles,
+        Upload,
+        ImportPopulation
     }
 
     public class Permission

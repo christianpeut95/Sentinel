@@ -16,10 +16,14 @@ namespace Sentinel.Controllers.Api;
 public class ReportDataApiController : ControllerBase
 {
     private readonly IReportDataService _reportDataService;
+    private readonly ILogger<ReportDataApiController> _logger;
 
-    public ReportDataApiController(IReportDataService reportDataService)
+    public ReportDataApiController(
+        IReportDataService reportDataService,
+        ILogger<ReportDataApiController> logger)
     {
         _reportDataService = reportDataService;
+        _logger = logger;
     }
 
     /// <summary>
@@ -60,11 +64,12 @@ public class ReportDataApiController : ControllerBase
         }
         catch (Exception ex)
         {
-            return BadRequest(new
+            _logger.LogError(ex, "Unable to generate the case report preview");
+            return StatusCode(500, new
             {
                 success = false,
-                error = ex.Message,
-                stackTrace = ex.StackTrace
+                error = "The case report preview could not be generated. Check the report configuration and try again.",
+                traceId = HttpContext.TraceIdentifier
             });
         }
     }
@@ -105,11 +110,12 @@ public class ReportDataApiController : ControllerBase
         }
         catch (Exception ex)
         {
-            return BadRequest(new
+            _logger.LogError(ex, "Unable to generate the outbreak report preview");
+            return StatusCode(500, new
             {
                 success = false,
-                error = ex.Message,
-                stackTrace = ex.StackTrace
+                error = "The outbreak report preview could not be generated. Check the report configuration and try again.",
+                traceId = HttpContext.TraceIdentifier
             });
         }
     }
@@ -149,10 +155,12 @@ public class ReportDataApiController : ControllerBase
         }
         catch (Exception ex)
         {
-            return BadRequest(new
+            _logger.LogError(ex, "Unable to calculate the report row count");
+            return StatusCode(500, new
             {
                 success = false,
-                error = ex.Message
+                error = "The report row count could not be calculated. Check the report configuration and try again.",
+                traceId = HttpContext.TraceIdentifier
             });
         }
     }

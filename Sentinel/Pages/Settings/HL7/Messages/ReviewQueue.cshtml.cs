@@ -7,7 +7,7 @@ using System.Security.Claims;
 
 namespace Sentinel.Pages.Settings.HL7.Messages
 {
-    [Authorize(Policy = "Permission.Settings.ManageSystemLookups")]
+    [Authorize(Policy = "Permission.HL7.Process")]
     public class ReviewQueueModel : PageModel
     {
         private readonly HL7ReviewService _reviewService;

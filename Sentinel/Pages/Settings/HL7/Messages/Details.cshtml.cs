@@ -9,16 +9,21 @@ using System.Text.Json;
 
 namespace Sentinel.Pages.Settings.HL7.Messages
 {
-    [Authorize(Policy = "Permission.Settings.ManageSystemLookups")]
+    [Authorize(Policy = "Permission.HL7.View")]
     public class DetailsModel : PageModel
     {
         private readonly ApplicationDbContext _context;
         private readonly IHL7FileMonitorService _fileMonitor;
+        private readonly IAuthorizationService _authorizationService;
 
-        public DetailsModel(ApplicationDbContext context, IHL7FileMonitorService fileMonitor)
+        public DetailsModel(
+            ApplicationDbContext context,
+            IHL7FileMonitorService fileMonitor,
+            IAuthorizationService authorizationService)
         {
             _context = context;
             _fileMonitor = fileMonitor;
+            _authorizationService = authorizationService;
         }
 
         public HL7Message Message { get; set; } = null!;
@@ -66,6 +71,11 @@ namespace Sentinel.Pages.Settings.HL7.Messages
 
         public async Task<IActionResult> OnPostReprocessAsync(Guid id)
         {
+            if (!(await _authorizationService.AuthorizeAsync(User, "Permission.HL7.Process")).Succeeded)
+            {
+                return Forbid();
+            }
+
             var message = await _context.HL7Messages.FindAsync(id);
             if (message == null)
             {

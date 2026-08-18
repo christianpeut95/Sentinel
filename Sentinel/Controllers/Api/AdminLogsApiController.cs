@@ -108,7 +108,7 @@ namespace Sentinel.Controllers.Api
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error retrieving logs");
-                return StatusCode(500, new { error = "Error retrieving logs", details = ex.Message });
+                return StatusCode(500, new { error = "Application logs could not be retrieved. Please try again.", traceId = HttpContext.TraceIdentifier });
             }
         }
 
@@ -165,7 +165,7 @@ namespace Sentinel.Controllers.Api
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error retrieving log stats");
-                return StatusCode(500, new { error = "Error retrieving log stats", details = ex.Message });
+                return StatusCode(500, new { error = "Application log statistics could not be retrieved. Please try again.", traceId = HttpContext.TraceIdentifier });
             }
         }
     }

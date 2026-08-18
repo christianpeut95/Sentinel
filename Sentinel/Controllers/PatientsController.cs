@@ -44,12 +44,18 @@ namespace Sentinel.Controllers
         private readonly ApplicationDbContext _context;
         private readonly IPatientDuplicateCheckService _duplicateCheckService;
         private readonly UserManager<ApplicationUser> _userManager;
+        private readonly ILogger<PatientsController> _logger;
 
-        public PatientsController(ApplicationDbContext context, IPatientDuplicateCheckService duplicateCheckService, UserManager<ApplicationUser> userManager)
+        public PatientsController(
+            ApplicationDbContext context,
+            IPatientDuplicateCheckService duplicateCheckService,
+            UserManager<ApplicationUser> userManager,
+            ILogger<PatientsController> logger)
         {
             _context = context;
             _duplicateCheckService = duplicateCheckService;
             _userManager = userManager;
+            _logger = logger;
         }
 
         [HttpGet("search")]
@@ -244,7 +250,12 @@ namespace Sentinel.Controllers
             }
             catch (Exception ex)
             {
-                return StatusCode(500, "Error updating patient: " + ex.Message);
+                _logger.LogError(ex, "Unable to update patient {PatientId}", id);
+                return StatusCode(500, new
+                {
+                    error = "The patient could not be updated. Check the entered information and try again.",
+                    traceId = HttpContext.TraceIdentifier
+                });
             }
         }
 

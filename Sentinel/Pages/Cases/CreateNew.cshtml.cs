@@ -22,6 +22,7 @@ namespace Sentinel.Pages.Cases
         private readonly IDiseaseAccessService _diseaseAccessService;
         private readonly ITaskService _taskService;
         private readonly IPatientAddressService _patientAddressService;
+        private readonly ILogger<CreateNewModel> _logger;
 
         public CreateNewModel(
             ApplicationDbContext context,
@@ -29,7 +30,8 @@ namespace Sentinel.Pages.Cases
             IAuditService auditService,
             IDiseaseAccessService diseaseAccessService,
             ITaskService taskService,
-            IPatientAddressService patientAddressService)
+            IPatientAddressService patientAddressService,
+            ILogger<CreateNewModel> logger)
         {
             _context = context;
             _caseIdGenerator = caseIdGenerator;
@@ -37,6 +39,7 @@ namespace Sentinel.Pages.Cases
             _diseaseAccessService = diseaseAccessService;
             _taskService = taskService;
             _patientAddressService = patientAddressService;
+            _logger = logger;
         }
 
         public List<DiseaseDto> Diseases { get; set; } = new();
@@ -166,7 +169,13 @@ namespace Sentinel.Pages.Cases
             }
             catch (Exception ex)
             {
-                return new JsonResult(new { success = false, message = ex.Message });
+                _logger.LogError(ex, "Unable to create a new case");
+                return new JsonResult(new
+                {
+                    success = false,
+                    message = "The case could not be created. Check the entered information and try again.",
+                    traceId = HttpContext.TraceIdentifier
+                }) { StatusCode = 500 };
             }
         }
 

@@ -124,7 +124,7 @@ namespace Sentinel.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error creating new survey version");
-                return StatusCode(500, "Error creating new version: " + ex.Message);
+                return StatusCode(500, new { error = "The survey version could not be created. Check the survey configuration and try again.", traceId = HttpContext.TraceIdentifier });
             }
         }
 
@@ -171,7 +171,7 @@ namespace Sentinel.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error publishing version {VersionId}", id);
-                return StatusCode(500, "Error publishing version: " + ex.Message);
+                return StatusCode(500, new { error = "The survey version could not be published. Please try again.", traceId = HttpContext.TraceIdentifier });
             }
         }
 
@@ -202,7 +202,7 @@ namespace Sentinel.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error archiving version {VersionId}", id);
-                return StatusCode(500, "Error archiving version: " + ex.Message);
+                return StatusCode(500, new { error = "The survey version could not be archived. Please try again.", traceId = HttpContext.TraceIdentifier });
             }
         }
 

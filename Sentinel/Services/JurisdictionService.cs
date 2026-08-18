@@ -13,12 +13,18 @@ namespace Sentinel.Services
     {
         private readonly ApplicationDbContext _context;
         private readonly IMemoryCache _cache;
+        private readonly ILogger<JurisdictionService> _logger;
         private const string GEOMETRY_CACHE_KEY = "JurisdictionGeometries";
+        private const int MaximumArchiveEntries = 100;
+        private const long MaximumArchiveUncompressedBytes = 1_073_741_824; // 1 GB
+        private const double MaximumArchiveCompressionRatio = 200;
+        private const int MaximumImportedFeatures = 50_000;
 
-        public JurisdictionService(ApplicationDbContext context, IMemoryCache cache)
+        public JurisdictionService(ApplicationDbContext context, IMemoryCache cache, ILogger<JurisdictionService> logger)
         {
             _context = context;
             _cache = cache;
+            _logger = logger;
         }
 
         public async Task<List<JurisdictionType>> GetActiveJurisdictionTypesAsync()
@@ -242,6 +248,7 @@ namespace Sentinel.Services
                 try
                 {
                     using var archive = new ZipArchive(tempStream, ZipArchiveMode.Read, leaveOpen: true);
+                    ValidateArchiveLimits(archive);
                     var shpEntry = archive.Entries.FirstOrDefault(e => e.Name.EndsWith(".shp", StringComparison.OrdinalIgnoreCase));
                     
                     if (shpEntry == null)
@@ -250,7 +257,7 @@ namespace Sentinel.Services
                     }
 
                     // Extract shapefile components to temp files
-                    tempShpPath = Path.GetTempFileName() + ".shp";
+                    tempShpPath = CreateTemporaryShapefilePath();
                     
                     using (var shpStream = shpEntry.Open())
                     using (var fileStream2 = File.Create(tempShpPath))
@@ -262,7 +269,7 @@ namespace Sentinel.Services
                     var shxEntry = archive.Entries.FirstOrDefault(e => e.Name.EndsWith(".shx", StringComparison.OrdinalIgnoreCase));
                     if (shxEntry != null)
                     {
-                        tempShxPath = Path.GetTempFileName() + ".shx";
+                        tempShxPath = Path.ChangeExtension(tempShpPath, ".shx");
                         using var shxStream = shxEntry.Open();
                         using var fileStream2 = File.Create(tempShxPath);
                         await shxStream.CopyToAsync(fileStream2);
@@ -272,7 +279,7 @@ namespace Sentinel.Services
                     var dbfEntry = archive.Entries.FirstOrDefault(e => e.Name.EndsWith(".dbf", StringComparison.OrdinalIgnoreCase));
                     if (dbfEntry != null)
                     {
-                        tempDbfPath = Path.GetTempFileName() + ".dbf";
+                        tempDbfPath = Path.ChangeExtension(tempShpPath, ".dbf");
                         using var dbfStream = dbfEntry.Open();
                         using var fileStream2 = File.Create(tempDbfPath);
                         await dbfStream.CopyToAsync(fileStream2);
@@ -302,7 +309,7 @@ namespace Sentinel.Services
                 catch (InvalidDataException)
                 {
                     // Not a ZIP file, try reading as raw shapefile
-                    tempShpPath = Path.GetTempFileName() + ".shp";
+                    tempShpPath = CreateTemporaryShapefilePath();
                     tempStream.Position = 0;
                     
                     using (var fileStream2 = File.Create(tempShpPath))
@@ -333,24 +340,19 @@ namespace Sentinel.Services
                     }
                     catch (Exception ex)
                     {
-                        return (false, $"Invalid shapefile format: {ex.Message}");
+                        _logger.LogWarning(ex, "Raw shapefile validation failed");
+                        return (false, "The file is not a valid shapefile.");
                     }
                 }
             }
             catch (Exception ex)
             {
-                return (false, $"Error validating shapefile: {ex.Message}");
+                _logger.LogWarning(ex, "Shapefile validation failed");
+                return (false, "The file could not be validated as a shapefile.");
             }
             finally
             {
-                // Clean up temp files
-                try
-                {
-                    if (tempShpPath != null && File.Exists(tempShpPath)) File.Delete(tempShpPath);
-                    if (tempShxPath != null && File.Exists(tempShxPath)) File.Delete(tempShxPath);
-                    if (tempDbfPath != null && File.Exists(tempDbfPath)) File.Delete(tempDbfPath);
-                }
-                catch { /* Ignore cleanup errors */ }
+                CleanupTemporaryShapefileFiles(tempShpPath, tempShxPath, tempDbfPath);
             }
         }
 
@@ -372,12 +374,13 @@ namespace Sentinel.Services
                 try
                 {
                     using var archive = new ZipArchive(tempStream, ZipArchiveMode.Read, leaveOpen: true);
+                    ValidateArchiveLimits(archive);
                     var shpEntry = archive.Entries.FirstOrDefault(e => e.Name.EndsWith(".shp", StringComparison.OrdinalIgnoreCase));
                     
                     if (shpEntry != null)
                     {
                         // Extract to temp files
-                        tempShpPath = Path.GetTempFileName() + ".shp";
+                        tempShpPath = CreateTemporaryShapefilePath();
                         using (var shpStream = shpEntry.Open())
                         using (var fileStream2 = File.Create(tempShpPath))
                         {
@@ -388,7 +391,7 @@ namespace Sentinel.Services
                         var shxEntry = archive.Entries.FirstOrDefault(e => e.Name.EndsWith(".shx", StringComparison.OrdinalIgnoreCase));
                         if (shxEntry != null)
                         {
-                            tempShxPath = Path.GetTempFileName() + ".shx";
+                            tempShxPath = Path.ChangeExtension(tempShpPath, ".shx");
                             using var shxStream = shxEntry.Open();
                             using var fileStream2 = File.Create(tempShxPath);
                             await shxStream.CopyToAsync(fileStream2);
@@ -398,7 +401,7 @@ namespace Sentinel.Services
                         var dbfEntry = archive.Entries.FirstOrDefault(e => e.Name.EndsWith(".dbf", StringComparison.OrdinalIgnoreCase));
                         if (dbfEntry != null)
                         {
-                            tempDbfPath = Path.GetTempFileName() + ".dbf";
+                            tempDbfPath = Path.ChangeExtension(tempShpPath, ".dbf");
                             using var dbfStream = dbfEntry.Open();
                             using var fileStream2 = File.Create(tempDbfPath);
                             await dbfStream.CopyToAsync(fileStream2);
@@ -416,7 +419,7 @@ namespace Sentinel.Services
                 catch (InvalidDataException)
                 {
                     // Not a ZIP, try raw shapefile
-                    tempShpPath = Path.GetTempFileName() + ".shp";
+                    tempShpPath = CreateTemporaryShapefilePath();
                     tempStream.Position = 0;
                     
                     using (var fileStream2 = File.Create(tempShpPath))
@@ -446,20 +449,14 @@ namespace Sentinel.Services
                 
                 return JsonSerializer.Serialize(geoJsonObject);
             }
-            catch (Exception)
+            catch (Exception ex)
             {
+                _logger.LogWarning(ex, "Shapefile to GeoJSON conversion failed");
                 return null;
             }
             finally
             {
-                // Clean up temp files
-                try
-                {
-                    if (tempShpPath != null && File.Exists(tempShpPath)) File.Delete(tempShpPath);
-                    if (tempShxPath != null && File.Exists(tempShxPath)) File.Delete(tempShxPath);
-                    if (tempDbfPath != null && File.Exists(tempDbfPath)) File.Delete(tempDbfPath);
-                }
-                catch { /* Ignore cleanup errors */ }
+                CleanupTemporaryShapefileFiles(tempShpPath, tempShxPath, tempDbfPath);
             }
         }
 
@@ -516,12 +513,13 @@ namespace Sentinel.Services
 
                 // Extract from ZIP
                 using var archive = new ZipArchive(tempStream, ZipArchiveMode.Read, leaveOpen: true);
+                ValidateArchiveLimits(archive);
                 var shpEntry = archive.Entries.FirstOrDefault(e => e.Name.EndsWith(".shp", StringComparison.OrdinalIgnoreCase));
                 
                 if (shpEntry != null)
                 {
                     // Extract all required files
-                    tempShpPath = Path.GetTempFileName() + ".shp";
+                    tempShpPath = CreateTemporaryShapefilePath();
                     using (var shpStream = shpEntry.Open())
                     using (var fileStream2 = File.Create(tempShpPath))
                     {
@@ -551,6 +549,11 @@ namespace Sentinel.Services
                     
                     while (reader.Read())
                     {
+                        if (results.Count >= MaximumImportedFeatures)
+                        {
+                            throw new InvalidDataException($"Shapefile contains more than {MaximumImportedFeatures:N0} features.");
+                        }
+
                         var geometry = reader.Geometry;
                         if (geometry == null) continue;
 
@@ -586,13 +589,7 @@ namespace Sentinel.Services
             }
             finally
             {
-                try
-                {
-                    if (tempShpPath != null && File.Exists(tempShpPath)) File.Delete(tempShpPath);
-                    if (tempShxPath != null && File.Exists(tempShxPath)) File.Delete(tempShxPath);
-                    if (tempDbfPath != null && File.Exists(tempDbfPath)) File.Delete(tempDbfPath);
-                }
-                catch { }
+                CleanupTemporaryShapefileFiles(tempShpPath, tempShxPath, tempDbfPath);
             }
         }
 
@@ -609,11 +606,12 @@ namespace Sentinel.Services
                 tempStream.Position = 0;
 
                 using var archive = new ZipArchive(tempStream, ZipArchiveMode.Read, leaveOpen: true);
+                ValidateArchiveLimits(archive);
                 var shpEntry = archive.Entries.FirstOrDefault(e => e.Name.EndsWith(".shp", StringComparison.OrdinalIgnoreCase));
                 
                 if (shpEntry != null)
                 {
-                    tempShpPath = Path.GetTempFileName() + ".shp";
+                    tempShpPath = CreateTemporaryShapefilePath();
                     using (var shpStream = shpEntry.Open())
                     using (var fileStream2 = File.Create(tempShpPath))
                     {
@@ -645,12 +643,70 @@ namespace Sentinel.Services
             }
             finally
             {
-                try
+                CleanupTemporaryShapefileFiles(tempShpPath, null, tempDbfPath);
+            }
+        }
+
+        private static string CreateTemporaryShapefilePath()
+        {
+            var directory = Path.Combine(Path.GetTempPath(), $"sentinel-shapefile-{Guid.NewGuid():N}");
+            Directory.CreateDirectory(directory);
+            return Path.Combine(directory, "upload.shp");
+        }
+
+        private static void CleanupTemporaryShapefileFiles(string? tempShpPath, string? tempShxPath, string? tempDbfPath)
+        {
+            try
+            {
+                var directory = tempShpPath == null ? null : Path.GetDirectoryName(tempShpPath);
+                if (!string.IsNullOrWhiteSpace(directory)
+                    && Path.GetFileName(directory).StartsWith("sentinel-shapefile-", StringComparison.Ordinal)
+                    && Directory.Exists(directory))
                 {
-                    if (tempShpPath != null && File.Exists(tempShpPath)) File.Delete(tempShpPath);
-                    if (tempDbfPath != null && File.Exists(tempDbfPath)) File.Delete(tempDbfPath);
+                    Directory.Delete(directory, recursive: true);
+                    return;
                 }
-                catch { }
+
+                foreach (var path in new[] { tempShpPath, tempShxPath, tempDbfPath })
+                {
+                    if (path != null && File.Exists(path))
+                    {
+                        File.Delete(path);
+                    }
+                }
+            }
+            catch
+            {
+                // Cleanup should never affect the request outcome.
+            }
+        }
+
+        private static void ValidateArchiveLimits(ZipArchive archive)
+        {
+            if (archive.Entries.Count > MaximumArchiveEntries)
+            {
+                throw new InvalidDataException($"The ZIP archive contains too many files (maximum {MaximumArchiveEntries}).");
+            }
+
+            long totalUncompressed = 0;
+            foreach (var entry in archive.Entries)
+            {
+                if (entry.FullName.Contains("..", StringComparison.Ordinal) || Path.IsPathRooted(entry.FullName))
+                {
+                    throw new InvalidDataException("The ZIP archive contains an unsafe entry path.");
+                }
+
+                totalUncompressed = checked(totalUncompressed + entry.Length);
+                if (totalUncompressed > MaximumArchiveUncompressedBytes)
+                {
+                    throw new InvalidDataException("The ZIP archive expands beyond the permitted size.");
+                }
+
+                if (entry.Length > 0 && entry.CompressedLength > 0 &&
+                    (double)entry.Length / entry.CompressedLength > MaximumArchiveCompressionRatio)
+                {
+                    throw new InvalidDataException("The ZIP archive compression ratio is too high.");
+                }
             }
         }
     }

@@ -16,10 +16,14 @@ namespace Sentinel.Controllers.Api
     public class CaseDefinitionCriteriaController : ControllerBase
     {
         private readonly ApplicationDbContext _context;
+        private readonly ILogger<CaseDefinitionCriteriaController> _logger;
 
-        public CaseDefinitionCriteriaController(ApplicationDbContext context)
+        public CaseDefinitionCriteriaController(
+            ApplicationDbContext context,
+            ILogger<CaseDefinitionCriteriaController> logger)
         {
             _context = context;
+            _logger = logger;
         }
 
         [HttpPost("laboratory")]
@@ -186,9 +190,12 @@ namespace Sentinel.Controllers.Api
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"ERROR in UpdateLabCriterion: {ex.Message}");
-                System.Diagnostics.Debug.WriteLine($"Stack trace: {ex.StackTrace}");
-                return StatusCode(500, new { error = ex.Message, stackTrace = ex.StackTrace });
+                _logger.LogError(ex, "Unable to update a laboratory criterion for case definition {DefinitionId}", definitionId);
+                return StatusCode(500, new
+                {
+                    error = "The laboratory criterion could not be saved. Check the configured values and try again.",
+                    traceId = HttpContext.TraceIdentifier
+                });
             }
         }
 

@@ -15,9 +15,12 @@ using CsvHelper.Configuration;
 namespace Sentinel.Pages.Cases.Contacts;
 
 [Authorize(Policy = "Permission.Case.Create")]
-    [Authorize(Policy = "Permission.Case.Edit")]
+[Authorize(Policy = "Permission.Case.Edit")]
+[Authorize(Policy = "Permission.Contact.Import")]
 public class BulkCreateModel : PageModel
 {
+    private const long MaximumCsvBytes = 5 * 1024 * 1024;
+    private const int MaximumCsvRows = 10_000;
     private readonly ApplicationDbContext _context;
     private readonly IDuplicateDetectionService _duplicateDetectionService;
     private readonly IPatientIdGeneratorService _patientIdGenerator;
@@ -133,6 +136,18 @@ public class BulkCreateModel : PageModel
             return RedirectToPage(new { CaseId, LocationId, EventId, ExposureStartDate, ExposureEndDate, OutbreakId });
         }
 
+        if (!string.Equals(Path.GetExtension(csvFile.FileName), ".csv", StringComparison.OrdinalIgnoreCase))
+        {
+            ErrorMessage = "Upload a CSV file (.csv).";
+            return RedirectToPage(new { CaseId, LocationId, EventId, ExposureStartDate, ExposureEndDate, OutbreakId });
+        }
+
+        if (csvFile.Length > MaximumCsvBytes)
+        {
+            ErrorMessage = "The contact import file exceeds the 5 MB limit.";
+            return RedirectToPage(new { CaseId, LocationId, EventId, ExposureStartDate, ExposureEndDate, OutbreakId });
+        }
+
         try
         {
             var contacts = new List<BulkContactDto>();
@@ -149,6 +164,12 @@ public class BulkCreateModel : PageModel
 
                 foreach (var record in records)
                 {
+                    if (rowNum > MaximumCsvRows)
+                    {
+                        ErrorMessage = $"The contact import exceeds the {MaximumCsvRows:N0}-row limit.";
+                        return RedirectToPage(new { CaseId, LocationId, EventId, ExposureStartDate, ExposureEndDate, OutbreakId });
+                    }
+
                     contacts.Add(new BulkContactDto
                     {
                         RowNumber = rowNum++,

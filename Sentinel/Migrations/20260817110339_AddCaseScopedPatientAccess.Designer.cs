@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Sentinel.Data;
 
@@ -11,9 +12,11 @@ using Sentinel.Data;
 namespace Sentinel.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260817110339_AddCaseScopedPatientAccess")]
+    partial class AddCaseScopedPatientAccess
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -307,7 +310,7 @@ namespace Sentinel.Migrations
 
                     b.HasIndex("EntityType", "EntityId");
 
-                    b.ToTable("AuditLogs", (string)null);
+                    b.ToTable("AuditLogs");
                 });
 
             modelBuilder.Entity("Sentinel.Models.BackupHistory", b =>
@@ -357,7 +360,7 @@ namespace Sentinel.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("BackupHistory", (string)null);
+                    b.ToTable("BackupHistory");
                 });
 
             modelBuilder.Entity("Sentinel.Models.Case", b =>
@@ -514,7 +517,7 @@ namespace Sentinel.Migrations
 
                     b.HasIndex("PatientId");
 
-                    b.ToTable("Cases", (string)null);
+                    b.ToTable("Cases");
                 });
 
             modelBuilder.Entity("Sentinel.Models.CaseCustomFieldBoolean", b =>
@@ -544,7 +547,7 @@ namespace Sentinel.Migrations
                     b.HasIndex("CaseId", "FieldDefinitionId")
                         .IsUnique();
 
-                    b.ToTable("CaseCustomFieldBooleans", (string)null);
+                    b.ToTable("CaseCustomFieldBooleans");
                 });
 
             modelBuilder.Entity("Sentinel.Models.CaseCustomFieldDate", b =>
@@ -576,7 +579,7 @@ namespace Sentinel.Migrations
                     b.HasIndex("CaseId", "FieldDefinitionId")
                         .IsUnique();
 
-                    b.ToTable("CaseCustomFieldDates", (string)null);
+                    b.ToTable("CaseCustomFieldDates");
                 });
 
             modelBuilder.Entity("Sentinel.Models.CaseCustomFieldLookup", b =>
@@ -608,7 +611,7 @@ namespace Sentinel.Migrations
                     b.HasIndex("CaseId", "FieldDefinitionId")
                         .IsUnique();
 
-                    b.ToTable("CaseCustomFieldLookups", (string)null);
+                    b.ToTable("CaseCustomFieldLookups");
                 });
 
             modelBuilder.Entity("Sentinel.Models.CaseCustomFieldNumber", b =>
@@ -640,7 +643,7 @@ namespace Sentinel.Migrations
                     b.HasIndex("CaseId", "FieldDefinitionId")
                         .IsUnique();
 
-                    b.ToTable("CaseCustomFieldNumbers", (string)null);
+                    b.ToTable("CaseCustomFieldNumbers");
                 });
 
             modelBuilder.Entity("Sentinel.Models.CaseCustomFieldString", b =>
@@ -672,7 +675,7 @@ namespace Sentinel.Migrations
                     b.HasIndex("CaseId", "FieldDefinitionId")
                         .IsUnique();
 
-                    b.ToTable("CaseCustomFieldStrings", (string)null);
+                    b.ToTable("CaseCustomFieldStrings");
                 });
 
             modelBuilder.Entity("Sentinel.Models.CaseDefinitions.CaseClassificationHistory", b =>
@@ -742,7 +745,7 @@ namespace Sentinel.Migrations
 
                     b.HasIndex("CaseId", "IsCurrent");
 
-                    b.ToTable("CaseClassificationHistory", (string)null);
+                    b.ToTable("CaseClassificationHistory");
                 });
 
             modelBuilder.Entity("Sentinel.Models.CaseDefinitions.CaseDefinition", b =>
@@ -814,7 +817,7 @@ namespace Sentinel.Migrations
 
                     b.HasIndex("DiseaseId", "ConfirmationStatusId");
 
-                    b.ToTable("CaseDefinitions", (string)null);
+                    b.ToTable("CaseDefinitions");
                 });
 
             modelBuilder.Entity("Sentinel.Models.CaseDefinitions.CaseDefinitionCriteria", b =>
@@ -928,7 +931,7 @@ namespace Sentinel.Migrations
 
                     b.HasIndex("CaseDefinitionId", "GroupNumber");
 
-                    b.ToTable("CaseDefinitionCriteria", (string)null);
+                    b.ToTable("CaseDefinitionCriteria");
                 });
 
             modelBuilder.Entity("Sentinel.Models.CaseSymptom", b =>
@@ -991,7 +994,7 @@ namespace Sentinel.Migrations
                     b.HasIndex("CaseId", "SymptomId")
                         .HasFilter("[IsDeleted] = 0");
 
-                    b.ToTable("CaseSymptoms", (string)null);
+                    b.ToTable("CaseSymptoms");
                 });
 
             modelBuilder.Entity("Sentinel.Models.CaseTask", b =>
@@ -1121,7 +1124,7 @@ namespace Sentinel.Migrations
 
                     b.HasIndex("TaskTypeId");
 
-                    b.ToTable("CaseTasks", (string)null);
+                    b.ToTable("CaseTasks");
                 });
 
             modelBuilder.Entity("Sentinel.Models.CustomFieldDefinition", b =>
@@ -1192,7 +1195,7 @@ namespace Sentinel.Migrations
 
                     b.HasIndex("Category", "DisplayOrder");
 
-                    b.ToTable("CustomFieldDefinitions", (string)null);
+                    b.ToTable("CustomFieldDefinitions");
                 });
 
             modelBuilder.Entity("Sentinel.Models.DiseaseCustomField", b =>
@@ -1222,7 +1225,7 @@ namespace Sentinel.Migrations
                     b.HasIndex("DiseaseId", "CustomFieldDefinitionId")
                         .IsUnique();
 
-                    b.ToTable("DiseaseCustomFields", (string)null);
+                    b.ToTable("DiseaseCustomFields");
                 });
 
             modelBuilder.Entity("Sentinel.Models.DiseaseSymptom", b =>
@@ -1277,7 +1280,7 @@ namespace Sentinel.Migrations
                     b.HasIndex("DiseaseId", "IsCommon", "SortOrder")
                         .HasFilter("[IsDeleted] = 0");
 
-                    b.ToTable("DiseaseSymptoms", (string)null);
+                    b.ToTable("DiseaseSymptoms");
                 });
 
             modelBuilder.Entity("Sentinel.Models.DiseaseTaskTemplate", b =>
@@ -1358,7 +1361,7 @@ namespace Sentinel.Migrations
                     b.HasIndex("DiseaseId", "TaskTemplateId")
                         .IsUnique();
 
-                    b.ToTable("DiseaseTaskTemplates", (string)null);
+                    b.ToTable("DiseaseTaskTemplates");
                 });
 
             modelBuilder.Entity("Sentinel.Models.Event", b =>
@@ -1426,7 +1429,7 @@ namespace Sentinel.Migrations
 
                     b.HasIndex("StartDateTime", "EndDateTime");
 
-                    b.ToTable("Events", (string)null);
+                    b.ToTable("Events");
                 });
 
             modelBuilder.Entity("Sentinel.Models.ExposureEvent", b =>
@@ -1589,7 +1592,7 @@ namespace Sentinel.Migrations
 
                     b.HasIndex("Latitude", "Longitude");
 
-                    b.ToTable("ExposureEvents", (string)null);
+                    b.ToTable("ExposureEvents");
                 });
 
             modelBuilder.Entity("Sentinel.Models.GeocodingQueueItem", b =>
@@ -1636,7 +1639,7 @@ namespace Sentinel.Migrations
 
                     b.HasIndex("PatientId");
 
-                    b.ToTable("GeocodingQueueItems", (string)null);
+                    b.ToTable("GeocodingQueueItems");
                 });
 
             modelBuilder.Entity("Sentinel.Models.Group", b =>
@@ -1653,7 +1656,7 @@ namespace Sentinel.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("Groups", (string)null);
+                    b.ToTable("Groups");
                 });
 
             modelBuilder.Entity("Sentinel.Models.HL7.DiseaseHL7MatchingConfig", b =>
@@ -1746,7 +1749,7 @@ namespace Sentinel.Migrations
 
                     b.HasIndex("PartialMatchConfirmationStatusId");
 
-                    b.ToTable("DiseaseHL7MatchingConfigs", (string)null);
+                    b.ToTable("DiseaseHL7MatchingConfigs");
                 });
 
             modelBuilder.Entity("Sentinel.Models.HL7.HL7CustomFieldMapping", b =>
@@ -1804,7 +1807,7 @@ namespace Sentinel.Migrations
 
                     b.HasIndex("DiseaseId");
 
-                    b.ToTable("HL7CustomFieldMappings", (string)null);
+                    b.ToTable("HL7CustomFieldMappings");
                 });
 
             modelBuilder.Entity("Sentinel.Models.HL7Configuration", b =>
@@ -1931,7 +1934,7 @@ namespace Sentinel.Migrations
 
                     b.HasIndex("SendingFacility");
 
-                    b.ToTable("HL7Configurations", (string)null);
+                    b.ToTable("HL7Configurations");
                 });
 
             modelBuilder.Entity("Sentinel.Models.HL7ConfigurationDisease", b =>
@@ -1971,7 +1974,7 @@ namespace Sentinel.Migrations
                     b.HasIndex("ConfigurationId", "DiseaseId")
                         .IsUnique();
 
-                    b.ToTable("HL7ConfigurationDiseases", (string)null);
+                    b.ToTable("HL7ConfigurationDiseases");
                 });
 
             modelBuilder.Entity("Sentinel.Models.HL7FieldMapping", b =>
@@ -2084,7 +2087,7 @@ namespace Sentinel.Migrations
 
                     b.HasIndex("ConfigurationId", "SegmentType", "FieldPath");
 
-                    b.ToTable("HL7FieldMappings", (string)null);
+                    b.ToTable("HL7FieldMappings");
                 });
 
             modelBuilder.Entity("Sentinel.Models.HL7Message", b =>
@@ -2264,7 +2267,7 @@ namespace Sentinel.Migrations
 
                     b.HasIndex("SendingFacility", "MessageControlId");
 
-                    b.ToTable("HL7Messages", (string)null);
+                    b.ToTable("HL7Messages");
                 });
 
             modelBuilder.Entity("Sentinel.Models.HL7MessageSegment", b =>
@@ -2321,7 +2324,7 @@ namespace Sentinel.Migrations
 
                     b.HasIndex("HL7MessageId", "SequenceNumber");
 
-                    b.ToTable("HL7MessageSegments", (string)null);
+                    b.ToTable("HL7MessageSegments");
                 });
 
             modelBuilder.Entity("Sentinel.Models.HL7ParsingIssue", b =>
@@ -2409,7 +2412,7 @@ namespace Sentinel.Migrations
 
                     b.HasIndex("IsResolved", "IssueType");
 
-                    b.ToTable("HL7ParsingIssues", (string)null);
+                    b.ToTable("HL7ParsingIssues");
                 });
 
             modelBuilder.Entity("Sentinel.Models.HL7TestMessageHistory", b =>
@@ -2474,7 +2477,7 @@ namespace Sentinel.Migrations
 
                     b.HasIndex("TemplateId");
 
-                    b.ToTable("HL7TestMessageHistory", (string)null);
+                    b.ToTable("HL7TestMessageHistory");
                 });
 
             modelBuilder.Entity("Sentinel.Models.HL7TestMessageTemplate", b =>
@@ -2532,7 +2535,7 @@ namespace Sentinel.Migrations
 
                     b.HasIndex("UpdatedByUserId");
 
-                    b.ToTable("HL7TestMessageTemplates", (string)null);
+                    b.ToTable("HL7TestMessageTemplates");
                 });
 
             modelBuilder.Entity("Sentinel.Models.LabResult", b =>
@@ -2657,7 +2660,7 @@ namespace Sentinel.Migrations
 
                     b.HasIndex("TestedDiseaseId");
 
-                    b.ToTable("LabResults", (string)null);
+                    b.ToTable("LabResults");
                 });
 
             modelBuilder.Entity("Sentinel.Models.LabResultMarker", b =>
@@ -2748,7 +2751,7 @@ namespace Sentinel.Migrations
 
                     b.HasIndex("TestResultId");
 
-                    b.ToTable("LabResultMarkers", (string)null);
+                    b.ToTable("LabResultMarkers");
                 });
 
             modelBuilder.Entity("Sentinel.Models.LabResultMarkerHistory", b =>
@@ -2822,7 +2825,7 @@ namespace Sentinel.Migrations
 
                     b.HasIndex("LabResultMarkerId", "ChangedAt");
 
-                    b.ToTable("LabResultMarkerHistories", (string)null);
+                    b.ToTable("LabResultMarkerHistories");
                 });
 
             modelBuilder.Entity("Sentinel.Models.Location", b =>
@@ -2895,7 +2898,7 @@ namespace Sentinel.Migrations
 
                     b.HasIndex("Latitude", "Longitude");
 
-                    b.ToTable("Locations", (string)null);
+                    b.ToTable("Locations");
                 });
 
             modelBuilder.Entity("Sentinel.Models.LookupTable", b =>
@@ -2928,7 +2931,7 @@ namespace Sentinel.Migrations
                     b.HasIndex("Name")
                         .IsUnique();
 
-                    b.ToTable("LookupTables", (string)null);
+                    b.ToTable("LookupTables");
                 });
 
             modelBuilder.Entity("Sentinel.Models.LookupValue", b =>
@@ -2963,7 +2966,7 @@ namespace Sentinel.Migrations
 
                     b.HasIndex("LookupTableId", "DisplayOrder");
 
-                    b.ToTable("LookupValues", (string)null);
+                    b.ToTable("LookupValues");
                 });
 
             modelBuilder.Entity("Sentinel.Models.Lookups.AboriginalTorresStraitIslanderStatus", b =>
@@ -2989,7 +2992,7 @@ namespace Sentinel.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("AtsiStatuses", (string)null);
+                    b.ToTable("AtsiStatuses");
                 });
 
             modelBuilder.Entity("Sentinel.Models.Lookups.Ancestry", b =>
@@ -3012,7 +3015,7 @@ namespace Sentinel.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("Ancestries", (string)null);
+                    b.ToTable("Ancestries");
                 });
 
             modelBuilder.Entity("Sentinel.Models.Lookups.CaseStatus", b =>
@@ -3041,7 +3044,7 @@ namespace Sentinel.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("CaseStatuses", (string)null);
+                    b.ToTable("CaseStatuses");
                 });
 
             modelBuilder.Entity("Sentinel.Models.Lookups.ContactClassification", b =>
@@ -3072,7 +3075,7 @@ namespace Sentinel.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("ContactClassifications", (string)null);
+                    b.ToTable("ContactClassifications");
                 });
 
             modelBuilder.Entity("Sentinel.Models.Lookups.Country", b =>
@@ -3096,7 +3099,7 @@ namespace Sentinel.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("Countries", (string)null);
+                    b.ToTable("Countries");
                 });
 
             modelBuilder.Entity("Sentinel.Models.Lookups.Disease", b =>
@@ -3240,7 +3243,7 @@ namespace Sentinel.Migrations
 
                     b.HasIndex("Level", "DisplayOrder");
 
-                    b.ToTable("Diseases", (string)null);
+                    b.ToTable("Diseases");
                 });
 
             modelBuilder.Entity("Sentinel.Models.Lookups.DiseaseCategory", b =>
@@ -3285,7 +3288,7 @@ namespace Sentinel.Migrations
                     b.HasIndex("ReportingId")
                         .IsUnique();
 
-                    b.ToTable("DiseaseCategories", (string)null);
+                    b.ToTable("DiseaseCategories");
                 });
 
             modelBuilder.Entity("Sentinel.Models.Lookups.DiseaseReinfectionRule", b =>
@@ -3333,7 +3336,7 @@ namespace Sentinel.Migrations
 
                     b.HasIndex("IsActive");
 
-                    b.ToTable("DiseaseReinfectionRules", (string)null);
+                    b.ToTable("DiseaseReinfectionRules");
                 });
 
             modelBuilder.Entity("Sentinel.Models.Lookups.EventType", b =>
@@ -3361,7 +3364,7 @@ namespace Sentinel.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("EventTypes", (string)null);
+                    b.ToTable("EventTypes");
                 });
 
             modelBuilder.Entity("Sentinel.Models.Lookups.Gender", b =>
@@ -3387,7 +3390,7 @@ namespace Sentinel.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("Genders", (string)null);
+                    b.ToTable("Genders");
                 });
 
             modelBuilder.Entity("Sentinel.Models.Lookups.Jurisdiction", b =>
@@ -3444,7 +3447,7 @@ namespace Sentinel.Migrations
 
                     b.HasIndex("ParentJurisdictionId");
 
-                    b.ToTable("Jurisdictions", (string)null);
+                    b.ToTable("Jurisdictions");
                 });
 
             modelBuilder.Entity("Sentinel.Models.Lookups.JurisdictionType", b =>
@@ -3484,7 +3487,7 @@ namespace Sentinel.Migrations
 
                     b.HasIndex("Name");
 
-                    b.ToTable("JurisdictionTypes", (string)null);
+                    b.ToTable("JurisdictionTypes");
                 });
 
             modelBuilder.Entity("Sentinel.Models.Lookups.Language", b =>
@@ -3510,7 +3513,7 @@ namespace Sentinel.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("Languages", (string)null);
+                    b.ToTable("Languages");
                 });
 
             modelBuilder.Entity("Sentinel.Models.Lookups.LocationType", b =>
@@ -3541,7 +3544,7 @@ namespace Sentinel.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("LocationTypes", (string)null);
+                    b.ToTable("LocationTypes");
                 });
 
             modelBuilder.Entity("Sentinel.Models.Lookups.Occupation", b =>
@@ -3594,7 +3597,7 @@ namespace Sentinel.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("Occupations", (string)null);
+                    b.ToTable("Occupations");
                 });
 
             modelBuilder.Entity("Sentinel.Models.Lookups.OrganizationType", b =>
@@ -3622,7 +3625,7 @@ namespace Sentinel.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("OrganizationTypes", (string)null);
+                    b.ToTable("OrganizationTypes");
                 });
 
             modelBuilder.Entity("Sentinel.Models.Lookups.ResultUnits", b =>
@@ -3654,7 +3657,7 @@ namespace Sentinel.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("ResultUnits", (string)null);
+                    b.ToTable("ResultUnits");
                 });
 
             modelBuilder.Entity("Sentinel.Models.Lookups.SexAtBirth", b =>
@@ -3680,7 +3683,7 @@ namespace Sentinel.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("SexAtBirths", (string)null);
+                    b.ToTable("SexAtBirths");
                 });
 
             modelBuilder.Entity("Sentinel.Models.Lookups.SpecimenType", b =>
@@ -3748,7 +3751,7 @@ namespace Sentinel.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("SpecimenTypes", (string)null);
+                    b.ToTable("SpecimenTypes");
                 });
 
             modelBuilder.Entity("Sentinel.Models.Lookups.State", b =>
@@ -3772,7 +3775,7 @@ namespace Sentinel.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("States", (string)null);
+                    b.ToTable("States");
                 });
 
             modelBuilder.Entity("Sentinel.Models.Lookups.Symptom", b =>
@@ -3835,7 +3838,7 @@ namespace Sentinel.Migrations
 
                     b.HasIndex("IsDeleted", "IsActive", "SortOrder");
 
-                    b.ToTable("Symptoms", (string)null);
+                    b.ToTable("Symptoms");
                 });
 
             modelBuilder.Entity("Sentinel.Models.Lookups.TaskType", b =>
@@ -3880,7 +3883,7 @@ namespace Sentinel.Migrations
 
                     b.HasIndex("Name");
 
-                    b.ToTable("TaskTypes", (string)null);
+                    b.ToTable("TaskTypes");
                 });
 
             modelBuilder.Entity("Sentinel.Models.Lookups.TestMethod", b =>
@@ -3928,7 +3931,7 @@ namespace Sentinel.Migrations
 
                     b.HasIndex("IsActive", "DisplayOrder");
 
-                    b.ToTable("TestMethods", (string)null);
+                    b.ToTable("TestMethods");
                 });
 
             modelBuilder.Entity("Sentinel.Models.Lookups.TestResult", b =>
@@ -3977,7 +3980,7 @@ namespace Sentinel.Migrations
 
                     b.HasIndex("TestTypeId");
 
-                    b.ToTable("TestResults", (string)null);
+                    b.ToTable("TestResults");
                 });
 
             modelBuilder.Entity("Sentinel.Models.Lookups.TestType", b =>
@@ -4009,7 +4012,7 @@ namespace Sentinel.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("TestType", (string)null);
+                    b.ToTable("TestType");
                 });
 
             modelBuilder.Entity("Sentinel.Models.Note", b =>
@@ -4087,7 +4090,7 @@ namespace Sentinel.Migrations
 
                     b.HasIndex("PatientId");
 
-                    b.ToTable("Notes", (string)null);
+                    b.ToTable("Notes");
                 });
 
             modelBuilder.Entity("Sentinel.Models.Organization", b =>
@@ -4153,7 +4156,7 @@ namespace Sentinel.Migrations
 
                     b.HasIndex("OrganizationTypeId");
 
-                    b.ToTable("Organizations", (string)null);
+                    b.ToTable("Organizations");
                 });
 
             modelBuilder.Entity("Sentinel.Models.Outbreak", b =>
@@ -4237,7 +4240,7 @@ namespace Sentinel.Migrations
 
                     b.HasIndex("PrimaryLocationId");
 
-                    b.ToTable("Outbreaks", (string)null);
+                    b.ToTable("Outbreaks");
                 });
 
             modelBuilder.Entity("Sentinel.Models.OutbreakCase", b =>
@@ -4303,7 +4306,7 @@ namespace Sentinel.Migrations
 
                     b.HasIndex("SearchQueryId");
 
-                    b.ToTable("OutbreakCases", (string)null);
+                    b.ToTable("OutbreakCases");
                 });
 
             modelBuilder.Entity("Sentinel.Models.OutbreakCaseDefinition", b =>
@@ -4359,7 +4362,7 @@ namespace Sentinel.Migrations
 
                     b.HasIndex("OutbreakId");
 
-                    b.ToTable("OutbreakCaseDefinitions", (string)null);
+                    b.ToTable("OutbreakCaseDefinitions");
                 });
 
             modelBuilder.Entity("Sentinel.Models.OutbreakLineListConfiguration", b =>
@@ -4419,7 +4422,7 @@ namespace Sentinel.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("OutbreakLineListConfigurations", (string)null);
+                    b.ToTable("OutbreakLineListConfigurations");
                 });
 
             modelBuilder.Entity("Sentinel.Models.OutbreakSearchQuery", b =>
@@ -4464,7 +4467,7 @@ namespace Sentinel.Migrations
 
                     b.HasIndex("OutbreakId");
 
-                    b.ToTable("OutbreakSearchQueries", (string)null);
+                    b.ToTable("OutbreakSearchQueries");
                 });
 
             modelBuilder.Entity("Sentinel.Models.OutbreakTeamMember", b =>
@@ -4506,7 +4509,7 @@ namespace Sentinel.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("OutbreakTeamMembers", (string)null);
+                    b.ToTable("OutbreakTeamMembers");
                 });
 
             modelBuilder.Entity("Sentinel.Models.OutbreakTimeline", b =>
@@ -4551,7 +4554,7 @@ namespace Sentinel.Migrations
 
                     b.HasIndex("OutbreakId");
 
-                    b.ToTable("OutbreakTimelines", (string)null);
+                    b.ToTable("OutbreakTimelines");
                 });
 
             modelBuilder.Entity("Sentinel.Models.Pathogens.Pathogen", b =>
@@ -4622,7 +4625,7 @@ namespace Sentinel.Migrations
 
                     b.HasIndex("DiseaseId", "DisplayOrder");
 
-                    b.ToTable("Pathogens", (string)null);
+                    b.ToTable("Pathogens");
                 });
 
             modelBuilder.Entity("Sentinel.Models.Patient", b =>
@@ -4765,7 +4768,7 @@ namespace Sentinel.Migrations
 
                     b.HasIndex("StateId");
 
-                    b.ToTable("Patients", (string)null);
+                    b.ToTable("Patients");
                 });
 
             modelBuilder.Entity("Sentinel.Models.PatientCustomFieldBoolean", b =>
@@ -4795,7 +4798,7 @@ namespace Sentinel.Migrations
                     b.HasIndex("PatientId", "FieldDefinitionId")
                         .IsUnique();
 
-                    b.ToTable("PatientCustomFieldBooleans", (string)null);
+                    b.ToTable("PatientCustomFieldBooleans");
                 });
 
             modelBuilder.Entity("Sentinel.Models.PatientCustomFieldDate", b =>
@@ -4827,7 +4830,7 @@ namespace Sentinel.Migrations
                     b.HasIndex("PatientId", "FieldDefinitionId")
                         .IsUnique();
 
-                    b.ToTable("PatientCustomFieldDates", (string)null);
+                    b.ToTable("PatientCustomFieldDates");
                 });
 
             modelBuilder.Entity("Sentinel.Models.PatientCustomFieldLookup", b =>
@@ -4859,7 +4862,7 @@ namespace Sentinel.Migrations
                     b.HasIndex("PatientId", "FieldDefinitionId")
                         .IsUnique();
 
-                    b.ToTable("PatientCustomFieldLookups", (string)null);
+                    b.ToTable("PatientCustomFieldLookups");
                 });
 
             modelBuilder.Entity("Sentinel.Models.PatientCustomFieldNumber", b =>
@@ -4891,7 +4894,7 @@ namespace Sentinel.Migrations
                     b.HasIndex("PatientId", "FieldDefinitionId")
                         .IsUnique();
 
-                    b.ToTable("PatientCustomFieldNumbers", (string)null);
+                    b.ToTable("PatientCustomFieldNumbers");
                 });
 
             modelBuilder.Entity("Sentinel.Models.PatientCustomFieldString", b =>
@@ -4923,7 +4926,7 @@ namespace Sentinel.Migrations
                     b.HasIndex("PatientId", "FieldDefinitionId")
                         .IsUnique();
 
-                    b.ToTable("PatientCustomFieldStrings", (string)null);
+                    b.ToTable("PatientCustomFieldStrings");
                 });
 
             modelBuilder.Entity("Sentinel.Models.Permission", b =>
@@ -4953,7 +4956,7 @@ namespace Sentinel.Migrations
                     b.HasIndex("Module", "Action")
                         .IsUnique();
 
-                    b.ToTable("Permissions", (string)null);
+                    b.ToTable("Permissions");
                 });
 
             modelBuilder.Entity("Sentinel.Models.Reporting.CalculatedField", b =>
@@ -4992,7 +4995,7 @@ namespace Sentinel.Migrations
 
                     b.HasIndex("ReportDefinitionId");
 
-                    b.ToTable("CalculatedFields", (string)null);
+                    b.ToTable("CalculatedFields");
                 });
 
             modelBuilder.Entity("Sentinel.Models.Reporting.ReportDefinition", b =>
@@ -5069,7 +5072,7 @@ namespace Sentinel.Migrations
 
                     b.HasIndex("FolderId");
 
-                    b.ToTable("ReportDefinitions", (string)null);
+                    b.ToTable("ReportDefinitions");
                 });
 
             modelBuilder.Entity("Sentinel.Models.Reporting.ReportField", b =>
@@ -5121,7 +5124,7 @@ namespace Sentinel.Migrations
 
                     b.HasIndex("ReportDefinitionId");
 
-                    b.ToTable("ReportFields", (string)null);
+                    b.ToTable("ReportFields");
                 });
 
             modelBuilder.Entity("Sentinel.Models.Reporting.ReportFilter", b =>
@@ -5203,7 +5206,7 @@ namespace Sentinel.Migrations
 
                     b.HasIndex("ReportDefinitionId");
 
-                    b.ToTable("ReportFilters", (string)null);
+                    b.ToTable("ReportFilters");
                 });
 
             modelBuilder.Entity("Sentinel.Models.Reporting.ReportFolder", b =>
@@ -5253,7 +5256,7 @@ namespace Sentinel.Migrations
 
                     b.HasIndex("ParentFolderId");
 
-                    b.ToTable("ReportFolders", (string)null);
+                    b.ToTable("ReportFolders");
                 });
 
             modelBuilder.Entity("Sentinel.Models.Reporting.ReportFolderShare", b =>
@@ -5296,7 +5299,7 @@ namespace Sentinel.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("ReportFolderShares", (string)null);
+                    b.ToTable("ReportFolderShares");
                 });
 
             modelBuilder.Entity("Sentinel.Models.ReviewQueue", b =>
@@ -5411,7 +5414,7 @@ namespace Sentinel.Migrations
                     b.HasIndex("ReviewStatus", "EntityType", "DiseaseId", "CreatedDate")
                         .HasDatabaseName("IX_ReviewQueue_Status_EntityType_Disease_Created");
 
-                    b.ToTable("ReviewQueue", (string)null);
+                    b.ToTable("ReviewQueue");
                 });
 
             modelBuilder.Entity("Sentinel.Models.RoleDiseaseAccess", b =>
@@ -5453,7 +5456,7 @@ namespace Sentinel.Migrations
                     b.HasIndex("RoleId", "DiseaseId")
                         .IsUnique();
 
-                    b.ToTable("RoleDiseaseAccess", (string)null);
+                    b.ToTable("RoleDiseaseAccess");
                 });
 
             modelBuilder.Entity("Sentinel.Models.RolePermission", b =>
@@ -5471,7 +5474,7 @@ namespace Sentinel.Migrations
 
                     b.HasIndex("PermissionId");
 
-                    b.ToTable("RolePermissions", (string)null);
+                    b.ToTable("RolePermissions");
                 });
 
             modelBuilder.Entity("Sentinel.Models.SurveyFieldMapping", b =>
@@ -5592,7 +5595,7 @@ namespace Sentinel.Migrations
                     b.HasIndex("ConfigurationType", "ConfigurationId", "SurveyQuestionName")
                         .HasDatabaseName("IX_SurveyFieldMapping_Config_Question");
 
-                    b.ToTable("SurveyFieldMappings", (string)null);
+                    b.ToTable("SurveyFieldMappings");
                 });
 
             modelBuilder.Entity("Sentinel.Models.SurveySubmissionLog", b =>
@@ -5679,7 +5682,7 @@ namespace Sentinel.Migrations
 
                     b.HasIndex("TaskId");
 
-                    b.ToTable("SurveySubmissionLogs", (string)null);
+                    b.ToTable("SurveySubmissionLogs");
                 });
 
             modelBuilder.Entity("Sentinel.Models.SurveyTemplate", b =>
@@ -5774,7 +5777,7 @@ namespace Sentinel.Migrations
 
                     b.HasIndex("ParentSurveyTemplateId");
 
-                    b.ToTable("SurveyTemplates", (string)null);
+                    b.ToTable("SurveyTemplates");
                 });
 
             modelBuilder.Entity("Sentinel.Models.SurveyTemplateDisease", b =>
@@ -5799,7 +5802,7 @@ namespace Sentinel.Migrations
                     b.HasIndex("SurveyTemplateId", "DiseaseId")
                         .IsUnique();
 
-                    b.ToTable("SurveyTemplateDiseases", (string)null);
+                    b.ToTable("SurveyTemplateDiseases");
                 });
 
             modelBuilder.Entity("Sentinel.Models.SystemSettings", b =>
@@ -5944,7 +5947,7 @@ namespace Sentinel.Migrations
 
                     b.HasIndex("SetupCompletedByUserId");
 
-                    b.ToTable("SystemSettings", (string)null);
+                    b.ToTable("SystemSettings");
                 });
 
             modelBuilder.Entity("Sentinel.Models.TaskCallAttempt", b =>
@@ -5987,7 +5990,7 @@ namespace Sentinel.Migrations
 
                     b.HasIndex("TaskId");
 
-                    b.ToTable("TaskCallAttempts", (string)null);
+                    b.ToTable("TaskCallAttempts");
                 });
 
             modelBuilder.Entity("Sentinel.Models.TaskTemplate", b =>
@@ -6096,7 +6099,7 @@ namespace Sentinel.Migrations
 
                     b.HasIndex("TaskTypeId");
 
-                    b.ToTable("TaskTemplates", (string)null);
+                    b.ToTable("TaskTemplates");
                 });
 
             modelBuilder.Entity("Sentinel.Models.UserDiseaseAccess", b =>
@@ -6147,7 +6150,7 @@ namespace Sentinel.Migrations
                     b.HasIndex("UserId", "DiseaseId")
                         .IsUnique();
 
-                    b.ToTable("UserDiseaseAccess", (string)null);
+                    b.ToTable("UserDiseaseAccess");
                 });
 
             modelBuilder.Entity("Sentinel.Models.UserGroup", b =>
@@ -6162,7 +6165,7 @@ namespace Sentinel.Migrations
 
                     b.HasIndex("GroupId");
 
-                    b.ToTable("UserGroups", (string)null);
+                    b.ToTable("UserGroups");
                 });
 
             modelBuilder.Entity("Sentinel.Models.UserPermission", b =>
@@ -6180,7 +6183,7 @@ namespace Sentinel.Migrations
 
                     b.HasIndex("PermissionId");
 
-                    b.ToTable("UserPermissions", (string)null);
+                    b.ToTable("UserPermissions");
                 });
 
             modelBuilder.Entity("Sentinel.Models.Views.CaseContactTaskFlattened", b =>

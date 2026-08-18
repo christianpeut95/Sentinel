@@ -227,8 +227,8 @@ dotnet run
 
 **First Run:**
 - Database auto-seeds with lookup data and default permissions
-- Navigate to `/Identity/Account/Register`
-- First registered user is automatically assigned Admin role
+- Open `/Setup` and use the setup token generated at startup to create the initial administrator
+- Create later accounts from **Settings → Users** with an authorised administrator account
 
 ---
 
@@ -248,7 +248,10 @@ cd Sentinel/Sentinel
 
 # Configure environment
 cp .env.example .env
-# Edit .env and set SQL_PASSWORD
+# Set DOCKERHUB_USERNAME in .env, then generate and save a SQL Server password
+SQL_PASSWORD="$(openssl rand -base64 24 | tr -d '\n')Aa1!"
+sed -i "s|^SQL_PASSWORD=.*|SQL_PASSWORD=$SQL_PASSWORD|" .env
+chmod 600 .env
 
 # Start stack
 docker compose up -d
@@ -262,6 +265,8 @@ docker compose up -d
 
 Migrations run automatically on first startup.
 
+The bundled database is available to Sentinel on its Docker network. No database port needs to be opened on the Linux host for a standard installation.
+
 ### Pre-built Docker Image
 
 ```bash
@@ -272,7 +277,7 @@ docker pull christianpeut/sentinel:latest
 
 | Variable | Description | Default |
 |---|---|---|
-| `SQL_PASSWORD` | SQL Server SA password | `YourStrong!Password123` |
+| `SQL_PASSWORD` | Required SQL Server password for the bundled database | None |
 | `ASPNETCORE_ENVIRONMENT` | Environment name | `Production` |
 | `Demo__EnableDemoUsers` | Seed demo accounts | `false` |
 | `Demo__EnableDemoMode` | Enable demo mode (test data generator) | `false` |

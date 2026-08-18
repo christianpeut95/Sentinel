@@ -17,10 +17,14 @@ namespace Sentinel.Controllers.Api;
 public class ReportFieldsApiController : ControllerBase
 {
     private readonly IReportFieldMetadataService _fieldMetadataService;
+    private readonly ILogger<ReportFieldsApiController> _logger;
 
-    public ReportFieldsApiController(IReportFieldMetadataService fieldMetadataService)
+    public ReportFieldsApiController(
+        IReportFieldMetadataService fieldMetadataService,
+        ILogger<ReportFieldsApiController> logger)
     {
         _fieldMetadataService = fieldMetadataService;
+        _logger = logger;
     }
 
     /// <summary>
@@ -39,7 +43,7 @@ public class ReportFieldsApiController : ControllerBase
         }
         catch (Exception ex)
         {
-            return BadRequest(new { error = ex.Message });
+            return MetadataError(ex, "available fields", entityType);
         }
     }
 
@@ -57,7 +61,7 @@ public class ReportFieldsApiController : ControllerBase
         }
         catch (Exception ex)
         {
-            return BadRequest(new { error = ex.Message });
+            return MetadataError(ex, "grouped fields", entityType);
         }
     }
 
@@ -75,7 +79,7 @@ public class ReportFieldsApiController : ControllerBase
         }
         catch (Exception ex)
         {
-            return BadRequest(new { error = ex.Message });
+            return MetadataError(ex, "recommended fields", entityType);
         }
     }
 
@@ -93,7 +97,7 @@ public class ReportFieldsApiController : ControllerBase
         }
         catch (Exception ex)
         {
-            return BadRequest(new { error = ex.Message });
+            return MetadataError(ex, "custom fields", entityType);
         }
     }
 
@@ -113,7 +117,7 @@ public class ReportFieldsApiController : ControllerBase
         }
         catch (Exception ex)
         {
-            return BadRequest(new { error = ex.Message });
+            return MetadataError(ex, "field validation", request.EntityType);
         }
     }
 
@@ -131,8 +135,18 @@ public class ReportFieldsApiController : ControllerBase
         }
         catch (Exception ex)
         {
-            return BadRequest(new { error = ex.Message });
+            return MetadataError(ex, "suggested aggregations", dataType);
         }
+    }
+
+    private ObjectResult MetadataError(Exception exception, string operation, string subject)
+    {
+        _logger.LogError(exception, "Unable to load report {Operation} for {Subject}", operation, subject);
+        return StatusCode(500, new
+        {
+            error = "Report field metadata could not be loaded. Please try again.",
+            traceId = HttpContext.TraceIdentifier
+        });
     }
 }
 

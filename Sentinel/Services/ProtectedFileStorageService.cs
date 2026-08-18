@@ -26,6 +26,16 @@ public sealed class ProtectedFileStorageService : IProtectedFileStorageService
         LabResultsCategory
     };
 
+    // Attachments are always served as downloads, but restricting them to
+    // recognised document/image types reduces accidental storage of scripts,
+    // executables and active web content. SVG and HTML are intentionally absent.
+    private static readonly HashSet<string> AllowedExtensions = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ".pdf", ".jpg", ".jpeg", ".png", ".doc", ".docx", ".xls", ".xlsx", ".txt", ".csv"
+    };
+
+    private const int MaximumOriginalFileNameLength = 180;
+
     private readonly IWebHostEnvironment _environment;
     private readonly ILogger<ProtectedFileStorageService> _logger;
     private readonly string _storageRoot;
@@ -73,7 +83,11 @@ public sealed class ProtectedFileStorageService : IProtectedFileStorageService
         if (file.Length > _maxUploadBytes)
             throw new InvalidOperationException($"The attachment exceeds the {_maxUploadBytes:N0}-byte limit.");
 
-        var extension = Path.GetExtension(Path.GetFileName(file.FileName));
+        var originalFileName = NormaliseOriginalFileName(file.FileName);
+        var extension = Path.GetExtension(originalFileName);
+        ValidateExtension(extension);
+        await ValidateFileSignatureAsync(file, extension, cancellationToken);
+
         var storedName = $"{Guid.NewGuid():N}{extension}";
         var storageKey = $"{category}/{storedName}";
         var destination = GetPhysicalPath(storageKey);
@@ -82,7 +96,7 @@ public sealed class ProtectedFileStorageService : IProtectedFileStorageService
         await using var output = new FileStream(destination, FileMode.CreateNew, FileAccess.Write, FileShare.None);
         await file.CopyToAsync(output, cancellationToken);
 
-        return new ProtectedStoredFile(storageKey, Path.GetFileName(file.FileName), file.Length);
+        return new ProtectedStoredFile(storageKey, originalFileName, file.Length);
     }
 
     public Stream? OpenRead(string storageKey)
@@ -183,5 +197,61 @@ public sealed class ProtectedFileStorageService : IProtectedFileStorageService
             throw new InvalidOperationException("Invalid protected file category.");
 
         return category.ToLowerInvariant();
+    }
+
+    private static string NormaliseOriginalFileName(string? fileName)
+    {
+        var normalised = Path.GetFileName(fileName ?? string.Empty).Trim();
+        if (string.IsNullOrWhiteSpace(normalised) ||
+            normalised.Length > MaximumOriginalFileNameLength ||
+            normalised.Any(char.IsControl))
+        {
+            throw new InvalidOperationException("The attachment file name is invalid.");
+        }
+
+        return normalised;
+    }
+
+    private static void ValidateExtension(string extension)
+    {
+        if (!AllowedExtensions.Contains(extension))
+        {
+            throw new InvalidOperationException("This attachment type is not allowed. Upload a PDF, image, Office document, text file or CSV file.");
+        }
+    }
+
+    private static async Task ValidateFileSignatureAsync(IFormFile file, string extension, CancellationToken cancellationToken)
+    {
+        // Text/CSV are always served as downloads. Binary formats must also
+        // present their expected container signature so a renamed executable is
+        // not accepted as a document or image.
+        if (extension is ".txt" or ".csv")
+        {
+            return;
+        }
+
+        var header = new byte[8];
+        await using var stream = file.OpenReadStream();
+        var bytesRead = await stream.ReadAsync(header.AsMemory(0, header.Length), cancellationToken);
+
+        var valid = extension switch
+        {
+            ".pdf" => StartsWith(header, bytesRead, 0x25, 0x50, 0x44, 0x46, 0x2D),
+            ".jpg" or ".jpeg" => StartsWith(header, bytesRead, 0xFF, 0xD8, 0xFF),
+            ".png" => StartsWith(header, bytesRead, 0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A),
+            ".doc" or ".xls" => StartsWith(header, bytesRead, 0xD0, 0xCF, 0x11, 0xE0, 0xA1, 0xB1, 0x1A, 0xE1),
+            ".docx" or ".xlsx" => StartsWith(header, bytesRead, 0x50, 0x4B, 0x03, 0x04),
+            _ => false
+        };
+
+        if (!valid)
+        {
+            throw new InvalidOperationException("The attachment content does not match its file type.");
+        }
+    }
+
+    private static bool StartsWith(byte[] value, int valueLength, params byte[] expected)
+    {
+        return valueLength >= expected.Length && expected.SequenceEqual(value.Take(expected.Length));
     }
 }

@@ -16,9 +16,13 @@ namespace Sentinel.Services
 
             logger.LogInformation("Starting permission seeding...");
 
-            // 1. Seed all permissions from enums
-            var permissionsAdded = await SeedPermissionsAsync(context, logger);
-            logger.LogInformation("Permission seeding complete: {Count} new permissions added", permissionsAdded);
+            // 1. Synchronise the explicit permission catalogue.
+            var (permissionsAdded, permissionsUpdated, permissionsRemoved) = await SynchronizePermissionsAsync(context);
+            logger.LogInformation(
+                "Permission synchronisation complete: {Added} added, {Updated} updated, {Removed} obsolete permissions removed",
+                permissionsAdded,
+                permissionsUpdated,
+                permissionsRemoved);
 
             // 2. Create default roles
             var rolesAdded = await SeedRolesAsync(roleManager, logger);
@@ -31,50 +35,208 @@ namespace Sentinel.Services
             logger.LogInformation("Permission seeding finished successfully");
         }
 
-        private static async Task<int> SeedPermissionsAsync(ApplicationDbContext context, ILogger logger)
+        private static async Task<(int Added, int Updated, int Removed)> SynchronizePermissionsAsync(
+            ApplicationDbContext context)
         {
-            var modules = Enum.GetValues<PermissionModule>();
-            var actions = Enum.GetValues<PermissionAction>();
-            var addedCount = 0;
+            var definitionsByName = PermissionCatalog.Definitions
+                .ToDictionary(definition => $"{definition.Module}.{definition.Action}");
+            var definedNames = definitionsByName.Keys
+                .ToHashSet();
 
-            logger.LogInformation("Checking {ModuleCount} modules x {ActionCount} actions = {TotalCount} potential permissions",
-                modules.Length, actions.Length, modules.Length * actions.Length);
+            await MergeDuplicatePermissionsAsync(context, definedNames);
 
-            foreach (var module in modules)
-            {
-                foreach (var action in actions)
+            var existingPermissions = await context.Permissions.ToListAsync();
+
+            // Module is persisted as an enum integer.  The stable Name key is therefore the
+            // source of truth when reconciling an installation created before an enum member was
+            // inserted.  Matching Module/Action alone can reinterpret a row as a different
+            // permission and silently retain the wrong role assignments.
+            var namedPermissions = existingPermissions
+                .Where(permission => definedNames.Contains(permission.Name))
+                .ToList();
+
+            var permissionsToAdd = PermissionCatalog.Definitions
+                .Where(definition => !namedPermissions.Any(permission =>
+                    permission.Name == $"{definition.Module}.{definition.Action}"))
+                .Select(definition => new Permission
                 {
-                    var permissionKey = $"{module}.{action}";
+                    Module = definition.Module,
+                    Action = definition.Action,
+                    Name = $"{definition.Module}.{definition.Action}",
+                    Description = definition.Description
+                })
+                .ToList();
 
-                    var exists = await context.Permissions
-                        .AnyAsync(p => p.Module == module && p.Action == action);
+            var obsoletePermissions = existingPermissions
+                .Where(permission => !definedNames.Contains(permission.Name))
+                .ToList();
 
-                    if (!exists)
-                    {
-                        context.Permissions.Add(new Permission
-                        {
-                            Module = module,
-                            Action = action,
-                            Name = permissionKey,
-                            Description = $"{action} {module}"
-                        });
-                        addedCount++;
-                        logger.LogDebug("Added new permission: {PermissionKey}", permissionKey);
-                    }
-                }
+            var permissionsToUpdate = namedPermissions
+                .Where(permission =>
+                {
+                    var definition = definitionsByName[permission.Name];
+                    return permission.Module != definition.Module ||
+                           permission.Action != definition.Action ||
+                           permission.Description != definition.Description;
+                })
+                .ToList();
+
+            if (permissionsToAdd.Count == 0 && permissionsToUpdate.Count == 0 && obsoletePermissions.Count == 0)
+            {
+                return (0, 0, 0);
             }
 
-            if (addedCount > 0)
+            // Free the unique Module/Action index before applying corrected enum values.  This
+            // avoids transient collisions where a sequence of shifted enum values rotates through
+            // otherwise valid permission pairs (for example, Outbreak.View -> Task.View).
+            foreach (var permission in permissionsToUpdate)
+            {
+                permission.Module = (PermissionModule)(-permission.Id);
+            }
+
+            if (permissionsToUpdate.Count > 0)
             {
                 await context.SaveChangesAsync();
-                logger.LogInformation("Saved {Count} new permissions to database", addedCount);
-            }
-            else
-            {
-                logger.LogInformation("All permissions already exist - nothing to add");
             }
 
-            return addedCount;
+            if (obsoletePermissions.Count > 0)
+            {
+                var obsoletePermissionIds = obsoletePermissions.Select(permission => permission.Id).ToList();
+                context.RolePermissions.RemoveRange(
+                    context.RolePermissions.Where(assignment => obsoletePermissionIds.Contains(assignment.PermissionId)));
+                context.UserPermissions.RemoveRange(
+                    context.UserPermissions.Where(assignment => obsoletePermissionIds.Contains(assignment.PermissionId)));
+                context.Permissions.RemoveRange(obsoletePermissions);
+                await context.SaveChangesAsync();
+            }
+
+            // Obsolete rows can occupy one of the corrected module/action pairs.  Delete them
+            // before assigning the final values, otherwise SQL Server may process an insert or
+            // update before its conflicting delete within the same SaveChanges batch.
+            foreach (var permission in permissionsToUpdate)
+            {
+                var definition = definitionsByName[permission.Name];
+                permission.Module = definition.Module;
+                permission.Action = definition.Action;
+                permission.Description = definition.Description;
+            }
+
+            if (permissionsToUpdate.Count > 0)
+            {
+                await context.SaveChangesAsync();
+            }
+
+            if (permissionsToAdd.Count > 0)
+            {
+                context.Permissions.AddRange(permissionsToAdd);
+                await context.SaveChangesAsync();
+            }
+
+            return (permissionsToAdd.Count, permissionsToUpdate.Count, obsoletePermissions.Count);
+        }
+
+        private static async Task MergeDuplicatePermissionsAsync(
+            ApplicationDbContext context,
+            HashSet<string> definedNames)
+        {
+            var knownPermissions = await context.Permissions
+                .Where(permission => definedNames.Contains(permission.Name))
+                .Select(permission => new { permission.Id, permission.Name })
+                .ToListAsync();
+
+            var duplicateGroups = knownPermissions
+                .GroupBy(permission => permission.Name, StringComparer.Ordinal)
+                .Where(group => group.Count() > 1)
+                .Select(group => new
+                {
+                    Name = group.Key,
+                    PermissionIds = group.Select(permission => permission.Id).ToList()
+                })
+                .ToList();
+
+            foreach (var group in duplicateGroups)
+            {
+                var canonicalPermissionId = group.PermissionIds.Min();
+                var duplicatePermissionIds = group.PermissionIds
+                    .Where(permissionId => permissionId != canonicalPermissionId)
+                    .ToList();
+
+                var roleAssignments = await context.RolePermissions
+                    .Where(assignment => group.PermissionIds.Contains(assignment.PermissionId))
+                    .ToListAsync();
+                var userAssignments = await context.UserPermissions
+                    .Where(assignment => group.PermissionIds.Contains(assignment.PermissionId))
+                    .ToListAsync();
+
+                foreach (var duplicatePermissionId in duplicatePermissionIds)
+                {
+                    foreach (var assignment in roleAssignments
+                                 .Where(assignment => assignment.PermissionId == duplicatePermissionId)
+                                 .ToList())
+                    {
+                        var canonicalAssignment = roleAssignments.FirstOrDefault(existing =>
+                            existing.PermissionId == canonicalPermissionId &&
+                            existing.RoleId == assignment.RoleId);
+
+                        if (canonicalAssignment == null)
+                        {
+                            canonicalAssignment = new RolePermission
+                            {
+                                RoleId = assignment.RoleId,
+                                PermissionId = canonicalPermissionId,
+                                IsGranted = assignment.IsGranted
+                            };
+                            context.RolePermissions.Add(canonicalAssignment);
+                            roleAssignments.Add(canonicalAssignment);
+                        }
+                        else
+                        {
+                            // Preserve an explicit deny if one exists on either duplicate row.
+                            canonicalAssignment.IsGranted &= assignment.IsGranted;
+                        }
+
+                        context.RolePermissions.Remove(assignment);
+                    }
+
+                    foreach (var assignment in userAssignments
+                                 .Where(assignment => assignment.PermissionId == duplicatePermissionId)
+                                 .ToList())
+                    {
+                        var canonicalAssignment = userAssignments.FirstOrDefault(existing =>
+                            existing.PermissionId == canonicalPermissionId &&
+                            existing.UserId == assignment.UserId);
+
+                        if (canonicalAssignment == null)
+                        {
+                            canonicalAssignment = new UserPermission
+                            {
+                                UserId = assignment.UserId,
+                                PermissionId = canonicalPermissionId,
+                                IsGranted = assignment.IsGranted
+                            };
+                            context.UserPermissions.Add(canonicalAssignment);
+                            userAssignments.Add(canonicalAssignment);
+                        }
+                        else
+                        {
+                            // User-specific denials override role grants, so fail closed here too.
+                            canonicalAssignment.IsGranted &= assignment.IsGranted;
+                        }
+
+                        context.UserPermissions.Remove(assignment);
+                    }
+                }
+
+                var duplicatePermissions = await context.Permissions
+                    .Where(permission => duplicatePermissionIds.Contains(permission.Id))
+                    .ToListAsync();
+                context.Permissions.RemoveRange(duplicatePermissions);
+            }
+
+            if (duplicateGroups.Count > 0)
+            {
+                await context.SaveChangesAsync();
+            }
         }
 
         private static async Task<int> SeedRolesAsync(RoleManager<IdentityRole> roleManager, ILogger logger)
@@ -148,9 +310,9 @@ namespace Sentinel.Services
                     GetPermission(permissionDict, PermissionModule.Case, PermissionAction.Create),
                     GetPermission(permissionDict, PermissionModule.Case, PermissionAction.Edit),
                     GetPermission(permissionDict, PermissionModule.Case, PermissionAction.Search),
+                    GetPermission(permissionDict, PermissionModule.Contact, PermissionAction.Import),
                     GetPermission(permissionDict, PermissionModule.Task, PermissionAction.View),
                     GetPermission(permissionDict, PermissionModule.Task, PermissionAction.Create),
-                    GetPermission(permissionDict, PermissionModule.Task, PermissionAction.Edit),
                     GetPermission(permissionDict, PermissionModule.Survey, PermissionAction.View),
                     GetPermission(permissionDict, PermissionModule.Survey, PermissionAction.Create),
                     GetPermission(permissionDict, PermissionModule.Survey, PermissionAction.Complete),
@@ -163,7 +325,6 @@ namespace Sentinel.Services
                     GetPermission(permissionDict, PermissionModule.Location, PermissionAction.View),
                     GetPermission(permissionDict, PermissionModule.Event, PermissionAction.View),
                     GetPermission(permissionDict, PermissionModule.Report, PermissionAction.View),
-                    GetPermission(permissionDict, PermissionModule.Report, PermissionAction.Export)
                 }.Where(id => id.HasValue).Select(id => id!.Value).ToList(),
                 logger);
             totalAssignments += officerAssignments;
@@ -192,7 +353,6 @@ namespace Sentinel.Services
                     GetPermission(permissionDict, PermissionModule.Case, PermissionAction.View),
                     GetPermission(permissionDict, PermissionModule.Case, PermissionAction.Search),
                     GetPermission(permissionDict, PermissionModule.Task, PermissionAction.View),
-                    GetPermission(permissionDict, PermissionModule.Task, PermissionAction.Edit),
                     GetPermission(permissionDict, PermissionModule.Survey, PermissionAction.View),
                     GetPermission(permissionDict, PermissionModule.Survey, PermissionAction.Create),
                     GetPermission(permissionDict, PermissionModule.Survey, PermissionAction.Complete),

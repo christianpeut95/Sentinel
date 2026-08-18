@@ -17,11 +17,16 @@ namespace Sentinel.Pages.Settings.Jurisdictions
     {
         private readonly ApplicationDbContext _context;
         private readonly IJurisdictionService _jurisdictionService;
+        private readonly IAuthorizationService _authorizationService;
 
-        public EditModel(ApplicationDbContext context, IJurisdictionService jurisdictionService)
+        public EditModel(
+            ApplicationDbContext context,
+            IJurisdictionService jurisdictionService,
+            IAuthorizationService authorizationService)
         {
             _context = context;
             _jurisdictionService = jurisdictionService;
+            _authorizationService = authorizationService;
         }
 
         [BindProperty]
@@ -138,6 +143,12 @@ namespace Sentinel.Pages.Settings.Jurisdictions
 
         public async Task<IActionResult> OnPostAsync()
         {
+            if (ShapefileUpload is { Length: > 0 } &&
+                !(await _authorizationService.AuthorizeAsync(User, null, "Permission.Location.Upload")).Succeeded)
+            {
+                return Forbid();
+            }
+
             if (!ModelState.IsValid)
             {
                 await LoadDropdowns(Input.Id);

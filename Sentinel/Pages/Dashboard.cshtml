@@ -384,9 +384,12 @@
         Good @(DateTime.Now.Hour < 12 ? "morning" : DateTime.Now.Hour < 18 ? "afternoon" : "evening")@(!string.IsNullOrWhiteSpace(Model.UserDisplayName) ? ", " + Model.UserDisplayName : "").
     </h2>
     <div class="dashboard-actions">
-        <button class="btn-customize" onclick="toggleDiseaseFilter()">
-            <i class="bi bi-funnel"></i> Filter Diseases @if(Model.Config.PinnedDiseases.Any()) { <span style="background:var(--signal);color:white;border-radius:50%;padding:2px 6px;font-size:10px;margin-left:4px;">@Model.Config.PinnedDiseases.Count</span> }
-        </button>
+        @if (Model.HasPermission("Case.View"))
+        {
+            <button class="btn-customize" onclick="toggleDiseaseFilter()">
+                <i class="bi bi-funnel"></i> Filter Diseases @if(Model.Config.PinnedDiseases.Any()) { <span style="background:var(--signal);color:white;border-radius:50%;padding:2px 6px;font-size:10px;margin-left:4px;">@Model.Config.PinnedDiseases.Count</span> }
+            </button>
+        }
         <button class="btn-customize" onclick="window.location.href='/dashboard?handler=ResetConfig'">
             <i class="bi bi-arrow-clockwise"></i> Reset Layout
         </button>
@@ -414,29 +417,46 @@
 </div>
 
 <!-- Quick Actions Section (Dark) -->
+@if (Model.HasPermission("Patient.Create") || Model.HasPermission("Case.Create") || Model.HasPermission("Report.Edit") || Model.HasPermission("Outbreak.View"))
+{
 <div style="background: linear-gradient(135deg, #0C2A20 0%, #1A4438 100%); border-radius: 10px; padding: 20px 24px; margin-bottom: 32px; box-shadow: 0 4px 16px rgba(12, 42, 32, 0.15);">
     <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px;">
+        @if (Model.HasPermission("Patient.Create"))
+        {
         <a asp-page="/Patients/Create" style="background: rgba(255,255,255,0.1); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; padding: 16px 20px; text-decoration: none; text-align: center; transition: all 0.2s; display: flex; align-items: center; justify-content: center; gap: 10px;" onmouseover="this.style.background='rgba(255,255,255,0.15)'; this.style.transform='translateY(-2px)'" onmouseout="this.style.background='rgba(255,255,255,0.1)'; this.style.transform='translateY(0)'">
             <i class="bi bi-person-plus-fill" style="font-size: 20px; color: #9BE8C6;"></i>
             <div style="font-weight: 500; color: white; font-size: 14px;">New Patient</div>
         </a>
+        }
+        @if (Model.HasPermission("Case.Create"))
+        {
         <a asp-page="/Cases/CreateNew" style="background: rgba(255,255,255,0.1); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; padding: 16px 20px; text-decoration: none; text-align: center; transition: all 0.2s; display: flex; align-items: center; justify-content: center; gap: 10px;" onmouseover="this.style.background='rgba(255,255,255,0.15)'; this.style.transform='translateY(-2px)'" onmouseout="this.style.background='rgba(255,255,255,0.1)'; this.style.transform='translateY(0)'">
             <i class="bi bi-virus" style="font-size: 20px; color: #FFB84D;"></i>
             <div style="font-weight: 500; color: white; font-size: 14px;">New Case</div>
         </a>
+        }
+        @if (Model.HasPermission("Report.Edit"))
+        {
         <a asp-page="/Reports/Builder" style="background: rgba(255,255,255,0.1); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; padding: 16px 20px; text-decoration: none; text-align: center; transition: all 0.2s; display: flex; align-items: center; justify-content: center; gap: 10px;" onmouseover="this.style.background='rgba(255,255,255,0.15)'; this.style.transform='translateY(-2px)'" onmouseout="this.style.background='rgba(255,255,255,0.1)'; this.style.transform='translateY(0)'">
             <i class="bi bi-bar-chart-fill" style="font-size: 20px; color: #7CC4E8;"></i>
             <div style="font-weight: 500; color: white; font-size: 14px;">Build Report</div>
         </a>
+        }
+        @if (Model.HasPermission("Outbreak.View"))
+        {
         <a asp-page="/Outbreaks/Index" style="background: rgba(255,255,255,0.1); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; padding: 16px 20px; text-decoration: none; text-align: center; transition: all 0.2s; display: flex; align-items: center; justify-content: center; gap: 10px;" onmouseover="this.style.background='rgba(255,255,255,0.15)'; this.style.transform='translateY(-2px)'" onmouseout="this.style.background='rgba(255,255,255,0.1)'; this.style.transform='translateY(0)'">
             <i class="bi bi-diagram-3" style="font-size: 20px; color: #FF8585;"></i>
             <div style="font-weight: 500; color: white; font-size: 14px;">Outbreaks</div>
         </a>
+        }
     </div>
 </div>
+}
 
 <!-- Personalized Dashboard Cards -->
 <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-bottom: 32px;">
+    @if (Model.HasPermission("Patient.View") || Model.HasPermission("Case.View"))
+    {
     <!-- Recently Viewed -->
     <div class="sentinel-card" style="background: white;">
         <div class="sentinel-card-header" style="background: linear-gradient(135deg, #2D5A4D 0%, #3A7061 100%); margin: -24px -24px 20px -24px; padding: 20px 24px; border-radius: 8px 8px 0 0;">
@@ -477,7 +497,10 @@
             </div>
         }
     </div>
+    }
 
+    @if (Model.HasPermission("Outbreak.View"))
+    {
     <!-- My Outbreaks -->
     <div class="sentinel-card" style="background: white;">
         <div class="sentinel-card-header" style="background: linear-gradient(135deg, #C84545 0%, #E85555 100%); margin: -24px -24px 20px -24px; padding: 20px 24px; border-radius: 8px 8px 0 0;">
@@ -511,7 +534,10 @@
             </div>
         }
     </div>
+    }
 
+    @if (Model.HasPermission("Task.View") && Model.HasPermission("Case.View"))
+    {
     <!-- My Tasks -->
     <div class="sentinel-card" style="background: white;">
         <div class="sentinel-card-header" style="background: linear-gradient(135deg, #5A7DC8 0%, #6B8FD8 100%); margin: -24px -24px 20px -24px; padding: 20px 24px; border-radius: 8px 8px 0 0;">
@@ -549,15 +575,19 @@
             </div>
         }
     </div>
+    }
 </div>
 
 <!-- Analytics Widgets Section Header -->
+@if (Model.Config.Widgets.Any())
+{
 <div style="margin-bottom: 20px;">
     <h3 style="font-size: 20px; font-weight: 600; color: var(--forest); margin: 0 0 8px 0;">
         <i class="bi bi-graph-up" style="margin-right: 8px;"></i>Analytics & Insights
     </h3>
     <p style="font-size: 14px; color: var(--graphite); margin: 0;">Real-time epidemiological data and system metrics</p>
 </div>
+}
 
 <!-- Disease Filter Modal -->
 <div id="diseaseFilterModal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:9999;align-items:center;justify-content:center;">
@@ -1106,7 +1136,10 @@
                 'Patient': '#9BE8C6',
                 'Case': '#FFB84D',
                 'Contact': '#7CC4E8',
-                'Outbreak': '#FF8585'
+                'Outbreak': '#FF8585',
+                'Event': '#C5A8FF',
+                'Location': '#72D5CE',
+                'Organization': '#6FA8DC'
             };
 
             let html = '<div style="padding: 8px;">';

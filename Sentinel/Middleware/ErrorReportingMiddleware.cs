@@ -1,9 +1,8 @@
 using Sentinel.Models.Telemetry;
 using Sentinel.Services;
 using Sentinel.Services.Telemetry;
-using System.Diagnostics;
-using System.Runtime.InteropServices;
-using System.Text.RegularExpressions;
+using System.Security.Cryptography;
+using System.Text;
 
 namespace Sentinel.Middleware
 {
@@ -14,33 +13,19 @@ namespace Sentinel.Middleware
     {
         private readonly RequestDelegate _next;
         private readonly IServiceProvider _serviceProvider;
-        private readonly BreadcrumbTracker _breadcrumbTracker;
         private readonly IApplicationVersionProvider _applicationVersion;
         private readonly ILogger<ErrorReportingMiddleware> _logger;
-        private readonly DateTime _processStartTime;
-
-        // Regex patterns for sanitizing routes (same as PageViewTrackingMiddleware)
-        private static readonly Regex GuidPattern = new Regex(
-            @"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}",
-            RegexOptions.IgnoreCase | RegexOptions.Compiled);
-
-        private static readonly Regex NumericIdPattern = new Regex(
-            @"/\d+(/|$)",
-            RegexOptions.Compiled);
 
         public ErrorReportingMiddleware(
             RequestDelegate next,
             IServiceProvider serviceProvider,
-            BreadcrumbTracker breadcrumbTracker,
             IApplicationVersionProvider applicationVersion,
             ILogger<ErrorReportingMiddleware> logger)
         {
             _next = next;
             _serviceProvider = serviceProvider;
-            _breadcrumbTracker = breadcrumbTracker;
             _applicationVersion = applicationVersion;
             _logger = logger;
-            _processStartTime = DateTime.UtcNow;
         }
 
         public async Task InvokeAsync(HttpContext context)
@@ -103,40 +88,32 @@ namespace Sentinel.Middleware
         {
             var eventId = Guid.NewGuid().ToString();
             var errorId = $"ERR-{DateTime.UtcNow:yyyyMMdd-HHmmss}-{Guid.NewGuid().ToString("N").Substring(0, 8)}";
-            var sanitizedRoute = SanitizeRoute(context.Request.Path.Value ?? "/");
-            var module = ExtractModuleFromRoute(sanitizedRoute);
+            // Use framework route metadata rather than the incoming URL. This
+            // deliberately excludes identifiers, query strings and arbitrary
+            // user-controlled path segments from remote error reporting.
+            var pageIdentifier = SemanticPageIdentifier.FromRequest(context);
+            var module = ExtractModuleFromPageIdentifier(pageIdentifier);
 
             // Get environment name
             var environment = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") ?? "Production";
-
-            // Build runtime context
-            var uptime = (long)(DateTime.UtcNow - _processStartTime).TotalSeconds;
-            var runtime = new RuntimeContext
-            {
-                OperatingSystem = RuntimeInformation.OSDescription,
-                Architecture = RuntimeInformation.ProcessArchitecture.ToString(),
-                DotNetVersion = RuntimeInformation.FrameworkDescription,
-                ProcessUptimeSeconds = uptime
-            };
 
             // Build request context
             var requestContext = new RequestContext
             {
                 Method = context.Request.Method,
-                StatusCode = context.Response.StatusCode > 0 ? context.Response.StatusCode : 500,
-                TraceId = Activity.Current?.Id ?? context.TraceIdentifier,
-                CorrelationId = context.Request.Headers["X-Correlation-ID"].FirstOrDefault()
+                // The remote report is created before the global handler writes
+                // the response, so report the actual unhandled-error status.
+                StatusCode = StatusCodes.Status500InternalServerError
             };
 
-            // Build error details with privacy-safe stack trace
-            var stackTrace = SanitizeStackTrace(exception.StackTrace);
+            // Do not transmit exception messages, stack traces, source details,
+            // request headers or trace IDs. Any of them can contain PHI, server
+            // topology, paths or user-provided values. The fingerprint groups
+            // recurring failures without exposing their content.
             var errorDetails = new ErrorDetails
             {
-                ExceptionType = exception.GetType().FullName ?? exception.GetType().Name,
-                Message = exception.Message,
-                Source = exception.Source,
-                TargetMethod = exception.TargetSite?.Name,
-                StackTrace = stackTrace
+                ExceptionType = exception.GetType().Name,
+                Fingerprint = CreateFingerprint(exception.GetType().Name, pageIdentifier, context.Request.Method)
             };
 
             // Build application context
@@ -144,11 +121,8 @@ namespace Sentinel.Middleware
             {
                 Environment = environment,
                 Module = module,
-                Route = sanitizedRoute
+                Route = pageIdentifier
             };
-
-            // Get recent breadcrumbs
-            var breadcrumbs = _breadcrumbTracker.GetRecentBreadcrumbs();
 
             return new ErrorReport
             {
@@ -163,63 +137,24 @@ namespace Sentinel.Middleware
                 Application = applicationContext,
                 Error = errorDetails,
                 Request = requestContext,
-                Runtime = runtime,
-                Breadcrumbs = breadcrumbs,
                 Redaction = new RedactionInfo
                 {
                     Applied = true,
-                    Version = "sentinel-redactor-v1"
+                    Version = "sentinel-error-minimal-v2"
                 }
             };
         }
 
-        private string SanitizeRoute(string path)
+        private static string ExtractModuleFromPageIdentifier(string pageIdentifier)
         {
-            // Remove query string
-            var questionMarkIndex = path.IndexOf('?');
-            if (questionMarkIndex > 0)
-            {
-                path = path.Substring(0, questionMarkIndex);
-            }
-
-            // Replace GUIDs with placeholder
-            path = GuidPattern.Replace(path, "{id}");
-
-            // Replace numeric IDs with placeholder
-            path = NumericIdPattern.Replace(path, "/{id}$1");
-
-            return path.ToLowerInvariant();
+            return pageIdentifier.Split('.', StringSplitOptions.RemoveEmptyEntries).FirstOrDefault() ?? "Unknown";
         }
 
-        private string? ExtractModuleFromRoute(string route)
+        private static string CreateFingerprint(string exceptionType, string pageIdentifier, string method)
         {
-            // Extract the first segment as the module (e.g., /Cases/Create -> Cases)
-            var segments = route.Split('/', StringSplitOptions.RemoveEmptyEntries);
-            return segments.Length > 0 ? segments[0] : null;
-        }
-
-        private string? SanitizeStackTrace(string? stackTrace)
-        {
-            if (string.IsNullOrEmpty(stackTrace))
-                return null;
-
-            // Filter to only Sentinel namespace lines and remove file paths
-            var lines = stackTrace.Split(new[] { "\r\n", "\r", "\n" }, StringSplitOptions.RemoveEmptyEntries);
-            var filtered = lines
-                .Where(line => line.Contains("Sentinel.") || line.Contains("   at "))
-                .Select(line =>
-                {
-                    // Remove file paths (everything after " in ")
-                    var inIndex = line.IndexOf(" in ");
-                    if (inIndex > 0)
-                    {
-                        line = line.Substring(0, inIndex);
-                    }
-                    return line;
-                })
-                .Take(10); // Limit to first 10 lines
-
-            return string.Join("\n", filtered);
+            var input = $"{exceptionType}|{pageIdentifier}|{method}";
+            var hash = SHA256.HashData(Encoding.UTF8.GetBytes(input));
+            return Convert.ToHexString(hash)[..16].ToLowerInvariant();
         }
     }
 }

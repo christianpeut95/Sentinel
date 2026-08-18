@@ -22,11 +22,30 @@ namespace Sentinel.Middleware
 
         public async Task InvokeAsync(
             HttpContext context,
-            IDiseaseAccessService diseaseAccessService)
+            IDiseaseAccessService diseaseAccessService,
+            ISystemSettingsService systemSettingsService)
         {
+            // Load the installation-wide patient visibility policy once for the request.
+            // If the settings store cannot be read, use the more restrictive policy.
+            try
+            {
+                var settings = await systemSettingsService.GetSettingsAsync();
+                context.Items["CaseScopedPatientAccess"] = settings?.CaseScopedPatientAccess ?? false;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error loading the patient visibility policy");
+                context.Items["CaseScopedPatientAccess"] = true;
+            }
+
             // Only load disease access for authenticated users
             if (context.User.Identity?.IsAuthenticated == true)
             {
+                // An authenticated request must fail closed if its effective disease
+                // access cannot be determined. The global query filters use this item
+                // as their shared visibility boundary.
+                context.Items["AccessibleDiseaseIds"] = new List<Guid>();
+
                 try
                 {
                     var userId = context.User.FindFirstValue(ClaimTypes.NameIdentifier);
@@ -44,6 +63,10 @@ namespace Sentinel.Middleware
                             "Loaded {Count} accessible diseases for user {UserId}", 
                             accessibleDiseases.Count, 
                             userId);
+                    }
+                    else
+                    {
+                        _logger.LogWarning("Authenticated request has no user identifier claim");
                     }
                 }
                 catch (Exception ex)

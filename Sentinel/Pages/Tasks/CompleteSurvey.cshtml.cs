@@ -134,7 +134,7 @@ namespace Sentinel.Pages.Tasks
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error saving survey for task {TaskId}: {ErrorMessage}", id, ex.Message);
+                _logger.LogError(ex, "Error saving survey for task {TaskId}", id);
                 
                 // Check if this is a "saved but needs review" exception
                 if (ex.Message.Contains("review item has been created") || 
@@ -152,12 +152,13 @@ namespace Sentinel.Pages.Tasks
                 }
                 
                 // For any other exception, return error
-                _logger.LogError("Unhandled exception saving survey for task {TaskId}: {Exception}", id, ex);
+                _logger.LogError(ex, "Unhandled exception saving survey for task {TaskId}", id);
                 
                 return new JsonResult(new 
                 { 
                     success = false, 
-                    error = ex.Message 
+                    error = "The survey could not be saved. Your responses have not been submitted; please try again.",
+                    traceId = HttpContext.TraceIdentifier
                 })
                 {
                     StatusCode = 500

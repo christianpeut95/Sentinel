@@ -725,20 +725,10 @@
                                 </div>
                                 
                                 <div class="mb-4">
-                                    <h6><i class="bi bi-exclamation-triangle"></i> Error Details</h6>
+                                    <h6><i class="bi bi-exclamation-triangle"></i> Processing status</h6>
                                     <div class="alert alert-danger">
-                                        <code style="white-space: pre-wrap; word-wrap: break-word;">@errorData.GetValueOrDefault("ErrorMessage", "Unknown error")</code>
+                                        The submitted data needs review before Sentinel can create the related records. Retry processing after correcting the configuration, or ask an administrator to review the application logs.
                                     </div>
-                                    
-                                    @if (errorData.ContainsKey("StackTrace") && !string.IsNullOrEmpty(errorData["StackTrace"]?.ToString()))
-                                    {
-                                        <details class="mt-2">
-                                            <summary class="text-muted" style="cursor: pointer;">
-                                                <i class="bi bi-code-slash"></i> Technical Details (Stack Trace)
-                                            </summary>
-                                            <pre class="bg-light p-3 rounded mt-2" style="max-height: 300px; overflow-y: auto; font-size: 0.75rem;">@errorData["StackTrace"]</pre>
-                                        </details>
-                                    }
                                 </div>
                                 
                                 @if (errorData.ContainsKey("SurveyResponses"))
@@ -769,8 +759,7 @@
                         catch (Exception ex)
                         {
                             <div class="alert alert-warning">
-                                <i class="bi bi-exclamation-triangle"></i> Unable to parse error data: @ex.Message
-                                <pre class="mt-2 bg-light p-2">@reviewQueueEntity.ProposedEntityDataJson</pre>
+                                <i class="bi bi-exclamation-triangle"></i> The stored review details could not be displayed. An administrator can use the application logs to investigate.
                             </div>
                         }
                     }

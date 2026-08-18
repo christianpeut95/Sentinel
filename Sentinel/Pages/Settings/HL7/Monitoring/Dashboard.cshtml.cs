@@ -7,7 +7,7 @@ using Sentinel.Services.HL7;
 
 namespace Sentinel.Pages.Settings.HL7.Monitoring
 {
-    [Authorize(Policy = "Permission.Settings.ManageSystemLookups")]
+    [Authorize(Policy = "Permission.HL7.View")]
     public class DashboardModel : PageModel
     {
         private readonly ApplicationDbContext _context;

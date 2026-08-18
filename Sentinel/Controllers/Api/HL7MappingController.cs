@@ -15,15 +15,18 @@ namespace Sentinel.Controllers.API
         private readonly ApplicationDbContext _context;
         private readonly IHL7FieldMappingService _mappingService;
         private readonly IHL7ParserService _parserService;
+        private readonly ILogger<HL7MappingController> _logger;
 
         public HL7MappingController(
             ApplicationDbContext context,
             IHL7FieldMappingService mappingService,
-            IHL7ParserService parserService)
+            IHL7ParserService parserService,
+            ILogger<HL7MappingController> logger)
         {
             _context = context;
             _mappingService = mappingService;
             _parserService = parserService;
+            _logger = logger;
         }
 
         [HttpPost("confirm-field")]
@@ -189,7 +192,8 @@ namespace Sentinel.Controllers.API
             }
             catch (Exception ex)
             {
-                return BadRequest(new { error = $"Could not parse message: {ex.Message}" });
+                _logger.LogWarning(ex, "Unable to parse HL7 mapping preview for configuration {ConfigurationId}", request.ConfigurationId);
+                return BadRequest(new { error = "The HL7 message could not be parsed. Check that it is a valid message for the selected configuration." });
             }
         }
 

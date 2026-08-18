@@ -68,20 +68,21 @@ if (!string.IsNullOrEmpty(envGeocodingEmail))
     builder.Configuration["Geocoding:Email"] = envGeocodingEmail;
 }
 
-// Configure Kestrel to allow larger request bodies (for shapefile uploads)
+// Keep the default request budget close to the protected-attachment limit.
+// Jurisdiction shapefile endpoints explicitly opt into their larger 100 MB limit.
 builder.Services.Configure<KestrelServerOptions>(options =>
 {
-    options.Limits.MaxRequestBodySize = 104_857_600; // 100MB
+    options.Limits.MaxRequestBodySize = 31_457_280; // 30 MB
     options.Limits.RequestHeadersTimeout = TimeSpan.FromMinutes(5);
 });
 
 // Configure Form options for multipart requests
 builder.Services.Configure<Microsoft.AspNetCore.Http.Features.FormOptions>(options =>
 {
-    options.MultipartBodyLengthLimit = 104_857_600; // 100MB
-    options.ValueLengthLimit = 104_857_600;
+    options.MultipartBodyLengthLimit = 31_457_280; // 30 MB
+    options.ValueLengthLimit = 1_048_576; // 1 MB per non-file form value
     options.MultipartHeadersLengthLimit = 16384;
-    options.BufferBodyLengthLimit = 104_857_600;
+    options.BufferBodyLengthLimit = 31_457_280;
 });
 
 // Database
@@ -485,13 +486,18 @@ builder.Services.AddHostedService<Sentinel.Services.GeocodingBackgroundService>(
 var app = builder.Build();
 
 // Middleware
+// This must be the outermost application handler. It logs every exception that
+// escapes an endpoint and replaces the response with a safe, traceable error.
+// ErrorReportingMiddleware remains further in the pipeline so it can submit a
+// separately sanitised error event before the exception reaches this handler.
+app.UseGlobalExceptionHandler();
+
 if (app.Environment.IsDevelopment())
 {
     app.UseMigrationsEndPoint();
 }
 else
 {
-    app.UseExceptionHandler("/Error");
     app.UseHsts();
 }
 

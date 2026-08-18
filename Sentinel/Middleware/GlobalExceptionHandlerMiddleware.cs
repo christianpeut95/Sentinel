@@ -51,15 +51,25 @@ namespace Sentinel.Middleware
                 return;
             }
 
-            // For API requests, return JSON error
-            if (context.Request.Path.StartsWithSegments("/api"))
+            context.Response.Clear();
+
+            // AJAX Razor Page handlers also expect JSON, despite not living
+            // below /api. Returning an error page redirect to them hides the
+            // useful message and makes their client-side error handling fail.
+            var acceptsJson = context.Request.Headers.Accept.Any(value =>
+                value?.Contains("application/json", StringComparison.OrdinalIgnoreCase) == true);
+            var isAjax = string.Equals(context.Request.Headers["X-Requested-With"],
+                "XMLHttpRequest", StringComparison.OrdinalIgnoreCase);
+
+            // For API and JSON requests, return a safe error with a trace ID.
+            if (context.Request.Path.StartsWithSegments("/api") || acceptsJson || isAjax)
             {
                 context.Response.StatusCode = StatusCodes.Status500InternalServerError;
                 context.Response.ContentType = "application/json";
 
                 var response = new
                 {
-                    error = "An internal server error occurred",
+                    error = "We could not complete that request. Please try again. If the problem continues, contact an administrator and quote the reference ID.",
                     traceId = traceId,
                     timestamp = DateTime.UtcNow
                 };
@@ -68,8 +78,9 @@ namespace Sentinel.Middleware
             }
             else
             {
-                // For page requests, redirect to error page
-                context.Response.Redirect($"/Error?requestId={traceId}");
+                // For page requests, redirect to the safe error page. The
+                // detailed exception is only present in the application log.
+                context.Response.Redirect($"/Error?requestId={Uri.EscapeDataString(traceId)}");
             }
         }
     }

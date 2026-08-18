@@ -9,14 +9,17 @@ using System.Text;
 
 namespace Sentinel.Pages.Settings.Jurisdictions
 {
-    [Authorize(Policy = "Permission.Location.Import")]
+    [Authorize(Policy = "Permission.Location.ImportPopulation")]
     public class BulkPopulationUploadModel : PageModel
     {
+        private const long MaximumCsvBytes = 5 * 1024 * 1024;
         private readonly ApplicationDbContext _context;
+        private readonly ILogger<BulkPopulationUploadModel> _logger;
 
-        public BulkPopulationUploadModel(ApplicationDbContext context)
+        public BulkPopulationUploadModel(ApplicationDbContext context, ILogger<BulkPopulationUploadModel> logger)
         {
             _context = context;
+            _logger = logger;
         }
 
         [BindProperty]
@@ -56,6 +59,18 @@ namespace Sentinel.Pages.Settings.Jurisdictions
             if (CsvFile == null || CsvFile.Length == 0)
             {
                 ModelState.AddModelError("CsvFile", "Please select a CSV file");
+                return Page();
+            }
+
+            if (!string.Equals(Path.GetExtension(CsvFile.FileName), ".csv", StringComparison.OrdinalIgnoreCase))
+            {
+                ModelState.AddModelError("CsvFile", "Upload a CSV file (.csv).");
+                return Page();
+            }
+
+            if (CsvFile.Length > MaximumCsvBytes)
+            {
+                ModelState.AddModelError("CsvFile", "The population import file exceeds the 5 MB limit.");
                 return Page();
             }
 
@@ -157,7 +172,8 @@ namespace Sentinel.Pages.Settings.Jurisdictions
             }
             catch (Exception ex)
             {
-                ModelState.AddModelError("", $"Error processing file: {ex.Message}");
+                _logger.LogWarning(ex, "Population data preview failed for uploaded CSV {FileName}", CsvFile.FileName);
+                ModelState.AddModelError("", "The population CSV could not be processed. Check its format and try again.");
                 return Page();
             }
         }
@@ -241,7 +257,8 @@ namespace Sentinel.Pages.Settings.Jurisdictions
             }
             catch (Exception ex)
             {
-                TempData["Error"] = $"Error importing data: {ex.Message}";
+                _logger.LogError(ex, "Population data import failed");
+                TempData["Error"] = "The population data could not be imported. No changes were saved.";
                 return RedirectToPage();
             }
         }

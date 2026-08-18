@@ -27,6 +27,7 @@ namespace Sentinel.Pages.Contacts
         private readonly IDiseaseAccessService _diseaseAccessService;
         private readonly ITaskService _taskService;
         private readonly IProtectedFileStorageService _fileStorage;
+        private readonly ILogger<DetailsModel> _logger;
 
         public DetailsModel(
             ApplicationDbContext context, 
@@ -35,7 +36,8 @@ namespace Sentinel.Pages.Contacts
             IPermissionService permissionService, 
             IDiseaseAccessService diseaseAccessService, 
             ITaskService taskService,
-            IProtectedFileStorageService fileStorage)
+            IProtectedFileStorageService fileStorage,
+            ILogger<DetailsModel> logger)
         {
             _context = context;
             _auditService = auditService;
@@ -44,6 +46,7 @@ namespace Sentinel.Pages.Contacts
             _diseaseAccessService = diseaseAccessService;
             _taskService = taskService;
             _fileStorage = fileStorage;
+            _logger = logger;
         }
 
         public Case Contact { get; set; } = default!;
@@ -376,11 +379,13 @@ namespace Sentinel.Pages.Contacts
             }
             catch (DbUpdateException dbEx)
             {
-                TempData["ErrorMessage"] = $"Database error: {dbEx.InnerException?.Message ?? dbEx.Message}";
+                _logger.LogError(dbEx, "Unable to add laboratory result to contact {ContactId}", id);
+                TempData["ErrorMessage"] = "The laboratory result could not be saved. Check the entered information and try again.";
             }
             catch (Exception ex)
             {
-                TempData["ErrorMessage"] = $"Failed to save lab result: {ex.Message}";
+                _logger.LogError(ex, "Unable to add laboratory result to contact {ContactId}", id);
+                TempData["ErrorMessage"] = "The laboratory result could not be saved. Please try again.";
             }
 
             return RedirectToPage(new { id });

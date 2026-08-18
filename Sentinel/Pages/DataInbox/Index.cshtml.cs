@@ -17,17 +17,20 @@ public class IndexModel : PageModel
     private readonly ApplicationDbContext _context;
     private readonly ICollectionMappingService _collectionMappingService;
     private readonly ISurveyMappingService _surveyMappingService;
+    private readonly ILogger<IndexModel> _logger;
 
     public IndexModel(
         IDataReviewService reviewService, 
         ApplicationDbContext context,
         ICollectionMappingService collectionMappingService,
-        ISurveyMappingService surveyMappingService)
+        ISurveyMappingService surveyMappingService,
+        ILogger<IndexModel> logger)
     {
         _reviewService = reviewService;
         _context = context;
         _collectionMappingService = collectionMappingService;
         _surveyMappingService = surveyMappingService;
+        _logger = logger;
     }
 
     public ReviewQueueResult ReviewQueue { get; set; } = new();
@@ -351,7 +354,7 @@ public class IndexModel : PageModel
             catch (Exception reprocessEx)
             {
                 // Log but continue - patient was created successfully
-                System.Diagnostics.Debug.WriteLine($"Reprocessing warning: {reprocessEx.Message}");
+                _logger.LogWarning(reprocessEx, "Collection mapping reprocessing failed for review {ReviewId}", id);
             }
             
             // Mark review as confirmed
@@ -362,8 +365,13 @@ public class IndexModel : PageModel
         }
         catch (Exception ex)
         {
-            System.Diagnostics.Debug.WriteLine($"Error in quick resolve: {ex.Message}");
-            return new JsonResult(new { success = false, error = ex.Message });
+            _logger.LogError(ex, "Unable to quickly resolve review {ReviewId}", id);
+            return new JsonResult(new
+            {
+                success = false,
+                error = "The review item could not be resolved. No changes were saved; please try again.",
+                traceId = HttpContext.TraceIdentifier
+            }) { StatusCode = 500 };
         }
     }
     

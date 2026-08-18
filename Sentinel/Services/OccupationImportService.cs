@@ -12,11 +12,14 @@ namespace Sentinel.Services
 {
     public class OccupationImportService : IOccupationImportService
     {
+        private const int MaximumWorksheetRows = 50_000;
         private readonly ApplicationDbContext _context;
+        private readonly ILogger<OccupationImportService> _logger;
 
-        public OccupationImportService(ApplicationDbContext context)
+        public OccupationImportService(ApplicationDbContext context, ILogger<OccupationImportService> logger)
         {
             _context = context;
+            _logger = logger;
             ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
         }
 
@@ -57,6 +60,12 @@ namespace Sentinel.Services
                 }
 
                 int rowCount = worksheet.Dimension?.Rows ?? 0;
+                if (rowCount > MaximumWorksheetRows)
+                {
+                    result.Success = false;
+                    result.Errors.Add($"The worksheet exceeds the {MaximumWorksheetRows:N0}-row limit.");
+                    return result;
+                }
 
                 // Track current hierarchy context as we iterate rows
                 string? currentMajorCode = null;
@@ -156,7 +165,8 @@ namespace Sentinel.Services
                     }
                     catch (Exception ex)
                     {
-                        result.Warnings.Add($"Row {row}: Error parsing - {ex.Message}");
+                        _logger.LogDebug(ex, "Could not parse occupation import row {Row}", row);
+                        result.Warnings.Add($"Row {row}: Could not be processed.");
                         result.RecordsSkipped++;
                     }
                 }
@@ -176,8 +186,9 @@ namespace Sentinel.Services
             }
             catch (Exception ex)
             {
+                _logger.LogWarning(ex, "Occupation workbook import failed");
                 result.Success = false;
-                result.Errors.Add($"Error processing file: {ex.Message}");
+                result.Errors.Add("The workbook could not be processed.");
             }
 
             return result;

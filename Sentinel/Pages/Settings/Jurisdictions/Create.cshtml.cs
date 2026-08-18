@@ -17,11 +17,19 @@ namespace Sentinel.Pages.Settings.Jurisdictions
     {
         private readonly ApplicationDbContext _context;
         private readonly IJurisdictionService _jurisdictionService;
+        private readonly IAuthorizationService _authorizationService;
+        private readonly ILogger<CreateModel> _logger;
 
-        public CreateModel(ApplicationDbContext context, IJurisdictionService jurisdictionService)
+        public CreateModel(
+            ApplicationDbContext context,
+            IJurisdictionService jurisdictionService,
+            IAuthorizationService authorizationService,
+            ILogger<CreateModel> logger)
         {
             _context = context;
             _jurisdictionService = jurisdictionService;
+            _authorizationService = authorizationService;
+            _logger = logger;
         }
 
         [BindProperty]
@@ -91,7 +99,8 @@ namespace Sentinel.Pages.Settings.Jurisdictions
             }
             catch (Exception ex)
             {
-                TempData["ErrorMessage"] = $"Error loading page: {ex.Message}";
+                _logger.LogError(ex, "Failed to load jurisdiction create page");
+                TempData["ErrorMessage"] = "The jurisdiction page could not be loaded. Please try again.";
                 return RedirectToPage("/Settings/Index");
             }
         }
@@ -100,6 +109,12 @@ namespace Sentinel.Pages.Settings.Jurisdictions
         {
             try
             {
+                if (ShapefileUpload is { Length: > 0 } &&
+                    !(await _authorizationService.AuthorizeAsync(User, null, "Permission.Location.Upload")).Succeeded)
+                {
+                    return Forbid();
+                }
+
                 System.Diagnostics.Debug.WriteLine("=== OnPostAsync START ===");
                 System.Diagnostics.Debug.WriteLine($"ModelState.IsValid: {ModelState.IsValid}");
                 System.Diagnostics.Debug.WriteLine($"Input is null: {Input == null}");
@@ -118,6 +133,29 @@ namespace Sentinel.Pages.Settings.Jurisdictions
                     await LoadDropdowns();
                     TempData["ErrorMessage"] = $"Validation failed: {string.Join(", ", errors)}";
                     return Page();
+                }
+
+                if (ShapefileUpload is { Length: > 0 })
+                {
+                    using var stream = ShapefileUpload.OpenReadStream();
+                    var (isValid, validationError) = await _jurisdictionService.ValidateShapefileAsync(stream);
+                    if (!isValid)
+                    {
+                        ModelState.AddModelError("ShapefileUpload", validationError ?? "Invalid shapefile");
+                        await LoadDropdowns();
+                        return Page();
+                    }
+
+                    stream.Position = 0;
+                    var geoJson = await _jurisdictionService.ConvertShapefileToGeoJsonAsync(stream);
+                    if (geoJson == null)
+                    {
+                        ModelState.AddModelError("ShapefileUpload", "Failed to convert shapefile to GeoJSON");
+                        await LoadDropdowns();
+                        return Page();
+                    }
+
+                    Input.BoundaryData = geoJson;
                 }
 
                 System.Diagnostics.Debug.WriteLine("Validation passed, creating jurisdiction...");
@@ -146,11 +184,8 @@ namespace Sentinel.Pages.Settings.Jurisdictions
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"=== EXCEPTION in OnPostAsync ===");
-                System.Diagnostics.Debug.WriteLine($"Message: {ex.Message}");
-                System.Diagnostics.Debug.WriteLine($"StackTrace: {ex.StackTrace}");
-                
-                TempData["ErrorMessage"] = $"Error: {ex.Message}";
+                _logger.LogError(ex, "Jurisdiction creation failed");
+                TempData["ErrorMessage"] = "The jurisdiction could not be saved. Please check the details and try again.";
                 await LoadDropdowns();
                 return Page();
             }

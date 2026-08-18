@@ -17,15 +17,18 @@ namespace Sentinel.Pages.Settings.Mappings
         private readonly ApplicationDbContext _context;
         private readonly ICollectionMappingService _collectionService;
         private readonly CollectionMappingValidationService _validationService;
+        private readonly ILogger<SaveCollectionConfigController> _logger;
 
         public SaveCollectionConfigController(
             ApplicationDbContext context,
             ICollectionMappingService collectionService,
-            CollectionMappingValidationService validationService)
+            CollectionMappingValidationService validationService,
+            ILogger<SaveCollectionConfigController> logger)
         {
             _context = context;
             _collectionService = collectionService;
             _validationService = validationService;
+            _logger = logger;
         }
 
         [HttpPost("SaveCollectionConfig")]
@@ -79,7 +82,8 @@ namespace Sentinel.Pages.Settings.Mappings
             }
             catch (JsonException jsonEx)
             {
-                return BadRequest(new { error = $"Invalid JSON format: {jsonEx.Message}" });
+                _logger.LogWarning(jsonEx, "Invalid collection mapping JSON for mapping {MappingId}", request.MappingId);
+                return BadRequest(new { error = "The collection configuration is not valid JSON. Correct the configuration and try again." });
             }
 
             mapping.CollectionConfigJson = request.ConfigJson;
@@ -100,7 +104,8 @@ namespace Sentinel.Pages.Settings.Mappings
             }
             catch (Exception ex)
             {
-                return StatusCode(500, new { error = ex.Message });
+                _logger.LogError(ex, "Unable to load fields for collection mapping entity {EntityType}", entityType);
+                return StatusCode(500, new { error = "The entity fields could not be loaded. Please try again.", traceId = HttpContext.TraceIdentifier });
             }
         }
 
@@ -119,7 +124,8 @@ namespace Sentinel.Pages.Settings.Mappings
             }
             catch (Exception ex)
             {
-                return StatusCode(500, new { error = ex.Message });
+                _logger.LogError(ex, "Unable to load contact classifications for collection mapping");
+                return StatusCode(500, new { error = "Contact classifications could not be loaded. Please try again.", traceId = HttpContext.TraceIdentifier });
             }
         }
     }

@@ -1145,7 +1145,15 @@ namespace Sentinel.Data
                 .OnDelete(DeleteBehavior.Restrict);
 
             // Global Query Filters for Soft Delete
-            builder.Entity<Patient>().HasQueryFilter(p => !p.IsDeleted);
+            builder.Entity<Patient>().HasQueryFilter(p =>
+                !p.IsDeleted &&
+                (_httpContextAccessor == null ||
+                 _httpContextAccessor.HttpContext == null ||
+                 _httpContextAccessor.HttpContext.Items["CaseScopedPatientAccess"] == null ||
+                 !((bool)_httpContextAccessor.HttpContext.Items["CaseScopedPatientAccess"]!) ||
+                 // The Case global query filter is intentionally applied here, making
+                 // patient visibility follow the same hierarchy-aware disease access rule.
+                 p.Cases.Any()));
             // Case-scoped children must honour the same disease boundary as their parent case.
             // Unassigned laboratory results are retained for internal HL7 processing only.
             builder.Entity<LabResult>().HasQueryFilter(lr =>
@@ -1189,23 +1197,31 @@ namespace Sentinel.Data
                 (sl.TaskId == null || sl.Task != null) &&
                 (sl.ReviewQueueItemId == null || sl.ReviewQueueItem != null));
 
-            // Global Query Filter for Case - combines soft delete AND disease access control
+            // Global Query Filter for Case - combines soft delete AND hierarchy-aware
+            // disease access control. For authenticated requests, AccessibleDiseaseIds is
+            // populated by DiseaseAccessMiddleware using DiseaseAccessService, which walks
+            // every disease ancestor. A public child therefore cannot bypass a restricted
+            // parent. Non-HTTP/internal processing continues to bypass this user boundary.
             builder.Entity<Case>().HasQueryFilter(c => 
                 !c.IsDeleted && 
                 (c.DiseaseId == null || 
-                 c.Disease!.AccessLevel == DiseaseAccessLevel.Public ||
                  _httpContextAccessor == null ||
                  _httpContextAccessor.HttpContext == null ||
-                 (_httpContextAccessor.HttpContext.Items["AccessibleDiseaseIds"] != null &&
-                  ((List<Guid>)_httpContextAccessor.HttpContext.Items["AccessibleDiseaseIds"]).Contains(c.DiseaseId.Value))));
+                 (_httpContextAccessor.HttpContext.Items["AccessibleDiseaseIds"] == null
+                    ? c.Disease!.AccessLevel == DiseaseAccessLevel.Public
+                    : ((List<Guid>)_httpContextAccessor.HttpContext.Items["AccessibleDiseaseIds"])
+                        .Contains(c.DiseaseId.Value))));
 
-            // Global Query Filter for Disease - disease access control for dropdowns/selections
+            // Global Query Filter for Disease - uses the same effective, hierarchy-aware
+            // visibility list as cases. This keeps dropdowns, searches, APIs and case-scoped
+            // child entities aligned with direct page authorisation.
             builder.Entity<Disease>().HasQueryFilter(d => 
-                d.AccessLevel == DiseaseAccessLevel.Public ||
                 _httpContextAccessor == null ||
                 _httpContextAccessor.HttpContext == null ||
-                (_httpContextAccessor.HttpContext.Items["AccessibleDiseaseIds"] != null &&
-                 ((List<Guid>)_httpContextAccessor.HttpContext.Items["AccessibleDiseaseIds"]).Contains(d.Id)));
+                (_httpContextAccessor.HttpContext.Items["AccessibleDiseaseIds"] == null
+                    ? d.AccessLevel == DiseaseAccessLevel.Public
+                    : ((List<Guid>)_httpContextAccessor.HttpContext.Items["AccessibleDiseaseIds"])
+                        .Contains(d.Id)));
 
             // Flattened Report Views (SQL views managed by migrations)
             builder.Entity<Models.Views.CaseContactTaskFlattened>()

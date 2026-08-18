@@ -1,4 +1,6 @@
 using System;
+using System.IO.Compression;
+using System.Linq;
 using Microsoft.AspNetCore.Authorization;
 using System.IO;
 using System.Threading.Tasks;
@@ -9,14 +11,19 @@ using Sentinel.Services;
 
 namespace Sentinel.Pages.Settings.Occupations
 {
-    [Authorize(Policy = "Permission.Settings.ManageSystemLookups")]
+    [Authorize(Policy = "Permission.Occupation.Import")]
     public class UploadModel : PageModel
     {
+        private const long MaximumSpreadsheetUncompressedBytes = 100 * 1024 * 1024;
+        private const int MaximumSpreadsheetEntries = 100;
+        private const double MaximumSpreadsheetCompressionRatio = 100;
         private readonly IOccupationImportService _importService;
+        private readonly ILogger<UploadModel> _logger;
 
-        public UploadModel(IOccupationImportService importService)
+        public UploadModel(IOccupationImportService importService, ILogger<UploadModel> logger)
         {
             _importService = importService;
+            _logger = logger;
         }
 
         [BindProperty]
@@ -54,6 +61,13 @@ namespace Sentinel.Pages.Settings.Occupations
             try
             {
                 using var stream = UploadFile.OpenReadStream();
+                if (!ValidateXlsxArchive(stream))
+                {
+                    ModelState.AddModelError("UploadFile", "The upload is not a valid Excel workbook.");
+                    return Page();
+                }
+
+                stream.Position = 0;
                 ImportResult = await _importService.ImportFromExcelAsync(stream);
 
                 if (ImportResult.Success)
@@ -67,10 +81,43 @@ namespace Sentinel.Pages.Settings.Occupations
             }
             catch (Exception ex)
             {
-                ModelState.AddModelError(string.Empty, $"Error processing file: {ex.Message}");
+                _logger.LogWarning(ex, "Occupation import failed for uploaded workbook {FileName}", UploadFile.FileName);
+                ModelState.AddModelError(string.Empty, "The workbook could not be processed. Check that it is a valid ANZSCO Excel file and try again.");
             }
 
             return Page();
+        }
+
+        private static bool ValidateXlsxArchive(Stream stream)
+        {
+            try
+            {
+                using var archive = new ZipArchive(stream, ZipArchiveMode.Read, leaveOpen: true);
+                if (archive.Entries.Count == 0 || archive.Entries.Count > MaximumSpreadsheetEntries)
+                    return false;
+
+                long totalUncompressedBytes = 0;
+                foreach (var entry in archive.Entries)
+                {
+                    if (entry.FullName.Contains("..", StringComparison.Ordinal) || Path.IsPathRooted(entry.FullName))
+                        return false;
+
+                    totalUncompressedBytes = checked(totalUncompressedBytes + entry.Length);
+                    if (totalUncompressedBytes > MaximumSpreadsheetUncompressedBytes ||
+                        (entry.Length > 0 && entry.CompressedLength > 0 &&
+                         (double)entry.Length / entry.CompressedLength > MaximumSpreadsheetCompressionRatio))
+                    {
+                        return false;
+                    }
+                }
+
+                return archive.GetEntry("[Content_Types].xml") != null &&
+                       archive.GetEntry("xl/workbook.xml") != null;
+            }
+            catch (InvalidDataException)
+            {
+                return false;
+            }
         }
     }
 }

@@ -125,6 +125,14 @@ namespace Sentinel.Models
         [Display(Name = "Enable Anonymous Usage Statistics")]
         public bool EnableUsageMonitoring { get; set; } = true;
 
+        // -- Access Control ----------------------------------------------------------
+        /// <summary>
+        /// When enabled, users only see patients that have at least one case they can access.
+        /// Case visibility is determined by the shared disease-access query filter.
+        /// </summary>
+        [Display(Name = "Case-Scoped Patient Access")]
+        public bool CaseScopedPatientAccess { get; set; } = false;
+
         // -- Telemetry & Logging ----------------------------------------------------
         [Display(Name = "Enable Telemetry")]
         public bool TelemetryEnabled { get; set; } = true;

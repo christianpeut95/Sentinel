@@ -15,15 +15,18 @@ namespace Sentinel.Pages.Settings.HL7
         private readonly ApplicationDbContext _context;
         private readonly IHL7FileMonitorService _fileMonitor;
         private readonly ILogger<TestingModel> _logger;
+        private readonly IAuthorizationService _authorizationService;
 
         public TestingModel(
             ApplicationDbContext context,
             IHL7FileMonitorService fileMonitor,
-            ILogger<TestingModel> logger)
+            ILogger<TestingModel> logger,
+            IAuthorizationService authorizationService)
         {
             _context = context;
             _fileMonitor = fileMonitor;
             _logger = logger;
+            _authorizationService = authorizationService;
         }
 
         public List<HL7MessageViewModel> Messages { get; set; } = new();
@@ -58,6 +61,11 @@ namespace Sentinel.Pages.Settings.HL7
 
         public async Task<IActionResult> OnPostReprocessAsync(Guid messageId)
         {
+            if (!(await _authorizationService.AuthorizeAsync(User, "Permission.HL7.Process")).Succeeded)
+            {
+                return Forbid();
+            }
+
             try
             {
                 _logger.LogInformation("User requested reprocessing of message {MessageId}", messageId);
@@ -91,6 +99,11 @@ namespace Sentinel.Pages.Settings.HL7
 
         public async Task<IActionResult> OnPostClearAllAsync()
         {
+            if (!(await _authorizationService.AuthorizeAsync(User, "Permission.HL7.Process")).Succeeded)
+            {
+                return Forbid();
+            }
+
             try
             {
                 _logger.LogWarning("User requested clearing all test data");
@@ -108,6 +121,11 @@ namespace Sentinel.Pages.Settings.HL7
 
         public async Task<IActionResult> OnPostDeleteMessageAsync(Guid messageId)
         {
+            if (!(await _authorizationService.AuthorizeAsync(User, "Permission.HL7.Process")).Succeeded)
+            {
+                return Forbid();
+            }
+
             try
             {
                 _logger.LogInformation("User requested deletion of message {MessageId}", messageId);

@@ -10,6 +10,7 @@ using Sentinel.Services;
 namespace Sentinel.Pages.Settings.Jurisdictions
 {
     [Authorize(Policy = "Permission.Location.Import")]
+    [Authorize(Policy = "Permission.Location.Upload")]
     [RequestSizeLimit(100_000_000)]
     [RequestFormLimits(MultipartBodyLengthLimit = 100_000_000)]
     public class BulkImportModel : PageModel
@@ -17,12 +18,14 @@ namespace Sentinel.Pages.Settings.Jurisdictions
         private readonly ApplicationDbContext _context;
         private readonly IJurisdictionService _jurisdictionService;
         private readonly IMemoryCache _cache;
+        private readonly ILogger<BulkImportModel> _logger;
 
-        public BulkImportModel(ApplicationDbContext context, IJurisdictionService jurisdictionService, IMemoryCache cache)
+        public BulkImportModel(ApplicationDbContext context, IJurisdictionService jurisdictionService, IMemoryCache cache, ILogger<BulkImportModel> logger)
         {
             _context = context;
             _jurisdictionService = jurisdictionService;
             _cache = cache;
+            _logger = logger;
         }
 
         [BindProperty]
@@ -160,7 +163,8 @@ namespace Sentinel.Pages.Settings.Jurisdictions
             }
             catch (Exception ex)
             {
-                ModelState.AddModelError("", $"Error analyzing shapefile: {ex.Message}");
+                _logger.LogWarning(ex, "Shapefile analysis failed for upload {FileName}", ShapefileUpload?.FileName);
+                ModelState.AddModelError("", "The shapefile could not be analysed. Check that it is a valid shapefile archive and try again.");
                 await LoadJurisdictionTypes();
                 return Page();
             }
@@ -242,7 +246,8 @@ namespace Sentinel.Pages.Settings.Jurisdictions
             }
             catch (Exception ex)
             {
-                TempData["ErrorMessage"] = $"Error importing jurisdictions: {ex.Message}";
+                _logger.LogError(ex, "Shapefile jurisdiction import failed");
+                TempData["ErrorMessage"] = "The jurisdictions could not be imported. No changes were saved.";
                 return RedirectToPage();
             }
         }

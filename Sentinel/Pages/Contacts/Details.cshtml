@@ -2309,9 +2309,9 @@
                             <div>${data.resultUnitsName || '-'}</div>
                         </div>
                     </div>
-                    ${data.notes ? `<div class="mb-3"><label class="text-muted small">Notes</label><div class="alert alert-light mb-0">${data.notes}</div></div>` : ''}
-                    ${data.labInterpretation ? `<div class="mb-3"><label class="text-muted small">Lab Interpretation</label><div class="alert alert-light mb-0">${data.labInterpretation}</div></div>` : ''}
-                    ${data.attachmentPath ? `<div class="mb-3"><label class="text-muted small">Attachment</label><div><a href="${data.attachmentPath}" target="_blank" class="btn btn-sm btn-outline-primary"><i class="bi bi-paperclip me-1"></i>${data.attachmentFileName}</a></div></div>` : ''}
+                    ${data.notes ? `<div class="mb-3"><label class="text-muted small">Notes</label><div class="alert alert-light mb-0">${escapeHtml(data.notes)}</div></div>` : ''}
+                    ${data.labInterpretation ? `<div class="mb-3"><label class="text-muted small">Lab Interpretation</label><div class="alert alert-light mb-0">${escapeHtml(data.labInterpretation)}</div></div>` : ''}
+                    ${data.attachmentPath ? `<div class="mb-3"><label class="text-muted small">Attachment</label><div><a href="${escapeHtml(data.attachmentPath)}" target="_blank" rel="noopener" class="btn btn-sm btn-outline-primary"><i class="bi bi-paperclip me-1"></i>${escapeHtml(data.attachmentFileName || 'Download')}</a></div></div>` : ''}
                     <hr />
                     <div class="row">
                         <div class="col-md-6">
@@ -2350,6 +2350,10 @@
     $('#viewLabResultModal [data-bs-dismiss="modal"]').on('click', function() {
         closeViewLabResultModal();
     });
+
+    function escapeHtml(value) {
+        return $('<div>').text(value ?? '').html();
+    }
 
     function editLabResult(labResultId) {
         currentLabResultId = labResultId;
@@ -2403,11 +2407,16 @@
 
                 // Show current attachment if exists
                 if (data.attachmentPath) {
-                    $('#currentAttachment').html(
-                        '<div class="alert alert-info">' +
-                        '<i class="bi bi-paperclip me-2"></i>Current: ' +
-                        '<a href="' + data.attachmentPath + '" target="_blank">' + data.attachmentFileName + '</a>' +
-                        '</div>'
+                    const attachmentLink = $('<a>', {
+                        href: data.attachmentPath,
+                        target: '_blank',
+                        rel: 'noopener'
+                    }).text(data.attachmentFileName || 'Download');
+                    $('#currentAttachment').empty().append(
+                        $('<div>', { class: 'alert alert-info' })
+                            .append($('<i>', { class: 'bi bi-paperclip me-2' }))
+                            .append(document.createTextNode('Current: '))
+                            .append(attachmentLink)
                     );
                 } else {
                     $('#currentAttachment').html('');

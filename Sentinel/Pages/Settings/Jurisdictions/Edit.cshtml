@@ -106,9 +106,10 @@
                                                name="ShapefileUpload" 
                                                class="form-control" 
                                                accept=".shp,.zip" />
-                                        <small class="form-text text-muted">
-                                            Upload a shapefile to replace the existing boundary data. Supports .shp or .zip files.
-                                        </small>
+                                            <small class="form-text text-muted">
+                                                Upload a shapefile to replace the existing boundary data. Supports .shp or .zip files.
+                                            </small>
+                                            <span asp-validation-for="ShapefileUpload" class="text-danger"></span>
                                     </div>
                                 }
                                 else
@@ -127,9 +128,10 @@
                                                name="ShapefileUpload" 
                                                class="form-control" 
                                                accept=".shp,.zip" />
-                                        <small class="form-text text-muted">
-                                            Upload a shapefile to add boundary data. Supports .shp or .zip files.
-                                        </small>
+                                            <small class="form-text text-muted">
+                                                Upload a shapefile to add boundary data. Supports .shp or .zip files.
+                                            </small>
+                                            <span asp-validation-for="ShapefileUpload" class="text-danger"></span>
                                     </div>
                                     
                                     <details class="mt-3">

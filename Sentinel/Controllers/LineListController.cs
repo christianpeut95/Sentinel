@@ -121,8 +121,12 @@ public class LineListController : ControllerBase
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error saving line list configuration: {Message}", ex.Message);
-            return StatusCode(500, new { error = $"Failed to save configuration: {ex.Message}" });
+            _logger.LogError(ex, "Error saving line list configuration for outbreak {OutbreakId}", config.OutbreakId);
+            return StatusCode(500, new
+            {
+                error = "The line-list configuration could not be saved. Please try again.",
+                traceId = HttpContext.TraceIdentifier
+            });
         }
     }
     
