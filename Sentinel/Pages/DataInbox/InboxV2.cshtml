@@ -1040,7 +1040,7 @@
                                 <div class="diffrow-v2">
                                     <div class="fl-v2">@(member.TriggerField ?? GetEntityLabel(member.EntityType, member.ChangeType))</div>
                                     <div class="chg-v2">
-                                        @Html.Raw(member.ChangeSummary)
+                                        <span class="new">@member.ChangeSummary</span>
                                     </div>
                                     <div class="src-v2">HL7</div>
                                 </div>

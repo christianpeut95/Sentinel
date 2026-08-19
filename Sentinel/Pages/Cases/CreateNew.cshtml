@@ -652,7 +652,7 @@
                 return;
             }
             
-            var defaultCountry = '@(Configuration["Geocoding:DefaultCountry"] ?? "AU")';
+            var defaultCountry = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Configuration["Geocoding:DefaultCountry"] ?? "AU"));
             var autocomplete = new google.maps.places.Autocomplete(input, {
                 types: ['address'],
                 componentRestrictions: { country: defaultCountry.toLowerCase() }
@@ -750,24 +750,10 @@
             });
         };
 
-        // Load Google Maps API if not already loaded
-        if (typeof google === 'undefined' || !google.maps || !google.maps.places) {
-            var apiKey = '@Configuration["Geocoding:ApiKey"]';
-            if (apiKey) {
-                var script = document.createElement('script');
-                script.src = 'https://maps.googleapis.com/maps/api/js?key=' + apiKey + '&libraries=places&callback=initAddressAutocomplete';
-                script.async = true;
-                script.defer = true;
-                script.onerror = function() {
-                    console.error('Failed to load Google Maps API');
-                };
-                document.head.appendChild(script);
-            } else {
-                console.warn('No Google API key configured');
-            }
-        } else {
-            // Google Maps already loaded, initialize now
-            initAddressAutocomplete();
+        // Browser pages do not receive the server geocoding key. Manual address
+        // entry and server-side geocoding remain available without exposing it.
+        if (window.SentinelGeocoding) {
+            SentinelGeocoding.loadGoogleMaps(initAddressAutocomplete);
         }
     });
 
@@ -840,18 +826,16 @@
                 $results.html('<div class="search-result-item">No patients found</div>');
             } else {
                 patients.forEach(patient => {
-                    const hasDuplicate = patient.possibleDuplicate;
-                    const $item = $(`
-                        <div class="search-result-item" onclick="selectPatient('${patient.id}', '${patient.name}', '${patient.dateOfBirth}', '${patient.friendlyId}')">
-                            <div class="search-result-name">
-                                ${patient.name}
-                                ${hasDuplicate ? '<span class="duplicate-badge">Possible Duplicate</span>' : ''}
-                            </div>
-                            <div class="search-result-meta">
-                                DOB: ${patient.dateOfBirth || 'N/A'} | ID: ${patient.friendlyId}
-                            </div>
-                        </div>
-                    `);
+                    const $item = $('<div>', { class: 'search-result-item' })
+                        .on('click', () => selectPatient(patient.id, patient.name, patient.dateOfBirth, patient.friendlyId));
+                    const $name = $('<div>', { class: 'search-result-name' }).text(patient.name);
+                    if (patient.possibleDuplicate) {
+                        $('<span>', { class: 'duplicate-badge', text: 'Possible Duplicate' }).appendTo($name);
+                    }
+                    $name.appendTo($item);
+                    $('<div>', { class: 'search-result-meta' })
+                        .text(`DOB: ${patient.dateOfBirth || 'N/A'} | ID: ${patient.friendlyId}`)
+                        .appendTo($item);
                     $results.append($item);
                 });
             }

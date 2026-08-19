@@ -120,6 +120,8 @@ namespace Sentinel.Pages.Settings.Users
                 }
             }
 
+            await _userManager.UpdateSecurityStampAsync(user);
+
             TempData["SuccessMessage"] = $"Permissions updated for user '{user.Email}'.";
             return RedirectToPage("./Index");
         }

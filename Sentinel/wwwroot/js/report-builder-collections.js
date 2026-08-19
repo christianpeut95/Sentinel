@@ -53,7 +53,7 @@ ReportBuilder.addCollectionQueryCard = function(queryId, collections) {
                     <label>Collection:</label>
                     <select class="rb-collection-select" id="collection-${queryId}" onchange="ReportBuilder.updateCollectionFields(${queryId})">
                         <option value="">Select collection...</option>
-                        ${collections.map(c => `<option value="${c.value}" data-type="${c.entityType}">${c.label}</option>`).join('')}
+                        ${collections.map(c => `<option value="${this.escapeHtml(c.value)}" data-type="${this.escapeHtml(c.entityType)}">${this.escapeHtml(c.label)}</option>`).join('')}
                     </select>
                 </div>
                 <div class="rb-collection-row">
@@ -514,7 +514,7 @@ ReportBuilder.addCollectionSubFilter = function(queryId) {
 
         console.log(`[addCollectionSubFilter] Field: ${fieldName}, DataType: ${dataType}, Metadata:`, metadata);
 
-        return `<option value="${fieldName}" data-type="${dataType}">${displayName}</option>`;
+        return `<option value="${this.escapeHtml(fieldName)}" data-type="${this.escapeHtml(dataType)}">${this.escapeHtml(displayName)}</option>`;
     }).join('');
 
     const subFilterHtml = `

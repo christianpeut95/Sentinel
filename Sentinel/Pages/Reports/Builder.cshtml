@@ -381,15 +381,15 @@
 
         // Initialize with saved report data
         const savedReport = {
-            fields: @Html.Raw(Model.FieldsJson ?? "[]"),
-            filters: @Html.Raw(Model.FiltersJson ?? "[]"),
-            collectionQueries: @Html.Raw(Model.CollectionQueriesJson ?? "[]"),
-            entityType: '@Model.EntityType',
+            fields: JSON.parse(@Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.FieldsJson ?? "[]"))),
+            filters: JSON.parse(@Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.FiltersJson ?? "[]"))),
+            collectionQueries: JSON.parse(@Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.CollectionQueriesJson ?? "[]"))),
+            entityType: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.EntityType)),
             reportId: @(Model.ReportId?.ToString() ?? "null"),
-            reportName: '@Model.ReportDefinition?.Name',
-            reportDescription: '@Model.ReportDefinition?.Description',
-            pivotConfiguration: @Html.Raw(!string.IsNullOrEmpty(Model.PivotConfigurationJson) ? $"\"{Model.PivotConfigurationJson.Replace("\\", "\\\\").Replace("\"", "\\\"")}\"" : "null"),
-            previewConfiguration: @Html.Raw(!string.IsNullOrEmpty(Model.PreviewConfigurationJson) ? $"\"{Model.PreviewConfigurationJson.Replace("\\", "\\\\").Replace("\"", "\\\"")}\"" : "null")
+            reportName: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.ReportDefinition?.Name)),
+            reportDescription: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.ReportDefinition?.Description)),
+            pivotConfiguration: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.PivotConfigurationJson)),
+            previewConfiguration: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.PreviewConfigurationJson))
         };
 
         console.log('📦 Saved report data:', savedReport);

@@ -26,6 +26,7 @@ namespace Sentinel.Pages.Settings.Users
         public List<string> AllRoles { get; set; } = new();
         public bool IsLockedOut { get; set; }
         public DateTimeOffset? LockoutEnd { get; set; }
+        public bool IsEnabled { get; set; }
 
         public class InputModel
         {
@@ -120,6 +121,7 @@ namespace Sentinel.Pages.Settings.Users
 
             IsLockedOut = user.LockoutEnd.HasValue && user.LockoutEnd.Value > DateTimeOffset.UtcNow;
             LockoutEnd = user.LockoutEnd;
+            IsEnabled = user.IsEnabled;
 
             return Page();
         }
@@ -133,18 +135,54 @@ namespace Sentinel.Pages.Settings.Users
             AllRoles = _roleManager.Roles.Select(r => r.Name!).ToList();
             IsLockedOut = user.LockoutEnd.HasValue && user.LockoutEnd.Value > DateTimeOffset.UtcNow;
             LockoutEnd = user.LockoutEnd;
+            IsEnabled = user.IsEnabled;
 
             if (action == "lock")
             {
-                await _userManager.SetLockoutEndDateAsync(user, DateTimeOffset.UtcNow.AddYears(100));
+                var lockResult = await _userManager.SetLockoutEndDateAsync(user, DateTimeOffset.UtcNow.AddYears(100));
+                if (!lockResult.Succeeded)
+                {
+                    ModelState.AddModelError(string.Empty, "Unable to lock the user account.");
+                    return Page();
+                }
+
+                await _userManager.UpdateSecurityStampAsync(user);
                 TempData["StatusMessage"] = "User account has been locked.";
                 return RedirectToPage(new { id = Input.Id });
             }
 
             if (action == "unlock")
             {
-                await _userManager.SetLockoutEndDateAsync(user, null);
+                var unlockResult = await _userManager.SetLockoutEndDateAsync(user, null);
+                if (!unlockResult.Succeeded)
+                {
+                    ModelState.AddModelError(string.Empty, "Unable to unlock the user account.");
+                    return Page();
+                }
+
+                await _userManager.UpdateSecurityStampAsync(user);
                 TempData["StatusMessage"] = "User account has been unlocked.";
+                return RedirectToPage(new { id = Input.Id });
+            }
+
+            if (action is "disable" or "enable")
+            {
+                user.IsEnabled = action == "enable";
+                var accountStatusResult = await _userManager.UpdateAsync(user);
+                if (!accountStatusResult.Succeeded)
+                {
+                    foreach (var error in accountStatusResult.Errors)
+                    {
+                        ModelState.AddModelError(string.Empty, error.Description);
+                    }
+
+                    return Page();
+                }
+
+                await _userManager.UpdateSecurityStampAsync(user);
+                TempData["StatusMessage"] = user.IsEnabled
+                    ? "User account has been enabled."
+                    : "User account has been disabled and active sessions have been revoked.";
                 return RedirectToPage(new { id = Input.Id });
             }
 
@@ -214,6 +252,11 @@ namespace Sentinel.Pages.Settings.Users
             if (rolesToAdd.Any())
             {
                 await _userManager.AddToRolesAsync(user, rolesToAdd);
+            }
+
+            if (rolesToAdd.Any() || rolesToRemove.Any())
+            {
+                await _userManager.UpdateSecurityStampAsync(user);
             }
 
             // Update password if provided

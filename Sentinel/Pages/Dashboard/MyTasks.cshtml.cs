@@ -14,11 +14,19 @@ namespace Sentinel.Pages.Dashboard
     {
         private readonly ApplicationDbContext _context;
         private readonly ITaskService _taskService;
+        private readonly IPermissionService _permissionService;
+        private readonly IDiseaseAccessService _diseaseAccessService;
 
-        public MyTasksModel(ApplicationDbContext context, ITaskService taskService)
+        public MyTasksModel(
+            ApplicationDbContext context,
+            ITaskService taskService,
+            IPermissionService permissionService,
+            IDiseaseAccessService diseaseAccessService)
         {
             _context = context;
             _taskService = taskService;
+            _permissionService = permissionService;
+            _diseaseAccessService = diseaseAccessService;
         }
 
         public List<CaseTask> AllTasks { get; set; } = new();
@@ -185,10 +193,34 @@ namespace Sentinel.Pages.Dashboard
             return sorted.ToList();
         }
 
-        // Quick actions
-        [Authorize(Policy = "Permission.Case.Edit")]
+        private async Task<bool> UserCanEditTaskAsync(Guid taskId)
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrWhiteSpace(userId) ||
+                !await _permissionService.HasPermissionAsync(userId, PermissionModule.Case, PermissionAction.Edit))
+            {
+                return false;
+            }
+
+            var task = await _context.CaseTasks
+                .IgnoreQueryFilters()
+                .Include(t => t.Case)
+                .FirstOrDefaultAsync(t => t.Id == taskId && t.Case != null && !t.Case.IsDeleted);
+
+            return task?.Case != null &&
+                (!task.Case.DiseaseId.HasValue ||
+                 await _diseaseAccessService.CanAccessDiseaseAsync(userId, task.Case.DiseaseId.Value));
+        }
+
+        // Quick actions. Razor Pages does not apply [Authorize] to individual
+        // handler methods, so these operations enforce their permissions here.
         public async Task<IActionResult> OnPostCompleteTaskAsync(Guid taskId, string? completionNotes)
         {
+            if (!await UserCanEditTaskAsync(taskId))
+            {
+                return Forbid();
+            }
+
             try
             {
                 var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
@@ -206,9 +238,13 @@ namespace Sentinel.Pages.Dashboard
             return RedirectToPage();
         }
 
-        [Authorize(Policy = "Permission.Case.Edit")]
         public async Task<IActionResult> OnPostStartTaskAsync(Guid taskId)
         {
+            if (!await UserCanEditTaskAsync(taskId))
+            {
+                return Forbid();
+            }
+
             try
             {
                 var task = await _context.CaseTasks.FindAsync(taskId);
@@ -228,9 +264,13 @@ namespace Sentinel.Pages.Dashboard
             return RedirectToPage();
         }
 
-        [Authorize(Policy = "Permission.Case.Edit")]
         public async Task<IActionResult> OnPostCancelTaskAsync(Guid taskId, string? cancellationReason)
         {
+            if (!await UserCanEditTaskAsync(taskId))
+            {
+                return Forbid();
+            }
+
             try
             {
                 var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);

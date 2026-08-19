@@ -3,6 +3,12 @@
 
 console.log('[report-builder-notifications.js] Loading...');
 
+function escapeNotificationHtml(value) {
+    const element = document.createElement('div');
+    element.textContent = value ?? '';
+    return element.innerHTML;
+}
+
 window.ReportBuilderNotifications = {
     // Show a toast notification
     showToast: function(message, type = 'info', duration = 3000) {
@@ -43,7 +49,7 @@ window.ReportBuilderNotifications = {
 
         toast.innerHTML = `
             <span style="font-size: 18px; font-weight: bold;">${icons[type] || icons.info}</span>
-            <span style="flex: 1;">${message}</span>
+            <span style="flex: 1;">${escapeNotificationHtml(message)}</span>
         `;
 
         document.body.appendChild(toast);
@@ -100,10 +106,10 @@ window.ReportBuilderNotifications = {
         modal.innerHTML = `
             <div style="padding: 1.5rem;">
                 <h3 style="margin: 0 0 1rem 0; font-size: 18px; font-weight: 600; color: #1f2937;">
-                    ${title}
+                    ${escapeNotificationHtml(title)}
                 </h3>
                 <p style="margin: 0; color: #6b7280; font-size: 14px; line-height: 1.5;">
-                    ${message}
+                    ${escapeNotificationHtml(message)}
                 </p>
             </div>
             <div style="padding: 1rem 1.5rem; background: #f9fafb; border-top: 1px solid #e5e7eb; display: flex; gap: 0.75rem; justify-content: flex-end; border-radius: 0 0 12px 12px;">
@@ -117,7 +123,7 @@ window.ReportBuilderNotifications = {
                     font-size: 14px;
                     font-weight: 500;
                     transition: all 0.15s;
-                ">${cancelText}</button>
+                ">${escapeNotificationHtml(cancelText)}</button>
                 <button class="rb-modal-btn rb-modal-confirm" style="
                     padding: 0.5rem 1rem;
                     border: none;
@@ -128,7 +134,7 @@ window.ReportBuilderNotifications = {
                     font-size: 14px;
                     font-weight: 500;
                     transition: all 0.15s;
-                ">${confirmText}</button>
+                ">${escapeNotificationHtml(confirmText)}</button>
             </div>
         `;
 

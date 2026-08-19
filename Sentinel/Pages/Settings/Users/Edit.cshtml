@@ -147,7 +147,24 @@
                             <div class="col-12">
                                 <div class="card bg-light">
                                     <div class="card-body">
-                                        <h6><i class="bi bi-lock me-2"></i>Account Lockout</h6>
+                                        <h6><i class="bi bi-shield-lock me-2"></i>Account Status and Lockout</h6>
+                                        @if (!Model.IsEnabled)
+                                        {
+                                            <div class="alert alert-danger mb-2">
+                                                <i class="bi bi-person-x me-2"></i>
+                                                This account is disabled and cannot sign in.
+                                            </div>
+                                            <button type="submit" name="action" value="enable" class="btn btn-success btn-sm me-2">
+                                                <i class="bi bi-person-check me-1"></i>Enable Account
+                                            </button>
+                                        }
+                                        else
+                                        {
+                                            <p class="text-muted mb-2">Account is enabled</p>
+                                            <button type="submit" name="action" value="disable" class="btn btn-outline-danger btn-sm me-2">
+                                                <i class="bi bi-person-x me-1"></i>Disable Account
+                                            </button>
+                                        }
                                         @if (Model.IsLockedOut)
                                         {
                                             <div class="alert alert-danger mb-2">

@@ -11,10 +11,12 @@ namespace Sentinel.Pages.Outbreaks;
 public class DetailsModel : PageModel
 {
     private readonly IOutbreakService _outbreakService;
+    private readonly IPermissionService _permissionService;
 
-    public DetailsModel(IOutbreakService outbreakService)
+    public DetailsModel(IOutbreakService outbreakService, IPermissionService permissionService)
     {
         _outbreakService = outbreakService;
+        _permissionService = permissionService;
     }
 
     public Outbreak Outbreak { get; set; } = null!;
@@ -90,6 +92,11 @@ public class DetailsModel : PageModel
 
     public async Task<IActionResult> OnPostUnlinkCaseAsync(int id, int outbreakCaseId, string reason)
     {
+        if (!await UserHasPermissionAsync(PermissionAction.Edit))
+        {
+            return Forbid();
+        }
+
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? string.Empty;
         
         var success = await _outbreakService.UnlinkCaseAsync(outbreakCaseId, reason, userId);
@@ -108,6 +115,11 @@ public class DetailsModel : PageModel
 
     public async Task<IActionResult> OnPostRemoveTeamMemberAsync(int id, int memberId)
     {
+        if (!await UserHasPermissionAsync(PermissionAction.Edit))
+        {
+            return Forbid();
+        }
+
         // Note: This would need to be implemented properly with the actual member info
         // For now, this is a placeholder
         SuccessMessage = "Team member removed successfully.";
@@ -116,6 +128,11 @@ public class DetailsModel : PageModel
 
     public async Task<IActionResult> OnPostUpgradeToSuspectedAsync(int id, string reason)
     {
+        if (!await UserHasPermissionAsync(PermissionAction.Edit))
+        {
+            return Forbid();
+        }
+
         if (string.IsNullOrWhiteSpace(reason))
         {
             ErrorMessage = "Reason is required to upgrade outbreak status.";
@@ -138,6 +155,11 @@ public class DetailsModel : PageModel
 
     public async Task<IActionResult> OnPostConfirmOutbreakAsync(int id, string justification)
     {
+        if (!await UserHasPermissionAsync(PermissionAction.Edit))
+        {
+            return Forbid();
+        }
+
         if (string.IsNullOrWhiteSpace(justification))
         {
             ErrorMessage = "Justification is required to confirm outbreak.";
@@ -158,9 +180,13 @@ public class DetailsModel : PageModel
         return RedirectToPage(new { id });
     }
 
-    [Authorize(Policy = "Permission.Outbreak.Delete")]
     public async Task<IActionResult> OnPostDeleteAsync(int id)
     {
+        if (!await UserHasPermissionAsync(PermissionAction.Delete))
+        {
+            return Forbid();
+        }
+
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? string.Empty;
 
         var success = await _outbreakService.DeleteAsync(id, userId);
@@ -177,6 +203,11 @@ public class DetailsModel : PageModel
 
     public async Task<IActionResult> OnPostAddTimelineEventAsync(int id, string title, string? description, DateTime eventDate, TimelineEventType eventType)
     {
+        if (!await UserHasPermissionAsync(PermissionAction.Edit))
+        {
+            return Forbid();
+        }
+
         if (string.IsNullOrWhiteSpace(title))
         {
             ErrorMessage = "Event title is required.";
@@ -197,6 +228,13 @@ public class DetailsModel : PageModel
         }
 
         return RedirectToPage(new { id });
+    }
+
+    private async Task<bool> UserHasPermissionAsync(PermissionAction action)
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        return !string.IsNullOrWhiteSpace(userId)
+            && await _permissionService.HasPermissionAsync(userId, PermissionModule.Outbreak, action);
     }
 }
 

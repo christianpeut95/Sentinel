@@ -360,7 +360,7 @@
     <script src="~/js/webdatarocks-helper.js"></script>
     <script>
         const reportData = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.ReportData));
-        const pivotConfig = @Html.Raw(Model.ReportDefinition?.PivotConfiguration ?? "null");
+        const pivotConfig = JSON.parse(@Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.ReportDefinition?.PivotConfiguration ?? "null")));
 
         let pivot1 = null;
         let pivot2 = null;

@@ -257,11 +257,51 @@ namespace Sentinel.Pages.Cases
             return Page();
         }
 
-        private async Task<bool> UserCanEditCaseAsync()
+        private async Task<bool> UserCanViewCaseAsync(Guid caseId)
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-            return !string.IsNullOrWhiteSpace(userId)
-                && await _permissionService.HasPermissionAsync(userId, PermissionModule.Case, PermissionAction.Edit);
+            if (string.IsNullOrWhiteSpace(userId) ||
+                !await _permissionService.HasPermissionAsync(userId, PermissionModule.Case, PermissionAction.View))
+            {
+                return false;
+            }
+
+            // Do not trust a caller-supplied case ID.  Resolve the case and apply the
+            // same hierarchy-aware disease rule used by direct case navigation.
+            var caseAccess = await _context.Cases
+                .IgnoreQueryFilters()
+                .Where(c => c.Id == caseId && !c.IsDeleted)
+                .Select(c => new { c.DiseaseId })
+                .FirstOrDefaultAsync();
+
+            return caseAccess != null &&
+                (!caseAccess.DiseaseId.HasValue ||
+                 await _diseaseAccessService.CanAccessDiseaseAsync(userId, caseAccess.DiseaseId.Value));
+        }
+
+        private async Task<bool> UserCanEditCaseAsync(Guid? caseId = null)
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrWhiteSpace(userId) ||
+                !await _permissionService.HasPermissionAsync(userId, PermissionModule.Case, PermissionAction.Edit))
+            {
+                return false;
+            }
+
+            if (!caseId.HasValue)
+            {
+                return true;
+            }
+
+            var caseAccess = await _context.Cases
+                .IgnoreQueryFilters()
+                .Where(c => c.Id == caseId.Value && !c.IsDeleted)
+                .Select(c => new { c.DiseaseId })
+                .FirstOrDefaultAsync();
+
+            return caseAccess != null &&
+                (!caseAccess.DiseaseId.HasValue ||
+                 await _diseaseAccessService.CanAccessDiseaseAsync(userId, caseAccess.DiseaseId.Value));
         }
 
         private async Task LoadLabResultDropdowns()
@@ -340,7 +380,7 @@ namespace Sentinel.Pages.Cases
 
         public async Task<IActionResult> OnPostAddNoteAsync(Guid id)
         {
-            if (!await UserCanEditCaseAsync())
+            if (!await UserCanEditCaseAsync(id))
             {
                 return Forbid();
             }
@@ -394,7 +434,7 @@ namespace Sentinel.Pages.Cases
 
         public async Task<IActionResult> OnPostAddLabResultAsync(Guid id)
         {
-            if (!await UserCanEditCaseAsync())
+            if (!await UserCanEditCaseAsync(id))
             {
                 return Forbid();
             }
@@ -489,6 +529,11 @@ namespace Sentinel.Pages.Cases
 
         public async Task<IActionResult> OnPostUpdateLabResultAsync(Guid id, Guid labResultId)
         {
+            if (!await UserCanEditCaseAsync(id))
+            {
+                return Forbid();
+            }
+
             // Manually bind the LabResult from form data
             NewLabResult = new LabResult();
             await TryUpdateModelAsync(NewLabResult, "NewLabResult");
@@ -515,7 +560,8 @@ namespace Sentinel.Pages.Cases
                 return RedirectToPage(new { id });
             }
 
-            var existingLabResult = await _context.LabResults.FindAsync(labResultId);
+            var existingLabResult = await _context.LabResults
+                .FirstOrDefaultAsync(labResult => labResult.Id == labResultId && labResult.CaseId == id);
             if (existingLabResult == null)
             {
                 TempData["ErrorMessage"] = "Lab result not found.";
@@ -578,8 +624,13 @@ namespace Sentinel.Pages.Cases
             return RedirectToPage(new { id });
         }
 
-        public async Task<JsonResult> OnGetLabResultDetailsAsync(Guid labResultId)
+        public async Task<JsonResult> OnGetLabResultDetailsAsync(Guid id, Guid labResultId)
         {
+            if (!await UserCanViewCaseAsync(id))
+            {
+                return new JsonResult(new { success = false, message = "Access denied" }) { StatusCode = StatusCodes.Status403Forbidden };
+            }
+
             var labResult = await _context.LabResults
                 .Include(lr => lr.Laboratory)
                 .Include(lr => lr.OrderingProvider)
@@ -588,7 +639,7 @@ namespace Sentinel.Pages.Cases
                 .Include(lr => lr.TestedDisease)
                 .Include(lr => lr.Markers).ThenInclude(m => m.Pathogen)
                 .Include(lr => lr.Markers).ThenInclude(m => m.TestMethod)
-                .FirstOrDefaultAsync(lr => lr.Id == labResultId);
+                .FirstOrDefaultAsync(lr => lr.Id == labResultId && lr.CaseId == id);
 
             if (labResult == null)
             {
@@ -693,7 +744,7 @@ namespace Sentinel.Pages.Cases
             }
 
             var note = await _context.Notes.FindAsync(noteId);
-            if (note == null)
+            if (note == null || note.CaseId != id || !await UserCanViewCaseAsync(id))
             {
                 TempData["ErrorMessage"] = "Note not found.";
                 return RedirectToPage(new { id });
@@ -717,7 +768,13 @@ namespace Sentinel.Pages.Cases
 
         public async Task<IActionResult> OnPostDeleteLabResultAsync(Guid id, Guid labResultId)
         {
-            var labResult = await _context.LabResults.FindAsync(labResultId);
+            if (!await UserCanEditCaseAsync(id))
+            {
+                return Forbid();
+            }
+
+            var labResult = await _context.LabResults
+                .FirstOrDefaultAsync(result => result.Id == labResultId && result.CaseId == id);
             if (labResult == null)
             {
                 TempData["ErrorMessage"] = "Lab result not found.";
@@ -740,9 +797,13 @@ namespace Sentinel.Pages.Cases
             return RedirectToPage(new { id });
         }
 
-        [Authorize(Policy = "Permission.Case.Edit")]
         public async Task<IActionResult> OnPostDeleteExposureAsync(Guid id, Guid exposureId)
         {
+            if (!await UserCanEditCaseAsync(id))
+            {
+                return Forbid();
+            }
+
             try
             {
                 var exposure = await _context.ExposureEvents.FindAsync(exposureId);
@@ -776,7 +837,6 @@ namespace Sentinel.Pages.Cases
             return RedirectToPage(new { id });
         }
 
-        [Authorize(Policy = "Permission.Case.Edit")]
         public async Task<IActionResult> OnPostAddExposureAsync(
             Guid CaseId,
             string ExposureDirection,
@@ -791,7 +851,7 @@ namespace Sentinel.Pages.Cases
             string? Description,
             bool IsReportingExposure)
         {
-            if (!await UserCanEditCaseAsync())
+            if (!await UserCanEditCaseAsync(CaseId))
             {
                 return Forbid();
             }
@@ -874,9 +934,13 @@ namespace Sentinel.Pages.Cases
         // ========================================================================
 
 
-        [Authorize(Policy = "Permission.Case.Edit")]
         public async Task<IActionResult> OnPostCompleteTaskAsync(Guid id, Guid taskId, string? completionNotes)
         {
+            if (!await UserCanEditCaseAsync(id))
+            {
+                return Forbid();
+            }
+
             try
             {
                 var task = await _context.CaseTasks.FindAsync(taskId);
@@ -917,9 +981,13 @@ namespace Sentinel.Pages.Cases
             return RedirectToPage(new { id });
         }
 
-        [Authorize(Policy = "Permission.Case.Edit")]
         public async Task<IActionResult> OnPostUpdateTaskAsync(Guid id, Guid taskId, CaseTaskStatus status, TaskPriority priority, DateTime? dueDate, string? assignedToUserId)
         {
+            if (!await UserCanEditCaseAsync(id))
+            {
+                return Forbid();
+            }
+
             try
             {
                 var task = await _context.CaseTasks.FindAsync(taskId);
@@ -983,9 +1051,13 @@ namespace Sentinel.Pages.Cases
             return RedirectToPage(new { id });
         }
 
-        [Authorize(Policy = "Permission.Case.Edit")]
         public async Task<IActionResult> OnPostCancelTaskAsync(Guid id, Guid taskId, string? cancellationReason)
         {
+            if (!await UserCanEditCaseAsync(id))
+            {
+                return Forbid();
+            }
+
             try
             {
                 var task = await _context.CaseTasks.FindAsync(taskId);
@@ -1022,9 +1094,13 @@ namespace Sentinel.Pages.Cases
             return RedirectToPage(new { id });
         }
 
-        [Authorize(Policy = "Permission.Case.Edit")]
         public async Task<IActionResult> OnPostDeleteTaskAsync(Guid id, Guid taskId)
         {
+            if (!await UserCanEditCaseAsync(id))
+            {
+                return Forbid();
+            }
+
             try
             {
                 var task = await _context.CaseTasks
@@ -1114,10 +1190,9 @@ namespace Sentinel.Pages.Cases
             }
         }
 
-        [Authorize(Policy = "Permission.Case.Edit")]
         public async Task<IActionResult> OnPostAddTaskFromTemplateAsync(Guid id, Guid taskTemplateId)
         {
-            if (!await UserCanEditCaseAsync())
+            if (!await UserCanEditCaseAsync(id))
             {
                 return Forbid();
             }
@@ -1239,7 +1314,6 @@ namespace Sentinel.Pages.Cases
             return RedirectToPage(new { id });
         }
 
-        [Authorize(Policy = "Permission.Case.Edit")]
         public async Task<IActionResult> OnPostAddTaskManualAsync(
             Guid id, 
             string title, 
@@ -1250,7 +1324,7 @@ namespace Sentinel.Pages.Cases
             Guid? surveyTemplateId,
             string? customSurveyJson)
         {
-            if (!await UserCanEditCaseAsync())
+            if (!await UserCanEditCaseAsync(id))
             {
                 return Forbid();
             }
@@ -1357,7 +1431,6 @@ namespace Sentinel.Pages.Cases
         /// ? CLEAN, SIMPLE TASK CREATION HANDLER - REBUILT FROM SCRATCH
         /// This WILL save IsInterviewTask correctly!
         /// </summary>
-        [Authorize(Policy = "Permission.Case.Edit")]
         public async Task<IActionResult> OnPostCreateTaskAsync(
             Guid id,
             string Title,
@@ -1368,7 +1441,7 @@ namespace Sentinel.Pages.Cases
             bool IncludeSurvey,
             Guid? SurveyTemplateId)
         {
-            if (!await UserCanEditCaseAsync())
+            if (!await UserCanEditCaseAsync(id))
             {
                 return Forbid();
             }
@@ -1557,9 +1630,13 @@ namespace Sentinel.Pages.Cases
                 !patient.Jurisdiction5Id.HasValue;
         }
 
-        [Authorize(Policy = "Permission.Case.Edit")]
         public async Task<JsonResult> OnPostCopyAddressFromPatientAsync(Guid id)
         {
+            if (!await UserCanEditCaseAsync(id))
+            {
+                return new JsonResult(new { success = false, message = "Access denied" }) { StatusCode = StatusCodes.Status403Forbidden };
+            }
+
             try
             {
                 var caseEntity = await _context.Cases
@@ -1689,9 +1766,13 @@ namespace Sentinel.Pages.Cases
         /// <summary>
         /// Evaluates the case against all applicable case definitions
         /// </summary>
-        [Authorize(Policy = "Permission.Case.View")]
         public async Task<IActionResult> OnPostEvaluateDefinitionsAsync(Guid id)
         {
+            if (!await UserCanViewCaseAsync(id))
+            {
+                return Forbid();
+            }
+
             try
             {
                 if (_evaluationService == null)
@@ -1728,9 +1809,13 @@ namespace Sentinel.Pages.Cases
         /// <summary>
         /// Applies a classification recommendation to the case
         /// </summary>
-        [Authorize(Policy = "Permission.Case.Edit")]
         public async Task<IActionResult> OnPostApplyClassificationAsync(Guid id, int definitionId)
         {
+            if (!await UserCanEditCaseAsync(id))
+            {
+                return Forbid();
+            }
+
             try
             {
                 if (_evaluationService == null)
@@ -1773,9 +1858,13 @@ namespace Sentinel.Pages.Cases
         /// <summary>
         /// Clears the manual override flag to re-enable automatic evaluation
         /// </summary>
-        [Authorize(Policy = "Permission.Case.Edit")]
         public async Task<IActionResult> OnPostClearManualOverrideAsync(Guid id)
         {
+            if (!await UserCanEditCaseAsync(id))
+            {
+                return Forbid();
+            }
+
             try
             {
                 var caseEntity = await _context.Cases.FindAsync(id);

@@ -13,6 +13,12 @@ const ReportBuilder = {
     autoSaveTimer: null,
     lastAutoSave: null,
 
+    escapeHtml(value) {
+        const element = document.createElement('div');
+        element.textContent = value ?? '';
+        return element.innerHTML;
+    },
+
     // Auto-save functionality
     AUTO_SAVE_KEY: 'sentinel_report_draft',
     AUTO_SAVE_DELAY: 2000, // 2 seconds after last change
@@ -315,7 +321,7 @@ const ReportBuilder = {
             if (container) {
                 container.innerHTML = `
                     <div class="rb-empty-state">
-                        <div class="rb-empty-state-text">Failed to load fields: ${error.message}</div>
+                        <div class="rb-empty-state-text">Failed to load fields: ${this.escapeHtml(error.message)}</div>
                     </div>
                 `;
             }
@@ -340,15 +346,15 @@ const ReportBuilder = {
                     <div class="rb-field-category-body" id="category-recommended">
                         ${recommendedFields.map(field => `
                             <div class="rb-field-item field-item" 
-                                 data-field-path="${field.fieldPath}"
-                                 data-display-name="${field.displayName}"
-                                 data-data-type="${field.dataType}"
+                                 data-field-path="${this.escapeHtml(field.fieldPath)}"
+                                 data-display-name="${this.escapeHtml(field.displayName)}"
+                                 data-data-type="${this.escapeHtml(field.dataType)}"
                                  data-is-custom="${field.isCustomField || false}"
-                                 data-custom-id="${field.customFieldDefinitionId || ''}"
-                                 title="${field.fieldPath}">
+                                 data-custom-id="${this.escapeHtml(field.customFieldDefinitionId || '')}"
+                                 title="${this.escapeHtml(field.fieldPath)}">
                                 <span class="rb-field-icon">${this.getFieldIcon(field.dataType)}</span>
-                                <span class="rb-field-name">${field.displayName}</span>
-                                <span class="rb-field-type">${field.dataType}</span>
+                                <span class="rb-field-name">${this.escapeHtml(field.displayName)}</span>
+                                <span class="rb-field-type">${this.escapeHtml(field.dataType)}</span>
                                 <button class="rb-field-add-btn" title="Add field">+</button>
                             </div>
                         `).join('')}
@@ -374,21 +380,21 @@ const ReportBuilder = {
                 <div class="rb-field-category">
                     <div class="rb-field-category-header" data-category="${categoryId}">
                         <span class="rb-field-category-icon">${isExpanded ? '▼' : '▶'}</span>
-                        <span class="rb-field-category-name">${categoryName}</span>
+                        <span class="rb-field-category-name">${this.escapeHtml(categoryName)}</span>
                         <span class="rb-field-category-count">${fields.length}</span>
                     </div>
                     <div class="rb-field-category-body ${isExpanded ? '' : 'collapsed'}" id="${categoryId}">
                         ${fields.map(field => `
                             <div class="rb-field-item field-item" 
-                                 data-field-path="${field.fieldPath}"
-                                 data-display-name="${field.displayName}"
-                                 data-data-type="${field.dataType}"
+                                 data-field-path="${this.escapeHtml(field.fieldPath)}"
+                                 data-display-name="${this.escapeHtml(field.displayName)}"
+                                 data-data-type="${this.escapeHtml(field.dataType)}"
                                  data-is-custom="${field.isCustomField || false}"
-                                 data-custom-id="${field.customFieldDefinitionId || ''}"
-                                 title="${field.fieldPath}">
+                                 data-custom-id="${this.escapeHtml(field.customFieldDefinitionId || '')}"
+                                 title="${this.escapeHtml(field.fieldPath)}">
                                 <span class="rb-field-icon">${this.getFieldIcon(field.dataType)}</span>
-                                <span class="rb-field-name">${field.displayName}</span>
-                                <span class="rb-field-type">${field.dataType}</span>
+                                <span class="rb-field-name">${this.escapeHtml(field.displayName)}</span>
+                                <span class="rb-field-type">${this.escapeHtml(field.dataType)}</span>
                                 <button class="rb-field-add-btn" title="Add field">+</button>
                             </div>
                         `).join('')}
@@ -1100,14 +1106,17 @@ const ReportBuilder = {
         }
 
         container.innerHTML = this.selectedFields.map((field, index) => `
-            <div class="rb-list-item" data-index="${index}" data-field-path="${field.fieldPath}">
+            <div class="rb-list-item" data-index="${index}" data-field-path="${this.escapeHtml(field.fieldPath)}">
                 <div class="rb-item-content">
-                    <div class="rb-item-label">${field.displayName}</div>
-                    <div class="rb-item-detail">${field.fieldPath} · ${field.dataType}</div>
+                    <div class="rb-item-label">${this.escapeHtml(field.displayName)}</div>
+                    <div class="rb-item-detail">${this.escapeHtml(field.fieldPath)} · ${this.escapeHtml(field.dataType)}</div>
                 </div>
-                <button class="rb-item-action" onclick="ReportBuilder.removeField('${field.fieldPath}')" title="Remove field">×</button>
+                <button class="rb-item-action" data-remove-field="${this.escapeHtml(field.fieldPath)}" title="Remove field">×</button>
             </div>
         `).join('');
+
+        container.querySelectorAll('[data-remove-field]').forEach(button =>
+            button.addEventListener('click', () => this.removeField(button.dataset.removeField)));
 
         this.updateStatusBar();
         this.scheduleAutoSave();
@@ -1139,7 +1148,7 @@ const ReportBuilder = {
                 <div class="rb-filter-row">
                     <select class="rb-filter-field" data-filter-id="${filterId}">
                         <option value="">Select field...</option>
-                        ${this.selectedFields.map(f => `<option value="${f.fieldPath}" data-type="${f.dataType}">${f.displayName}</option>`).join('')}
+                        ${this.selectedFields.map(f => `<option value="${this.escapeHtml(f.fieldPath)}" data-type="${this.escapeHtml(f.dataType)}">${this.escapeHtml(f.displayName)}</option>`).join('')}
                     </select>
                     <select class="rb-filter-operator" id="operator-${filterId}">
                         <option value="Equals">=</option>
@@ -1460,7 +1469,7 @@ const ReportBuilder = {
                     <div class="col-md-4">
                         <select class="form-select form-select-sm filter-field" data-filter-id="${filterId}">
                             <option value="">Select field...</option>
-                            ${this.selectedFields.map(f => `<option value="${f.fieldPath}" data-type="${f.dataType}">${f.displayName}</option>`).join('')}
+                            ${this.selectedFields.map(f => `<option value="${this.escapeHtml(f.fieldPath)}" data-type="${this.escapeHtml(f.dataType)}">${this.escapeHtml(f.displayName)}</option>`).join('')}
                         </select>
                     </div>
                     <div class="col-md-3">

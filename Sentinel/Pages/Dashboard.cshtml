@@ -773,7 +773,7 @@
             const content = document.getElementById(`content-${widgetId}`);
 
             if (data.errorMessage) {
-                content.innerHTML = `<div class="widget-error"><i class="bi bi-exclamation-triangle"></i> ${data.errorMessage}</div>`;
+                content.innerHTML = `<div class="widget-error"><i class="bi bi-exclamation-triangle"></i> ${escapeHtml(data.errorMessage)}</div>`;
                 return;
             }
 
@@ -800,6 +800,22 @@
             }
         }
 
+        function escapeHtml(value) {
+            const element = document.createElement('div');
+            element.textContent = value == null ? '' : String(value);
+            return element.innerHTML;
+        }
+
+        function safeRelativeUrl(value) {
+            return typeof value === 'string' && value.startsWith('/') && !value.startsWith('//')
+                ? value
+                : '#';
+        }
+
+        function safeCssToken(value, allowed, fallback) {
+            return allowed.includes(value) ? value : fallback;
+        }
+
         // Render functions for each widget type
         function renderRecentActivity(container, data) {
             if (!data || !data.items || data.items.length === 0) {
@@ -810,14 +826,15 @@
             let html = '';
             data.items.slice(0, 8).forEach(item => {
                 const link = getEntityLink(item.entityType, item.entityId);
+                const status = safeCssToken(item.status, ['outbreak', 'watch', 'resolved', 'info', 'clear'], 'info');
                 html += `
                     <div class="activity-item">
-                        <span class="activity-chip ${item.status}">
+                        <span class="activity-chip ${status}">
                             <span style="width:5px;height:5px;border-radius:50%;background:currentColor;"></span>
-                            ${item.activityType}
+                            ${escapeHtml(item.activityType)}
                         </span>
                         <div class="activity-text">
-                            ${link ? `<a href="${link}">${item.displayText}</a>` : item.displayText}
+                            ${link ? `<a href="${link}">${escapeHtml(item.displayText)}</a>` : escapeHtml(item.displayText)}
                         </div>
                     </div>
                 `;
@@ -834,8 +851,8 @@
             let html = '';
             data.diseases.slice(0, 8).forEach(disease => {
                 html += `
-                    <div class="disease-row" onclick="window.location.href='/Cases?diseaseId=${disease.diseaseId}'">
-                        <div class="disease-name">${disease.diseaseName}</div>
+                    <div class="disease-row" onclick="window.location.href='/Cases?diseaseId=${encodeURIComponent(disease.diseaseId)}'">
+                        <div class="disease-name">${escapeHtml(disease.diseaseName)}</div>
                         <div class="disease-counts">
                             <span class="disease-count-item">
                                 <strong>${disease.totalCount}</strong> total
@@ -858,8 +875,7 @@
                 return;
             }
 
-            const healthColor = data.healthStatus === 'error' ? 'var(--outbreak)' : 
-                               data.healthStatus === 'warning' ? 'var(--watch)' : 'var(--forest)';
+            const healthStatus = safeCssToken(data.healthStatus, ['error', 'warning', 'healthy'], 'healthy');
 
             container.innerHTML = `
                 <div class="kpi-grid">
@@ -878,7 +894,7 @@
                     <div class="kpi-tile">
                         <div class="kpi-label">System Status</div>
                         <div style="margin-top:8px;">
-                            <span class="activity-chip ${data.healthStatus}">${data.healthStatus.toUpperCase()}</span>
+                            <span class="activity-chip ${healthStatus}">${escapeHtml(healthStatus.toUpperCase())}</span>
                         </div>
                     </div>
                 </div>
@@ -913,7 +929,7 @@
                 data.topTaskTypes.forEach(taskType => {
                     html += `
                         <div class="task-item">
-                            <div style="font-size:13px;">${taskType.taskType}</div>
+                            <div style="font-size:13px;">${escapeHtml(taskType.taskType)}</div>
                             <div style="font-family:var(--f-mono);font-size:12px;color:var(--graphite)">${taskType.count}</div>
                         </div>
                     `;
@@ -931,8 +947,8 @@
             let html = '';
             data.activeOutbreaks.slice(0, 5).forEach(outbreak => {
                 html += `
-                    <div class="outbreak-card" onclick="window.location.href='/Outbreaks/View/${outbreak.outbreakId}'">
-                        <div class="outbreak-name">${outbreak.outbreakName}</div>
+                    <div class="outbreak-card" onclick="window.location.href='/Outbreaks/View/${encodeURIComponent(outbreak.outbreakId)}'">
+                        <div class="outbreak-name">${escapeHtml(outbreak.outbreakName)}</div>
                         <div class="outbreak-meta">
                             <span>${outbreak.linkedCasesCount} cases</span>
                             <span>${outbreak.daysSinceDeclaration} days</span>
@@ -961,8 +977,8 @@
                 html += '<div style="font-size:11px;font-weight:600;margin-bottom:8px;color:var(--graphite);font-family:var(--f-mono)">BY TYPE</div>';
                 data.itemsByType.slice(0, 5).forEach(item => {
                     html += `
-                        <div class="disease-row" onclick="window.location.href='/DataInbox?type=${item.reviewType}'">
-                            <div style="font-size:13px;">${item.reviewType}</div>
+                        <div class="disease-row" onclick="window.location.href='/DataInbox?type=${encodeURIComponent(item.reviewType)}'">
+                            <div style="font-size:13px;">${escapeHtml(item.reviewType)}</div>
                             <div style="font-family:var(--f-mono);font-size:12px;">
                                 <strong style="color:var(--forest)">${item.count}</strong>
                                 ${item.highPriorityCount > 0 ? `<span style="color:var(--outbreak);margin-left:8px;">⚠ ${item.highPriorityCount}</span>` : ''}
@@ -977,12 +993,12 @@
         // Helper to get entity link
         function getEntityLink(entityType, entityId) {
             const linkMap = {
-                'Case': `/Cases/Details?id=${entityId}`,
-                'Contact': `/Contacts/Details?id=${entityId}`,
-                'Patient': `/Patients/Details?id=${entityId}`,
-                'Outbreak': `/Outbreaks/Details?id=${entityId}`,
-                'Event': `/Events/Details?id=${entityId}`,
-                'Location': `/Locations/Details?id=${entityId}`
+                'Case': `/Cases/Details?id=${encodeURIComponent(entityId)}`,
+                'Contact': `/Contacts/Details?id=${encodeURIComponent(entityId)}`,
+                'Patient': `/Patients/Details?id=${encodeURIComponent(entityId)}`,
+                'Outbreak': `/Outbreaks/Details?id=${encodeURIComponent(entityId)}`,
+                'Event': `/Events/Details?id=${encodeURIComponent(entityId)}`,
+                'Location': `/Locations/Details?id=${encodeURIComponent(entityId)}`
             };
             return linkMap[entityType] || null;
         }
@@ -1141,21 +1157,32 @@
                 'Location': '#72D5CE',
                 'Organization': '#6FA8DC'
             };
+            const typeIcons = {
+                'Patient': 'person',
+                'Case': 'clipboard2-pulse',
+                'Contact': 'people',
+                'Outbreak': 'exclamation-triangle',
+                'Event': 'calendar-event',
+                'Location': 'geo-alt',
+                'Organization': 'building'
+            };
 
             let html = '<div style="padding: 8px;">';
 
             results.forEach(result => {
                 const color = typeColors[result.type] || '#D8D4C4';
+                const icon = typeIcons[result.type] || 'search';
+                const url = safeRelativeUrl(result.url);
                 html += `
-                    <a href="${result.url}" style="display: flex; align-items: center; gap: 12px; padding: 12px; border-radius: 8px; text-decoration: none; color: var(--forest); transition: background 0.15s; margin-bottom: 4px;" onmouseover="this.style.background='var(--signal-lt)'" onmouseout="this.style.background='transparent'">
+                    <a href="${url}" style="display: flex; align-items: center; gap: 12px; padding: 12px; border-radius: 8px; text-decoration: none; color: var(--forest); transition: background 0.15s; margin-bottom: 4px;" onmouseover="this.style.background='var(--signal-lt)'" onmouseout="this.style.background='transparent'">
                         <div style="width: 40px; height: 40px; border-radius: 8px; background: ${color}22; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
-                            <i class="bi bi-${result.icon}" style="font-size: 18px; color: ${color};"></i>
+                            <i class="bi bi-${icon}" style="font-size: 18px; color: ${color};"></i>
                         </div>
                         <div style="flex: 1; min-width: 0;">
-                            <div style="font-weight: 500; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${result.title}</div>
-                            <div style="font-size: 12px; color: var(--graphite); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${result.subtitle || 'No details'}</div>
+                            <div style="font-weight: 500; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${escapeHtml(result.title)}</div>
+                            <div style="font-size: 12px; color: var(--graphite); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${escapeHtml(result.subtitle || 'No details')}</div>
                         </div>
-                        <div style="padding: 4px 10px; background: ${color}22; border-radius: 6px; font-size: 11px; font-weight: 500; color: ${color}; white-space: nowrap;">${result.type}</div>
+                        <div style="padding: 4px 10px; background: ${color}22; border-radius: 6px; font-size: 11px; font-weight: 500; color: ${color}; white-space: nowrap;">${escapeHtml(result.type)}</div>
                     </a>
                 `;
             });

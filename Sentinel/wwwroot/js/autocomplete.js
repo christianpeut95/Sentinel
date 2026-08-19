@@ -96,7 +96,14 @@ class SurveillanceAutocomplete {
             div.className = 'autocomplete-item';
             
             if (this.options.template) {
-                div.innerHTML = this.options.template(item);
+                // Templates are display data, not trusted HTML. A caller may return a Node
+                // when it genuinely needs structured markup; text results are rendered safely.
+                const templateResult = this.options.template(item);
+                if (templateResult instanceof Node) {
+                    div.replaceChildren(templateResult);
+                } else {
+                    div.textContent = templateResult == null ? '' : String(templateResult);
+                }
             } else {
                 div.textContent = item[this.options.displayField];
             }

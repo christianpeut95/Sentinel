@@ -402,7 +402,7 @@
                     var successDiv = document.createElement('div');
                     successDiv.id = 'placeSuccess';
                     successDiv.className = 'alert alert-success mt-3';
-                    successDiv.innerHTML = '<i class="bi bi-check-circle me-2"></i><strong>Selected:</strong> ' + placeName + ' - Name, address, and coordinates filled!';
+                    successDiv.innerHTML = '<i class="bi bi-check-circle me-2"></i><strong>Selected:</strong> ' + escapeHtml(placeName) + ' - Name, address, and coordinates filled!';
                     placeInput.parentElement.appendChild(successDiv);
                     setTimeout(function() {
                         successDiv.style.opacity = '0';
@@ -418,13 +418,19 @@
                     var warningDiv = document.createElement('div');
                     warningDiv.id = 'placeWarning';
                     warningDiv.className = 'alert alert-warning mt-3';
-                    warningDiv.innerHTML = '<i class="bi bi-exclamation-triangle-fill me-2"></i>' + message;
+                    warningDiv.innerHTML = '<i class="bi bi-exclamation-triangle-fill me-2"></i>' + escapeHtml(message);
                     placeInput.parentElement.appendChild(warningDiv);
                     setTimeout(function() {
                         warningDiv.style.opacity = '0';
                         warningDiv.style.transition = 'opacity 0.5s';
                         setTimeout(function() { if (warningDiv.parentElement) warningDiv.remove(); }, 500);
                     }, 5000);
+                }
+
+                function escapeHtml(value) {
+                    var element = document.createElement('div');
+                    element.textContent = value == null ? '' : String(value);
+                    return element.innerHTML;
                 }
 
                 function fetchSuggestions(q) {

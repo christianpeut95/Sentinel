@@ -254,7 +254,7 @@ public class InboxV2Model : PageModel
                 if (changes != null && changes.ContainsKey(item.TriggerField))
                 {
                     var newValue = changes[item.TriggerField]?.ToString() ?? "";
-                    return $"<span class=\"new\">{newValue}</span>";
+                    return newValue;
                 }
             }
             catch

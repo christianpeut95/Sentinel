@@ -470,7 +470,7 @@
             {
                 <div class="alert alert-danger alert-dismissible fade show" role="alert">
                     <i class="bi bi-x-circle me-2"></i>
-                    @Html.Raw(TempData["ErrorMessage"])
+                    @TempData["ErrorMessage"]
                     <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
                 </div>
             }

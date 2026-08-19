@@ -325,8 +325,8 @@
         (function() {
             try {
                 // Parse JSON data
-                const surveyDefinition = @Html.Raw(Model.SurveyDefinitionJson ?? "{}");
-                const surveyResponse = @Html.Raw(Model.SurveyResponseJson ?? "{}");
+                const surveyDefinition = JSON.parse(@Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.SurveyDefinitionJson ?? "{}")));
+                const surveyResponse = JSON.parse(@Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.SurveyResponseJson ?? "{}")));
                 
                 // Validate data
                 if (!surveyDefinition || typeof surveyDefinition !== 'object') {

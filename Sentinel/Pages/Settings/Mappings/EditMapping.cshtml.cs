@@ -51,6 +51,8 @@ namespace Sentinel.Pages.Settings.Mappings
 
         public async Task<IActionResult> OnGetAsync()
         {
+            ReturnUrl = GetSafeReturnUrl() ?? GetReturnPage();
+
             if (MappingId.HasValue)
             {
                 // Load existing mapping
@@ -169,13 +171,14 @@ namespace Sentinel.Pages.Settings.Mappings
                 }
 
                 // Redirect back to return URL or appropriate page
-                if (!string.IsNullOrEmpty(ReturnUrl))
+                var returnUrl = GetSafeReturnUrl();
+                if (returnUrl != null)
                 {
                     // Force full page reload to refresh Blazor component
-                    return Redirect(ReturnUrl + (ReturnUrl.Contains('?') ? "&" : "?") + "refresh=" + DateTime.UtcNow.Ticks);
+                    return LocalRedirect(returnUrl + (returnUrl.Contains('?') ? "&" : "?") + "refresh=" + DateTime.UtcNow.Ticks);
                 }
 
-                return RedirectToPage(GetReturnPage());
+                return LocalRedirect(GetReturnPage());
             }
             catch (Exception ex)
             {
@@ -226,11 +229,16 @@ namespace Sentinel.Pages.Settings.Mappings
             }
         }
 
+        private string? GetSafeReturnUrl() =>
+            !string.IsNullOrWhiteSpace(ReturnUrl) && Url.IsLocalUrl(ReturnUrl)
+                ? ReturnUrl
+                : null;
+
         private string GetReturnPage()
         {
             return ConfigurationType switch
             {
-                MappingConfigurationType.Survey => $"/Settings/Surveys/EditSurveyTemplate?id={ConfigurationId}",
+                MappingConfigurationType.Survey => $"/Settings/Surveys/SurveyTemplateDetails?id={ConfigurationId}",
                 MappingConfigurationType.Task => $"/Settings/Lookups/EditTaskTemplate?id={ConfigurationId}",
                 MappingConfigurationType.Disease => $"/Settings/Diseases/Edit?id={ConfigurationId}",
                 _ => "/Settings/Index"

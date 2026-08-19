@@ -282,7 +282,7 @@ function exportToExcel() {
     const wb = XLSX.utils.table_to_book(table, { sheet: "Tasks" });
     
     // Generate filename with outbreak name and date
-    const outbreakName = '@Model.Outbreak?.Name'.replace(/[^a-z0-9]/gi, '_');
+    const outbreakName = (@Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.Outbreak?.Name ?? ""))).replace(/[^a-z0-9]/gi, '_');
     const date = new Date().toISOString().split('T')[0];
     const filename = `Outbreak_Tasks_${outbreakName}_${date}.xlsx`;
     

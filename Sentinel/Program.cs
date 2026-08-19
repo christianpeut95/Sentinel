@@ -190,6 +190,14 @@ builder.Services.ConfigureApplicationCookie(options =>
     options.AccessDeniedPath = "/Identity/Account/AccessDenied";
 });
 
+// Revalidate the Identity security stamp on every authenticated request. Account
+// lock/disable and access changes update the stamp so existing cookies are rejected
+// immediately rather than remaining usable until their normal expiry.
+builder.Services.Configure<SecurityStampValidatorOptions>(options =>
+{
+    options.ValidationInterval = TimeSpan.Zero;
+});
+
 // Authorization with custom permission policy provider
 builder.Services.AddAuthorization();
 builder.Services.AddSingleton<Microsoft.AspNetCore.Authorization.IAuthorizationPolicyProvider, Sentinel.Authorization.PermissionPolicyProvider>();
@@ -197,6 +205,7 @@ builder.Services.AddScoped<Microsoft.AspNetCore.Authorization.IAuthorizationHand
 
 // Add claims transformation to populate permission claims for Razor views
 builder.Services.AddScoped<Microsoft.AspNetCore.Authentication.IClaimsTransformation, Sentinel.Authorization.PermissionClaimsTransformation>();
+builder.Services.AddScoped<IUserSessionInvalidationService, UserSessionInvalidationService>();
 
 // Rate Limiting Configuration
 builder.Services.AddRateLimiter(rateLimiterOptions =>

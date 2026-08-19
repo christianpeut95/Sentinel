@@ -8,7 +8,7 @@ using System.Text.Json;
 
 namespace Sentinel.Controllers;
 
-[Authorize(Policy = "Permission.Outbreak.Export")]
+[Authorize(Policy = "Permission.Outbreak.View")]
 [ApiController]
 [Route("api/[controller]")]
 [EnableRateLimiting("bulk-export")] // Default: strict limit for data exports
@@ -175,6 +175,7 @@ public class LineListController : ControllerBase
     }
     
     [HttpPost("export")]
+    [Authorize(Policy = "Permission.Outbreak.Export")]
     public async Task<IActionResult> ExportToCsv([FromBody] LineListExportRequest request)
     {
         try

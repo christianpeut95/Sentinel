@@ -33,9 +33,9 @@ namespace Sentinel.Pages.Settings.Mappings
                 TempData["ErrorMessage"] = $"Error deleting mapping: {ex.Message}";
             }
 
-            if (!string.IsNullOrEmpty(ReturnUrl))
+            if (!string.IsNullOrWhiteSpace(ReturnUrl) && Url.IsLocalUrl(ReturnUrl))
             {
-                return Redirect(ReturnUrl);
+                return LocalRedirect(ReturnUrl);
             }
 
             return RedirectToPage("/Settings/Index");

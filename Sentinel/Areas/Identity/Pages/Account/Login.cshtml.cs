@@ -95,6 +95,12 @@ namespace Sentinel.Areas.Identity.Pages.Account
                     return ReturnGenericSignInFailure();
                 }
 
+                if (!user.IsEnabled)
+                {
+                    _logger.LogWarning("Login attempt rejected because account {UserId} is disabled", user.Id);
+                    return ReturnGenericSignInFailure();
+                }
+
                 if (!await EnsureLockoutEnabledAsync(user))
                 {
                     return ReturnGenericSignInFailure();
@@ -152,6 +158,12 @@ namespace Sentinel.Areas.Identity.Pages.Account
             if (user == null)
             {
                 _logger.LogWarning("Demo login attempt failed because no matching account was found");
+                return ReturnGenericSignInFailure();
+            }
+
+            if (!user.IsEnabled)
+            {
+                _logger.LogWarning("Demo login attempt rejected because account {UserId} is disabled", user.Id);
                 return ReturnGenericSignInFailure();
             }
 

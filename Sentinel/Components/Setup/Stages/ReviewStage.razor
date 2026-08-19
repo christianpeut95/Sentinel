@@ -127,11 +127,11 @@
                     <span class="review-label">Provider</span>
                     <span class="review-value">@GeoData.Provider</span>
                 </div>
-                @if (!string.IsNullOrEmpty(GeoData.ApiKey))
+                @if (!string.IsNullOrEmpty(GeoData.GoogleMapsBrowserApiKey))
                 {
                     <div class="review-item">
-                        <span class="review-label">API Key</span>
-                        <span class="review-value masked">••••••••</span>
+                        <span class="review-label">Google Places Browser API Key</span>
+                        <span class="review-value masked">Configured</span>
                     </div>
                 }
             </div>
@@ -158,26 +158,6 @@
                 <span class="review-value">@BackupData.RetentionDays days</span>
             </div>
         </div>
-
-        <!-- SMTP -->
-        @if (!string.IsNullOrEmpty(SmtpData.Host))
-        {
-            <div class="review-section">
-                <h3><i class="bi bi-envelope"></i> SMTP</h3>
-                <div class="review-item">
-                    <span class="review-label">Host</span>
-                    <span class="review-value">@SmtpData.Host:@SmtpData.Port</span>
-                </div>
-                <div class="review-item">
-                    <span class="review-label">From Email</span>
-                    <span class="review-value">@SmtpData.FromEmail</span>
-                </div>
-                <div class="review-item">
-                    <span class="review-label">SSL/TLS</span>
-                    <span class="review-value">@(SmtpData.EnableSsl ? "Enabled" : "Disabled")</span>
-                </div>
-            </div>
-        }
 
         <div class="stage-actions">
             <button type="button" class="btn btn-secondary" @onclick="HandlePrevious" disabled="@_isCompleting">
@@ -210,7 +190,6 @@
     [Parameter] public string TimeZoneId { get; set; } = "UTC";
     [Parameter] public InitialSetupWizard.GeocodingData GeoData { get; set; } = new();
     [Parameter] public InitialSetupWizard.BackupData BackupData { get; set; } = new();
-    [Parameter] public InitialSetupWizard.SmtpData SmtpData { get; set; } = new();
 
     private bool _isCompleting = false;
     private string _error = "";
@@ -301,20 +280,6 @@
                 // Save feedback widget setting
                 await SystemSettingsService.UpdateFeedbackWidgetSettingAsync(EnableFeedback);
 
-                // Save SMTP if configured
-                if (!string.IsNullOrEmpty(SmtpData.Host))
-                {
-                    await SystemSettingsService.SaveSmtpSettingsAsync(
-                        SmtpData.Host,
-                        SmtpData.Port,
-                        SmtpData.EnableSsl,
-                        SmtpData.Username,
-                        SmtpData.Password,
-                        SmtpData.FromEmail,
-                        SmtpData.FromDisplayName
-                    );
-                }
-
                 // Save organization data and timezone to appsettings.json
                 try
                 {
@@ -345,9 +310,9 @@
                             jsonDoc["Geocoding"] = new JsonObject();
                         }
                         jsonDoc["Geocoding"]!["Provider"] = JsonValue.Create(GeoData.Provider);
-                        if (!string.IsNullOrEmpty(GeoData.ApiKey))
+                        if (!string.IsNullOrEmpty(GeoData.GoogleMapsBrowserApiKey))
                         {
-                            jsonDoc["Geocoding"]!["ApiKey"] = JsonValue.Create(GeoData.ApiKey);
+                            jsonDoc["Geocoding"]!["GoogleMapsBrowserApiKey"] = JsonValue.Create(GeoData.GoogleMapsBrowserApiKey);
                         }
                         if (!string.IsNullOrEmpty(GeoData.Email))
                         {

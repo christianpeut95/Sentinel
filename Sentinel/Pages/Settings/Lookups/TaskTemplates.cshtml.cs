@@ -14,11 +14,13 @@ namespace Sentinel.Pages.Settings.Lookups
     {
         private readonly ApplicationDbContext _context;
         private readonly ITaskService _taskService;
+        private readonly IPermissionService _permissionService;
 
-        public TaskTemplatesModel(ApplicationDbContext context, ITaskService taskService)
+        public TaskTemplatesModel(ApplicationDbContext context, ITaskService taskService, IPermissionService permissionService)
         {
             _context = context;
             _taskService = taskService;
+            _permissionService = permissionService;
         }
 
         public List<TaskTemplate> TaskTemplates { get; set; } = new();
@@ -44,9 +46,13 @@ namespace Sentinel.Pages.Settings.Lookups
                 .ToListAsync();
         }
 
-        [Authorize(Policy = "Permission.Settings.Edit")]
         public async Task<IActionResult> OnPostPropagateAsync(Guid id)
         {
+            if (!await UserCanEditSettingsAsync())
+            {
+                return Forbid();
+            }
+
             try
             {
                 // Get all disease assignments for this template
@@ -83,9 +89,13 @@ namespace Sentinel.Pages.Settings.Lookups
             return RedirectToPage();
         }
 
-        [Authorize(Policy = "Permission.Settings.Edit")]
         public async Task<IActionResult> OnPostPropagateAllAsync()
         {
+            if (!await UserCanEditSettingsAsync())
+            {
+                return Forbid();
+            }
+
             try
             {
                 // Get all parent disease assignments that should propagate
@@ -122,6 +132,11 @@ namespace Sentinel.Pages.Settings.Lookups
 
         public async Task<IActionResult> OnPostDeleteAsync(Guid id)
         {
+            if (!await UserCanEditSettingsAsync())
+            {
+                return Forbid();
+            }
+
             var template = await _context.TaskTemplates.FindAsync(id);
             
             if (template == null)
@@ -142,6 +157,13 @@ namespace Sentinel.Pages.Settings.Lookups
 
             TempData["SuccessMessage"] = $"Task template '{template.Name}' has been deleted.";
             return RedirectToPage();
+        }
+
+        private async Task<bool> UserCanEditSettingsAsync()
+        {
+            var userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            return !string.IsNullOrWhiteSpace(userId)
+                && await _permissionService.HasPermissionAsync(userId, PermissionModule.Settings, PermissionAction.Edit);
         }
     }
 }

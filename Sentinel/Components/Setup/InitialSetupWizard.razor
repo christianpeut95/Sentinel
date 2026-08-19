@@ -67,9 +67,6 @@
                     case WizardStage.Backup:
                         <BackupStage OnNext="HandleNext" OnPrevious="HandlePrevious" @bind-BackupData="_backupData" />
                         break;
-                    case WizardStage.Smtp:
-                        <SmtpStage OnNext="HandleNext" OnPrevious="HandlePrevious" OnSkip="HandleSkip" @bind-SmtpData="_smtpData" />
-                        break;
                     case WizardStage.Review:
                         <ReviewStage 
                             AdminData="_adminData"
@@ -79,7 +76,6 @@
                             TimeZoneId="_timeZoneId"
                             GeoData="_geoData"
                             BackupData="_backupData"
-                            SmtpData="_smtpData"
                             OnComplete="HandleComplete"
                             OnPrevious="HandlePrevious" />
                         break;
@@ -92,7 +88,7 @@
 @code {
     private bool _tokenValidated = false;
     private WizardStage _currentStage = WizardStage.DatabaseConnection;
-    private int _totalStages = 11; // Excluding token validation
+    private int _totalStages = 10; // Excluding token validation
     private double _progress => ((int)_currentStage / (double)_totalStages) * 100;
 
     // Data models for each stage
@@ -104,7 +100,6 @@
     private string _timeZoneId = "UTC";
     private GeocodingData _geoData = new();
     private BackupData _backupData = new();
-    private SmtpData _smtpData = new();
 
     protected override async Task OnInitializedAsync()
     {
@@ -158,8 +153,7 @@
         TimeZone = 7,
         Geocoding = 8,
         Backup = 9,
-        Smtp = 10,
-        Review = 11
+        Review = 10
     }
 
     // Data models
@@ -208,7 +202,7 @@
     public class GeocodingData
     {
         public string Provider { get; set; } = "Nominatim";
-        public string? ApiKey { get; set; }
+        public string? GoogleMapsBrowserApiKey { get; set; }
         public string? Email { get; set; }
     }
 
@@ -218,14 +212,4 @@
         public int RetentionDays { get; set; } = 30;
     }
 
-    public class SmtpData
-    {
-        public string Host { get; set; } = "";
-        public int Port { get; set; } = 587;
-        public bool EnableSsl { get; set; } = true;
-        public string? Username { get; set; }
-        public string? Password { get; set; }
-        public string FromEmail { get; set; } = "";
-        public string FromDisplayName { get; set; } = "";
-    }
 }

@@ -36,6 +36,8 @@ namespace Sentinel.Pages.Settings.Mappings
 
         public IActionResult OnGet()
         {
+            ReturnUrl = GetSafeReturnUrl() ?? "/Settings/Index";
+
             if (!SurveyTemplateId.HasValue)
             {
                 TempData["ErrorMessage"] = "No survey template specified.";
@@ -122,9 +124,10 @@ namespace Sentinel.Pages.Settings.Mappings
                 }
 
                 // Redirect back
-                if (!string.IsNullOrEmpty(ReturnUrl))
+                var returnUrl = GetSafeReturnUrl();
+                if (returnUrl != null)
                 {
-                    return Redirect(ReturnUrl + (ReturnUrl.Contains('?') ? "&" : "?") + "refresh=" + DateTime.UtcNow.Ticks);
+                    return LocalRedirect(returnUrl + (returnUrl.Contains('?') ? "&" : "?") + "refresh=" + DateTime.UtcNow.Ticks);
                 }
 
                 return RedirectToPage("/Settings/Index");
@@ -172,5 +175,10 @@ namespace Sentinel.Pages.Settings.Mappings
 
             return 0.3; // Low confidence
         }
+
+        private string? GetSafeReturnUrl() =>
+            !string.IsNullOrWhiteSpace(ReturnUrl) && Url.IsLocalUrl(ReturnUrl)
+                ? ReturnUrl
+                : null;
     }
 }

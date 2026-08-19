@@ -612,7 +612,7 @@
                     var successDiv = document.createElement('div');
                     successDiv.id = 'placeSuccess';
                     successDiv.style.cssText = 'background: #D9F3E8; border: 1px solid #3DD598; border-radius: var(--radius-md); padding: var(--spacing-3); margin-top: var(--spacing-3); color: #0C2A20;';
-                    successDiv.innerHTML = '<i class="bi bi-check-circle" style="margin-right: var(--spacing-2);"></i><strong>Selected:</strong> ' + (result.name || 'Address') + ' - All address fields filled!';
+                    successDiv.innerHTML = '<i class="bi bi-check-circle" style="margin-right: var(--spacing-2);"></i><strong>Selected:</strong> ' + escapeHtml(result.name || 'Address') + ' - All address fields filled!';
                     placeInput.parentElement.appendChild(successDiv);
                     setTimeout(function() {
                         successDiv.style.opacity = '0'; successDiv.style.transition = 'opacity 0.5s';
@@ -632,6 +632,12 @@
                     if (status !== google.maps.places.PlacesServiceStatus.OK || !predictions) { clearDropdown(); return; }
                     renderResults(predictions.slice(0, 8));
                 });
+            }
+
+            function escapeHtml(value) {
+                var element = document.createElement('div');
+                element.textContent = value == null ? '' : String(value);
+                return element.innerHTML;
             }
 
             placeInput.addEventListener('input', debounce(function (e) { fetchSuggestions(e.target.value); }, 300));
@@ -667,7 +673,7 @@
                 @if (!string.IsNullOrEmpty(Model.Patient?.Occupation?.Name))
                 {
                     <text>
-                    $searchInput.val('@Html.Raw(Model.Patient.Occupation.Name.Replace("'", "\\'"))')
+                    $searchInput.val(@Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.Patient.Occupation.Name)))
                     </text>
                 }
                 </text>

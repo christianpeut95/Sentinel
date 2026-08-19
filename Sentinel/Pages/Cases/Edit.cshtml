@@ -55,7 +55,7 @@
                         <strong style="color: var(--forest);">@Model.Case.Patient.GivenName @Model.Case.Patient.FamilyName</strong>
                         @if (Model.Case.Disease != null)
                         {
-                            <span class="mx-2">•</span>
+                            <span class="mx-2">ï¿½</span>
                             <span>@Model.Case.Disease.Name</span>
                         }
                     </p>
@@ -1232,8 +1232,8 @@
         
         // Delete confirmation function
         function confirmDelete() {
-            const caseId = '@Model.Case.FriendlyId';
-            const patientName = '@(Model.Case.Patient?.GivenName) @(Model.Case.Patient?.FamilyName)';
+            const caseId = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.Case.FriendlyId));
+            const patientName = @Html.Raw(System.Text.Json.JsonSerializer.Serialize($"{Model.Case.Patient?.GivenName} {Model.Case.Patient?.FamilyName}".Trim()));
             
             if (confirm(`Are you sure you want to delete case ${caseId}${patientName ? ' for ' + patientName : ''}?\n\nThis action cannot be undone. All associated data (tasks, exposures, lab results, etc.) will also be deleted.`)) {
                 // Redirect to delete page
@@ -1545,7 +1545,7 @@
             line-height: 1.2;
         }
 
-        /* Remove button (×) on symptom chips */
+        /* Remove button (ï¿½) on symptom chips */
         .symptom-autocomplete + .select2-container .select2-selection__choice__remove {
             color: var(--forest);
             margin-right: 0.25rem;

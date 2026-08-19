@@ -38,10 +38,17 @@
             }
             else
             {
+                <div class="alert alert-secondary">
+                    <i class="bi bi-info-circle"></i>
+                    Server-side Google geocoding is configured outside Sentinel's setup wizard. You can continue without it.
+                </div>
+
                 <div class="form-group">
-                    <label class="form-label">API Key</label>
-                    <InputText @bind-Value="GeoData.ApiKey" class="form-control" type="password" placeholder="Enter your API key" />
-                    <span class="form-text">Your @GeoData.Provider API key.</span>
+                    <label class="form-label">Google Places Browser API Key <span class="text-muted">(optional)</span></label>
+                    <InputText @bind-Value="GeoData.GoogleMapsBrowserApiKey" class="form-control" placeholder="Enter your restricted browser key" />
+                    <span class="form-text">
+                        Enables address and place autocomplete. This key is intentionally sent to browsers, so restrict it by approved HTTPS referrers and to Maps JavaScript API and Places API only.
+                    </span>
                 </div>
             }
 
@@ -76,7 +83,7 @@
         // Prefill from appsettings.json
         var provider = Configuration["Geocoding:Provider"];
         var email = Configuration["Geocoding:Email"];
-        var apiKey = Configuration["Geocoding:ApiKey"];
+        var browserApiKey = Configuration["Geocoding:GoogleMapsBrowserApiKey"];
 
         if (!string.IsNullOrEmpty(provider))
             GeoData.Provider = provider;
@@ -84,8 +91,8 @@
         if (!string.IsNullOrEmpty(email))
             GeoData.Email = email;
 
-        if (!string.IsNullOrEmpty(apiKey))
-            GeoData.ApiKey = apiKey;
+        if (!string.IsNullOrEmpty(browserApiKey))
+            GeoData.GoogleMapsBrowserApiKey = browserApiKey;
     }
 
     private async Task HandleNext()

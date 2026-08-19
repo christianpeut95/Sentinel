@@ -447,7 +447,7 @@
                                                 </div>
 
                                                 <div style="font-size: 0.9375rem; line-height: 1.6;">
-                                                    @Html.Raw(criterion.DisplayText)
+                                                    @criterion.DisplayText
                                                 </div>
                                             </div>
                                         </div>
@@ -550,7 +550,7 @@
                                                     </div>
 
                                                     <div style="font-size: 0.9375rem; line-height: 1.6;">
-                                                        @Html.Raw(child.DisplayText)
+                                                        @child.DisplayText
                                                     </div>
                                                 </div>
                                             </div>
@@ -669,7 +669,7 @@
                                             </div>
 
                                             <div style="font-size: 0.9375rem; line-height: 1.6;">
-                                                @Html.Raw(criterion.DisplayText)
+                                                @criterion.DisplayText
                                             </div>
                                         </div>
                                     </div>
@@ -1176,6 +1176,23 @@
         let selectedResultValues = [];
         window.currentParentCriterionId = null; // Track which group we're adding to (null = root level)
 
+        function appendSelectionChip(container, name, onRemove) {
+            const chip = document.createElement('div');
+            chip.className = 'selected-item-chip';
+
+            const label = document.createElement('span');
+            label.textContent = name ?? '';
+            chip.appendChild(label);
+
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.textContent = '×';
+            button.addEventListener('click', onRemove);
+            chip.appendChild(button);
+
+            container.appendChild(chip);
+        }
+
         // Toggle specimen selection
         function toggleSpecimen(element) {
             const id = parseInt(element.dataset.id);
@@ -1200,13 +1217,7 @@
                 const item = document.querySelector(`[data-id="${id}"]`);
                 const name = item.querySelector('.specimen-item-name').textContent;
 
-                const chip = document.createElement('div');
-                chip.className = 'selected-item-chip';
-                chip.innerHTML = `
-                    <span>${name}</span>
-                    <button type="button" onclick="removeSpecimen(${id})">×</button>
-                `;
-                container.appendChild(chip);
+                appendSelectionChip(container, name, () => removeSpecimen(id));
             });
         }
 
@@ -1240,13 +1251,7 @@
                 const item = document.querySelector(`#symptomGrid [data-id="${id}"]`);
                 const name = item.querySelector('.specimen-item-name').textContent;
 
-                const chip = document.createElement('div');
-                chip.className = 'selected-item-chip';
-                chip.innerHTML = `
-                    <span>${name}</span>
-                    <button type="button" onclick="removeSymptom(${id})">×</button>
-                `;
-                container.appendChild(chip);
+                appendSelectionChip(container, name, () => removeSymptom(id));
             });
         }
 
@@ -1280,13 +1285,7 @@
                 const item = document.querySelector(`#pathogenGrid [data-id="${id}"]`);
                 const name = item.dataset.name;
 
-                const chip = document.createElement('div');
-                chip.className = 'selected-item-chip';
-                chip.innerHTML = `
-                    <span>${name}</span>
-                    <button type="button" onclick="removePathogen('${id}')">×</button>
-                `;
-                container.appendChild(chip);
+                appendSelectionChip(container, name, () => removePathogen(id));
             });
         }
 
@@ -1323,13 +1322,7 @@
                 const item = document.querySelector(`#testMethodGrid [data-id="${id}"]`);
                 const name = item.dataset.name;
 
-                const chip = document.createElement('div');
-                chip.className = 'selected-item-chip';
-                chip.innerHTML = `
-                    <span>${name}</span>
-                    <button type="button" onclick="removeTestMethod(${id})">×</button>
-                `;
-                container.appendChild(chip);
+                appendSelectionChip(container, name, () => removeTestMethod(id));
             });
         }
 
@@ -1359,19 +1352,14 @@
             container.innerHTML = '';
 
             selectedResultValues.forEach(value => {
-                const chip = document.createElement('div');
-                chip.className = 'selected-item-chip';
-                chip.innerHTML = `
-                    <span>${value}</span>
-                    <button type="button" onclick="removeResultValue('${value}')">×</button>
-                `;
-                container.appendChild(chip);
+                appendSelectionChip(container, value, () => removeResultValue(value));
             });
         }
 
         function removeResultValue(value) {
             selectedResultValues = selectedResultValues.filter(x => x !== value);
-            const item = document.querySelector(`#resultValueGrid [data-value="${value}"]`);
+            const item = Array.from(document.querySelectorAll('#resultValueGrid [data-value]'))
+                .find(element => element.dataset.value === value);
             if (item) {
                 item.classList.remove('selected');
             }

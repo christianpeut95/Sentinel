@@ -722,10 +722,10 @@
                         <div class="card-body py-2">
                             <div class="d-flex justify-content-between align-items-start">
                                 <div>
-                                    ${criterion.logicOperator ? `<span class="badge bg-secondary me-2">${criterion.logicOperator}</span>` : ''}
-                                    <strong>${criterion.customFieldLabel}</strong>
-                                    <span class="text-muted">${criterion.operatorText}</span>
-                                    ${criterion.input ? `<strong>${criterion.input}</strong>` : ''}
+                                    ${criterion.logicOperator ? `<span class="badge bg-secondary me-2">${escapeHtml(criterion.logicOperator)}</span>` : ''}
+                                    <strong>${escapeHtml(criterion.customFieldLabel)}</strong>
+                                    <span class="text-muted">${escapeHtml(criterion.operatorText)}</span>
+                                    ${criterion.input ? `<strong>${escapeHtml(criterion.input)}</strong>` : ''}
                                 </div>
                                 <button type="button" class="btn btn-sm btn-danger" onclick="removeCriterion(${index})">
                                     <i class="bi bi-trash"></i>

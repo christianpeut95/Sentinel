@@ -866,7 +866,7 @@
     async function quickResolveAlwaysReview(reviewId, event) {
         event.stopPropagation();
         
-        if (!confirm('? Approve this new patient?\n\nThis will:\n• Create the patient record\n• Process related entities (contacts, exposures, etc.)\n• Mark the review as complete')) {
+        if (!confirm('? Approve this new patient?\n\nThis will:\nï¿½ Create the patient record\nï¿½ Process related entities (contacts, exposures, etc.)\nï¿½ Mark the review as complete')) {
             return;
         }
 
@@ -922,7 +922,10 @@
         const bgColor = type === 'success' ? 'alert-success' : 'alert-danger';
         toast.className = `alert ${bgColor} position-fixed top-0 end-0 m-3`;
         toast.style.zIndex = '9999';
-        toast.innerHTML = `<i class="bi bi-${type === 'success' ? 'check' : 'exclamation'}-circle me-2"></i>${message}`;
+        const icon = document.createElement('i');
+        icon.className = `bi bi-${type === 'success' ? 'check' : 'exclamation'}-circle me-2`;
+        toast.appendChild(icon);
+        toast.appendChild(document.createTextNode(message));
         document.body.appendChild(toast);
         setTimeout(() => {
             $(toast).fadeOut(300, function() {
@@ -993,10 +996,10 @@
                 url: '/api/review-queue/list',
                 method: 'GET',
                 data: {
-                    entityType: '@Model.EntityType',
+                    entityType: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.EntityType)),
                     diseaseIds: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.DiseaseIds ?? new List<Guid>())),
-                    timeRange: '@Model.TimeRange',
-                    status: '@Model.Status',
+                    timeRange: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.TimeRange)),
+                    status: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.Status)),
                     skip: currentSkip,
                     take: 50
                 },

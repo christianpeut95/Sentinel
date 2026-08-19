@@ -15,15 +15,18 @@ namespace Sentinel.Pages.Settings.Roles
         private readonly ApplicationDbContext _context;
         private readonly RoleManager<IdentityRole> _roleManager;
         private readonly IPermissionService _permissionService;
+        private readonly IUserSessionInvalidationService _sessionInvalidationService;
 
         public PermissionsModel(
             ApplicationDbContext context,
             RoleManager<IdentityRole> roleManager,
-            IPermissionService permissionService)
+            IPermissionService permissionService,
+            IUserSessionInvalidationService sessionInvalidationService)
         {
             _context = context;
             _roleManager = roleManager;
             _permissionService = permissionService;
+            _sessionInvalidationService = sessionInvalidationService;
         }
 
         public IdentityRole Role { get; set; } = default!;
@@ -79,6 +82,7 @@ namespace Sentinel.Pages.Settings.Roles
             Console.WriteLine($"[DEBUG] Granting permission - RoleId: {roleId}, PermissionId: {permissionId}, Name: {permissionName}");
             
             await _permissionService.GrantPermissionToRoleAsync(roleId, permissionId);
+            await _sessionInvalidationService.InvalidateUsersInRoleAsync(roleId);
             
             // Verify it was actually saved
             var saved = await _context.RolePermissions
@@ -99,6 +103,7 @@ namespace Sentinel.Pages.Settings.Roles
         public async Task<IActionResult> OnPostRevokeAsync(string roleId, int permissionId)
         {
             await _permissionService.RevokePermissionFromRoleAsync(roleId, permissionId);
+            await _sessionInvalidationService.InvalidateUsersInRoleAsync(roleId);
             TempData["SuccessMessage"] = "Permission revoked successfully.";
             return RedirectToPage(new { id = roleId });
         }
@@ -111,6 +116,7 @@ namespace Sentinel.Pages.Settings.Roles
             {
                 await _permissionService.GrantPermissionToRoleAsync(roleId, permission.Id);
             }
+            await _sessionInvalidationService.InvalidateUsersInRoleAsync(roleId);
 
             TempData["SuccessMessage"] = $"All {allPermissions.Count} permissions granted successfully.";
             return RedirectToPage(new { id = roleId });
@@ -124,6 +130,7 @@ namespace Sentinel.Pages.Settings.Roles
             {
                 await _permissionService.RevokePermissionFromRoleAsync(roleId, permission.Id);
             }
+            await _sessionInvalidationService.InvalidateUsersInRoleAsync(roleId);
 
             TempData["SuccessMessage"] = $"All {grantedPermissions.Count} permissions revoked successfully.";
             return RedirectToPage(new { id = roleId });
@@ -166,6 +173,7 @@ namespace Sentinel.Pages.Settings.Roles
 
             // Save all changes at once
             await _context.SaveChangesAsync();
+            await _sessionInvalidationService.InvalidateUsersInRoleAsync(roleId);
 
             var moduleName = ((PermissionModule)module).ToString();
             TempData["SuccessMessage"] = $"All {moduleName} permissions granted successfully.";
@@ -181,6 +189,7 @@ namespace Sentinel.Pages.Settings.Roles
             
             _context.RolePermissions.RemoveRange(modulePermissions);
             await _context.SaveChangesAsync();
+            await _sessionInvalidationService.InvalidateUsersInRoleAsync(roleId);
 
             var moduleName = ((PermissionModule)module).ToString();
             TempData["SuccessMessage"] = $"All {moduleName} permissions revoked successfully.";

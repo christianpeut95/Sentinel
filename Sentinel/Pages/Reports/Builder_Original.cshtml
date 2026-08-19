@@ -334,11 +334,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const savedReport = {
         reportId: @(Model.ReportId?.ToString() ?? "null"),
-        entityType: '@Model.EntityType',
-        fields: @Html.Raw(Model.FieldsJson ?? "[]"),
-        filters: @Html.Raw(Model.FiltersJson ?? "[]"),
-        collectionQueries: @Html.Raw(Model.CollectionQueriesJson ?? "[]"),
-        pivotConfiguration: '@Html.Raw(Model.ReportDefinition?.PivotConfiguration ?? "")'
+        entityType: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.EntityType)),
+        // These persisted values are JSON strings. Serialize them as JavaScript
+        // string literals first, then parse their contents, rather than inserting
+        // administrator-configured text directly into the script block.
+        fields: JSON.parse(@Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.FieldsJson ?? "[]"))),
+        filters: JSON.parse(@Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.FiltersJson ?? "[]"))),
+        collectionQueries: JSON.parse(@Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.CollectionQueriesJson ?? "[]"))),
+        pivotConfiguration: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.ReportDefinition?.PivotConfiguration ?? ""))
     };
 
     console.log('[Builder.cshtml] Saved report data:', savedReport);

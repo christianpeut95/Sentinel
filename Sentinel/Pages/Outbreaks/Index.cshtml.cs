@@ -15,11 +15,13 @@ public class IndexModel : PageModel
 {
     private readonly IOutbreakService _outbreakService;
     private readonly ApplicationDbContext _context;
+    private readonly IPermissionService _permissionService;
 
-    public IndexModel(IOutbreakService outbreakService, ApplicationDbContext context)
+    public IndexModel(IOutbreakService outbreakService, ApplicationDbContext context, IPermissionService permissionService)
     {
         _outbreakService = outbreakService;
         _context = context;
+        _permissionService = permissionService;
     }
 
     public List<Outbreak> Outbreaks { get; set; } = new();
@@ -162,10 +164,14 @@ public class IndexModel : PageModel
         return $"?SortBy={columnName}&SortOrder={newSortOrder}&CurrentPage=1&SearchTerm={SearchTerm}&FilterBy={FilterBy}&ShowInactive={ShowInactive}";
     }
 
-    [Authorize(Policy = "Permission.Outbreak.Delete")]
     public async Task<IActionResult> OnPostDeleteAsync(int id)
     {
         var userId = User.FindFirstValue(System.Security.Claims.ClaimTypes.NameIdentifier) ?? string.Empty;
+        if (string.IsNullOrWhiteSpace(userId) ||
+            !await _permissionService.HasPermissionAsync(userId, PermissionModule.Outbreak, PermissionAction.Delete))
+        {
+            return Forbid();
+        }
 
         var success = await _outbreakService.DeleteAsync(id, userId);
 

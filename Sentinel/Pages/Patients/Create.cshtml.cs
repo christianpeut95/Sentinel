@@ -352,22 +352,15 @@ namespace Sentinel.Pages.Patients
 
             if (existingContact != null)
             {
-                // Contact case already exists, use it
-                var patientName = $"{patient.GivenName} {patient.FamilyName}";
-                return Content($@"
-                    <html>
-                    <head><title>Contact Linked</title></head>
-                    <body>
-                        <script>
-                            if (window.opener && window.opener.contactCreated) {{
-                                window.opener.contactCreated('{existingContact.Id}', '{existingContact.FriendlyId}', '{patientName.Replace("'", "\\'")}');
-                            }}
-                            window.close();
-                        </script>
-                        <p>Existing contact case linked successfully. This window should close automatically.</p>
-                    </body>
-                    </html>
-                ", "text/html");
+                // The caller handles this structured response. Never return executable HTML.
+                return new JsonResult(new
+                {
+                    success = true,
+                    caseId = existingContact.Id,
+                    caseFriendlyId = existingContact.FriendlyId,
+                    patientName = $"{patient.GivenName} {patient.FamilyName}",
+                    existingContact = true
+                });
             }
 
             // Create new contact case for existing patient
@@ -398,22 +391,14 @@ namespace Sentinel.Pages.Patients
             _context.Cases.Add(newCase);
             await _context.SaveChangesAsync();
 
-            // Return script to close popup and notify parent
-            var name = $"{patient.GivenName} {patient.FamilyName}";
-            return Content($@"
-                <html>
-                <head><title>Contact Created</title></head>
-                <body>
-                    <script>
-                        if (window.opener && window.opener.contactCreated) {{
-                            window.opener.contactCreated('{newCase.Id}', '{newCase.FriendlyId}', '{name.Replace("'", "\\'")}');
-                        }}
-                        window.close();
-                    </script>
-                    <p>Contact created successfully for existing patient. This window should close automatically.</p>
-                </body>
-                </html>
-            ", "text/html");
+            return new JsonResult(new
+            {
+                success = true,
+                caseId = newCase.Id,
+                caseFriendlyId = newCase.FriendlyId,
+                patientName = $"{patient.GivenName} {patient.FamilyName}",
+                existingContact = false
+            });
         }
 
         private bool ShouldCreateContactCase() =>

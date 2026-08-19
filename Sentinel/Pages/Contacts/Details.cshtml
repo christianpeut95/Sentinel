@@ -592,12 +592,12 @@
                         <strong>@Model.Contact.Patient.GivenName @Model.Contact.Patient.FamilyName</strong>
                         @if (Model.Contact.Disease != null)
                         {
-                            <span class="mx-2">•</span>
+                            <span class="mx-2">ï¿½</span>
                             <span>@Model.Contact.Disease.Name</span>
                         }
                         @if (Model.Contact.ConfirmationStatus != null)
                         {
-                            <span class="mx-2">•</span>
+                            <span class="mx-2">ï¿½</span>
                             <span class="badge badge-purple">@Model.Contact.ConfirmationStatus.Name</span>
                         }
                     </p>
@@ -1495,7 +1495,7 @@
                             }
                             <div class="note-meta">
                                 <i class="bi bi-person me-1"></i>@(note.CreatedBy ?? "Unknown")
-                                <span class="mx-1">•</span>
+                                <span class="mx-1">ï¿½</span>
                                 @note.CreatedAt.ToLocalTime().ToString("dd MMM yyyy HH:mm")
                             </div>
                         </div>
@@ -2519,9 +2519,9 @@
     // DOCUMENT READY - INITIALIZATION CODE
     // ========================================================================
     $(document).ready(function() {        // Patient contact information
-        var patientEmail = '@(Model.Contact.Patient?.EmailAddress ?? "")';
-        var patientMobile = '@(Model.Contact.Patient?.MobilePhone ?? "")';
-        var patientHome = '@(Model.Contact.Patient?.HomePhone ?? "")';
+        var patientEmail = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.Contact.Patient?.EmailAddress ?? ""));
+        var patientMobile = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.Contact.Patient?.MobilePhone ?? ""));
+        var patientHome = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.Contact.Patient?.HomePhone ?? ""));
 
         // Edit button click handler
         $('#editFromViewBtn').on('click', function() {
@@ -2579,12 +2579,12 @@
 
         // Case and Patient Data for Validation
         var caseDisease = {
-            id: '@Model.Contact.DiseaseId',
-            name: '@Model.Contact.Disease?.Name'
+            id: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.Contact.DiseaseId)),
+            name: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.Contact.Disease?.Name ?? ""))
         };
-        var patientDOB = '@(Model.Contact.Patient?.DateOfBirth?.ToString("yyyy-MM-dd") ?? "")';
-        var caseOnsetDate = '@(Model.Contact.DateOfOnset?.ToString("yyyy-MM-dd") ?? "")';
-        var caseNotificationDate = '@(Model.Contact.DateOfNotification?.ToString("yyyy-MM-dd") ?? "")';
+        var patientDOB = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.Contact.Patient?.DateOfBirth?.ToString("yyyy-MM-dd") ?? ""));
+        var caseOnsetDate = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.Contact.DateOfOnset?.ToString("yyyy-MM-dd") ?? ""));
+        var caseNotificationDate = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.Contact.DateOfNotification?.ToString("yyyy-MM-dd") ?? ""));
 
         // Auto-populate disease when modal opens
         $('#addLabResultModal').on('shown.bs.modal', function() {

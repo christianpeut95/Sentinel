@@ -453,7 +453,7 @@
             });
 
             // If there's a selected category, make sure it's selected in dropdown
-            var currentCategory = '@Model.FieldCategory';
+var currentCategory = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.FieldCategory));
             if (currentCategory) {
                 $('#fieldCategorySelect').val(currentCategory);
             }

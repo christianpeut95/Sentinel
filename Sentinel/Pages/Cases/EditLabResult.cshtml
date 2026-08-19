@@ -365,21 +365,21 @@
         {
             <text>
             markers.push({
-                Id: '@marker.Id',
-                PathogenId: '@marker.PathogenId',
+                Id: @Html.Raw(Json.Serialize(marker.Id)),
+                PathogenId: @Html.Raw(Json.Serialize(marker.PathogenId)),
                 TestMethodId: @(marker.TestMethodId?.ToString() ?? "null"),
                 TestResultId: @(marker.TestResultId?.ToString() ?? "null"),
-                QualitativeResult: '@(marker.QualitativeResultText ?? "")',
+                QualitativeResult: @Html.Raw(Json.Serialize(marker.QualitativeResultText ?? "")),
                 QuantitativeValue: @(marker.QuantitativeValue?.ToString() ?? "null"),
-                QuantitativeUnit: '@(marker.QuantitativeUnit ?? "")',
+                QuantitativeUnit: @Html.Raw(Json.Serialize(marker.QuantitativeUnit ?? "")),
                 ReferenceRangeLow: @(marker.ReferenceRangeLow?.ToString() ?? "null"),
                 ReferenceRangeHigh: @(marker.ReferenceRangeHigh?.ToString() ?? "null"),
-                InterpretationFlag: '@(marker.InterpretationFlag ?? "")',
-                LOINCCode: '@(marker.LOINCCode ?? "")',
-                Notes: '@Html.Raw(Json.Serialize(marker.Notes ?? ""))',
-                _pathogenName: '@Html.Raw(marker.Pathogen?.Name ?? "")',
-                _testMethodName: '@Html.Raw(marker.TestMethod?.Name ?? "")',
-                _resultType: '@(string.IsNullOrEmpty(marker.QualitativeResultText) ? "quantitative" : "qualitative")'
+                InterpretationFlag: @Html.Raw(Json.Serialize(marker.InterpretationFlag ?? "")),
+                LOINCCode: @Html.Raw(Json.Serialize(marker.LOINCCode ?? "")),
+                Notes: @Html.Raw(Json.Serialize(marker.Notes ?? "")),
+                _pathogenName: @Html.Raw(Json.Serialize(marker.Pathogen?.Name ?? "")),
+                _testMethodName: @Html.Raw(Json.Serialize(marker.TestMethod?.Name ?? "")),
+                _resultType: @Html.Raw(Json.Serialize(string.IsNullOrEmpty(marker.QualitativeResultText) ? "quantitative" : "qualitative"))
             });
             </text>
         }

@@ -293,8 +293,8 @@
         try {            const taskId = '@Model.Task.Id';
                 
             // Output JSON directly as JavaScript objects (not strings)
-            const surveyJson = @Html.Raw(Model.SurveyDefinitionJson ?? "{}");
-            const prePopulatedData = @Html.Raw(Model.PrePopulatedDataJson ?? "{}");            // Validate we have valid objects
+            const surveyJson = JSON.parse(@Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.SurveyDefinitionJson ?? "{}")));
+            const prePopulatedData = JSON.parse(@Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.PrePopulatedDataJson ?? "{}")));            // Validate we have valid objects
             if (!surveyJson || typeof surveyJson !== 'object') {                alert('Error loading survey definition. Please contact support.');
                 return;
             }

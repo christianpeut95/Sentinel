@@ -162,6 +162,11 @@
         let gridApi = null;
         let currentConfig = null;
         
+        function escapeHtml(value) {
+            const element = document.createElement('div');
+            element.textContent = value ?? '';
+            return element.innerHTML;
+        }
         // Default fields
         const defaultFields = [
             'Patient.FamilyName',
@@ -203,23 +208,27 @@
                 categoryDiv.className = 'mb-3';
                 categoryDiv.innerHTML = `
                     <div class="d-flex justify-content-between align-items-center mb-2">
-                        <h6 class="mb-0 small fw-bold">${category}</h6>
-                        <button class="btn btn-sm btn-link text-decoration-none py-0" onclick="addAllFromCategory('${category}')">
+                        <h6 class="mb-0 small fw-bold">${escapeHtml(category)}</h6>
+                        <button class="btn btn-sm btn-link text-decoration-none py-0" data-add-category="${escapeHtml(category)}">
                             <small>Add all</small>
                         </button>
                     </div>
                     <div class="list-group list-group-flush">
                         ${fields.map(f => `
                             <div class="list-group-item list-group-item-action py-2 px-3 d-flex justify-content-between align-items-center field-item" 
-                                 data-field-path="${f.fieldPath}">
-                                <span class="small">${f.displayName}</span>
-                                <button class="btn btn-sm btn-link text-success p-0" onclick="addField('${f.fieldPath}')" title="Add field">
+                                 data-field-path="${escapeHtml(f.fieldPath)}">
+                                <span class="small">${escapeHtml(f.displayName)}</span>
+                                <button class="btn btn-sm btn-link text-success p-0" data-add-field="${escapeHtml(f.fieldPath)}" title="Add field">
                                     <i class="bi bi-plus-circle"></i>
                                 </button>
                             </div>
                         `).join('')}
                     </div>
                 `;
+                categoryDiv.querySelectorAll('[data-add-field]').forEach(button =>
+                    button.addEventListener('click', () => addField(button.dataset.addField)));
+                categoryDiv.querySelector('[data-add-category]')
+                    ?.addEventListener('click', event => addAllFromCategory(event.currentTarget.dataset.addCategory));
                 container.appendChild(categoryDiv);
             }
         }
@@ -275,21 +284,24 @@
                 
                 return `
                     <div class="list-group-item d-flex justify-content-between align-items-center selected-field-item" 
-                         data-field-path="${fp}">
+                         data-field-path="${escapeHtml(fp)}">
                         <div class="d-flex align-items-center flex-grow-1">
                             <i class="bi bi-grip-vertical text-muted me-2" style="cursor: grab;"></i>
                             <div>
-                                <div class="small fw-medium">${field.displayName}</div>
-                                <div class="text-muted" style="font-size: 0.75rem;">${field.category}</div>
+                                <div class="small fw-medium">${escapeHtml(field.displayName)}</div>
+                                <div class="text-muted" style="font-size: 0.75rem;">${escapeHtml(field.category)}</div>
                             </div>
                         </div>
-                        <button class="btn btn-sm btn-link text-danger p-0" onclick="removeField('${fp}')" title="Remove field">
+                        <button class="btn btn-sm btn-link text-danger p-0" data-remove-field="${escapeHtml(fp)}" title="Remove field">
                             <i class="bi bi-x-circle"></i>
                         </button>
                     </div>
                 `;
             }).join('');
             
+            container.querySelectorAll('[data-remove-field]').forEach(button =>
+                button.addEventListener('click', () => removeField(button.dataset.removeField)));
+
             // Initialize sortable
             new Sortable(container, {
                 animation: 150,
@@ -325,7 +337,7 @@
                 <button class="list-group-item list-group-item-action py-2 px-3 d-flex justify-content-between align-items-center"
                         onclick="loadConfiguration(${c.id})">
                     <div>
-                        <div class="small fw-medium">${c.name}</div>
+                        <div class="small fw-medium">${escapeHtml(c.name)}</div>
                         ${c.isDefault ? '<small class="badge bg-primary">Default</small>' : ''}
                     </div>
                     <div>
@@ -348,8 +360,8 @@
             container.innerHTML = configs.map(c => `
                 <button class="list-group-item list-group-item-action py-2 px-3"
                         onclick="loadConfiguration(${c.id})">
-                    <div class="small fw-medium">${c.name}</div>
-                    <small class="text-muted">by ${c.createdByUser?.userName || 'Unknown'}</small>
+                    <div class="small fw-medium">${escapeHtml(c.name)}</div>
+                    <small class="text-muted">by ${escapeHtml(c.createdByUser?.userName || 'Unknown')}</small>
                 </button>
             `).join('');
         }

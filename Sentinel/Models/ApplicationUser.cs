@@ -6,6 +6,13 @@ namespace Sentinel.Models
 {
     public class ApplicationUser : IdentityUser
     {
+        /// <summary>
+        /// Administrative account status. Disabled accounts cannot sign in and their
+        /// existing sessions are invalidated when the status changes.
+        /// </summary>
+        [Display(Name = "Account Enabled")]
+        public bool IsEnabled { get; set; } = true;
+
         public List<UserGroup> UserGroups { get; set; } = new();
         public List<UserPermission> UserPermissions { get; set; } = new();
         public List<UserDiseaseAccess> UserDiseaseAccess { get; set; } = new();

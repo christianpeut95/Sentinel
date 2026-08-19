@@ -682,12 +682,12 @@
             $results.html('<div class="search-result-item">No patients found</div>');
         } else {
             patients.forEach(patient => {
-                const $item = $(`
-                    <div class="search-result-item" onclick="selectPatient('${patient.id}', '${patient.name}', '${patient.dateOfBirth}', '${patient.friendlyId}')">
-                        <div class="search-result-name">${patient.name}</div>
-                        <div class="search-result-meta">DOB: ${patient.dateOfBirth || 'N/A'} | ID: ${patient.friendlyId}</div>
-                    </div>
-                `);
+                const $item = $('<div>', { class: 'search-result-item' })
+                    .on('click', () => selectPatient(patient.id, patient.name, patient.dateOfBirth, patient.friendlyId));
+                $('<div>', { class: 'search-result-name' }).text(patient.name).appendTo($item);
+                $('<div>', { class: 'search-result-meta' })
+                    .text(`DOB: ${patient.dateOfBirth || 'N/A'} | ID: ${patient.friendlyId}`)
+                    .appendTo($item);
                 $results.append($item);
             });
         }
@@ -748,12 +748,14 @@
             $results.html('<div class="search-result-item">No cases found</div>');
         } else {
             cases.forEach(caseItem => {
-                const $item = $(`
-                    <div class="search-result-item" onclick="selectSourceCase('${caseItem.id}', '${caseItem.friendlyId}', '${caseItem.patientName}', '${caseItem.diseaseName}')">
-                        <div class="search-result-name">${caseItem.friendlyId} - ${caseItem.patientName}</div>
-                        <div class="search-result-meta">Disease: ${caseItem.diseaseName} | Notified: ${caseItem.dateOfNotification}</div>
-                    </div>
-                `);
+                const $item = $('<div>', { class: 'search-result-item' })
+                    .on('click', () => selectSourceCase(caseItem.id, caseItem.friendlyId, caseItem.patientName, caseItem.diseaseName));
+                $('<div>', { class: 'search-result-name' })
+                    .text(`${caseItem.friendlyId} - ${caseItem.patientName}`)
+                    .appendTo($item);
+                $('<div>', { class: 'search-result-meta' })
+                    .text(`Disease: ${caseItem.diseaseName} | Notified: ${caseItem.dateOfNotification}`)
+                    .appendTo($item);
                 $results.append($item);
             });
         }

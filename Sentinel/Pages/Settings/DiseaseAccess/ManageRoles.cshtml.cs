@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
 using Sentinel.Data;
+using Sentinel.Models;
 using Sentinel.Models.Lookups;
 using Sentinel.Services;
 using System.Security.Claims;
@@ -17,15 +18,18 @@ namespace Sentinel.Pages.Settings.DiseaseAccess
         private readonly ApplicationDbContext _context;
         private readonly IDiseaseAccessService _diseaseAccessService;
         private readonly RoleManager<IdentityRole> _roleManager;
+        private readonly IUserSessionInvalidationService _sessionInvalidationService;
 
         public ManageRolesModel(
             ApplicationDbContext context,
             IDiseaseAccessService diseaseAccessService,
-            RoleManager<IdentityRole> roleManager)
+            RoleManager<IdentityRole> roleManager,
+            IUserSessionInvalidationService sessionInvalidationService)
         {
             _context = context;
             _diseaseAccessService = diseaseAccessService;
             _roleManager = roleManager;
+            _sessionInvalidationService = sessionInvalidationService;
         }
 
         [BindProperty]
@@ -127,6 +131,7 @@ namespace Sentinel.Pages.Settings.DiseaseAccess
             try
             {
                 await _diseaseAccessService.GrantDiseaseAccessToRoleAsync(SelectedRoleId, SelectedDiseaseId.Value, currentUserId, ApplyToChildren);
+                await _sessionInvalidationService.InvalidateUsersInRoleAsync(SelectedRoleId);
                 
                 var childInfo = ApplyToChildren && disease.SubDiseases.Any() 
                     ? $" (and {await CountDescendantsAsync(disease.Id)} child disease(s))" 
@@ -155,6 +160,7 @@ namespace Sentinel.Pages.Settings.DiseaseAccess
             try
             {
                 await _diseaseAccessService.RevokeDiseaseAccessFromRoleAsync(roleId, SelectedDiseaseId.Value, true);
+                await _sessionInvalidationService.InvalidateUsersInRoleAsync(roleId);
                 TempData["SuccessMessage"] = $"Access to '{disease?.Name}' revoked from role '{role?.Name}'.";
             }
             catch (Exception ex)

@@ -87,7 +87,7 @@
                 console.error('Error loading logs:', error);
                 document.getElementById('logsContainer').innerHTML = `
                     <div class="alert alert-danger">
-                        <i class="bi bi-exclamation-triangle"></i> Error loading logs: ${error.message}
+                        <i class="bi bi-exclamation-triangle"></i> Error loading logs: ${escapeHtml(error.message)}
                     </div>`;
             }
         }

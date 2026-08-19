@@ -724,7 +724,7 @@ $(document).ready(function() {
                 var successDiv = document.createElement('div');
                 successDiv.id = 'placeSuccess';
                 successDiv.className = 'alert alert-success alert-dismissible fade show mt-2';
-                successDiv.innerHTML = '<i class="bi bi-check-circle-fill me-2"></i><strong>Selected:</strong> ' + placeName + ' - All address fields filled!';
+                successDiv.innerHTML = '<i class="bi bi-check-circle-fill me-2"></i><strong>Selected:</strong> ' + escapeHtml(placeName) + ' - All address fields filled!';
                 placeInput.parentElement.appendChild(successDiv);
                 setTimeout(function() {
                     successDiv.style.opacity = '0';
@@ -740,13 +740,19 @@ $(document).ready(function() {
                 var warningDiv = document.createElement('div');
                 warningDiv.id = 'placeWarning';
                 warningDiv.className = 'alert alert-warning alert-dismissible fade show mt-2';
-                warningDiv.innerHTML = '<i class="bi bi-exclamation-triangle-fill me-2"></i>' + message;
+                warningDiv.innerHTML = '<i class="bi bi-exclamation-triangle-fill me-2"></i>' + escapeHtml(message);
                 placeInput.parentElement.appendChild(warningDiv);
                 setTimeout(function() {
                     warningDiv.style.opacity = '0';
                     warningDiv.style.transition = 'opacity 0.5s';
                     setTimeout(function() { if (warningDiv.parentElement) warningDiv.remove(); }, 500);
                 }, 5000);
+            }
+
+            function escapeHtml(value) {
+                var element = document.createElement('div');
+                element.textContent = value == null ? '' : String(value);
+                return element.innerHTML;
             }
 
             function fetchSuggestions(q) {
@@ -807,8 +813,8 @@ $(document).ready(function() {
         @if (Model.Patient?.OccupationId != null)
         {
             <text>
-            var existingOccupationId = @Model.Patient.OccupationId
-            var existingOccupationName = '@(Model.Patient.Occupation?.Name ?? "")'
+            var existingOccupationId = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.Patient.OccupationId))
+            var existingOccupationName = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.Patient.Occupation?.Name ?? ""))
             if (existingOccupationName) {
                 $searchInput.val(existingOccupationName)
             }
@@ -1052,10 +1058,10 @@ $(document).ready(function() {
                             .html(`
                                 <div style="display: flex; justify-content: space-between; align-items: start;">
                                     <div>
-                                        <strong style="font-size: 15px;">${patient.name}</strong>
+                                        <strong style="font-size: 15px;">${escapeHtml(patient.name)}</strong>
                                         <br/>
                                         <small style="color: var(--color-secondary);">
-                                            ID: ${patient.friendlyId} | DOB: ${dob}${age ? ' (' + age + ')' : ''}
+                                            ID: ${escapeHtml(patient.friendlyId)} | DOB: ${escapeHtml(dob)}${age ? ' (' + escapeHtml(age) + ')' : ''}
                                         </small>
                                     </div>
                                     <button type="button" class="btn-apple btn-apple-primary" style="font-size: 13px;">
@@ -1068,6 +1074,10 @@ $(document).ready(function() {
                             })
                         $resultsList.append($item)
                     })
+                }
+
+                function escapeHtml(value) {
+                    return $('<div>').text(value == null ? '' : String(value)).html()
                 }
 
                 function calculateAge(dateOfBirth) {
@@ -1094,17 +1104,23 @@ $(document).ready(function() {
                         },
                         data: { 
                             patientId: patientId,
-                            diseaseId: '@Model.DiseaseId'
+        diseaseId: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.DiseaseId))
                         },
-                        success: function(response) {                            // The response is HTML with script to close window and notify parent
-                            var tempDiv = document.createElement('div')
-                            tempDiv.innerHTML = response
-                            var scripts = tempDiv.getElementsByTagName('script')
-                            for (var i = 0; i < scripts.length; i++) {
-                                eval(scripts[i].innerHTML)
+                        dataType: 'json',
+                        success: function(response) {
+                            if (!response || !response.success) {
+                                alert('The contact could not be linked. Please try again.')
+                                return
                             }
+
+                            if (window.opener && typeof window.opener.contactCreated === 'function') {
+                                window.opener.contactCreated(response.caseId, response.caseFriendlyId, response.patientName)
+                            }
+
+                            window.close()
                         },
-                        error: function(xhr, status, error) {                            alert('Error linking patient: ' + xhr.responseText)
+                        error: function() {
+                            alert('The contact could not be linked. Please try again.')
                         }
                     })
                 }

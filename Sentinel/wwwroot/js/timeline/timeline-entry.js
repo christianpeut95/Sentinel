@@ -2712,19 +2712,21 @@ class TimelineEntry {
                     const places = await response.json();
                     const resultsDiv = input.closest('.prompt-body').querySelector('.location-search-results');
 
-                    resultsDiv.innerHTML = places.map(place => `
-                        <div class="location-result" data-place='${JSON.stringify(place)}'>
-                            <i class="bi bi-pin-map"></i>
-                            <span>${place.displayName || place.description}</span>
-                        </div>
-                    `).join('');
+                    resultsDiv.replaceChildren();
+                    places.forEach(place => {
+                        const result = document.createElement('div');
+                        result.className = 'location-result';
 
-                    // Add click handlers
-                    resultsDiv.querySelectorAll('.location-result').forEach(result => {
+                        const icon = document.createElement('i');
+                        icon.className = 'bi bi-pin-map';
+                        const label = document.createElement('span');
+                        label.textContent = place.displayName || place.description || '';
+
+                        result.append(icon, label);
                         result.addEventListener('click', () => {
-                            const placeData = JSON.parse(result.dataset.place);
-                            this.selectPlace(entity, entryId, placeData);
+                            this.selectPlace(entity, entryId, place);
                         });
+                        resultsDiv.appendChild(result);
                     });
 
                 } catch (error) {

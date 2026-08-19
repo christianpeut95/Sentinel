@@ -401,12 +401,12 @@
             {
                 <text>
                 // Load country name via API
-                $.get('/api/countries/@Model.Exposure.CountryCode', function(country) {
+$.get('/api/countries/' + encodeURIComponent(@Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.Exposure.CountryCode))), function(country) {
                     var option = new Option(country.text, country.id, true, true);
                     $('#countrySelect').html('').append(option).trigger('change');
                 }).fail(function() {
                     // If API fails, just show the code
-                    var option = new Option('@Model.Exposure.CountryCode', '@Model.Exposure.CountryCode', true, true);
+var option = new Option(@Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.Exposure.CountryCode)), @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.Exposure.CountryCode)), true, true);
                     $('#countrySelect').html('').append(option).trigger('change');
                 });
                 </text>

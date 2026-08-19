@@ -620,18 +620,36 @@
             menu.style.top = event.clientY + 'px';
             menu.style.zIndex = '9999';
             
-            menu.innerHTML = `
-                <a class="dropdown-item" href="/Reports/Folders/Manage?id=${folderId}">
-                    <i class="bi bi-share me-2"></i>Manage Sharing
-                </a>
-                <a class="dropdown-item" href="#" onclick="editFolder(${folderId}); return false;">
-                    <i class="bi bi-pencil me-2"></i>Edit Folder
-                </a>
-                <hr class="dropdown-divider">
-                <a class="dropdown-item text-danger" href="#" onclick="deleteFolder(${folderId}, '${folderName}'); return false;">
-                    <i class="bi bi-trash me-2"></i>Delete Folder
-                </a>
-            `;
+            const createMenuItem = (text, iconClass, className = 'dropdown-item') => {
+                const item = document.createElement('a');
+                item.className = className;
+                const icon = document.createElement('i');
+                icon.className = `${iconClass} me-2`;
+                item.append(icon, document.createTextNode(text));
+                return item;
+            };
+
+            const manage = createMenuItem('Manage Sharing', 'bi bi-share');
+            manage.href = `/Reports/Folders/Manage?id=${encodeURIComponent(folderId)}`;
+
+            const edit = createMenuItem('Edit Folder', 'bi bi-pencil');
+            edit.href = '#';
+            edit.addEventListener('click', event => {
+                event.preventDefault();
+                editFolder(folderId);
+            });
+
+            const divider = document.createElement('hr');
+            divider.className = 'dropdown-divider';
+
+            const remove = createMenuItem('Delete Folder', 'bi bi-trash', 'dropdown-item text-danger');
+            remove.href = '#';
+            remove.addEventListener('click', event => {
+                event.preventDefault();
+                deleteFolder(folderId, folderName);
+            });
+
+            menu.append(manage, edit, divider, remove);
             
             document.body.appendChild(menu);
             

@@ -122,6 +122,7 @@ namespace Sentinel.Pages.Settings.DiseaseAccess
                     currentUserId, 
                     ExpiresAt, 
                     Reason);
+                await _userManager.UpdateSecurityStampAsync(user);
 
                 var expirationInfo = ExpiresAt.HasValue 
                     ? $" (expires {ExpiresAt.Value.ToLocalTime():MMM dd, yyyy})" 
@@ -150,6 +151,10 @@ namespace Sentinel.Pages.Settings.DiseaseAccess
             try
             {
                 await _diseaseAccessService.RevokeDiseaseAccessFromUserAsync(userId, SelectedDiseaseId.Value);
+                if (user != null)
+                {
+                    await _userManager.UpdateSecurityStampAsync(user);
+                }
                 TempData["SuccessMessage"] = $"Access to '{disease?.Name}' revoked from user '{user?.Email}'.";
             }
             catch (Exception ex)

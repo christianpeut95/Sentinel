@@ -498,12 +498,12 @@
     <script>
         let surveyCreator;
         let hasUnsavedChanges = false;
-        const surveyId = '@Model.SurveyTemplateId';
+        const surveyId = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.SurveyTemplateId));
         const isNewSurvey = surveyId === '00000000-0000-0000-0000-000000000000';
-        const returnUrl = '@Model.ReturnUrl';
+        const returnUrl = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.ReturnUrl));
         
         // Initial survey JSON from server
-        const initialSurveyJson = @Html.Raw(Model.SurveyDefinitionJson ?? "null");
+        const initialSurveyJson = JSON.parse(@Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.SurveyDefinitionJson ?? "null")));
         
         function initializeSurveyCreator() {            // Check if all required libraries are loaded
             if (typeof ko === 'undefined' || typeof Survey === 'undefined' || typeof SurveyCreator === 'undefined') {                alert('Failed to load survey designer libraries. Please refresh the page.');
@@ -529,7 +529,7 @@
                 if (initialSurveyJson && typeof initialSurveyJson === 'object') {                    surveyCreator.JSON = initialSurveyJson;
                 } else {                    // Start with a basic template
                     surveyCreator.JSON = {
-                        title: "@Model.SurveyName",
+                        title: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.SurveyName)),
                         description: "Create your survey by adding questions below",
                         elements: []
                     };
@@ -714,13 +714,13 @@
                             html += `
                                 <div class="col-md-6">
                                     <div class="field-chip custom-field-item" 
-                                         data-field="Case.CustomFields.${field.name}" 
-                                         data-variable="${field.name}"
-                                         title="Click to copy 'Case.CustomFields.${field.name}'">
+                                         data-field="Case.CustomFields.${escapeHtml(field.name)}" 
+                                         data-variable="${escapeHtml(field.name)}"
+                                         title="Click to copy 'Case.CustomFields.${escapeHtml(field.name)}'">
                                         <div class="flex-grow-1">
-                                            <code>Case.CustomFields.${field.name}</code>
-                                            <div class="field-description">${field.description || 'Custom field'}</div>
-                                            <small class="text-muted">From: ${field.diseaseName}</small>
+                                            <code>Case.CustomFields.${escapeHtml(field.name)}</code>
+                                            <div class="field-description">${escapeHtml(field.description || 'Custom field')}</div>
+                                            <small class="text-muted">From: ${escapeHtml(field.diseaseName)}</small>
                                         </div>
                                         <i class="bi bi-clipboard copy-icon"></i>
                                     </div>
@@ -839,8 +839,8 @@
         };
         
         // Load initial mappings if they exist
-        const initialOutputMapping = @Html.Raw(Model.OutputMappingJson ?? "{}");
-        const initialInputMapping = @Html.Raw(Model.InputMappingJson ?? "{}");
+        const initialOutputMapping = JSON.parse(@Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.OutputMappingJson ?? "{}")));
+        const initialInputMapping = JSON.parse(@Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.InputMappingJson ?? "{}")));
         
         if (initialOutputMapping && typeof initialOutputMapping === 'object') {
             currentMappings.output = initialOutputMapping;

@@ -34,7 +34,7 @@ namespace Sentinel.Pages.Settings.Surveys
 
         public async Task<IActionResult> OnGetAsync(Guid? id, string? returnUrl)
         {
-            if (returnUrl != null)
+            if (!string.IsNullOrWhiteSpace(returnUrl) && Url.IsLocalUrl(returnUrl))
             {
                 ReturnUrl = returnUrl;
             }

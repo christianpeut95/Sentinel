@@ -177,7 +177,7 @@
                                                     <small class="text-info mt-1">
                                                         <i class="bi bi-telephone"></i> 
                                                         <strong>@task.CallAttempts.Count</strong> attempt(s)
-                                                        � Last: @lastAttempt.AttemptedAt.ToString("dd MMM HH:mm")
+                                                        â€¢ Last: @lastAttempt.AttemptedAt.ToString("dd MMM HH:mm")
                                                     </small>
                                                     <button type="button" class="btn btn-sm btn-link p-0 ms-1" 
                                                             onclick="showCallHistory('@task.Id')" 
@@ -581,7 +581,7 @@
                         case 8: outcomeText = 'Call Back Requested'; outcomeClass = 'primary'; break;
                     }
                     
-                    const userName = attempt.attemptedByUser?.userName || attempt.attemptedByUser?.email || 'Unknown User';
+                    const userName = escapeHtml(attempt.attemptedByUser?.userName || attempt.attemptedByUser?.email || 'Unknown User');
                     
                     html += `
                         <div class="list-group-item">
@@ -598,7 +598,7 @@
                                     minute: '2-digit'
                                 })}</small>
                             </div>
-                            ${attempt.notes ? `<p class="mb-1">${attempt.notes}</p>` : '<p class="mb-1 text-muted">No notes recorded</p>'}
+                            ${attempt.notes ? `<p class="mb-1">${escapeHtml(attempt.notes)}</p>` : '<p class="mb-1 text-muted">No notes recorded</p>'}
                             ${attempt.nextCallbackScheduled ? `<small class="text-info"><i class="bi bi-calendar-check"></i> Next call: ${new Date(attempt.nextCallbackScheduled).toLocaleString('en-AU')}</small>` : ''}
                         </div>
                     `;
@@ -611,5 +611,11 @@
         } catch (error) {            $('#callHistoryContent').html('<div class="alert alert-danger"><i class="bi bi-exclamation-triangle me-2"></i>Failed to load call history. Please try again.</div>');
         }
     }
+    function escapeHtml(value) {
+        const element = document.createElement('div');
+        element.textContent = value ?? '';
+        return element.innerHTML;
+    }
+
 </script>
 }

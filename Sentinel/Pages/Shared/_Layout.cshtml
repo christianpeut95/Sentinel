@@ -946,10 +946,10 @@
     <script src="~/js/geocoding.js" asp-append-version="true"></script>
     <script>
         SentinelGeocoding.init({
-            provider: '@(Configuration["Geocoding:Provider"] ?? "nominatim")',
-            apiKey: '@(Configuration["Geocoding:ApiKey"] ?? "")',
-            email: '@(Configuration["Geocoding:Email"] ?? "")',
-            defaultCountry: '@(Configuration["Organization:CountryCode"] ?? "AU")'
+            provider: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Configuration["Geocoding:Provider"] ?? "nominatim")),
+            browserApiKey: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Configuration["Geocoding:GoogleMapsBrowserApiKey"] ?? "")),
+            email: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Configuration["Geocoding:Email"] ?? "")),
+            defaultCountry: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Configuration["Organization:CountryCode"] ?? "AU"))
         });
     </script>
 
