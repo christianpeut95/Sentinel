@@ -311,8 +311,11 @@ namespace Sentinel.Services
                     GetPermission(permissionDict, PermissionModule.Case, PermissionAction.Edit),
                     GetPermission(permissionDict, PermissionModule.Case, PermissionAction.Search),
                     GetPermission(permissionDict, PermissionModule.Contact, PermissionAction.Import),
+                    GetPermission(permissionDict, PermissionModule.Organization, PermissionAction.View),
+                    GetPermission(permissionDict, PermissionModule.ReferenceData, PermissionAction.View),
                     GetPermission(permissionDict, PermissionModule.Task, PermissionAction.View),
                     GetPermission(permissionDict, PermissionModule.Task, PermissionAction.Create),
+                    GetPermission(permissionDict, PermissionModule.Task, PermissionAction.Edit),
                     GetPermission(permissionDict, PermissionModule.Survey, PermissionAction.View),
                     GetPermission(permissionDict, PermissionModule.Survey, PermissionAction.Create),
                     GetPermission(permissionDict, PermissionModule.Survey, PermissionAction.Complete),
@@ -340,7 +343,9 @@ namespace Sentinel.Services
                     GetPermission(permissionDict, PermissionModule.Case, PermissionAction.View),
                     GetPermission(permissionDict, PermissionModule.Case, PermissionAction.Create),
                     GetPermission(permissionDict, PermissionModule.Case, PermissionAction.Edit),
-                    GetPermission(permissionDict, PermissionModule.Case, PermissionAction.Search)
+                    GetPermission(permissionDict, PermissionModule.Case, PermissionAction.Search),
+                    GetPermission(permissionDict, PermissionModule.Organization, PermissionAction.View),
+                    GetPermission(permissionDict, PermissionModule.ReferenceData, PermissionAction.View)
                 }.Where(id => id.HasValue).Select(id => id!.Value).ToList(),
                 logger);
             totalAssignments += dataEntryAssignments;
@@ -353,6 +358,7 @@ namespace Sentinel.Services
                     GetPermission(permissionDict, PermissionModule.Case, PermissionAction.View),
                     GetPermission(permissionDict, PermissionModule.Case, PermissionAction.Search),
                     GetPermission(permissionDict, PermissionModule.Task, PermissionAction.View),
+                    GetPermission(permissionDict, PermissionModule.Task, PermissionAction.Edit),
                     GetPermission(permissionDict, PermissionModule.Survey, PermissionAction.View),
                     GetPermission(permissionDict, PermissionModule.Survey, PermissionAction.Create),
                     GetPermission(permissionDict, PermissionModule.Survey, PermissionAction.Complete),
@@ -362,7 +368,8 @@ namespace Sentinel.Services
                     GetPermission(permissionDict, PermissionModule.Location, PermissionAction.View),
                     GetPermission(permissionDict, PermissionModule.Location, PermissionAction.Create),
                     GetPermission(permissionDict, PermissionModule.Event, PermissionAction.View),
-                    GetPermission(permissionDict, PermissionModule.Event, PermissionAction.Create)
+                    GetPermission(permissionDict, PermissionModule.Event, PermissionAction.Create),
+                    GetPermission(permissionDict, PermissionModule.ReferenceData, PermissionAction.View)
                 }.Where(id => id.HasValue).Select(id => id!.Value).ToList(),
                 logger);
             totalAssignments += tracerAssignments;

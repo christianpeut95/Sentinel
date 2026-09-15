@@ -13,15 +13,18 @@ namespace Sentinel.Pages.Tasks
     public class ViewSurveyResultModel : PageModel
     {
         private readonly ApplicationDbContext _context;
+        private readonly ICaseAccessService _caseAccessService;
         private readonly ISurveyService _surveyService;
         private readonly ILogger<ViewSurveyResultModel> _logger;
 
         public ViewSurveyResultModel(
             ApplicationDbContext context, 
+            ICaseAccessService caseAccessService,
             ISurveyService surveyService,
             ILogger<ViewSurveyResultModel> logger)
         {
             _context = context;
+            _caseAccessService = caseAccessService;
             _surveyService = surveyService;
             _logger = logger;
         }
@@ -36,6 +39,20 @@ namespace Sentinel.Pages.Tasks
             try
             {
                 _logger.LogInformation("Loading survey result for task {TaskId}", id);
+
+                // Do not load survey answers or linked patient information until
+                // the task's case has passed the hierarchy-aware access check.
+                var taskSummary = await _context.CaseTasks
+                    .AsNoTracking()
+                    .Where(t => t.Id == id)
+                    .Select(t => new { t.CaseId })
+                    .FirstOrDefaultAsync();
+
+                if (taskSummary == null || !await _caseAccessService.CanAccessCaseAsync(taskSummary.CaseId))
+                {
+                    _logger.LogWarning("Survey result access denied for inaccessible task {TaskId}", id);
+                    return NotFound();
+                }
 
                 Task = await _context.CaseTasks
                     .Include(t => t.Case)
@@ -93,7 +110,7 @@ namespace Sentinel.Pages.Tasks
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error loading survey result for task {TaskId}: {ErrorMessage}", id, ex.Message);
-                TempData["ErrorMessage"] = $"Error loading survey result: {ex.Message}";
+                TempData["ErrorMessage"] = Sentinel.Services.UserFacingError.Create(HttpContext, ex);
                 return RedirectToPage("/Dashboard/MyTasks");
             }
         }

@@ -309,7 +309,7 @@ public class CreateFromExposureModel : PageModel
         }
         catch (Exception ex)
         {
-            ErrorMessage = $"Error creating contact tracing event: {ex.Message}";
+            ErrorMessage = Sentinel.Services.UserFacingError.Create(HttpContext, ex);
             await OnGetAsync();
             return Page();
         }

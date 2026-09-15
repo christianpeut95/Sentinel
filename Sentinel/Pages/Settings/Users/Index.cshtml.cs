@@ -7,7 +7,9 @@ using Sentinel.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Sentinel.Services.Email;
+using Sentinel.Services;
 using System.Text.Encodings.Web;
+using System.Security.Claims;
 
 namespace Sentinel.Pages.Settings.Users
 {
@@ -17,17 +19,20 @@ namespace Sentinel.Pages.Settings.Users
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly RoleManager<IdentityRole> _roleManager;
         private readonly IEmailService _emailService;
+        private readonly IPermissionService _permissionService;
         private readonly ILogger<IndexModel> _logger;
 
         public IndexModel(
             UserManager<ApplicationUser> userManager, 
             RoleManager<IdentityRole> roleManager,
             IEmailService emailService,
+            IPermissionService permissionService,
             ILogger<IndexModel> logger)
         {
             _userManager = userManager;
             _roleManager = roleManager;
             _emailService = emailService;
+            _permissionService = permissionService;
             _logger = logger;
         }
 
@@ -94,6 +99,16 @@ namespace Sentinel.Pages.Settings.Users
         /// </summary>
         public async Task<IActionResult> OnPostSendPasswordResetAsync(string userId)
         {
+            var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrWhiteSpace(currentUserId) ||
+                !await _permissionService.HasPermissionAsync(
+                    currentUserId,
+                    PermissionModule.User,
+                    PermissionAction.Edit))
+            {
+                return Forbid();
+            }
+
             var user = await _userManager.FindByIdAsync(userId);
             if (user == null || string.IsNullOrEmpty(user.Email))
             {
@@ -110,7 +125,7 @@ namespace Sentinel.Pages.Settings.Users
                 var resetLink = Url.Page(
                     "/Account/ResetPassword",
                     pageHandler: null,
-                    values: new { area = "Identity", userId = user.Id, code = token },
+                    values: new { area = "Identity", userId = user.Id, code = PasswordResetTokenEncoding.Encode(token) },
                     protocol: Request.Scheme);
 
                 if (string.IsNullOrEmpty(resetLink))

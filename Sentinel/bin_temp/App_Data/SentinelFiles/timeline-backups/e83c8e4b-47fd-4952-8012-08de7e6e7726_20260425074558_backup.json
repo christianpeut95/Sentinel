@@ -1,0 +1,52 @@
+{
+  "caseId": "e83c8e4b-47fd-4952-8012-08de7e6e7726",
+  "entries": [
+    {
+      "id": "entry_1777103102562_8chcwgcen",
+      "entryDate": "2026-04-25T00:00:00Z",
+      "narrativeText": "went to @Coles Welland ",
+      "entities": [
+        {
+          "id": "entity_1777103124631_zabo42afm",
+          "entityType": 2,
+          "rawText": "Coles Welland",
+          "normalizedValue": "Coles Welland",
+          "startPosition": 9,
+          "endPosition": 22,
+          "confidence": 3,
+          "isConfirmed": true,
+          "linkedRecordType": null,
+          "linkedRecordId": null,
+          "linkedRecordDisplayName": null,
+          "suggestions": [],
+          "metadata": {
+            "placeId": "ChIJzfaGjwHGsGoRVjImfT2By6g",
+            "address": "522/530 Port Rd, Welland SA 5007, Australia",
+            "latitude": "-34.896868",
+            "longitude": "138.5571339"
+          },
+          "notes": null
+        }
+      ],
+      "relationships": [],
+      "parsedAt": null,
+      "confidenceScore": null,
+      "isReviewed": false,
+      "uncertaintyMarkers": [],
+      "corrections": [],
+      "protectiveMeasures": [],
+      "isMemoryGap": false,
+      "memoryGapNotes": null
+    }
+  ],
+  "conventions": {},
+  "entityGroups": {},
+  "createdDate": "2026-04-25T07:45:27.4391604Z",
+  "createdByUserId": "6964051a-a741-43ff-8b37-dfbd11ce666e",
+  "lastModified": "2026-04-25T07:45:27.4391714Z",
+  "lastModifiedByUserId": "6964051a-a741-43ff-8b37-dfbd11ce666e",
+  "isReviewed": false,
+  "reviewedAt": null,
+  "reviewedByUserId": null,
+  "version": 2
+}

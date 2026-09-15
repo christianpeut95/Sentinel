@@ -386,6 +386,8 @@ namespace Sentinel.Services
                     
                     _logger.LogInformation("Change tracker cleared. Creating review item for failed survey mapping.");
                     
+                    var errorMessage = UserFacingError.Create(_logger, ex, "survey response mapping");
+
                     var reviewItem = new ReviewQueue
                     {
                         EntityType = "SurveyResponse",
@@ -395,13 +397,12 @@ namespace Sentinel.Services
                         Priority = ReviewPriorities.High,
                         ReviewStatus = ReviewStatuses.Pending,
                         CreatedDate = DateTime.UtcNow,
-                        ChangeSnapshot = $"Survey submission failed for Task {task.Id}: {ex.Message}",
+                        ChangeSnapshot = $"Survey submission failed for Task {task.Id}. {errorMessage}",
                         ProposedEntityDataJson = JsonSerializer.Serialize(new
                         {
                             TaskId = task.Id,
                             TaskName = task.TaskTemplate?.Name ?? "Unknown",
-                            ErrorMessage = ex.Message,
-                            StackTrace = ex.StackTrace,
+                            ErrorMessage = errorMessage,
                             SurveyResponses = responses,
                             ErrorTimestamp = DateTime.UtcNow
                         }),
@@ -414,7 +415,7 @@ namespace Sentinel.Services
                     var errorLog = BuildSubmissionLog(
                         task,
                         SurveySubmissionOutcome.ProblemOccurred,
-                        issuesSummary: $"A problem occurred while applying survey answers to the case record. Your answers were saved. Error details: {ex.Message}");
+                        issuesSummary: $"A problem occurred while applying survey answers to the case record. Your answers were saved. {errorMessage}");
                     _context.SurveySubmissionLogs.Add(errorLog);
 
                     await _context.SaveChangesAsync();

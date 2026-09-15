@@ -15,17 +15,20 @@ public class BuilderModel : PageModel
 {
     private readonly IReportFieldMetadataService _fieldMetadataService;
     private readonly IReportDataService _reportDataService;
+    private readonly IReportDataAccessService _reportDataAccessService;
     private readonly ApplicationDbContext _context;
     private readonly ILogger<BuilderModel> _logger;
 
     public BuilderModel(
         IReportFieldMetadataService fieldMetadataService,
         IReportDataService reportDataService,
+        IReportDataAccessService reportDataAccessService,
         ApplicationDbContext context,
         ILogger<BuilderModel> logger)
     {
         _fieldMetadataService = fieldMetadataService;
         _reportDataService = reportDataService;
+        _reportDataAccessService = reportDataAccessService;
         _context = context;
         _logger = logger;
     }
@@ -64,6 +67,11 @@ public class BuilderModel : PageModel
                 .FirstOrDefaultAsync(rd => rd.Id == ReportId.Value);
 
             if (ReportDefinition == null)
+            {
+                return NotFound();
+            }
+
+            if (!CanEditReport(ReportDefinition))
             {
                 return NotFound();
             }
@@ -110,6 +118,11 @@ public class BuilderModel : PageModel
                 : await GetUserDisplayNameAsync(ReportDefinition.ModifiedByUserId);
 
             // Load report data
+            if (!await _reportDataAccessService.CanReadEntityTypeAsync(ReportDefinition.EntityType))
+            {
+                return Forbid();
+            }
+
             ReportData = await _reportDataService.GetReportPreviewAsync(ReportDefinition);
         }
         else
@@ -126,7 +139,6 @@ public class BuilderModel : PageModel
         return Page();
     }
 
-    [IgnoreAntiforgeryToken]
     public async Task<IActionResult> OnPostSaveReportAsync([FromBody] SaveReportRequest request)
     {
         try
@@ -142,6 +154,11 @@ public class BuilderModel : PageModel
                     .FirstOrDefaultAsync(rd => rd.Id == request.ReportId.Value);
 
                 if (reportDef == null)
+                {
+                    return NotFound();
+                }
+
+                if (!CanEditReport(reportDef))
                 {
                     return NotFound();
                 }
@@ -243,6 +260,10 @@ public class BuilderModel : PageModel
         }
     }
 
+    private bool CanEditReport(ReportDefinition report) =>
+        User.IsInRole("Admin") ||
+        string.Equals(report.CreatedByUserId, User.Identity?.Name, StringComparison.Ordinal);
+
     private async Task<string> GetUserDisplayNameAsync(string? userKey)
     {
         if (string.IsNullOrWhiteSpace(userKey))
@@ -269,7 +290,6 @@ public class BuilderModel : PageModel
             : user.UserName ?? user.Email ?? userKey;
     }
 
-    [IgnoreAntiforgeryToken]
     public async Task<IActionResult> OnPostPreviewReportAsync([FromBody] PreviewReportRequest request)
     {
         try
@@ -334,6 +354,18 @@ public class BuilderModel : PageModel
             };
 
             // Get preview data
+            if (!await _reportDataAccessService.CanReadEntityTypeAsync(reportDef.EntityType))
+            {
+                return new JsonResult(new
+                {
+                    success = false,
+                    error = "You are not permitted to view data for the selected report type."
+                })
+                {
+                    StatusCode = StatusCodes.Status403Forbidden
+                };
+            }
+
             var data = await _reportDataService.GetReportPreviewAsync(reportDef);
 
             return new JsonResult(new
@@ -342,6 +374,17 @@ public class BuilderModel : PageModel
                 data = data,
                 rowCount = data.Count
             });
+        }
+        catch (ReportDataAccessDeniedException)
+        {
+            return new JsonResult(new
+            {
+                success = false,
+                error = "You are not permitted to view data for the selected report type."
+            })
+            {
+                StatusCode = StatusCodes.Status403Forbidden
+            };
         }
         catch (Exception ex)
         {
@@ -356,168 +399,6 @@ public class BuilderModel : PageModel
         }
     }
 
-    [IgnoreAntiforgeryToken]
-    public IActionResult OnPostGetDefaultFields([FromBody] DefaultFieldsRequest request)
-    {
-        var defaultFields = GetDefaultFieldsForEntityType(request.EntityType);
-        return new JsonResult(new { success = true, fields = defaultFields });
-    }
-
-    private List<ReportFieldDto> GetDefaultFieldsForEntityType(string entityType)
-    {
-        return entityType switch
-        {
-            "Case" => new List<ReportFieldDto>
-            {
-                new() { FieldPath = "FriendlyId", DisplayName = "Case Number", DataType = "String", DisplayOrder = 1 },
-                new() { FieldPath = "Patient.GivenName", DisplayName = "First Name", DataType = "String", DisplayOrder = 2 },
-                new() { FieldPath = "Patient.FamilyName", DisplayName = "Last Name", DataType = "String", DisplayOrder = 3 },
-                new() { FieldPath = "DateOfOnset", DisplayName = "Date of Onset", DataType = "DateTime", DisplayOrder = 4 },
-                new() { FieldPath = "DateOfNotification", DisplayName = "Date of Notification", DataType = "DateTime", DisplayOrder = 5 },
-                new() { FieldPath = "Disease.Name", DisplayName = "Disease", DataType = "String", DisplayOrder = 6 },
-                new() { FieldPath = "ConfirmationStatus.Name", DisplayName = "Status", DataType = "String", DisplayOrder = 7 },
-                new() { FieldPath = "Patient.City", DisplayName = "Suburb", DataType = "String", DisplayOrder = 8 },
-                new() { FieldPath = "Jurisdiction1.Name", DisplayName = "Jurisdiction", DataType = "String", DisplayOrder = 9 }
-            },
-
-            "Contact" => new List<ReportFieldDto>
-            {
-                new() { FieldPath = "FriendlyId", DisplayName = "Contact Number", DataType = "String", DisplayOrder = 1 },
-                new() { FieldPath = "Patient.GivenName", DisplayName = "First Name", DataType = "String", DisplayOrder = 2 },
-                new() { FieldPath = "Patient.FamilyName", DisplayName = "Last Name", DataType = "String", DisplayOrder = 3 },
-                new() { FieldPath = "DateOfOnset", DisplayName = "Date of Onset", DataType = "DateTime", DisplayOrder = 4 },
-                new() { FieldPath = "Disease.Name", DisplayName = "Disease", DataType = "String", DisplayOrder = 5 },
-                new() { FieldPath = "Patient.MobilePhone", DisplayName = "Mobile", DataType = "String", DisplayOrder = 6 },
-                new() { FieldPath = "Patient.City", DisplayName = "Suburb", DataType = "String", DisplayOrder = 7 },
-                new() { FieldPath = "Jurisdiction1.Name", DisplayName = "Jurisdiction", DataType = "String", DisplayOrder = 8 }
-            },
-
-            "Patient" => new List<ReportFieldDto>
-            {
-                new() { FieldPath = "FriendlyId", DisplayName = "Patient ID", DataType = "String", DisplayOrder = 1 },
-                new() { FieldPath = "GivenName", DisplayName = "First Name", DataType = "String", DisplayOrder = 2 },
-                new() { FieldPath = "FamilyName", DisplayName = "Last Name", DataType = "String", DisplayOrder = 3 },
-                new() { FieldPath = "DateOfBirth", DisplayName = "Date of Birth", DataType = "DateTime", DisplayOrder = 4 },
-                new() { FieldPath = "MobilePhone", DisplayName = "Mobile", DataType = "String", DisplayOrder = 5 },
-                new() { FieldPath = "EmailAddress", DisplayName = "Email", DataType = "String", DisplayOrder = 6 },
-                new() { FieldPath = "Address", DisplayName = "Address", DataType = "String", DisplayOrder = 7 },
-                new() { FieldPath = "City", DisplayName = "Suburb", DataType = "String", DisplayOrder = 8 },
-                new() { FieldPath = "State", DisplayName = "State", DataType = "String", DisplayOrder = 9 }
-            },
-
-            "Outbreak" => new List<ReportFieldDto>
-            {
-                new() { FieldPath = "Name", DisplayName = "Outbreak Name", DataType = "String", DisplayOrder = 1 },
-                new() { FieldPath = "StartDate", DisplayName = "Start Date", DataType = "DateTime", DisplayOrder = 2 },
-                new() { FieldPath = "EndDate", DisplayName = "End Date", DataType = "DateTime", DisplayOrder = 3 },
-                new() { FieldPath = "PrimaryDisease.Name", DisplayName = "Primary Disease", DataType = "String", DisplayOrder = 4 },
-                new() { FieldPath = "PrimaryLocation.Name", DisplayName = "Primary Location", DataType = "String", DisplayOrder = 5 },
-                new() { FieldPath = "ConfirmationStatus.Name", DisplayName = "Status", DataType = "String", DisplayOrder = 6 },
-                new() { FieldPath = "Status", DisplayName = "Outbreak Status", DataType = "Enum", DisplayOrder = 7 }
-            },
-
-            "Task" => new List<ReportFieldDto>
-            {
-                new() { FieldPath = "FriendlyId", DisplayName = "Task Number", DataType = "String", DisplayOrder = 1 },
-                new() { FieldPath = "Title", DisplayName = "Task Title", DataType = "String", DisplayOrder = 2 },
-                new() { FieldPath = "TaskType.Name", DisplayName = "Task Type", DataType = "String", DisplayOrder = 3 },
-                new() { FieldPath = "Status", DisplayName = "Status", DataType = "Enum", DisplayOrder = 4 },
-                new() { FieldPath = "Priority", DisplayName = "Priority", DataType = "Enum", DisplayOrder = 5 },
-                new() { FieldPath = "DueDate", DisplayName = "Due Date", DataType = "DateTime", DisplayOrder = 6 },
-                new() { FieldPath = "AssignedToUser.Email", DisplayName = "Assigned To", DataType = "String", DisplayOrder = 7 },
-                new() { FieldPath = "Case.FriendlyId", DisplayName = "Case Number", DataType = "String", DisplayOrder = 8 }
-            },
-
-            "Location" => new List<ReportFieldDto>
-            {
-                new() { FieldPath = "Name", DisplayName = "Location Name", DataType = "String", DisplayOrder = 1 },
-                new() { FieldPath = "LocationType.Name", DisplayName = "Location Type", DataType = "String", DisplayOrder = 2 },
-                new() { FieldPath = "Address", DisplayName = "Address", DataType = "String", DisplayOrder = 3 },
-                new() { FieldPath = "City", DisplayName = "City", DataType = "String", DisplayOrder = 4 },
-                new() { FieldPath = "State", DisplayName = "State", DataType = "String", DisplayOrder = 5 },
-                new() { FieldPath = "IsHighRisk", DisplayName = "High Risk", DataType = "Boolean", DisplayOrder = 6 },
-                new() { FieldPath = "Organization.Name", DisplayName = "Organization", DataType = "String", DisplayOrder = 7 }
-            },
-
-            "Event" => new List<ReportFieldDto>
-            {
-                new() { FieldPath = "Name", DisplayName = "Event Name", DataType = "String", DisplayOrder = 1 },
-                new() { FieldPath = "EventType.Name", DisplayName = "Event Type", DataType = "String", DisplayOrder = 2 },
-                new() { FieldPath = "StartDateTime", DisplayName = "Start Date", DataType = "DateTime", DisplayOrder = 3 },
-                new() { FieldPath = "EndDateTime", DisplayName = "End Date", DataType = "DateTime", DisplayOrder = 4 },
-                new() { FieldPath = "Location.Name", DisplayName = "Location", DataType = "String", DisplayOrder = 5 },
-                new() { FieldPath = "EstimatedAttendees", DisplayName = "Estimated Attendees", DataType = "Int", DisplayOrder = 6 },
-                new() { FieldPath = "IsIndoor", DisplayName = "Indoor", DataType = "Boolean", DisplayOrder = 7 }
-            },
-
-            // Flattened Views - Match actual SQL view columns
-            "CaseContactTasksFlattened" => new List<ReportFieldDto>
-            {
-                new() { FieldPath = "CaseNumber", DisplayName = "Case Number", DataType = "String", DisplayOrder = 1 },
-                new() { FieldPath = "CaseType", DisplayName = "Type", DataType = "String", DisplayOrder = 2 },
-                new() { FieldPath = "PatientName", DisplayName = "Patient Name", DataType = "String", DisplayOrder = 3 },
-                new() { FieldPath = "DateOfOnset", DisplayName = "Date of Onset", DataType = "DateTime", DisplayOrder = 4 },
-                new() { FieldPath = "DiseaseName", DisplayName = "Disease", DataType = "String", DisplayOrder = 5 },
-                new() { FieldPath = "CaseStatus", DisplayName = "Status", DataType = "String", DisplayOrder = 6 },
-                new() { FieldPath = "TaskTitle", DisplayName = "Task", DataType = "String", DisplayOrder = 7 },
-                new() { FieldPath = "TaskStatus", DisplayName = "Task Status", DataType = "String", DisplayOrder = 8 },
-                new() { FieldPath = "TaskDueDate", DisplayName = "Due Date", DataType = "DateTime", DisplayOrder = 9 }
-            },
-
-            "OutbreakTasksFlattened" => new List<ReportFieldDto>
-            {
-                new() { FieldPath = "OutbreakName", DisplayName = "Outbreak", DataType = "String", DisplayOrder = 1 },
-                new() { FieldPath = "DiseaseName", DisplayName = "Disease", DataType = "String", DisplayOrder = 2 },
-                new() { FieldPath = "CaseNumber", DisplayName = "Case Number", DataType = "String", DisplayOrder = 3 },
-                new() { FieldPath = "PatientName", DisplayName = "Patient", DataType = "String", DisplayOrder = 4 },
-                new() { FieldPath = "TaskTitle", DisplayName = "Task", DataType = "String", DisplayOrder = 5 },
-                new() { FieldPath = "TaskStatus", DisplayName = "Status", DataType = "String", DisplayOrder = 6 },
-                new() { FieldPath = "DueDate", DisplayName = "Due Date", DataType = "DateTime", DisplayOrder = 7 }
-            },
-
-            "CaseTimelineAll" => new List<ReportFieldDto>
-            {
-                new() { FieldPath = "EventType", DisplayName = "Event Type", DataType = "String", DisplayOrder = 1 },
-                new() { FieldPath = "EventDate", DisplayName = "Date", DataType = "DateTime", DisplayOrder = 2 },
-                new() { FieldPath = "EventDescription", DisplayName = "Description", DataType = "String", DisplayOrder = 3 },
-                new() { FieldPath = "ActorName", DisplayName = "Actor", DataType = "String", DisplayOrder = 4 }
-            },
-
-            "ContactTracingMindMapNodes" => new List<ReportFieldDto>
-            {
-                new() { FieldPath = "NodeLabel", DisplayName = "Case Number", DataType = "String", DisplayOrder = 1 },
-                new() { FieldPath = "PersonName", DisplayName = "Name", DataType = "String", DisplayOrder = 2 },
-                new() { FieldPath = "DiseaseName", DisplayName = "Disease", DataType = "String", DisplayOrder = 3 },
-                new() { FieldPath = "CaseStatus", DisplayName = "Status", DataType = "String", DisplayOrder = 4 },
-                new() { FieldPath = "DateOfOnset", DisplayName = "Date of Onset", DataType = "DateTime", DisplayOrder = 5 }
-            },
-
-            "ContactTracingMindMapEdges" => new List<ReportFieldDto>
-            {
-                new() { FieldPath = "EdgeType", DisplayName = "Type", DataType = "String", DisplayOrder = 1 },
-                new() { FieldPath = "ExposureDate", DisplayName = "Exposure Date", DataType = "DateTime", DisplayOrder = 2 },
-                new() { FieldPath = "ConfidenceLevel", DisplayName = "Confidence", DataType = "String", DisplayOrder = 3 }
-            },
-
-            "ContactsListSimple" => new List<ReportFieldDto>
-            {
-                new() { FieldPath = "ContactNumber", DisplayName = "Contact Number", DataType = "String", DisplayOrder = 1 },
-                new() { FieldPath = "ContactName", DisplayName = "Name", DataType = "String", DisplayOrder = 2 },
-                new() { FieldPath = "DateIdentified", DisplayName = "Date Identified", DataType = "DateTime", DisplayOrder = 3 },
-                new() { FieldPath = "DiseaseName", DisplayName = "Disease", DataType = "String", DisplayOrder = 4 },
-                new() { FieldPath = "ContactMobile", DisplayName = "Mobile", DataType = "String", DisplayOrder = 5 },
-                new() { FieldPath = "ContactSuburb", DisplayName = "Suburb", DataType = "String", DisplayOrder = 6 },
-                new() { FieldPath = "TotalTasks", DisplayName = "Total Tasks", DataType = "Int", DisplayOrder = 7 }
-            },
-
-            _ => new List<ReportFieldDto>() // Empty for unknown types
-        };
-    }
-}
-
-public class DefaultFieldsRequest
-{
-    public string EntityType { get; set; } = "Case";
 }
 
 public class SaveReportRequest

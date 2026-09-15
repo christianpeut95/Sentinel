@@ -1,3 +1,5 @@
+@inject Sentinel.Services.ISystemSettingsService SystemSettings
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -9,27 +11,30 @@
     <link rel="stylesheet" href="/css/site.css" />
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" />
     <HeadOutlet />
-    <script>
-        (function(w,d){
-            if(w.Quackback) return;
-
-            w.Quackback=function(){
-                (w.Quackback.q=w.Quackback.q||[]).push(arguments)
-            };
-
-            var s=d.createElement("script");
-            s.async=true;
-            s.src="https://feedback.sentinelsurveillance.app/api/widget/sdk.js";
-            d.head.appendChild(s);
-        })(window,document);
-
-        Quackback("init", {
-            launcher: false
-        });
-    </script>
 </head>
 <body>
     <Routes />
+    @if (_feedbackWidgetEnabled)
+    {
+        <script src="/js/feedback-widget.js"></script>
+    }
     <script src="_framework/blazor.web.js"></script>
 </body>
 </html>
+
+@code {
+    private bool _feedbackWidgetEnabled;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            _feedbackWidgetEnabled = await SystemSettings.GetFeedbackWidgetEnabledAsync();
+        }
+        catch
+        {
+            // Do not load the feedback widget when its opt-in state cannot be confirmed.
+            _feedbackWidgetEnabled = false;
+        }
+    }
+}

@@ -1,0 +1,120 @@
+{
+  "caseId": "e83c8e4b-47fd-4952-8012-08de7e6e7726",
+  "entries": [
+    {
+      "id": "entry_1776861812037_6excns5tc",
+      "entryDate": "2026-04-22T00:00:00Z",
+      "narrativeText": "#Siblings( John Cathy)\n",
+      "entities": [
+        {
+          "id": "entity_1776861823394_8cikp73yz",
+          "entityType": 1,
+          "rawText": "John",
+          "normalizedValue": "John",
+          "startPosition": 11,
+          "endPosition": 15,
+          "confidence": 3,
+          "isConfirmed": true,
+          "linkedRecordType": null,
+          "linkedRecordId": null,
+          "linkedRecordDisplayName": null,
+          "suggestions": [],
+          "metadata": {
+            "relationship": ""
+          },
+          "notes": null
+        },
+        {
+          "id": "entity_1776861833593_ooetuz6bh",
+          "entityType": 1,
+          "rawText": "Cathy",
+          "normalizedValue": "Cathy",
+          "startPosition": 16,
+          "endPosition": 21,
+          "confidence": 3,
+          "isConfirmed": true,
+          "linkedRecordType": null,
+          "linkedRecordId": null,
+          "linkedRecordDisplayName": null,
+          "suggestions": [],
+          "metadata": {
+            "relationship": ""
+          },
+          "notes": null
+        }
+      ],
+      "relationships": [
+        {
+          "id": "rel_1776861846497_8ozhiv84s",
+          "primaryEntityId": "entity_1776861823394_8cikp73yz",
+          "relatedEntityId": "entity_1776861833593_ooetuz6bh",
+          "relationType": 1,
+          "timeEntityId": null,
+          "confidence": 2,
+          "isConfirmed": false,
+          "sourcePosition": 0,
+          "metadata": null,
+          "sequenceOrder": 0,
+          "notes": null
+        }
+      ],
+      "parsedAt": null,
+      "confidenceScore": null,
+      "isReviewed": false,
+      "uncertaintyMarkers": [],
+      "corrections": [],
+      "protectiveMeasures": [],
+      "isMemoryGap": false,
+      "memoryGapNotes": null
+    },
+    {
+      "id": "entry_1776861852465_6wcqf5sxl",
+      "entryDate": "2026-04-22T00:00:00Z",
+      "narrativeText": "went to McDonald\u0027s Tea Tree Plaza II with \u002B#Siblings.",
+      "entities": [
+        {
+          "id": "entity_1776861864087_xojo7klo1",
+          "entityType": 2,
+          "rawText": "McDonald\u0027s Tea Tree Plaza II",
+          "normalizedValue": "McDonald\u0027s Tea Tree Plaza II",
+          "startPosition": 8,
+          "endPosition": 36,
+          "confidence": 3,
+          "isConfirmed": true,
+          "linkedRecordType": null,
+          "linkedRecordId": null,
+          "linkedRecordDisplayName": null,
+          "suggestions": [],
+          "metadata": {
+            "placeId": "ChIJD9BfxPG0sGoRlbR5Dl2queE",
+            "address": "Cnr North East Road \u0026, Reservoir Rd, Modbury SA 5092, Australia",
+            "coordinates": {
+              "lat": -34.8319018,
+              "lon": 138.6882338
+            }
+          },
+          "notes": null
+        }
+      ],
+      "relationships": [],
+      "parsedAt": null,
+      "confidenceScore": null,
+      "isReviewed": false,
+      "uncertaintyMarkers": [],
+      "corrections": [],
+      "protectiveMeasures": [],
+      "isMemoryGap": false,
+      "memoryGapNotes": null
+    }
+  ],
+  "conventions": {},
+  "entityGroups": {},
+  "createdDate": "2026-04-22T12:44:40.2772707Z",
+  "createdByUserId": "6964051a-a741-43ff-8b37-dfbd11ce666e",
+  "lastModified": "2026-04-22T12:44:40.277296Z",
+  "lastModifiedByUserId": "6964051a-a741-43ff-8b37-dfbd11ce666e",
+  "isReviewed": false,
+  "reviewedAt": null,
+  "reviewedByUserId": null,
+  "version": 2
+}

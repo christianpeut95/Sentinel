@@ -975,7 +975,7 @@ namespace Sentinel.Pages.Cases
             }
             catch (Exception ex)
             {
-                TempData["ErrorMessage"] = $"Error completing task: {ex.Message}";
+                TempData["ErrorMessage"] = Sentinel.Services.UserFacingError.Create(HttpContext, ex);
             }
 
             return RedirectToPage(new { id });
@@ -1045,7 +1045,7 @@ namespace Sentinel.Pages.Cases
             }
             catch (Exception ex)
             {
-                TempData["ErrorMessage"] = $"Error updating task: {ex.Message}";
+                TempData["ErrorMessage"] = Sentinel.Services.UserFacingError.Create(HttpContext, ex);
             }
 
             return RedirectToPage(new { id });
@@ -1088,7 +1088,7 @@ namespace Sentinel.Pages.Cases
             }
             catch (Exception ex)
             {
-                TempData["ErrorMessage"] = $"Error cancelling task: {ex.Message}";
+                TempData["ErrorMessage"] = Sentinel.Services.UserFacingError.Create(HttpContext, ex);
             }
 
             return RedirectToPage(new { id });
@@ -1132,7 +1132,7 @@ namespace Sentinel.Pages.Cases
             }
             catch (Exception ex)
             {
-                TempData["ErrorMessage"] = $"Error deleting task: {ex.Message}";
+                TempData["ErrorMessage"] = Sentinel.Services.UserFacingError.Create(HttpContext, ex);
             }
 
             return RedirectToPage(new { id });
@@ -1308,7 +1308,7 @@ namespace Sentinel.Pages.Cases
             catch (Exception ex)
             {
                 _logger?.LogError(ex, "[TASK CREATION] ? Error creating task");
-                TempData["ErrorMessage"] = $"Error adding task: {ex.Message}";
+                TempData["ErrorMessage"] = Sentinel.Services.UserFacingError.Create(HttpContext, ex);
             }
 
             return RedirectToPage(new { id });
@@ -1421,7 +1421,7 @@ namespace Sentinel.Pages.Cases
             }
             catch (Exception ex)
             {
-                TempData["ErrorMessage"] = $"Error adding task: {ex.Message}";
+                TempData["ErrorMessage"] = Sentinel.Services.UserFacingError.Create(HttpContext, ex);
             }
 
             return RedirectToPage(new { id });
@@ -1553,7 +1553,7 @@ namespace Sentinel.Pages.Cases
             catch (Exception ex)
             {
                 _logger?.LogError(ex, "? Error creating task");
-                TempData["ErrorMessage"] = $"Error creating task: {ex.Message}";
+                TempData["ErrorMessage"] = Sentinel.Services.UserFacingError.Create(HttpContext, ex);
             }
 
             return RedirectToPage(new { id });

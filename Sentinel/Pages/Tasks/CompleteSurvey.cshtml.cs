@@ -14,15 +14,18 @@ namespace Sentinel.Pages.Tasks
     public class CompleteSurveyModel : PageModel
     {
         private readonly ApplicationDbContext _context;
+        private readonly ICaseAccessService _caseAccessService;
         private readonly ISurveyService _surveyService;
         private readonly ILogger<CompleteSurveyModel> _logger;
 
         public CompleteSurveyModel(
             ApplicationDbContext context, 
+            ICaseAccessService caseAccessService,
             ISurveyService surveyService,
             ILogger<CompleteSurveyModel> logger)
         {
             _context = context;
+            _caseAccessService = caseAccessService;
             _surveyService = surveyService;
             _logger = logger;
         }
@@ -35,6 +38,23 @@ namespace Sentinel.Pages.Tasks
 
         public async Task<IActionResult> OnGetAsync(Guid id)
         {
+            // Authorise using only task metadata before loading the linked case,
+            // patient, and survey data.
+            var taskSummary = await _context.CaseTasks
+                .AsNoTracking()
+                .Where(t => t.Id == id)
+                .Select(t => new { t.CaseId, t.Status })
+                .FirstOrDefaultAsync();
+
+            if (taskSummary == null || !await _caseAccessService.CanAccessCaseAsync(taskSummary.CaseId))
+                return NotFound();
+
+            if (taskSummary.Status == CaseTaskStatus.Completed)
+            {
+                TempData["ErrorMessage"] = "This task is already completed.";
+                return RedirectToPage("/Dashboard/MyTasks");
+            }
+
             Task = await _context.CaseTasks
                 .Include(t => t.Case)
                     .ThenInclude(c => c.Patient)
@@ -62,15 +82,6 @@ namespace Sentinel.Pages.Tasks
             if (Task == null)
                 return NotFound();
 
-            var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-
-            // Check if task is already completed
-            if (Task.Status == CaseTaskStatus.Completed)
-            {
-                TempData["ErrorMessage"] = "This task is already completed.";
-                return RedirectToPage("/Dashboard/MyTasks");
-            }
-
             // Get survey definition and pre-populated data
             var surveyData = await _surveyService.GetSurveyForTaskAsync(id);
             
@@ -85,23 +96,54 @@ namespace Sentinel.Pages.Tasks
             SurveyName = surveyData.SurveyName;
             SurveyVersionNumber = surveyData.SurveyVersionNumber;
 
-            // Automatically set task to InProgress when survey is opened
-            if (Task.Status == CaseTaskStatus.Pending || Task.Status == CaseTaskStatus.WaitingForPatient)
+            return Page();
+        }
+
+        /// <summary>
+        /// Records that a survey has been opened. This is intentionally a POST
+        /// handler: GET requests must not change task state.
+        /// </summary>
+        public async Task<IActionResult> OnPostStartAsync(Guid id)
+        {
+            var taskSummary = await _context.CaseTasks
+                .AsNoTracking()
+                .Where(t => t.Id == id)
+                .Select(t => new { t.CaseId })
+                .FirstOrDefaultAsync();
+
+            if (taskSummary == null || !await _caseAccessService.CanAccessCaseAsync(taskSummary.CaseId))
             {
-                Task.Status = CaseTaskStatus.InProgress;
-                Task.ModifiedAt = DateTime.UtcNow;
-                await _context.SaveChangesAsync();
-                
-                _logger.LogInformation("Task {TaskId} automatically set to InProgress when survey opened by user {UserId}", 
-                    id, currentUserId);
+                return NotFound();
             }
 
-            return Page();
+            var task = await _context.CaseTasks.FirstOrDefaultAsync(t => t.Id == id);
+            if (task == null)
+            {
+                return NotFound();
+            }
+
+            if (task.Status == CaseTaskStatus.Completed)
+            {
+                return StatusCode(StatusCodes.Status409Conflict, new { error = "This task is already completed." });
+            }
+
+            if (task.Status == CaseTaskStatus.Pending || task.Status == CaseTaskStatus.WaitingForPatient)
+            {
+                task.Status = CaseTaskStatus.InProgress;
+                task.ModifiedAt = DateTime.UtcNow;
+                await _context.SaveChangesAsync();
+
+                _logger.LogInformation(
+                    "Task {TaskId} set to InProgress after survey opened by user {UserId}",
+                    id,
+                    User.FindFirstValue(ClaimTypes.NameIdentifier));
+            }
+
+            return new JsonResult(new { success = true });
         }
 
         // Note: This handler is deprecated in favor of the API endpoint at /api/surveys/complete/{taskId}
         // Keeping it for backward compatibility only
-        [IgnoreAntiforgeryToken]
         public async Task<IActionResult> OnPostAsync(Guid id, [FromBody] Dictionary<string, object> responses)
         {
             try
@@ -115,6 +157,21 @@ namespace Sentinel.Pages.Tasks
                 {
                     _logger.LogWarning("Task {TaskId} not found", id);
                     return NotFound();
+                }
+
+                if (!await _caseAccessService.CanAccessCaseAsync(task.CaseId))
+                {
+                    _logger.LogWarning("Survey completion denied for inaccessible task {TaskId}", id);
+                    return NotFound();
+                }
+
+                if (task.Status == CaseTaskStatus.Completed)
+                {
+                    _logger.LogWarning("Survey completion rejected because task {TaskId} is already completed", id);
+                    return new JsonResult(new { success = false, error = "This task is already completed." })
+                    {
+                        StatusCode = StatusCodes.Status409Conflict
+                    };
                 }
 
                 var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);

@@ -3,6 +3,7 @@ using MailKit.Security;
 using Microsoft.EntityFrameworkCore;
 using MimeKit;
 using Sentinel.Data;
+using System.Text.Encodings.Web;
 
 namespace Sentinel.Services.Email
 {
@@ -85,6 +86,9 @@ namespace Sentinel.Services.Email
         {
             var appName = _configuration["Organization:Name"] ?? "Sentinel";
             var subject = $"Password Reset Request - {appName}";
+            var encodedAppName = HtmlEncoder.Default.Encode(appName);
+            var encodedUserName = HtmlEncoder.Default.Encode(userName);
+            var encodedResetLink = HtmlEncoder.Default.Encode(resetLink);
 
             var body = $@"
 <!DOCTYPE html>
@@ -110,20 +114,20 @@ namespace Sentinel.Services.Email
             <h1>🛡️ Password Reset Request</h1>
         </div>
         <div class='content'>
-            <p>Hello <strong>{userName}</strong>,</p>
-            <p>We received a request to reset your password for your {appName} account.</p>
+            <p>Hello <strong>{encodedUserName}</strong>,</p>
+            <p>We received a request to reset your password for your {encodedAppName} account.</p>
             <p>Click the button below to reset your password:</p>
             <p style='text-align: center;'>
-                <a href='{resetLink}' class='button'>Reset Password</a>
+                <a href='{encodedResetLink}' class='button'>Reset Password</a>
             </p>
             <div class='alert'>
                 <strong>⚠️ Security Notice:</strong> This link will expire in 24 hours. If you didn't request this reset, please ignore this email or contact your administrator.
             </div>
             <p>If the button doesn't work, copy and paste this link into your browser:</p>
-            <p style='font-family: monospace; font-size: 12px; background: #ECEAE1; padding: 8px; border-radius: 4px; word-break: break-all;'>{resetLink}</p>
+            <p style='font-family: monospace; font-size: 12px; background: #ECEAE1; padding: 8px; border-radius: 4px; word-break: break-all;'>{encodedResetLink}</p>
         </div>
         <div class='footer'>
-            <p>This is an automated message from {appName}. Please do not reply to this email.</p>
+            <p>This is an automated message from {encodedAppName}. Please do not reply to this email.</p>
         </div>
     </div>
 </body>

@@ -86,7 +86,7 @@ namespace Sentinel.Pages.Settings.Lookups
             }
             catch (Exception ex)
             {
-                TempData["ErrorMessage"] = $"An error occurred while updating the organization type: {ex.Message}";
+                TempData["ErrorMessage"] = Sentinel.Services.UserFacingError.Create(HttpContext, ex);
                 UsageCount = await _context.Organizations.CountAsync(o => o.OrganizationTypeId == OrganizationType.Id);
                 return Page();
             }

@@ -20,7 +20,10 @@ namespace Sentinel.Pages.Settings.DiseaseAccess
 
         public async Task OnGetAsync()
         {
-            var diseases = await _context.Diseases
+            // This is the privileged access-administration surface.  It must be
+            // able to list every disease so an administrator can grant access
+            // to a disease that is otherwise hidden by the visibility filter.
+            var diseases = await _context.Diseases.IgnoreQueryFilters()
                 .Include(d => d.DiseaseCategory)
                 .Include(d => d.RoleDiseaseAccess)
                     .ThenInclude(rda => rda.Role)

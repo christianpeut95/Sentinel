@@ -7,6 +7,7 @@ using Microsoft.EntityFrameworkCore;
 using System.Text.Json;
 using Sentinel.Models;
 using Newtonsoft.Json.Linq;
+using System.Security.Claims;
 
 namespace Sentinel.Pages.DataInbox;
 
@@ -17,6 +18,7 @@ public class ReviewModel : PageModel
     private readonly ApplicationDbContext _context;
     private readonly ICollectionMappingService _collectionMappingService;
     private readonly ISurveyMappingService _surveyMappingService;
+    private readonly IPermissionService _permissionService;
     private readonly ILogger<ReviewModel> _logger;
 
     public ReviewModel(
@@ -24,12 +26,14 @@ public class ReviewModel : PageModel
         ApplicationDbContext context,
         ICollectionMappingService collectionMappingService,
         ISurveyMappingService surveyMappingService,
+        IPermissionService permissionService,
         ILogger<ReviewModel> logger)
     {
         _reviewService = reviewService;
         _context = context;
         _collectionMappingService = collectionMappingService;
         _surveyMappingService = surveyMappingService;
+        _permissionService = permissionService;
         _logger = logger;
     }
 
@@ -73,6 +77,11 @@ public class ReviewModel : PageModel
 
     public async Task<IActionResult> OnPostConfirmAsync(int id)
     {
+        if (!await CanResolveReviewsAsync())
+        {
+            return Forbid();
+        }
+
         var result = await _reviewService.ConfirmReviewAsync(id, ReviewNotes);
 
         if (result)
@@ -87,6 +96,11 @@ public class ReviewModel : PageModel
 
     public async Task<IActionResult> OnPostDismissAsync(int id)
     {
+        if (!await CanResolveReviewsAsync())
+        {
+            return Forbid();
+        }
+
         var result = await _reviewService.DismissReviewAsync(id, ReviewNotes);
 
         if (result)
@@ -101,6 +115,11 @@ public class ReviewModel : PageModel
 
     public async Task<IActionResult> OnPostCreateTaskAsync(int id)
     {
+        if (!await CanCreateReviewTasksAsync())
+        {
+            return Forbid();
+        }
+
         if (string.IsNullOrWhiteSpace(TaskTitle))
         {
             TempData["ErrorMessage"] = "Task title is required.";
@@ -125,6 +144,11 @@ public class ReviewModel : PageModel
 
     public async Task<IActionResult> OnPostResolveDuplicateAsync(int id)
     {
+        if (!await CanResolveReviewsAsync())
+        {
+            return Forbid();
+        }
+
         _logger.LogInformation("========================================");
         _logger.LogInformation("? OnPostResolveDuplicateAsync CALLED!");
         _logger.LogInformation("   Review ID: {ReviewId}", id);
@@ -325,6 +349,11 @@ public class ReviewModel : PageModel
     /// </summary>
     public async Task<IActionResult> OnPostResolveAlwaysReviewAsync(int id)
     {
+        if (!await CanResolveReviewsAsync())
+        {
+            return Forbid();
+        }
+
         _logger.LogCritical("========================================");
         _logger.LogCritical("??? OnPostResolveAlwaysReviewAsync CALLED!");
         _logger.LogCritical("   - Review ID: {Id}", id);
@@ -436,6 +465,30 @@ public class ReviewModel : PageModel
         }
     }
     
+    private async Task<bool> CanResolveReviewsAsync()
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        return !string.IsNullOrWhiteSpace(userId) &&
+               await _permissionService.HasPermissionAsync(
+                   userId,
+                   PermissionModule.Case,
+                   PermissionAction.Edit);
+    }
+
+    private async Task<bool> CanCreateReviewTasksAsync()
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        return !string.IsNullOrWhiteSpace(userId) &&
+               await _permissionService.HasPermissionAsync(
+                   userId,
+                   PermissionModule.Case,
+                   PermissionAction.Edit) &&
+               await _permissionService.HasPermissionAsync(
+                   userId,
+                   PermissionModule.Task,
+                   PermissionAction.Create);
+    }
+
     private async Task<Patient?> ExtractPatientFromProposedData(string? proposedDataJson)
     {
         if (string.IsNullOrEmpty(proposedDataJson))

@@ -187,8 +187,9 @@ public class LineListService : ILineListService
                 .ThenInclude(c => c.LabResults)
                     .ThenInclude(lr => lr.Markers)
                         .ThenInclude(m => m.TestMethod)
-            .AsSplitQuery() // CRITICAL: Use split queries to properly load all navigation properties
-            .IgnoreQueryFilters() // CRITICAL: Ignore global query filters (soft delete, IsActive, etc.)
+            // Keep global filters active: this preserves soft-delete handling and,
+            // crucially, the current user's hierarchy-aware disease/case visibility.
+            .AsSplitQuery() // Use split queries to properly load all navigation properties
             .AsNoTracking();
 
         // Apply sorting if provided (simplified - just use default sort for now)

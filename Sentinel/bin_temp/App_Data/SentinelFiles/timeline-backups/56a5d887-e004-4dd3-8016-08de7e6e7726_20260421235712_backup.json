@@ -1,0 +1,104 @@
+{
+  "caseId": "56a5d887-e004-4dd3-8016-08de7e6e7726",
+  "entries": [
+    {
+      "id": "entry_1776815530663_db03r11td",
+      "entryDate": "2026-04-22T00:00:00Z",
+      "narrativeText": "went to AGL Australia by bus 557. Was with friend Andrew on the bus sitting together for about 45 minutes.\nAt work shares a small office with two colleagues (n",
+      "entities": [
+        {
+          "id": "entity_1776815544989_n9qddcq8j",
+          "entityType": 2,
+          "rawText": "AGL Australia",
+          "normalizedValue": "AGL Australia",
+          "startPosition": 8,
+          "endPosition": 21,
+          "confidence": 3,
+          "isConfirmed": true,
+          "linkedRecordType": null,
+          "linkedRecordId": null,
+          "linkedRecordDisplayName": null,
+          "suggestions": [],
+          "metadata": {
+            "placeId": "ChIJSbep4bvOsGoR1hxEAwXMH8Q",
+            "address": "226 Greenhill Rd, Eastwood SA 5063, Australia",
+            "coordinates": {
+              "lat": -34.9404096,
+              "lon": 138.6239072
+            }
+          },
+          "notes": null
+        },
+        {
+          "id": "entity_1776815558607_s28hw58uo",
+          "entityType": 4,
+          "rawText": "557",
+          "normalizedValue": "bus 557",
+          "startPosition": 29,
+          "endPosition": 32,
+          "confidence": 3,
+          "isConfirmed": true,
+          "linkedRecordType": null,
+          "linkedRecordId": null,
+          "linkedRecordDisplayName": null,
+          "suggestions": [],
+          "metadata": {
+            "transportType": "bus"
+          },
+          "notes": null
+        },
+        {
+          "id": "entity_1776815774776_w3a5g4dc4",
+          "entityType": 1,
+          "rawText": "Andrew",
+          "normalizedValue": "Andrew",
+          "startPosition": 50,
+          "endPosition": 56,
+          "confidence": 3,
+          "isConfirmed": true,
+          "linkedRecordType": null,
+          "linkedRecordId": null,
+          "linkedRecordDisplayName": null,
+          "suggestions": [],
+          "metadata": {
+            "relationship": ""
+          },
+          "notes": null
+        }
+      ],
+      "relationships": [],
+      "parsedAt": null,
+      "confidenceScore": null,
+      "isReviewed": false,
+      "uncertaintyMarkers": [],
+      "corrections": [],
+      "protectiveMeasures": [],
+      "isMemoryGap": false,
+      "memoryGapNotes": null
+    },
+    {
+      "id": "entry_1776815530664_tdwgb961e",
+      "entryDate": "2026-04-22T00:00:00Z",
+      "narrativeText": "",
+      "entities": [],
+      "relationships": [],
+      "parsedAt": null,
+      "confidenceScore": null,
+      "isReviewed": false,
+      "uncertaintyMarkers": [],
+      "corrections": [],
+      "protectiveMeasures": [],
+      "isMemoryGap": false,
+      "memoryGapNotes": null
+    }
+  ],
+  "conventions": {},
+  "createdDate": "2026-04-21T23:56:42.4640992Z",
+  "createdByUserId": "6964051a-a741-43ff-8b37-dfbd11ce666e",
+  "lastModified": "2026-04-21T23:56:42.4641422Z",
+  "lastModifiedByUserId": "6964051a-a741-43ff-8b37-dfbd11ce666e",
+  "isReviewed": false,
+  "reviewedAt": null,
+  "reviewedByUserId": null,
+  "version": 2
+}

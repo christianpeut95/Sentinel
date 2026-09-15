@@ -151,14 +151,35 @@ public class BulkCreateModel : PageModel
         try
         {
             var contacts = new List<BulkContactDto>();
+            string csvContent;
 
-            using (var reader = new StreamReader(csvFile.OpenReadStream()))
+            await using (var uploadStream = csvFile.OpenReadStream())
+            {
+                csvContent = await UploadContentValidator.ReadStrictUtf8TextAsync(uploadStream);
+            }
+
+            using (var reader = new StringReader(csvContent))
             using (var csv = new CsvReader(reader, new CsvConfiguration(CultureInfo.InvariantCulture)
             {
                 HeaderValidated = null,
                 MissingFieldFound = null
             }))
             {
+                if (!await csv.ReadAsync())
+                {
+                    ErrorMessage = "The contact import CSV must contain a header row.";
+                    return RedirectToPage(new { CaseId, LocationId, EventId, ExposureStartDate, ExposureEndDate, OutbreakId });
+                }
+
+                csv.ReadHeader();
+                var headers = csv.HeaderRecord ?? [];
+                if (!headers.Any(header => header.Equals("FirstName", StringComparison.OrdinalIgnoreCase)) ||
+                    !headers.Any(header => header.Equals("LastName", StringComparison.OrdinalIgnoreCase)))
+                {
+                    ErrorMessage = "The contact import CSV must include FirstName and LastName columns.";
+                    return RedirectToPage(new { CaseId, LocationId, EventId, ExposureStartDate, ExposureEndDate, OutbreakId });
+                }
+
                 var records = csv.GetRecords<BulkContactCsvRow>();
                 int rowNum = 1;
 
@@ -216,7 +237,7 @@ public class BulkCreateModel : PageModel
         }
         catch (Exception ex)
         {
-            ErrorMessage = $"Error processing CSV file: {ex.Message}";
+            ErrorMessage = Sentinel.Services.UserFacingError.Create(HttpContext, ex);
             return RedirectToPage(new { CaseId, LocationId, EventId, ExposureStartDate, ExposureEndDate, OutbreakId });
         }
     }
@@ -352,7 +373,7 @@ public class BulkCreateModel : PageModel
         }
         catch (Exception ex)
         {
-            ErrorMessage = $"Error creating contacts: {ex.Message}";
+            ErrorMessage = Sentinel.Services.UserFacingError.Create(HttpContext, ex);
             ShowReviewScreen = true;
             await LoadPageDataAsync();
             return Page();

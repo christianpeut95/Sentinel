@@ -45,6 +45,16 @@ public class CreateModel : PageModel
             return Page();
         }
 
+        // The select list is visibility-filtered, but a client can still submit an
+        // arbitrary ID. Validate it against the same hierarchy-aware query.
+        if (Outbreak.PrimaryDiseaseId.HasValue &&
+            !await _context.Diseases.AnyAsync(d => d.Id == Outbreak.PrimaryDiseaseId.Value))
+        {
+            ModelState.AddModelError(nameof(Outbreak.PrimaryDiseaseId), "The selected disease is not available.");
+            await LoadSelectListsAsync();
+            return Page();
+        }
+
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? string.Empty;
         
         await _outbreakService.CreateAsync(Outbreak, userId);

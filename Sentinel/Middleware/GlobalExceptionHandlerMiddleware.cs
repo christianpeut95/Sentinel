@@ -65,7 +65,7 @@ namespace Sentinel.Middleware
             if (context.Request.Path.StartsWithSegments("/api") || acceptsJson || isAjax)
             {
                 context.Response.StatusCode = StatusCodes.Status500InternalServerError;
-                context.Response.ContentType = "application/json";
+                context.Response.ContentType = "application/json; charset=utf-8";
 
                 var response = new
                 {

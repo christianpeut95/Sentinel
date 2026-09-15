@@ -1,0 +1,86 @@
+{
+  "caseId": "7eea821f-5034-4704-9d64-cc7315183cc3",
+  "entries": [
+    {
+      "id": "entry_1776959534918_obsz25sq3",
+      "entryDate": "2026-04-24T00:00:00Z",
+      "narrativeText": "went to john .\nMcDonald\u0027s West Terrace\n.\n.",
+      "entities": [
+        {
+          "id": "entity_1776959579419_awbhu9rzs",
+          "entityType": 1,
+          "rawText": "john",
+          "normalizedValue": "john",
+          "startPosition": 8,
+          "endPosition": 12,
+          "confidence": 2,
+          "isConfirmed": false,
+          "linkedRecordType": null,
+          "linkedRecordId": null,
+          "linkedRecordDisplayName": null,
+          "suggestions": [],
+          "metadata": {
+            "relationship": "Contact"
+          },
+          "notes": null
+        },
+        {
+          "id": "entity_1776959649556_0tmi83cx8",
+          "entityType": 1,
+          "rawText": "",
+          "normalizedValue": "",
+          "startPosition": 16,
+          "endPosition": 16,
+          "confidence": 3,
+          "isConfirmed": true,
+          "linkedRecordType": null,
+          "linkedRecordId": null,
+          "linkedRecordDisplayName": null,
+          "suggestions": [],
+          "metadata": {},
+          "notes": null
+        },
+        {
+          "id": "entity_1776959747228_jmtpvxthi",
+          "entityType": 2,
+          "rawText": "McDonald\u0027s West Terrace",
+          "normalizedValue": "McDonald\u0027s West Terrace",
+          "startPosition": 15,
+          "endPosition": 38,
+          "confidence": 3,
+          "isConfirmed": true,
+          "linkedRecordType": null,
+          "linkedRecordId": null,
+          "linkedRecordDisplayName": null,
+          "suggestions": [],
+          "metadata": {
+            "placeId": "ChIJuaIt3g3MsGoR6wVj6AlcAZ4",
+            "address": "20 West Terrace, Adelaide SA 5000, Australia",
+            "latitude": "-34.923373",
+            "longitude": "138.5878012"
+          },
+          "notes": null
+        }
+      ],
+      "relationships": [],
+      "parsedAt": null,
+      "confidenceScore": null,
+      "isReviewed": false,
+      "uncertaintyMarkers": [],
+      "corrections": [],
+      "protectiveMeasures": [],
+      "isMemoryGap": false,
+      "memoryGapNotes": null
+    }
+  ],
+  "conventions": {},
+  "entityGroups": {},
+  "createdDate": "2026-04-23T15:56:00.114085Z",
+  "createdByUserId": "6964051a-a741-43ff-8b37-dfbd11ce666e",
+  "lastModified": "2026-04-23T15:56:00.1141059Z",
+  "lastModifiedByUserId": "6964051a-a741-43ff-8b37-dfbd11ce666e",
+  "isReviewed": false,
+  "reviewedAt": null,
+  "reviewedByUserId": null,
+  "version": 2
+}

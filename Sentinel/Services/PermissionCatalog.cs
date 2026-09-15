@@ -44,6 +44,7 @@ public static class PermissionCatalog
         new(PermissionModule.User, PermissionAction.Edit, "Edit user accounts"),
         new(PermissionModule.User, PermissionAction.Delete, "Delete user accounts"),
         new(PermissionModule.User, PermissionAction.ManagePermissions, "Manage user and role permissions"),
+        new(PermissionModule.User, PermissionAction.ManageRoles, "Assign and remove user roles"),
 
         new(PermissionModule.Report, PermissionAction.View, "View reports"),
         new(PermissionModule.Report, PermissionAction.Create, "Create reports"),
@@ -61,6 +62,7 @@ public static class PermissionCatalog
 
         new(PermissionModule.Task, PermissionAction.Create, "Create case tasks"),
         new(PermissionModule.Task, PermissionAction.View, "View case tasks"),
+        new(PermissionModule.Task, PermissionAction.Edit, "Manage task workflow and interview queue"),
 
         new(PermissionModule.Outbreak, PermissionAction.View, "View outbreaks"),
         new(PermissionModule.Outbreak, PermissionAction.Create, "Create outbreaks"),
@@ -93,6 +95,9 @@ public static class PermissionCatalog
 
         new(PermissionModule.Contact, PermissionAction.Import, "Bulk import and create contacts"),
 
-        new(PermissionModule.Occupation, PermissionAction.Import, "Import occupation classifications")
+        new(PermissionModule.Occupation, PermissionAction.Import, "Import occupation classifications"),
+
+        new(PermissionModule.Organization, PermissionAction.View, "View organisations"),
+        new(PermissionModule.ReferenceData, PermissionAction.View, "View shared reference data and address suggestions")
     ];
 }

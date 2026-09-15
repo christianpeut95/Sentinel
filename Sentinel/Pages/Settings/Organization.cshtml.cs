@@ -145,7 +145,7 @@ namespace Sentinel.Pages.Settings
             }
             catch (Exception ex)
             {
-                StatusMessage = "Failed to save organization settings: " + ex.Message;
+                StatusMessage = Sentinel.Services.UserFacingError.Create(HttpContext, ex);
             }
 
             return RedirectToPage();

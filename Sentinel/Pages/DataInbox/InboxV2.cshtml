@@ -1209,6 +1209,8 @@
                 <div class="sec-t-v2">Review note</div>
                 <textarea class="ta-v2" id="reviewNote" placeholder="Add notes about your review decision..."></textarea>
 
+                @if (Model.CanCreateReviewTasks)
+                {
                 @* Task Creation Form *@
                 <div class="task-form-v2" id="taskForm">
                     <div class="form-group-v2">
@@ -1229,6 +1231,7 @@
                         </button>
                     </div>
                 </div>
+                }
             </div>
 
             <div class="actbar-v2">
@@ -1242,7 +1245,7 @@
                     );
                 }
 
-                @if (showDismiss)
+                @if (showDismiss && Model.CanResolveReviews)
                 {
                     <form method="post" asp-page-handler="Dismiss" asp-route-id="@item.Id" style="display: inline; margin: 0;">
                         <button type="submit" class="btn-v2 danger">
@@ -1251,12 +1254,15 @@
                         </button>
                     </form>
                 }
+                @if (Model.CanCreateReviewTasks)
+                {
                 <button type="button" class="btn-v2 soft" onclick="toggleTaskForm()">
                     <i class="bi bi-plus-lg"></i>
                     Create task
                 </button>
+                }
                 <div class="spacer"></div>
-                @if (item.ChangeType == "PotentialDuplicate")
+                @if (item.ChangeType == "PotentialDuplicate" && Model.CanResolveReviews)
                 {
                     <form method="post" asp-page-handler="KeepAsNew" asp-route-id="@item.Id" style="display: inline; margin: 0;">
                         <button type="submit" class="btn-v2 soft">
@@ -1267,7 +1273,7 @@
                         Review duplicate
                     </a>
                 }
-                else
+                else if (Model.CanResolveReviews)
                 {
                     <form method="post" asp-page-handler="Confirm" asp-route-id="@item.Id" style="display: inline; margin: 0;">
                         <button type="submit" class="btn-v2 primary">

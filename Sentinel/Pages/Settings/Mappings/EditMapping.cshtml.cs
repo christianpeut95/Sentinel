@@ -182,7 +182,7 @@ namespace Sentinel.Pages.Settings.Mappings
             }
             catch (Exception ex)
             {
-                ModelState.AddModelError("", $"Error saving mapping: {ex.Message}");
+                ModelState.AddModelError("", Sentinel.Services.UserFacingError.Create(HttpContext, ex));
                 await LoadSelectLists();
                 return Page();
             }

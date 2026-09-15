@@ -131,16 +131,17 @@ ReportBuilder.getAvailableCollections = async function(entityType) {
             collections.push({
                 value: collectionName,
                 label: this.formatCollectionLabel(collectionName),
-                entityType: metadata.EntityType || collectionName
+                entityType: metadata.entityType || metadata.EntityType || collectionName
             });
 
             // Add nested sub-collections with arrow notation
-            if (metadata.SubCollections) {
-                for (const [subCollectionName, subMetadata] of Object.entries(metadata.SubCollections)) {
+            const subCollections = metadata.subCollections || metadata.SubCollections;
+            if (subCollections) {
+                for (const [subCollectionName, subMetadata] of Object.entries(subCollections)) {
                     collections.push({
                         value: `${collectionName}.${subCollectionName}`,
                         label: `${this.formatCollectionLabel(collectionName)} → ${this.formatCollectionLabel(subCollectionName)}`,
-                        entityType: subMetadata.EntityType || subCollectionName,
+                        entityType: subMetadata.entityType || subMetadata.EntityType || subCollectionName,
                         parentCollection: collectionName,
                         subCollection: subCollectionName
                     });
@@ -273,8 +274,9 @@ ReportBuilder.updateCollectionFields = async function(queryId) {
                 const parentMetadata = data.collections[parentCollectionName];
 
                 // If nested, navigate to sub-collection metadata
-                if (subCollectionName && parentMetadata?.SubCollections) {
-                    query.collectionMetadata = parentMetadata.SubCollections[subCollectionName];
+                const subCollections = parentMetadata?.subCollections || parentMetadata?.SubCollections;
+                if (subCollectionName && subCollections) {
+                    query.collectionMetadata = subCollections[subCollectionName];
                     console.log('[updateCollectionFields] Using sub-collection metadata:', query.collectionMetadata);
                 } else {
                     query.collectionMetadata = parentMetadata;
@@ -287,75 +289,39 @@ ReportBuilder.updateCollectionFields = async function(queryId) {
             aggregateFieldSelect.disabled = false;
         }
 
-        const fieldResponse = await fetch(`/api/reporting/fields/${entityType}/grouped`);
-        console.log('[updateCollectionFields] Field response status:', fieldResponse.status);
+        // The collection-metadata endpoint is authoritative for collection fields.
+        // The grouped field endpoint intentionally omits collection properties, so
+        // looking there meant valid collections had no fields available to filter.
+        const query = this.collectionQueries.find(q => q.id === queryId);
+        const metadata = query?.collectionMetadata;
+        if (query && metadata) {
+            const filterableFields = metadata.filterableFields || metadata.FilterableFields || [];
 
-        if (fieldResponse.ok) {
-            // Check if response is actually JSON
-            const contentType = fieldResponse.headers.get('content-type');
-            console.log('[updateCollectionFields] Response content-type:', contentType);
+            query.collectionSubFields = filterableFields
+                .map(field => field.name || field.Name)
+                .filter(Boolean);
+            query.collectionSubFieldsMetadata = filterableFields
+                .map(field => {
+                    const fieldPath = field.name || field.Name;
+                    if (!fieldPath) return null;
 
-            if (!contentType || !contentType.includes('application/json')) {
-                const text = await fieldResponse.text();
-                console.error('[updateCollectionFields] ❌ Expected JSON but got:', text.substring(0, 200));
-                throw new Error('API returned non-JSON response');
-            }
+                    return {
+                        fieldPath,
+                        name: field.label || field.Label || fieldPath,
+                        dataType: field.dataType || field.DataType || 'String'
+                    };
+                })
+                .filter(Boolean);
+            query.collectionEntityType = query.subCollectionName || query.collectionName;
 
-            const fieldsByCategory = await fieldResponse.json();
-            console.log('[updateCollectionFields] Fields by category:', fieldsByCategory);
-
-            let collectionMetadata = null;
-
-            // Search through all categories for a field matching the parent collection name
-            for (const category in fieldsByCategory) {
-                console.log(`[updateCollectionFields] Searching category "${category}" for collection "${parentCollectionName}"`);
-
-                const field = fieldsByCategory[category].find(f => {
-                    const matches = (f.fieldPath === parentCollectionName || 
-                                   f.fieldPath?.toLowerCase() === parentCollectionName.toLowerCase() ||
-                                   f.displayName === parentCollectionName) && 
-                                  f.isCollection;
-
-                    if (matches) {
-                        console.log('[updateCollectionFields] FOUND matching field:', f);
-                    }
-
-                    return matches;
-                });
-
-                if (field) {
-                    collectionMetadata = field;
-                    console.log('[updateCollectionFields] Collection metadata found in category:', category);
-                    break;
-                }
-            }
-
-            if (!collectionMetadata) {
-                console.warn('[updateCollectionFields] ⚠️ No collection metadata found for:', parentCollectionName);
-                console.log('[updateCollectionFields] Available collections:', 
-                    Object.values(fieldsByCategory).flat().filter(f => f.isCollection).map(f => f.fieldPath));
-            }
-
-            const query = this.collectionQueries.find(q => q.id === queryId);
-            if (query && collectionMetadata) {
-                // Use metadata from the correct level (sub-collection or parent)
-                const effectiveMetadata = query.collectionMetadata || collectionMetadata;
-
-                query.collectionSubFieldsMetadata = collectionMetadata.collectionSubFieldsMetadata || [];
-                query.collectionSubFields = collectionMetadata.collectionSubFields || [];
-                query.collectionEntityType = collectionMetadata.collectionElementType;
-
-                console.log('[updateCollectionFields] ✅ Stored sub-field metadata:', {
-                    subFields: query.collectionSubFields.length,
-                    subFieldsMetadata: query.collectionSubFieldsMetadata.length,
-                    entityType: query.collectionEntityType,
-                    isNested: !!subCollectionName
-                });
-            } else if (query) {
-                console.error('[updateCollectionFields] ❌ No metadata found - fields will default to String type');
-            }
-        } else {
-            console.error('[updateCollectionFields] Field API request failed:', fieldResponse.status);
+            console.log('[updateCollectionFields] ✅ Stored sub-field metadata:', {
+                subFields: query.collectionSubFields.length,
+                subFieldsMetadata: query.collectionSubFieldsMetadata.length,
+                entityType: query.collectionEntityType,
+                isNested: !!subCollectionName
+            });
+        } else if (query) {
+            console.error('[updateCollectionFields] ❌ No collection metadata returned for:', collectionPath);
         }
 
         // Clear existing sub-filters since collection type changed
@@ -437,24 +403,25 @@ ReportBuilder.updateAggregateFieldOptions = function(queryId) {
 
     aggregateFieldSelect.innerHTML = '<option value="">Select field...</option>';
 
-    if (!metadata || !metadata.aggregatableFields) {
+    const aggregatableFields = metadata?.aggregatableFields || metadata?.AggregatableFields;
+    if (!aggregatableFields) {
         aggregateFieldContainer.style.display = 'none';
         console.log('[updateAggregateFieldOptions] No aggregatable fields available for query', queryId);
         return;
     }
 
     if (['Min', 'Max', 'Sum', 'Average'].includes(operation)) {
-        const aggregatableFields = metadata.aggregatableFields;
         let hasOptions = false;
 
         console.log('[updateAggregateFieldOptions] Building aggregate options for', operation, 'from fields:', aggregatableFields);
 
         for (const [fieldName, fieldInfo] of Object.entries(aggregatableFields)) {
-            if (fieldInfo.allowedOperations && fieldInfo.allowedOperations.includes(operation)) {
+            const allowedOperations = fieldInfo.allowedOperations || fieldInfo.AllowedOperations || [];
+            if (allowedOperations.includes(operation)) {
                 const option = document.createElement('option');
                 option.value = fieldName;
-                option.textContent = fieldInfo.label;
-                option.dataset.type = fieldInfo.dataType;
+                option.textContent = fieldInfo.label || fieldInfo.Label || fieldName;
+                option.dataset.type = fieldInfo.dataType || fieldInfo.DataType || 'String';
                 aggregateFieldSelect.appendChild(option);
                 hasOptions = true;
             }
@@ -500,7 +467,7 @@ ReportBuilder.addCollectionSubFilter = function(queryId) {
     console.log('[addCollectionSubFilter] Fields:', fields);
     console.log('[addCollectionSubFilter] Metadata:', fieldsMetadata);
 
-    const placeholder = container.querySelector('small');
+    const placeholder = container.querySelector('.rb-empty-state-sm');
     if (placeholder) {
         container.innerHTML = '';
     }

@@ -3,7 +3,10 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.EntityFrameworkCore;
 using Sentinel.Data;
+using Sentinel.Models;
 using Sentinel.Models.Lookups;
+using Sentinel.Services;
+using System.Security.Claims;
 
 namespace Sentinel.Pages.Settings.Lookups
 {
@@ -11,10 +14,12 @@ namespace Sentinel.Pages.Settings.Lookups
     public class TaskTypesModel : PageModel
     {
         private readonly ApplicationDbContext _context;
+        private readonly IPermissionService _permissionService;
 
-        public TaskTypesModel(ApplicationDbContext context)
+        public TaskTypesModel(ApplicationDbContext context, IPermissionService permissionService)
         {
             _context = context;
+            _permissionService = permissionService;
         }
 
         public List<TaskType> TaskTypes { get; set; } = new();
@@ -37,6 +42,11 @@ namespace Sentinel.Pages.Settings.Lookups
 
         public async Task<IActionResult> OnPostDeleteAsync(Guid id)
         {
+            if (!await CanManageSystemLookupsAsync())
+            {
+                return Forbid();
+            }
+
             var taskType = await _context.TaskTypes.FindAsync(id);
             
             if (taskType == null)
@@ -57,6 +67,16 @@ namespace Sentinel.Pages.Settings.Lookups
 
             TempData["SuccessMessage"] = $"Task type '{taskType.Name}' has been deleted.";
             return RedirectToPage();
+        }
+
+        private async Task<bool> CanManageSystemLookupsAsync()
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            return !string.IsNullOrWhiteSpace(userId) &&
+                   await _permissionService.HasPermissionAsync(
+                       userId,
+                       PermissionModule.Settings,
+                       PermissionAction.ManageSystemLookups);
         }
     }
 }

@@ -83,7 +83,7 @@ namespace Sentinel.Pages.Locations
             }
             catch (Exception ex)
             {
-                TempData["ErrorMessage"] = $"An error occurred while deleting the location: {ex.Message}";
+                TempData["ErrorMessage"] = Sentinel.Services.UserFacingError.Create(HttpContext, ex);
             }
 
             return RedirectToPage("./Index");

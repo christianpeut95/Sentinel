@@ -1,6 +1,8 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
+using Microsoft.EntityFrameworkCore;
+using Sentinel.Data;
 using Sentinel.Services;
 using Sentinel.Models;
 using System.Security.Claims;
@@ -12,11 +14,15 @@ public class DetailsModel : PageModel
 {
     private readonly IOutbreakService _outbreakService;
     private readonly IPermissionService _permissionService;
+    private readonly IOutbreakAccessService _outbreakAccessService;
+    private readonly ApplicationDbContext _context;
 
-    public DetailsModel(IOutbreakService outbreakService, IPermissionService permissionService)
+    public DetailsModel(IOutbreakService outbreakService, IPermissionService permissionService, IOutbreakAccessService outbreakAccessService, ApplicationDbContext context)
     {
         _outbreakService = outbreakService;
         _permissionService = permissionService;
+        _outbreakAccessService = outbreakAccessService;
+        _context = context;
     }
 
     public Outbreak Outbreak { get; set; } = null!;
@@ -52,6 +58,11 @@ public class DetailsModel : PageModel
 
     public async Task<IActionResult> OnGetAsync(int id)
     {
+        if (!await _outbreakAccessService.CanAccessOutbreakAsync(id))
+        {
+            return NotFound();
+        }
+
         var outbreak = await _outbreakService.GetByIdAsync(id);
         if (outbreak == null)
         {
@@ -97,6 +108,12 @@ public class DetailsModel : PageModel
             return Forbid();
         }
 
+        if (!await _outbreakAccessService.CanAccessOutbreakAsync(id) ||
+            !await _context.OutbreakCases.AnyAsync(oc => oc.Id == outbreakCaseId && oc.OutbreakId == id))
+        {
+            return NotFound();
+        }
+
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? string.Empty;
         
         var success = await _outbreakService.UnlinkCaseAsync(outbreakCaseId, reason, userId);
@@ -120,6 +137,11 @@ public class DetailsModel : PageModel
             return Forbid();
         }
 
+        if (!await _outbreakAccessService.CanAccessOutbreakAsync(id))
+        {
+            return NotFound();
+        }
+
         // Note: This would need to be implemented properly with the actual member info
         // For now, this is a placeholder
         SuccessMessage = "Team member removed successfully.";
@@ -131,6 +153,11 @@ public class DetailsModel : PageModel
         if (!await UserHasPermissionAsync(PermissionAction.Edit))
         {
             return Forbid();
+        }
+
+        if (!await _outbreakAccessService.CanAccessOutbreakAsync(id))
+        {
+            return NotFound();
         }
 
         if (string.IsNullOrWhiteSpace(reason))
@@ -160,6 +187,11 @@ public class DetailsModel : PageModel
             return Forbid();
         }
 
+        if (!await _outbreakAccessService.CanAccessOutbreakAsync(id))
+        {
+            return NotFound();
+        }
+
         if (string.IsNullOrWhiteSpace(justification))
         {
             ErrorMessage = "Justification is required to confirm outbreak.";
@@ -187,6 +219,11 @@ public class DetailsModel : PageModel
             return Forbid();
         }
 
+        if (!await _outbreakAccessService.CanAccessOutbreakAsync(id))
+        {
+            return NotFound();
+        }
+
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? string.Empty;
 
         var success = await _outbreakService.DeleteAsync(id, userId);
@@ -206,6 +243,11 @@ public class DetailsModel : PageModel
         if (!await UserHasPermissionAsync(PermissionAction.Edit))
         {
             return Forbid();
+        }
+
+        if (!await _outbreakAccessService.CanAccessOutbreakAsync(id))
+        {
+            return NotFound();
         }
 
         if (string.IsNullOrWhiteSpace(title))

@@ -9,7 +9,7 @@ using System.Text.Json;
 
 namespace Sentinel.Pages.Settings.Mappings
 {
-    [Authorize(Policy = "Permission.Survey.Edit")]
+    [Authorize(Policy = "Permission.Settings.Edit")]
     [Route("Settings/Mappings")]
     [EnableRateLimiting("lookup-api")] // 200 per minute - mostly metadata, config saves less frequent
     public class SaveCollectionConfigController : Controller

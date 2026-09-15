@@ -8,6 +8,8 @@ using System.Security.Claims;
 namespace Sentinel.Pages.Dashboard;
 
 [Authorize(Policy = "Permission.Task.View")]
+[Authorize(Policy = "Permission.Task.Edit")]
+[Authorize(Roles = "Admin,Supervisor")]
 public class SuperviseInterviewsModel : PageModel
 {
     private readonly ITaskAssignmentService _assignmentService;

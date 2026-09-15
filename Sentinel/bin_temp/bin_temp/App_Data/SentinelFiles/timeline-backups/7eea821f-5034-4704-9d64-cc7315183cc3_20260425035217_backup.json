@@ -1,0 +1,308 @@
+{
+  "caseId": "7eea821f-5034-4704-9d64-cc7315183cc3",
+  "entries": [
+    {
+      "id": "entry_1777088854346_w83h0o70i",
+      "entryDate": "2026-04-25T00:00:00Z",
+      "narrativeText": "went to @Pawly Understood with \u002Bbash @9:00 AM until @12:00 PM.\nWent with other family members #Siblings( Christian \u0026 .",
+      "entities": [
+        {
+          "id": "entity_1777088866928_uncftpplm",
+          "entityType": 2,
+          "rawText": "Pawly Understood",
+          "normalizedValue": "Pawly Understood",
+          "startPosition": 9,
+          "endPosition": 25,
+          "confidence": 3,
+          "isConfirmed": true,
+          "linkedRecordType": null,
+          "linkedRecordId": null,
+          "linkedRecordDisplayName": null,
+          "suggestions": [],
+          "metadata": {
+            "placeId": "ChIJDy9y2GHFsGoRu3yUEOXMWSo",
+            "address": "116 South Rd, Torrensville SA 5031, Australia",
+            "latitude": "-34.91970209999999",
+            "longitude": "138.5683494"
+          },
+          "notes": null
+        },
+        {
+          "id": "entity_1777088875190_j9j8vhony",
+          "entityType": 1,
+          "rawText": "bash",
+          "normalizedValue": "bash",
+          "startPosition": 32,
+          "endPosition": 36,
+          "confidence": 2,
+          "isConfirmed": true,
+          "linkedRecordType": null,
+          "linkedRecordId": null,
+          "linkedRecordDisplayName": null,
+          "suggestions": [],
+          "metadata": {
+            "relationship": "father",
+            "phone": null,
+            "ageDob": null,
+            "notes": null
+          },
+          "notes": null
+        },
+        {
+          "id": "entity_1777088881127_hcagf0zy0",
+          "entityType": 5,
+          "rawText": "9:00 AM",
+          "normalizedValue": "9:00 AM",
+          "startPosition": 38,
+          "endPosition": 45,
+          "confidence": 2,
+          "isConfirmed": false,
+          "linkedRecordType": null,
+          "linkedRecordId": null,
+          "linkedRecordDisplayName": null,
+          "suggestions": [],
+          "metadata": {},
+          "notes": null
+        },
+        {
+          "id": "entity_1777088900677_so3d4pfh2",
+          "entityType": 5,
+          "rawText": "12:00 PM",
+          "normalizedValue": "12:00 PM",
+          "startPosition": 53,
+          "endPosition": 61,
+          "confidence": 2,
+          "isConfirmed": false,
+          "linkedRecordType": null,
+          "linkedRecordId": null,
+          "linkedRecordDisplayName": null,
+          "suggestions": [],
+          "metadata": {},
+          "notes": null
+        },
+        {
+          "id": "entity_1777089064719_5x1ldt2sw",
+          "entityType": 1,
+          "rawText": "Christian",
+          "normalizedValue": "Christian",
+          "startPosition": 105,
+          "endPosition": 114,
+          "confidence": 2,
+          "isConfirmed": true,
+          "linkedRecordType": null,
+          "linkedRecordId": null,
+          "linkedRecordDisplayName": null,
+          "suggestions": [],
+          "metadata": {
+            "relationship": "Brother",
+            "phone": null,
+            "ageDob": null,
+            "notes": null
+          },
+          "notes": null
+        }
+      ],
+      "relationships": [
+        {
+          "id": "rel_1777089069832_nfy73qwu9",
+          "primaryEntityId": "entity_1777088866928_uncftpplm",
+          "relatedEntityId": "entity_1777088875190_j9j8vhony",
+          "relationType": 1,
+          "timeEntityId": "entity_1777088881127_hcagf0zy0",
+          "confidence": 2,
+          "isConfirmed": false,
+          "sourcePosition": 0,
+          "metadata": null,
+          "sequenceOrder": 0,
+          "notes": null
+        },
+        {
+          "id": "rel_1777089069832_c9q5h5ffw",
+          "primaryEntityId": "entity_1777088866928_uncftpplm",
+          "relatedEntityId": "entity_1777088881127_hcagf0zy0",
+          "relationType": 5,
+          "timeEntityId": null,
+          "confidence": 2,
+          "isConfirmed": false,
+          "sourcePosition": 0,
+          "metadata": null,
+          "sequenceOrder": 0,
+          "notes": null
+        },
+        {
+          "id": "rel_1777089069832_qe2o5ifa3",
+          "primaryEntityId": "entity_1777088866928_uncftpplm",
+          "relatedEntityId": "entity_1777088900677_so3d4pfh2",
+          "relationType": 5,
+          "timeEntityId": "entity_1777088881127_hcagf0zy0",
+          "confidence": 2,
+          "isConfirmed": false,
+          "sourcePosition": 0,
+          "metadata": null,
+          "sequenceOrder": 0,
+          "notes": null
+        }
+      ],
+      "parsedAt": null,
+      "confidenceScore": null,
+      "isReviewed": false,
+      "uncertaintyMarkers": [],
+      "corrections": [],
+      "protectiveMeasures": [],
+      "isMemoryGap": false,
+      "memoryGapNotes": null
+    },
+    {
+      "id": "entry_1777088945838_b4v0m2ymt",
+      "entryDate": "2026-04-24T00:00:00Z",
+      "narrativeText": "went with \u002Bbash to @HOYTS Norwood at @6:00 PM for @2 hours.\n",
+      "entities": [
+        {
+          "id": "entity_1777088956775_7ao52rvm7",
+          "entityType": 1,
+          "rawText": "bash",
+          "normalizedValue": "bash",
+          "startPosition": 11,
+          "endPosition": 15,
+          "confidence": 3,
+          "isConfirmed": true,
+          "linkedRecordType": null,
+          "linkedRecordId": null,
+          "linkedRecordDisplayName": null,
+          "suggestions": [],
+          "metadata": {
+            "relationship": "father",
+            "phone": null,
+            "ageDob": null,
+            "notes": null
+          },
+          "notes": null
+        },
+        {
+          "id": "entity_1777088971186_xf8mgqjhi",
+          "entityType": 2,
+          "rawText": "HOYTS Norwood",
+          "normalizedValue": "HOYTS Norwood",
+          "startPosition": 20,
+          "endPosition": 33,
+          "confidence": 3,
+          "isConfirmed": true,
+          "linkedRecordType": null,
+          "linkedRecordId": null,
+          "linkedRecordDisplayName": null,
+          "suggestions": [],
+          "metadata": {
+            "placeId": "ChIJQ6kX-ljJsGoR617Wm-ZtwC4",
+            "address": "185 The Parade, Norwood SA 5067, Australia",
+            "latitude": "-34.920558",
+            "longitude": "138.6369732"
+          },
+          "notes": null
+        },
+        {
+          "id": "entity_1777088983358_f3f0oqr2g",
+          "entityType": 5,
+          "rawText": "6:00 PM",
+          "normalizedValue": "6:00 PM",
+          "startPosition": 38,
+          "endPosition": 45,
+          "confidence": 2,
+          "isConfirmed": false,
+          "linkedRecordType": null,
+          "linkedRecordId": null,
+          "linkedRecordDisplayName": null,
+          "suggestions": [],
+          "metadata": {},
+          "notes": null
+        },
+        {
+          "id": "entity_1777089004996_77uambrus",
+          "entityType": 6,
+          "rawText": "2 hours",
+          "normalizedValue": "2 hours",
+          "startPosition": 51,
+          "endPosition": 58,
+          "confidence": 2,
+          "isConfirmed": false,
+          "linkedRecordType": null,
+          "linkedRecordId": null,
+          "linkedRecordDisplayName": null,
+          "suggestions": [],
+          "metadata": {},
+          "notes": null
+        }
+      ],
+      "relationships": [
+        {
+          "id": "rel_1777089006284_gigju7j2z",
+          "primaryEntityId": "entity_1777088971186_xf8mgqjhi",
+          "relatedEntityId": "entity_1777088956775_7ao52rvm7",
+          "relationType": 1,
+          "timeEntityId": "entity_1777088983358_f3f0oqr2g",
+          "confidence": 2,
+          "isConfirmed": false,
+          "sourcePosition": 0,
+          "metadata": null,
+          "sequenceOrder": 0,
+          "notes": null
+        },
+        {
+          "id": "rel_1777089006285_gup6i869t",
+          "primaryEntityId": "entity_1777088971186_xf8mgqjhi",
+          "relatedEntityId": "entity_1777088983358_f3f0oqr2g",
+          "relationType": 5,
+          "timeEntityId": null,
+          "confidence": 2,
+          "isConfirmed": false,
+          "sourcePosition": 0,
+          "metadata": null,
+          "sequenceOrder": 0,
+          "notes": null
+        },
+        {
+          "id": "rel_1777089006285_vo79a177t",
+          "primaryEntityId": "entity_1777088971186_xf8mgqjhi",
+          "relatedEntityId": "entity_1777089004996_77uambrus",
+          "relationType": 2,
+          "timeEntityId": "entity_1777088983358_f3f0oqr2g",
+          "confidence": 2,
+          "isConfirmed": false,
+          "sourcePosition": 0,
+          "metadata": null,
+          "sequenceOrder": 0,
+          "notes": null
+        }
+      ],
+      "parsedAt": null,
+      "confidenceScore": null,
+      "isReviewed": false,
+      "uncertaintyMarkers": [],
+      "corrections": [],
+      "protectiveMeasures": [],
+      "isMemoryGap": false,
+      "memoryGapNotes": null
+    }
+  ],
+  "conventions": {},
+  "entityGroups": {
+    "8fb71408-5268-4c05-8773-9beec94ae698": {
+      "id": "8fb71408-5268-4c05-8773-9beec94ae698",
+      "caseId": "7eea821f-5034-4704-9d64-cc7315183cc3",
+      "name": "Siblings",
+      "entityIds": [
+        "entity_1777089064719_5x1ldt2sw",
+        "entity_1777089073508_cpuen1897"
+      ],
+      "createdDate": "2026-04-25T03:51:14.5842933Z",
+      "description": null
+    }
+  },
+  "createdDate": "2026-04-25T03:51:11.3063819Z",
+  "createdByUserId": "6964051a-a741-43ff-8b37-dfbd11ce666e",
+  "lastModified": "2026-04-25T03:52:08.2224758Z",
+  "lastModifiedByUserId": "6964051a-a741-43ff-8b37-dfbd11ce666e",
+  "isReviewed": false,
+  "reviewedAt": null,
+  "reviewedByUserId": null,
+  "version": 21
+}

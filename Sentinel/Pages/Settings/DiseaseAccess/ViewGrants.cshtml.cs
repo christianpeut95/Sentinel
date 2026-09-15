@@ -20,7 +20,10 @@ namespace Sentinel.Pages.Settings.DiseaseAccess
 
         public async Task OnGetAsync()
         {
-            var diseases = await _context.Diseases
+            // Access grants are administrative metadata; do not let the
+            // operational disease visibility filter hide grants that an
+            // administrator needs to review or revoke.
+            var diseases = await _context.Diseases.IgnoreQueryFilters()
                 .Include(d => d.DiseaseCategory)
                 .Include(d => d.RoleDiseaseAccess)
                     .ThenInclude(rda => rda.Role)

@@ -14,11 +14,13 @@ public class ClassifyCasesModel : PageModel
 {
     private readonly ApplicationDbContext _context;
     private readonly IOutbreakService _outbreakService;
+    private readonly IOutbreakAccessService _outbreakAccessService;
 
-    public ClassifyCasesModel(ApplicationDbContext context, IOutbreakService outbreakService)
+    public ClassifyCasesModel(ApplicationDbContext context, IOutbreakService outbreakService, IOutbreakAccessService outbreakAccessService)
     {
         _context = context;
         _outbreakService = outbreakService;
+        _outbreakAccessService = outbreakAccessService;
     }
 
     public Outbreak Outbreak { get; set; } = null!;
@@ -34,6 +36,11 @@ public class ClassifyCasesModel : PageModel
 
     public async Task<IActionResult> OnGetAsync(int id)
     {
+        if (!await _outbreakAccessService.CanAccessOutbreakAsync(id))
+        {
+            return NotFound();
+        }
+
         var outbreak = await _outbreakService.GetByIdAsync(id);
         if (outbreak == null)
         {
@@ -67,6 +74,12 @@ public class ClassifyCasesModel : PageModel
 
     public async Task<IActionResult> OnPostClassifyAsync(int id, int outbreakCaseId, CaseClassification classification, string? notes)
     {
+        if (!await _outbreakAccessService.CanAccessOutbreakAsync(id) ||
+            !await _context.OutbreakCases.AnyAsync(oc => oc.Id == outbreakCaseId && oc.OutbreakId == id))
+        {
+            return NotFound();
+        }
+
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? string.Empty;
         
         var success = await _outbreakService.ClassifyCaseAsync(outbreakCaseId, classification, notes, userId);
@@ -85,10 +98,26 @@ public class ClassifyCasesModel : PageModel
 
     public async Task<IActionResult> OnPostBulkClassifyAsync(int id, List<int> selectedCaseIds, CaseClassification classification)
     {
+        if (!await _outbreakAccessService.CanAccessOutbreakAsync(id))
+        {
+            return NotFound();
+        }
+
         if (!selectedCaseIds.Any())
         {
             ErrorMessage = "No cases selected.";
             return RedirectToPage(new { id });
+        }
+
+        var allowedCount = await _context.OutbreakCases
+            .Where(oc => oc.OutbreakId == id && selectedCaseIds.Contains(oc.Id))
+            .Select(oc => oc.Id)
+            .Distinct()
+            .CountAsync();
+
+        if (allowedCount != selectedCaseIds.Distinct().Count())
+        {
+            return NotFound();
         }
 
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? string.Empty;

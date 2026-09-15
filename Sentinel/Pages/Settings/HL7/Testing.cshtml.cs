@@ -91,7 +91,7 @@ namespace Sentinel.Pages.Settings.HL7
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error reprocessing message {MessageId}", messageId);
-                TempData["ErrorMessage"] = $"❌ Error: {ex.Message}";
+                TempData["ErrorMessage"] = Sentinel.Services.UserFacingError.Create(HttpContext, ex);
             }
 
             return RedirectToPage();
@@ -113,7 +113,7 @@ namespace Sentinel.Pages.Settings.HL7
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error clearing test data");
-                TempData["ErrorMessage"] = $"❌ Error: {ex.Message}";
+                TempData["ErrorMessage"] = Sentinel.Services.UserFacingError.Create(HttpContext, ex);
             }
 
             return RedirectToPage();
@@ -135,7 +135,7 @@ namespace Sentinel.Pages.Settings.HL7
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error deleting message {MessageId}", messageId);
-                TempData["ErrorMessage"] = $"❌ Error: {ex.Message}";
+                TempData["ErrorMessage"] = Sentinel.Services.UserFacingError.Create(HttpContext, ex);
             }
 
             return RedirectToPage();

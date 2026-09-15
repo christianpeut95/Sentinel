@@ -120,7 +120,7 @@ namespace Sentinel.Pages.Locations
             }
             catch (Exception ex)
             {
-                TempData["ErrorMessage"] = $"An error occurred while updating the location: {ex.Message}";
+                TempData["ErrorMessage"] = Sentinel.Services.UserFacingError.Create(HttpContext, ex);
                 await LoadSelectLists();
                 return Page();
             }

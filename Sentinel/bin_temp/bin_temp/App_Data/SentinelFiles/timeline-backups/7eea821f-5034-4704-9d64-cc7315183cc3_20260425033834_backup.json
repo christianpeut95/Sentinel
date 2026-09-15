@@ -1,0 +1,189 @@
+{
+  "caseId": "7eea821f-5034-4704-9d64-cc7315183cc3",
+  "entries": [
+    {
+      "id": "entry_1777083675359_6pxw6a3fu",
+      "entryDate": "2026-04-25T00:00:00Z",
+      "narrativeText": "went to HOYTS Norwood with bash. \n\nwent to ..",
+      "entities": [
+        {
+          "id": "entity_1777084125322_wl4o93kq9",
+          "entityType": 2,
+          "rawText": "HOYTS Norwood",
+          "normalizedValue": "HOYTS Norwood",
+          "startPosition": 8,
+          "endPosition": 21,
+          "confidence": 3,
+          "isConfirmed": true,
+          "linkedRecordType": null,
+          "linkedRecordId": null,
+          "linkedRecordDisplayName": null,
+          "suggestions": [],
+          "metadata": {
+            "placeId": "ChIJQ6kX-ljJsGoR617Wm-ZtwC4",
+            "address": "185 The Parade, Norwood SA 5067, Australia",
+            "latitude": "-34.920558",
+            "longitude": "138.6369732"
+          },
+          "notes": null
+        },
+        {
+          "id": "entity_1777084133051_wj3lil0rt",
+          "entityType": 1,
+          "rawText": "bash",
+          "normalizedValue": "bash",
+          "startPosition": 27,
+          "endPosition": 31,
+          "confidence": 2,
+          "isConfirmed": true,
+          "linkedRecordType": null,
+          "linkedRecordId": null,
+          "linkedRecordDisplayName": null,
+          "suggestions": [],
+          "metadata": {
+            "relationship": "parent",
+            "phone": null,
+            "ageDob": null,
+            "notes": null
+          },
+          "notes": null
+        }
+      ],
+      "relationships": [],
+      "parsedAt": null,
+      "confidenceScore": null,
+      "isReviewed": false,
+      "uncertaintyMarkers": [],
+      "corrections": [],
+      "protectiveMeasures": [],
+      "isMemoryGap": false,
+      "memoryGapNotes": null
+    },
+    {
+      "id": "entry_1777086295667_ptmce04sr",
+      "entryDate": "2026-04-25T00:00:00Z",
+      "narrativeText": "went to @HOYTS Norwood with \u002Bbash @9:00 AM.\n",
+      "entities": [
+        {
+          "id": "entity_1777086329852_34u55kd7h",
+          "entityType": 2,
+          "rawText": "HOYTS Norwood",
+          "normalizedValue": "HOYTS Norwood",
+          "startPosition": 9,
+          "endPosition": 22,
+          "confidence": 3,
+          "isConfirmed": true,
+          "linkedRecordType": null,
+          "linkedRecordId": null,
+          "linkedRecordDisplayName": null,
+          "suggestions": [],
+          "metadata": {
+            "placeId": "ChIJQ6kX-ljJsGoR617Wm-ZtwC4",
+            "address": "185 The Parade, Norwood SA 5067, Australia",
+            "latitude": "-34.920558",
+            "longitude": "138.6369732"
+          },
+          "notes": null
+        },
+        {
+          "id": "entity_1777086332756_ippk6p6z3",
+          "entityType": 1,
+          "rawText": "bash",
+          "normalizedValue": "bash",
+          "startPosition": 29,
+          "endPosition": 33,
+          "confidence": 3,
+          "isConfirmed": true,
+          "linkedRecordType": null,
+          "linkedRecordId": null,
+          "linkedRecordDisplayName": null,
+          "suggestions": [],
+          "metadata": {
+            "relationship": "parent",
+            "phone": null,
+            "ageDob": null,
+            "notes": null
+          },
+          "notes": null
+        },
+        {
+          "id": "entity_1777086416788_an2fuie9p",
+          "entityType": 4,
+          "rawText": "9:00 AM",
+          "normalizedValue": "9:00 AM",
+          "startPosition": 35,
+          "endPosition": 42,
+          "confidence": 2,
+          "isConfirmed": false,
+          "linkedRecordType": null,
+          "linkedRecordId": null,
+          "linkedRecordDisplayName": null,
+          "suggestions": [],
+          "metadata": {},
+          "notes": null
+        }
+      ],
+      "relationships": [
+        {
+          "id": "rel_1777086643212_236zxlqr7",
+          "primaryEntityId": "entity_1777086329852_34u55kd7h",
+          "relatedEntityId": "entity_1777086332756_ippk6p6z3",
+          "relationType": 1,
+          "timeEntityId": null,
+          "confidence": 2,
+          "isConfirmed": false,
+          "sourcePosition": 0,
+          "metadata": null,
+          "sequenceOrder": 0,
+          "notes": null
+        },
+        {
+          "id": "rel_1777086643212_0s6lwicf4",
+          "primaryEntityId": "entity_1777086329852_34u55kd7h",
+          "relatedEntityId": "entity_1777086416788_an2fuie9p",
+          "relationType": 5,
+          "timeEntityId": null,
+          "confidence": 2,
+          "isConfirmed": false,
+          "sourcePosition": 0,
+          "metadata": null,
+          "sequenceOrder": 0,
+          "notes": null
+        }
+      ],
+      "parsedAt": null,
+      "confidenceScore": null,
+      "isReviewed": false,
+      "uncertaintyMarkers": [],
+      "corrections": [],
+      "protectiveMeasures": [],
+      "isMemoryGap": false,
+      "memoryGapNotes": null
+    },
+    {
+      "id": "entry_1777086655670_qekx1wc0n",
+      "entryDate": "2026-04-25T00:00:00Z",
+      "narrativeText": "",
+      "entities": [],
+      "relationships": [],
+      "parsedAt": null,
+      "confidenceScore": null,
+      "isReviewed": false,
+      "uncertaintyMarkers": [],
+      "corrections": [],
+      "protectiveMeasures": [],
+      "isMemoryGap": false,
+      "memoryGapNotes": null
+    }
+  ],
+  "conventions": {},
+  "entityGroups": {},
+  "createdDate": "2026-04-25T03:11:24.9089337Z",
+  "createdByUserId": "6964051a-a741-43ff-8b37-dfbd11ce666e",
+  "lastModified": "2026-04-25T03:11:24.9089542Z",
+  "lastModifiedByUserId": "6964051a-a741-43ff-8b37-dfbd11ce666e",
+  "isReviewed": false,
+  "reviewedAt": null,
+  "reviewedByUserId": null,
+  "version": 2
+}

@@ -1,0 +1,68 @@
+{
+  "caseId": "7eea821f-5034-4704-9d64-cc7315183cc3",
+  "entries": [
+    {
+      "id": "entry_1776948605988_gbm377lpt",
+      "entryDate": "2026-04-23T00:00:00Z",
+      "narrativeText": "went to Coles Rundle Place with \u002Bjohn.\n",
+      "entities": [
+        {
+          "id": "entity_1776948622543_1n10q5ygh",
+          "entityType": 2,
+          "rawText": "Coles Rundle Place",
+          "normalizedValue": "Coles Rundle Place",
+          "startPosition": 8,
+          "endPosition": 26,
+          "confidence": 3,
+          "isConfirmed": true,
+          "linkedRecordType": null,
+          "linkedRecordId": null,
+          "linkedRecordDisplayName": null,
+          "suggestions": [],
+          "metadata": {
+            "placeId": "ChIJ-aFEldbOsGoRGL1hjUbdPk0",
+            "address": "Rundle Place, 77-91 Rundle Mall, Adelaide SA 5000, Australia",
+            "latitude": "-34.9237058",
+            "longitude": "138.6027494"
+          },
+          "notes": null
+        },
+        {
+          "id": "entity_1776948642487_eloymt7jp",
+          "entityType": 1,
+          "rawText": "john",
+          "normalizedValue": "john",
+          "startPosition": 33,
+          "endPosition": 37,
+          "confidence": 2,
+          "isConfirmed": false,
+          "linkedRecordType": null,
+          "linkedRecordId": null,
+          "linkedRecordDisplayName": null,
+          "suggestions": [],
+          "metadata": {},
+          "notes": null
+        }
+      ],
+      "relationships": [],
+      "parsedAt": null,
+      "confidenceScore": null,
+      "isReviewed": false,
+      "uncertaintyMarkers": [],
+      "corrections": [],
+      "protectiveMeasures": [],
+      "isMemoryGap": false,
+      "memoryGapNotes": null
+    }
+  ],
+  "conventions": {},
+  "entityGroups": {},
+  "createdDate": "2026-04-23T12:50:57.0189147Z",
+  "createdByUserId": "6964051a-a741-43ff-8b37-dfbd11ce666e",
+  "lastModified": "2026-04-23T12:50:57.0189539Z",
+  "lastModifiedByUserId": "6964051a-a741-43ff-8b37-dfbd11ce666e",
+  "isReviewed": false,
+  "reviewedAt": null,
+  "reviewedByUserId": null,
+  "version": 2
+}

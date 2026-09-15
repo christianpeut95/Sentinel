@@ -1,0 +1,69 @@
+{
+  "caseId": "7eea821f-5034-4704-9d64-cc7315183cc3",
+  "entries": [
+    {
+      "id": "entry_1776894076217_ito6w1lof",
+      "entryDate": "2026-04-23T00:00:00Z",
+      "narrativeText": "went to Pawly Understood with ",
+      "entities": [
+        {
+          "id": "entity_1776894088987_u039d95g6",
+          "entityType": 2,
+          "rawText": "Pawly Understood",
+          "normalizedValue": "Pawly Understood",
+          "startPosition": 8,
+          "endPosition": 24,
+          "confidence": 3,
+          "isConfirmed": true,
+          "linkedRecordType": null,
+          "linkedRecordId": null,
+          "linkedRecordDisplayName": null,
+          "suggestions": [],
+          "metadata": {
+            "placeId": "ChIJDy9y2GHFsGoRu3yUEOXMWSo",
+            "address": "116 South Rd, Torrensville SA 5031, Australia",
+            "coordinates": {
+              "lat": -34.91970209999999,
+              "lon": 138.5683494
+            }
+          },
+          "notes": null
+        }
+      ],
+      "relationships": [],
+      "parsedAt": null,
+      "confidenceScore": null,
+      "isReviewed": false,
+      "uncertaintyMarkers": [],
+      "corrections": [],
+      "protectiveMeasures": [],
+      "isMemoryGap": false,
+      "memoryGapNotes": null
+    },
+    {
+      "id": "entry_1776894117016_hiplxsr50",
+      "entryDate": "2026-04-23T00:00:00Z",
+      "narrativeText": "went outside with #Siblings(.",
+      "entities": [],
+      "relationships": [],
+      "parsedAt": null,
+      "confidenceScore": null,
+      "isReviewed": false,
+      "uncertaintyMarkers": [],
+      "corrections": [],
+      "protectiveMeasures": [],
+      "isMemoryGap": false,
+      "memoryGapNotes": null
+    }
+  ],
+  "conventions": {},
+  "entityGroups": {},
+  "createdDate": "2026-04-22T21:42:13.1420264Z",
+  "createdByUserId": "6964051a-a741-43ff-8b37-dfbd11ce666e",
+  "lastModified": "2026-04-22T21:42:13.1420676Z",
+  "lastModifiedByUserId": "6964051a-a741-43ff-8b37-dfbd11ce666e",
+  "isReviewed": false,
+  "reviewedAt": null,
+  "reviewedByUserId": null,
+  "version": 2
+}

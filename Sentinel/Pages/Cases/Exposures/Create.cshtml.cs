@@ -300,7 +300,7 @@ namespace Sentinel.Pages.Cases.Exposures
             }
             catch (Exception ex)
             {
-                TempData["ErrorMessage"] = $"An error occurred while adding the exposure: {ex.Message}";
+                TempData["ErrorMessage"] = Sentinel.Services.UserFacingError.Create(HttpContext, ex);
                 await LoadSelectLists();
                 var caseEntity = await _context.Cases.FindAsync(CaseId);
                 CaseFriendlyId = caseEntity?.FriendlyId ?? "";

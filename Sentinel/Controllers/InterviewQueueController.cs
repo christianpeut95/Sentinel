@@ -1,6 +1,8 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.EntityFrameworkCore;
+using Sentinel.Data;
 using Sentinel.Models;
 using Sentinel.Services;
 using System.Security.Claims;
@@ -8,19 +10,26 @@ using System.Security.Claims;
 namespace Sentinel.Controllers;
 
 [Authorize]
+[Authorize(Policy = "Permission.Task.View")]
 [ApiController]
 [Route("api/[controller]")]
 [EnableRateLimiting("workflow-api")] // 100 per minute - active polling/task management
 public class InterviewQueueController : ControllerBase
 {
     private readonly ITaskAssignmentService _assignmentService;
+    private readonly ApplicationDbContext _context;
+    private readonly IPermissionService _permissionService;
     private readonly ILogger<InterviewQueueController> _logger;
 
     public InterviewQueueController(
         ITaskAssignmentService assignmentService,
+        ApplicationDbContext context,
+        IPermissionService permissionService,
         ILogger<InterviewQueueController> logger)
     {
         _assignmentService = assignmentService;
+        _context = context;
+        _permissionService = permissionService;
         _logger = logger;
     }
 
@@ -41,6 +50,7 @@ public class InterviewQueueController : ControllerBase
     }
 
     [HttpPost("assign-next")]
+    [Authorize(Policy = "Permission.Task.Edit")]
     public async Task<IActionResult> AssignNextTask()
     {
         try
@@ -63,8 +73,14 @@ public class InterviewQueueController : ControllerBase
     }
 
     [HttpPost("log-call-attempt")]
+    [Authorize(Policy = "Permission.Task.Edit")]
     public async Task<IActionResult> LogCallAttempt([FromBody] LogCallAttemptRequest request)
     {
+        if (!await CanAccessTaskCallAsync(request.TaskId))
+        {
+            return NotFound();
+        }
+
         try
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
@@ -88,6 +104,11 @@ public class InterviewQueueController : ControllerBase
     [HttpGet("call-attempts/{taskId}")]
     public async Task<IActionResult> GetCallAttempts(Guid taskId)
     {
+        if (!await CanAccessTaskCallAsync(taskId))
+        {
+            return NotFound();
+        }
+
         try
         {
             var attempts = await _assignmentService.GetCallAttemptsAsync(taskId);
@@ -173,6 +194,7 @@ public class InterviewQueueController : ControllerBase
 
     [HttpPost("supervisor/assign-task")]
     [Authorize(Roles = "Admin,Supervisor")]
+    [Authorize(Policy = "Permission.Task.Edit")]
     public async Task<IActionResult> ManuallyAssignTask([FromBody] ManualAssignRequest request)
     {
         try
@@ -200,6 +222,7 @@ public class InterviewQueueController : ControllerBase
 
     [HttpPost("supervisor/reassign-task")]
     [Authorize(Roles = "Admin,Supervisor")]
+    [Authorize(Policy = "Permission.Task.Edit")]
     public async Task<IActionResult> ReassignTask([FromBody] ReassignTaskRequest request)
     {
         try
@@ -227,6 +250,7 @@ public class InterviewQueueController : ControllerBase
 
     [HttpPost("supervisor/escalate-task")]
     [Authorize(Roles = "Admin,Supervisor")]
+    [Authorize(Policy = "Permission.Task.Edit")]
     public async Task<IActionResult> EscalateTask([FromBody] EscalateTaskRequest request)
     {
         try
@@ -261,6 +285,43 @@ public class InterviewQueueController : ControllerBase
             _logger.LogError(ex, "Error retrieving available workers");
             return StatusCode(500, new { error = "Failed to retrieve workers" });
         }
+    }
+
+    private async Task<bool> CanAccessTaskCallAsync(Guid taskId)
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrWhiteSpace(userId))
+        {
+            return false;
+        }
+
+        // CaseTask retains its hierarchy-aware global query filter here. Do not use
+        // IgnoreQueryFilters: a guessed task ID must not disclose a restricted case.
+        var assignedUserId = await _context.CaseTasks
+            .AsNoTracking()
+            .Where(task => task.Id == taskId)
+            .Select(task => task.AssignedToUserId)
+            .FirstOrDefaultAsync();
+
+        if (string.IsNullOrWhiteSpace(assignedUserId))
+        {
+            return false;
+        }
+
+        if (assignedUserId == userId)
+        {
+            return true;
+        }
+
+        if (!User.IsInRole("Admin") && !User.IsInRole("Supervisor"))
+        {
+            return false;
+        }
+
+        return await _permissionService.HasPermissionAsync(
+            userId,
+            PermissionModule.Task,
+            PermissionAction.Edit);
     }
 }
 

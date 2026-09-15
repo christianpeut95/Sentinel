@@ -55,6 +55,47 @@ public static class SemanticPageIdentifier
     }
 
     /// <summary>
+    /// Gets a privacy-safe, slash-prefixed route template for integrations
+    /// whose schema expects a route rather than a semantic page identifier.
+    /// It never falls back to an arbitrary incoming path.
+    /// </summary>
+    public static string RouteTemplateFromRequest(HttpContext context)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+
+        var endpoint = context.GetEndpoint();
+        var pageDescriptor = endpoint?.Metadata.GetMetadata<PageActionDescriptor>();
+        if (!string.IsNullOrWhiteSpace(pageDescriptor?.ViewEnginePath))
+        {
+            return NormalizeRouteTemplate(pageDescriptor.ViewEnginePath);
+        }
+
+        var routeTemplate = (endpoint as RouteEndpoint)?.RoutePattern.RawText;
+        if (!string.IsNullOrWhiteSpace(routeTemplate))
+        {
+            return NormalizeRouteTemplate(routeTemplate);
+        }
+
+        var controllerDescriptor = endpoint?.Metadata.GetMetadata<ControllerActionDescriptor>();
+        if (controllerDescriptor is not null)
+        {
+            var attributeTemplate = controllerDescriptor.AttributeRouteInfo?.Template;
+            if (!string.IsNullOrWhiteSpace(attributeTemplate))
+            {
+                return NormalizeRouteTemplate(attributeTemplate);
+            }
+
+            var controller = controllerDescriptor.ControllerName ?? "unknown";
+            var action = controllerDescriptor.ActionName ?? "index";
+            return NormalizeRouteTemplate($"{controller}/{action}");
+        }
+
+        return string.Equals(context.Request.Path.Value, "/not-found", StringComparison.OrdinalIgnoreCase)
+            ? "/not-found"
+            : "/unknown";
+    }
+
+    /// <summary>
     /// Converts a known page route or route template into a dot-separated page identifier.
     /// This method is intended for framework-provided page paths, not untrusted request paths.
     /// </summary>
@@ -138,5 +179,11 @@ public static class SemanticPageIdentifier
         return string.Concat(segment
             .Split(new[] { '-', '_' }, StringSplitOptions.RemoveEmptyEntries)
             .Select(word => char.ToUpperInvariant(word[0]) + word[1..]));
+    }
+
+    private static string NormalizeRouteTemplate(string template)
+    {
+        var withoutQuery = template.Split('?', 2)[0].Trim();
+        return withoutQuery.StartsWith('/') ? withoutQuery : $"/{withoutQuery}";
     }
 }

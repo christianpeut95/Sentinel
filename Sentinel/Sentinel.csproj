@@ -60,6 +60,8 @@
 
   <ItemGroup>
     <None Include="Scripts\**\*.sql" CopyToOutputDirectory="PreserveNewest" />
+    <None Update="Security\common-passwords.txt" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <None Update="Security\common-passwords.manifest.json" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <None Remove="migration.sql" />
   </ItemGroup>
 

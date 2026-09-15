@@ -58,7 +58,7 @@ namespace Sentinel.Pages.Settings.Lookups
             }
             catch (Exception ex)
             {
-                TempData["ErrorMessage"] = $"An error occurred while creating the location type: {ex.Message}";
+                TempData["ErrorMessage"] = Sentinel.Services.UserFacingError.Create(HttpContext, ex);
                 return Page();
             }
         }

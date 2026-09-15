@@ -1,0 +1,145 @@
+{
+  "caseId": "7eea821f-5034-4704-9d64-cc7315183cc3",
+  "entries": [
+    {
+      "id": "entry_1777088854346_w83h0o70i",
+      "entryDate": "2026-04-25T00:00:00Z",
+      "narrativeText": "went to @Pawly Understood with \u002Bbash @9:00 AM until @12:00 PM.\n",
+      "entities": [
+        {
+          "id": "entity_1777088866928_uncftpplm",
+          "entityType": 2,
+          "rawText": "Pawly Understood",
+          "normalizedValue": "Pawly Understood",
+          "startPosition": 9,
+          "endPosition": 25,
+          "confidence": 3,
+          "isConfirmed": true,
+          "linkedRecordType": null,
+          "linkedRecordId": null,
+          "linkedRecordDisplayName": null,
+          "suggestions": [],
+          "metadata": {
+            "placeId": "ChIJDy9y2GHFsGoRu3yUEOXMWSo",
+            "address": "116 South Rd, Torrensville SA 5031, Australia",
+            "latitude": "-34.91970209999999",
+            "longitude": "138.5683494"
+          },
+          "notes": null
+        },
+        {
+          "id": "entity_1777088875190_j9j8vhony",
+          "entityType": 1,
+          "rawText": "bash",
+          "normalizedValue": "bash",
+          "startPosition": 32,
+          "endPosition": 36,
+          "confidence": 2,
+          "isConfirmed": true,
+          "linkedRecordType": null,
+          "linkedRecordId": null,
+          "linkedRecordDisplayName": null,
+          "suggestions": [],
+          "metadata": {
+            "relationship": "father",
+            "phone": null,
+            "ageDob": null,
+            "notes": null
+          },
+          "notes": null
+        },
+        {
+          "id": "entity_1777088881127_hcagf0zy0",
+          "entityType": 5,
+          "rawText": "9:00 AM",
+          "normalizedValue": "9:00 AM",
+          "startPosition": 38,
+          "endPosition": 45,
+          "confidence": 2,
+          "isConfirmed": false,
+          "linkedRecordType": null,
+          "linkedRecordId": null,
+          "linkedRecordDisplayName": null,
+          "suggestions": [],
+          "metadata": {},
+          "notes": null
+        },
+        {
+          "id": "entity_1777088900677_so3d4pfh2",
+          "entityType": 5,
+          "rawText": "12:00 PM",
+          "normalizedValue": "12:00 PM",
+          "startPosition": 53,
+          "endPosition": 61,
+          "confidence": 2,
+          "isConfirmed": false,
+          "linkedRecordType": null,
+          "linkedRecordId": null,
+          "linkedRecordDisplayName": null,
+          "suggestions": [],
+          "metadata": {},
+          "notes": null
+        }
+      ],
+      "relationships": [
+        {
+          "id": "rel_1777088903642_mjcspyd3g",
+          "primaryEntityId": "entity_1777088866928_uncftpplm",
+          "relatedEntityId": "entity_1777088875190_j9j8vhony",
+          "relationType": 1,
+          "timeEntityId": "entity_1777088881127_hcagf0zy0",
+          "confidence": 2,
+          "isConfirmed": false,
+          "sourcePosition": 0,
+          "metadata": null,
+          "sequenceOrder": 0,
+          "notes": null
+        },
+        {
+          "id": "rel_1777088903642_marfz1ehi",
+          "primaryEntityId": "entity_1777088866928_uncftpplm",
+          "relatedEntityId": "entity_1777088881127_hcagf0zy0",
+          "relationType": 5,
+          "timeEntityId": null,
+          "confidence": 2,
+          "isConfirmed": false,
+          "sourcePosition": 0,
+          "metadata": null,
+          "sequenceOrder": 0,
+          "notes": null
+        },
+        {
+          "id": "rel_1777088903642_qqdulfjh2",
+          "primaryEntityId": "entity_1777088866928_uncftpplm",
+          "relatedEntityId": "entity_1777088900677_so3d4pfh2",
+          "relationType": 5,
+          "timeEntityId": "entity_1777088881127_hcagf0zy0",
+          "confidence": 2,
+          "isConfirmed": false,
+          "sourcePosition": 0,
+          "metadata": null,
+          "sequenceOrder": 0,
+          "notes": null
+        }
+      ],
+      "parsedAt": null,
+      "confidenceScore": null,
+      "isReviewed": false,
+      "uncertaintyMarkers": [],
+      "corrections": [],
+      "protectiveMeasures": [],
+      "isMemoryGap": false,
+      "memoryGapNotes": null
+    }
+  ],
+  "conventions": {},
+  "entityGroups": {},
+  "createdDate": "2026-04-25T03:48:41.4975366Z",
+  "createdByUserId": "6964051a-a741-43ff-8b37-dfbd11ce666e",
+  "lastModified": "2026-04-25T03:48:41.4975619Z",
+  "lastModifiedByUserId": "6964051a-a741-43ff-8b37-dfbd11ce666e",
+  "isReviewed": false,
+  "reviewedAt": null,
+  "reviewedByUserId": null,
+  "version": 2
+}

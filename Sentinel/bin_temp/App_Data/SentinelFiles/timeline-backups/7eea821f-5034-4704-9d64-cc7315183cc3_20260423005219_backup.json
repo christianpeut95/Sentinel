@@ -1,0 +1,84 @@
+{
+  "caseId": "7eea821f-5034-4704-9d64-cc7315183cc3",
+  "entries": [
+    {
+      "id": "entry_1776905479435_9we6d3c7b",
+      "entryDate": "2026-04-23T00:00:00Z",
+      "narrativeText": "went to Pawly Understood with #Siblings( Humphrey, .",
+      "entities": [
+        {
+          "id": "entity_1776905491582_h6gm485x7",
+          "entityType": 2,
+          "rawText": "Pawly Understood",
+          "normalizedValue": "Pawly Understood",
+          "startPosition": 8,
+          "endPosition": 24,
+          "confidence": 3,
+          "isConfirmed": true,
+          "linkedRecordType": null,
+          "linkedRecordId": null,
+          "linkedRecordDisplayName": null,
+          "suggestions": [],
+          "metadata": {
+            "placeId": "ChIJDy9y2GHFsGoRu3yUEOXMWSo",
+            "address": "116 South Rd, Torrensville SA 5031, Australia",
+            "coordinates": {
+              "lat": -34.91970209999999,
+              "lon": 138.5683494
+            }
+          },
+          "notes": null
+        },
+        {
+          "id": "entity_1776905506230_rglzskh7k",
+          "entityType": 1,
+          "rawText": "Humphrey",
+          "normalizedValue": "Humphrey",
+          "startPosition": 41,
+          "endPosition": 49,
+          "confidence": 3,
+          "isConfirmed": true,
+          "linkedRecordType": null,
+          "linkedRecordId": null,
+          "linkedRecordDisplayName": null,
+          "suggestions": [],
+          "metadata": {
+            "relationship": ""
+          },
+          "notes": null
+        }
+      ],
+      "relationships": [],
+      "parsedAt": null,
+      "confidenceScore": null,
+      "isReviewed": false,
+      "uncertaintyMarkers": [],
+      "corrections": [],
+      "protectiveMeasures": [],
+      "isMemoryGap": false,
+      "memoryGapNotes": null
+    }
+  ],
+  "conventions": {},
+  "entityGroups": {
+    "81511fef-db80-4120-8133-3c2c35ac41b8": {
+      "id": "81511fef-db80-4120-8133-3c2c35ac41b8",
+      "caseId": "7eea821f-5034-4704-9d64-cc7315183cc3",
+      "name": "Siblings",
+      "entityIds": [
+        "entity_1776905506230_rglzskh7k",
+        "entity_1776905515080_hnl47y9qf"
+      ],
+      "createdDate": "2026-04-23T00:51:56.4088912Z",
+      "description": null
+    }
+  },
+  "createdDate": "2026-04-23T00:51:49.7467712Z",
+  "createdByUserId": "6964051a-a741-43ff-8b37-dfbd11ce666e",
+  "lastModified": "2026-04-23T00:51:58.4911398Z",
+  "lastModifiedByUserId": "6964051a-a741-43ff-8b37-dfbd11ce666e",
+  "isReviewed": false,
+  "reviewedAt": null,
+  "reviewedByUserId": null,
+  "version": 5
+}

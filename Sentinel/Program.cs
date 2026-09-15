@@ -166,13 +166,16 @@ builder.Services.AddDefaultIdentity<ApplicationUser>(options =>
 {
     options.SignIn.RequireConfirmedAccount = false;
     
-    // Strengthen password requirements
+    // Prefer long passwords plus common-password screening over arbitrary
+    // composition rules. This keeps passwords compatible with password
+    // managers and passphrases while the custom validator rejects known weak
+    // passwords for every creation, change and reset flow.
     options.Password.RequiredLength = 12;
-    options.Password.RequireDigit = true;
-    options.Password.RequireLowercase = true;
-    options.Password.RequireUppercase = true;
-    options.Password.RequireNonAlphanumeric = true;
-    options.Password.RequiredUniqueChars = 4;
+    options.Password.RequireDigit = false;
+    options.Password.RequireLowercase = false;
+    options.Password.RequireUppercase = false;
+    options.Password.RequireNonAlphanumeric = false;
+    options.Password.RequiredUniqueChars = 0;
     
     // Lockout on failed attempts
     options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(15);
@@ -182,13 +185,44 @@ builder.Services.AddDefaultIdentity<ApplicationUser>(options =>
 .AddRoles<IdentityRole>()
 .AddEntityFrameworkStores<ApplicationDbContext>();
 
+// Reject common passwords locally. The bundled deny-list is loaded once and
+// applies through ASP.NET Identity to every creation, change and reset flow.
+builder.Services.AddSingleton<ICommonPasswordDenyList, CommonPasswordDenyList>();
+builder.Services.AddScoped<IPasswordValidator<ApplicationUser>, CommonPasswordValidator>();
+
+// All Sentinel-owned cookies use the __Host- prefix. This requires HTTPS, a
+// host-only cookie, and Path=/, which prevents another application on the
+// same host from overriding an authentication-related cookie.
+void ConfigureSecureHostCookie(CookieBuilder cookie, string name)
+{
+    cookie.Name = name;
+    cookie.HttpOnly = true;
+    cookie.SecurePolicy = CookieSecurePolicy.Always;
+    cookie.SameSite = SameSiteMode.Lax;
+    cookie.Path = "/";
+}
+
 // Configure authentication paths
 builder.Services.ConfigureApplicationCookie(options =>
 {
+    ConfigureSecureHostCookie(options.Cookie, "__Host-Sentinel.Auth");
     options.LoginPath = "/Identity/Account/Login";
     options.LogoutPath = "/Identity/Account/Logout";
     options.AccessDeniedPath = "/Identity/Account/AccessDenied";
 });
+
+// Identity creates additional short-lived cookies for external sign-in and
+// two-factor authentication. They carry no less sensitivity than the main
+// application cookie, so apply the same transport and naming requirements.
+builder.Services.Configure<Microsoft.AspNetCore.Authentication.Cookies.CookieAuthenticationOptions>(
+    IdentityConstants.ExternalScheme,
+    options => ConfigureSecureHostCookie(options.Cookie, "__Host-Sentinel.External"));
+builder.Services.Configure<Microsoft.AspNetCore.Authentication.Cookies.CookieAuthenticationOptions>(
+    IdentityConstants.TwoFactorRememberMeScheme,
+    options => ConfigureSecureHostCookie(options.Cookie, "__Host-Sentinel.TwoFactorRememberMe"));
+builder.Services.Configure<Microsoft.AspNetCore.Authentication.Cookies.CookieAuthenticationOptions>(
+    IdentityConstants.TwoFactorUserIdScheme,
+    options => ConfigureSecureHostCookie(options.Cookie, "__Host-Sentinel.TwoFactorUserId"));
 
 // Revalidate the Identity security stamp on every authenticated request. Account
 // lock/disable and access changes update the stamp so existing cookies are rejected
@@ -282,6 +316,32 @@ builder.Services.AddRateLimiter(rateLimiterOptions =>
         });
     });
 
+    // Password reset requests are anonymous and may trigger email delivery.
+    // Keep this deliberately low to limit account-targeted mail abuse.
+    rateLimiterOptions.AddPolicy("password-reset", httpContext =>
+    {
+        var partitionKey = httpContext.Connection.RemoteIpAddress?.ToString() ?? "anonymous";
+        return RateLimitPartition.GetFixedWindowLimiter(partitionKey, _ => new FixedWindowRateLimiterOptions
+        {
+            Window = TimeSpan.FromMinutes(15),
+            PermitLimit = 5,
+            QueueLimit = 0
+        });
+    });
+
+    rateLimiterOptions.AddPolicy("password-change", httpContext =>
+    {
+        var partitionKey = httpContext.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value
+            ?? httpContext.Connection.RemoteIpAddress?.ToString()
+            ?? "anonymous";
+        return RateLimitPartition.GetFixedWindowLimiter(partitionKey, _ => new FixedWindowRateLimiterOptions
+        {
+            Window = TimeSpan.FromMinutes(15),
+            PermitLimit = 5,
+            QueueLimit = 0
+        });
+    });
+
     // Global fallback (150 per minute per user)
     rateLimiterOptions.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(httpContext =>
     {
@@ -316,8 +376,15 @@ builder.Services.AddDistributedMemoryCache();
 builder.Services.AddSession(options =>
 {
     options.IdleTimeout = TimeSpan.FromMinutes(30);
-    options.Cookie.HttpOnly = true;
+    ConfigureSecureHostCookie(options.Cookie, "__Host-Sentinel.Session");
     options.Cookie.IsEssential = true;
+});
+
+// The antiforgery token is supplied in forms/headers, so its cookie can remain
+// HttpOnly. Giving it its own host-only, HTTPS-only name avoids cookie shadowing.
+builder.Services.AddAntiforgery(options =>
+{
+    ConfigureSecureHostCookie(options.Cookie, "__Host-Sentinel.AntiForgery");
 });
 
 // Razor Pages with global authorization
@@ -334,8 +401,13 @@ builder.Services.AddRazorPages(options =>
 })
 .AddSessionStateTempDataProvider(); // Use session instead of cookies for TempData
 
-// API Controllers (for AJAX endpoints)
-builder.Services.AddControllers();
+// API Controllers (for AJAX endpoints). Cookie-authenticated mutations must
+// validate antiforgery tokens just like Razor Page forms do. Individual
+// endpoints can explicitly opt out only when they use a non-cookie trust model.
+builder.Services.AddControllers(options =>
+{
+    options.Filters.Add(new Microsoft.AspNetCore.Mvc.AutoValidateAntiforgeryTokenAttribute());
+});
 
 // Blazor Server (for interactive settings/components)
 builder.Services.AddRazorComponents()
@@ -389,6 +461,7 @@ builder.Services.AddScoped<Sentinel.Services.ICaseIdGeneratorService, Sentinel.S
 builder.Services.AddScoped<Sentinel.Services.IPermissionService, Sentinel.Services.PermissionService>();
 builder.Services.AddScoped<Sentinel.Services.IDiseaseAccessService, Sentinel.Services.DiseaseAccessService>();
 builder.Services.AddScoped<Sentinel.Services.ICaseAccessService, Sentinel.Services.CaseAccessService>();
+builder.Services.AddScoped<Sentinel.Services.IOutbreakAccessService, Sentinel.Services.OutbreakAccessService>();
 builder.Services.AddSingleton<Sentinel.Services.IProtectedFileStorageService, Sentinel.Services.ProtectedFileStorageService>();
 builder.Services.AddHostedService<Sentinel.Services.ProtectedFileStorageMigrationService>();
 builder.Services.AddScoped<Sentinel.Services.CustomFieldService>();
@@ -400,6 +473,7 @@ builder.Services.AddScoped<Sentinel.Services.ILineListService, Sentinel.Services
 builder.Services.AddScoped<Sentinel.Services.IDuplicateDetectionService, Sentinel.Services.DuplicateDetectionService>();
 builder.Services.AddScoped<Sentinel.Services.IJurisdictionService, Sentinel.Services.JurisdictionService>();
 builder.Services.AddScoped<Sentinel.Services.Reporting.IReportFieldMetadataService, Sentinel.Services.Reporting.ReportFieldMetadataService>();
+builder.Services.AddScoped<Sentinel.Services.Reporting.IReportDataAccessService, Sentinel.Services.Reporting.ReportDataAccessService>();
 builder.Services.AddScoped<Sentinel.Services.Reporting.IReportDataService, Sentinel.Services.Reporting.ReportDataService>();
 builder.Services.AddScoped<Sentinel.Services.Reporting.CollectionQueryFilterBuilder>();
 
@@ -494,12 +568,20 @@ builder.Services.AddHostedService<Sentinel.Services.GeocodingBackgroundService>(
 
 var app = builder.Build();
 
+// Fail closed at startup if the required ASVS password deny-list is missing or
+// incomplete instead of silently allowing password checks to be bypassed.
+_ = app.Services.GetRequiredService<ICommonPasswordDenyList>();
+
 // Middleware
 // This must be the outermost application handler. It logs every exception that
 // escapes an endpoint and replaces the response with a safe, traceable error.
 // ErrorReportingMiddleware remains further in the pipeline so it can submit a
 // separately sanitised error event before the exception reaches this handler.
 app.UseGlobalExceptionHandler();
+
+// Add an explicit UTF-8 charset to every textual response, including static
+// CSS/JavaScript/SVG assets and hand-written endpoint responses.
+app.UseMiddleware<Utf8ContentTypeMiddleware>();
 
 if (app.Environment.IsDevelopment())
 {
@@ -510,7 +592,13 @@ else
     app.UseHsts();
 }
 
-app.UseStatusCodePagesWithReExecute("/not-found");
+// HTML page requests can use the friendly not-found page. API requests must
+// retain their original status/body (for example, JSON validation and
+// antiforgery errors); re-executing an API POST through a page endpoint turns
+// the useful response into an unrelated HTML/Blazor content-type error.
+app.UseWhen(
+    context => !context.Request.Path.StartsWithSegments("/api"),
+    branch => branch.UseStatusCodePagesWithReExecute("/not-found"));
 
 app.UseHttpsRedirection();
 
@@ -592,7 +680,7 @@ app.MapGet("/api/address-suggest", async (HttpRequest req, Sentinel.Services.ILo
     });
 
     return Results.Json(legacyFormat);
-}).RequireAuthorization();
+}).RequireAuthorization("Permission.ReferenceData.View");
 
 // Minimal API endpoint for place/business suggestions with location bias (for timeline feature)
 app.MapGet("/api/places-suggest", async (HttpRequest req, Sentinel.Services.ILocationLookupService locationService) =>
@@ -628,7 +716,7 @@ app.MapGet("/api/places-suggest", async (HttpRequest req, Sentinel.Services.ILoc
     });
 
     return Results.Json(formattedResults);
-}).RequireAuthorization();
+}).RequireAuthorization("Permission.ReferenceData.View");
 
 
 
@@ -668,7 +756,7 @@ app.MapGet("/api/jurisdictions/search", async (string? term, int? typeId, Applic
         .ToListAsync();
 
     return Results.Json(jurisdictions);
-}).RequireAuthorization();
+}).RequireAuthorization("Permission.ReferenceData.View");
 
 // API endpoint for organization autocomplete
 app.MapGet("/api/organizations/search", async (string term, ApplicationDbContext context) =>
@@ -690,7 +778,7 @@ app.MapGet("/api/organizations/search", async (string term, ApplicationDbContext
         .ToListAsync();
 
     return Results.Json(organizations);
-}).RequireAuthorization();
+}).RequireAuthorization("Permission.Organization.View");
 
 // API endpoint to get lab results for a case
 app.MapGet("/api/cases/{caseId}/lab-results", async (Guid caseId, ApplicationDbContext context, Sentinel.Services.ICaseAccessService caseAccessService) =>
@@ -832,11 +920,16 @@ app.MapGet("/api/users/search", async (string? term, Microsoft.AspNetCore.Identi
         .ToList();
 
     return Results.Json(users);
-}).RequireAuthorization();
+}).RequireAuthorization("Permission.Task.Edit");
 
 // API endpoint for disease exposure requirements
-app.MapGet("/api/diseases/{id:guid}/exposure-requirements", async (Guid id, IExposureRequirementService service) =>
+app.MapGet("/api/diseases/{id:guid}/exposure-requirements", async (Guid id, IExposureRequirementService service, ApplicationDbContext context) =>
 {
+    // Do not disclose restricted disease configuration through an otherwise
+    // routine case-entry lookup.
+    if (!await context.Diseases.AsNoTracking().AnyAsync(d => d.Id == id))
+        return Results.NotFound();
+
     var disease = await service.GetRequirementsForDiseaseAsync(id);
     var shouldPrompt = await service.ShouldPromptForExposureAsync(id);
 
@@ -851,7 +944,7 @@ app.MapGet("/api/diseases/{id:guid}/exposure-requirements", async (Guid id, IExp
         requireCoordinates = disease?.RequireGeographicCoordinates ?? false,
         allowDomestic = disease?.AllowDomesticAcquisition ?? true
     });
-}).RequireAuthorization();
+}).RequireAuthorization("Permission.Case.Create");
 
 // API endpoint to reorder case definition criteria
 app.MapPatch("/api/case-definitions/{id:int}/criteria/{criterionId:int}/reorder", async (int id, int criterionId, ApplicationDbContext context, HttpRequest request, ILogger<Program> logger) =>
@@ -1265,7 +1358,7 @@ using (var scope = app.Services.CreateScope())
 }
 
 // Health check endpoint for Docker and monitoring
-app.MapGet("/health", async (ApplicationDbContext dbContext) =>
+app.MapGet("/health", async (ApplicationDbContext dbContext, ILoggerFactory loggerFactory) =>
 {
     try
     {
@@ -1282,13 +1375,17 @@ app.MapGet("/health", async (ApplicationDbContext dbContext) =>
     }
     catch (Exception ex)
     {
+        var errorMessage = UserFacingError.Create(
+            loggerFactory.CreateLogger("Sentinel.Health"),
+            ex,
+            "health check");
         return Results.Json(new
         {
             status = "unhealthy",
             application = "Sentinel",
             timestamp = DateTime.UtcNow,
             database = "disconnected",
-            error = ex.Message
+            error = errorMessage
         }, statusCode: 503);
     }
 }).AllowAnonymous();

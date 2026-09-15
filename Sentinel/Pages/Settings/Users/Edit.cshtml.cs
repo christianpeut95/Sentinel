@@ -4,7 +4,9 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Sentinel.Models;
 using System.ComponentModel.DataAnnotations;
+using System.Security.Claims;
 using System.Text.Json;
+using Sentinel.Services;
 
 namespace Sentinel.Pages.Settings.Users
 {
@@ -13,11 +15,16 @@ namespace Sentinel.Pages.Settings.Users
     {
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly RoleManager<IdentityRole> _roleManager;
+        private readonly IPermissionService _permissionService;
 
-        public EditModel(UserManager<ApplicationUser> userManager, RoleManager<IdentityRole> roleManager)
+        public EditModel(
+            UserManager<ApplicationUser> userManager,
+            RoleManager<IdentityRole> roleManager,
+            IPermissionService permissionService)
         {
             _userManager = userManager;
             _roleManager = roleManager;
+            _permissionService = permissionService;
         }
 
         [BindProperty]
@@ -27,6 +34,7 @@ namespace Sentinel.Pages.Settings.Users
         public bool IsLockedOut { get; set; }
         public DateTimeOffset? LockoutEnd { get; set; }
         public bool IsEnabled { get; set; }
+        public bool CanManageRoles { get; private set; }
 
         public class InputModel
         {
@@ -89,7 +97,11 @@ namespace Sentinel.Pages.Settings.Users
             if (user == null)
                 return NotFound();
 
-            AllRoles = _roleManager.Roles.Select(r => r.Name!).ToList();
+            CanManageRoles = await UserCanManageRolesAsync();
+            if (CanManageRoles)
+            {
+                AllRoles = _roleManager.Roles.Select(r => r.Name!).ToList();
+            }
             var userRoles = await _userManager.GetRolesAsync(user);
 
             // Parse languages from JSON
@@ -132,7 +144,11 @@ namespace Sentinel.Pages.Settings.Users
             if (user == null)
                 return NotFound();
 
-            AllRoles = _roleManager.Roles.Select(r => r.Name!).ToList();
+            CanManageRoles = await UserCanManageRolesAsync();
+            if (CanManageRoles)
+            {
+                AllRoles = _roleManager.Roles.Select(r => r.Name!).ToList();
+            }
             IsLockedOut = user.LockoutEnd.HasValue && user.LockoutEnd.Value > DateTimeOffset.UtcNow;
             LockoutEnd = user.LockoutEnd;
             IsEnabled = user.IsEnabled;
@@ -191,6 +207,23 @@ namespace Sentinel.Pages.Settings.Users
                 return Page();
             }
 
+            var currentRoles = await _userManager.GetRolesAsync(user);
+            var roleFieldsPosted = Request.Form.ContainsKey("Input.SelectedRoles");
+            if (roleFieldsPosted && !CanManageRoles)
+            {
+                return Forbid();
+            }
+
+            if (CanManageRoles && roleFieldsPosted)
+            {
+                var allowedRoles = AllRoles.ToHashSet(StringComparer.Ordinal);
+                if (Input.SelectedRoles.Any(role => !allowedRoles.Contains(role)))
+                {
+                    ModelState.AddModelError(nameof(Input.SelectedRoles), "One or more selected roles are invalid.");
+                    return Page();
+                }
+            }
+
             // Update basic info
             if (user.UserName != Input.UserName)
             {
@@ -239,24 +272,41 @@ namespace Sentinel.Pages.Settings.Users
                 return Page();
             }
 
-            // Update roles
-            var currentRoles = await _userManager.GetRolesAsync(user);
-            var rolesToAdd = Input.SelectedRoles.Except(currentRoles).ToList();
-            var rolesToRemove = currentRoles.Except(Input.SelectedRoles).ToList();
-
-            if (rolesToRemove.Any())
+            if (CanManageRoles && roleFieldsPosted)
             {
-                await _userManager.RemoveFromRolesAsync(user, rolesToRemove);
-            }
+                var rolesToAdd = Input.SelectedRoles.Except(currentRoles).ToList();
+                var rolesToRemove = currentRoles.Except(Input.SelectedRoles).ToList();
 
-            if (rolesToAdd.Any())
-            {
-                await _userManager.AddToRolesAsync(user, rolesToAdd);
-            }
+                if (rolesToRemove.Any())
+                {
+                    var removeResult = await _userManager.RemoveFromRolesAsync(user, rolesToRemove);
+                    if (!removeResult.Succeeded)
+                    {
+                        foreach (var error in removeResult.Errors)
+                        {
+                            ModelState.AddModelError(string.Empty, error.Description);
+                        }
+                        return Page();
+                    }
+                }
 
-            if (rolesToAdd.Any() || rolesToRemove.Any())
-            {
-                await _userManager.UpdateSecurityStampAsync(user);
+                if (rolesToAdd.Any())
+                {
+                    var addResult = await _userManager.AddToRolesAsync(user, rolesToAdd);
+                    if (!addResult.Succeeded)
+                    {
+                        foreach (var error in addResult.Errors)
+                        {
+                            ModelState.AddModelError(string.Empty, error.Description);
+                        }
+                        return Page();
+                    }
+                }
+
+                if (rolesToAdd.Any() || rolesToRemove.Any())
+                {
+                    await _userManager.UpdateSecurityStampAsync(user);
+                }
             }
 
             // Update password if provided
@@ -277,6 +327,16 @@ namespace Sentinel.Pages.Settings.Users
 
             TempData["StatusMessage"] = "User has been updated successfully.";
             return RedirectToPage("./Index");
+        }
+
+        private async Task<bool> UserCanManageRolesAsync()
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            return !string.IsNullOrWhiteSpace(userId) &&
+                   await _permissionService.HasPermissionAsync(
+                       userId,
+                       PermissionModule.User,
+                       PermissionAction.ManageRoles);
         }
     }
 }

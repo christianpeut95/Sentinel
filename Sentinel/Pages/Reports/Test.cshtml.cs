@@ -10,18 +10,23 @@ namespace Sentinel.Pages.Reports;
 public class TestModel : PageModel
 {
     private readonly IReportDataService _reportDataService;
+    private readonly IReportDataAccessService _reportDataAccessService;
     private readonly ILogger<TestModel> _logger;
 
-    public TestModel(IReportDataService reportDataService, ILogger<TestModel> logger)
+    public TestModel(
+        IReportDataService reportDataService,
+        IReportDataAccessService reportDataAccessService,
+        ILogger<TestModel> logger)
     {
         _reportDataService = reportDataService;
+        _reportDataAccessService = reportDataAccessService;
         _logger = logger;
     }
 
     public List<Dictionary<string, object?>>? ReportData { get; set; }
     public string? ErrorMessage { get; set; }
 
-    public async Task OnGetAsync()
+    public async Task<IActionResult> OnGetAsync()
     {
         try
         {
@@ -38,12 +43,23 @@ public class TestModel : PageModel
                 Filters = new List<ReportFilter>()
             };
 
+            if (!await _reportDataAccessService.CanReadEntityTypeAsync(reportDef.EntityType))
+            {
+                return Forbid();
+            }
+
             ReportData = await _reportDataService.GetReportPreviewAsync(reportDef);
+        }
+        catch (ReportDataAccessDeniedException)
+        {
+            return Forbid();
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Unable to load report test data");
             ErrorMessage = $"The report test data could not be loaded. Please try again. Reference: {HttpContext.TraceIdentifier}";
         }
+
+        return Page();
     }
 }

@@ -68,7 +68,7 @@ namespace Sentinel.Pages.Patients
             }
             catch (Exception ex)
             {
-                TempData["ErrorMessage"] = $"An error occurred while deleting the patient: {ex.Message}";
+                TempData["ErrorMessage"] = Sentinel.Services.UserFacingError.Create(HttpContext, ex);
             }
 
             return RedirectToPage("./Index");

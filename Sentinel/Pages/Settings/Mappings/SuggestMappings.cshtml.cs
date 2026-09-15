@@ -73,7 +73,7 @@ namespace Sentinel.Pages.Settings.Mappings
             }
             catch (Exception ex)
             {
-                TempData["ErrorMessage"] = $"Error generating suggestions: {ex.Message}";
+                TempData["ErrorMessage"] = Sentinel.Services.UserFacingError.Create(HttpContext, ex);
                 return Page();
             }
         }
@@ -134,7 +134,7 @@ namespace Sentinel.Pages.Settings.Mappings
             }
             catch (Exception ex)
             {
-                TempData["ErrorMessage"] = $"Error: {ex.Message}";
+                TempData["ErrorMessage"] = Sentinel.Services.UserFacingError.Create(HttpContext, ex);
                 
                 // Reload suggestions on error
                 try

@@ -232,7 +232,7 @@ namespace Sentinel.Pages.Dashboard
             }
             catch (Exception ex)
             {
-                TempData["ErrorMessage"] = $"Error completing task: {ex.Message}";
+                TempData["ErrorMessage"] = Sentinel.Services.UserFacingError.Create(HttpContext, ex);
             }
 
             return RedirectToPage();
@@ -258,7 +258,7 @@ namespace Sentinel.Pages.Dashboard
             }
             catch (Exception ex)
             {
-                TempData["ErrorMessage"] = $"Error updating task: {ex.Message}";
+                TempData["ErrorMessage"] = Sentinel.Services.UserFacingError.Create(HttpContext, ex);
             }
 
             return RedirectToPage();
@@ -282,7 +282,7 @@ namespace Sentinel.Pages.Dashboard
             }
             catch (Exception ex)
             {
-                TempData["ErrorMessage"] = $"Error cancelling task: {ex.Message}";
+                TempData["ErrorMessage"] = Sentinel.Services.UserFacingError.Create(HttpContext, ex);
             }
 
             return RedirectToPage();

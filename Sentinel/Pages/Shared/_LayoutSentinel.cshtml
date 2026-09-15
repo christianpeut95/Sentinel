@@ -198,6 +198,11 @@
                                     <i class="bi bi-info-circle me-2"></i>About
                                 </a>
                             </li>
+                            <li>
+                                <a class="dropdown-item" asp-area="Identity" asp-page="/Account/Manage/ChangePassword" style="padding: var(--spacing-2) var(--spacing-4); color: var(--forest); font-size: 14px; transition: background var(--transition-normal);">
+                                    <i class="bi bi-key me-2"></i>Change Password
+                                </a>
+                            </li>
                             <li><hr class="dropdown-divider" style="border-color: var(--hairline); margin: var(--spacing-2) 0;"></li>
                             <li>
                                 <form method="post" action="/Identity/Account/Logout" style="margin: 0;">
@@ -219,12 +224,72 @@
         </main>
     </div>
 
+    @if (User.Identity?.IsAuthenticated == true)
+    {
+        <form id="sentinel-antiforgery-token" class="d-none" aria-hidden="true">
+            @Html.AntiForgeryToken()
+        </form>
+    }
+
     <script src="~/lib/jquery/dist/jquery.min.js"></script>
     <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://code.jquery.com/ui/1.13.2/jquery-ui.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
     <script src="/_content/AntDesign/js/ant-design-blazor.js"></script>
     <script src="~/js/site.js" asp-append-version="true"></script>
+    <script>
+        // Add the antiforgery token to same-origin state-changing AJAX requests.
+        // This preserves protection when MVC controller actions use the global
+        // AutoValidateAntiforgeryToken filter.
+        (function () {
+            const unsafeMethods = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
+
+            function token() {
+                return document.querySelector('#sentinel-antiforgery-token input[name="__RequestVerificationToken"]')?.value || '';
+            }
+
+            function isSameOrigin(url) {
+                try {
+                    return new URL(url, window.location.origin).origin === window.location.origin;
+                } catch {
+                    return false;
+                }
+            }
+
+            const originalFetch = window.fetch.bind(window);
+            window.fetch = function (input, init) {
+                const request = input instanceof Request ? input : null;
+                const method = (init?.method || request?.method || 'GET').toUpperCase();
+                const url = request?.url || input;
+                const requestToken = token();
+
+                if (!unsafeMethods.has(method) || !requestToken || !isSameOrigin(url)) {
+                    return originalFetch(input, init);
+                }
+
+                const headers = new Headers(init?.headers || request?.headers || {});
+                if (!headers.has('RequestVerificationToken')) {
+                    headers.set('RequestVerificationToken', requestToken);
+                }
+
+                if (request) {
+                    return originalFetch(new Request(request, { ...init, headers }));
+                }
+
+                return originalFetch(input, { ...init, headers });
+            };
+
+            if (window.jQuery) {
+                window.jQuery.ajaxPrefilter(function (options, originalOptions, jqXHR) {
+                    const method = (options.type || options.method || 'GET').toUpperCase();
+                    const requestToken = token();
+                    if (unsafeMethods.has(method) && requestToken && isSameOrigin(options.url || window.location.href)) {
+                        jqXHR.setRequestHeader('RequestVerificationToken', requestToken);
+                    }
+                });
+            }
+        })();
+    </script>
     
     <!-- SurveyJS for survey rendering -->
     <script src="https://unpkg.com/survey-core@1.12.4/survey.core.min.js" onerror="console.error('Failed to load survey-core')"></script>

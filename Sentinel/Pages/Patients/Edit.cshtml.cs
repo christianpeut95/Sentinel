@@ -251,7 +251,7 @@ namespace Sentinel.Pages.Patients
                     return NotFound();
                 }
 
-                TempData["ErrorMessage"] = $"An error occurred while updating the patient: {ex.Message}";
+                TempData["ErrorMessage"] = Sentinel.Services.UserFacingError.Create(HttpContext, ex);
                 return Page();
             }
         }

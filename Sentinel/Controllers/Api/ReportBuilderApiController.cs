@@ -131,6 +131,10 @@ public class ReportBuilderApiController : ControllerBase
                 }
             });
         }
+        catch (ReportDataAccessDeniedException)
+        {
+            return Forbid();
+        }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Unable to generate report-builder preview");
@@ -209,6 +213,13 @@ public class ReportBuilderApiController : ControllerBase
 
                 if (reportDef == null)
                 {
+                    return NotFound(new { success = false, error = "Report not found" });
+                }
+
+                if (!CanEditReport(reportDef))
+                {
+                    // Do not disclose whether a private report exists to a
+                    // caller who is not entitled to edit it.
                     return NotFound(new { success = false, error = "Report not found" });
                 }
 
@@ -367,6 +378,10 @@ public class ReportBuilderApiController : ControllerBase
             });
         }
     }
+
+    private bool CanEditReport(ReportDefinition report) =>
+        User.IsInRole("Admin") ||
+        string.Equals(report.CreatedByUserId, User.Identity?.Name, StringComparison.Ordinal);
 }
 
 public class PreviewReportRequest

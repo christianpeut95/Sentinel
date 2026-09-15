@@ -15,11 +15,13 @@ public class EditModel : PageModel
 {
     private readonly ApplicationDbContext _context;
     private readonly IOutbreakService _outbreakService;
+    private readonly IOutbreakAccessService _outbreakAccessService;
 
-    public EditModel(ApplicationDbContext context, IOutbreakService outbreakService)
+    public EditModel(ApplicationDbContext context, IOutbreakService outbreakService, IOutbreakAccessService outbreakAccessService)
     {
         _context = context;
         _outbreakService = outbreakService;
+        _outbreakAccessService = outbreakAccessService;
     }
 
     [BindProperty]
@@ -35,6 +37,11 @@ public class EditModel : PageModel
 
     public async Task<IActionResult> OnGetAsync(int id)
     {
+        if (!await _outbreakAccessService.CanAccessOutbreakAsync(id))
+        {
+            return NotFound();
+        }
+
         var outbreak = await _outbreakService.GetByIdAsync(id);
         if (outbreak == null)
         {
@@ -49,6 +56,11 @@ public class EditModel : PageModel
 
     public async Task<IActionResult> OnPostAsync()
     {
+        if (!await _outbreakAccessService.CanAccessOutbreakAsync(Outbreak.Id))
+        {
+            return NotFound();
+        }
+
         if (!ModelState.IsValid)
         {
             await LoadSelectListsAsync();

@@ -8,7 +8,9 @@ using MimeKit;
 
 namespace Sentinel.Pages.Settings
 {
-    [Authorize]
+    // SMTP hosts, credentials, and connection tests are organisation-level settings.
+    // Keeping this policy on the PageModel protects both the page and every handler.
+    [Authorize(Policy = "Permission.Settings.ManageOrganization")]
     public class SmtpSettingsModel : PageModel
     {
         private readonly ISystemSettingsService _settingsService;
@@ -100,7 +102,7 @@ namespace Sentinel.Pages.Settings
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error saving SMTP settings");
-                ModelState.AddModelError(string.Empty, "Error saving settings: " + ex.Message);
+                ModelState.AddModelError(string.Empty, Sentinel.Services.UserFacingError.Create(HttpContext, ex));
                 return Page();
             }
         }
@@ -176,7 +178,7 @@ namespace Sentinel.Pages.Settings
                 SmtpTestResultValue = new SmtpTestResult
                 {
                     Success = false,
-                    Message = $"Connection test failed: {ex.Message}"
+                    Message = Sentinel.Services.UserFacingError.Create(HttpContext, ex)
                 };
 
                 _logger.LogError(ex, "SMTP connection test failed");

@@ -136,7 +136,7 @@ namespace Sentinel.Pages.Settings.Diseases
             }
             catch (Exception ex)
             {
-                TempData["ErrorMessage"] = $"An error occurred: {ex.Message}";
+                TempData["ErrorMessage"] = Sentinel.Services.UserFacingError.Create(HttpContext, ex);
                 await LoadParentDiseases(Disease.Id);
                 await LoadCategories();
                 await LoadCustomFields();
@@ -214,7 +214,7 @@ namespace Sentinel.Pages.Settings.Diseases
                 .Select(d => new
                 {
                     d.Id,
-                    DisplayName = new string('—', d.Level) + " " + d.Name
+                    DisplayName = new string('ï¿½', d.Level) + " " + d.Name
                 })
                 .ToListAsync();
 
@@ -520,7 +520,7 @@ namespace Sentinel.Pages.Settings.Diseases
             }
             catch (Exception ex)
             {
-                TempData["ErrorMessage"] = $"An error occurred: {ex.Message}";
+                TempData["ErrorMessage"] = Sentinel.Services.UserFacingError.Create(HttpContext, ex);
                 await LoadParentDiseases(Disease.Id);
                 await LoadCategories();
                 await LoadCustomFields();
@@ -580,7 +580,7 @@ namespace Sentinel.Pages.Settings.Diseases
             }
             catch (Exception ex)
             {
-                TempData["ErrorMessage"] = $"An error occurred: {ex.Message}";
+                TempData["ErrorMessage"] = Sentinel.Services.UserFacingError.Create(HttpContext, ex);
                 await LoadParentDiseases(Disease.Id);
                 await LoadCategories();
                 await LoadCustomFields();
@@ -632,7 +632,7 @@ namespace Sentinel.Pages.Settings.Diseases
                 }
                 catch (System.Text.Json.JsonException ex)
                 {
-                    TempData["ErrorMessage"] = $"Invalid Input Mapping JSON: {ex.Message}";
+                    TempData["ErrorMessage"] = Sentinel.Services.UserFacingError.Create(HttpContext, ex);
                     return RedirectToPage(new { id });
                 }
             }
@@ -645,7 +645,7 @@ namespace Sentinel.Pages.Settings.Diseases
                 }
                 catch (System.Text.Json.JsonException ex)
                 {
-                    TempData["ErrorMessage"] = $"Invalid Output Mapping JSON: {ex.Message}";
+                    TempData["ErrorMessage"] = Sentinel.Services.UserFacingError.Create(HttpContext, ex);
                     return RedirectToPage(new { id });
                 }
             }
@@ -695,7 +695,7 @@ namespace Sentinel.Pages.Settings.Diseases
             }
             catch (Exception ex)
             {
-                TempData["ErrorMessage"] = $"Error updating task assignment: {ex.Message}";
+                TempData["ErrorMessage"] = Sentinel.Services.UserFacingError.Create(HttpContext, ex);
                 return RedirectToPage(new { id });
             }
         }
@@ -742,7 +742,7 @@ namespace Sentinel.Pages.Settings.Diseases
             }
             catch (Exception ex)
             {
-                TempData["ErrorMessage"] = $"Error assigning task template: {ex.Message}";
+                TempData["ErrorMessage"] = Sentinel.Services.UserFacingError.Create(HttpContext, ex);
                 return RedirectToPage(new { id });
             }
         }
@@ -770,7 +770,7 @@ namespace Sentinel.Pages.Settings.Diseases
             }
             catch (Exception ex)
             {
-                TempData["ErrorMessage"] = $"Error removing task template: {ex.Message}";
+                TempData["ErrorMessage"] = Sentinel.Services.UserFacingError.Create(HttpContext, ex);
                 return RedirectToPage(new { id });
             }
         }

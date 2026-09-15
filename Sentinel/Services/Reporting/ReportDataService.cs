@@ -5,6 +5,7 @@ using Sentinel.Models.Reporting;
 using Sentinel.DTOs;
 using System.Linq.Dynamic.Core;
 using System.Text.Json;
+using System.Globalization;
 
 namespace Sentinel.Services.Reporting;
 
@@ -14,25 +15,39 @@ namespace Sentinel.Services.Reporting;
 /// </summary>
 public class ReportDataService : IReportDataService
 {
+    private static readonly ParsingConfig ReportQueryParsingConfig = new()
+    {
+        DisallowNewKeyword = true,
+        AllowNewToEvaluateAnyType = false,
+        ResolveTypesBySimpleName = false,
+        AllowEqualsAndToStringMethodsOnObject = false,
+        RestrictOrderByToPropertyOrField = true
+    };
+
     private readonly ApplicationDbContext _context;
     private readonly IReportFieldMetadataService _fieldMetadataService;
     private readonly IDynamicDateResolver _dynamicDateResolver;
     private readonly CollectionQueryFilterBuilder _collectionFilterBuilder;
+    private readonly IReportDataAccessService _reportDataAccessService;
 
     public ReportDataService(
         ApplicationDbContext context,
         IReportFieldMetadataService fieldMetadataService,
         IDynamicDateResolver dynamicDateResolver,
-        CollectionQueryFilterBuilder collectionFilterBuilder)
+        CollectionQueryFilterBuilder collectionFilterBuilder,
+        IReportDataAccessService reportDataAccessService)
     {
         _context = context;
         _fieldMetadataService = fieldMetadataService;
         _dynamicDateResolver = dynamicDateResolver;
         _collectionFilterBuilder = collectionFilterBuilder;
+        _reportDataAccessService = reportDataAccessService;
     }
 
     public async Task<List<Dictionary<string, object?>>> GetReportDataAsync(ReportDefinition reportDefinition)
     {
+        await EnsureCanReadReportDataAsync(reportDefinition);
+
         var options = new DataExtractionOptions
         {
             IncludeCustomFields = true,
@@ -44,6 +59,8 @@ public class ReportDataService : IReportDataService
 
     public async Task<List<Dictionary<string, object?>>> GetReportPreviewAsync(ReportDefinition reportDefinition)
     {
+        await EnsureCanReadReportDataAsync(reportDefinition);
+
         var options = new DataExtractionOptions
         {
             MaxRows = 100,
@@ -58,6 +75,8 @@ public class ReportDataService : IReportDataService
         ReportDefinition reportDefinition,
         List<CollectionQueryDto> collectionQueries)
     {
+        await EnsureCanReadReportDataAsync(reportDefinition);
+
         // Check if we have any collection query filters
         // SQL-level filters: queries with SubFilters (e.g., HasAny with conditions)
         // Post-processing filters: queries with Comparator (e.g., Count > 5)
@@ -171,6 +190,12 @@ public class ReportDataService : IReportDataService
 
             return (true, null);
         }
+        catch (ArgumentException ex)
+        {
+            // Validation is reported to the caller; runtime extraction separately rejects
+            // invalid filters rather than falling back to an unfiltered query.
+            return (false, $"Validation error: {ex.Message}");
+        }
         catch (Exception ex)
         {
             return (false, $"Validation error: {ex.Message}");
@@ -179,6 +204,8 @@ public class ReportDataService : IReportDataService
 
     public async Task<int> GetReportRowCountAsync(ReportDefinition reportDefinition)
     {
+        await EnsureCanReadReportDataAsync(reportDefinition);
+
         // Load custom field definitions upfront if needed
         Dictionary<int, CustomFieldDefinition>? customFieldDefinitions = null;
         var customFieldFilters = reportDefinition.Filters.Where(f => f.IsCustomField).ToList();
@@ -201,13 +228,23 @@ public class ReportDataService : IReportDataService
         // Build base query
         var baseQuery = BuildBaseQuery(reportDefinition.EntityType);
         
-        // Apply filters (synchronous, uses pre-loaded definitions)
-        baseQuery = ApplyFiltersAsync(baseQuery, reportDefinition, customFieldDefinitions);
+        var fieldMetadata = await GetFieldMetadataForReport(reportDefinition);
+
+        // Apply filters using server-side metadata as the allowlist for dynamic queries.
+        baseQuery = ApplyFiltersAsync(baseQuery, reportDefinition, customFieldDefinitions, fieldMetadata);
 
         return await baseQuery.CountAsync();
     }
 
     #region Private Methods
+
+    private async Task EnsureCanReadReportDataAsync(ReportDefinition reportDefinition)
+    {
+        if (!await _reportDataAccessService.CanReadEntityTypeAsync(reportDefinition.EntityType))
+        {
+            throw new ReportDataAccessDeniedException(reportDefinition.EntityType);
+        }
+    }
 
     private async Task<List<Dictionary<string, object?>>> ExtractDataAsync(
         ReportDefinition reportDefinition,
@@ -245,7 +282,7 @@ public class ReportDataService : IReportDataService
         Console.WriteLine($"[ReportData] Base query built for {reportDefinition.EntityType}");
 
         // STEP 4: Apply filters (passes pre-loaded custom field definitions)
-        baseQuery = ApplyFiltersAsync(baseQuery, reportDefinition, customFieldDefinitions);
+        baseQuery = ApplyFiltersAsync(baseQuery, reportDefinition, customFieldDefinitions, fieldMetadata);
         Console.WriteLine($"[ReportData] Filters applied: {reportDefinition.Filters.Count}");
 
         // STEP 4.5: Apply SQL-level collection filters (if any)
@@ -261,14 +298,14 @@ public class ReportDataService : IReportDataService
 
                 foreach (var collectionQuery in sqlCollectionFilters)
                 {
-                    var filterClause = _collectionFilterBuilder.BuildCollectionFilterClause(
+                    var filterClause = await _collectionFilterBuilder.BuildCollectionFilterClauseAsync(
                         collectionQuery, 
                         reportDefinition.EntityType);
 
                     if (!string.IsNullOrEmpty(filterClause))
                     {
                         Console.WriteLine($"[ReportData] Collection filter: {filterClause}");
-                        baseQuery = baseQuery.Where(filterClause);
+                        baseQuery = baseQuery.Where(ReportQueryParsingConfig, filterClause);
                     }
                 }
             }
@@ -329,6 +366,14 @@ public class ReportDataService : IReportDataService
 
     private IQueryable<object> BuildBaseQuery(string entityType)
     {
+        // The flattened sources are SQL views, so EF query filters on Case are not applied to
+        // them automatically. Reuse the query-filtered Cases set in every view query below.
+        var visibleCaseIds = _context.Cases.Select(c => c.Id);
+        // ExposureEvents has a global filter requiring both linked cases to be visible. This
+        // prevents a flattened case/contact row from revealing a source case in another
+        // restricted hierarchy through its exposure or transmission-chain columns.
+        var visibleExposureEventIds = _context.ExposureEvents.Select(e => e.Id);
+
         return entityType switch
         {
             // Core entities - Filter to only actual cases (exclude contacts which are also stored in Cases table)
@@ -349,13 +394,35 @@ public class ReportDataService : IReportDataService
             "Location" => _context.Locations.AsQueryable().Cast<object>(),
             "Event" => _context.Events.AsQueryable().Cast<object>(),
             
-            // Flattened report views (no soft delete filtering - already in view)
-            "CaseContactTasksFlattened" => _context.CaseContactTasksFlattened.AsQueryable().Cast<object>(),
-            "OutbreakTasksFlattened" => _context.OutbreakTasksFlattened.AsQueryable().Cast<object>(),
-            "CaseTimelineAll" => _context.CaseTimelineAll.AsQueryable().Cast<object>(),
-            "ContactTracingMindMapNodes" => _context.ContactTracingMindMapNodes.AsQueryable().Cast<object>(),
-            "ContactTracingMindMapEdges" => _context.ContactTracingMindMapEdges.AsQueryable().Cast<object>(),
-            "ContactsListSimple" => _context.ContactsListSimple.AsQueryable().Cast<object>(),
+            // Flattened report views must be explicitly limited to the same hierarchy-aware
+            // visible cases as ordinary EF entities. Each predicate translates to an SQL
+            // subquery over Cases, where the global case/disease query filter is applied.
+            "CaseContactTasksFlattened" => _context.CaseContactTasksFlattened
+                .Where(v => visibleCaseIds.Contains(v.CaseGuid) &&
+                    (v.ExposureEventId == null || visibleExposureEventIds.Contains(v.ExposureEventId.Value)))
+                .Cast<object>(),
+            "OutbreakTasksFlattened" => _context.OutbreakTasksFlattened
+                .Where(v => v.CaseGuid == null || visibleCaseIds.Contains(v.CaseGuid.Value))
+                .Cast<object>(),
+            "CaseTimelineAll" => _context.CaseTimelineAll
+                .Where(v => visibleCaseIds.Contains(v.CaseId))
+                .Cast<object>(),
+            "ContactTracingMindMapNodes" => _context.ContactTracingMindMapNodes
+                .Where(v => visibleCaseIds.Contains(v.NodeId))
+                .Cast<object>(),
+            "ContactTracingMindMapEdges" => _context.ContactTracingMindMapEdges
+                .Where(v => visibleCaseIds.Contains(v.SourceNodeId) && visibleCaseIds.Contains(v.TargetNodeId))
+                .Cast<object>(),
+            "ContactsListSimple" => _context.ContactsListSimple
+                .Where(v => visibleCaseIds.Contains(v.ContactId) &&
+                    // The view does not expose its underlying exposure ID. Exclude a contact
+                    // entirely if any of its exposure rows links to a source case the caller
+                    // cannot see, rather than risk exposing that source person's name.
+                    !_context.ExposureEvents.Any(e =>
+                        e.ExposedCaseId == v.ContactId &&
+                        e.SourceCaseId != null &&
+                        !visibleCaseIds.Contains(e.SourceCaseId.Value)))
+                .Cast<object>(),
             
             _ => throw new NotSupportedException($"Entity type '{entityType}' is not supported")
         };
@@ -364,7 +431,8 @@ public class ReportDataService : IReportDataService
     private IQueryable<object> ApplyFiltersAsync(
         IQueryable<object> query,
         ReportDefinition reportDefinition,
-        Dictionary<int, CustomFieldDefinition>? customFieldDefinitions)
+        Dictionary<int, CustomFieldDefinition>? customFieldDefinitions,
+        IReadOnlyDictionary<string, ReportFieldMetadata> fieldMetadata)
     {
         if (!reportDefinition.Filters.Any())
             return query;
@@ -376,7 +444,7 @@ public class ReportDataService : IReportDataService
         // Apply regular filters first (these use Dynamic LINQ on the entity)
         if (regularFilters.Any())
         {
-            query = ApplyRegularFilters(query, regularFilters, reportDefinition.EntityType);
+            query = ApplyRegularFilters(query, regularFilters, reportDefinition.EntityType, fieldMetadata);
         }
 
         // Apply custom field filters (using pre-loaded definitions)
@@ -391,7 +459,8 @@ public class ReportDataService : IReportDataService
     private IQueryable<object> ApplyRegularFilters(
         IQueryable<object> query,
         List<ReportFilter> filters,
-        string entityType)
+        string entityType,
+        IReadOnlyDictionary<string, ReportFieldMetadata> fieldMetadata)
     {
         // Group filters by GroupId
         var groupedFilters = filters
@@ -407,14 +476,14 @@ public class ReportDataService : IReportDataService
             if (group.Key.HasValue)
             {
                 // Filters in a group - apply as one combined condition
-                query = ApplyFilterGroup(query, groupFilters, entityType);
+                query = ApplyFilterGroup(query, groupFilters, entityType, fieldMetadata);
             }
             else
             {
                 // Ungrouped filters - apply individually
                 foreach (var filter in groupFilters)
                 {
-                    query = ApplyFilter(query, filter, entityType);
+                    query = ApplyFilter(query, filter, entityType, fieldMetadata);
                 }
             }
         }
@@ -859,7 +928,8 @@ public class ReportDataService : IReportDataService
     private IQueryable<object> ApplyFilterGroup(
         IQueryable<object> query,
         List<ReportFilter> groupFilters,
-        string entityType)
+        string entityType,
+        IReadOnlyDictionary<string, ReportFieldMetadata> fieldMetadata)
     {
         try
         {
@@ -874,7 +944,7 @@ public class ReportDataService : IReportDataService
             for (int i = 0; i < groupFilters.Count; i++)
             {
                 var filter = groupFilters[i];
-                var clause = BuildWhereClause(filter, entityType);
+                var clause = BuildWhereClause(filter, entityType, fieldMetadata);
                 
                 if (!string.IsNullOrEmpty(clause))
                 {
@@ -897,9 +967,9 @@ public class ReportDataService : IReportDataService
 
                 // Apply combined group clause
                 var whereMethod = typeof(System.Linq.Dynamic.Core.DynamicQueryableExtensions)
-                    .GetMethod("Where", new[] { typeof(IQueryable), typeof(string), typeof(object[]) })!;
+                    .GetMethod("Where", new[] { typeof(IQueryable), typeof(ParsingConfig), typeof(string), typeof(object[]) })!;
 
-                typedQuery = whereMethod.Invoke(null, new object[] { typedQuery!, combinedClause, Array.Empty<object>() });
+                typedQuery = whereMethod.Invoke(null, new object[] { typedQuery!, ReportQueryParsingConfig, combinedClause, Array.Empty<object>() });
             }
 
             // Cast back to object
@@ -917,14 +987,15 @@ public class ReportDataService : IReportDataService
     private IQueryable<object> ApplyFilter(
         IQueryable<object> query,
         ReportFilter filter,
-        string entityType)
+        string entityType,
+        IReadOnlyDictionary<string, ReportFieldMetadata> fieldMetadata)
     {
         try
         {
             // Handle collection queries (NEW)
             if (filter.IsCollectionQuery)
             {
-                return ApplyCollectionFilter(query, filter, entityType);
+                return ApplyCollectionFilter(query, filter, entityType, fieldMetadata);
             }
 
             // Regular filter logic (existing)
@@ -934,15 +1005,15 @@ public class ReportDataService : IReportDataService
             var typedQuery = castMethod.Invoke(null, new object[] { query });
             
             // Build dynamic LINQ expression based on operator
-            var whereClause = BuildWhereClause(filter, entityType);
+            var whereClause = BuildWhereClause(filter, entityType, fieldMetadata);
             
             if (!string.IsNullOrEmpty(whereClause))
             {
                 // Apply where clause to typed query
                 var whereMethod = typeof(System.Linq.Dynamic.Core.DynamicQueryableExtensions)
-                    .GetMethod("Where", new[] { typeof(IQueryable), typeof(string), typeof(object[]) })!;
+                    .GetMethod("Where", new[] { typeof(IQueryable), typeof(ParsingConfig), typeof(string), typeof(object[]) })!;
                 
-                typedQuery = whereMethod.Invoke(null, new object[] { typedQuery!, whereClause, Array.Empty<object>() });
+                typedQuery = whereMethod.Invoke(null, new object[] { typedQuery!, ReportQueryParsingConfig, whereClause, Array.Empty<object>() });
             }
             
             // Cast back to object
@@ -970,11 +1041,57 @@ public class ReportDataService : IReportDataService
         return query;
     }
 
-    private string BuildWhereClause(ReportFilter filter, string entityType)
+    private static bool IsOperatorAllowed(string dataType, string operation)
     {
+        var normalizedType = dataType.ToLowerInvariant();
+        var allowed = normalizedType switch
+        {
+            "datetime" or "date" or "dateonly" => new[]
+            {
+                "Equals", "NotEquals", "GreaterThan", "LessThan", "GreaterThanOrEqual", "LessThanOrEqual",
+                "Between", "InLast", "InNext", "IsNull", "IsNotNull"
+            },
+            "int32" or "int64" or "decimal" or "double" or "float" or "number" => new[]
+            {
+                "Equals", "NotEquals", "GreaterThan", "LessThan", "GreaterThanOrEqual", "LessThanOrEqual",
+                "Between", "IsNull", "IsNotNull"
+            },
+            "boolean" or "bool" => new[] { "Equals", "NotEquals", "IsNull", "IsNotNull" },
+            _ => new[]
+            {
+                "Equals", "NotEquals", "Contains", "NotContains", "StartsWith", "EndsWith",
+                "GreaterThan", "LessThan", "GreaterThanOrEqual", "LessThanOrEqual", "Between", "IsNull", "IsNotNull"
+            }
+        };
+
+        return allowed.Contains(operation, StringComparer.Ordinal);
+    }
+
+    private static string EscapeDynamicLinqString(string value) =>
+        value.Replace("\\", "\\\\", StringComparison.Ordinal)
+             .Replace("\"", "\\\"", StringComparison.Ordinal);
+
+    private string BuildWhereClause(
+        ReportFilter filter,
+        string entityType,
+        IReadOnlyDictionary<string, ReportFieldMetadata> fieldMetadata)
+    {
+        if (!fieldMetadata.TryGetValue(filter.FieldPath, out var metadata) ||
+            !metadata.IsFilterable ||
+            metadata.IsCollection ||
+            metadata.IsCustomField)
+        {
+            throw new ArgumentException($"Field '{filter.FieldPath}' is not an allowed report filter for {entityType}.");
+        }
+
+        if (!IsOperatorAllowed(metadata.DataType, filter.Operator))
+        {
+            throw new ArgumentException($"Operator '{filter.Operator}' is not allowed for field '{filter.FieldPath}'.");
+        }
+
         var fieldPath = filter.FieldPath;
         var value = filter.Value ?? "";
-        var dataType = filter.DataType ?? "String";
+        var dataType = metadata.DataType;
 
         // Resolve dynamic dates to actual date values
         // BUT skip operators that build their own date ranges (InLast, InNext, Between)
@@ -1002,10 +1119,11 @@ public class ReportDataService : IReportDataService
             }
         }
 
-        // Escape quotes in value for string comparisons
+        // Escape Dynamic LINQ string literals. Backslashes must be escaped first so
+        // a user value cannot escape the quote delimiter introduced by this builder.
         if (dataType == "String")
         {
-            value = value.Replace("\"", "\\\"");
+            value = EscapeDynamicLinqString(value);
         }
 
         // Determine if the field is nullable
@@ -1022,9 +1140,14 @@ public class ReportDataService : IReportDataService
         {
             whereClause = BuildDateWhereClause(fieldExpression, filter.Operator, value, isNullable);
         }
-        else if (dataType == "Int32" || dataType == "Decimal" || dataType == "Double" || dataType == "Number")
+        else if (dataType == "Int32" || dataType == "Int64" || dataType == "Decimal" ||
+                 dataType == "Double" || dataType == "Float" || dataType == "Number")
         {
             whereClause = BuildNumericWhereClause(fieldExpression, filter.Operator, value);
+        }
+        else if (dataType == "Boolean" || dataType == "Bool")
+        {
+            whereClause = BuildBooleanWhereClause(fieldExpression, filter.Operator, value);
         }
         else
         {
@@ -1065,19 +1188,35 @@ public class ReportDataService : IReportDataService
     private IQueryable<object> ApplyCollectionFilter(
         IQueryable<object> query,
         ReportFilter filter,
-        string entityType)
+        string entityType,
+        IReadOnlyDictionary<string, ReportFieldMetadata> fieldMetadata)
     {
         try
         {
             var collectionPath = filter.FieldPath; // e.g., "LabResults", "Tasks"
             var collectionOperator = filter.CollectionOperator ?? "HasAny";
+
+            if (!fieldMetadata.TryGetValue(collectionPath, out var collectionMetadata) ||
+                !collectionMetadata.IsCollection ||
+                !collectionMetadata.IsFilterable)
+            {
+                throw new ArgumentException($"Collection '{collectionPath}' is not an allowed report collection.");
+            }
+
+            if (collectionOperator is not ("HasAny" or "HasAll" or "None" or "Count"))
+            {
+                throw new ArgumentException($"Collection operation '{collectionOperator}' is not supported.");
+            }
             
             Console.WriteLine($"[Collection Filter] {collectionPath} ? {collectionOperator}");
 
             // Parse sub-filters from JSON
             var subFilters = string.IsNullOrEmpty(filter.CollectionSubFilters)
                 ? new List<CollectionSubFilter>()
-                : System.Text.Json.JsonSerializer.Deserialize<List<CollectionSubFilter>>(filter.CollectionSubFilters);
+                : System.Text.Json.JsonSerializer.Deserialize<List<CollectionSubFilter>>(filter.CollectionSubFilters)
+                    ?? new List<CollectionSubFilter>();
+
+            ValidateCollectionSubFilters(collectionMetadata, subFilters);
 
             // Build Dynamic LINQ where clause
             var whereClause = BuildCollectionWhereClause(collectionPath, collectionOperator, subFilters, filter);
@@ -1096,12 +1235,17 @@ public class ReportDataService : IReportDataService
             var typedQuery = castMethod.Invoke(null, new object[] { query });
 
             var whereMethod = typeof(System.Linq.Dynamic.Core.DynamicQueryableExtensions)
-                .GetMethod("Where", new[] { typeof(IQueryable), typeof(string), typeof(object[]) })!;
+                .GetMethod("Where", new[] { typeof(IQueryable), typeof(ParsingConfig), typeof(string), typeof(object[]) })!;
 
-            typedQuery = whereMethod.Invoke(null, new object[] { typedQuery!, whereClause, Array.Empty<object>() });
+            typedQuery = whereMethod.Invoke(null, new object[] { typedQuery!, ReportQueryParsingConfig, whereClause, Array.Empty<object>() });
 
             var castToObjectMethod = typeof(Queryable).GetMethod("Cast")!.MakeGenericMethod(typeof(object));
             return (IQueryable<object>)castToObjectMethod.Invoke(null, new[] { typedQuery })!;
+        }
+        catch (ArgumentException)
+        {
+            // Do not turn an invalid collection clause into an unfiltered report.
+            throw;
         }
         catch (Exception ex)
         {
@@ -1146,17 +1290,17 @@ public class ReportDataService : IReportDataService
     /// </summary>
     private string BuildSubFilterCondition(string field, string op, string value, string dataType)
     {
-        // Escape quotes in value
-        var escapedValue = value.Replace("\"", "\\\"");
+        // Values are always inserted as literals. Escape the escape character before
+        // quotes so user input cannot terminate the Dynamic LINQ string literal.
+        var escapedValue = EscapeDynamicLinqString(value);
 
         // Build condition based on data type
         if (dataType == "DateTime" || dataType == "Date")
         {
             // Parse date value to get start and end of day
-            if (!DateTime.TryParse(escapedValue, out var dateValue))
+            if (!DateTime.TryParse(escapedValue, CultureInfo.InvariantCulture, DateTimeStyles.AllowWhiteSpaces, out var dateValue))
             {
-                Console.WriteLine($"[SubFilter] Could not parse date: {escapedValue}");
-                return "";
+                throw new ArgumentException($"Invalid date collection value: '{value}'.");
             }
 
             var startOfDay = dateValue.Date;
@@ -1180,17 +1324,24 @@ public class ReportDataService : IReportDataService
                 _ => $"{field}.HasValue && {field}.Value >= DateTime.Parse(\"{startStr}\") && {field}.Value < DateTime.Parse(\"{endStr}\")"
             };
         }
-        else if (dataType == "Int32" || dataType == "Number" || dataType == "Decimal")
+        else if (dataType == "Int32" || dataType == "Int64" || dataType == "Number" ||
+                 dataType == "Decimal" || dataType == "Double" || dataType == "Float")
         {
+            if (!decimal.TryParse(value, NumberStyles.Number, CultureInfo.InvariantCulture, out var numericValue))
+            {
+                throw new ArgumentException($"Invalid numeric collection value: '{value}'.");
+            }
+
+            var normalizedValue = numericValue.ToString(CultureInfo.InvariantCulture);
             return op switch
             {
-                "Equals" => $"{field} == {value}",
-                "NotEquals" => $"{field} != {value}",
-                "GreaterThan" => $"{field} > {value}",
-                "LessThan" => $"{field} < {value}",
-                "GreaterThanOrEqual" => $"{field} >= {value}",
-                "LessThanOrEqual" => $"{field} <= {value}",
-                _ => $"{field} == {value}"
+                "Equals" => $"{field} == {normalizedValue}",
+                "NotEquals" => $"{field} != {normalizedValue}",
+                "GreaterThan" => $"{field} > {normalizedValue}",
+                "LessThan" => $"{field} < {normalizedValue}",
+                "GreaterThanOrEqual" => $"{field} >= {normalizedValue}",
+                "LessThanOrEqual" => $"{field} <= {normalizedValue}",
+                _ => $"{field} == {normalizedValue}"
             };
         }
         else // String
@@ -1247,8 +1398,13 @@ public class ReportDataService : IReportDataService
     /// </summary>
     private string BuildCountCondition(string collectionPath, string? op, string? value)
     {
-        if (string.IsNullOrEmpty(value) || !int.TryParse(value, out var count))
+        if (string.IsNullOrEmpty(value))
             return $"{collectionPath}.Count() > 0";
+
+        if (!int.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var count))
+        {
+            throw new ArgumentException($"Invalid collection count value: '{value}'.");
+        }
 
         return op switch
         {
@@ -1433,15 +1589,18 @@ public class ReportDataService : IReportDataService
             throw new ArgumentException($"Invalid numeric value: '{value}'. Please enter a valid number.");
         }
 
-        // For numeric fields, don't wrap value in quotes
+        var normalizedValue = decimal.Parse(value.Trim(), CultureInfo.InvariantCulture)
+            .ToString(CultureInfo.InvariantCulture);
+
+        // For numeric fields, use the parsed invariant value rather than user text.
         return operatorType switch
         {
-            "Equals" => $"{fieldExpression} == {value}",
-            "NotEquals" => $"{fieldExpression} != {value}",
-            "GreaterThan" => $"{fieldExpression} > {value}",
-            "LessThan" => $"{fieldExpression} < {value}",
-            "GreaterThanOrEqual" => $"{fieldExpression} >= {value}",
-            "LessThanOrEqual" => $"{fieldExpression} <= {value}",
+            "Equals" => $"{fieldExpression} == {normalizedValue}",
+            "NotEquals" => $"{fieldExpression} != {normalizedValue}",
+            "GreaterThan" => $"{fieldExpression} > {normalizedValue}",
+            "LessThan" => $"{fieldExpression} < {normalizedValue}",
+            "GreaterThanOrEqual" => $"{fieldExpression} >= {normalizedValue}",
+            "LessThanOrEqual" => $"{fieldExpression} <= {normalizedValue}",
             "Between" => BuildNumericBetweenClause(fieldExpression, value),
             _ => ""
         };
@@ -1459,12 +1618,12 @@ public class ReportDataService : IReportDataService
             if (parts.Length != 2)
                 return false;
 
-            return decimal.TryParse(parts[0].Trim(), out _) && 
-                   decimal.TryParse(parts[1].Trim(), out _);
+            return decimal.TryParse(parts[0].Trim(), NumberStyles.Number, CultureInfo.InvariantCulture, out _) &&
+                   decimal.TryParse(parts[1].Trim(), NumberStyles.Number, CultureInfo.InvariantCulture, out _);
         }
 
         // All other operators expect a single numeric value
-        return decimal.TryParse(value.Trim(), out _);
+        return decimal.TryParse(value.Trim(), NumberStyles.Number, CultureInfo.InvariantCulture, out _);
     }
 
     private string BuildNumericBetweenClause(string fieldPath, string value)
@@ -1472,7 +1631,28 @@ public class ReportDataService : IReportDataService
         var parts = value.Split('|');
         if (parts.Length != 2) return "";
 
-        return $"{fieldPath} >= {parts[0]} && {fieldPath} <= {parts[1]}";
+        var lower = decimal.Parse(parts[0].Trim(), CultureInfo.InvariantCulture).ToString(CultureInfo.InvariantCulture);
+        var upper = decimal.Parse(parts[1].Trim(), CultureInfo.InvariantCulture).ToString(CultureInfo.InvariantCulture);
+        return $"{fieldPath} >= {lower} && {fieldPath} <= {upper}";
+    }
+
+    private static string BuildBooleanWhereClause(string fieldExpression, string operatorType, string value)
+    {
+        if (operatorType == "IsNull") return $"{fieldExpression} == null";
+        if (operatorType == "IsNotNull") return $"{fieldExpression} != null";
+
+        if (!bool.TryParse(value, out var boolValue))
+        {
+            throw new ArgumentException($"Invalid boolean value: '{value}'.");
+        }
+
+        var normalizedValue = boolValue ? "true" : "false";
+        return operatorType switch
+        {
+            "Equals" => $"{fieldExpression} == {normalizedValue}",
+            "NotEquals" => $"{fieldExpression} != {normalizedValue}",
+            _ => throw new ArgumentException($"Unsupported boolean operator: '{operatorType}'.")
+        };
     }
 
     private string BuildStringWhereClause(string fieldExpression, string operatorType, string value)
@@ -1633,6 +1813,31 @@ public class ReportDataService : IReportDataService
         }
 
         return query;
+    }
+
+    private static void ValidateCollectionSubFilters(
+        ReportFieldMetadata collectionMetadata,
+        IEnumerable<CollectionSubFilter> subFilters)
+    {
+        var allowedFields = collectionMetadata.CollectionSubFieldsMetadata?
+            .ToDictionary(field => field.FieldPath, StringComparer.Ordinal)
+            ?? new Dictionary<string, CollectionSubFieldMetadata>(StringComparer.Ordinal);
+
+        foreach (var subFilter in subFilters)
+        {
+            if (!allowedFields.TryGetValue(subFilter.Field, out var fieldMetadata))
+            {
+                throw new ArgumentException($"Field '{subFilter.Field}' is not allowed for collection '{collectionMetadata.FieldPath}'.");
+            }
+
+            if (!IsOperatorAllowed(fieldMetadata.DataType, subFilter.Operator))
+            {
+                throw new ArgumentException($"Operator '{subFilter.Operator}' is not allowed for collection field '{subFilter.Field}'.");
+            }
+
+            // Always use the server-discovered type, rather than the type supplied in report JSON.
+            subFilter.DataType = fieldMetadata.DataType;
+        }
     }
 
     private bool IsNavigationProperty(System.Reflection.PropertyInfo property)

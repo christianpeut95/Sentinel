@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
 using Sentinel.Data;
 using Sentinel.Models.Lookups;
+using Sentinel.Services;
 using System.Text;
 
 namespace Sentinel.Pages.Settings.Jurisdictions
@@ -76,8 +77,8 @@ namespace Sentinel.Pages.Settings.Jurisdictions
 
             try
             {
-                using var reader = new StreamReader(CsvFile.OpenReadStream());
-                var csvContent = await reader.ReadToEndAsync();
+                await using var stream = CsvFile.OpenReadStream();
+                var csvContent = await UploadContentValidator.ReadStrictUtf8TextAsync(stream);
                 var lines = csvContent.Split('\n', StringSplitOptions.RemoveEmptyEntries);
 
                 if (lines.Length < 2)
@@ -272,7 +273,7 @@ namespace Sentinel.Pages.Settings.Jurisdictions
             csv.AppendLine("CITY01,Example City,25000,2024,Census Bureau");
 
             var bytes = Encoding.UTF8.GetBytes(csv.ToString());
-            return File(bytes, "text/csv", "population_template.csv");
+            return File(bytes, "text/csv; charset=utf-8", "population_template.csv");
         }
 
         private List<string> ParseCsvLine(string line)

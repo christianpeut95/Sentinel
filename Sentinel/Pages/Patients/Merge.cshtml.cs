@@ -42,7 +42,7 @@ namespace Sentinel.Pages.Patients
             }
             catch (Exception ex)
             {
-                ErrorMessage = ex.Message;
+                ErrorMessage = Sentinel.Services.UserFacingError.Create(HttpContext, ex);
                 return Page();
             }
         }
@@ -112,7 +112,7 @@ namespace Sentinel.Pages.Patients
             }
             catch (Exception ex)
             {
-                ErrorMessage = ex.Message;
+                ErrorMessage = Sentinel.Services.UserFacingError.Create(HttpContext, ex);
                 Comparison = await _mergeService.GetMergeComparisonAsync(SourceId, TargetId);
                 return Page();
             }

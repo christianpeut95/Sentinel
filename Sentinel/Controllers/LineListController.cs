@@ -1,6 +1,8 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.EntityFrameworkCore;
+using Sentinel.Data;
 using Sentinel.Models;
 using Sentinel.Services;
 using System.Security.Claims;
@@ -15,11 +17,19 @@ namespace Sentinel.Controllers;
 public class LineListController : ControllerBase
 {
     private readonly ILineListService _lineListService;
+    private readonly IOutbreakAccessService _outbreakAccessService;
+    private readonly ApplicationDbContext _context;
     private readonly ILogger<LineListController> _logger;
     
-    public LineListController(ILineListService lineListService, ILogger<LineListController> logger)
+    public LineListController(
+        ILineListService lineListService,
+        IOutbreakAccessService outbreakAccessService,
+        ApplicationDbContext context,
+        ILogger<LineListController> logger)
     {
         _lineListService = lineListService;
+        _outbreakAccessService = outbreakAccessService;
+        _context = context;
         _logger = logger;
     }
     
@@ -29,6 +39,11 @@ public class LineListController : ControllerBase
     {
         try
         {
+            if (!await _outbreakAccessService.CanAccessOutbreakAsync(outbreakId))
+            {
+                return NotFound();
+            }
+
             var fields = await _lineListService.GetAvailableFieldsAsync(outbreakId);
             return Ok(fields);
         }
@@ -44,6 +59,11 @@ public class LineListController : ControllerBase
     {
         try
         {
+            if (!await _outbreakAccessService.CanAccessOutbreakAsync(request.OutbreakId))
+            {
+                return NotFound();
+            }
+
             var data = await _lineListService.GetLineListDataAsync(
                 request.OutbreakId, 
                 request.FieldPaths, 
@@ -69,6 +89,11 @@ public class LineListController : ControllerBase
     {
         try
         {
+            if (!await _outbreakAccessService.CanAccessOutbreakAsync(outbreakId))
+            {
+                return NotFound();
+            }
+
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
             var userConfigs = await _lineListService.GetUserConfigurationsAsync(outbreakId, userId);
             var sharedConfigs = await _lineListService.GetSharedConfigurationsAsync(outbreakId);
@@ -91,6 +116,11 @@ public class LineListController : ControllerBase
     {
         try
         {
+            if (!await _outbreakAccessService.CanAccessOutbreakAsync(config.OutbreakId))
+            {
+                return NotFound();
+            }
+
             _logger.LogInformation("Attempting to save configuration: {ConfigName} for outbreak {OutbreakId}", 
                 config.Name, config.OutbreakId);
             
@@ -106,13 +136,36 @@ public class LineListController : ControllerBase
             // If updating, verify ownership
             else
             {
-                var existing = await _lineListService.GetUserConfigurationsAsync(config.OutbreakId, userId);
-                if (!existing.Any(c => c.Id == config.Id))
+                var existing = await _context.OutbreakLineListConfigurations
+                    .FirstOrDefaultAsync(c => c.Id == config.Id);
+
+                if (existing is null)
+                {
+                    return NotFound();
+                }
+
+                if (existing.OutbreakId != config.OutbreakId)
+                {
+                    return BadRequest(new { error = "The configuration does not belong to the selected outbreak." });
+                }
+
+                if (existing.UserId != userId && existing.CreatedByUserId != userId)
                 {
                     _logger.LogWarning("User {UserId} attempted to update configuration {ConfigId} they don't own", 
                         userId, config.Id);
                     return Forbid();
                 }
+
+                // Update only the fields the owner is allowed to change. Do
+                // not bind ownership, outbreak, or audit fields from the HTTP
+                // payload.
+                existing.Name = config.Name;
+                existing.Description = config.Description;
+                existing.SelectedFields = config.SelectedFields;
+                existing.SortConfiguration = config.SortConfiguration;
+                existing.IsShared = config.IsShared;
+                existing.IsDefault = config.IsDefault;
+                config = existing;
             }
             
             var saved = await _lineListService.SaveConfigurationAsync(config);
@@ -136,6 +189,20 @@ public class LineListController : ControllerBase
         try
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
+            var config = await _context.OutbreakLineListConfigurations
+                .AsNoTracking()
+                .FirstOrDefaultAsync(c => c.Id == id);
+
+            if (config is null || !await _outbreakAccessService.CanAccessOutbreakAsync(config.OutbreakId))
+            {
+                return NotFound();
+            }
+
+            if (config.UserId != userId && config.CreatedByUserId != userId)
+            {
+                return Forbid();
+            }
+
             var success = await _lineListService.DeleteConfigurationAsync(id, userId);
             
             if (!success)
@@ -158,6 +225,15 @@ public class LineListController : ControllerBase
         try
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
+            var config = await _context.OutbreakLineListConfigurations
+                .AsNoTracking()
+                .FirstOrDefaultAsync(c => c.Id == id && c.UserId == userId);
+
+            if (config is null || !await _outbreakAccessService.CanAccessOutbreakAsync(config.OutbreakId))
+            {
+                return NotFound();
+            }
+
             var success = await _lineListService.SetDefaultConfigurationAsync(id, userId);
             
             if (!success)
@@ -180,6 +256,11 @@ public class LineListController : ControllerBase
     {
         try
         {
+            if (!await _outbreakAccessService.CanAccessOutbreakAsync(request.OutbreakId))
+            {
+                return NotFound();
+            }
+
             var csvData = await _lineListService.ExportToCsvAsync(
                 request.OutbreakId,
                 request.FieldPaths,
@@ -187,7 +268,7 @@ public class LineListController : ControllerBase
             
             var fileName = $"outbreak-linelist-{request.OutbreakId}-{DateTime.UtcNow:yyyyMMdd-HHmmss}.csv";
             
-            return File(csvData, "text/csv", fileName);
+            return File(csvData, "text/csv; charset=utf-8", fileName);
         }
         catch (Exception ex)
         {

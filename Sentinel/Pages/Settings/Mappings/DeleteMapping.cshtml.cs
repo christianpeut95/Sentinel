@@ -30,7 +30,7 @@ namespace Sentinel.Pages.Settings.Mappings
             }
             catch (Exception ex)
             {
-                TempData["ErrorMessage"] = $"Error deleting mapping: {ex.Message}";
+                TempData["ErrorMessage"] = Sentinel.Services.UserFacingError.Create(HttpContext, ex);
             }
 
             if (!string.IsNullOrWhiteSpace(ReturnUrl) && Url.IsLocalUrl(ReturnUrl))

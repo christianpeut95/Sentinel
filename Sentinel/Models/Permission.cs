@@ -18,7 +18,10 @@ namespace Sentinel.Models
         Event,
         Exposure,
         Contact,
-        Occupation
+        Occupation,
+        // Append-only: permission enum values are persisted in the database.
+        Organization,
+        ReferenceData
     }
 
     public enum PermissionAction
@@ -42,7 +45,9 @@ namespace Sentinel.Models
         Process,
         GenerateTestFiles,
         Upload,
-        ImportPopulation
+        ImportPopulation,
+        // Append-only: permission enum values are persisted in the database.
+        ManageRoles
     }
 
     public class Permission

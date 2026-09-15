@@ -16,13 +16,16 @@ namespace Sentinel.Controllers.Api
     {
         private readonly ApplicationDbContext _context;
         private readonly ISurveyMappingService _mappingService;
+        private readonly ICaseAccessService _caseAccessService;
 
         public SurveyMappingApiController(
             ApplicationDbContext context,
-            ISurveyMappingService mappingService)
+            ISurveyMappingService mappingService,
+            ICaseAccessService caseAccessService)
         {
             _context = context;
             _mappingService = mappingService;
+            _caseAccessService = caseAccessService;
         }
 
         [HttpGet("configuration")]
@@ -171,6 +174,14 @@ namespace Sentinel.Controllers.Api
         [HttpPost("preview")]
         public async Task<IActionResult> PreviewMappings([FromBody] PreviewMappingsRequest request)
         {
+            // A preview can read the current Case and Patient values, so it must use
+            // the same hierarchy-aware case visibility rule as case pages and APIs.
+            if (request.CaseId.HasValue &&
+                !await _caseAccessService.CanAccessCaseAsync(request.CaseId.Value))
+            {
+                return NotFound();
+            }
+
             var mappings = await _mappingService.GetActiveMappingsAsync(
                 request.SurveyTemplateId,
                 request.TaskTemplateId,

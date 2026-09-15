@@ -56,7 +56,7 @@ public class BackupsModel : PageModel
         }
         catch (Exception ex)
         {
-            StatusMessage = $"Error creating backup: {ex.Message}";
+            StatusMessage = Sentinel.Services.UserFacingError.Create(HttpContext, ex);
             StatusIsError = true;
             _logger.LogError(ex, "Exception during backup creation");
         }
@@ -86,7 +86,7 @@ public class BackupsModel : PageModel
         }
         catch (Exception ex)
         {
-            StatusMessage = $"Error deleting backup: {ex.Message}";
+            StatusMessage = Sentinel.Services.UserFacingError.Create(HttpContext, ex);
             StatusIsError = true;
             _logger.LogError(ex, "Exception during backup deletion");
         }
@@ -114,7 +114,7 @@ public class BackupsModel : PageModel
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to load backup history");
-            StatusMessage = $"Failed to load backup history: {ex.Message}";
+            StatusMessage = Sentinel.Services.UserFacingError.Create(HttpContext, ex);
             StatusIsError = true;
         }
     }

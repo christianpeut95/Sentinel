@@ -3,8 +3,11 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.EntityFrameworkCore;
 using Sentinel.Data;
+using Sentinel.Models;
 using Sentinel.Models.CaseDefinitions;
 using Sentinel.Models.Lookups;
+using Sentinel.Services;
+using System.Security.Claims;
 
 namespace Sentinel.Pages.Settings.CaseDefinitions
 {
@@ -12,10 +15,12 @@ namespace Sentinel.Pages.Settings.CaseDefinitions
     public class IndexModel : PageModel
     {
         private readonly ApplicationDbContext _context;
+        private readonly IPermissionService _permissionService;
 
-        public IndexModel(ApplicationDbContext context)
+        public IndexModel(ApplicationDbContext context, IPermissionService permissionService)
         {
             _context = context;
+            _permissionService = permissionService;
         }
 
         public List<CaseDefinition> CaseDefinitions { get; set; } = new();
@@ -67,6 +72,16 @@ namespace Sentinel.Pages.Settings.CaseDefinitions
 
         public async Task<IActionResult> OnPostArchiveAsync(int id)
         {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrWhiteSpace(userId) ||
+                !await _permissionService.HasPermissionAsync(
+                    userId,
+                    PermissionModule.Settings,
+                    PermissionAction.Edit))
+            {
+                return Forbid();
+            }
+
             var definition = await _context.CaseDefinitions.FindAsync(id);
 
             if (definition == null)

@@ -25,9 +25,12 @@
         <button type="button" class="btn btn-outline-primary" id="btnConfigure">
             <i class="bi bi-gear me-1"></i>Configure Fields
         </button>
-        <button type="button" class="btn btn-outline-success" id="btnExport">
-            <i class="bi bi-download me-1"></i>Export CSV
-        </button>
+        @if (Model.CanExport)
+        {
+            <button type="button" class="btn btn-outline-success" id="btnExport">
+                <i class="bi bi-download me-1"></i>Export CSV
+            </button>
+        }
         <button type="button" class="btn btn-outline-secondary" id="btnSaveView">
             <i class="bi bi-save me-1"></i>Save View
         </button>
@@ -435,6 +438,10 @@
                         fieldPaths: selectedFields
                     })
                 });
+
+                if (!response.ok) {
+                    throw new Error(`Unable to load line-list data (${response.status}).`);
+                }
                 
                 lineListData = await response.json();
                 
@@ -590,6 +597,10 @@
                         fieldPaths: selectedFields
                     })
                 });
+
+                if (!response.ok) {
+                    throw new Error(`Unable to export the line list (${response.status}).`);
+                }
                 
                 const blob = await response.blob();
                 const url = window.URL.createObjectURL(blob);

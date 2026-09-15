@@ -1,4 +1,7 @@
 using Microsoft.AspNetCore.Http;
+using System.IO.Compression;
+using System.Text;
+using System.Xml;
 
 namespace Sentinel.Services;
 
@@ -222,11 +225,20 @@ public sealed class ProtectedFileStorageService : IProtectedFileStorageService
 
     private static async Task ValidateFileSignatureAsync(IFormFile file, string extension, CancellationToken cancellationToken)
     {
-        // Text/CSV are always served as downloads. Binary formats must also
-        // present their expected container signature so a renamed executable is
-        // not accepted as a document or image.
+        // Binary formats must present their expected signature. Text and CSV
+        // do not have a portable magic value, so they must be valid UTF-8 text.
         if (extension is ".txt" or ".csv")
         {
+            try
+            {
+                await using var textStream = file.OpenReadStream();
+                await UploadContentValidator.ValidateStrictUtf8TextAsync(textStream, cancellationToken);
+            }
+            catch (DecoderFallbackException ex)
+            {
+                throw new InvalidOperationException("The attachment content does not match its file type.", ex);
+            }
+
             return;
         }
 
@@ -248,6 +260,72 @@ public sealed class ProtectedFileStorageService : IProtectedFileStorageService
         {
             throw new InvalidOperationException("The attachment content does not match its file type.");
         }
+
+        if (extension is ".docx" or ".xlsx")
+        {
+            await ValidateOpenXmlPackageAsync(file, extension, cancellationToken);
+        }
+    }
+
+    private static async Task ValidateOpenXmlPackageAsync(IFormFile file, string extension, CancellationToken cancellationToken)
+    {
+        var requiredPart = extension.Equals(".docx", StringComparison.OrdinalIgnoreCase)
+            ? "word/document.xml"
+            : "xl/workbook.xml";
+        var expectedRootName = extension.Equals(".docx", StringComparison.OrdinalIgnoreCase)
+            ? "document"
+            : "workbook";
+
+        try
+        {
+            await using var stream = file.OpenReadStream();
+            using var archive = new ZipArchive(stream, ZipArchiveMode.Read, leaveOpen: false);
+
+            var contentTypes = archive.GetEntry("[Content_Types].xml");
+            var documentPart = archive.GetEntry(requiredPart);
+            if (contentTypes == null || documentPart == null || contentTypes.Length == 0 || documentPart.Length == 0)
+            {
+                throw new InvalidOperationException("The attachment content does not match its file type.");
+            }
+
+            await ValidateXmlRootAsync(contentTypes, "Types", cancellationToken);
+            await ValidateXmlRootAsync(documentPart, expectedRootName, cancellationToken);
+        }
+        catch (InvalidDataException ex)
+        {
+            throw new InvalidOperationException("The attachment content does not match its file type.", ex);
+        }
+        catch (XmlException ex)
+        {
+            throw new InvalidOperationException("The attachment content does not match its file type.", ex);
+        }
+    }
+
+    private static async Task ValidateXmlRootAsync(ZipArchiveEntry entry, string expectedRootName, CancellationToken cancellationToken)
+    {
+        await using var entryStream = entry.Open();
+        using var reader = XmlReader.Create(entryStream, new XmlReaderSettings
+        {
+            DtdProcessing = DtdProcessing.Prohibit,
+            XmlResolver = null,
+            Async = true,
+            MaxCharactersInDocument = 1_048_576
+        });
+
+        while (await reader.ReadAsync())
+        {
+            if (reader.NodeType == XmlNodeType.Element)
+            {
+                if (!reader.LocalName.Equals(expectedRootName, StringComparison.Ordinal))
+                {
+                    throw new InvalidDataException("Unexpected Open XML document root.");
+                }
+
+                return;
+            }
+        }
+
+        throw new InvalidDataException("Open XML document contains no root element.");
     }
 
     private static bool StartsWith(byte[] value, int valueLength, params byte[] expected)

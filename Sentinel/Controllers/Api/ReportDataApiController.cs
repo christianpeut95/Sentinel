@@ -62,6 +62,10 @@ public class ReportDataApiController : ControllerBase
                 data = data
             });
         }
+        catch (ReportDataAccessDeniedException)
+        {
+            return Forbid();
+        }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Unable to generate the case report preview");
@@ -108,6 +112,10 @@ public class ReportDataApiController : ControllerBase
                 data = data
             });
         }
+        catch (ReportDataAccessDeniedException)
+        {
+            return Forbid();
+        }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Unable to generate the outbreak report preview");
@@ -152,6 +160,10 @@ public class ReportDataApiController : ControllerBase
                 success = true,
                 count
             });
+        }
+        catch (ReportDataAccessDeniedException)
+        {
+            return Forbid();
         }
         catch (Exception ex)
         {

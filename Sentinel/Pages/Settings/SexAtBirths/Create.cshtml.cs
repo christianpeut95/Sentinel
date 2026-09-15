@@ -41,7 +41,7 @@ namespace Sentinel.Pages.Settings.SexAtBirths
             }
             catch (Exception ex)
             {
-                TempData["ErrorMessage"] = $"An error occurred: {ex.Message}";
+                TempData["ErrorMessage"] = Sentinel.Services.UserFacingError.Create(HttpContext, ex);
                 return Page();
             }
         }

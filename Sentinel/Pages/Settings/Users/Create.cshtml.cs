@@ -4,6 +4,8 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Sentinel.Models;
 using System.ComponentModel.DataAnnotations;
+using System.Security.Claims;
+using Sentinel.Services;
 
 namespace Sentinel.Pages.Settings.Users
 {
@@ -12,17 +14,23 @@ namespace Sentinel.Pages.Settings.Users
     {
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly RoleManager<IdentityRole> _roleManager;
+        private readonly IPermissionService _permissionService;
 
-        public CreateModel(UserManager<ApplicationUser> userManager, RoleManager<IdentityRole> roleManager)
+        public CreateModel(
+            UserManager<ApplicationUser> userManager,
+            RoleManager<IdentityRole> roleManager,
+            IPermissionService permissionService)
         {
             _userManager = userManager;
             _roleManager = roleManager;
+            _permissionService = permissionService;
         }
 
         [BindProperty]
         public InputModel Input { get; set; } = new();
 
         public List<string> AllRoles { get; set; } = new();
+        public bool CanManageRoles { get; private set; }
 
         public class InputModel
         {
@@ -51,14 +59,36 @@ namespace Sentinel.Pages.Settings.Users
             public List<string> SelectedRoles { get; set; } = new();
         }
 
-        public void OnGet()
+        public async Task OnGetAsync()
         {
-            AllRoles = _roleManager.Roles.Select(r => r.Name!).ToList();
+            CanManageRoles = await UserCanManageRolesAsync();
+            if (CanManageRoles)
+            {
+                AllRoles = _roleManager.Roles.Select(r => r.Name!).ToList();
+            }
         }
 
         public async Task<IActionResult> OnPostAsync()
         {
-            AllRoles = _roleManager.Roles.Select(r => r.Name!).ToList();
+            CanManageRoles = await UserCanManageRolesAsync();
+            if (CanManageRoles)
+            {
+                AllRoles = _roleManager.Roles.Select(r => r.Name!).ToList();
+            }
+
+            if (Input.SelectedRoles.Any() && !CanManageRoles)
+            {
+                return Forbid();
+            }
+
+            if (CanManageRoles)
+            {
+                var allowedRoles = AllRoles.ToHashSet(StringComparer.Ordinal);
+                if (Input.SelectedRoles.Any(role => !allowedRoles.Contains(role)))
+                {
+                    ModelState.AddModelError(nameof(Input.SelectedRoles), "One or more selected roles are invalid.");
+                }
+            }
 
             if (!ModelState.IsValid)
             {
@@ -79,7 +109,16 @@ namespace Sentinel.Pages.Settings.Users
                 // Assign roles
                 if (Input.SelectedRoles != null && Input.SelectedRoles.Any())
                 {
-                    await _userManager.AddToRolesAsync(user, Input.SelectedRoles);
+                    var roleResult = await _userManager.AddToRolesAsync(user, Input.SelectedRoles);
+                    if (!roleResult.Succeeded)
+                    {
+                        await _userManager.DeleteAsync(user);
+                        foreach (var error in roleResult.Errors)
+                        {
+                            ModelState.AddModelError(string.Empty, error.Description);
+                        }
+                        return Page();
+                    }
                 }
 
                 TempData["StatusMessage"] = $"User {user.Email} has been created successfully.";
@@ -92,6 +131,16 @@ namespace Sentinel.Pages.Settings.Users
             }
 
             return Page();
+        }
+
+        private async Task<bool> UserCanManageRolesAsync()
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            return !string.IsNullOrWhiteSpace(userId) &&
+                   await _permissionService.HasPermissionAsync(
+                       userId,
+                       PermissionModule.User,
+                       PermissionAction.ManageRoles);
         }
     }
 }

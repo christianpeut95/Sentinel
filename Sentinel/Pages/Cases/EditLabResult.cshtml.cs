@@ -155,7 +155,7 @@ namespace Sentinel.Pages.Cases
                 }
                 catch (JsonException ex)
                 {
-                    ModelState.AddModelError("", $"Error parsing markers: {ex.Message}");
+                    ModelState.AddModelError("", Sentinel.Services.UserFacingError.Create(HttpContext, ex));
                     await LoadSelectLists();
                     return Page();
                 }

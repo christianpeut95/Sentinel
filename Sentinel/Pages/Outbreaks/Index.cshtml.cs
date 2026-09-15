@@ -16,12 +16,14 @@ public class IndexModel : PageModel
     private readonly IOutbreakService _outbreakService;
     private readonly ApplicationDbContext _context;
     private readonly IPermissionService _permissionService;
+    private readonly IOutbreakAccessService _outbreakAccessService;
 
-    public IndexModel(IOutbreakService outbreakService, ApplicationDbContext context, IPermissionService permissionService)
+    public IndexModel(IOutbreakService outbreakService, ApplicationDbContext context, IPermissionService permissionService, IOutbreakAccessService outbreakAccessService)
     {
         _outbreakService = outbreakService;
         _context = context;
         _permissionService = permissionService;
+        _outbreakAccessService = outbreakAccessService;
     }
 
     public List<Outbreak> Outbreaks { get; set; } = new();
@@ -171,6 +173,11 @@ public class IndexModel : PageModel
             !await _permissionService.HasPermissionAsync(userId, PermissionModule.Outbreak, PermissionAction.Delete))
         {
             return Forbid();
+        }
+
+        if (!await _outbreakAccessService.CanAccessOutbreakAsync(id))
+        {
+            return NotFound();
         }
 
         var success = await _outbreakService.DeleteAsync(id, userId);

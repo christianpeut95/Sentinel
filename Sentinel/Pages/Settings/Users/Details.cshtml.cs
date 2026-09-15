@@ -8,7 +8,9 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Sentinel.Data;
 using Sentinel.Models;
+using Sentinel.Services;
 using Microsoft.EntityFrameworkCore;
+using System.Security.Claims;
 
 namespace Sentinel.Pages.Settings.Users
 {
@@ -17,11 +19,16 @@ namespace Sentinel.Pages.Settings.Users
     {
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly ApplicationDbContext _db;
+        private readonly IPermissionService _permissionService;
 
-        public DetailsModel(UserManager<ApplicationUser> userManager, ApplicationDbContext db)
+        public DetailsModel(
+            UserManager<ApplicationUser> userManager,
+            ApplicationDbContext db,
+            IPermissionService permissionService)
         {
             _userManager = userManager;
             _db = db;
+            _permissionService = permissionService;
         }
 
         public ApplicationUser? User { get; set; }
@@ -68,6 +75,16 @@ namespace Sentinel.Pages.Settings.Users
 
         public async Task<IActionResult> OnPostAsync(string id, int? addGroupId, int? removeGroup)
         {
+            var currentUserId = HttpContext.User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrWhiteSpace(currentUserId) ||
+                !await _permissionService.HasPermissionAsync(
+                    currentUserId,
+                    PermissionModule.User,
+                    PermissionAction.ManageRoles))
+            {
+                return Forbid();
+            }
+
             if (string.IsNullOrEmpty(id)) return BadRequest();
             User = await _userManager.FindByIdAsync(id);
             if (User == null) return NotFound();

@@ -4,11 +4,14 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
+using Microsoft.AspNetCore.RateLimiting;
 using Sentinel.Models;
+using Sentinel.Services;
 
 namespace Sentinel.Areas.Identity.Pages.Account
 {
     [AllowAnonymous]
+    [EnableRateLimiting("password-reset")]
     public class ResetPasswordModel : PageModel
     {
         private readonly UserManager<ApplicationUser> _userManager;
@@ -33,12 +36,7 @@ namespace Sentinel.Areas.Identity.Pages.Account
             public string UserId { get; set; } = string.Empty;
 
             [Required]
-            [EmailAddress]
-            [Display(Name = "Email")]
-            public string Email { get; set; } = string.Empty;
-
-            [Required]
-            [StringLength(100, ErrorMessage = "The {0} must be at least {2} and at max {1} characters long.", MinimumLength = 6)]
+            [StringLength(100, ErrorMessage = "The {0} must be at least {2} and at max {1} characters long.", MinimumLength = 12)]
             [DataType(DataType.Password)]
             [Display(Name = "Password")]
             public string Password { get; set; } = string.Empty;
@@ -54,62 +52,37 @@ namespace Sentinel.Areas.Identity.Pages.Account
 
         public async Task<IActionResult> OnGetAsync(string? userId, string? code)
         {
-            // Password reset feature disabled - return to login
-            return RedirectToPage("./Login");
-
-            /* Uncomment below and remove redirect above to enable password reset
-            if (string.IsNullOrEmpty(userId) || string.IsNullOrEmpty(code))
+            if (string.IsNullOrWhiteSpace(userId) || !PasswordResetTokenEncoding.TryDecode(code, out var decodedToken))
             {
-                _logger.LogWarning("Password reset attempted with missing userId or code");
                 return RedirectToPage("./ForgotPassword");
             }
 
             var user = await _userManager.FindByIdAsync(userId);
-            if (user == null)
+            if (user is not { IsEnabled: true })
             {
-                _logger.LogWarning("Password reset attempted for non-existent user: {UserId}", userId);
-                // Don't reveal that the user doesn't exist
                 return RedirectToPage("./ForgotPassword");
             }
 
             Input = new InputModel
             {
                 UserId = userId,
-                Code = code,
-                Email = user.Email ?? string.Empty
+                Code = decodedToken
             };
 
             ResetSuccessful = false;
             return Page();
-            */
         }
 
         public async Task<IActionResult> OnPostAsync()
         {
-            // Password reset feature disabled - return to login
-            return RedirectToPage("./Login");
-
-            /* Uncomment below and remove redirect above to enable password reset
             if (!ModelState.IsValid)
             {
                 return Page();
             }
 
             var user = await _userManager.FindByIdAsync(Input.UserId);
-            if (user == null)
+            if (user is not { IsEnabled: true })
             {
-                _logger.LogWarning("Password reset POST attempted for non-existent user: {UserId}", Input.UserId);
-                // Don't reveal that the user doesn't exist
-                ResetSuccessful = true;
-                return Page();
-            }
-
-            // Verify email matches
-            if (user.Email != Input.Email)
-            {
-                _logger.LogWarning(
-                    "Password reset attempted with mismatched email. User: {UserId}, Expected: {UserEmail}, Provided: {InputEmail}",
-                    Input.UserId, user.Email, Input.Email);
                 ModelState.AddModelError(string.Empty, "Invalid password reset attempt.");
                 return Page();
             }
@@ -120,7 +93,9 @@ namespace Sentinel.Areas.Identity.Pages.Account
 
                 if (result.Succeeded)
                 {
-                    _logger.LogInformation("Password reset successful for user: {UserId} ({Email})", user.Id, user.Email);
+                    await _userManager.ResetAccessFailedCountAsync(user);
+                    await _userManager.SetLockoutEndDateAsync(user, null);
+                    _logger.LogInformation("Password reset completed for user {UserId}", user.Id);
                     ResetSuccessful = true;
                     return Page();
                 }
@@ -140,9 +115,7 @@ namespace Sentinel.Areas.Identity.Pages.Account
                 }
 
                 _logger.LogWarning(
-                    "Password reset failed for user {UserId}. Errors: {Errors}",
-                    user.Id,
-                    string.Join(", ", result.Errors.Select(e => e.Description)));
+                    "Password reset failed for user {UserId}", user.Id);
             }
             catch (Exception ex)
             {
@@ -151,7 +124,6 @@ namespace Sentinel.Areas.Identity.Pages.Account
             }
 
             return Page();
-            */
         }
     }
 }

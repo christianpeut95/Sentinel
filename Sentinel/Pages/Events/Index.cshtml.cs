@@ -5,6 +5,8 @@ using Microsoft.EntityFrameworkCore;
 using Sentinel.Data;
 using Sentinel.Models;
 using Sentinel.Models.Lookups;
+using Sentinel.Services;
+using System.Security.Claims;
 
 namespace Sentinel.Pages.Events
 {
@@ -12,10 +14,12 @@ namespace Sentinel.Pages.Events
     public class IndexModel : PageModel
     {
         private readonly ApplicationDbContext _context;
+        private readonly IPermissionService _permissionService;
 
-        public IndexModel(ApplicationDbContext context)
+        public IndexModel(ApplicationDbContext context, IPermissionService permissionService)
         {
             _context = context;
+            _permissionService = permissionService;
         }
 
         public IList<Event> Events { get; set; } = default!;
@@ -119,6 +123,11 @@ namespace Sentinel.Pages.Events
 
         public async Task<IActionResult> OnPostDeleteAsync(Guid id)
         {
+            if (!await HasPermissionAsync(PermissionAction.Delete))
+            {
+                return Forbid();
+            }
+
             var evt = await _context.Events
                 .Include(e => e.ExposureEvents)
                 .FirstOrDefaultAsync(e => e.Id == id);
@@ -145,10 +154,17 @@ namespace Sentinel.Pages.Events
             }
             catch (Exception ex)
             {
-                TempData["ErrorMessage"] = $"An error occurred while deleting the event: {ex.Message}";
+                TempData["ErrorMessage"] = Sentinel.Services.UserFacingError.Create(HttpContext, ex);
             }
 
             return RedirectToPage();
+        }
+
+        private async Task<bool> HasPermissionAsync(PermissionAction action)
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            return !string.IsNullOrWhiteSpace(userId) &&
+                   await _permissionService.HasPermissionAsync(userId, PermissionModule.Event, action);
         }
     }
 }

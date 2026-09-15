@@ -103,8 +103,9 @@ namespace Sentinel.Pages.Settings.HL7.Configurations
             }
             catch (Exception ex)
             {
-                ModelState.AddModelError("Configuration.FileDropPath", 
-                    $"Could not create directory: {ex.Message}");
+                ModelState.AddModelError(
+                    "Configuration.FileDropPath",
+                    Sentinel.Services.UserFacingError.Create(HttpContext, ex));
                 await LoadSelectListsAsync();
                 return Page();
             }

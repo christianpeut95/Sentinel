@@ -52,45 +52,15 @@ namespace Sentinel.Middleware
             }
 
             // ── Check if setup is completed ────────────────────────────
+            // Only this database lookup belongs in the catch block. A
+            // downstream page/controller exception must propagate to the
+            // global exception handler rather than being mistaken for an
+            // incomplete setup and redirected to /Setup.
+            bool isSetupCompleted;
             try
             {
                 var settings = await dbContext.SystemSettings.FirstOrDefaultAsync();
-                var isSetupCompleted = settings?.IsSetupCompleted ?? false;
-
-                if (!isSetupCompleted)
-                {
-                    // Setup not completed - redirect to setup wizard unless already on it
-                    if (path.StartsWith("/setup"))
-                    {
-                        // Already on setup page, allow it
-                        await _next(context);
-                        return;
-                    }
-
-                    // Setup not completed - redirect to setup wizard
-                    if (!context.Response.HasStarted)
-                    {
-                        _logger.LogDebug("Setup not completed, redirecting {Path} to /Setup", path);
-                        context.Response.Redirect("/Setup");
-                        return;
-                    }
-                }
-                else
-                {
-                    // Setup IS completed - block access to setup page
-                    if (path.StartsWith("/setup"))
-                    {
-                        _logger.LogWarning("Setup already completed, redirecting from /Setup to /");
-                        if (!context.Response.HasStarted)
-                        {
-                            context.Response.Redirect("/");
-                            return;
-                        }
-                    }
-                }
-
-                // Setup completed or allowed path - allow request to proceed
-                await _next(context);
+                isSetupCompleted = settings?.IsSetupCompleted ?? false;
             }
             catch (Exception ex)
             {
@@ -101,9 +71,40 @@ namespace Sentinel.Middleware
                 if (!context.Response.HasStarted)
                 {
                     context.Response.Redirect("/Setup");
+                }
+
+                return;
+            }
+
+            if (!isSetupCompleted)
+            {
+                // Setup not completed - redirect to setup wizard unless already on it.
+                if (path.StartsWith("/setup"))
+                {
+                    await _next(context);
+                    return;
+                }
+
+                if (!context.Response.HasStarted)
+                {
+                    _logger.LogDebug("Setup not completed, redirecting {Path} to /Setup", path);
+                    context.Response.Redirect("/Setup");
                     return;
                 }
             }
+            else if (path.StartsWith("/setup"))
+            {
+                // Setup is complete - prevent reopening the wizard.
+                _logger.LogWarning("Setup already completed, redirecting from /Setup to /");
+                if (!context.Response.HasStarted)
+                {
+                    context.Response.Redirect("/");
+                    return;
+                }
+            }
+
+            // Setup completed or an explicitly allowed setup request.
+            await _next(context);
         }
     }
 

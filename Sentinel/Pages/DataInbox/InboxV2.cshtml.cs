@@ -15,13 +15,16 @@ public class InboxV2Model : PageModel
 {
     private readonly IDataReviewService _reviewService;
     private readonly ApplicationDbContext _context;
+    private readonly IPermissionService _permissionService;
 
     public InboxV2Model(
         IDataReviewService reviewService, 
-        ApplicationDbContext context)
+        ApplicationDbContext context,
+        IPermissionService permissionService)
     {
         _reviewService = reviewService;
         _context = context;
+        _permissionService = permissionService;
     }
 
     public ReviewQueueResult ReviewQueue { get; set; } = new();
@@ -29,6 +32,8 @@ public class InboxV2Model : PageModel
     public List<LabResult> SelectedItemLabResults { get; set; } = new();
     public int PendingCount { get; set; }
     public int? SelectedItemId { get; set; }
+    public bool CanResolveReviews { get; private set; }
+    public bool CanCreateReviewTasks { get; private set; }
 
     [BindProperty(SupportsGet = true)]
     public string? TimeRange { get; set; } = "24h";
@@ -41,6 +46,9 @@ public class InboxV2Model : PageModel
 
     public async Task OnGetAsync()
     {
+        CanResolveReviews = await CanResolveReviewsAsync();
+        CanCreateReviewTasks = await CanCreateReviewTasksAsync();
+
         // Calculate date range based on selection
         DateTime? fromDate = TimeRange switch
         {
@@ -163,6 +171,11 @@ public class InboxV2Model : PageModel
 
     public async Task<IActionResult> OnPostConfirmAsync(int id, string? note)
     {
+        if (!await CanResolveReviewsAsync())
+        {
+            return Forbid();
+        }
+
         var item = await _context.ReviewQueue
             .Include(r => r.Case)
             .Include(r => r.Patient)
@@ -184,6 +197,11 @@ public class InboxV2Model : PageModel
 
     public async Task<IActionResult> OnPostDismissAsync(int id, string? note)
     {
+        if (!await CanResolveReviewsAsync())
+        {
+            return Forbid();
+        }
+
         var item = await _context.ReviewQueue
             .FirstOrDefaultAsync(r => r.Id == id);
 
@@ -203,6 +221,11 @@ public class InboxV2Model : PageModel
 
     public async Task<IActionResult> OnPostKeepAsNewAsync(int id, string? note)
     {
+        if (!await CanResolveReviewsAsync())
+        {
+            return Forbid();
+        }
+
         var item = await _context.ReviewQueue
             .Include(r => r.Patient)
             .FirstOrDefaultAsync(r => r.Id == id);
@@ -225,6 +248,11 @@ public class InboxV2Model : PageModel
 
     public async Task<IActionResult> OnPostCreateTaskAsync(int id, string taskTitle, string? taskDescription)
     {
+        if (!await CanCreateReviewTasksAsync())
+        {
+            return Forbid();
+        }
+
         if (string.IsNullOrWhiteSpace(taskTitle))
         {
             return new JsonResult(new { success = false, error = "Task title is required" });
@@ -242,6 +270,30 @@ public class InboxV2Model : PageModel
         }
 
         return new JsonResult(new { success = false, error = "Failed to create task" });
+    }
+
+    private async Task<bool> CanResolveReviewsAsync()
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        return !string.IsNullOrWhiteSpace(userId) &&
+               await _permissionService.HasPermissionAsync(
+                   userId,
+                   PermissionModule.Case,
+                   PermissionAction.Edit);
+    }
+
+    private async Task<bool> CanCreateReviewTasksAsync()
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        return !string.IsNullOrWhiteSpace(userId) &&
+               await _permissionService.HasPermissionAsync(
+                   userId,
+                   PermissionModule.Case,
+                   PermissionAction.Edit) &&
+               await _permissionService.HasPermissionAsync(
+                   userId,
+                   PermissionModule.Task,
+                   PermissionAction.Create);
     }
 
     private string GetChangeSummaryForMember(ReviewQueueItem item)

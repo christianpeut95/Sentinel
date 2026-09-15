@@ -1,0 +1,127 @@
+{
+  "caseId": "7eea821f-5034-4704-9d64-cc7315183cc3",
+  "entries": [
+    {
+      "id": "entry_1776893274560_8qmiv345z",
+      "entryDate": "2026-04-23T00:00:00Z",
+      "narrativeText": "went outside with #Siblings( Humphrey Bash Christian)\n",
+      "entities": [
+        {
+          "id": "entity_1776893290956_ldh1m90vm",
+          "entityType": 1,
+          "rawText": "Humphrey",
+          "normalizedValue": "Humphrey",
+          "startPosition": 29,
+          "endPosition": 37,
+          "confidence": 3,
+          "isConfirmed": true,
+          "linkedRecordType": null,
+          "linkedRecordId": null,
+          "linkedRecordDisplayName": null,
+          "suggestions": [],
+          "metadata": {
+            "relationship": ""
+          },
+          "notes": null
+        },
+        {
+          "id": "entity_1776893295609_9hjtmtzdd",
+          "entityType": 1,
+          "rawText": "Bash",
+          "normalizedValue": "Bash",
+          "startPosition": 38,
+          "endPosition": 42,
+          "confidence": 3,
+          "isConfirmed": true,
+          "linkedRecordType": null,
+          "linkedRecordId": null,
+          "linkedRecordDisplayName": null,
+          "suggestions": [],
+          "metadata": {
+            "relationship": ""
+          },
+          "notes": null
+        },
+        {
+          "id": "entity_1776893300961_yljrp3jxm",
+          "entityType": 1,
+          "rawText": "Christian",
+          "normalizedValue": "Christian",
+          "startPosition": 43,
+          "endPosition": 52,
+          "confidence": 3,
+          "isConfirmed": true,
+          "linkedRecordType": null,
+          "linkedRecordId": null,
+          "linkedRecordDisplayName": null,
+          "suggestions": [],
+          "metadata": {
+            "relationship": ""
+          },
+          "notes": null
+        }
+      ],
+      "relationships": [
+        {
+          "id": "rel_1776893302614_9dhjoi4gl",
+          "primaryEntityId": "entity_1776893290956_ldh1m90vm",
+          "relatedEntityId": "entity_1776893295609_9hjtmtzdd",
+          "relationType": 1,
+          "timeEntityId": null,
+          "confidence": 2,
+          "isConfirmed": false,
+          "sourcePosition": 0,
+          "metadata": null,
+          "sequenceOrder": 0,
+          "notes": null
+        },
+        {
+          "id": "rel_1776893302614_s032xn2wp",
+          "primaryEntityId": "entity_1776893290956_ldh1m90vm",
+          "relatedEntityId": "entity_1776893300961_yljrp3jxm",
+          "relationType": 1,
+          "timeEntityId": null,
+          "confidence": 2,
+          "isConfirmed": false,
+          "sourcePosition": 0,
+          "metadata": null,
+          "sequenceOrder": 0,
+          "notes": null
+        }
+      ],
+      "parsedAt": null,
+      "confidenceScore": null,
+      "isReviewed": false,
+      "uncertaintyMarkers": [],
+      "corrections": [],
+      "protectiveMeasures": [],
+      "isMemoryGap": false,
+      "memoryGapNotes": null
+    },
+    {
+      "id": "entry_1776894054190_s9ozwu841",
+      "entryDate": "2026-04-23T00:00:00Z",
+      "narrativeText": "",
+      "entities": [],
+      "relationships": [],
+      "parsedAt": null,
+      "confidenceScore": null,
+      "isReviewed": false,
+      "uncertaintyMarkers": [],
+      "corrections": [],
+      "protectiveMeasures": [],
+      "isMemoryGap": false,
+      "memoryGapNotes": null
+    }
+  ],
+  "conventions": {},
+  "entityGroups": {},
+  "createdDate": "2026-04-22T21:41:13.4957658Z",
+  "createdByUserId": "6964051a-a741-43ff-8b37-dfbd11ce666e",
+  "lastModified": "2026-04-22T21:41:13.4967689Z",
+  "lastModifiedByUserId": "6964051a-a741-43ff-8b37-dfbd11ce666e",
+  "isReviewed": false,
+  "reviewedAt": null,
+  "reviewedByUserId": null,
+  "version": 2
+}

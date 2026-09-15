@@ -267,7 +267,7 @@ namespace Sentinel.Pages.Cases
             }
             catch (Exception ex)
             {
-                TempData["ErrorMessage"] = $"Error creating case: {ex.Message}";
+                TempData["ErrorMessage"] = Sentinel.Services.UserFacingError.Create(HttpContext, ex);
                 return RedirectToPage();
             }
         }

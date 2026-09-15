@@ -6,7 +6,7 @@ using Sentinel.Data;
 
 namespace Sentinel.Controllers
 {
-    [Authorize]
+    [Authorize(Policy = "Permission.Settings.ManageCustomFields")]
     [ApiController]
     [Route("api/[controller]")]
     [EnableRateLimiting("lookup-api")] // 200 per minute - metadata/lookup data

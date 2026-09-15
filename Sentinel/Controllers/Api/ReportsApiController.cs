@@ -43,7 +43,10 @@ public class ReportsApiController : ControllerBase
     [HttpPost("{id}/duplicate")]
     public async Task<IActionResult> DuplicateReport(int id)
     {
-        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        // Report ownership is stored using the authenticated user name throughout
+        // the report pages and builder APIs. A private report is not a reusable
+        // template unless its owner is the caller.
+        var userId = User.Identity?.Name;
         if (string.IsNullOrEmpty(userId))
             return Unauthorized();
 
@@ -51,7 +54,8 @@ public class ReportsApiController : ControllerBase
             .Include(r => r.Fields)
             .Include(r => r.Filters)
             .Include(r => r.CalculatedFields)
-            .FirstOrDefaultAsync(r => r.Id == id);
+            .FirstOrDefaultAsync(r => r.Id == id &&
+                                      (r.IsPublic || r.CreatedByUserId == userId));
 
         if (original == null)
             return NotFound();
@@ -69,7 +73,8 @@ public class ReportsApiController : ControllerBase
             ModifiedByUserId = userId,
             IsPublic = false,
             IsTemplate = false,
-            FolderId = original.FolderId
+            // A copied report belongs to the caller, not to the source owner's folder.
+            FolderId = null
         };
 
         _context.ReportDefinitions.Add(duplicate);

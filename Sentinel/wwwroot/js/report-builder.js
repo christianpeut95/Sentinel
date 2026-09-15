@@ -937,7 +937,6 @@ const ReportBuilder = {
         const btnAddCollection = document.getElementById('btnAddCollection');
         const btnAddFilterInline = document.getElementById('btnAddFilterInline');
         const btnAddCollectionInline = document.getElementById('btnAddCollectionInline');
-        const btnLoadDefaults = document.getElementById('btnLoadDefaults');
         const entityTypeSelector = document.getElementById('entityTypeSelector');
 
         if (btnPreview) {
@@ -1003,16 +1002,6 @@ const ReportBuilder = {
                 this.addCollectionQuery(); 
             });
             console.log('[setupEventListeners] btnAddCollectionInline wired');
-        }
-
-        if (btnLoadDefaults) {
-            btnLoadDefaults.addEventListener('click', () => { 
-                console.log('[btnLoadDefaults] Clicked'); 
-                this.loadDefaultFields(); 
-            });
-            console.log('[setupEventListeners] btnLoadDefaults wired');
-        } else {
-            console.warn('[setupEventListeners] btnLoadDefaults not found');
         }
 
         const btnClearAll = document.getElementById('btnClearAll');

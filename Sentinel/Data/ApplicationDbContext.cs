@@ -1223,6 +1223,15 @@ namespace Sentinel.Data
                     : ((List<Guid>)_httpContextAccessor.HttpContext.Items["AccessibleDiseaseIds"])
                         .Contains(d.Id)));
 
+            // An outbreak inherits the visibility boundary of its primary disease.
+            // This makes all ordinary outbreak queries hierarchy-aware and prevents a
+            // restricted disease from being disclosed through an outbreak whose
+            // PrimaryDisease navigation would otherwise simply be filtered to null.
+            // Disease-less outbreaks remain visible to users with Outbreak.View.
+            builder.Entity<Outbreak>().HasQueryFilter(o =>
+                !o.IsDeleted &&
+                (o.PrimaryDiseaseId == null || o.PrimaryDisease != null));
+
             // Flattened Report Views (SQL views managed by migrations)
             builder.Entity<Models.Views.CaseContactTaskFlattened>()
                 .HasNoKey()
@@ -2486,12 +2495,154 @@ namespace Sentinel.Data
 
         public IQueryable<T> IncludeDeleted<T>() where T : class, ISoftDeletable
         {
+            if (typeof(T) == typeof(Case))
+            {
+                return (IQueryable<T>)GetDeletedCasesQuery();
+            }
+
+            if (typeof(T) == typeof(Disease))
+            {
+                return (IQueryable<T>)GetDeletedDiseasesQuery();
+            }
+
+            if (typeof(T) == typeof(Patient))
+            {
+                return (IQueryable<T>)GetDeletedPatientsQuery();
+            }
+
+            if (typeof(T) == typeof(LabResult))
+            {
+                return (IQueryable<T>)GetDeletedLabResultsQuery();
+            }
+
+            if (typeof(T) == typeof(Note))
+            {
+                return (IQueryable<T>)GetDeletedNotesQuery();
+            }
+
+            if (typeof(T) == typeof(ExposureEvent))
+            {
+                return (IQueryable<T>)GetDeletedExposureEventsQuery();
+            }
+
             return Set<T>().IgnoreQueryFilters();
         }
 
         public IQueryable<T> OnlyDeleted<T>() where T : class, ISoftDeletable
         {
-            return Set<T>().IgnoreQueryFilters().Where(e => e.IsDeleted);
+            return IncludeDeleted<T>().Where(e => e.IsDeleted);
+        }
+
+        private IQueryable<Case> GetDeletedCasesQuery()
+        {
+            if (_httpContextAccessor?.HttpContext == null)
+            {
+                return Set<Case>().IgnoreQueryFilters();
+            }
+
+            var accessibleDiseaseIds = GetAccessibleDiseaseIds();
+
+            return Set<Case>().IgnoreQueryFilters()
+                .Where(c => c.DiseaseId == null ||
+                    (accessibleDiseaseIds == null
+                        ? c.Disease!.AccessLevel == DiseaseAccessLevel.Public
+                        : accessibleDiseaseIds.Contains(c.DiseaseId.Value)));
+        }
+
+        private IQueryable<Disease> GetDeletedDiseasesQuery()
+        {
+            if (_httpContextAccessor?.HttpContext == null)
+            {
+                return Set<Disease>().IgnoreQueryFilters();
+            }
+
+            var accessibleDiseaseIds = GetAccessibleDiseaseIds();
+
+            return Set<Disease>().IgnoreQueryFilters()
+                .Where(d => accessibleDiseaseIds == null
+                    ? d.AccessLevel == DiseaseAccessLevel.Public
+                    : accessibleDiseaseIds.Contains(d.Id));
+        }
+
+        private IQueryable<Patient> GetDeletedPatientsQuery()
+        {
+            if (_httpContextAccessor?.HttpContext == null)
+            {
+                return Set<Patient>().IgnoreQueryFilters();
+            }
+
+            var accessibleDiseaseIds = GetAccessibleDiseaseIds();
+
+            return Set<Patient>().IgnoreQueryFilters()
+                .Where(p => !p.Cases.Any() || p.Cases.Any(c =>
+                    c.DiseaseId == null ||
+                    (accessibleDiseaseIds == null
+                        ? c.Disease!.AccessLevel == DiseaseAccessLevel.Public
+                        : accessibleDiseaseIds.Contains(c.DiseaseId.Value))));
+        }
+
+        private IQueryable<LabResult> GetDeletedLabResultsQuery()
+        {
+            if (_httpContextAccessor?.HttpContext == null)
+            {
+                return Set<LabResult>().IgnoreQueryFilters();
+            }
+
+            var accessibleDiseaseIds = GetAccessibleDiseaseIds();
+
+            return Set<LabResult>().IgnoreQueryFilters()
+                .Where(lr => lr.CaseId == null ||
+                    (lr.Case != null && (
+                        lr.Case.DiseaseId == null ||
+                        (accessibleDiseaseIds == null
+                            ? lr.Case.Disease!.AccessLevel == DiseaseAccessLevel.Public
+                            : accessibleDiseaseIds.Contains(lr.Case.DiseaseId.Value)))));
+        }
+
+        private IQueryable<Note> GetDeletedNotesQuery()
+        {
+            if (_httpContextAccessor?.HttpContext == null)
+            {
+                return Set<Note>().IgnoreQueryFilters();
+            }
+
+            var accessibleDiseaseIds = GetAccessibleDiseaseIds();
+
+            return Set<Note>().IgnoreQueryFilters()
+                .Where(n => n.CaseId == null ||
+                    (n.Case != null && (
+                        n.Case.DiseaseId == null ||
+                        (accessibleDiseaseIds == null
+                            ? n.Case.Disease!.AccessLevel == DiseaseAccessLevel.Public
+                            : accessibleDiseaseIds.Contains(n.Case.DiseaseId.Value)))));
+        }
+
+        private IQueryable<ExposureEvent> GetDeletedExposureEventsQuery()
+        {
+            if (_httpContextAccessor?.HttpContext == null)
+            {
+                return Set<ExposureEvent>().IgnoreQueryFilters();
+            }
+
+            var accessibleDiseaseIds = GetAccessibleDiseaseIds();
+
+            return Set<ExposureEvent>().IgnoreQueryFilters()
+                .Where(ee => ee.ExposedCase != null &&
+                    (ee.ExposedCase.DiseaseId == null ||
+                        (accessibleDiseaseIds == null
+                            ? ee.ExposedCase.Disease!.AccessLevel == DiseaseAccessLevel.Public
+                            : accessibleDiseaseIds.Contains(ee.ExposedCase.DiseaseId.Value))) &&
+                    (ee.SourceCaseId == null ||
+                        (ee.SourceCase != null && (
+                            ee.SourceCase.DiseaseId == null ||
+                            (accessibleDiseaseIds == null
+                                ? ee.SourceCase.Disease!.AccessLevel == DiseaseAccessLevel.Public
+                                : accessibleDiseaseIds.Contains(ee.SourceCase.DiseaseId.Value))))));
+        }
+
+        private List<Guid>? GetAccessibleDiseaseIds()
+        {
+            return _httpContextAccessor?.HttpContext?.Items["AccessibleDiseaseIds"] as List<Guid>;
         }
 
         // Review Queue Detection Methods

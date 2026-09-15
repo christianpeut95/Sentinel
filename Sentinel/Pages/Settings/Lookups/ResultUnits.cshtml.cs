@@ -3,7 +3,10 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.EntityFrameworkCore;
 using Sentinel.Data;
+using Sentinel.Models;
 using Sentinel.Models.Lookups;
+using Sentinel.Services;
+using System.Security.Claims;
 
 namespace Sentinel.Pages.Settings.Lookups
 {
@@ -11,10 +14,12 @@ namespace Sentinel.Pages.Settings.Lookups
     public class ResultUnitsModel : PageModel
     {
         private readonly ApplicationDbContext _context;
+        private readonly IPermissionService _permissionService;
 
-        public ResultUnitsModel(ApplicationDbContext context)
+        public ResultUnitsModel(ApplicationDbContext context, IPermissionService permissionService)
         {
             _context = context;
+            _permissionService = permissionService;
         }
 
         public IList<ResultUnits> ResultUnits { get; set; } = default!;
@@ -59,6 +64,11 @@ namespace Sentinel.Pages.Settings.Lookups
 
         public async Task<IActionResult> OnPostDeleteAsync(int id)
         {
+            if (!await CanManageSystemLookupsAsync())
+            {
+                return Forbid();
+            }
+
             var resultUnit = await _context.ResultUnits.FindAsync(id);
 
             if (resultUnit == null)
@@ -86,10 +96,20 @@ namespace Sentinel.Pages.Settings.Lookups
             }
             catch (Exception ex)
             {
-                TempData["ErrorMessage"] = $"Error deleting result unit: {ex.Message}";
+                TempData["ErrorMessage"] = Sentinel.Services.UserFacingError.Create(HttpContext, ex);
             }
 
             return RedirectToPage();
+        }
+
+        private async Task<bool> CanManageSystemLookupsAsync()
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            return !string.IsNullOrWhiteSpace(userId) &&
+                   await _permissionService.HasPermissionAsync(
+                       userId,
+                       PermissionModule.Settings,
+                       PermissionAction.ManageSystemLookups);
         }
     }
 }

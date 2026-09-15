@@ -1,0 +1,89 @@
+{
+  "caseId": "7eea821f-5034-4704-9d64-cc7315183cc3",
+  "entries": [
+    {
+      "id": "entry_1777081981575_ax9y91ay7",
+      "entryDate": "2026-04-25T00:00:00Z",
+      "narrativeText": "humphrey\nhumphrey\n\nhumphrey",
+      "entities": [
+        {
+          "id": "entity_1777082013005_gu0jszhft",
+          "entityType": 1,
+          "rawText": "humphrey",
+          "normalizedValue": "humphrey",
+          "startPosition": 0,
+          "endPosition": 8,
+          "confidence": 2,
+          "isConfirmed": true,
+          "linkedRecordType": null,
+          "linkedRecordId": null,
+          "linkedRecordDisplayName": null,
+          "suggestions": [],
+          "metadata": {
+            "relationship": null,
+            "phone": null,
+            "ageDob": null,
+            "notes": null
+          },
+          "notes": null
+        },
+        {
+          "id": "entity_1777082016730_dse2y5gkk",
+          "entityType": 1,
+          "rawText": "humphrey",
+          "normalizedValue": "humphrey",
+          "startPosition": 9,
+          "endPosition": 17,
+          "confidence": 3,
+          "isConfirmed": true,
+          "linkedRecordType": null,
+          "linkedRecordId": null,
+          "linkedRecordDisplayName": null,
+          "suggestions": [],
+          "metadata": {
+            "relationship": null,
+            "phone": null,
+            "ageDob": null,
+            "notes": null
+          },
+          "notes": null
+        },
+        {
+          "id": "entity_1777082020752_opelnsv0s",
+          "entityType": 1,
+          "rawText": "humphrey",
+          "normalizedValue": "humphrey",
+          "startPosition": 19,
+          "endPosition": 27,
+          "confidence": 3,
+          "isConfirmed": true,
+          "linkedRecordType": null,
+          "linkedRecordId": null,
+          "linkedRecordDisplayName": null,
+          "suggestions": [],
+          "metadata": {},
+          "notes": null
+        }
+      ],
+      "relationships": [],
+      "parsedAt": null,
+      "confidenceScore": null,
+      "isReviewed": false,
+      "uncertaintyMarkers": [],
+      "corrections": [],
+      "protectiveMeasures": [],
+      "isMemoryGap": false,
+      "memoryGapNotes": null
+    }
+  ],
+  "conventions": {},
+  "entityGroups": {},
+  "createdDate": "2026-04-25T01:53:47.6397392Z",
+  "createdByUserId": "6964051a-a741-43ff-8b37-dfbd11ce666e",
+  "lastModified": "2026-04-25T01:53:47.6397683Z",
+  "lastModifiedByUserId": "6964051a-a741-43ff-8b37-dfbd11ce666e",
+  "isReviewed": false,
+  "reviewedAt": null,
+  "reviewedByUserId": null,
+  "version": 2
+}

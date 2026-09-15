@@ -93,7 +93,7 @@ namespace Sentinel.Pages.Settings.Surveys
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error creating survey template {Name}", SurveyTemplate.Name);
-                ModelState.AddModelError(string.Empty, $"Error creating survey: {ex.Message}");
+                ModelState.AddModelError(string.Empty, Sentinel.Services.UserFacingError.Create(HttpContext, ex));
                 await LoadSelectLists();
                 return Page();
             }

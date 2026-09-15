@@ -49,37 +49,7 @@ namespace Sentinel.Pages.Settings.Users
                 return NotFound();
             }
 
-            User = user;
-            UserRoles = (await _userManager.GetRolesAsync(user)).ToList();
-
-            AllPermissions = await _permissionService.GetAllPermissionsAsync();
-            
-            // Get user-specific permissions
-            var userPermissions = await _context.UserPermissions
-                .Where(up => up.UserId == id && up.IsGranted)
-                .Select(up => up.PermissionId)
-                .ToListAsync();
-            GrantedPermissionIds = userPermissions.ToHashSet();
-
-            // Get role-based permissions (for display only)
-            var rolePermissions = new HashSet<int>();
-            foreach (var roleName in UserRoles)
-            {
-                var role = await _context.Roles.FirstOrDefaultAsync(r => r.Name == roleName);
-                if (role != null)
-                {
-                    var permissions = await _permissionService.GetRolePermissionsAsync(role.Id);
-                    foreach (var p in permissions)
-                    {
-                        rolePermissions.Add(p.Id);
-                    }
-                }
-            }
-            RolePermissionIds = rolePermissions;
-
-            PermissionsByModule = AllPermissions
-                .GroupBy(p => p.Module)
-                .ToDictionary(g => g.Key, g => g.ToList());
+            await LoadPermissionsAsync(user);
 
             return Page();
         }
@@ -97,33 +67,89 @@ namespace Sentinel.Pages.Settings.Users
                 return NotFound();
             }
 
-            var currentUserPermissions = await _context.UserPermissions
-                .Where(up => up.UserId == id)
-                .Select(up => up.PermissionId)
+            // Treat IDs from the request as untrusted.  Do this before changing
+            // anything so an invalid or stale form cannot partially update access.
+            var selectedPermissionIds = SelectedPermissions.Distinct().ToHashSet();
+            var validPermissionIds = await _context.Permissions
+                .Select(permission => permission.Id)
                 .ToListAsync();
 
-            // Remove permissions that were unchecked
-            foreach (var permissionId in currentUserPermissions)
+            if (!selectedPermissionIds.IsSubsetOf(validPermissionIds))
             {
-                if (!SelectedPermissions.Contains(permissionId))
-                {
-                    await _permissionService.RevokePermissionFromUserAsync(id, permissionId);
-                }
+                ModelState.AddModelError(string.Empty, "The submitted permission selection is no longer valid. Refresh the page and try again.");
+                await LoadPermissionsAsync(user);
+                return Page();
             }
 
-            // Add permissions that were checked
-            foreach (var permissionId in SelectedPermissions)
-            {
-                if (!currentUserPermissions.Contains(permissionId))
-                {
-                    await _permissionService.GrantPermissionToUserAsync(id, permissionId);
-                }
-            }
+            var currentUserPermissions = await _context.UserPermissions
+                .Where(up => up.UserId == id)
+                .ToListAsync();
 
-            await _userManager.UpdateSecurityStampAsync(user);
+            var currentPermissionIds = currentUserPermissions
+                .Select(permission => permission.PermissionId)
+                .ToHashSet();
+
+            var permissionsToRevoke = currentUserPermissions
+                .Where(permission => !selectedPermissionIds.Contains(permission.PermissionId))
+                .ToList();
+
+            var permissionsToGrant = selectedPermissionIds
+                .Except(currentPermissionIds)
+                .Select(permissionId => new UserPermission
+                {
+                    UserId = id,
+                    PermissionId = permissionId,
+                    IsGranted = true
+                })
+                .ToList();
+
+            if (permissionsToRevoke.Count > 0 || permissionsToGrant.Count > 0)
+            {
+                _context.UserPermissions.RemoveRange(permissionsToRevoke);
+                _context.UserPermissions.AddRange(permissionsToGrant);
+
+                // Save the complete diff and session invalidation together. EF Core
+                // wraps a single SaveChanges call in a transaction where required;
+                // explicitly starting one here conflicts with SQL Server's retrying
+                // execution strategy.
+                user.SecurityStamp = Guid.NewGuid().ToString();
+                await _context.SaveChangesAsync();
+            }
 
             TempData["SuccessMessage"] = $"Permissions updated for user '{user.Email}'.";
             return RedirectToPage("./Index");
+        }
+
+        private async Task LoadPermissionsAsync(ApplicationUser user)
+        {
+            User = user;
+            UserRoles = (await _userManager.GetRolesAsync(user)).ToList();
+            AllPermissions = await _permissionService.GetAllPermissionsAsync();
+
+            GrantedPermissionIds = (await _context.UserPermissions
+                    .Where(up => up.UserId == user.Id && up.IsGranted)
+                    .Select(up => up.PermissionId)
+                    .ToListAsync())
+                .ToHashSet();
+
+            var rolePermissions = new HashSet<int>();
+            foreach (var roleName in UserRoles)
+            {
+                var role = await _context.Roles.FirstOrDefaultAsync(r => r.Name == roleName);
+                if (role != null)
+                {
+                    var permissions = await _permissionService.GetRolePermissionsAsync(role.Id);
+                    foreach (var permission in permissions)
+                    {
+                        rolePermissions.Add(permission.Id);
+                    }
+                }
+            }
+
+            RolePermissionIds = rolePermissions;
+            PermissionsByModule = AllPermissions
+                .GroupBy(permission => permission.Module)
+                .ToDictionary(group => group.Key, group => group.ToList());
         }
     }
 }

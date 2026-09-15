@@ -150,7 +150,6 @@ ReportBuilder.getFilters = function() {
     console.log('[getFilters] Returning', filters.length, 'filters:', filters);
     return filters;
 };
-
 ReportBuilder.getCollectionQueries = function() {
     const queryElements = document.querySelectorAll('[id^="collection-query-"]');
     const queries = [];
@@ -305,7 +304,6 @@ ReportBuilder.getCollectionQueries = function() {
     
     return queries;
 };
-
 ReportBuilder.preview = async function() {
     console.log('[preview] Starting preview...');
 
@@ -522,7 +520,6 @@ ReportBuilder.getDefaultPivotConfig = function(data) {
         }]
     };
 };
-
 ReportBuilder.save = async function() {
     console.log('[save] Starting save process...');
 
@@ -833,80 +830,3 @@ ReportBuilder.getPivotConfig = function(data) {
     };
 };
 
-ReportBuilder.loadDefaultFields = async function() {
-    const entityType = document.getElementById('entityTypeSelector').value;
-    const btnLoadDefaults = document.getElementById('btnLoadDefaults');
-    
-    if (!entityType) {
-        ReportBuilderNotifications.showToast('Please select an entity type first', 'warning');
-        return;
-    }
-
-    if (this.selectedFields.length > 0) {
-        // Capture 'this' context for use in callback
-        const self = this;
-
-        ReportBuilderNotifications.confirm(
-            'This will replace your current field selection.',
-            () => {
-                self.applyDefaultFieldsImpl(entityType);
-            },
-            null,
-            { title: 'Replace Field Selection?', confirmText: 'Replace' }
-        );
-        return;
-    }
-    
-    try {
-        btnLoadDefaults.disabled = true;
-        btnLoadDefaults.innerHTML = '<i class="bi bi-hourglass-split me-1"></i> Loading...';
-        
-        const response = await fetch('/Reports/Builder?handler=GetDefaultFields', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]').value
-            },
-            body: JSON.stringify({ entityType: entityType })
-        });
-        
-        const result = await response.json();
-        
-        if (result.success && result.fields) {
-            this.selectedFields = [];
-            const selectedFieldsContainer = document.getElementById('selectedFields');
-            selectedFieldsContainer.innerHTML = '';
-            
-            result.fields.forEach(field => {
-                this.addField({
-                    fieldPath: field.fieldPath,
-                    displayName: field.displayName,
-                    dataType: field.dataType,
-                    isCustom: field.isCustomField,
-                    customId: field.customFieldDefinitionId
-                });
-            });
-            
-            const successMsg = document.createElement('div');
-            successMsg.className = 'alert alert-success alert-dismissible fade show mt-2';
-            successMsg.innerHTML = `
-                <i class="bi bi-check-circle me-2"></i>
-                <strong>Loaded ${result.fields.length} default fields</strong>
-                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-            `;
-            selectedFieldsContainer.insertAdjacentElement('beforebegin', successMsg);
-            
-            setTimeout(() => {
-                successMsg.remove();
-            }, 3000);
-            
-        } else {
-            ReportBuilderNotifications.showToast('Failed to load default fields: ' + (result.error || 'Unknown error'), 'error', 5000);
-        }
-    } catch (error) {
-        ReportBuilderNotifications.showToast('Failed to load default fields: ' + error.message, 'error', 5000);
-    } finally {
-        btnLoadDefaults.disabled = false;
-        btnLoadDefaults.innerHTML = '<i class="bi bi-magic me-1"></i> Load Default Fields';
-    }
-};

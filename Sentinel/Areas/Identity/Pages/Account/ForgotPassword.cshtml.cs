@@ -4,12 +4,15 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
+using Microsoft.AspNetCore.RateLimiting;
 using Sentinel.Models;
+using Sentinel.Services;
 using Sentinel.Services.Email;
 
 namespace Sentinel.Areas.Identity.Pages.Account
 {
     [AllowAnonymous]
+    [EnableRateLimiting("password-reset")]
     public class ForgotPasswordModel : PageModel
     {
         private readonly UserManager<ApplicationUser> _userManager;
@@ -41,20 +44,12 @@ namespace Sentinel.Areas.Identity.Pages.Account
 
         public IActionResult OnGet()
         {
-            // Password reset feature disabled - return to login
-            return RedirectToPage("./Login");
-
-            // Uncomment below and remove redirect above to enable password reset
-            // EmailSent = false;
-            // return Page();
+            EmailSent = false;
+            return Page();
         }
 
         public async Task<IActionResult> OnPostAsync()
         {
-            // Password reset feature disabled - return to login
-            return RedirectToPage("./Login");
-
-            /* Uncomment below and remove redirect above to enable password reset
             if (!ModelState.IsValid)
             {
                 return Page();
@@ -62,68 +57,55 @@ namespace Sentinel.Areas.Identity.Pages.Account
 
             var user = await _userManager.FindByEmailAsync(Input.Email);
 
-            // Always show success message to prevent email enumeration attacks
-            // Don't reveal whether the account exists or not
+            // Always return the same confirmation to prevent account enumeration.
             EmailSent = true;
 
-            // Only send email if user actually exists
-            if (user != null)
+            // Disabled accounts cannot sign in, so do not issue reset tokens for them.
+            if (user is not { IsEnabled: true } || string.IsNullOrWhiteSpace(user.Email))
             {
-                try
+                return Page();
+            }
+
+            try
+            {
+                var token = await _userManager.GeneratePasswordResetTokenAsync(user);
+                var callbackUrl = Url.Page(
+                    "/Account/ResetPassword",
+                    pageHandler: null,
+                    values: new
+                    {
+                        area = "Identity",
+                        userId = user.Id,
+                        code = PasswordResetTokenEncoding.Encode(token)
+                    },
+                    protocol: Request.Scheme);
+
+                if (string.IsNullOrWhiteSpace(callbackUrl))
                 {
-                    // Generate password reset token
-                    var code = await _userManager.GeneratePasswordResetTokenAsync(user);
-
-                    // Build callback URL for password reset
-                    var callbackUrl = Url.Page(
-                        "/Account/ResetPassword",
-                        pageHandler: null,
-                        values: new { area = "Identity", userId = user.Id, code = code },
-                        protocol: Request.Scheme);
-
-                    if (!string.IsNullOrEmpty(callbackUrl))
-                    {
-                        var userName = !string.IsNullOrEmpty(user.FirstName)
-                            ? $"{user.FirstName} {user.LastName}".Trim()
-                            : user.Email ?? "User";
-
-                        var emailSent = await _emailService.SendPasswordResetEmailAsync(
-                            user.Email ?? Input.Email,
-                            callbackUrl,
-                            userName);
-
-                        if (emailSent)
-                        {
-                            _logger.LogInformation(
-                                "Password reset email sent to user {Email}",
-                                user.Email);
-                        }
-                        else
-                        {
-                            _logger.LogWarning(
-                                "Failed to send password reset email to {Email}. SMTP may not be configured.",
-                                user.Email);
-                        }
-                    }
-                    else
-                    {
-                        _logger.LogError("Failed to generate callback URL for password reset");
-                    }
+                    _logger.LogError("Failed to generate a password reset callback URL");
+                    return Page();
                 }
-                catch (Exception ex)
+
+                var userName = !string.IsNullOrWhiteSpace(user.FirstName)
+                    ? $"{user.FirstName} {user.LastName}".Trim()
+                    : user.Email;
+                var emailSent = await _emailService.SendPasswordResetEmailAsync(user.Email, callbackUrl, userName);
+
+                if (emailSent)
                 {
-                    _logger.LogError(ex, "Error processing password reset for {Email}", Input.Email);
+                    _logger.LogInformation("Password reset email sent for user {UserId}", user.Id);
+                }
+                else
+                {
+                    _logger.LogWarning("Password reset email delivery failed for user {UserId}", user.Id);
                 }
             }
-            else
+            catch (Exception ex)
             {
-                _logger.LogInformation(
-                    "Password reset requested for non-existent email: {Email}",
-                    Input.Email);
+                _logger.LogError(ex, "Error processing a password reset request for user {UserId}", user.Id);
             }
 
             return Page();
-            */
         }
     }
 }

@@ -13,7 +13,7 @@ namespace Sentinel.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
-    [Authorize]
+    [Authorize(Policy = "Permission.Case.View")]
     [EnableRateLimiting("workflow-api")]
     public class DiseasesController : ControllerBase
     {

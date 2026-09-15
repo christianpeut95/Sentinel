@@ -1,0 +1,72 @@
+{
+  "caseId": "7eea821f-5034-4704-9d64-cc7315183cc3",
+  "entries": [
+    {
+      "id": "entry_1776921618623_brlwe9tht",
+      "entryDate": "2026-04-23T00:00:00Z",
+      "narrativeText": "went to work at Paradise Interchange with friend \u002Bjames. ",
+      "entities": [
+        {
+          "id": "entity_1776921634378_ghtik7od7",
+          "entityType": 2,
+          "rawText": "Paradise Interchange",
+          "normalizedValue": "Paradise Interchange",
+          "startPosition": 16,
+          "endPosition": 36,
+          "confidence": 3,
+          "isConfirmed": true,
+          "linkedRecordType": null,
+          "linkedRecordId": null,
+          "linkedRecordDisplayName": null,
+          "suggestions": [],
+          "metadata": {
+            "placeId": "ChIJvTisXYq1sGoR-yO14pmNtoQ",
+            "address": "Paradise SA 5075, Australia",
+            "coordinates": {
+              "lat": -34.8687251,
+              "lon": 138.66177
+            }
+          },
+          "notes": null
+        },
+        {
+          "id": "entity_1776921654977_aq1v4wkqe",
+          "entityType": 1,
+          "rawText": "james",
+          "normalizedValue": "james",
+          "startPosition": 50,
+          "endPosition": 55,
+          "confidence": 3,
+          "isConfirmed": true,
+          "linkedRecordType": null,
+          "linkedRecordId": null,
+          "linkedRecordDisplayName": null,
+          "suggestions": [],
+          "metadata": {
+            "relationship": ""
+          },
+          "notes": null
+        }
+      ],
+      "relationships": [],
+      "parsedAt": null,
+      "confidenceScore": null,
+      "isReviewed": false,
+      "uncertaintyMarkers": [],
+      "corrections": [],
+      "protectiveMeasures": [],
+      "isMemoryGap": false,
+      "memoryGapNotes": null
+    }
+  ],
+  "conventions": {},
+  "entityGroups": {},
+  "createdDate": "2026-04-23T05:21:29.3029671Z",
+  "createdByUserId": "6964051a-a741-43ff-8b37-dfbd11ce666e",
+  "lastModified": "2026-04-23T05:21:29.3029861Z",
+  "lastModifiedByUserId": "6964051a-a741-43ff-8b37-dfbd11ce666e",
+  "isReviewed": false,
+  "reviewedAt": null,
+  "reviewedByUserId": null,
+  "version": 2
+}

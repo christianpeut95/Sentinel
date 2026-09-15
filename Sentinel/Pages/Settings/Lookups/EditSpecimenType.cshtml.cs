@@ -87,7 +87,7 @@ namespace Sentinel.Pages.Settings.Lookups
             }
             catch (Exception ex)
             {
-                TempData["ErrorMessage"] = $"An error occurred while updating the specimen type: {ex.Message}";
+                TempData["ErrorMessage"] = Sentinel.Services.UserFacingError.Create(HttpContext, ex);
                 UsageCount = await _context.LabResults.CountAsync(lr => lr.SpecimenTypeId == SpecimenType.Id);
                 return Page();
             }

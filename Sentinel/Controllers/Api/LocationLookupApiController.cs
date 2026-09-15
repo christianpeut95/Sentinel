@@ -8,7 +8,7 @@ using System.Linq;
 
 namespace Sentinel.Controllers.Api
 {
-    [Authorize]
+    [Authorize(Policy = "Permission.ReferenceData.View")]
     [ApiController]
     [Route("api/location-lookup")]
     [EnableRateLimiting("lookup-api")] // 200 per minute - geocoding/address lookup

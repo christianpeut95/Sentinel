@@ -7,6 +7,7 @@ using Sentinel.Data;
 using System.Text.Json;
 using Sentinel.Models;
 using Newtonsoft.Json.Linq;
+using System.Security.Claims;
 
 namespace Sentinel.Pages.DataInbox;
 
@@ -17,6 +18,7 @@ public class IndexModel : PageModel
     private readonly ApplicationDbContext _context;
     private readonly ICollectionMappingService _collectionMappingService;
     private readonly ISurveyMappingService _surveyMappingService;
+    private readonly IPermissionService _permissionService;
     private readonly ILogger<IndexModel> _logger;
 
     public IndexModel(
@@ -24,12 +26,14 @@ public class IndexModel : PageModel
         ApplicationDbContext context,
         ICollectionMappingService collectionMappingService,
         ISurveyMappingService surveyMappingService,
+        IPermissionService permissionService,
         ILogger<IndexModel> logger)
     {
         _reviewService = reviewService;
         _context = context;
         _collectionMappingService = collectionMappingService;
         _surveyMappingService = surveyMappingService;
+        _permissionService = permissionService;
         _logger = logger;
     }
 
@@ -210,6 +214,11 @@ public class IndexModel : PageModel
 
     public async Task<IActionResult> OnPostConfirmAsync(int id)
     {
+        if (!await CanResolveReviewsAsync())
+        {
+            return Forbid();
+        }
+
         var result = await _reviewService.ConfirmReviewAsync(id);
         if (result)
         {
@@ -225,6 +234,11 @@ public class IndexModel : PageModel
 
     public async Task<IActionResult> OnPostDismissAsync(int id)
     {
+        if (!await CanResolveReviewsAsync())
+        {
+            return Forbid();
+        }
+
         var result = await _reviewService.DismissReviewAsync(id);
         if (result)
         {
@@ -296,6 +310,11 @@ public class IndexModel : PageModel
 
     public async Task<IActionResult> OnPostQuickConfirmAsync(int id)
     {
+        if (!await CanResolveReviewsAsync())
+        {
+            return Forbid();
+        }
+
         var success = await _reviewService.ConfirmReviewAsync(id, "Quick confirmed from list");
         
         if (success)
@@ -312,6 +331,11 @@ public class IndexModel : PageModel
     /// </summary>
     public async Task<IActionResult> OnPostQuickResolveAlwaysReviewAsync(int id)
     {
+        if (!await CanResolveReviewsAsync())
+        {
+            return Forbid();
+        }
+
         try
         {
             // Get the full ReviewQueue entity
@@ -375,6 +399,16 @@ public class IndexModel : PageModel
         }
     }
     
+    private async Task<bool> CanResolveReviewsAsync()
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        return !string.IsNullOrWhiteSpace(userId) &&
+               await _permissionService.HasPermissionAsync(
+                   userId,
+                   PermissionModule.Case,
+                   PermissionAction.Edit);
+    }
+
     private async Task<Patient?> ExtractPatientFromProposedData(string? proposedDataJson)
     {
         if (string.IsNullOrEmpty(proposedDataJson))

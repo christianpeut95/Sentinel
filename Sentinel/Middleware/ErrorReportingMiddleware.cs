@@ -92,6 +92,7 @@ namespace Sentinel.Middleware
             // deliberately excludes identifiers, query strings and arbitrary
             // user-controlled path segments from remote error reporting.
             var pageIdentifier = SemanticPageIdentifier.FromRequest(context);
+            var routeTemplate = SemanticPageIdentifier.RouteTemplateFromRequest(context);
             var module = ExtractModuleFromPageIdentifier(pageIdentifier);
 
             // Get environment name
@@ -121,7 +122,7 @@ namespace Sentinel.Middleware
             {
                 Environment = environment,
                 Module = module,
-                Route = pageIdentifier
+                Route = routeTemplate
             };
 
             return new ErrorReport

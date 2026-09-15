@@ -15,11 +15,19 @@ public class BulkActionsModel : PageModel
 {
     private readonly ApplicationDbContext _context;
     private readonly IOutbreakService _outbreakService;
+    private readonly IOutbreakAccessService _outbreakAccessService;
+    private readonly IPermissionService _permissionService;
 
-    public BulkActionsModel(ApplicationDbContext context, IOutbreakService outbreakService)
+    public BulkActionsModel(
+        ApplicationDbContext context,
+        IOutbreakService outbreakService,
+        IOutbreakAccessService outbreakAccessService,
+        IPermissionService permissionService)
     {
         _context = context;
         _outbreakService = outbreakService;
+        _outbreakAccessService = outbreakAccessService;
+        _permissionService = permissionService;
     }
 
     public Outbreak Outbreak { get; set; } = null!;
@@ -44,6 +52,11 @@ public class BulkActionsModel : PageModel
 
     public async Task<IActionResult> OnGetAsync(int id, string caseIds)
     {
+        if (!await _outbreakAccessService.CanAccessOutbreakAsync(id))
+        {
+            return NotFound();
+        }
+
         var outbreak = await _outbreakService.GetByIdAsync(id);
         if (outbreak == null)
         {
@@ -64,13 +77,24 @@ public class BulkActionsModel : PageModel
             return RedirectToPage("Details", new { id });
         }
 
-        CaseIds = ids;
+        var linkedCaseIds = await _context.OutbreakCases
+            .Where(oc => oc.OutbreakId == id && oc.IsActive && ids.Contains(oc.CaseId))
+            .Select(oc => oc.CaseId)
+            .Distinct()
+            .ToListAsync();
+
+        if (linkedCaseIds.Count != ids.Distinct().Count())
+        {
+            return NotFound();
+        }
+
+        CaseIds = linkedCaseIds;
 
         // Load selected cases
         SelectedRecords = await _context.Cases
             .Include(c => c.Patient)
             .Include(c => c.Disease)
-            .Where(c => ids.Contains(c.Id))
+            .Where(c => linkedCaseIds.Contains(c.Id))
             .ToListAsync();
 
         await LoadTemplatesAsync();
@@ -80,11 +104,36 @@ public class BulkActionsModel : PageModel
 
     public async Task<IActionResult> OnPostAsync(int id)
     {
+        if (!await _outbreakAccessService.CanAccessOutbreakAsync(id))
+        {
+            return NotFound();
+        }
+
+        if ((ActionType == "task" || ActionType == "survey") &&
+            !await CanCreateCaseTasksAsync())
+        {
+            return Forbid();
+        }
+
         if (!CaseIds.Any())
         {
             ErrorMessage = "No cases or contacts selected.";
             return RedirectToPage("Details", new { id });
         }
+
+        var distinctCaseIds = CaseIds.Distinct().ToList();
+        var linkedCaseCount = await _context.OutbreakCases
+            .Where(oc => oc.OutbreakId == id && oc.IsActive && distinctCaseIds.Contains(oc.CaseId))
+            .Select(oc => oc.CaseId)
+            .Distinct()
+            .CountAsync();
+
+        if (linkedCaseCount != distinctCaseIds.Count)
+        {
+            return NotFound();
+        }
+
+        CaseIds = distinctCaseIds;
 
         if (!TemplateId.HasValue)
         {
@@ -122,6 +171,20 @@ public class BulkActionsModel : PageModel
         }
 
         return RedirectToPage("Details", new { id });
+    }
+
+    private async Task<bool> CanCreateCaseTasksAsync()
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        return !string.IsNullOrWhiteSpace(userId) &&
+               await _permissionService.HasPermissionAsync(
+                   userId,
+                   PermissionModule.Case,
+                   PermissionAction.Edit) &&
+               await _permissionService.HasPermissionAsync(
+                   userId,
+                   PermissionModule.Task,
+                   PermissionAction.Create);
     }
 
     private async Task LoadTemplatesAsync()

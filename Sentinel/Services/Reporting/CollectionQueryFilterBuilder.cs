@@ -1,6 +1,10 @@
 using Sentinel.DTOs;
 using Sentinel.Data;
+using Sentinel.Models;
+using Sentinel.Models.Reporting;
 using Sentinel.Services.Reporting;
+using System.Globalization;
+using Microsoft.EntityFrameworkCore.Metadata;
 
 namespace Sentinel.Services.Reporting;
 
@@ -13,13 +17,47 @@ public class CollectionQueryFilterBuilder
 {
     private readonly ApplicationDbContext _context;
     private readonly IDynamicDateResolver _dynamicDateResolver;
+    private readonly IReportFieldMetadataService _fieldMetadataService;
 
     public CollectionQueryFilterBuilder(
         ApplicationDbContext context,
-        IDynamicDateResolver dynamicDateResolver)
+        IDynamicDateResolver dynamicDateResolver,
+        IReportFieldMetadataService fieldMetadataService)
     {
         _context = context;
         _dynamicDateResolver = dynamicDateResolver;
+        _fieldMetadataService = fieldMetadataService;
+    }
+
+    /// <summary>
+    /// Validates a persisted collection query against server-discovered metadata before
+    /// building the Dynamic LINQ clause. Report JSON must never choose a member path.
+    /// </summary>
+    public async Task<string?> BuildCollectionFilterClauseAsync(CollectionQueryDto query, string entityType)
+    {
+        if (query.DisplayAsColumn)
+        {
+            return null;
+        }
+
+        // Patient Cases/Contacts are calculated after extraction and have no queryable
+        // navigation property, so retain the existing post-processing behaviour.
+        if (entityType == "Patient" && (query.CollectionName == "Cases" || query.CollectionName == "Contacts"))
+        {
+            return null;
+        }
+
+        var fields = await _fieldMetadataService.GetFieldsForEntityAsync(entityType);
+        var collection = fields.FirstOrDefault(field =>
+            field.FieldPath == query.CollectionName && field.IsCollection && field.IsFilterable);
+
+        if (collection == null)
+        {
+            throw new ArgumentException($"Collection '{query.CollectionName}' is not available for {entityType} reports.");
+        }
+
+        ValidateCollectionQuery(query, collection);
+        return BuildCollectionFilterClause(query, entityType);
     }
 
     /// <summary>
@@ -28,7 +66,7 @@ public class CollectionQueryFilterBuilder
     /// <param name="query">Collection query definition</param>
     /// <param name="entityType">Entity type (Case, Patient, Outbreak)</param>
     /// <returns>Dynamic LINQ WHERE clause string or null if not applicable</returns>
-    public string? BuildCollectionFilterClause(CollectionQueryDto query, string entityType)
+    private string? BuildCollectionFilterClause(CollectionQueryDto query, string entityType)
     {
         // Only build filters for queries that are NOT displayed as columns
         if (query.DisplayAsColumn)
@@ -67,6 +105,183 @@ public class CollectionQueryFilterBuilder
             "Min" => BuildAggregateClause(query, entityType, "Min"),
             "Max" => BuildAggregateClause(query, entityType, "Max"),
             _ => null
+        };
+    }
+
+    private void ValidateCollectionQuery(CollectionQueryDto query, ReportFieldMetadata collection)
+    {
+        if (query.Operation is not ("HasAny" or "Count" or "Sum" or "Average" or "Min" or "Max"))
+        {
+            throw new ArgumentException($"Collection operation '{query.Operation}' is not supported.");
+        }
+
+        if (!string.IsNullOrEmpty(query.Comparator) && query.Comparator is not
+            ("Equals" or "NotEquals" or "GreaterThan" or "LessThan" or "GreaterThanOrEqual" or "LessThanOrEqual" or "IsNull" or "IsNotNull"))
+        {
+            throw new ArgumentException($"Collection comparator '{query.Comparator}' is not supported.");
+        }
+
+        var allowedFields = GetAllowedSubFields(collection, query.SubCollectionName);
+        if (allowedFields.Count == 0)
+        {
+            throw new ArgumentException($"Nested collection '{query.CollectionName}.{query.SubCollectionName}' is not supported.");
+        }
+
+        foreach (var subFilter in query.SubFilters ?? [])
+        {
+            if (!allowedFields.TryGetValue(subFilter.Field, out var metadata))
+            {
+                throw new ArgumentException($"Field '{subFilter.Field}' is not available in collection '{query.CollectionName}'.");
+            }
+
+            if (!IsSubFilterOperatorAllowed(metadata.DataType, subFilter.Operator))
+            {
+                throw new ArgumentException($"Operator '{subFilter.Operator}' is not allowed for '{subFilter.Field}'.");
+            }
+
+            ValidateSubFilterValue(subFilter, metadata.DataType);
+
+            // Do not trust type information stored in a report definition.
+            subFilter.DataType = metadata.DataType;
+        }
+
+        if (query.Operation is "Sum" or "Average" or "Min" or "Max")
+        {
+            if (string.IsNullOrEmpty(query.AggregateField) ||
+                !allowedFields.TryGetValue(query.AggregateField, out var aggregateMetadata) ||
+                !IsNumericType(aggregateMetadata.DataType))
+            {
+                throw new ArgumentException($"A numeric aggregate field is required for '{query.Operation}'.");
+            }
+        }
+    }
+
+    private IReadOnlyDictionary<string, CollectionSubFieldMetadata> GetAllowedSubFields(
+        ReportFieldMetadata collection,
+        string? subCollectionName)
+    {
+        IEnumerable<CollectionSubFieldMetadata> fields;
+
+        if (string.IsNullOrEmpty(subCollectionName))
+        {
+            fields = collection.CollectionSubFieldsMetadata ?? [];
+        }
+        else if (collection.FieldPath == "LabResults" && subCollectionName == "Markers")
+        {
+            fields = GetLabResultMarkerSubFields();
+        }
+        else
+        {
+            return new Dictionary<string, CollectionSubFieldMetadata>(StringComparer.Ordinal);
+        }
+
+        return fields.ToDictionary(field => field.FieldPath, StringComparer.Ordinal);
+    }
+
+    private IEnumerable<CollectionSubFieldMetadata> GetLabResultMarkerSubFields()
+    {
+        var markerType = _context.Model.FindEntityType(typeof(LabResultMarker));
+        if (markerType == null)
+        {
+            return [];
+        }
+
+        var fields = markerType.GetProperties()
+            .Where(property => !property.IsShadowProperty() && !property.IsPrimaryKey() && !property.IsForeignKey())
+            .Select(property => new CollectionSubFieldMetadata
+            {
+                FieldPath = property.Name,
+                Name = property.Name,
+                DataType = GetDataTypeName(property.ClrType)
+            })
+            .ToList();
+
+        foreach (var navigation in markerType.GetNavigations().Where(navigation => !navigation.IsCollection))
+        {
+            foreach (var property in navigation.TargetEntityType.GetProperties().Where(property =>
+                         property.Name is "Name" or "DisplayName" or "Code"))
+            {
+                fields.Add(new CollectionSubFieldMetadata
+                {
+                    FieldPath = $"{navigation.Name}.{property.Name}",
+                    Name = $"{navigation.Name} - {property.Name}",
+                    DataType = GetDataTypeName(property.ClrType)
+                });
+            }
+        }
+
+        return fields;
+    }
+
+    private static bool IsSubFilterOperatorAllowed(string dataType, string operation)
+    {
+        var normalizedType = dataType.ToLowerInvariant();
+        var allowed = normalizedType switch
+        {
+            "datetime" or "date" or "dateonly" => new[]
+            {
+                "Equals", "On", "NotEquals", "GreaterThan", "After", "LessThan", "Before",
+                "GreaterThanOrEqual", "LessThanOrEqual", "InLast", "InNext", "IsNull", "IsNotNull"
+            },
+            "int32" or "int64" or "decimal" or "double" or "float" or "number" => new[]
+            {
+                "Equals", "NotEquals", "GreaterThan", "LessThan", "GreaterThanOrEqual", "LessThanOrEqual",
+                "IsNull", "IsNotNull"
+            },
+            "boolean" or "bool" => new[] { "Equals", "NotEquals" },
+            _ => new[]
+            {
+                "Equals", "NotEquals", "Contains", "NotContains", "StartsWith", "EndsWith",
+                "IsNull", "IsNotNull", "IsEmpty", "IsNotEmpty"
+            }
+        };
+
+        return allowed.Contains(operation, StringComparer.Ordinal);
+    }
+
+    private static bool IsNumericType(string dataType) =>
+        dataType is "Int32" or "Int64" or "Decimal" or "Double" or "Float" or "Number";
+
+    private static void ValidateSubFilterValue(CollectionSubFilter subFilter, string dataType)
+    {
+        if (subFilter.Operator is "IsNull" or "IsNotNull" or "IsEmpty" or "IsNotEmpty" || subFilter.IsDynamicDate)
+        {
+            return;
+        }
+
+        if (IsNumericType(dataType) &&
+            !double.TryParse(subFilter.Value, NumberStyles.Float, CultureInfo.InvariantCulture, out _))
+        {
+            throw new ArgumentException($"Invalid numeric value for '{subFilter.Field}'.");
+        }
+
+        if (dataType is "Boolean" or "Bool" && !bool.TryParse(subFilter.Value, out _))
+        {
+            throw new ArgumentException($"Invalid boolean value for '{subFilter.Field}'.");
+        }
+
+        if (dataType is "DateTime" or "Date" or "DateOnly" &&
+            !DateTime.TryParse(subFilter.Value, CultureInfo.InvariantCulture, DateTimeStyles.AllowWhiteSpaces, out _))
+        {
+            throw new ArgumentException($"Invalid date value for '{subFilter.Field}'.");
+        }
+    }
+
+    private static string GetDataTypeName(Type type)
+    {
+        var underlyingType = Nullable.GetUnderlyingType(type) ?? type;
+        return underlyingType.Name switch
+        {
+            "Int32" => "Int32",
+            "Int64" => "Int64",
+            "Decimal" => "Decimal",
+            "Double" => "Double",
+            "Single" => "Float",
+            "Boolean" => "Boolean",
+            "DateTime" => "DateTime",
+            "DateOnly" => "DateOnly",
+            "String" => "String",
+            _ => underlyingType.Name
         };
     }
 
@@ -312,7 +527,7 @@ public class CollectionQueryFilterBuilder
         {
             "String" => BuildStringCondition(fieldAccess, subFilter.Operator, subFilter.Value),
             "DateTime" or "DateOnly" => BuildDateCondition(fieldAccess, subFilter.Operator, subFilter.Value),
-            "Int32" or "Double" or "Decimal" => BuildNumericCondition(fieldAccess, subFilter.Operator, subFilter.Value),
+            "Int32" or "Int64" or "Double" or "Float" or "Decimal" or "Number" => BuildNumericCondition(fieldAccess, subFilter.Operator, subFilter.Value),
             "Boolean" => BuildBooleanCondition(fieldAccess, subFilter.Operator, subFilter.Value),
             _ => null
         };
@@ -320,8 +535,9 @@ public class CollectionQueryFilterBuilder
 
     private string? BuildStringCondition(string fieldAccess, string op, string value)
     {
-        // Escape quotes in value
-        string escapedValue = value.Replace("\"", "\\\"");
+        // Backslashes must be escaped before quotes to preserve literal boundaries.
+        string escapedValue = value.Replace("\\", "\\\\", StringComparison.Ordinal)
+            .Replace("\"", "\\\"", StringComparison.Ordinal);
 
         return op switch
         {
@@ -341,7 +557,7 @@ public class CollectionQueryFilterBuilder
 
     private string? BuildDateCondition(string fieldAccess, string op, string value)
     {
-        if (!DateTime.TryParse(value, out var dateValue))
+        if (!DateTime.TryParse(value, CultureInfo.InvariantCulture, DateTimeStyles.AllowWhiteSpaces, out var dateValue))
         {
             return null;
         }
@@ -364,19 +580,19 @@ public class CollectionQueryFilterBuilder
 
     private string? BuildNumericCondition(string fieldAccess, string op, string value)
     {
-        if (!double.TryParse(value, out var numValue))
+        if (!double.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out var numValue))
         {
             return null;
         }
 
         return op switch
         {
-            "Equals" => $"{fieldAccess} == {numValue}",
-            "NotEquals" => $"{fieldAccess} != {numValue}",
-            "GreaterThan" => $"{fieldAccess} > {numValue}",
-            "LessThan" => $"{fieldAccess} < {numValue}",
-            "GreaterThanOrEqual" => $"{fieldAccess} >= {numValue}",
-            "LessThanOrEqual" => $"{fieldAccess} <= {numValue}",
+            "Equals" => $"{fieldAccess} == {numValue.ToString(CultureInfo.InvariantCulture)}",
+            "NotEquals" => $"{fieldAccess} != {numValue.ToString(CultureInfo.InvariantCulture)}",
+            "GreaterThan" => $"{fieldAccess} > {numValue.ToString(CultureInfo.InvariantCulture)}",
+            "LessThan" => $"{fieldAccess} < {numValue.ToString(CultureInfo.InvariantCulture)}",
+            "GreaterThanOrEqual" => $"{fieldAccess} >= {numValue.ToString(CultureInfo.InvariantCulture)}",
+            "LessThanOrEqual" => $"{fieldAccess} <= {numValue.ToString(CultureInfo.InvariantCulture)}",
             "IsNull" => $"{fieldAccess} == null",
             "IsNotNull" => $"{fieldAccess} != null",
             _ => null
@@ -392,8 +608,8 @@ public class CollectionQueryFilterBuilder
 
         return op switch
         {
-            "Equals" => $"{fieldAccess} == {boolValue.ToString().ToLower()}",
-            "NotEquals" => $"{fieldAccess} != {boolValue.ToString().ToLower()}",
+            "Equals" => $"{fieldAccess} == {boolValue.ToString().ToLowerInvariant()}",
+            "NotEquals" => $"{fieldAccess} != {boolValue.ToString().ToLowerInvariant()}",
             _ => null
         };
     }
@@ -497,12 +713,12 @@ public class CollectionQueryFilterBuilder
 
         return comparator switch
         {
-            "Equals" => $"{leftSide} == {value}",
-            "NotEquals" => $"{leftSide} != {value}",
-            "GreaterThan" => $"{leftSide} > {value}",
-            "LessThan" => $"{leftSide} < {value}",
-            "GreaterThanOrEqual" => $"{leftSide} >= {value}",
-            "LessThanOrEqual" => $"{leftSide} <= {value}",
+            "Equals" => $"{leftSide} == {value!.Value.ToString(CultureInfo.InvariantCulture)}",
+            "NotEquals" => $"{leftSide} != {value!.Value.ToString(CultureInfo.InvariantCulture)}",
+            "GreaterThan" => $"{leftSide} > {value!.Value.ToString(CultureInfo.InvariantCulture)}",
+            "LessThan" => $"{leftSide} < {value!.Value.ToString(CultureInfo.InvariantCulture)}",
+            "GreaterThanOrEqual" => $"{leftSide} >= {value!.Value.ToString(CultureInfo.InvariantCulture)}",
+            "LessThanOrEqual" => $"{leftSide} <= {value!.Value.ToString(CultureInfo.InvariantCulture)}",
             "IsNull" => $"{leftSide} == null",
             "IsNotNull" => $"{leftSide} != null",
             _ => "false"

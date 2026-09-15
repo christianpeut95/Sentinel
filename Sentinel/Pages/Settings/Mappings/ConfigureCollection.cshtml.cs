@@ -9,7 +9,7 @@ using Newtonsoft.Json;
 
 namespace Sentinel.Pages.Settings.Mappings;
 
-[Authorize]
+[Authorize(Policy = "Permission.Settings.Edit")]
 public class ConfigureCollectionModel : PageModel
 {
     private readonly ApplicationDbContext _context;
@@ -80,7 +80,7 @@ public class ConfigureCollectionModel : PageModel
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error loading collection mapping configuration");
-            ErrorMessage = $"Error loading configuration: {ex.Message}";
+            ErrorMessage = Sentinel.Services.UserFacingError.Create(HttpContext, ex);
         }
 
         return Page();
@@ -145,7 +145,7 @@ public class ConfigureCollectionModel : PageModel
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error saving collection mapping configuration");
-            ErrorMessage = $"Error saving configuration: {ex.Message}";
+            ErrorMessage = Sentinel.Services.UserFacingError.Create(HttpContext, ex);
             return Page();
         }
     }

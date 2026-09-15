@@ -14,15 +14,18 @@ namespace Sentinel.Controllers.Api;
 public class SurveyCompletionApiController : ControllerBase
 {
     private readonly ApplicationDbContext _context;
+    private readonly ICaseAccessService _caseAccessService;
     private readonly ISurveyService _surveyService;
     private readonly ILogger<SurveyCompletionApiController> _logger;
 
     public SurveyCompletionApiController(
         ApplicationDbContext context,
+        ICaseAccessService caseAccessService,
         ISurveyService surveyService,
         ILogger<SurveyCompletionApiController> logger)
     {
         _context = context;
+        _caseAccessService = caseAccessService;
         _surveyService = surveyService;
         _logger = logger;
     }
@@ -43,10 +46,24 @@ public class SurveyCompletionApiController : ControllerBase
                 return NotFound(new { success = false, error = "Task not found" });
             }
 
+            // Survey completion is collaborative, but remains case-scoped. The
+            // task ID must never allow a user to submit data for an inaccessible
+            // disease or case hierarchy.
+            if (!await _caseAccessService.CanAccessCaseAsync(task.CaseId))
+            {
+                _logger.LogWarning("Survey completion denied for inaccessible task {TaskId}", taskId);
+                return NotFound(new { success = false, error = "Task not found" });
+            }
+
+            if (task.Status == CaseTaskStatus.Completed)
+            {
+                _logger.LogWarning("Survey completion rejected because task {TaskId} is already completed", taskId);
+                return Conflict(new { success = false, error = "This task is already completed." });
+            }
+
             var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
 
             bool hasMappingError = false;
-            string? mappingErrorMessage = null;
 
             // Save survey response
             _logger.LogInformation("Saving survey response for task {TaskId}", taskId);
@@ -59,7 +76,6 @@ public class SurveyCompletionApiController : ControllerBase
             {
                 // Survey JSON was saved, but mapping failed - continue to mark task as completed
                 hasMappingError = true;
-                mappingErrorMessage = ex.Message;
                 _logger.LogWarning(ex, "Survey saved with mapping error for task {TaskId}, will mark task completed anyway", taskId);
             }
 

@@ -169,7 +169,7 @@ namespace Sentinel.Pages.Settings.HL7.DiseaseMatching
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"Save failed: {ex.Message}");
-                TempData["ErrorMessage"] = $"Failed to save configuration: {ex.Message}";
+                TempData["ErrorMessage"] = Sentinel.Services.UserFacingError.Create(HttpContext, ex);
                 return Page();
             }
         }

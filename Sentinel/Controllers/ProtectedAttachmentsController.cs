@@ -81,15 +81,11 @@ public sealed class ProtectedAttachmentsController : Controller
             return false;
         }
 
-        // A patient-only note remains available to a Patient.View user when the
-        // patient has no cases. If cases exist, at least one must be visible in
-        // the current disease-access scope before disclosing the attachment.
-        var hasAnyCases = await _context.Cases
-            .IgnoreQueryFilters()
-            .AnyAsync(c => c.PatientId == patientId, cancellationToken);
-
-        return !hasAnyCases || await _context.Cases
-            .AnyAsync(c => c.PatientId == patientId, cancellationToken);
+        // Resolve through the normal patient query filter so attachments use
+        // the same case-scoped and hierarchy-aware visibility policy as the
+        // patient pages and APIs.
+        return await _context.Patients
+            .AnyAsync(patient => patient.Id == patientId, cancellationToken);
     }
 
     private async Task<bool> HasPermissionAsync(PermissionModule module, PermissionAction action)

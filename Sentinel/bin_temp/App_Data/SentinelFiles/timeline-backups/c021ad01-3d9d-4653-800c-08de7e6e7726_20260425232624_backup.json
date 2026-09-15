@@ -1,0 +1,137 @@
+{
+  "caseId": "c021ad01-3d9d-4653-800c-08de7e6e7726",
+  "entries": [
+    {
+      "id": "entry_1777159458452_5gjcjfbsr",
+      "entryDate": "2026-04-26T00:00:00Z",
+      "narrativeText": "woke at 16 Leopold St, Vista SA 5091, Australia. Then went with \u002BMum to @Westfield Tea Tree Plaza @9:00 AM for 2 ",
+      "entities": [
+        {
+          "id": "entity_1777159494668_ta9a6iihr",
+          "entityType": 2,
+          "rawText": "16 Leopold St, Vista SA 5091, Australia",
+          "normalizedValue": "16 Leopold St, Vista SA 5091, Australia",
+          "startPosition": 8,
+          "endPosition": 47,
+          "confidence": 3,
+          "isConfirmed": true,
+          "linkedRecordType": null,
+          "linkedRecordId": null,
+          "linkedRecordDisplayName": null,
+          "suggestions": [],
+          "metadata": {
+            "placeId": "null",
+            "address": "16 Leopold St, Vista SA 5091, Australia",
+            "latitude": "-34.8366961",
+            "longitude": "138.7257467"
+          },
+          "notes": null
+        },
+        {
+          "id": "entity_1777159522420_dcslorytl",
+          "entityType": 1,
+          "rawText": "Mum",
+          "normalizedValue": "Mum",
+          "startPosition": 65,
+          "endPosition": 68,
+          "confidence": 2,
+          "isConfirmed": true,
+          "linkedRecordType": null,
+          "linkedRecordId": null,
+          "linkedRecordDisplayName": null,
+          "suggestions": [],
+          "metadata": {
+            "relationship": "Mother",
+            "phone": null,
+            "ageDob": null,
+            "notes": null
+          },
+          "notes": null
+        },
+        {
+          "id": "entity_1777159534737_d42io915m",
+          "entityType": 2,
+          "rawText": "Westfield Tea Tree Plaza",
+          "normalizedValue": "Westfield Tea Tree Plaza",
+          "startPosition": 73,
+          "endPosition": 97,
+          "confidence": 3,
+          "isConfirmed": true,
+          "linkedRecordType": null,
+          "linkedRecordId": null,
+          "linkedRecordDisplayName": null,
+          "suggestions": [],
+          "metadata": {
+            "placeId": "ChIJ8T7-3K61sGoRpg5TcRzJtBc",
+            "address": "976 North East Road, Modbury SA 5092, Australia",
+            "latitude": "-34.8312452",
+            "longitude": "138.692169"
+          },
+          "notes": null
+        },
+        {
+          "id": "entity_1777159544738_8o6nfnuk7",
+          "entityType": 5,
+          "rawText": "9:00 AM",
+          "normalizedValue": "9:00 AM",
+          "startPosition": 99,
+          "endPosition": 106,
+          "confidence": 2,
+          "isConfirmed": false,
+          "linkedRecordType": null,
+          "linkedRecordId": null,
+          "linkedRecordDisplayName": null,
+          "suggestions": [],
+          "metadata": {},
+          "notes": null
+        }
+      ],
+      "relationships": [
+        {
+          "id": "rel_1777159554407_thaxey4ty",
+          "primaryEntityId": "entity_1777159534737_d42io915m",
+          "relatedEntityId": "entity_1777159522420_dcslorytl",
+          "relationType": 1,
+          "timeEntityId": "entity_1777159544738_8o6nfnuk7",
+          "confidence": 2,
+          "isConfirmed": false,
+          "sourcePosition": 0,
+          "metadata": null,
+          "sequenceOrder": 0,
+          "notes": null
+        },
+        {
+          "id": "rel_1777159554407_cctfvn1u8",
+          "primaryEntityId": "entity_1777159534737_d42io915m",
+          "relatedEntityId": "entity_1777159544738_8o6nfnuk7",
+          "relationType": 5,
+          "timeEntityId": null,
+          "confidence": 2,
+          "isConfirmed": false,
+          "sourcePosition": 0,
+          "metadata": null,
+          "sequenceOrder": 0,
+          "notes": null
+        }
+      ],
+      "parsedAt": null,
+      "confidenceScore": null,
+      "isReviewed": false,
+      "uncertaintyMarkers": [],
+      "corrections": [],
+      "protectiveMeasures": [],
+      "isMemoryGap": false,
+      "memoryGapNotes": null
+    }
+  ],
+  "conventions": {},
+  "entityGroups": {},
+  "createdDate": "2026-04-25T23:25:54.709165Z",
+  "createdByUserId": "6964051a-a741-43ff-8b37-dfbd11ce666e",
+  "lastModified": "2026-04-25T23:25:54.7091772Z",
+  "lastModifiedByUserId": "6964051a-a741-43ff-8b37-dfbd11ce666e",
+  "isReviewed": false,
+  "reviewedAt": null,
+  "reviewedByUserId": null,
+  "version": 2
+}

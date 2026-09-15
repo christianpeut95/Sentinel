@@ -15,11 +15,16 @@ public class LinkCasesModel : PageModel
 {
     private readonly ApplicationDbContext _context;
     private readonly IOutbreakService _outbreakService;
+    private readonly IOutbreakAccessService _outbreakAccessService;
 
-    public LinkCasesModel(ApplicationDbContext context, IOutbreakService outbreakService)
+    public LinkCasesModel(
+        ApplicationDbContext context,
+        IOutbreakService outbreakService,
+        IOutbreakAccessService outbreakAccessService)
     {
         _context = context;
         _outbreakService = outbreakService;
+        _outbreakAccessService = outbreakAccessService;
     }
 
     public Outbreak Outbreak { get; set; } = null!;
@@ -43,6 +48,11 @@ public class LinkCasesModel : PageModel
 
     public async Task<IActionResult> OnGetAsync(int id, int? queryId = null)
     {
+        if (!await _outbreakAccessService.CanAccessOutbreakAsync(id))
+        {
+            return NotFound();
+        }
+
         var outbreak = await _outbreakService.GetByIdAsync(id);
         if (outbreak == null)
         {
@@ -68,6 +78,11 @@ public class LinkCasesModel : PageModel
 
     public async Task<IActionResult> OnPostSearchAsync(int id)
     {
+        if (!await _outbreakAccessService.CanAccessOutbreakAsync(id))
+        {
+            return NotFound();
+        }
+
         var outbreak = await _outbreakService.GetByIdAsync(id);
         if (outbreak == null)
         {
@@ -84,6 +99,11 @@ public class LinkCasesModel : PageModel
 
     public async Task<IActionResult> OnPostSaveQueryAsync(int id)
     {
+        if (!await _outbreakAccessService.CanAccessOutbreakAsync(id))
+        {
+            return NotFound();
+        }
+
         if (string.IsNullOrWhiteSpace(SavedQueryName))
         {
             ErrorMessage = "Please provide a name for the search query.";
@@ -109,16 +129,33 @@ public class LinkCasesModel : PageModel
 
     public async Task<IActionResult> OnPostLinkCasesAsync(int id, List<Guid> selectedCaseIds, CaseClassification? classification)
     {
+        if (!await _outbreakAccessService.CanAccessOutbreakAsync(id))
+        {
+            return NotFound();
+        }
+
         if (!selectedCaseIds.Any())
         {
             ErrorMessage = "Please select at least one case or contact to link.";
             return RedirectToPage(new { id });
         }
 
+        var distinctCaseIds = selectedCaseIds.Distinct().ToList();
+        var accessibleCaseCount = await _context.Cases
+            .Where(c => distinctCaseIds.Contains(c.Id))
+            .Select(c => c.Id)
+            .Distinct()
+            .CountAsync();
+
+        if (accessibleCaseCount != distinctCaseIds.Count)
+        {
+            return NotFound();
+        }
+
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? string.Empty;
         var linkedCount = 0;
 
-        foreach (var caseId in selectedCaseIds)
+        foreach (var caseId in distinctCaseIds)
         {
             try
             {

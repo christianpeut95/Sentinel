@@ -120,7 +120,7 @@ namespace Sentinel.Pages.Settings.Diseases
             }
             catch (Exception ex)
             {
-                TempData["ErrorMessage"] = $"An error occurred: {ex.Message}";
+                TempData["ErrorMessage"] = Sentinel.Services.UserFacingError.Create(HttpContext, ex);
                 await LoadDropdowns();
                 await LoadSymptoms();
                 await LoadCustomFields();
@@ -374,7 +374,7 @@ namespace Sentinel.Pages.Settings.Diseases
                 .Select(d => new
                 {
                     d.Id,
-                    DisplayName = new string('—', d.Level) + " " + d.Name
+                    DisplayName = new string('ï¿½', d.Level) + " " + d.Name
                 })
                 .ToListAsync();
 

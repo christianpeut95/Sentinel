@@ -9,7 +9,7 @@ using Sentinel.Data;
 
 namespace Sentinel.Pages.Api
 {
-    [Authorize]
+    [Authorize(Policy = "Permission.ReferenceData.View")]
     [EnableRateLimiting("lookup-api")] // 200 per minute - search-as-you-type for dropdowns
     public class OccupationSearchModel : PageModel
     {

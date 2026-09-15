@@ -294,7 +294,26 @@
                 
             // Output JSON directly as JavaScript objects (not strings)
             const surveyJson = JSON.parse(@Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.SurveyDefinitionJson ?? "{}")));
-            const prePopulatedData = JSON.parse(@Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.PrePopulatedDataJson ?? "{}")));            // Validate we have valid objects
+            const prePopulatedData = JSON.parse(@Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.PrePopulatedDataJson ?? "{}")));
+            const antiForgeryToken = document.querySelector('input[name="__RequestVerificationToken"]')?.value;
+
+            async function markSurveyInProgress() {
+                if (!antiForgeryToken) {
+                    console.warn('Unable to mark survey in progress: missing anti-forgery token.');
+                    return;
+                }
+
+                const response = await fetch(`/Tasks/CompleteSurvey/${encodeURIComponent(taskId)}?handler=Start`, {
+                    method: 'POST',
+                    headers: { 'RequestVerificationToken': antiForgeryToken }
+                });
+
+                if (!response.ok) {
+                    console.warn(`Unable to mark survey in progress (${response.status}).`);
+                }
+            }
+
+            // Validate we have valid objects
             if (!surveyJson || typeof surveyJson !== 'object') {                alert('Error loading survey definition. Please contact support.');
                 return;
             }
@@ -386,6 +405,7 @@
                 }
                 
                 survey.render(container);
+                void markSurveyInProgress();
                 
                 // NOW set pre-populated data AFTER rendering
                 // This preserves any values set by defaultValueExpression that aren't in prePopulatedData
@@ -433,7 +453,8 @@
                         const response = await fetch(`/api/surveys/complete/${taskId}`, {
                             method: 'POST',
                             headers: {
-                                'Content-Type': 'application/json'
+                                'Content-Type': 'application/json',
+                                'RequestVerificationToken': antiForgeryToken || ''
                             },
                             body: JSON.stringify(survey.data)
                         });

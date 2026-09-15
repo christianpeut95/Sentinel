@@ -1,6 +1,8 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
+using Microsoft.EntityFrameworkCore;
+using Sentinel.Data;
 using Sentinel.Models;
 using Sentinel.Services;
 using System.Security.Claims;
@@ -11,11 +13,19 @@ namespace Sentinel.Pages.Dashboard;
 public class InterviewQueueModel : PageModel
 {
     private readonly ITaskAssignmentService _assignmentService;
+    private readonly ApplicationDbContext _context;
+    private readonly IPermissionService _permissionService;
     private readonly ILogger<InterviewQueueModel> _logger;
 
-    public InterviewQueueModel(ITaskAssignmentService assignmentService, ILogger<InterviewQueueModel> logger)
+    public InterviewQueueModel(
+        ITaskAssignmentService assignmentService,
+        ApplicationDbContext context,
+        IPermissionService permissionService,
+        ILogger<InterviewQueueModel> logger)
     {
         _assignmentService = assignmentService;
+        _context = context;
+        _permissionService = permissionService;
         _logger = logger;
     }
 
@@ -52,6 +62,11 @@ public class InterviewQueueModel : PageModel
 
     public async Task<IActionResult> OnPostGetNextTaskAsync()
     {
+        if (!await CanEditTasksAsync())
+        {
+            return Forbid();
+        }
+
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
         var task = await _assignmentService.AssignNextTaskAsync(userId);
 
@@ -69,6 +84,11 @@ public class InterviewQueueModel : PageModel
 
     public async Task<IActionResult> OnPostLogCallAttemptAsync(Guid taskId, CallOutcome outcome, string? notes)
     {
+        if (!await CanEditAssignedTaskAsync(taskId))
+        {
+            return Forbid();
+        }
+
         try
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
@@ -130,5 +150,29 @@ public class InterviewQueueModel : PageModel
         }
 
         return RedirectToPage();
+    }
+
+    private async Task<bool> CanEditTasksAsync()
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        return !string.IsNullOrWhiteSpace(userId) &&
+               await _permissionService.HasPermissionAsync(
+                   userId,
+                   PermissionModule.Task,
+                   PermissionAction.Edit);
+    }
+
+    private async Task<bool> CanEditAssignedTaskAsync(Guid taskId)
+    {
+        if (!await CanEditTasksAsync())
+        {
+            return false;
+        }
+
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        return !string.IsNullOrWhiteSpace(userId) &&
+               await _context.CaseTasks
+                   .AsNoTracking()
+                   .AnyAsync(task => task.Id == taskId && task.AssignedToUserId == userId);
     }
 }

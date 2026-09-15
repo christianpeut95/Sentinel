@@ -6,6 +6,7 @@ using Sentinel.Data;
 using Sentinel.Models;
 using Sentinel.Models.Lookups;
 using Sentinel.Services;
+using System.Security.Claims;
 
 namespace Sentinel.Pages.Locations
 {
@@ -14,11 +15,16 @@ namespace Sentinel.Pages.Locations
     {
         private readonly ApplicationDbContext _context;
         private readonly IGeocodingService _geocodingService;
+        private readonly IPermissionService _permissionService;
 
-        public IndexModel(ApplicationDbContext context, IGeocodingService geocodingService)
+        public IndexModel(
+            ApplicationDbContext context,
+            IGeocodingService geocodingService,
+            IPermissionService permissionService)
         {
             _context = context;
             _geocodingService = geocodingService;
+            _permissionService = permissionService;
         }
 
         public IList<Location> Locations { get; set; } = default!;
@@ -125,6 +131,11 @@ namespace Sentinel.Pages.Locations
 
         public async Task<IActionResult> OnPostDeleteAsync(Guid id)
         {
+            if (!await HasPermissionAsync(PermissionAction.Delete))
+            {
+                return Forbid();
+            }
+
             var location = await _context.Locations
                 .Include(l => l.Events)
                 .Include(l => l.ExposureEvents)
@@ -158,7 +169,7 @@ namespace Sentinel.Pages.Locations
             }
             catch (Exception ex)
             {
-                TempData["ErrorMessage"] = $"An error occurred while deleting the location: {ex.Message}";
+                TempData["ErrorMessage"] = Sentinel.Services.UserFacingError.Create(HttpContext, ex);
             }
 
             return RedirectToPage();
@@ -166,6 +177,11 @@ namespace Sentinel.Pages.Locations
 
         public async Task<IActionResult> OnPostGeocodeAllAsync()
         {
+            if (!await HasPermissionAsync(PermissionAction.Edit))
+            {
+                return Forbid();
+            }
+
             var pendingLocations = await _context.Locations
                 .Where(l => l.IsActive && 
                     !string.IsNullOrEmpty(l.Address) && 
@@ -206,6 +222,13 @@ namespace Sentinel.Pages.Locations
 
             TempData["SuccessMessage"] = $"Geocoding completed: {successCount} successful, {failCount} failed.";
             return RedirectToPage();
+        }
+
+        private async Task<bool> HasPermissionAsync(PermissionAction action)
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            return !string.IsNullOrWhiteSpace(userId) &&
+                   await _permissionService.HasPermissionAsync(userId, PermissionModule.Location, action);
         }
     }
 }

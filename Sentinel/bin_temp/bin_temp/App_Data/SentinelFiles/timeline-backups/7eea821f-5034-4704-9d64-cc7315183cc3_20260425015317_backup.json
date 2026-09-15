@@ -1,0 +1,126 @@
+{
+  "caseId": "7eea821f-5034-4704-9d64-cc7315183cc3",
+  "entries": [
+    {
+      "id": "entry_1777081298347_g8ksfq7ug",
+      "entryDate": "2026-04-25T00:00:00Z",
+      "narrativeText": "Jack ",
+      "entities": [
+        {
+          "id": "entity_1777081316730_svd5q8n7m",
+          "entityType": 1,
+          "rawText": "Jack",
+          "normalizedValue": "Jack",
+          "startPosition": 0,
+          "endPosition": 4,
+          "confidence": 2,
+          "isConfirmed": false,
+          "linkedRecordType": null,
+          "linkedRecordId": null,
+          "linkedRecordDisplayName": null,
+          "suggestions": [],
+          "metadata": {
+            "relationship": "Friend",
+            "phone": "1237890",
+            "ageDob": "15 years",
+            "notes": "test notes"
+          },
+          "notes": null
+        }
+      ],
+      "relationships": [],
+      "parsedAt": null,
+      "confidenceScore": null,
+      "isReviewed": false,
+      "uncertaintyMarkers": [],
+      "corrections": [],
+      "protectiveMeasures": [],
+      "isMemoryGap": false,
+      "memoryGapNotes": null
+    },
+    {
+      "id": "entry_1777081320203_xy09b80fz",
+      "entryDate": "2026-04-25T00:00:00Z",
+      "narrativeText": "Bash",
+      "entities": [
+        {
+          "id": "entity_1777081335033_u2ojbmhok",
+          "entityType": 1,
+          "rawText": "Bash",
+          "normalizedValue": "Bash",
+          "startPosition": 0,
+          "endPosition": 4,
+          "confidence": 2,
+          "isConfirmed": false,
+          "linkedRecordType": null,
+          "linkedRecordId": null,
+          "linkedRecordDisplayName": null,
+          "suggestions": [],
+          "metadata": {
+            "relationship": "Father",
+            "phone": "67890",
+            "ageDob": "36",
+            "notes": "M"
+          },
+          "notes": null
+        }
+      ],
+      "relationships": [],
+      "parsedAt": null,
+      "confidenceScore": null,
+      "isReviewed": false,
+      "uncertaintyMarkers": [],
+      "corrections": [],
+      "protectiveMeasures": [],
+      "isMemoryGap": false,
+      "memoryGapNotes": null
+    },
+    {
+      "id": "entry_1777081649285_mu75b6oxj",
+      "entryDate": "2026-04-25T00:00:00Z",
+      "narrativeText": "went with Sophie",
+      "entities": [
+        {
+          "id": "entity_1777081664464_xljuwfdn2",
+          "entityType": 1,
+          "rawText": "Sophie",
+          "normalizedValue": "Sophie",
+          "startPosition": 10,
+          "endPosition": 16,
+          "confidence": 2,
+          "isConfirmed": false,
+          "linkedRecordType": null,
+          "linkedRecordId": null,
+          "linkedRecordDisplayName": null,
+          "suggestions": [],
+          "metadata": {
+            "relationship": "Mother",
+            "phone": "4567890",
+            "ageDob": "35 years",
+            "notes": null
+          },
+          "notes": null
+        }
+      ],
+      "relationships": [],
+      "parsedAt": null,
+      "confidenceScore": null,
+      "isReviewed": false,
+      "uncertaintyMarkers": [],
+      "corrections": [],
+      "protectiveMeasures": [],
+      "isMemoryGap": false,
+      "memoryGapNotes": null
+    }
+  ],
+  "conventions": {},
+  "entityGroups": {},
+  "createdDate": "2026-04-25T01:47:47.0160481Z",
+  "createdByUserId": "6964051a-a741-43ff-8b37-dfbd11ce666e",
+  "lastModified": "2026-04-25T01:47:47.0160638Z",
+  "lastModifiedByUserId": "6964051a-a741-43ff-8b37-dfbd11ce666e",
+  "isReviewed": false,
+  "reviewedAt": null,
+  "reviewedByUserId": null,
+  "version": 2
+}

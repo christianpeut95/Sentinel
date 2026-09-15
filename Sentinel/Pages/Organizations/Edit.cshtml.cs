@@ -122,7 +122,7 @@ namespace Sentinel.Pages.Organizations
             }
             catch (Exception ex)
             {
-                TempData["ErrorMessage"] = $"An error occurred while saving: {ex.Message}";
+                TempData["ErrorMessage"] = Sentinel.Services.UserFacingError.Create(HttpContext, ex);
                 
                 ViewData["OrganizationTypeId"] = new SelectList(
                     await _context.OrganizationTypes

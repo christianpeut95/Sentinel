@@ -7,14 +7,17 @@ using Sentinel.Services;
 
 namespace Sentinel.Pages.Outbreaks;
 
-[Authorize]
+[Authorize(Policy = "Permission.Outbreak.View")]
+[Authorize(Policy = "Permission.Task.View")]
 public class TasksModel : PageModel
 {
     private readonly IOutbreakService _outbreakService;
+    private readonly IOutbreakAccessService _outbreakAccessService;
 
-    public TasksModel(IOutbreakService outbreakService)
+    public TasksModel(IOutbreakService outbreakService, IOutbreakAccessService outbreakAccessService)
     {
         _outbreakService = outbreakService;
+        _outbreakAccessService = outbreakAccessService;
     }
 
     [BindProperty(SupportsGet = true)]
@@ -44,6 +47,11 @@ public class TasksModel : PageModel
 
     public async Task<IActionResult> OnGetAsync()
     {
+        if (!await _outbreakAccessService.CanAccessOutbreakAsync(Id))
+        {
+            return NotFound();
+        }
+
         // Load outbreak
         Outbreak = await _outbreakService.GetByIdAsync(Id);
         if (Outbreak == null)

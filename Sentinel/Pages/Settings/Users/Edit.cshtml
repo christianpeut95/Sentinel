@@ -187,37 +187,40 @@
                             </div>
 
                             <!-- Roles -->
-                            <div class="col-12">
-                                <label class="form-label">
-                                    <i class="bi bi-shield-check me-1"></i>Assigned Roles
-                                </label>
-                                <div class="card">
-                                    <div class="card-body">
-                                        @if (Model.AllRoles.Any())
-                                        {
-                                            <div class="row g-2">
-                                                @foreach (var role in Model.AllRoles)
-                                                {
-                                                    var isChecked = Model.Input.SelectedRoles.Contains(role);
-                                                    <div class="col-md-4">
-                                                        <div class="form-check">
-                                                            <input class="form-check-input" type="checkbox" name="Input.SelectedRoles" 
-                                                                   value="@role" id="role_@role" checked="@isChecked" />
-                                                            <label class="form-check-label" for="role_@role">
-                                                                @role
-                                                            </label>
+                            @if (Model.CanManageRoles)
+                            {
+                                <div class="col-12">
+                                    <label class="form-label">
+                                        <i class="bi bi-shield-check me-1"></i>Assigned Roles
+                                    </label>
+                                    <div class="card">
+                                        <div class="card-body">
+                                            @if (Model.AllRoles.Any())
+                                            {
+                                                <div class="row g-2">
+                                                    @foreach (var role in Model.AllRoles)
+                                                    {
+                                                        var isChecked = Model.Input.SelectedRoles.Contains(role);
+                                                        <div class="col-md-4">
+                                                            <div class="form-check">
+                                                                <input class="form-check-input" type="checkbox" name="Input.SelectedRoles" 
+                                                                       value="@role" id="role_@role" checked="@isChecked" />
+                                                                <label class="form-check-label" for="role_@role">
+                                                                    @role
+                                                                </label>
+                                                            </div>
                                                         </div>
-                                                    </div>
-                                                }
-                                            </div>
-                                        }
-                                        else
-                                        {
-                                            <p class="text-muted mb-0">No roles available.</p>
-                                        }
+                                                    }
+                                                </div>
+                                            }
+                                            else
+                                            {
+                                                <p class="text-muted mb-0">No roles available.</p>
+                                            }
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
+                            }
 
                             <!-- Password Reset Section -->
                             <div class="col-12">

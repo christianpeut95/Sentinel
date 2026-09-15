@@ -14,11 +14,13 @@ public class ManageTeamModel : PageModel
 {
     private readonly ApplicationDbContext _context;
     private readonly IOutbreakService _outbreakService;
+    private readonly IOutbreakAccessService _outbreakAccessService;
 
-    public ManageTeamModel(ApplicationDbContext context, IOutbreakService outbreakService)
+    public ManageTeamModel(ApplicationDbContext context, IOutbreakService outbreakService, IOutbreakAccessService outbreakAccessService)
     {
         _context = context;
         _outbreakService = outbreakService;
+        _outbreakAccessService = outbreakAccessService;
     }
 
     public Outbreak Outbreak { get; set; } = null!;
@@ -39,6 +41,11 @@ public class ManageTeamModel : PageModel
 
     public async Task<IActionResult> OnGetAsync(int id)
     {
+        if (!await _outbreakAccessService.CanAccessOutbreakAsync(id))
+        {
+            return NotFound();
+        }
+
         var outbreak = await _outbreakService.GetByIdAsync(id);
         if (outbreak == null)
         {
@@ -60,6 +67,11 @@ public class ManageTeamModel : PageModel
 
     public async Task<IActionResult> OnPostAddMemberAsync(int id)
     {
+        if (!await _outbreakAccessService.CanAccessOutbreakAsync(id))
+        {
+            return NotFound();
+        }
+
         if (string.IsNullOrEmpty(SelectedUserId))
         {
             ErrorMessage = "Please select a user to add.";
@@ -84,7 +96,13 @@ public class ManageTeamModel : PageModel
 
     public async Task<IActionResult> OnPostRemoveMemberAsync(int id, int memberId)
     {
-        var member = await _context.OutbreakTeamMembers.FindAsync(memberId);
+        if (!await _outbreakAccessService.CanAccessOutbreakAsync(id))
+        {
+            return NotFound();
+        }
+
+        var member = await _context.OutbreakTeamMembers
+            .FirstOrDefaultAsync(member => member.Id == memberId && member.OutbreakId == id);
         if (member == null)
         {
             ErrorMessage = "Team member not found.";

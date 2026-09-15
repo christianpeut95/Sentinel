@@ -83,16 +83,46 @@ public class OutbreakService : IOutbreakService
 
     public async Task<bool> UpdateAsync(Outbreak outbreak, string userId)
     {
-        outbreak.ModifiedDate = DateTime.UtcNow;
-        outbreak.ModifiedBy = userId;
+        // Always load the tracked, visible record first.  Attaching a request-bound
+        // Outbreak directly would allow an arbitrary ID and audit/navigation fields
+        // to be overwritten without proving that the caller can access it.
+        var existing = await _context.Outbreaks
+            .FirstOrDefaultAsync(o => o.Id == outbreak.Id && !o.IsDeleted);
 
-        _context.Outbreaks.Update(outbreak);
+        if (existing is null)
+        {
+            return false;
+        }
+
+        // Do not let a tampered edit request move a visible outbreak beneath a
+        // disease hierarchy that is not visible to the current user.
+        if (outbreak.PrimaryDiseaseId.HasValue &&
+            !await _context.Diseases.AnyAsync(d => d.Id == outbreak.PrimaryDiseaseId.Value))
+        {
+            return false;
+        }
+
+        // Copy only the fields exposed by the outbreak edit form.
+        existing.Name = outbreak.Name;
+        existing.Description = outbreak.Description;
+        existing.Status = outbreak.Status;
+        existing.ConfirmationStatusId = outbreak.ConfirmationStatusId;
+        existing.StartDate = outbreak.StartDate;
+        existing.EndDate = outbreak.EndDate;
+        existing.PrimaryDiseaseId = outbreak.PrimaryDiseaseId;
+        existing.PrimaryLocationId = outbreak.PrimaryLocationId;
+        existing.PrimaryEventId = outbreak.PrimaryEventId;
+        existing.LeadInvestigatorId = outbreak.LeadInvestigatorId;
+        existing.ModifiedDate = DateTime.UtcNow;
+        existing.ModifiedBy = userId;
+
         return await _context.SaveChangesAsync() > 0;
     }
 
     public async Task<bool> DeleteAsync(int id, string userId)
     {
-        var outbreak = await _context.Outbreaks.FindAsync(id);
+        var outbreak = await _context.Outbreaks
+            .FirstOrDefaultAsync(o => o.Id == id && !o.IsDeleted);
         if (outbreak == null) return false;
 
         outbreak.IsDeleted = true;
@@ -136,7 +166,8 @@ public class OutbreakService : IOutbreakService
 
     public async Task<Outbreak> CreateChildOutbreakAsync(int parentId, Outbreak childOutbreak, string userId)
     {
-        var parentOutbreak = await _context.Outbreaks.FindAsync(parentId);
+        var parentOutbreak = await _context.Outbreaks
+            .FirstOrDefaultAsync(o => o.Id == parentId && !o.IsDeleted);
         if (parentOutbreak == null)
             throw new InvalidOperationException("Parent outbreak not found");
 
@@ -641,7 +672,8 @@ public class OutbreakService : IOutbreakService
 
     public async Task<OutbreakStatistics> GetStatisticsAsync(int outbreakId)
     {
-        var outbreak = await _context.Outbreaks.FindAsync(outbreakId);
+        var outbreak = await _context.Outbreaks
+            .FirstOrDefaultAsync(o => o.Id == outbreakId && !o.IsDeleted);
         var cases = await GetOutbreakCasesAsync(outbreakId);
         var contacts = await GetOutbreakContactsAsync(outbreakId);
         var teamMembers = await GetTeamMembersAsync(outbreakId);

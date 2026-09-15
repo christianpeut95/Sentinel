@@ -16,11 +16,16 @@ public class CreateChildModel : PageModel
 {
     private readonly ApplicationDbContext _context;
     private readonly IOutbreakService _outbreakService;
+    private readonly IOutbreakAccessService _outbreakAccessService;
 
-    public CreateChildModel(ApplicationDbContext context, IOutbreakService outbreakService)
+    public CreateChildModel(
+        ApplicationDbContext context,
+        IOutbreakService outbreakService,
+        IOutbreakAccessService outbreakAccessService)
     {
         _context = context;
         _outbreakService = outbreakService;
+        _outbreakAccessService = outbreakAccessService;
     }
 
     [BindProperty(SupportsGet = true)]
@@ -67,6 +72,11 @@ public class CreateChildModel : PageModel
 
     public async Task<IActionResult> OnGetAsync()
     {
+        if (!await _outbreakAccessService.CanAccessOutbreakAsync(ParentId))
+        {
+            return NotFound();
+        }
+
         ParentOutbreak = await _outbreakService.GetByIdAsync(ParentId);
         if (ParentOutbreak == null)
             return NotFound();
@@ -81,6 +91,11 @@ public class CreateChildModel : PageModel
 
     public async Task<IActionResult> OnPostAsync()
     {
+        if (!await _outbreakAccessService.CanAccessOutbreakAsync(ParentId))
+        {
+            return NotFound();
+        }
+
         ParentOutbreak = await _outbreakService.GetByIdAsync(ParentId);
         if (ParentOutbreak == null)
             return NotFound();
@@ -116,7 +131,7 @@ public class CreateChildModel : PageModel
         }
         catch (Exception ex)
         {
-            ErrorMessage = $"Error creating sub-investigation: {ex.Message}";
+            ErrorMessage = Sentinel.Services.UserFacingError.Create(HttpContext, ex);
             await LoadSelectListsAsync();
             return Page();
         }

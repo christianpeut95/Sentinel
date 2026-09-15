@@ -56,7 +56,7 @@ namespace Sentinel.Pages.Settings.DiseaseAccess
             if (diseaseId.HasValue)
             {
                 SelectedDiseaseId = diseaseId;
-                SelectedDisease = await _context.Diseases
+                SelectedDisease = await _context.Diseases.IgnoreQueryFilters()
                     .Include(d => d.DiseaseCategory)
                     .Include(d => d.SubDiseases)
                     .FirstOrDefaultAsync(d => d.Id == diseaseId);
@@ -92,7 +92,8 @@ namespace Sentinel.Pages.Settings.DiseaseAccess
                 return RedirectToPage(new { diseaseId = SelectedDiseaseId });
             }
 
-            var disease = await _context.Diseases.FindAsync(SelectedDiseaseId.Value);
+            var disease = await _context.Diseases.IgnoreQueryFilters()
+                .FirstOrDefaultAsync(d => d.Id == SelectedDiseaseId.Value);
             if (disease == null)
             {
                 TempData["ErrorMessage"] = "Disease not found.";
@@ -131,7 +132,7 @@ namespace Sentinel.Pages.Settings.DiseaseAccess
             }
             catch (Exception ex)
             {
-                TempData["ErrorMessage"] = $"Error granting access: {ex.Message}";
+                TempData["ErrorMessage"] = Sentinel.Services.UserFacingError.Create(HttpContext, ex);
             }
 
             return RedirectToPage(new { diseaseId = SelectedDiseaseId });
@@ -145,7 +146,8 @@ namespace Sentinel.Pages.Settings.DiseaseAccess
                 return RedirectToPage(new { diseaseId = SelectedDiseaseId });
             }
 
-            var disease = await _context.Diseases.FindAsync(SelectedDiseaseId.Value);
+            var disease = await _context.Diseases.IgnoreQueryFilters()
+                .FirstOrDefaultAsync(d => d.Id == SelectedDiseaseId.Value);
             var user = await _userManager.FindByIdAsync(userId);
 
             try
@@ -159,7 +161,7 @@ namespace Sentinel.Pages.Settings.DiseaseAccess
             }
             catch (Exception ex)
             {
-                TempData["ErrorMessage"] = $"Error revoking access: {ex.Message}";
+                TempData["ErrorMessage"] = Sentinel.Services.UserFacingError.Create(HttpContext, ex);
             }
 
             return RedirectToPage(new { diseaseId = SelectedDiseaseId });
@@ -167,7 +169,7 @@ namespace Sentinel.Pages.Settings.DiseaseAccess
 
         private async Task LoadData()
         {
-            var allDiseases = await _context.Diseases
+            var allDiseases = await _context.Diseases.IgnoreQueryFilters()
                 .Include(d => d.DiseaseCategory)
                 .Include(d => d.SubDiseases)
                 .Where(d => d.IsActive)

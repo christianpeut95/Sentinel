@@ -14,11 +14,16 @@ public class CaseDefinitionsModel : PageModel
 {
     private readonly ApplicationDbContext _context;
     private readonly IOutbreakService _outbreakService;
+    private readonly IOutbreakAccessService _outbreakAccessService;
 
-    public CaseDefinitionsModel(ApplicationDbContext context, IOutbreakService outbreakService)
+    public CaseDefinitionsModel(
+        ApplicationDbContext context,
+        IOutbreakService outbreakService,
+        IOutbreakAccessService outbreakAccessService)
     {
         _context = context;
         _outbreakService = outbreakService;
+        _outbreakAccessService = outbreakAccessService;
     }
 
     public Outbreak Outbreak { get; set; } = null!;
@@ -44,6 +49,11 @@ public class CaseDefinitionsModel : PageModel
 
     public async Task<IActionResult> OnGetAsync(int id)
     {
+        if (!await _outbreakAccessService.CanAccessOutbreakAsync(id))
+        {
+            return NotFound();
+        }
+
         var outbreak = await _outbreakService.GetByIdAsync(id);
         if (outbreak == null)
         {
@@ -58,6 +68,11 @@ public class CaseDefinitionsModel : PageModel
 
     public async Task<IActionResult> OnPostSaveDefinitionAsync(int id)
     {
+        if (!await _outbreakAccessService.CanAccessOutbreakAsync(id))
+        {
+            return NotFound();
+        }
+
         var outbreak = await _outbreakService.GetByIdAsync(id);
         if (outbreak == null)
         {
@@ -69,27 +84,30 @@ public class CaseDefinitionsModel : PageModel
         // Check if updating existing or creating new
         if (EditingDefinitionId > 0)
         {
-            var existing = await _context.OutbreakCaseDefinitions.FindAsync(EditingDefinitionId);
-            if (existing != null)
+            var existing = await _context.OutbreakCaseDefinitions
+                .FirstOrDefaultAsync(d => d.Id == EditingDefinitionId && d.OutbreakId == id);
+            if (existing == null)
             {
-                existing.DefinitionName = Definition.DefinitionName;
-                existing.DefinitionText = Definition.DefinitionText;
-                existing.CriteriaJson = string.IsNullOrWhiteSpace(Definition.CriteriaJson) ? "{}" : Definition.CriteriaJson;
-                existing.Notes = Definition.Notes;
-                
-                await _context.SaveChangesAsync();
-                
-                await _outbreakService.AddTimelineEventAsync(new OutbreakTimeline
-                {
-                    OutbreakId = id,
-                    EventDate = DateTime.UtcNow,
-                    Title = "Case Definition Updated",
-                    Description = $"{existing.Classification} definition updated: {existing.DefinitionName}",
-                    EventType = TimelineEventType.DefinitionUpdated
-                }, userId);
-                
-                SuccessMessage = "Case definition updated successfully.";
+                return NotFound();
             }
+
+            existing.DefinitionName = Definition.DefinitionName;
+            existing.DefinitionText = Definition.DefinitionText;
+            existing.CriteriaJson = string.IsNullOrWhiteSpace(Definition.CriteriaJson) ? "{}" : Definition.CriteriaJson;
+            existing.Notes = Definition.Notes;
+                
+            await _context.SaveChangesAsync();
+                
+            await _outbreakService.AddTimelineEventAsync(new OutbreakTimeline
+            {
+                OutbreakId = id,
+                EventDate = DateTime.UtcNow,
+                Title = "Case Definition Updated",
+                Description = $"{existing.Classification} definition updated: {existing.DefinitionName}",
+                EventType = TimelineEventType.DefinitionUpdated
+            }, userId);
+                
+            SuccessMessage = "Case definition updated successfully.";
         }
         else
         {
@@ -143,11 +161,16 @@ public class CaseDefinitionsModel : PageModel
 
     public async Task<IActionResult> OnPostActivateDefinitionAsync(int id, int definitionId)
     {
-        var definition = await _context.OutbreakCaseDefinitions.FindAsync(definitionId);
-        if (definition == null || definition.OutbreakId != id)
+        if (!await _outbreakAccessService.CanAccessOutbreakAsync(id))
         {
-            ErrorMessage = "Definition not found.";
-            return RedirectToPage(new { id });
+            return NotFound();
+        }
+
+        var definition = await _context.OutbreakCaseDefinitions
+            .FirstOrDefaultAsync(d => d.Id == definitionId && d.OutbreakId == id);
+        if (definition == null)
+        {
+            return NotFound();
         }
 
         // Deactivate all other definitions of same classification

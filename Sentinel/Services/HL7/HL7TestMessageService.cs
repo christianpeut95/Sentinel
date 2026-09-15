@@ -4,6 +4,7 @@ using Sentinel.Data;
 using Sentinel.HL7Generator.Models;
 using Sentinel.HL7Generator.Services;
 using Sentinel.Models;
+using Sentinel.Services;
 
 namespace Sentinel.Services.HL7;
 
@@ -97,11 +98,10 @@ public class HL7TestMessageService : IHL7TestMessageService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error generating HL7 test message");
             return new GenerateMessageResult
             {
                 Success = false,
-                ErrorMessage = ex.Message
+                ErrorMessage = UserFacingError.Create(_logger, ex, "HL7 test message generation")
             };
         }
     }
@@ -182,9 +182,8 @@ public class HL7TestMessageService : IHL7TestMessageService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error generating batch of HL7 messages");
             result.Success = false;
-            result.Errors.Add(ex.Message);
+            result.Errors.Add(UserFacingError.Create(_logger, ex, "HL7 test-message batch generation"));
         }
 
         return result;

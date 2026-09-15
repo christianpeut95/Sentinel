@@ -13,11 +13,16 @@ public class ViewModel : PageModel
 {
     private readonly ApplicationDbContext _context;
     private readonly IReportDataService _reportDataService;
+    private readonly IReportDataAccessService _reportDataAccessService;
 
-    public ViewModel(ApplicationDbContext context, IReportDataService reportDataService)
+    public ViewModel(
+        ApplicationDbContext context,
+        IReportDataService reportDataService,
+        IReportDataAccessService reportDataAccessService)
     {
         _context = context;
         _reportDataService = reportDataService;
+        _reportDataAccessService = reportDataAccessService;
     }
 
     public ReportDefinition? ReportDefinition { get; set; }
@@ -44,17 +49,36 @@ public class ViewModel : PageModel
             return NotFound();
         }
 
+        if (!CanViewReport(ReportDefinition))
+        {
+            return NotFound();
+        }
+
+        if (!await _reportDataAccessService.CanReadEntityTypeAsync(ReportDefinition.EntityType))
+        {
+            return Forbid();
+        }
+
         try
         {
             // Load report data (always fresh from DB)
             ReportData = await _reportDataService.GetReportDataAsync(ReportDefinition);
             TotalRows = ReportData.Count;
         }
-        catch (Exception ex)
+        catch (ReportDataAccessDeniedException)
         {
-            ErrorMessage = $"Error loading report data: {ex.Message}";
+            return Forbid();
+        }
+        catch (Exception)
+        {
+            ErrorMessage = "The report data could not be loaded. Please try again.";
         }
 
         return Page();
     }
+
+    private bool CanViewReport(ReportDefinition report) =>
+        report.IsPublic ||
+        User.IsInRole("Admin") ||
+        string.Equals(report.CreatedByUserId, User.Identity?.Name, StringComparison.Ordinal);
 }
