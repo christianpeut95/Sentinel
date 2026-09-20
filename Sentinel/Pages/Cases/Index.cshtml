@@ -370,14 +370,14 @@ else
                 <tbody>
                     @foreach (var item in Model.Cases)
                     {
-                        <tr onclick="window.location.href='@Url.Page("./Details", new { id = item.Id })'">
+                        <tr class="js-case-row" data-details-url="@Url.Page("./Details", new { id = item.Id })" tabindex="0">
                             <td>
                                 <span class="friendly-id">@item.FriendlyId</span>
                             </td>
                             <td>
                                 @if (item.Patient != null)
                                 {
-                                    <a asp-page="/Patients/Details" asp-route-id="@item.PatientId" class="patient-link" onclick="event.stopPropagation()">
+                                    <a asp-page="/Patients/Details" asp-route-id="@item.PatientId" class="patient-link">
                                         @(item.Patient.FamilyName ?? ""), @(item.Patient.GivenName ?? "")
                                     </a>
                                 }
@@ -456,13 +456,16 @@ else
                                 }
                                 <span class="case-badge @badgeClass">@statusName</span>
                             </td>
-                            <td style="text-align: center;" onclick="event.stopPropagation()">
+                            <td style="text-align: center;">
                                 <a asp-page="./Details" asp-route-id="@item.Id" class="btn-table-action" title="View Details">
                                     <i class="bi bi-eye"></i>
                                 </a>
-                                <a asp-page="./Edit" asp-route-id="@item.Id" class="btn-table-action" title="Edit">
-                                    <i class="bi bi-pencil"></i>
-                                </a>
+                                @if (Model.CanEditCases)
+                                {
+                                    <a asp-page="./Edit" asp-route-id="@item.Id" class="btn-table-action" title="Edit">
+                                        <i class="bi bi-pencil"></i>
+                                    </a>
+                                }
                             </td>
                         </tr>
                     }
@@ -508,4 +511,30 @@ else
             </div>
         }
     </div>
+}
+
+@section Scripts {
+    <script>
+        document.querySelectorAll('.js-case-row[data-details-url]').forEach((row) => {
+            const navigateToDetails = () => {
+                const destination = new URL(row.dataset.detailsUrl, window.location.origin);
+                if (destination.origin === window.location.origin) {
+                    window.location.assign(destination.pathname + destination.search + destination.hash);
+                }
+            };
+
+            row.addEventListener('click', (event) => {
+                if (!event.target.closest('a, button, input, select, textarea, label')) {
+                    navigateToDetails();
+                }
+            });
+
+            row.addEventListener('keydown', (event) => {
+                if (event.target === row && (event.key === 'Enter' || event.key === ' ')) {
+                    event.preventDefault();
+                    navigateToDetails();
+                }
+            });
+        });
+    </script>
 }

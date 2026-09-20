@@ -8,6 +8,7 @@
 @inject ApplicationDbContext DbContext
 @inject IJSRuntime JS
 @inject NavigationManager Navigation
+@inject ILogger<SurveyMappingEditor> Logger
 
 <div class="apple-card">
     <div class="apple-card-header">
@@ -147,7 +148,7 @@
                                         }
                                         else
                                         {
-                                            <span class="text-muted">—</span>
+                                            <span class="text-muted">â€”</span>
                                         }
                                     </td>
                                     <td>
@@ -230,7 +231,8 @@ private bool HasRendered = false;
         }
         catch (Exception ex)
         {
-            ErrorMessage = $"Error loading mappings: {ex.Message}";
+            Logger.LogWarning(ex, "Unable to load survey mappings for {ConfigurationType} {ConfigurationId}", ConfigurationType, ConfigurationId);
+            ErrorMessage = "Mappings could not be loaded. Refresh the page or try again.";
         }
     }
 
@@ -319,7 +321,8 @@ private bool HasRendered = false;
         }
         catch (Exception ex)
         {
-            ErrorMessage = $"Error deleting mapping: {ex.Message}";
+            Logger.LogWarning(ex, "Unable to delete survey mapping {MappingId}", mapping.Id);
+            ErrorMessage = "The mapping could not be deleted. Please try again.";
         }
     }
 
@@ -350,7 +353,8 @@ private bool HasRendered = false;
         }
         catch (Exception ex)
         {
-            ErrorMessage = $"Error generating suggestions: {ex.Message}";
+            Logger.LogWarning(ex, "Unable to generate survey mapping suggestions for {ConfigurationType} {ConfigurationId}", ConfigurationType, ConfigurationId);
+            ErrorMessage = "Mapping suggestions could not be generated. Please try again.";
         }
     }
 

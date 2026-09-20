@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using Sentinel.Data;
 using System;
 using System.Linq;
@@ -16,10 +17,12 @@ namespace Sentinel.Controllers
     public class LocationsController : ControllerBase
     {
         private readonly ApplicationDbContext _context;
+        private readonly ILogger<LocationsController> _logger;
 
-        public LocationsController(ApplicationDbContext context)
+        public LocationsController(ApplicationDbContext context, ILogger<LocationsController> logger)
         {
             _context = context;
+            _logger = logger;
         }
 
         [HttpGet("search")]
@@ -52,7 +55,7 @@ namespace Sentinel.Controllers
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Error in locations search: {ex.Message}");
+                _logger.LogError(ex, "Location search failed");
                 return Ok(new object[] { });
             }
         }

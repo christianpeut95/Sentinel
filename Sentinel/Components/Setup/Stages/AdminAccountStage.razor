@@ -170,7 +170,7 @@
         catch (Exception ex)
         {
             Logger.LogError(ex, "Error validating admin account");
-            _error = $"An error occurred: {ex.Message}";
+            _error = "The administrator account could not be validated. Please review the details and try again.";
         }
         finally
         {

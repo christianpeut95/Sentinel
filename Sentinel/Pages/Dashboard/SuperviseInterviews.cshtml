@@ -178,21 +178,21 @@
                         var worker = Model.AvailableWorkers.FirstOrDefault(w => w.Id == Model.FilterWorker);
                         <span class="badge bg-secondary me-1">
                             Worker: @worker?.FirstName @worker?.LastName
-                            <a href="?FilterPriority=@Model.FilterPriority&SearchTerm=@Model.SearchTerm&PageSize=@Model.PageSize" class="text-white ms-1">×</a>
+                            <a href="?FilterPriority=@Model.FilterPriority&SearchTerm=@Model.SearchTerm&PageSize=@Model.PageSize" class="text-white ms-1">Ã—</a>
                         </span>
                     }
                     @if (!string.IsNullOrEmpty(Model.FilterPriority))
                     {
                         <span class="badge bg-secondary me-1">
                             Priority: @Model.FilterPriority
-                            <a href="?FilterWorker=@Model.FilterWorker&SearchTerm=@Model.SearchTerm&PageSize=@Model.PageSize" class="text-white ms-1">×</a>
+                            <a href="?FilterWorker=@Model.FilterWorker&SearchTerm=@Model.SearchTerm&PageSize=@Model.PageSize" class="text-white ms-1">Ã—</a>
                         </span>
                     }
                     @if (!string.IsNullOrEmpty(Model.SearchTerm))
                     {
                         <span class="badge bg-secondary me-1">
                             Search: "@Model.SearchTerm"
-                            <a href="?FilterWorker=@Model.FilterWorker&FilterPriority=@Model.FilterPriority&PageSize=@Model.PageSize" class="text-white ms-1">×</a>
+                            <a href="?FilterWorker=@Model.FilterWorker&FilterPriority=@Model.FilterPriority&PageSize=@Model.PageSize" class="text-white ms-1">Ã—</a>
                         </span>
                     }
                 </div>
@@ -264,13 +264,13 @@
                 <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
                     <h5 class="mb-0"><i class="bi bi-people-fill me-2"></i>Worker Performance</h5>
                     <div class="d-flex gap-2 align-items-center section-filter-inline">
-                        <input type="text" id="workerSearch" class="form-control form-control-sm" placeholder="Search worker..." style="width: 180px;" oninput="filterWorkerTable()" />
-                        <select id="workerStatusFilter" class="form-select form-select-sm" style="width: 130px;" onchange="filterWorkerTable()">
+                        <input type="text" id="workerSearch" class="form-control form-control-sm" placeholder="Search worker..." style="width: 180px;" />
+                        <select id="workerStatusFilter" class="form-select form-select-sm" style="width: 130px;">
                             <option value="">All Status</option>
                             <option value="available">Available</option>
                             <option value="unavailable">Unavailable</option>
                         </select>
-                        <select id="workerPageSize" class="form-select form-select-sm" style="width: 80px;" onchange="renderWorkerPage(1)">
+                        <select id="workerPageSize" class="form-select form-select-sm" style="width: 80px;">
                             <option value="10">10</option>
                             <option value="25" selected>25</option>
                             <option value="50">50</option>
@@ -1039,28 +1039,44 @@
             }
             if (container) container.style.display = '';
 
-            var prevLi = document.createElement('li');
-            prevLi.className = 'page-item' + (workerCurrentPage === 1 ? ' disabled' : '');
-            prevLi.innerHTML = '<a class="page-link" href="#" onclick="renderWorkerPage(' + (workerCurrentPage - 1) + '); return false;">&laquo;</a>';
-            paginationEl.appendChild(prevLi);
+            appendWorkerPageButton(paginationEl, workerCurrentPage - 1, '\u00ab', workerCurrentPage === 1, false);
 
             var startP = Math.max(1, workerCurrentPage - 2);
             var endP = Math.min(totalPages, workerCurrentPage + 2);
             for (var i = startP; i <= endP; i++) {
-                var li = document.createElement('li');
-                li.className = 'page-item' + (i === workerCurrentPage ? ' active' : '');
-                li.innerHTML = '<a class="page-link" href="#" onclick="renderWorkerPage(' + i + '); return false;">' + i + '</a>';
-                paginationEl.appendChild(li);
+                appendWorkerPageButton(paginationEl, i, String(i), false, i === workerCurrentPage);
             }
 
-            var nextLi = document.createElement('li');
-            nextLi.className = 'page-item' + (workerCurrentPage === totalPages ? ' disabled' : '');
-            nextLi.innerHTML = '<a class="page-link" href="#" onclick="renderWorkerPage(' + (workerCurrentPage + 1) + '); return false;">&raquo;</a>';
-            paginationEl.appendChild(nextLi);
+            appendWorkerPageButton(paginationEl, workerCurrentPage + 1, '\u00bb', workerCurrentPage === totalPages, false);
         }
     }
 
+    function appendWorkerPageButton(container, page, label, disabled, active) {
+        var item = document.createElement('li');
+        item.className = 'page-item' + (disabled ? ' disabled' : '') + (active ? ' active' : '');
+
+        var button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'page-link';
+        button.textContent = label;
+        button.disabled = disabled;
+        if (active) {
+            button.setAttribute('aria-current', 'page');
+        }
+        button.addEventListener('click', function () {
+            renderWorkerPage(page);
+        });
+
+        item.appendChild(button);
+        container.appendChild(item);
+    }
+
     document.addEventListener('DOMContentLoaded', function() {
+        document.getElementById('workerSearch')?.addEventListener('input', filterWorkerTable);
+        document.getElementById('workerStatusFilter')?.addEventListener('change', filterWorkerTable);
+        document.getElementById('workerPageSize')?.addEventListener('change', function () {
+            renderWorkerPage(1);
+        });
         initWorkerTable();
 
         var assignModal = document.getElementById('assignModal');

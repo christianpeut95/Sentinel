@@ -42,9 +42,6 @@ namespace Sentinel.Services.Feedback
                 var json = JsonSerializer.Serialize(feedback, jsonOptions);
                 var payloadSize = Encoding.UTF8.GetByteCount(json);
 
-                // Log the actual payload for debugging
-                _logger.LogInformation("Feedback payload being sent: {Json}", json);
-
                 // Check payload size limit
                 if (payloadSize > MaxPayloadSizeBytes)
                 {
@@ -61,8 +58,13 @@ namespace Sentinel.Services.Feedback
                     Content = content
                 };
 
-                _logger.LogInformation("Submitting feedback to API: Type={Type}, Summary={Summary}", 
-                    feedback.Type, feedback.Summary);
+                // Feedback text and reporter details may contain sensitive material.
+                // Record only metadata needed for operational troubleshooting.
+                _logger.LogInformation(
+                    "Submitting feedback to API: Type={Type}, PayloadBytes={PayloadBytes}, DiagnosticsIncluded={DiagnosticsIncluded}",
+                    feedback.Type,
+                    payloadSize,
+                    feedback.Diagnostics != null);
 
                 // Test connectivity (diagnostic)
                 try

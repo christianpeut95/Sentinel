@@ -6,6 +6,7 @@ using Sentinel.Data;
 using Sentinel.Models;
 using Sentinel.Models.CaseDefinitions;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace Sentinel.Controllers.Api
 {
@@ -29,9 +30,27 @@ namespace Sentinel.Controllers.Api
         [HttpPost("laboratory")]
         public async Task<IActionResult> AddLabCriterion(int definitionId, [FromBody] LabCriterionInput input)
         {
+            var draftError = await EnsureDefinitionIsDraftAsync(definitionId);
+            if (draftError is not null) return draftError;
+
             if (!ModelState.IsValid)
             {
                 return BadRequest(ModelState);
+            }
+
+            var placementError = await ValidateCriterionPlacementAsync(
+                definitionId,
+                input.ParentCriteriaId,
+                input.LogicalOperator,
+                input.GroupNumber);
+            if (placementError is not null)
+            {
+                return placementError;
+            }
+
+            if (!AreDefinedStoragePreferences(input))
+            {
+                return BadRequest("One or more laboratory storage preferences are invalid.");
             }
 
             var definition = await _context.CaseDefinitions
@@ -49,7 +68,6 @@ namespace Sentinel.Controllers.Api
                 .MaxAsync(c => (int?)c.DisplayOrder) ?? -1;
 
             var newDisplayOrder = maxDisplayOrder + 1;
-            Console.WriteLine($"Creating lab criterion with DisplayOrder: {newDisplayOrder}");
 
             // Build ValueJson for lab criterion including storage preferences
             var valueObj = new
@@ -103,8 +121,6 @@ namespace Sentinel.Controllers.Api
             _context.CaseDefinitionCriteria.Add(criterion);
             await _context.SaveChangesAsync();
 
-            Console.WriteLine($"Created unified CaseDefinitionCriteria with ID: {criterion.Id}, DisplayOrder: {criterion.DisplayOrder}");
-            Console.WriteLine($"Storage prefs: Specimen={criterion.SpecimenStoragePreference}, Pathogen={criterion.BiomarkerStoragePreference}, TestMethod={criterion.TestMethodStoragePreference}, Result={criterion.ResultStoragePreference}");
 
             return Ok(new { success = true, criterionId = criterion.Id });
         }
@@ -112,9 +128,18 @@ namespace Sentinel.Controllers.Api
         [HttpPut("{criterionId}/laboratory")]
         public async Task<IActionResult> UpdateLabCriterion(int definitionId, int criterionId, [FromBody] LabCriterionInput input)
         {
+            var draftError = await EnsureDefinitionIsDraftAsync(definitionId);
+            if (draftError is not null) return draftError;
+
             if (!ModelState.IsValid)
             {
                 return BadRequest(ModelState);
+            }
+
+            if (!Enum.IsDefined(input.LogicalOperator) || input.GroupNumber < 0 ||
+                !AreDefinedStoragePreferences(input))
+            {
+                return BadRequest("The laboratory criterion contains an invalid operator, group number, or storage preference.");
             }
 
             try
@@ -202,9 +227,29 @@ namespace Sentinel.Controllers.Api
         [HttpPost("clinical")]
         public async Task<IActionResult> AddClinicalCriterion(int definitionId, [FromBody] ClinicalCriterionInput input)
         {
+            var draftError = await EnsureDefinitionIsDraftAsync(definitionId);
+            if (draftError is not null) return draftError;
+
             if (!ModelState.IsValid)
             {
                 return BadRequest(ModelState);
+            }
+
+            var placementError = await ValidateCriterionPlacementAsync(
+                definitionId,
+                input.ParentCriteriaId,
+                input.LogicalOperator,
+                input.GroupNumber);
+            if (placementError is not null)
+            {
+                return placementError;
+            }
+
+            if (input.SymptomIds.Count == 0 ||
+                (input.MinCount.HasValue &&
+                 (input.MinCount.Value < 1 || input.MinCount.Value > input.SymptomIds.Count)))
+            {
+                return BadRequest("Select at least one symptom and use a valid minimum count.");
             }
 
             var definition = await _context.CaseDefinitions
@@ -253,9 +298,27 @@ namespace Sentinel.Controllers.Api
         [HttpPost("custom-field")]
         public async Task<IActionResult> AddCustomFieldCriterion(int definitionId, [FromBody] CustomFieldCriterionInput input)
         {
+            var draftError = await EnsureDefinitionIsDraftAsync(definitionId);
+            if (draftError is not null) return draftError;
+
             if (!ModelState.IsValid)
             {
                 return BadRequest(ModelState);
+            }
+
+            var placementError = await ValidateCriterionPlacementAsync(
+                definitionId,
+                input.ParentCriteriaId,
+                input.LogicalOperator,
+                input.GroupNumber);
+            if (placementError is not null)
+            {
+                return placementError;
+            }
+
+            if (!Enum.IsDefined(input.Operator))
+            {
+                return BadRequest("The comparison operator is invalid.");
             }
 
             var definition = await _context.CaseDefinitions
@@ -269,11 +332,11 @@ namespace Sentinel.Controllers.Api
 
             // Load custom field to get type
             var customField = await _context.CustomFieldDefinitions
-                .FirstOrDefaultAsync(cf => cf.Id == input.CustomFieldId);
+                .FirstOrDefaultAsync(cf => cf.Id == input.CustomFieldId && cf.IsActive);
 
             if (customField == null)
             {
-                return BadRequest("Custom field not found");
+                return BadRequest("Custom field not found or inactive");
             }
 
             // Calculate display order based on siblings (same parent context)
@@ -315,9 +378,32 @@ namespace Sentinel.Controllers.Api
         [HttpPost("case-field")]
         public async Task<IActionResult> AddCaseFieldCriterion(int definitionId, [FromBody] CaseFieldCriterionInput input)
         {
+            var draftError = await EnsureDefinitionIsDraftAsync(definitionId);
+            if (draftError is not null) return draftError;
+
             if (!ModelState.IsValid)
             {
                 return BadRequest(ModelState);
+            }
+
+            var placementError = await ValidateCriterionPlacementAsync(
+                definitionId,
+                input.ParentCriteriaId,
+                input.LogicalOperator,
+                input.GroupNumber);
+            if (placementError is not null)
+            {
+                return placementError;
+            }
+
+            if (!Enum.IsDefined(input.Operator))
+            {
+                return BadRequest("The comparison operator is invalid.");
+            }
+
+            if (!AllowedCaseFieldPaths.Contains(input.FieldPath, StringComparer.Ordinal))
+            {
+                return BadRequest("The selected case field is invalid.");
             }
 
             var definition = await _context.CaseDefinitions
@@ -357,6 +443,145 @@ namespace Sentinel.Controllers.Api
             };
 
             _context.CaseDefinitionCriteria.Add(criterion);
+            await _context.SaveChangesAsync();
+
+            return Ok(new { success = true, criterionId = criterion.Id });
+        }
+
+        [HttpPut("{criterionId}/clinical")]
+        public async Task<IActionResult> UpdateClinicalCriterion(
+            int definitionId,
+            int criterionId,
+            [FromBody] ClinicalCriterionInput input)
+        {
+            var draftError = await EnsureDefinitionIsDraftAsync(definitionId);
+            if (draftError is not null) return draftError;
+
+            if (!ModelState.IsValid ||
+                !Enum.IsDefined(input.LogicalOperator) ||
+                input.GroupNumber < 0 ||
+                input.SymptomIds.Count == 0 ||
+                (input.MinCount.HasValue &&
+                 (input.MinCount.Value < 1 || input.MinCount.Value > input.SymptomIds.Count)))
+            {
+                return BadRequest("The clinical criterion contains invalid values.");
+            }
+
+            var criterion = await _context.CaseDefinitionCriteria
+                .FirstOrDefaultAsync(c => c.Id == criterionId && c.CaseDefinitionId == definitionId);
+            if (criterion is null || criterion.CriterionType != CriterionType.Clinical)
+            {
+                return NotFound();
+            }
+
+            var value = new
+            {
+                symptomIds = input.SymptomIds,
+                requireAll = input.RequireAll,
+                minCount = input.MinCount,
+                severityFilter = input.SeverityFilter
+            };
+
+            criterion.LogicalOperator = input.LogicalOperator;
+            criterion.GroupNumber = input.GroupNumber;
+            criterion.Operator = input.RequireAll ? ComparisonOperator.Equals : ComparisonOperator.InList;
+            criterion.ValueJson = JsonSerializer.Serialize(value);
+            criterion.DisplayText = input.DisplayText;
+            await _context.SaveChangesAsync();
+
+            return Ok(new { success = true, criterionId = criterion.Id });
+        }
+
+        [HttpPut("{criterionId}/custom-field")]
+        public async Task<IActionResult> UpdateCustomFieldCriterion(
+            int definitionId,
+            int criterionId,
+            [FromBody] CustomFieldCriterionInput input)
+        {
+            var draftError = await EnsureDefinitionIsDraftAsync(definitionId);
+            if (draftError is not null) return draftError;
+
+            if (!ModelState.IsValid ||
+                !Enum.IsDefined(input.LogicalOperator) ||
+                !Enum.IsDefined(input.Operator) ||
+                input.GroupNumber < 0)
+            {
+                return BadRequest("The custom-field criterion contains invalid values.");
+            }
+
+            var criterion = await _context.CaseDefinitionCriteria
+                .FirstOrDefaultAsync(c => c.Id == criterionId && c.CaseDefinitionId == definitionId);
+            if (criterion is null || criterion.CriterionType != CriterionType.CustomField)
+            {
+                return NotFound();
+            }
+
+            var customField = await _context.CustomFieldDefinitions
+                .FirstOrDefaultAsync(cf => cf.Id == input.CustomFieldId && cf.IsActive);
+            if (customField is null)
+            {
+                return BadRequest("Custom field not found or inactive.");
+            }
+
+            var value = new
+            {
+                customFieldId = input.CustomFieldId,
+                customFieldName = customField.Name,
+                customFieldLabel = customField.Label,
+                fieldType = customField.FieldType.ToString(),
+                value = input.Value,
+                @operator = input.Operator.ToString()
+            };
+
+            criterion.LogicalOperator = input.LogicalOperator;
+            criterion.GroupNumber = input.GroupNumber;
+            criterion.FieldPath = $"CustomFields.{customField.Name}";
+            criterion.Operator = input.Operator;
+            criterion.ValueJson = JsonSerializer.Serialize(value);
+            criterion.DisplayText = input.DisplayText;
+            await _context.SaveChangesAsync();
+
+            return Ok(new { success = true, criterionId = criterion.Id });
+        }
+
+        [HttpPut("{criterionId}/case-field")]
+        public async Task<IActionResult> UpdateCaseFieldCriterion(
+            int definitionId,
+            int criterionId,
+            [FromBody] CaseFieldCriterionInput input)
+        {
+            var draftError = await EnsureDefinitionIsDraftAsync(definitionId);
+            if (draftError is not null) return draftError;
+
+            if (!ModelState.IsValid ||
+                !Enum.IsDefined(input.LogicalOperator) ||
+                !Enum.IsDefined(input.Operator) ||
+                input.GroupNumber < 0 ||
+                !AllowedCaseFieldPaths.Contains(input.FieldPath, StringComparer.Ordinal))
+            {
+                return BadRequest("The case-field criterion contains invalid values.");
+            }
+
+            var criterion = await _context.CaseDefinitionCriteria
+                .FirstOrDefaultAsync(c => c.Id == criterionId && c.CaseDefinitionId == definitionId);
+            if (criterion is null || criterion.CriterionType != CriterionType.Demographic)
+            {
+                return NotFound();
+            }
+
+            var value = new
+            {
+                fieldPath = input.FieldPath,
+                value = input.Value,
+                @operator = input.Operator.ToString()
+            };
+
+            criterion.LogicalOperator = input.LogicalOperator;
+            criterion.GroupNumber = input.GroupNumber;
+            criterion.FieldPath = input.FieldPath;
+            criterion.Operator = input.Operator;
+            criterion.ValueJson = JsonSerializer.Serialize(value);
+            criterion.DisplayText = input.DisplayText;
             await _context.SaveChangesAsync();
 
             return Ok(new { success = true, criterionId = criterion.Id });
@@ -424,6 +649,9 @@ namespace Sentinel.Controllers.Api
         [HttpDelete("{criterionId}")]
         public async Task<IActionResult> DeleteCriterion(int definitionId, int criterionId)
         {
+            var draftError = await EnsureDefinitionIsDraftAsync(definitionId);
+            if (draftError is not null) return draftError;
+
             var criterion = await _context.CaseDefinitionCriteria
                 .Include(c => c.ChildCriteria)
                 .FirstOrDefaultAsync(c => c.Id == criterionId && c.CaseDefinitionId == definitionId);
@@ -467,6 +695,14 @@ namespace Sentinel.Controllers.Api
         [HttpPatch("{criterionId}/operator")]
         public async Task<IActionResult> UpdateOperator(int definitionId, int criterionId, [FromBody] UpdateOperatorInput input)
         {
+            var draftError = await EnsureDefinitionIsDraftAsync(definitionId);
+            if (draftError is not null) return draftError;
+
+            if (!Enum.IsDefined(input.LogicalOperator))
+            {
+                return BadRequest("The logical operator is invalid.");
+            }
+
             var criterion = await _context.CaseDefinitionCriteria
                 .FirstOrDefaultAsync(c => c.Id == criterionId && c.CaseDefinitionId == definitionId);
 
@@ -484,6 +720,14 @@ namespace Sentinel.Controllers.Api
         [HttpPatch("{criterionId}/group-exit-operator")]
         public async Task<IActionResult> UpdateGroupExitOperator(int definitionId, int criterionId, [FromBody] UpdateGroupExitOperatorInput input)
         {
+            var draftError = await EnsureDefinitionIsDraftAsync(definitionId);
+            if (draftError is not null) return draftError;
+
+            if (!Enum.IsDefined(input.GroupExitOperator))
+            {
+                return BadRequest("The group exit operator is invalid.");
+            }
+
             var criterion = await _context.CaseDefinitionCriteria
                 .Include(c => c.ChildCriteria)
                 .FirstOrDefaultAsync(c => c.Id == criterionId && c.CaseDefinitionId == definitionId);
@@ -508,6 +752,9 @@ namespace Sentinel.Controllers.Api
         [HttpPost("{criterionId}/create-group")]
         public async Task<IActionResult> CreateGroup(int definitionId, int criterionId)
         {
+            var draftError = await EnsureDefinitionIsDraftAsync(definitionId);
+            if (draftError is not null) return draftError;
+
             var criterion = await _context.CaseDefinitionCriteria
                 .Include(c => c.ChildCriteria)
                 .FirstOrDefaultAsync(c => c.Id == criterionId && c.CaseDefinitionId == definitionId);
@@ -537,6 +784,9 @@ namespace Sentinel.Controllers.Api
         [HttpPatch("{criterionId}/move-to-parent")]
         public async Task<IActionResult> MoveToParent(int definitionId, int criterionId, [FromBody] MoveToParentInput input)
         {
+            var draftError = await EnsureDefinitionIsDraftAsync(definitionId);
+            if (draftError is not null) return draftError;
+
             var criterion = await _context.CaseDefinitionCriteria
                 .Include(c => c.ChildCriteria)
                 .FirstOrDefaultAsync(c => c.Id == criterionId && c.CaseDefinitionId == definitionId);
@@ -550,6 +800,7 @@ namespace Sentinel.Controllers.Api
             if (input.ParentCriteriaId.HasValue)
             {
                 var parent = await _context.CaseDefinitionCriteria
+                    .AsNoTracking()
                     .FirstOrDefaultAsync(c => c.Id == input.ParentCriteriaId.Value && c.CaseDefinitionId == definitionId);
 
                 if (parent == null)
@@ -563,10 +814,15 @@ namespace Sentinel.Controllers.Api
                     return BadRequest("Cannot nest a criterion under itself");
                 }
 
-                // Can't nest under one of its own children
-                if (criterion.ChildCriteria?.Any(c => c.Id == input.ParentCriteriaId.Value) == true)
+                // Walk the proposed parent's ancestry rather than just its
+                // direct children. A direct-child check misses a grandchild
+                // and permits a cyclic criteria tree via a forged request.
+                if (await WouldCreateParentCycleAsync(
+                        definitionId,
+                        criterion.Id,
+                        input.ParentCriteriaId.Value))
                 {
-                    return BadRequest("Cannot nest a parent under its own child");
+                    return BadRequest("Cannot nest a criterion under one of its descendants");
                 }
             }
 
@@ -584,6 +840,15 @@ namespace Sentinel.Controllers.Api
         [HttpPatch("{criterionId}/reorder")]
         public async Task<IActionResult> ReorderCriterion(int definitionId, int criterionId, [FromBody] ReorderInput input)
         {
+            var draftError = await EnsureDefinitionIsDraftAsync(definitionId);
+            if (draftError is not null) return draftError;
+
+            if (!string.Equals(input.Direction, "up", StringComparison.Ordinal) &&
+                !string.Equals(input.Direction, "down", StringComparison.Ordinal))
+            {
+                return BadRequest("Direction must be either 'up' or 'down'.");
+            }
+
             var criterion = await _context.CaseDefinitionCriteria
                 .FirstOrDefaultAsync(c => c.Id == criterionId && c.CaseDefinitionId == definitionId);
 
@@ -598,16 +863,11 @@ namespace Sentinel.Controllers.Api
                 .OrderBy(c => c.DisplayOrder)
                 .ToListAsync();
 
-            Console.WriteLine($"Reordering criterion {criterionId}, direction: {input.Direction}");
-            Console.WriteLine($"Current DisplayOrder: {criterion.DisplayOrder}");
-            Console.WriteLine($"Siblings count: {siblings.Count}");
             foreach (var sib in siblings)
             {
-                Console.WriteLine($"  - Criterion {sib.Id}: DisplayOrder={sib.DisplayOrder}");
             }
 
             var currentIndex = siblings.IndexOf(criterion);
-            Console.WriteLine($"Current index in siblings: {currentIndex}");
 
             if (input.Direction.ToLower() == "up" && currentIndex > 0)
             {
@@ -617,7 +877,6 @@ namespace Sentinel.Controllers.Api
                 criterion.DisplayOrder = previous.DisplayOrder;
                 previous.DisplayOrder = tempOrder;
 
-                Console.WriteLine($"Swapped {criterion.Id} (now {criterion.DisplayOrder}) with {previous.Id} (now {previous.DisplayOrder})");
             }
             else if (input.Direction.ToLower() == "down" && currentIndex < siblings.Count - 1)
             {
@@ -627,23 +886,114 @@ namespace Sentinel.Controllers.Api
                 criterion.DisplayOrder = next.DisplayOrder;
                 next.DisplayOrder = tempOrder;
 
-                Console.WriteLine($"Swapped {criterion.Id} (now {criterion.DisplayOrder}) with {next.Id} (now {next.DisplayOrder})");
             }
             else
             {
-                Console.WriteLine($"No swap performed - already at boundary or invalid direction");
             }
 
             await _context.SaveChangesAsync();
 
             return Ok(new { success = true });
         }
+
+        // These are the only case paths offered by the criteria builder. Keep
+        // the allow-list at the server boundary so a forged request cannot add
+        // arbitrary reflection paths to a persisted definition.
+        private static readonly HashSet<string> AllowedCaseFieldPaths = new(StringComparer.Ordinal)
+        {
+            "ReportDate",
+            "OnsetDate",
+            "DiagnosisDate",
+            "HospitalizedDate",
+            "IsHospitalized",
+            "IsFatal",
+            "DateOfDeath",
+            "Patient.DateOfBirth",
+            "Patient.Gender",
+            "Patient.CountryOfBirth"
+        };
+
+        private async Task<IActionResult?> EnsureDefinitionIsDraftAsync(int definitionId)
+        {
+            var status = await _context.CaseDefinitions
+                .AsNoTracking()
+                .Where(definition => definition.Id == definitionId)
+                .Select(definition => (CaseDefinitionStatus?)definition.Status)
+                .FirstOrDefaultAsync();
+
+            if (status is null)
+            {
+                return NotFound("Case definition not found.");
+            }
+
+            return status == CaseDefinitionStatus.Draft
+                ? null
+                : Conflict("Case definition criteria can be changed only while the definition is a draft. Create a new draft version to revise an active or archived definition.");
+        }
+
+        private async Task<IActionResult?> ValidateCriterionPlacementAsync(
+            int definitionId,
+            int? parentCriteriaId,
+            LogicalOperator logicalOperator,
+            int groupNumber)
+        {
+            if (!Enum.IsDefined(logicalOperator) || groupNumber < 0)
+            {
+                return BadRequest("The logical operator or group number is invalid.");
+            }
+
+            if (!parentCriteriaId.HasValue)
+            {
+                return null;
+            }
+
+            var parentExists = await _context.CaseDefinitionCriteria
+                .AsNoTracking()
+                .AnyAsync(c => c.Id == parentCriteriaId.Value && c.CaseDefinitionId == definitionId);
+
+            return parentExists
+                ? null
+                : BadRequest("The selected parent criterion is not part of this case definition.");
+        }
+
+        private static bool AreDefinedStoragePreferences(LabCriterionInput input) =>
+            Enum.IsDefined(input.SpecimenStoragePreference) &&
+            Enum.IsDefined(input.PathogenStoragePreference) &&
+            Enum.IsDefined(input.TestMethodStoragePreference) &&
+            Enum.IsDefined(input.ResultStoragePreference);
+
+        private async Task<bool> WouldCreateParentCycleAsync(
+            int definitionId,
+            int criterionId,
+            int proposedParentId)
+        {
+            var visited = new HashSet<int>();
+            int? currentId = proposedParentId;
+
+            while (currentId.HasValue)
+            {
+                if (!visited.Add(currentId.Value) || currentId.Value == criterionId)
+                {
+                    return true;
+                }
+
+                currentId = await _context.CaseDefinitionCriteria
+                    .AsNoTracking()
+                    .Where(c => c.Id == currentId.Value && c.CaseDefinitionId == definitionId)
+                    .Select(c => c.ParentCriteriaId)
+                    .SingleOrDefaultAsync();
+            }
+
+            return false;
+        }
     }
 
     // Input DTOs
     public class LabCriterionInput
     {
+        [JsonConverter(typeof(JsonStringEnumConverter))]
         public LogicalOperator LogicalOperator { get; set; }
+        [System.ComponentModel.DataAnnotations.Range(0, int.MaxValue)]
         public int GroupNumber { get; set; }
         public int? ParentCriteriaId { get; set; }
         public List<int> SpecimenTypeIds { get; set; } = new();
@@ -651,15 +1001,20 @@ namespace Sentinel.Controllers.Api
         public List<int> TestMethodIds { get; set; } = new();
         public List<string> ResultValues { get; set; } = new();
         public TimeConstraintInput? TimeConstraint { get; set; }
+        [System.ComponentModel.DataAnnotations.StringLength(500)]
         public string DisplayText { get; set; } = string.Empty;
 
         // Storage preferences
+        [JsonConverter(typeof(JsonStringEnumConverter))]
         public DataStoragePreference SpecimenStoragePreference { get; set; }
         public int? CanonicalSpecimenTypeId { get; set; }
+        [JsonConverter(typeof(JsonStringEnumConverter))]
         public DataStoragePreference PathogenStoragePreference { get; set; }
         public Guid? CanonicalPathogenId { get; set; }
+        [JsonConverter(typeof(JsonStringEnumConverter))]
         public DataStoragePreference TestMethodStoragePreference { get; set; }
         public int? CanonicalTestMethodId { get; set; }
+        [JsonConverter(typeof(JsonStringEnumConverter))]
         public DataStoragePreference ResultStoragePreference { get; set; }
         public string? CanonicalResultValue { get; set; }
     }
@@ -673,45 +1028,58 @@ namespace Sentinel.Controllers.Api
 
     public class ClinicalCriterionInput
     {
+        [JsonConverter(typeof(JsonStringEnumConverter))]
         public LogicalOperator LogicalOperator { get; set; }
+        [System.ComponentModel.DataAnnotations.Range(0, int.MaxValue)]
         public int GroupNumber { get; set; }
         public int? ParentCriteriaId { get; set; }
         public List<int> SymptomIds { get; set; } = new();
         public bool RequireAll { get; set; }
         public int? MinCount { get; set; }
         public string? SeverityFilter { get; set; }
+        [System.ComponentModel.DataAnnotations.StringLength(500)]
         public string DisplayText { get; set; } = string.Empty;
     }
 
     public class CustomFieldCriterionInput
     {
+        [JsonConverter(typeof(JsonStringEnumConverter))]
         public LogicalOperator LogicalOperator { get; set; }
+        [System.ComponentModel.DataAnnotations.Range(0, int.MaxValue)]
         public int GroupNumber { get; set; }
         public int? ParentCriteriaId { get; set; }
         public int CustomFieldId { get; set; }
+        [JsonConverter(typeof(JsonStringEnumConverter))]
         public ComparisonOperator Operator { get; set; }
         public string Value { get; set; } = string.Empty;
+        [System.ComponentModel.DataAnnotations.StringLength(500)]
         public string DisplayText { get; set; } = string.Empty;
     }
 
     public class CaseFieldCriterionInput
     {
+        [JsonConverter(typeof(JsonStringEnumConverter))]
         public LogicalOperator LogicalOperator { get; set; }
+        [System.ComponentModel.DataAnnotations.Range(0, int.MaxValue)]
         public int GroupNumber { get; set; }
         public int? ParentCriteriaId { get; set; }
         public string FieldPath { get; set; } = string.Empty;
+        [JsonConverter(typeof(JsonStringEnumConverter))]
         public ComparisonOperator Operator { get; set; }
         public string Value { get; set; } = string.Empty;
+        [System.ComponentModel.DataAnnotations.StringLength(500)]
         public string DisplayText { get; set; } = string.Empty;
     }
 
     public class UpdateOperatorInput
     {
+        [JsonConverter(typeof(JsonStringEnumConverter))]
         public LogicalOperator LogicalOperator { get; set; }
     }
 
     public class UpdateGroupExitOperatorInput
     {
+        [JsonConverter(typeof(JsonStringEnumConverter))]
         public LogicalOperator GroupExitOperator { get; set; }
     }
 

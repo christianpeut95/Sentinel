@@ -12,6 +12,8 @@ using Sentinel.Services;
 namespace Sentinel.Pages.Settings.Occupations
 {
     [Authorize(Policy = "Permission.Occupation.Import")]
+    [RequestSizeLimit(10 * 1024 * 1024)]
+    [RequestFormLimits(MultipartBodyLengthLimit = 10 * 1024 * 1024)]
     public class UploadModel : PageModel
     {
         private const long MaximumSpreadsheetUncompressedBytes = 100 * 1024 * 1024;

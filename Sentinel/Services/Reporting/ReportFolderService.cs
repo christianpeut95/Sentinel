@@ -17,7 +17,7 @@ public class ReportFolderService : IReportFolderService
     {
         return await _context.ReportFolders
             .Include(f => f.SubFolders)
-            .Include(f => f.Reports)
+            .Include(f => f.Reports.Where(r => r.IsPublic || r.CreatedByUserId == userId))
             .Include(f => f.FolderShares)
             .Where(f => f.CreatedByUserId == userId)
             .OrderBy(f => f.DisplayOrder)
@@ -34,7 +34,7 @@ public class ReportFolderService : IReportFolderService
 
         return await _context.ReportFolders
             .Include(f => f.SubFolders)
-            .Include(f => f.Reports)
+            .Include(f => f.Reports.Where(r => r.IsPublic || r.CreatedByUserId == userId))
             .Include(f => f.FolderShares)
             .Where(f => f.AccessType == FolderAccessType.Public ||
                        f.FolderShares.Any(fs => fs.UserId == userId) ||
@@ -48,7 +48,7 @@ public class ReportFolderService : IReportFolderService
     {
         var folder = await _context.ReportFolders
             .Include(f => f.SubFolders)
-            .Include(f => f.Reports)
+            .Include(f => f.Reports.Where(r => r.IsPublic || r.CreatedByUserId == userId))
             .Include(f => f.FolderShares)
                 .ThenInclude(fs => fs.User)
             .Include(f => f.FolderShares)
@@ -64,8 +64,14 @@ public class ReportFolderService : IReportFolderService
         return folder;
     }
 
-    public async Task<ReportFolder> CreateFolderAsync(ReportFolder folder, string userId)
+    public async Task<ReportFolder?> CreateFolderAsync(ReportFolder folder, string userId)
     {
+        if (folder.ParentFolderId.HasValue &&
+            !await CanEditFolderAsync(folder.ParentFolderId.Value, userId))
+        {
+            return null;
+        }
+
         folder.CreatedByUserId = userId;
         folder.CreatedAt = DateTime.UtcNow;
 
@@ -86,10 +92,8 @@ public class ReportFolderService : IReportFolderService
 
         existing.Name = folder.Name;
         existing.Description = folder.Description;
-        existing.AccessType = folder.AccessType;
         existing.Color = folder.Color;
         existing.Icon = folder.Icon;
-        existing.DisplayOrder = folder.DisplayOrder;
         existing.ModifiedAt = DateTime.UtcNow;
 
         await _context.SaveChangesAsync();

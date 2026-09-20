@@ -620,13 +620,16 @@
                 <button type="button" class="quick-action-btn success" data-bs-toggle="modal" data-bs-target="#addNoteModal">
                     <i class="bi bi-plus-circle"></i> Add Note
                 </button>
-                <button type="button" class="quick-action-btn success" onclick="openAddLabResult()">
-                    <i class="bi bi-plus-circle"></i> Add Lab Result
-                </button>
-                <button type="button" class="quick-action-btn success" onclick="openAddExposure()">
+                @if (Model.CanCreateLabResults)
+                {
+                    <button type="button" class="quick-action-btn success js-open-add-contact-lab-result">
+                        <i class="bi bi-plus-circle"></i> Add Lab Result
+                    </button>
+                }
+                <button type="button" class="quick-action-btn success js-open-add-contact-exposure">
                     <i class="bi bi-plus-circle"></i> Add Exposure
                 </button>
-                <button type="button" class="quick-action-btn success" onclick="openAddTask()">
+                <button type="button" class="quick-action-btn success js-open-add-contact-task">
                     <i class="bi bi-plus-circle"></i> Add Task
                 </button>
             }
@@ -652,9 +655,12 @@
                     <i class="bi bi-clipboard-data"></i>
                     Case Information
                 </h3>
-                <a asp-page="./Edit" asp-route-id="@Model.Contact.Id" class="info-card-action">
-                    <i class="bi bi-pencil"></i> Edit
-                </a>
+                @if (Model.CanEditCase)
+                {
+                    <a asp-page="./Edit" asp-route-id="@Model.Contact.Id" class="info-card-action">
+                        <i class="bi bi-pencil"></i> Edit
+                    </a>
+                }
             </div>
             @if (Model.Contact.Disease != null)
             {
@@ -792,9 +798,12 @@
                     <i class="bi bi-heart-pulse"></i>
                     Symptoms (@Model.CaseSymptoms.Count)
                 </h3>
-                <a asp-page="./Edit" asp-route-id="@Model.Contact.Id" class="info-card-action">
-                    <i class="bi bi-pencil"></i> Edit
-                </a>
+                @if (Model.CanEditCase)
+                {
+                    <a asp-page="./Edit" asp-route-id="@Model.Contact.Id" class="info-card-action">
+                        <i class="bi bi-pencil"></i> Edit
+                    </a>
+                }
             </div>
             @if (Model.CaseSymptoms.Any())
             {
@@ -872,15 +881,17 @@
         </div>
 
         <!-- RIGHT SIDE (2 columns): Lab Results - Wide and Half Height -->
+        @if (Model.CanViewLabResults)
+        {
         <div class="info-card wide half-height lab-results-card">
             <div class="info-card-header">
                 <h3 class="info-card-title">
                     <i class="bi bi-clipboard-pulse"></i>
                     Lab Results (@Model.LabResults.Count)
                 </h3>
-                @if (Model.CanEditCase)
+                @if (Model.CanCreateLabResults)
                 {
-                    <button type="button" class="info-card-action" onclick="openAddLabResult()">
+                    <button type="button" class="info-card-action js-open-add-contact-lab-result">
                         <i class="bi bi-plus-circle"></i> Add
                     </button>
                 }
@@ -991,7 +1002,7 @@
                                     }
                                 </td>
                                 <td class="text-end">
-                                    <button type="button" class="btn btn-sm btn-link p-0" onclick="window.viewLabResult('@labResult.Id')" title="View Details">
+                                    <button type="button" class="btn btn-sm btn-link p-0 js-view-lab-result" data-lab-result-id="@labResult.Id" title="View Details">
                                         <i class="bi bi-eye"></i>
                                     </button>
                                 </td>
@@ -1005,13 +1016,14 @@
                 <div class="empty-state">
                     <i class="bi bi-clipboard-pulse"></i>
                     <p>No lab results yet</p>
-                    @if (Model.CanEditCase)
+                    @if (Model.CanCreateLabResults)
                     {
-                        <button type="button" class="info-card-action" onclick="openAddLabResult()">Add Lab Result</button>
+                        <button type="button" class="info-card-action js-open-add-contact-lab-result">Add Lab Result</button>
                     }
                 </div>
             }
         </div>
+        }
 
         <!-- RIGHT SIDE: Acquisitions (How THIS contact was exposed) -->
         <div class="info-card acquisitions-card">
@@ -1161,7 +1173,7 @@
                            title="Bulk Add Contacts">
                             <i class="bi bi-people-fill"></i>
                         </a>
-                        <button type="button" class="btn btn-sm btn-outline-success" onclick="openAddExposure()" title="Add Exposure">
+                        <button type="button" class="btn btn-sm btn-outline-success js-open-add-contact-exposure" title="Add Exposure">
                             <i class="bi bi-plus-circle"></i>
                         </button>
                     }
@@ -1261,7 +1273,7 @@
                 </h3>
                 @if (Model.CanEditCase)
                 {
-                    <button type="button" class="info-card-action" onclick="openAddTask()">
+                    <button type="button" class="info-card-action js-open-add-contact-task">
                         <i class="bi bi-plus-circle"></i> Add
                     </button>
                 }
@@ -1296,8 +1308,8 @@
                                         <span class="badge bg-info" style="font-size: 0.65rem;">
                                             <i class="bi bi-telephone"></i> @task.CallAttempts.Count call(s)
                                         </span>
-                                        <button type="button" class="btn btn-sm btn-link p-0 ms-1" 
-                                                onclick="showCallHistory('@task.Id')" 
+                                        <button type="button" class="btn btn-sm btn-link p-0 ms-1 js-show-call-history"
+                                                data-task-id="@task.Id"
                                                 title="View Call History"
                                                 style="font-size: 0.7rem;">
                                             <i class="bi bi-clock-history"></i>
@@ -1399,14 +1411,14 @@
                                         }
                                         else
                                         {
-                                            <button type="button" class="btn btn-sm btn-link p-0 me-1" onclick="openCompleteTaskModal('@task.Id', '@task.TaskTemplate?.Name')" title="Complete">
+                                            <button type="button" class="btn btn-sm btn-link p-0 me-1 js-complete-contact-task" data-task-id="@task.Id" data-task-title="@(task.TaskTemplate?.Name ?? task.Title)" title="Complete">
                                                 <i class="bi bi-check-circle"></i>
                                             </button>
                                         }
-                                        <a href="javascript:void(0)" onclick="openEditTaskWindow('@task.Id', '@Model.Contact.Id')" class="btn btn-sm btn-link p-0 text-primary me-1" title="Edit Task">
+                                        <button type="button" class="btn btn-sm btn-link p-0 text-primary me-1 js-edit-contact-task" data-task-id="@task.Id" data-contact-id="@Model.Contact.Id" title="Edit Task">
                                             <i class="bi bi-pencil"></i>
-                                        </a>
-                                        <button type="button" class="btn btn-sm btn-link p-0 text-info" onclick="logCallAttempt('@task.Id', '@(task.TaskTemplate?.Name ?? task.Title)')" title="Log Call">
+                                        </button>
+                                        <button type="button" class="btn btn-sm btn-link p-0 text-info js-log-contact-call" data-task-id="@task.Id" data-task-title="@(task.TaskTemplate?.Name ?? task.Title)" title="Log Call">
                                             <i class="bi bi-telephone-plus"></i>
                                         </button>
                                     }
@@ -1429,7 +1441,7 @@
                     <p>No tasks yet</p>
                     @if (Model.CanEditCase)
                     {
-                        <button type="button" class="info-card-action" onclick="openAddTask()">Add Task</button>
+                        <button type="button" class="info-card-action js-open-add-contact-task">Add Task</button>
                     }
                 </div>
             }
@@ -1478,11 +1490,14 @@
                                         <strong class="ms-2">@note.Subject</strong>
                                     }
                                 </div>
-                                <form method="post" asp-page-handler="DeleteNote" asp-route-id="@Model.Contact.Id" asp-route-noteId="@note.Id" class="d-inline">
-                                    <button type="submit" class="btn btn-sm btn-link text-danger p-0" onclick="return confirm('Delete this note?');" title="Delete">
-                                        <i class="bi bi-trash"></i>
-                                    </button>
-                                </form>
+                                @if (Model.CanDeleteCase)
+                                {
+                                    <form method="post" asp-page-handler="DeleteNote" asp-route-id="@Model.Contact.Id" asp-route-noteId="@note.Id" class="d-inline">
+                                        <button type="submit" class="btn btn-sm btn-link text-danger p-0 js-confirm-contact-note-delete" title="Delete">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </form>
+                                }
                             </div>
                             <p class="mb-1" style="font-size: 0.875rem;">@note.Content</p>
                             @if (!string.IsNullOrEmpty(note.AttachmentFileName))
@@ -1693,9 +1708,12 @@
                                             }
                                         </td>
                                         <td>
-                                            <button type="button" class="btn btn-sm btn-link p-0" onclick="openEditExposure('@exposure.Id')" title="Edit">
-                                                <i class="bi bi-pencil"></i>
-                                            </button>
+                                            @if (Model.CanEditCase)
+                                            {
+                                                <button type="button" class="btn btn-sm btn-link p-0 js-edit-contact-exposure" data-exposure-id="@exposure.Id" title="Edit">
+                                                    <i class="bi bi-pencil"></i>
+                                                </button>
+                                            }
                                         </td>
                                     </tr>
                                 }
@@ -1715,7 +1733,7 @@
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
                 @if (Model.CanEditCase)
                 {
-                    <button type="button" class="btn btn-primary" onclick="openAddExposure()">
+                    <button type="button" class="btn btn-primary js-open-add-contact-exposure">
                         <i class="bi bi-plus-circle me-1"></i>Add New Exposure
                     </button>
                 }
@@ -1833,7 +1851,7 @@
                     <div class="alert alert-info">
                         <i class="bi bi-info-circle me-2"></i>
                         <strong>Note:</strong> Please use the dedicated
-                        @if (Model.CanEditCase)
+                        @if (Model.CanCreateLabResults)
                         {
                             <a href="/Cases/AddLabResult/@Model.Contact.Id" class="alert-link">Add Lab Result</a>
                         }
@@ -2139,8 +2157,8 @@
 @section Scripts {
 @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
 <!-- jQuery UI for autocomplete -->
-<link rel="stylesheet" href="https://code.jquery.com/ui/1.13.2/themes/base/jquery-ui.css">
-<script src="https://code.jquery.com/ui/1.13.2/jquery-ui.min.js"></script>
+<link rel="stylesheet" href="~/lib/jquery-ui/dist/themes/base/jquery-ui.min.css">
+<script src="~/lib/jquery-ui/dist/jquery-ui.min.js"></script>
 <script>
     // ========================================================================
     // GLOBAL FUNCTIONS - Must be defined first for inline onclick handlers
@@ -2234,102 +2252,6 @@
         }
     }
 
-    // Legacy code kept for reference but not used
-    function viewLabResultOLD(labResultId) {
-        $.get('@Url.Page("/Contacts/Details", "LabResultDetails")', { labResultId: labResultId }, function(response) {            if (response.success) {
-                var data = response.data;
-                var html = `
-                    <div class="row">
-                        <div class="col-md-6 mb-3">
-                            <label class="text-muted small">Lab Result ID</label>
-                            <div><span class="badge bg-secondary fs-6">${data.friendlyId}</span></div>
-                        </div>
-                        <div class="col-md-6 mb-3">
-                            <label class="text-muted small">Status</label>
-                            <div>${data.isAmended ? '<span class="badge bg-info fs-6">Amended</span>' : '<span class="badge bg-success fs-6">Original</span>'}</div>
-                        </div>
-                    </div>
-                    <hr />
-                    <h6 class="mb-3"><i class="bi bi-building me-2"></i>Organizations</h6>
-                    <div class="row mb-3">
-                        <div class="col-md-6">
-                            <label class="text-muted small">Laboratory</label>
-                            <div>${data.laboratoryName || '-'}</div>
-                        </div>
-                        <div class="col-md-6">
-                            <label class="text-muted small">Ordering Provider</label>
-                            <div>${data.orderingProviderName || '-'}</div>
-                        </div>
-                    </div>
-                    <div class="row mb-3">
-                        <div class="col-md-6">
-                            <label class="text-muted small">Accession Number</label>
-                            <div>${data.accessionNumber || '-'}</div>
-                        </div>
-                        <div class="col-md-6">
-                            <label class="text-muted small">Test For (Disease/Pathogen)</label>
-                            <div>${data.testedDiseaseName || '-'}</div>
-                        </div>
-                    </div>
-                    <hr />
-                    <h6 class="mb-3"><i class="bi bi-clipboard2-pulse me-2"></i>Specimen & Test Information</h6>
-                    <div class="row mb-3">
-                        <div class="col-md-6">
-                            <label class="text-muted small">Specimen Collection Date</label>
-                            <div>${data.specimenCollectionDate ? new Date(data.specimenCollectionDate).toLocaleDateString('en-AU', { day: '2-digit', month: 'short', year: 'numeric' }) : '-'}</div>
-                        </div>
-                        <div class="col-md-6">
-                            <label class="text-muted small">Specimen Type</label>
-                            <div>${data.specimenTypeName || '-'}</div>
-                        </div>
-                    </div>
-                    <div class="row mb-3">
-                        <div class="col-md-6">
-                            <label class="text-muted small">Test Type</label>
-                            <div>${data.testTypeName || '-'}</div>
-                        </div>
-                        <div class="col-md-6">
-                            <label class="text-muted small">Test Result</label>
-                            <div>${data.testResultName || '-'}</div>
-                        </div>
-                    </div>
-                    <hr />
-                    <h6 class="mb-3"><i class="bi bi-graph-up me-2"></i>Results</h6>
-                    <div class="row mb-3">
-                        <div class="col-md-4">
-                            <label class="text-muted small">Result Date</label>
-                            <div>${data.resultDate ? new Date(data.resultDate).toLocaleDateString('en-AU', { day: '2-digit', month: 'short', year: 'numeric' }) : '-'}</div>
-                        </div>
-                        <div class="col-md-4">
-                            <label class="text-muted small">Quantitative Result</label>
-                            <div>${data.quantitativeResult !== null ? data.quantitativeResult : '-'}</div>
-                        </div>
-                        <div class="col-md-4">
-                            <label class="text-muted small">Units</label>
-                            <div>${data.resultUnitsName || '-'}</div>
-                        </div>
-                    </div>
-                    ${data.notes ? `<div class="mb-3"><label class="text-muted small">Notes</label><div class="alert alert-light mb-0">${escapeHtml(data.notes)}</div></div>` : ''}
-                    ${data.labInterpretation ? `<div class="mb-3"><label class="text-muted small">Lab Interpretation</label><div class="alert alert-light mb-0">${escapeHtml(data.labInterpretation)}</div></div>` : ''}
-                    ${data.attachmentPath ? `<div class="mb-3"><label class="text-muted small">Attachment</label><div><a href="${escapeHtml(data.attachmentPath)}" target="_blank" rel="noopener" class="btn btn-sm btn-outline-primary"><i class="bi bi-paperclip me-1"></i>${escapeHtml(data.attachmentFileName || 'Download')}</a></div></div>` : ''}
-                    <hr />
-                    <div class="row">
-                        <div class="col-md-6">
-                            <label class="text-muted small">Created</label>
-                            <div>${data.createdAt}</div>
-                        </div>
-                        ${data.modifiedAt ? `<div class="col-md-6"><label class="text-muted small">Last Modified</label><div>${data.modifiedAt}</div></div>` : ''}
-                    </div>
-                `;
-                $('#viewLabResultContent').html(html);
-            } else {
-                $('#viewLabResultContent').html('<div class="alert alert-danger">Failed to load lab result details.</div>');
-            }
-        }).fail(function() {
-            $('#viewLabResultContent').html('<div class="alert alert-danger">An error occurred while loading lab result details.</div>');
-        });
-    }
-
     $('#editFromViewBtn').on('click', function() {
         closeViewLabResultModal();
         if (currentLabResultId) {
@@ -2352,7 +2274,12 @@
     });
 
     function escapeHtml(value) {
-        return $('<div>').text(value ?? '').html();
+        return String(value ?? '')
+            .replace(/&/g, '&amp;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;');
     }
 
     function editLabResult(labResultId) {
@@ -2366,7 +2293,7 @@
         $('#editLabResultForm').attr('action', '/Contacts/Details?id=' + caseId + '&handler=UpdateLabResult&labResultId=' + labResultId);
 
         // Load the lab result data
-        $.get('@Url.Page("/Contacts/Details", "LabResultDetails")', { labResultId: labResultId }, function(response) {
+        $.get('@Url.Page("/Contacts/Details", "LabResultDetails")', { id: caseId, labResultId: labResultId }, function(response) {
             if (response.success) {
                 var data = response.data;
                 
@@ -2685,7 +2612,7 @@
                 $('#labResultValidationAlert').removeClass('d-none');
                 $('#labResultValidationList').empty();
                 errors.forEach(function(error) {
-                    $('#labResultValidationList').append('<li>' + error + '</li>');
+                    $('#labResultValidationList').append($('<li>').text(error));
                 });
                 return false;
             } else {
@@ -2697,7 +2624,7 @@
                 $('#dateValidationWarnings').removeClass('d-none');
                 $('#dateWarningsList').empty();
                 warnings.forEach(function(warning) {
-                    $('#dateWarningsList').append('<li>' + warning + '</li>');
+                    $('#dateWarningsList').append($('<li>').text(warning));
                 });
             }
 
@@ -3091,7 +3018,7 @@
                                 </div>
                                 <div class="modal-footer">
                                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                                    <button type="button" class="btn btn-primary" onclick="saveCallAttempt()">
+                                    <button type="button" class="btn btn-primary js-save-contact-call-attempt">
                                         <i class="bi bi-save me-1"></i>Save Call Attempt
                                     </button>
                                 </div>
@@ -3213,7 +3140,7 @@
                             case 8: outcomeText = 'Call Back Requested'; outcomeClass = 'primary'; break;
                         }
                         
-                        const userName = attempt.attemptedByUser?.userName || attempt.attemptedByUser?.email || 'Unknown User';
+                        const userName = escapeHtml(attempt.attemptedByUser?.displayName || 'Unknown User');
                         
                         html += `
                             <div class="list-group-item">
@@ -3230,7 +3157,7 @@
                                         minute: '2-digit'
                                     })}</small>
                                 </div>
-                                ${attempt.notes ? `<p class="mb-1">${attempt.notes}</p>` : '<p class="mb-1 text-muted">No notes recorded</p>'}
+                                ${attempt.notes ? `<p class="mb-1">${escapeHtml(attempt.notes)}</p>` : '<p class="mb-1 text-muted">No notes recorded</p>'}
                                 ${attempt.nextCallbackScheduled ? `<small class="text-info"><i class="bi bi-calendar-check"></i> Next call: ${new Date(attempt.nextCallbackScheduled).toLocaleString('en-AU')}</small>` : ''}
                             </div>
                         `;
@@ -3335,6 +3262,70 @@
             'width=' + width + ',height=' + height + ',top=' + top + ',left=' + left + 
             ',resizable=yes,scrollbars=yes,status=yes');
     }
+
+    document.addEventListener('click', function (event) {
+        if (event.target.closest('.js-open-add-contact-lab-result')) {
+            openAddLabResult();
+            return;
+        }
+
+        if (event.target.closest('.js-open-add-contact-exposure')) {
+            openAddExposure();
+            return;
+        }
+
+        if (event.target.closest('.js-open-add-contact-task')) {
+            openAddTask();
+            return;
+        }
+
+        if (event.target.closest('.js-confirm-contact-note-delete')) {
+            if (!window.confirm('Delete this note?')) {
+                event.preventDefault();
+            }
+            return;
+        }
+
+        if (event.target.closest('.js-save-contact-call-attempt')) {
+            saveCallAttempt();
+            return;
+        }
+
+        const labResultButton = event.target.closest('.js-view-lab-result');
+        if (labResultButton) {
+            viewLabResult(labResultButton.dataset.labResultId);
+            return;
+        }
+
+        const callHistoryButton = event.target.closest('.js-show-call-history');
+        if (callHistoryButton) {
+            showCallHistory(callHistoryButton.dataset.taskId);
+            return;
+        }
+
+        const completeTaskButton = event.target.closest('.js-complete-contact-task');
+        if (completeTaskButton) {
+            openCompleteTaskModal(completeTaskButton.dataset.taskId, completeTaskButton.dataset.taskTitle);
+            return;
+        }
+
+        const editTaskButton = event.target.closest('.js-edit-contact-task');
+        if (editTaskButton) {
+            openEditTaskWindow(editTaskButton.dataset.taskId, editTaskButton.dataset.contactId);
+            return;
+        }
+
+        const logCallButton = event.target.closest('.js-log-contact-call');
+        if (logCallButton) {
+            logCallAttempt(logCallButton.dataset.taskId, logCallButton.dataset.taskTitle);
+            return;
+        }
+
+        const exposureButton = event.target.closest('.js-edit-contact-exposure');
+        if (exposureButton) {
+            openEditExposure(exposureButton.dataset.exposureId);
+        }
+    });
 
     // Expose function globally
     window.openEditTaskWindow = openEditTaskWindow;

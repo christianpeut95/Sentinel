@@ -13,14 +13,15 @@
     <!-- Bootstrap CSS -->
     <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
     <link rel="stylesheet" href="~/css/site.css" />
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.min.css" />
+    <link rel="stylesheet" href="~/lib/bootstrap-icons/font/bootstrap-icons.min.css" />
     
-    <!-- SurveyJS Styles - BOTH Core and Creator CSS Required -->
-    <link href="~/lib/survey-core/defaultV2.min.css" rel="stylesheet" />
-    <link href="~/lib/survey-creator-core/survey-creator-core.min.css" rel="stylesheet" />
-
-    <!-- Sentinel Theme Override - Must load AFTER default SurveyJS styles -->
-    <link href="~/css/sentinel-survey-theme.css" rel="stylesheet" />
+    @if (Model.IsSurveyDesignerEnabled)
+    {
+        <!-- The MIT form renderer and the separately supplied Creator assets. -->
+        <link href="~/lib/survey-core/defaultV2.min.css" rel="stylesheet" />
+        <link href="~/lib/survey-creator-core/survey-creator-core.min.css" rel="stylesheet" />
+        <link href="~/css/sentinel-survey-theme.css" rel="stylesheet" />
+    }
     
     <style>
         body {
@@ -281,6 +282,24 @@
     </style>
 </head>
 <body>
+@if (!Model.IsSurveyDesignerEnabled)
+{
+    <main class="container py-5">
+        <div class="card mx-auto shadow-sm" style="max-width: 42rem;">
+            <div class="card-body p-4">
+                <h1 class="h3">Survey designer unavailable</h1>
+                <p>@Model.SurveyDesignerUnavailableMessage</p>
+                <p class="text-muted mb-4">Existing surveys can still be completed and their saved definitions remain available to the application.</p>
+                <a class="btn btn-primary" href="@Model.ReturnUrl">Return to survey templates</a>
+            </div>
+        </div>
+    </main>
+}
+else
+{
+    <form id="surveyAntiforgeryForm" class="d-none" aria-hidden="true">
+        @Html.AntiForgeryToken()
+    </form>
     <div id="designerContainer">
         <!-- Header -->
         <div id="designerHeader">
@@ -504,6 +523,66 @@
         
         // Initial survey JSON from server
         const initialSurveyJson = JSON.parse(@Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.SurveyDefinitionJson ?? "null")));
+
+        function sanitizeSurveyDefinition(definition) {
+            function sanitizeNode(node) {
+                if (Array.isArray(node)) {
+                    return node
+                        .map(sanitizeNode)
+                        .filter(item => item !== undefined);
+                }
+
+                if (node && typeof node === 'object') {
+                    if (typeof node.type === 'string' && node.type.toLowerCase() === 'html') {
+                        return undefined;
+                    }
+
+                    const safeNode = {};
+                    Object.entries(node).forEach(([key, value]) => {
+                        // SurveyJS treats these values as executable HTML. Sentinel survey
+                        // definitions are structured configuration, never a rich-text channel.
+                        if (['html', 'htmlcontent', 'completedhtml', 'completedbeforehtml', 'loadinghtml']
+                            .includes(key.toLowerCase())) {
+                            return;
+                        }
+
+                        const safeValue = sanitizeNode(value);
+                        if (safeValue !== undefined) {
+                            safeNode[key] = safeValue;
+                        }
+                    });
+                    return safeNode;
+                }
+
+                return node;
+            }
+
+            return sanitizeNode(definition) || {};
+        }
+
+        function safeLocalRedirect(value, fallback) {
+            if (typeof value !== 'string') {
+                return fallback;
+            }
+
+            try {
+                const target = new URL(value, window.location.origin);
+                return target.origin === window.location.origin
+                    ? `${target.pathname}${target.search}${target.hash}`
+                    : fallback;
+            } catch {
+                return fallback;
+            }
+        }
+
+        function hasSameOriginOpener() {
+            try {
+                return Boolean(window.opener) &&
+                    window.opener.location.origin === window.location.origin;
+            } catch {
+                return false;
+            }
+        }
         
         function initializeSurveyCreator() {            // Check if all required libraries are loaded
             if (typeof ko === 'undefined' || typeof Survey === 'undefined' || typeof SurveyCreator === 'undefined') {                alert('Failed to load survey designer libraries. Please refresh the page.');
@@ -520,13 +599,20 @@
                     showTestSurveyTab: true,
                     showEmbeddedSurveyTab: false,
                     showPropertyGrid: "right",
-                    showToolbox: "left"
-                    // No questionTypes restriction - show all available question types
+                    showToolbox: "left",
+                    // HTML elements render arbitrary markup. Standard question types provide
+                    // the required interview and matrix functionality without that surface.
+                    questionTypes: [
+                        "text", "comment", "radiogroup", "checkbox", "dropdown", "tagbox",
+                        "boolean", "rating", "matrix", "matrixdropdown", "matrixdynamic",
+                        "multipletext", "panel", "paneldynamic", "expression", "image",
+                        "imagepicker", "file", "signaturepad", "ranking"
+                    ]
                 };
                 
                 // Create the SurveyCreator instance
                 surveyCreator = new SurveyCreator.SurveyCreator(creatorOptions);                // Load initial JSON
-                if (initialSurveyJson && typeof initialSurveyJson === 'object') {                    surveyCreator.JSON = initialSurveyJson;
+                if (initialSurveyJson && typeof initialSurveyJson === 'object') {                    surveyCreator.JSON = sanitizeSurveyDefinition(initialSurveyJson);
                 } else {                    // Start with a basic template
                     surveyCreator.JSON = {
                         title: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.SurveyName)),
@@ -542,7 +628,9 @@
                     updateSaveStatus('unsaved');
                 });
                 
-            } catch (error) {                alert('Error initializing survey designer: ' + error.message + '\n\nCheck console for details.');
+            } catch (error) {
+                console.error('The survey designer could not be initialized.');
+                alert('The survey designer could not be loaded. Please refresh the page or contact an administrator.');
             }
         }
         
@@ -786,7 +874,6 @@
             navigator.clipboard.writeText(field).then(function() {
                 // Visual feedback
                 chip.addClass('copied');
-                const originalContent = chip.html();
                 chip.find('.copy-icon').removeClass('bi-clipboard').addClass('bi-check-circle-fill');
                 
                 // Show toast
@@ -807,25 +894,43 @@
         });
         
         function showToast(title, message) {
-            // Simple toast notification
-            const toast = $(`
-                <div class="position-fixed top-0 end-0 p-3" style="z-index: 99999;">
-                    <div class="toast show" role="alert">
-                        <div class="toast-header bg-success text-white">
-                            <i class="bi bi-check-circle-fill me-2"></i>
-                            <strong class="me-auto">${title}</strong>
-                            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="toast"></button>
-                        </div>
-                        <div class="toast-body">
-                            ${message}
-                        </div>
-                    </div>
-                </div>
-            `);
-            
-            $('body').append(toast);
+            const host = document.createElement('div');
+            host.className = 'position-fixed top-0 end-0 p-3';
+            host.style.zIndex = '99999';
+
+            const toast = document.createElement('div');
+            toast.className = 'toast show';
+            toast.setAttribute('role', 'alert');
+
+            const header = document.createElement('div');
+            header.className = 'toast-header bg-success text-white';
+
+            const icon = document.createElement('i');
+            icon.className = 'bi bi-check-circle-fill me-2';
+            icon.setAttribute('aria-hidden', 'true');
+
+            const titleElement = document.createElement('strong');
+            titleElement.className = 'me-auto';
+            titleElement.textContent = title;
+
+            const closeButton = document.createElement('button');
+            closeButton.type = 'button';
+            closeButton.className = 'btn-close btn-close-white';
+            closeButton.setAttribute('aria-label', 'Close');
+            closeButton.addEventListener('click', () => host.remove());
+
+            header.append(icon, titleElement, closeButton);
+
+            const body = document.createElement('div');
+            body.className = 'toast-body';
+            body.textContent = message;
+
+            toast.append(header, body);
+            host.appendChild(toast);
+            document.body.appendChild(host);
+
             setTimeout(function() {
-                toast.remove();
+                host.remove();
             }, 3000);
         }
         
@@ -1075,9 +1180,14 @@
         }
         
         function escapeHtml(text) {
-            const div = document.createElement('div');
-            div.textContent = text;
-            return div.innerHTML;
+            // Question and custom-field labels are used in both text and quoted
+            // data/value attributes while the mapping editor is rendered.
+            return String(text ?? '')
+                .replace(/&/g, '&amp;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;');
         }
         
         // Show/hide custom field input based on dropdown selection
@@ -1254,29 +1364,12 @@
                     
                     // Redirect to new version
                     setTimeout(function() {
-                        window.location.href = `/Settings/Surveys/EditSurveyTemplate?id=${response.newVersionId}`;
+                        window.location.href = `/Settings/Surveys/EditSurveyTemplate?id=${encodeURIComponent(response.newVersionId)}`;
                     }, 1000);
                 },
-                error: function(xhr, status, error) {                    let errorMessage = 'Failed to create version';
-                    
-                    try {
-                        // Try to parse error response as text
-                        const responseText = xhr.responseText;
-                        if (responseText) {
-                            if (xhr.status === 400) {
-                                // Bad request - show the specific error
-                                errorMessage = responseText;
-                            } else if (xhr.status === 404) {
-                                // Not found
-                                errorMessage = responseText || 'Parent survey not found. The survey may have been deleted.';
-                            } else {
-                                errorMessage = responseText || error || 'Unknown error occurred';
-                            }
-                        }
-                    } catch (e) {                        errorMessage += ': ' + (xhr.statusText || error || 'Unknown error');
-                    }
-                    
-                    alert('Error: ' + errorMessage);
+                error: function(xhr, status, error) {
+                    console.error('The survey version could not be created.');
+                    alert('The survey version could not be created. Please check the configuration and try again.');
                     
                     // Re-enable button
                     $('#createVersionBtn').prop('disabled', false).html('<i class="bi bi-save me-1"></i>Create Version');
@@ -1322,10 +1415,18 @@
             }
             
             updateSaveStatus('saving');            // Send to server with mappings
+            const antiForgeryToken = document.querySelector('#surveyAntiforgeryForm input[name="__RequestVerificationToken"]')?.value;
+            if (!antiForgeryToken) {
+                updateSaveStatus('error');
+                alert('The survey could not be saved. Please refresh the page and try again.');
+                return;
+            }
+
             $.ajax({
                 url: window.location.pathname,
                 method: 'POST',
                 contentType: 'application/json',
+                headers: { 'RequestVerificationToken': antiForgeryToken },
                 data: JSON.stringify({
                     surveyDefinitionJson: JSON.stringify(surveyJson),
                     outputMappingJson: JSON.stringify(currentMappings.output),
@@ -1336,28 +1437,18 @@
                     
                     // Close window after short delay
                     setTimeout(function() {
-                        if (window.opener) {
+                        if (hasSameOriginOpener()) {
                             window.opener.location.reload();
                             window.close();
                         } else {
-                            window.location.href = returnUrl || '/Settings/Surveys/SurveyTemplates';
+                            window.location.href = safeLocalRedirect(returnUrl, '/Settings/Surveys/SurveyTemplates');
                         }
                     }, 500);
                 },
-                error: function(xhr, status, error) {                    updateSaveStatus('error');
-                    
-                    let errorMessage = 'Failed to save survey';
-                    if (xhr.status === 400) {
-                        errorMessage += ': ' + (xhr.responseText || 'Bad request');
-                    } else if (xhr.status === 404) {
-                        errorMessage += ': Survey template not found';
-                    } else if (xhr.status === 500) {
-                        errorMessage += ': Server error - ' + (xhr.responseText || error);
-                    } else {
-                        errorMessage += ': ' + (xhr.responseText || error);
-                    }
-                    
-                    alert(errorMessage);
+                error: function(xhr, status, error) {
+                    updateSaveStatus('error');
+                    console.error('The survey could not be saved.');
+                    alert('The survey could not be saved. Please check the configuration and try again.');
                 }
             });
         });
@@ -1370,10 +1461,10 @@
                 }
             }
             
-            if (window.opener) {
+            if (hasSameOriginOpener()) {
                 window.close();
             } else {
-                window.location.href = returnUrl || '/Settings/Surveys/SurveyTemplates';
+                window.location.href = safeLocalRedirect(returnUrl, '/Settings/Surveys/SurveyTemplates');
             }
         });
         
@@ -1381,11 +1472,21 @@
         $('#previewBtn').on('click', function() {
             if (!surveyCreator) return;
             
-            const surveyJson = surveyCreator.JSON;
+            const surveyJson = sanitizeSurveyDefinition(surveyCreator.JSON);
             const survey = new Survey.Model(surveyJson);
-            survey.render("surveyPreviewContainer");
-            
-            $('#previewModal').modal('show');
+            survey.onTextMarkdown.add(function (_, options) {
+                options.html = escapeHtml(options.text).replace(/\r?\n/g, '<br>');
+            });
+
+            // SurveyJS cannot reliably measure and render into a Bootstrap modal
+            // while its container is hidden. Wait until Bootstrap has displayed the
+            // modal, then replace any previous preview and render the new instance.
+            const previewModal = $('#previewModal');
+            previewModal.one('shown.bs.modal', function() {
+                document.getElementById('surveyPreviewContainer').replaceChildren();
+                survey.render("surveyPreviewContainer");
+            });
+            previewModal.modal('show');
         });
         
         // Warn before leaving with unsaved changes
@@ -1412,5 +1513,6 @@
             }
         });
     </script>
+}
 </body>
 </html>

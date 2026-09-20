@@ -60,7 +60,7 @@ namespace Sentinel.Areas.Identity.Pages.Account
             public bool RememberMe { get; set; }
         }
 
-        public async Task OnGetAsync(string returnUrl = 
+        public async Task OnGetAsync(string? returnUrl = 
             null)
         {
             if (!string.IsNullOrEmpty(ErrorMessage))
@@ -68,7 +68,7 @@ namespace Sentinel.Areas.Identity.Pages.Account
                 ModelState.AddModelError(string.Empty, GenericSignInFailureMessage);
             }
 
-            returnUrl ??= Url.Content("~/");
+            returnUrl = GetSafeReturnUrl(returnUrl);
 
             // Clear the existing external cookie to ensure a clean login process
             await HttpContext.SignOutAsync(IdentityConstants.ExternalScheme);
@@ -78,9 +78,9 @@ namespace Sentinel.Areas.Identity.Pages.Account
             ReturnUrl = returnUrl;
         }
 
-        public async Task<IActionResult> OnPostAsync(string returnUrl = null)
+        public async Task<IActionResult> OnPostAsync(string? returnUrl = null)
         {
-            returnUrl ??= Url.Content("~/");
+            returnUrl = GetSafeReturnUrl(returnUrl);
 
             ExternalLogins = (await _signInManager.GetExternalAuthenticationSchemesAsync()).ToList();
 
@@ -113,13 +113,10 @@ namespace Sentinel.Areas.Identity.Pages.Account
                     return ReturnGenericSignInFailure();
                 }
                 
-                string usernameOrEmail = user.UserName ?? Input.Email;
-                
-                var result = await _signInManager.PasswordSignInAsync(
-                    usernameOrEmail,
+                var result = await SignInWithSessionRotationAsync(
+                    user,
                     Input.Password,
-                    Input.RememberMe,
-                    lockoutOnFailure: true);
+                    Input.RememberMe);
                 
                 if (result.Succeeded)
                 {
@@ -144,9 +141,9 @@ namespace Sentinel.Areas.Identity.Pages.Account
             return Page();
         }
         
-        public async Task<IActionResult> OnPostDemoLoginAsync(string email, string password, string returnUrl = null)
+        public async Task<IActionResult> OnPostDemoLoginAsync(string email, string password, string? returnUrl = null)
         {
-            returnUrl ??= Url.Content("~/");
+            returnUrl = GetSafeReturnUrl(returnUrl);
 
             if (!IsDemoMode)
             {
@@ -172,11 +169,10 @@ namespace Sentinel.Areas.Identity.Pages.Account
                 return ReturnGenericSignInFailure();
             }
             
-            var result = await _signInManager.PasswordSignInAsync(
-                user.UserName!,
+            var result = await SignInWithSessionRotationAsync(
+                user,
                 password,
-                isPersistent: false,
-                lockoutOnFailure: true);
+                isPersistent: false);
             
             if (result.Succeeded)
             {
@@ -191,6 +187,46 @@ namespace Sentinel.Areas.Identity.Pages.Account
             }
 
             return ReturnGenericSignInFailure();
+        }
+
+        private string GetSafeReturnUrl(string? returnUrl) =>
+            !string.IsNullOrWhiteSpace(returnUrl) && Url.IsLocalUrl(returnUrl)
+                ? returnUrl
+                : Url.Content("~/");
+
+        /// <summary>
+        /// Verifies credentials before rotating the security stamp and issuing a
+        /// new Identity cookie. Rotating only after a successful verification
+        /// avoids letting a failed-password attempt terminate another user's
+        /// session, while making a successful re-authentication invalidate an
+        /// intercepted earlier cookie.
+        /// </summary>
+        private async Task<Microsoft.AspNetCore.Identity.SignInResult> SignInWithSessionRotationAsync(
+            ApplicationUser user,
+            string password,
+            bool isPersistent)
+        {
+            var result = await _signInManager.CheckPasswordSignInAsync(
+                user,
+                password,
+                lockoutOnFailure: true);
+
+            if (!result.Succeeded)
+            {
+                return result;
+            }
+
+            var stampResult = await _userManager.UpdateSecurityStampAsync(user);
+            if (!stampResult.Succeeded)
+            {
+                _logger.LogError(
+                    "Unable to rotate the security stamp while signing in user {UserId}",
+                    user.Id);
+                return Microsoft.AspNetCore.Identity.SignInResult.Failed;
+            }
+
+            await _signInManager.SignInAsync(user, isPersistent);
+            return Microsoft.AspNetCore.Identity.SignInResult.Success;
         }
 
         private async Task<bool> EnsureLockoutEnabledAsync(ApplicationUser user)

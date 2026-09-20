@@ -35,10 +35,10 @@
     <link href="/_content/AntDesign/css/ant-design-blazor.css" rel="stylesheet" />
     
     <!-- jQuery UI for autocomplete -->
-    <link rel="stylesheet" href="https://code.jquery.com/ui/1.13.2/themes/base/jquery-ui.css" />
+    <link rel="stylesheet" href="~/lib/jquery-ui/dist/themes/base/jquery-ui.min.css" />
     
     <!-- Select2 for enhanced dropdowns -->
-    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+    <link href="~/lib/select2/dist/css/select2.min.css" rel="stylesheet" />
     <link href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css" rel="stylesheet" />
 
     <!-- SurveyJS for survey rendering (local library) -->
@@ -756,8 +756,8 @@
 </main>
 
     <!-- jQuery (required for jQuery UI) -->
-    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
-    <script src="https://code.jquery.com/ui/1.13.2/jquery-ui.min.js"></script>
+    <script src="~/lib/jquery/dist/jquery.min.js"></script>
+    <script src="~/lib/jquery-ui/dist/jquery-ui.min.js"></script>
     
     <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
     <script>
@@ -830,6 +830,23 @@
                 } catch (e) { /* ignore */ }
             });
 
+            // The report builder can hold filters and field selections in a
+            // browser draft. Clear authenticated workspace state as logout is
+            // submitted, while retaining the harmless sidebar preference.
+            document.addEventListener('submit', function (event) {
+                const form = event.target;
+                if (!(form instanceof HTMLFormElement) || !form.action.includes('/Identity/Account/Logout')) {
+                    return;
+                }
+
+                try {
+                    localStorage.removeItem('sentinel_report_draft');
+                    sessionStorage.clear();
+                } catch (e) {
+                    console.warn('Unable to clear browser workspace state during logout.', e);
+                }
+            });
+
             // Close mobile sidebar on navigation (progressive enhancement)
             document.querySelectorAll('.sidebar .nav-link').forEach(function (link) {
                 link.addEventListener('click', function () {
@@ -842,7 +859,7 @@
     </script>
     
     <!-- Select2 for enhanced dropdowns -->
-    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+    <script src="~/lib/select2/dist/js/select2.min.js"></script>
 
     <!-- SurveyJS for survey rendering (local files) -->
     <script src="~/lib/knockout/build/output/knockout-latest.js"></script>

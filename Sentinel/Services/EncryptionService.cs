@@ -124,8 +124,15 @@ namespace Sentinel.Services
 
             try
             {
-                var computedHash = Hash(value);
-                return computedHash.Equals(hash, StringComparison.Ordinal);
+                var computedHash = Convert.FromBase64String(Hash(value));
+                var expectedHash = Convert.FromBase64String(hash);
+
+                // Setup tokens are high-entropy, but use a constant-time
+                // comparison nonetheless so this generic verifier cannot
+                // reveal matching-prefix information if it is reused.
+                return System.Security.Cryptography.CryptographicOperations.FixedTimeEquals(
+                    computedHash,
+                    expectedHash);
             }
             catch (Exception ex)
             {

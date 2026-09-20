@@ -421,12 +421,12 @@ else
                             (DateTime.Today < patient.DateOfBirth.Value.AddYears(DateTime.Today.Year - patient.DateOfBirth.Value.Year) ? 1 : 0)) 
                             : (int?)null;
 
-                        <tr onclick="window.location.href='@Url.Page("./Details", new { id = patient.Id })'">
+                        <tr class="js-patient-row" data-details-url="@Url.Page("./Details", new { id = patient.Id })" tabindex="0">
                             <td>
                                 <span class="friendly-id">@patient.FriendlyId</span>
                             </td>
                             <td>
-                                <a asp-page="./Details" asp-route-id="@patient.Id" class="patient-link" onclick="event.stopPropagation()">
+                                <a asp-page="./Details" asp-route-id="@patient.Id" class="patient-link">
                                     @patient.FamilyName, @patient.GivenName
                                 </a>
                             </td>
@@ -435,13 +435,17 @@ else
                             <td>
                                 @if (patient.Gender != null)
                                 {
-                                    var genderClass = patient.Gender.Name.ToLower();
+                                    var genderClass = patient.Gender.Name.Equals("Male", StringComparison.OrdinalIgnoreCase)
+                                        ? "male"
+                                        : patient.Gender.Name.Equals("Female", StringComparison.OrdinalIgnoreCase)
+                                            ? "female"
+                                            : "other";
                                     <span class="gender-badge @genderClass">
-                                        @if (patient.Gender.Name == "Male")
+                                        @if (genderClass == "male")
                                         {
                                             <i class="bi bi-gender-male"></i>
                                         }
-                                        else if (patient.Gender.Name == "Female")
+                                        else if (genderClass == "female")
                                         {
                                             <i class="bi bi-gender-female"></i>
                                         }
@@ -462,7 +466,7 @@ else
                             <td style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 150px;" title="@patient.EmailAddress">
                                 @(patient.EmailAddress ?? "-")
                             </td>
-                            <td style="text-align: center;" onclick="event.stopPropagation()">
+                            <td style="text-align: center;">
                                 <a asp-page="./Details" asp-route-id="@patient.Id" class="btn-icon-sm" title="View Details">
                                     <i class="bi bi-eye"></i>
                                 </a>
@@ -517,4 +521,30 @@ else
             </div>
         }
     </div>
+}
+
+@section Scripts {
+    <script>
+        document.querySelectorAll('.js-patient-row[data-details-url]').forEach((row) => {
+            const navigateToDetails = () => {
+                const destination = new URL(row.dataset.detailsUrl, window.location.origin);
+                if (destination.origin === window.location.origin) {
+                    window.location.assign(destination.pathname + destination.search + destination.hash);
+                }
+            };
+
+            row.addEventListener('click', (event) => {
+                if (!event.target.closest('a, button, input, select, textarea, label')) {
+                    navigateToDetails();
+                }
+            });
+
+            row.addEventListener('keydown', (event) => {
+                if (event.target === row && (event.key === 'Enter' || event.key === ' ')) {
+                    event.preventDefault();
+                    navigateToDetails();
+                }
+            });
+        });
+    </script>
 }

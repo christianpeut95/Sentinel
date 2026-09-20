@@ -50,7 +50,15 @@ namespace Sentinel.Pages.Settings.Languages
                 return Page();
             }
 
-            _context.Attach(Language).State = EntityState.Modified;
+            var languageToUpdate = await _context.Languages.FindAsync(Language.Id);
+            if (languageToUpdate == null)
+            {
+                return NotFound();
+            }
+
+            // Code is not editable on this page, so retain the persisted value.
+            languageToUpdate.Name = Language.Name;
+            languageToUpdate.IsActive = Language.IsActive;
 
             try
             {

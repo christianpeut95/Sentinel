@@ -1,0 +1,13 @@
+{
+	email {$ACME_EMAIL}
+}
+
+# A hostname enables Caddy's automatic certificate provisioning and HTTP to
+# HTTPS redirect. The Sentinel application is never published directly.
+{$SENTINEL_HOSTNAME} {
+	encode zstd gzip
+	reverse_proxy sentinel-web:8080
+
+	# Do not advertise the reverse-proxy implementation to clients.
+	header -Server
+}

@@ -41,7 +41,7 @@
         <form method="get" class="row g-3 align-items-end">
             <div class="col-md-6">
                 <label for="diseaseFilter" class="sn-label">Filter by Disease</label>
-                <select name="diseaseId" id="diseaseFilter" class="sn-input" onchange="this.form.submit()">
+                <select name="diseaseId" id="diseaseFilter" class="sn-input js-auto-submit-filter">
                     <option value="">-- All Diseases --</option>
                     @foreach (var disease in Model.Diseases)
                     {
@@ -160,7 +160,7 @@
                                     <i class="bi bi-pencil"></i>
                                 </a>
                                 <button type="button" class="sn-btn sn-btn--ghost sn-btn--sm" 
-                                        onclick="confirmDelete('@mapping.Id', '@mapping.HL7TestCode')" title="Delete">
+                                        data-test-code="@mapping.HL7TestCode" onclick="confirmDelete('@mapping.Id', this.dataset.testCode)" title="Delete">
                                     <i class="bi bi-trash"></i>
                                 </button>
                             </div>

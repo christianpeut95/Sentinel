@@ -50,7 +50,19 @@ namespace Sentinel.Pages.Settings.Lookups
                 return Page();
             }
 
-            _context.Attach(TestMethod).State = EntityState.Modified;
+            var testMethodToUpdate = await _context.TestMethods.FindAsync(TestMethod.Id);
+            if (testMethodToUpdate == null)
+            {
+                return NotFound();
+            }
+
+            // Standard codes are maintained through their dedicated configuration;
+            // this form deliberately changes only its rendered fields.
+            testMethodToUpdate.Name = TestMethod.Name;
+            testMethodToUpdate.Description = TestMethod.Description;
+            testMethodToUpdate.ExportCode = TestMethod.ExportCode;
+            testMethodToUpdate.DisplayOrder = TestMethod.DisplayOrder;
+            testMethodToUpdate.IsActive = TestMethod.IsActive;
 
             try
             {
@@ -68,7 +80,7 @@ namespace Sentinel.Pages.Settings.Lookups
                 }
             }
 
-            TempData["SuccessMessage"] = $"Test method '{TestMethod.Name}' has been updated successfully.";
+            TempData["SuccessMessage"] = $"Test method '{testMethodToUpdate.Name}' has been updated successfully.";
             return RedirectToPage("./TestMethods");
         }
 

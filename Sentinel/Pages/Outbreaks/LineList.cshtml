@@ -166,9 +166,15 @@
         let currentConfig = null;
         
         function escapeHtml(value) {
-            const element = document.createElement('div');
-            element.textContent = value ?? '';
-            return element.innerHTML;
+            // Field metadata is used in both element text and quoted data
+            // attributes. Encode the full attribute character set for either
+            // context before inserting the fixed markup templates below.
+            return String(value ?? '')
+                .replace(/&/g, '&amp;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;');
         }
         // Default fields
         const defaultFields = [
@@ -336,20 +342,29 @@
                 return;
             }
             
-            container.innerHTML = configs.map(c => `
-                <button class="list-group-item list-group-item-action py-2 px-3 d-flex justify-content-between align-items-center"
-                        onclick="loadConfiguration(${c.id})">
-                    <div>
-                        <div class="small fw-medium">${escapeHtml(c.name)}</div>
-                        ${c.isDefault ? '<small class="badge bg-primary">Default</small>' : ''}
-                    </div>
-                    <div>
-                        <button class="btn btn-sm btn-link text-danger p-0" onclick="deleteConfiguration(${c.id}, event)" title="Delete">
-                            <i class="bi bi-trash"></i>
-                        </button>
-                    </div>
-                </button>
-            `).join('');
+            container.innerHTML = configs.map(c => {
+                const configId = Number(c.id);
+                if (!Number.isSafeInteger(configId) || configId < 1) return '';
+
+                return `
+                <div class="list-group-item py-2 px-3 d-flex justify-content-between align-items-center">
+                    <button type="button" class="btn btn-link text-start p-0 border-0 flex-grow-1 js-load-configuration"
+                            data-configuration-id="${configId}">
+                        <span class="d-block small fw-medium">${escapeHtml(c.name)}</span>
+                        ${c.isDefault ? '<span class="badge bg-primary">Default</span>' : ''}
+                    </button>
+                    <button type="button" class="btn btn-sm btn-link text-danger p-0 ms-2 js-delete-configuration"
+                            data-configuration-id="${configId}" title="Delete">
+                        <i class="bi bi-trash"></i>
+                    </button>
+                </div>
+            `;
+            }).join('');
+
+            container.querySelectorAll('.js-load-configuration').forEach(button =>
+                button.addEventListener('click', () => loadConfiguration(Number(button.dataset.configurationId))));
+            container.querySelectorAll('.js-delete-configuration').forEach(button =>
+                button.addEventListener('click', () => deleteConfiguration(Number(button.dataset.configurationId))));
         }
         
         function renderSharedConfigurations(configs) {
@@ -360,13 +375,21 @@
                 return;
             }
             
-            container.innerHTML = configs.map(c => `
-                <button class="list-group-item list-group-item-action py-2 px-3"
-                        onclick="loadConfiguration(${c.id})">
-                    <div class="small fw-medium">${escapeHtml(c.name)}</div>
+            container.innerHTML = configs.map(c => {
+                const configId = Number(c.id);
+                if (!Number.isSafeInteger(configId) || configId < 1) return '';
+
+                return `
+                <button type="button" class="list-group-item list-group-item-action py-2 px-3 js-load-configuration"
+                        data-configuration-id="${configId}">
+                    <span class="d-block small fw-medium">${escapeHtml(c.name)}</span>
                     <small class="text-muted">by ${escapeHtml(c.createdByUser?.userName || 'Unknown')}</small>
                 </button>
-            `).join('');
+            `;
+            }).join('');
+
+            container.querySelectorAll('.js-load-configuration').forEach(button =>
+                button.addEventListener('click', () => loadConfiguration(Number(button.dataset.configurationId))));
         }
         
         async function loadConfiguration(configId) {
@@ -388,9 +411,7 @@
             }
         }
         
-        async function deleteConfiguration(configId, event) {
-            event.stopPropagation();
-            
+        async function deleteConfiguration(configId) {
             if (!confirm('Delete this saved view?')) return;
             
             try {
@@ -558,8 +579,7 @@
                 });
                 
                 if (!response.ok) {
-                    const error = await response.json();
-                    throw new Error(error.error || 'Failed to save view');
+                    throw new Error('Line-list view save failed');
                 }
 
                 const savedConfig = await response.json();
@@ -582,9 +602,10 @@
                 document.getElementById('viewDescription').value = '';
                 document.getElementById('viewIsShared').checked = false;
                 document.getElementById('viewIsDefault').checked = false;
-            } catch (error) {
-                showError('Failed to save view: ' + error.message);
-            }
+        } catch (error) {
+            console.error('Failed to save line-list view.');
+            showError('The line-list view could not be saved. Please try again.');
+        }
         }
         
         async function exportToCsv() {

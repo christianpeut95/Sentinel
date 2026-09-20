@@ -97,7 +97,7 @@ namespace Sentinel.Pages.Settings.HL7.Messages
                 }
                 else
                 {
-                    TempData["ErrorMessage"] = $"Error reprocessing message: {string.Join(", ", result.Errors)}";
+                    TempData["ErrorMessage"] = "Message reprocessing completed with errors. Review the application logs using the message control ID for technical details.";
                 }
             }
             else

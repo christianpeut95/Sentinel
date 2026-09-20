@@ -10,13 +10,16 @@ using System.Security.Claims;
 namespace Sentinel.Pages.Cases.Exposures
 {
     [Authorize(Policy = "Permission.Exposure.Edit")]
+    [Authorize(Policy = "Permission.Case.Edit")]
     public class EditModel : PageModel
     {
         private readonly ApplicationDbContext _context;
+        private readonly IAuthorizationService _authorizationService;
 
-        public EditModel(ApplicationDbContext context)
+        public EditModel(ApplicationDbContext context, IAuthorizationService authorizationService)
         {
             _context = context;
+            _authorizationService = authorizationService;
         }
 
         [BindProperty]
@@ -51,6 +54,11 @@ namespace Sentinel.Pages.Cases.Exposures
                 return NotFound();
             }
 
+            if (!await CanUseReferencesAsync(exposure))
+            {
+                return NotFound();
+            }
+
             Exposure = exposure;
             CaseId = exposure.ExposedCaseId;
             CaseFriendlyId = exposure.ExposedCase?.FriendlyId ?? "";
@@ -65,12 +73,43 @@ namespace Sentinel.Pages.Cases.Exposures
 
         public async Task<IActionResult> OnPostAsync()
         {
+            // Resolve the existing exposure through the normal query filter before
+            // using any posted values. This prevents a caller from updating an
+            // exposure belonging to a case they cannot access.
+            var existingExposure = await _context.ExposureEvents
+                .FirstOrDefaultAsync(e => e.Id == Exposure.Id);
+            if (existingExposure == null)
+            {
+                return NotFound();
+            }
+
+            var exposedCase = await _context.Cases
+                .FirstOrDefaultAsync(c => c.Id == existingExposure.ExposedCaseId);
+            if (exposedCase == null)
+            {
+                return NotFound();
+            }
+
+            // The exposed case and audit fields are server-owned. Do not let a form
+            // move an exposure between cases or overwrite its history.
+            Exposure.ExposedCaseId = existingExposure.ExposedCaseId;
+
+            if (Exposure.SourceCaseId.HasValue &&
+                !await _context.Cases.AnyAsync(c => c.Id == Exposure.SourceCaseId.Value))
+            {
+                ModelState.AddModelError(nameof(Exposure.SourceCaseId), "The selected source case is not available.");
+            }
+
+            if (!await CanUseReferencesAsync(Exposure))
+            {
+                return NotFound();
+            }
+
             if (!ModelState.IsValid)
             {
                 await LoadSelectLists();
-                var caseEntity = await _context.Cases.FindAsync(Exposure.ExposedCaseId);
                 CaseId = Exposure.ExposedCaseId;
-                CaseFriendlyId = caseEntity?.FriendlyId ?? "";
+                CaseFriendlyId = exposedCase.FriendlyId;
                 TempData["ErrorMessage"] = "Please correct the errors and try again.";
                 return Page();
             }
@@ -79,9 +118,8 @@ namespace Sentinel.Pages.Cases.Exposures
             if (!ValidateExposureTypeFields())
             {
                 await LoadSelectLists();
-                var caseEntity = await _context.Cases.FindAsync(Exposure.ExposedCaseId);
                 CaseId = Exposure.ExposedCaseId;
-                CaseFriendlyId = caseEntity?.FriendlyId ?? "";
+                CaseFriendlyId = exposedCase.FriendlyId;
                 return Page();
             }
 
@@ -90,21 +128,20 @@ namespace Sentinel.Pages.Cases.Exposures
             {
                 ModelState.AddModelError("Exposure.ExposureEndDate", "End date/time must be after start date/time.");
                 await LoadSelectLists();
-                var caseEntity = await _context.Cases.FindAsync(Exposure.ExposedCaseId);
                 CaseId = Exposure.ExposedCaseId;
-                CaseFriendlyId = caseEntity?.FriendlyId ?? "";
+                CaseFriendlyId = exposedCase.FriendlyId;
                 return Page();
             }
 
             // Update status changed metadata
             var originalExposure = await _context.ExposureEvents
                 .AsNoTracking()
-                .FirstOrDefaultAsync(e => e.Id == Exposure.Id);
+                .FirstOrDefaultAsync(e => e.Id == existingExposure.Id);
 
             if (originalExposure != null && originalExposure.ExposureStatus != Exposure.ExposureStatus)
             {
-                Exposure.StatusChangedDate = DateTime.UtcNow;
-                Exposure.StatusChangedByUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                existingExposure.StatusChangedDate = DateTime.UtcNow;
+                existingExposure.StatusChangedByUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             }
 
             // Handle reporting exposure flag
@@ -127,16 +164,16 @@ namespace Sentinel.Pages.Cases.Exposures
                 originalExposure != null &&
                 (originalExposure.Latitude != Exposure.Latitude || originalExposure.Longitude != Exposure.Longitude))
             {
-                Exposure.GeocodedDate = DateTime.UtcNow;
+                existingExposure.GeocodedDate = DateTime.UtcNow;
             }
 
-            _context.Attach(Exposure).State = EntityState.Modified;
+            ApplyEditableFields(existingExposure, Exposure);
 
             try
             {
                 await _context.SaveChangesAsync();
                 TempData["SuccessMessage"] = "Exposure updated successfully.";
-                return RedirectToPage("/Cases/Details", new { id = Exposure.ExposedCaseId });
+                return RedirectToPage("/Cases/Details", new { id = existingExposure.ExposedCaseId });
             }
             catch (DbUpdateConcurrencyException)
             {
@@ -153,16 +190,65 @@ namespace Sentinel.Pages.Cases.Exposures
             {
                 TempData["ErrorMessage"] = Sentinel.Services.UserFacingError.Create(HttpContext, ex);
                 await LoadSelectLists();
-                var caseEntity = await _context.Cases.FindAsync(Exposure.ExposedCaseId);
                 CaseId = Exposure.ExposedCaseId;
-                CaseFriendlyId = caseEntity?.FriendlyId ?? "";
+                CaseFriendlyId = exposedCase.FriendlyId;
                 return Page();
             }
+        }
+
+        private static void ApplyEditableFields(ExposureEvent target, ExposureEvent input)
+        {
+            target.ExposureType = input.ExposureType;
+            target.ExposureStartDate = input.ExposureStartDate;
+            target.ExposureEndDate = input.ExposureEndDate;
+            target.EventId = input.EventId;
+            target.LocationId = input.LocationId;
+            target.SourceCaseId = input.SourceCaseId;
+            target.ContactClassificationId = input.ContactClassificationId;
+            target.CountryCode = input.CountryCode;
+            target.FreeTextLocation = input.FreeTextLocation;
+            target.Description = input.Description;
+            target.ExposureStatus = input.ExposureStatus;
+            target.ConfidenceLevel = input.ConfidenceLevel;
+            target.IsReportingExposure = input.IsReportingExposure;
+            target.AddressLine = input.AddressLine;
+            target.City = input.City;
+            target.State = input.State;
+            target.PostalCode = input.PostalCode;
+            target.Country = input.Country;
+            target.Latitude = input.Latitude;
+            target.Longitude = input.Longitude;
+            target.InvestigationNotes = input.InvestigationNotes;
         }
 
         private bool ExposureExists(Guid id)
         {
             return _context.ExposureEvents.Any(e => e.Id == id);
+        }
+
+        private async Task<bool> CanUseReferencesAsync(ExposureEvent exposure)
+        {
+            if (exposure.LocationId.HasValue)
+            {
+                if (!(await _authorizationService.AuthorizeAsync(User, "Permission.Location.View")).Succeeded ||
+                    !await _context.Locations.AnyAsync(location =>
+                        location.Id == exposure.LocationId.Value && location.IsActive))
+                {
+                    return false;
+                }
+            }
+
+            if (exposure.EventId.HasValue)
+            {
+                if (!(await _authorizationService.AuthorizeAsync(User, "Permission.Event.View")).Succeeded ||
+                    !await _context.Events.AnyAsync(@event =>
+                        @event.Id == exposure.EventId.Value && @event.IsActive))
+                {
+                    return false;
+                }
+            }
+
+            return true;
         }
 
         private bool ValidateExposureTypeFields()
@@ -205,28 +291,41 @@ namespace Sentinel.Pages.Cases.Exposures
 
         private async Task LoadSelectLists()
         {
-            // Load events with locations and dates
-            var events = await _context.Events
-                .Include(e => e.Location)
-                .Where(e => e.IsActive)
-                .OrderByDescending(e => e.StartDateTime)
-                .Select(e => new
-                {
-                    e.Id,
-                    DisplayText = e.Name + " - " + e.StartDateTime.ToString("dd MMM yyyy") +
-                                  (e.Location != null ? " at " + e.Location.Name : "")
-                })
-                .ToListAsync();
+            if ((await _authorizationService.AuthorizeAsync(User, "Permission.Event.View")).Succeeded)
+            {
+                // Load events with locations and dates only for users who may view events.
+                var events = await _context.Events
+                    .Include(e => e.Location)
+                    .Where(e => e.IsActive)
+                    .OrderByDescending(e => e.StartDateTime)
+                    .Select(e => new
+                    {
+                        e.Id,
+                        DisplayText = e.Name + " - " + e.StartDateTime.ToString("dd MMM yyyy") +
+                                      (e.Location != null ? " at " + e.Location.Name : "")
+                    })
+                    .ToListAsync();
 
-            EventsList = new SelectList(events, "Id", "DisplayText");
+                EventsList = new SelectList(events, "Id", "DisplayText");
+            }
+            else
+            {
+                EventsList = new SelectList(Array.Empty<object>());
+            }
 
-            // Load locations
-            LocationsList = new SelectList(
-                await _context.Locations
-                    .Where(l => l.IsActive)
-                    .OrderBy(l => l.Name)
-                    .ToListAsync(),
-                "Id", "Name");
+            if ((await _authorizationService.AuthorizeAsync(User, "Permission.Location.View")).Succeeded)
+            {
+                LocationsList = new SelectList(
+                    await _context.Locations
+                        .Where(l => l.IsActive)
+                        .OrderBy(l => l.Name)
+                        .ToListAsync(),
+                    "Id", "Name");
+            }
+            else
+            {
+                LocationsList = new SelectList(Array.Empty<object>());
+            }
 
             // Load other cases (excluding current case)
             var cases = await _context.Cases

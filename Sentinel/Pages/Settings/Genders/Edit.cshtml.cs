@@ -43,12 +43,21 @@ namespace Sentinel.Pages.Settings.Genders
                 return Page();
             }
 
-            _context.Attach(Gender).State = EntityState.Modified;
+            var genderToUpdate = await _context.Genders.FindAsync(Gender.Id);
+            if (genderToUpdate == null)
+            {
+                return NotFound();
+            }
+
+            genderToUpdate.Name = Gender.Name;
+            genderToUpdate.Description = Gender.Description;
+            genderToUpdate.DisplayOrder = Gender.DisplayOrder;
+            genderToUpdate.IsActive = Gender.IsActive;
 
             try
             {
                 await _context.SaveChangesAsync();
-                TempData["SuccessMessage"] = $"Gender '{Gender.Name}' has been updated successfully.";
+                TempData["SuccessMessage"] = $"Gender '{genderToUpdate.Name}' has been updated successfully.";
             }
             catch (DbUpdateConcurrencyException)
             {

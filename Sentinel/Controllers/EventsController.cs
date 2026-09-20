@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using Sentinel.Data;
 using System;
 using System.Linq;
@@ -16,10 +17,12 @@ namespace Sentinel.Controllers
     public class EventsController : ControllerBase
     {
         private readonly ApplicationDbContext _context;
+        private readonly ILogger<EventsController> _logger;
 
-        public EventsController(ApplicationDbContext context)
+        public EventsController(ApplicationDbContext context, ILogger<EventsController> logger)
         {
             _context = context;
+            _logger = logger;
         }
 
         [HttpGet("search")]
@@ -54,7 +57,7 @@ namespace Sentinel.Controllers
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Error in events search: {ex.Message}");
+                _logger.LogError(ex, "Event search failed");
                 return Ok(new object[] { });
             }
         }

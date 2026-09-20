@@ -44,6 +44,12 @@ namespace Sentinel.Pages.Settings.HL7.FieldMappings
 
         public async Task<IActionResult> OnPostAsync()
         {
+            if (!await ValidateReferencesAsync())
+            {
+                await LoadSelectListsAsync();
+                return Page();
+            }
+
             if (!ModelState.IsValid)
             {
                 await LoadSelectListsAsync();
@@ -64,14 +70,47 @@ namespace Sentinel.Pages.Settings.HL7.FieldMappings
                 return Page();
             }
 
-            Mapping.CreatedAt = DateTime.UtcNow;
-            Mapping.ModifiedAt = DateTime.UtcNow;
+            var mappingToCreate = new HL7CustomFieldMapping
+            {
+                DiseaseId = Mapping.DiseaseId,
+                HL7TestCode = Mapping.HL7TestCode,
+                TestCodeDescription = Mapping.TestCodeDescription,
+                CustomFieldDefinitionId = Mapping.CustomFieldDefinitionId,
+                ExtractQualitativeResult = Mapping.ExtractQualitativeResult,
+                ExtractQuantitativeResult = Mapping.ExtractQuantitativeResult,
+                ValueTransformation = Mapping.ValueTransformation,
+                Priority = Mapping.Priority,
+                Notes = Mapping.Notes,
+                IsActive = Mapping.IsActive,
+                CreatedAt = DateTime.UtcNow,
+                ModifiedAt = DateTime.UtcNow
+            };
 
-            _context.HL7CustomFieldMappings.Add(Mapping);
+            _context.HL7CustomFieldMappings.Add(mappingToCreate);
             await _context.SaveChangesAsync();
 
-            TempData["SuccessMessage"] = $"Field mapping for '{Mapping.HL7TestCode}' has been created successfully.";
-            return RedirectToPage("./Index", new { diseaseId = Mapping.DiseaseId });
+            TempData["SuccessMessage"] = $"Field mapping for '{mappingToCreate.HL7TestCode}' has been created successfully.";
+            return RedirectToPage("./Index", new { diseaseId = mappingToCreate.DiseaseId });
+        }
+
+        private async Task<bool> ValidateReferencesAsync()
+        {
+            var isValid = true;
+
+            if (!await _context.Diseases.AnyAsync(d => d.Id == Mapping.DiseaseId && d.IsActive))
+            {
+                ModelState.AddModelError("Mapping.DiseaseId", "Select an active disease.");
+                isValid = false;
+            }
+
+            if (!await _context.CustomFieldDefinitions.AnyAsync(cf =>
+                    cf.Id == Mapping.CustomFieldDefinitionId && cf.IsActive && cf.ShowOnCaseForm))
+            {
+                ModelState.AddModelError("Mapping.CustomFieldDefinitionId", "Select an active case custom field.");
+                isValid = false;
+            }
+
+            return isValid;
         }
 
         private async Task LoadSelectListsAsync()

@@ -5,6 +5,7 @@ using Sentinel.Data;
 using Sentinel.Services.Reporting;
 using Microsoft.Extensions.Logging;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Http;
 using Moq;
 using Xunit;
 
@@ -32,7 +33,9 @@ namespace Sentinel.Tests.Services
                 .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
                 .Options;
 
-            _context = new ApplicationDbContext(options);
+            _context = new ApplicationDbContext(
+                options,
+                new HttpContextAccessor { HttpContext = new DefaultHttpContext() });
 
             // Ensure database schema is created
             _context.Database.EnsureCreated();

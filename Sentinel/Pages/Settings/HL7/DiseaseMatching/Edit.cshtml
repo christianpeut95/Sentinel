@@ -388,7 +388,7 @@
                 @if (Model.Config != null)
                 {
                     <button type="submit" asp-page-handler="Delete" class="sn-btn sn-btn--danger ms-auto"
-                            onclick="return confirm('Delete this configuration? @Model.Disease?.Name will inherit rules from its parent.')">
+                            data-disease-name="@Model.Disease?.Name" onclick="return confirmDeleteConfiguration(this.dataset.diseaseName)">
                         <i class="bi bi-trash me-1"></i>Delete Configuration
                     </button>
                 }
@@ -438,6 +438,10 @@
 
 @section Scripts {
     <script>
+        function confirmDeleteConfiguration(diseaseName) {
+            return confirm(`Delete this configuration? ${diseaseName} will inherit rules from its parent.`);
+        }
+
         $(document).ready(function () {
             // Show/hide text matching options based on checkbox state
             function toggleOptions(checkbox, optionsDiv) {

@@ -1,5 +1,4 @@
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
@@ -7,6 +6,7 @@ using Sentinel.Data;
 using Sentinel.Models;
 using Sentinel.Services;
 using System;
+using System.ComponentModel.DataAnnotations;
 using System.Linq;
 using System.Threading.Tasks;
 
@@ -16,12 +16,17 @@ namespace Sentinel.Controllers
     public class UpdatePatientRequest
     {
         public Guid Id { get; set; }
+
+        [Required]
         public string GivenName { get; set; } = string.Empty;
+
+        [Required]
         public string FamilyName { get; set; } = string.Empty;
         public DateTime? DateOfBirth { get; set; }
         public int? GenderId { get; set; }
         public int? SexAtBirthId { get; set; }
         public int? OccupationId { get; set; }
+        [EmailAddress]
         public string? EmailAddress { get; set; }
         public string? MobilePhone { get; set; }
         public string? HomePhone { get; set; }
@@ -43,18 +48,15 @@ namespace Sentinel.Controllers
     {
         private readonly ApplicationDbContext _context;
         private readonly IPatientDuplicateCheckService _duplicateCheckService;
-        private readonly UserManager<ApplicationUser> _userManager;
         private readonly ILogger<PatientsController> _logger;
 
         public PatientsController(
             ApplicationDbContext context,
             IPatientDuplicateCheckService duplicateCheckService,
-            UserManager<ApplicationUser> userManager,
             ILogger<PatientsController> logger)
         {
             _context = context;
             _duplicateCheckService = duplicateCheckService;
-            _userManager = userManager;
             _logger = logger;
         }
 
@@ -175,10 +177,27 @@ namespace Sentinel.Controllers
                 return BadRequest("ID mismatch");
             }
 
-            var patient = await _context.Patients.FindAsync(id);
+            // Do not use FindAsync here: it bypasses EF global query filters,
+            // including the optional case-scoped patient visibility rule.
+            var patient = await _context.Patients.FirstOrDefaultAsync(p => p.Id == id);
             if (patient == null)
             {
                 return NotFound();
+            }
+
+            if (string.IsNullOrWhiteSpace(request.GivenName) ||
+                string.IsNullOrWhiteSpace(request.FamilyName) ||
+                request.DateOfBirth?.Date > DateTime.UtcNow.Date)
+            {
+                return BadRequest(new { error = "The supplied patient details are not valid." });
+            }
+
+            // Lookup IDs are external input. A caller may preserve an existing inactive
+            // historical value, but cannot attach a patient to an arbitrary, deleted or
+            // inactive reference record.
+            if (!await SubmittedReferencesAreValidAsync(patient, request))
+            {
+                return BadRequest(new { error = "One or more patient reference values are not available." });
             }
 
             // Update fields
@@ -263,7 +282,8 @@ namespace Sentinel.Controllers
         [Authorize(Policy = "Permission.Patient.View")]
         public async Task<IActionResult> GetDuplicates(Guid id)
         {
-            var patient = await _context.Patients.FindAsync(id);
+            // Keep duplicate checks within the caller's patient visibility scope.
+            var patient = await _context.Patients.FirstOrDefaultAsync(p => p.Id == id);
             if (patient == null)
             {
                 return NotFound();
@@ -284,30 +304,39 @@ namespace Sentinel.Controllers
             return Ok(results);
         }
 
-        [HttpGet("SearchUsers")]
-        public async Task<IActionResult> SearchUsers([FromQuery] string term)
+        private async Task<bool> SubmittedReferencesAreValidAsync(Patient patient, UpdatePatientRequest request)
         {
-            if (string.IsNullOrWhiteSpace(term) || term.Length < 2)
+            if (!await IsActiveOrUnchangedAsync(request.GenderId, patient.GenderId,
+                    id => _context.Genders.AnyAsync(item => item.Id == id && item.IsActive)) ||
+                !await IsActiveOrUnchangedAsync(request.SexAtBirthId, patient.SexAtBirthId,
+                    id => _context.SexAtBirths.AnyAsync(item => item.Id == id && item.IsActive)) ||
+                !await IsActiveOrUnchangedAsync(request.OccupationId, patient.OccupationId,
+                    id => _context.Occupations.AnyAsync(item => item.Id == id && item.IsActive)) ||
+                !await IsActiveOrUnchangedAsync(request.StateId, patient.StateId,
+                    id => _context.States.AnyAsync(item => item.Id == id && item.IsActive)) ||
+                !await IsActiveOrUnchangedAsync(request.CountryOfBirthId, patient.CountryOfBirthId,
+                    id => _context.Countries.AnyAsync(item => item.Id == id && item.IsActive)) ||
+                !await IsActiveOrUnchangedAsync(request.LanguageSpokenAtHomeId, patient.LanguageSpokenAtHomeId,
+                    id => _context.Languages.AnyAsync(item => item.Id == id && item.IsActive)) ||
+                !await IsActiveOrUnchangedAsync(request.AncestryId, patient.AncestryId,
+                    id => _context.Ancestries.AnyAsync(item => item.Id == id && item.IsActive)) ||
+                !await IsActiveOrUnchangedAsync(request.AtsiStatusId, patient.AtsiStatusId,
+                    id => _context.AtsiStatuses.AnyAsync(item => item.Id == id && item.IsActive)))
             {
-                return Ok(new object[] { });
+                return false;
             }
 
-            var termLower = term.ToLower();
+            return true;
+        }
 
-            // Search users by username or email
-            var users = await _userManager.Users
-                .Where(u => (u.UserName != null && u.UserName.ToLower().Contains(termLower)) ||
-                           (u.Email != null && u.Email.ToLower().Contains(termLower)))
-                .OrderBy(u => u.UserName)
-                .Take(20)
-                .Select(u => new
-                {
-                    id = u.Id,
-                    text = u.UserName ?? u.Email ?? "Unknown User"
-                })
-                .ToListAsync();
-
-            return Ok(users);
+        private static async Task<bool> IsActiveOrUnchangedAsync(
+            int? submittedId,
+            int? existingId,
+            Func<int, Task<bool>> activeReferenceExists)
+        {
+            return !submittedId.HasValue ||
+                   submittedId == existingId ||
+                   await activeReferenceExists(submittedId.Value);
         }
     }
 }

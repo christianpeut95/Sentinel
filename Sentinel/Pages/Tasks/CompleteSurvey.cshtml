@@ -198,15 +198,15 @@
                     }
                     @if (Model.Task.Case.Patient?.SexAtBirth != null)
                     {
-                        <span>&nbsp;•&nbsp;Sex: @Model.Task.Case.Patient.SexAtBirth.Name</span>
+                        <span>&nbsp;â€¢&nbsp;Sex: @Model.Task.Case.Patient.SexAtBirth.Name</span>
                     }
                     @if (Model.Task.Case.Patient?.Gender != null)
                     {
-                        <span>&nbsp;•&nbsp;Gender: @Model.Task.Case.Patient.Gender.Name</span>
+                        <span>&nbsp;â€¢&nbsp;Gender: @Model.Task.Case.Patient.Gender.Name</span>
                     }
                     @if (!string.IsNullOrEmpty(Model.Task.Case.Patient?.FriendlyId))
                     {
-                        <span>&nbsp;•&nbsp;ID: @Model.Task.Case.Patient.FriendlyId</span>
+                        <span>&nbsp;â€¢&nbsp;ID: @Model.Task.Case.Patient.FriendlyId</span>
                     }
                 </div>
                 <div class="header-patient-details">
@@ -216,15 +216,15 @@
                     }
                     @if (Model.Task.Case.Patient?.LanguageSpokenAtHome != null)
                     {
-                        <span>&nbsp;•&nbsp;Language: @Model.Task.Case.Patient.LanguageSpokenAtHome.Name</span>
+                        <span>&nbsp;â€¢&nbsp;Language: @Model.Task.Case.Patient.LanguageSpokenAtHome.Name</span>
                     }
                     @if (Model.Task.Case.Patient?.Occupation != null)
                     {
-                        <span>&nbsp;•&nbsp;@Model.Task.Case.Patient.Occupation.Name</span>
+                        <span>&nbsp;â€¢&nbsp;@Model.Task.Case.Patient.Occupation.Name</span>
                     }
                     @if (!string.IsNullOrEmpty(Model.Task.Case.Patient?.City))
                     {
-                        <span>&nbsp;•&nbsp;@Model.Task.Case.Patient.City</span>
+                        <span>&nbsp;â€¢&nbsp;@Model.Task.Case.Patient.City</span>
                     }
                 </div>
             </div>
@@ -251,11 +251,11 @@
                     }
                     @if (Model.Task.Case.DateOfNotification != null)
                     {
-                        <span>&nbsp;•&nbsp;Notified: @Model.Task.Case.DateOfNotification.Value.ToString("dd/MM/yyyy")</span>
+                        <span>&nbsp;â€¢&nbsp;Notified: @Model.Task.Case.DateOfNotification.Value.ToString("dd/MM/yyyy")</span>
                     }
                     @if (!string.IsNullOrEmpty(Model.SurveyName))
                     {
-                        <span>&nbsp;•&nbsp;Survey: @Model.SurveyName v@(Model.SurveyVersionNumber)</span>
+                        <span>&nbsp;â€¢&nbsp;Survey: @Model.SurveyName v@(Model.SurveyVersionNumber)</span>
                     }
                 </div>
             </div>
@@ -290,10 +290,56 @@
 @section Scripts {
 <script nonce="@GetCspNonce()">
     (function() {
-        try {            const taskId = '@Model.Task.Id';
+        try {
+            const taskId = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.Task.Id));
+
+            function sanitizeSurveyDefinition(definition) {
+                function sanitizeNode(node) {
+                    if (Array.isArray(node)) {
+                        return node
+                            .map(sanitizeNode)
+                            .filter(item => item !== undefined);
+                    }
+
+                    if (node && typeof node === 'object') {
+                        if (typeof node.type === 'string' && node.type.toLowerCase() === 'html') {
+                            return undefined;
+                        }
+
+                        const safeNode = {};
+                        Object.entries(node).forEach(([key, value]) => {
+                            // SurveyJS treats these values as executable HTML. Sentinel survey
+                            // definitions are structured configuration, never a rich-text channel.
+                            if (['html', 'htmlcontent', 'completedhtml', 'completedbeforehtml', 'loadinghtml']
+                                .includes(key.toLowerCase())) {
+                                return;
+                            }
+
+                            const safeValue = sanitizeNode(value);
+                            if (safeValue !== undefined) {
+                                safeNode[key] = safeValue;
+                            }
+                        });
+                        return safeNode;
+                    }
+
+                    return node;
+                }
+
+                return sanitizeNode(definition) || {};
+            }
+
+            function escapeSurveyHtml(value) {
+                return String(value ?? '')
+                    .replace(/&/g, '&amp;')
+                    .replace(/</g, '&lt;')
+                    .replace(/>/g, '&gt;')
+                    .replace(/"/g, '&quot;')
+                    .replace(/'/g, '&#39;');
+            }
                 
             // Output JSON directly as JavaScript objects (not strings)
-            const surveyJson = JSON.parse(@Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.SurveyDefinitionJson ?? "{}")));
+            const surveyJson = sanitizeSurveyDefinition(JSON.parse(@Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.SurveyDefinitionJson ?? "{}"))));
             const prePopulatedData = JSON.parse(@Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.PrePopulatedDataJson ?? "{}")));
             const antiForgeryToken = document.querySelector('input[name="__RequestVerificationToken"]')?.value;
 
@@ -309,7 +355,7 @@
                 });
 
                 if (!response.ok) {
-                    console.warn(`Unable to mark survey in progress (${response.status}).`);
+                    console.warn('Unable to mark the survey in progress.');
                 }
             }
 
@@ -323,11 +369,8 @@
                     return;
                 }
                 
-                // Verify custom functions are registered
-                if (Survey.FunctionFactory && Survey.FunctionFactory.Instance) {
-                    console.log('SurveyJS FunctionFactory is available');
-                    console.log('Registered functions:', Survey.FunctionFactory.Instance.getAll());
-                } else {
+                // Verify custom functions are registered without logging survey metadata.
+                if (!(Survey.FunctionFactory && Survey.FunctionFactory.Instance)) {
                     console.warn('SurveyJS FunctionFactory is not available');
                 }
                 
@@ -374,28 +417,11 @@
                         return value;
                     });
 
-                    options.html = text;
+                    // SurveyJS inserts options.html as markup. Survey definitions and the
+                    // case/patient values substituted above are configuration/data, not HTML.
+                    options.html = escapeSurveyHtml(text).replace(/\r?\n/g, '<br>');
                 });
 
-                console.log('Dynamic text replacement enabled for survey questions');
-
-                // DEBUG: Log survey structure
-                console.log('=== SURVEY EXPRESSION DEBUG ===');
-                console.log('Pre-populated data to apply:', prePopulatedData);
-                survey.pages.forEach((page, pageIndex) => {
-                    console.log(`Page ${pageIndex + 1}: ${page.name}`);
-                    page.questions.forEach((q) => {
-                        console.log(`  Q: ${q.name} (${q.getType()})`);
-                        if (q.defaultValueExpression) {
-                            console.log(`    defaultValueExpression: "${q.defaultValueExpression}"`);
-                        }
-                        if (q.setValueExpression) {
-                            console.log(`    setValueExpression: "${q.setValueExpression}"`);
-                        }
-                    });
-                });
-                console.log('=== END DEBUG ===');
-                
                 // Render survey FIRST (before setting data)
                 // This allows defaultValueExpression to run
                 const container = document.getElementById('surveyContainer');
@@ -410,13 +436,10 @@
                 // NOW set pre-populated data AFTER rendering
                 // This preserves any values set by defaultValueExpression that aren't in prePopulatedData
                 if (prePopulatedData && Object.keys(prePopulatedData).length > 0) {
-                    console.log('Applying pre-populated data...');
                     Object.keys(prePopulatedData).forEach(key => {
                         survey.setValue(key, prePopulatedData[key]);
                     });
                 }
-                
-                console.log('Survey data after initialization:', survey.data);
                 
                 // Enable complete button only when survey is valid
                 const completeBtn = document.getElementById('completeSurveyBtnTop');
@@ -429,6 +452,49 @@
                 const isInitiallyComplete = !survey.hasErrors(false, false);
                 completeBtn.disabled = !isInitiallyComplete;
                 
+                function createDismissibleSurveyAlert(cssClass, iconClass, heading, message) {
+                    const alert = document.createElement('div');
+                    alert.className = `alert ${cssClass} alert-dismissible fade show`;
+                    alert.style.margin = '1rem 0';
+
+                    const icon = document.createElement('i');
+                    icon.className = `${iconClass} me-2`;
+                    alert.appendChild(icon);
+
+                    if (heading) {
+                        const headingElement = document.createElement('strong');
+                        headingElement.textContent = heading;
+                        alert.appendChild(headingElement);
+                        alert.appendChild(document.createTextNode(' '));
+                    }
+
+                    alert.appendChild(document.createTextNode(message));
+
+                    const closeButton = document.createElement('button');
+                    closeButton.type = 'button';
+                    closeButton.className = 'btn-close';
+                    closeButton.setAttribute('data-bs-dismiss', 'alert');
+                    closeButton.setAttribute('aria-label', 'Close');
+                    alert.appendChild(closeButton);
+
+                    return alert;
+                }
+
+                function safeSurveyRedirect(value, fallback) {
+                    if (typeof value !== 'string') {
+                        return fallback;
+                    }
+
+                    try {
+                        const target = new URL(value, window.location.origin);
+                        return target.origin === window.location.origin
+                            ? `${target.pathname}${target.search}${target.hash}`
+                            : fallback;
+                    } catch {
+                        return fallback;
+                    }
+                }
+
                 // Handle survey completion function
                 async function handleSurveyCompletion() {                    // Validate all questions
                     if (survey.hasErrors(false, false)) {
@@ -442,14 +508,6 @@
                     btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Saving...';
 
                     try {
-                        console.log('========================================');
-                        console.log('SURVEY SUBMISSION DEBUG INFO');
-                        console.log('========================================');
-                        console.log('Task ID:', taskId);
-                        console.log('Survey data:', survey.data);
-                        console.log('API URL:', `/api/surveys/complete/${taskId}`);
-                        console.log('========================================');
-                        
                         const response = await fetch(`/api/surveys/complete/${taskId}`, {
                             method: 'POST',
                             headers: {
@@ -459,23 +517,15 @@
                             body: JSON.stringify(survey.data)
                         });
                         
-                        console.log('Response received:');
-                        console.log('  Status:', response.status);
-                        console.log('  Status Text:', response.statusText);
-                        console.log('  Content-Type:', response.headers.get('content-type'));
-                        console.log('  URL:', response.url);
-
                         if (!response.ok) {
-                            const errorText = await response.text();
-                            console.error('Server error response:', errorText);
+                            await response.text();
                             throw new Error(`Server returned ${response.status}: ${response.statusText}`);
                         }
 
                         // Check if response is JSON
                         const contentType = response.headers.get('content-type');
                         if (!contentType || !contentType.includes('application/json')) {
-                            const textResponse = await response.text();
-                            console.error('Non-JSON response received:', textResponse);
+                            await response.text();
                             throw new Error('Server returned an invalid response. Please check if you are still logged in.');
                         }
 
@@ -485,29 +535,24 @@
                             // Check if it's a warning (saved but needs review)
                             if (result.warning) {
                                 // Show warning message
-                                const warningDiv = document.createElement('div');
-                                warningDiv.className = 'alert alert-warning alert-dismissible fade show';
-                                warningDiv.style.margin = '1rem 0';
-                                warningDiv.innerHTML = `
-                                    <i class="bi bi-exclamation-triangle me-2"></i>
-                                    <strong>Survey Saved with Warnings:</strong> ${result.message || 'Survey saved but requires manual review.'}
-                                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                                `;
+                                const warningDiv = createDismissibleSurveyAlert(
+                                    'alert-warning',
+                                    'bi bi-exclamation-triangle',
+                                    'Survey saved with warnings:',
+                                    result.message || 'Survey saved but requires manual review.');
                                 document.querySelector('.survey-container').insertBefore(warningDiv, document.getElementById('surveyContainer'));
 
                                 // Redirect to Data Inbox after a short delay
                                 setTimeout(function() {
-                                    window.location.href = result.redirectUrl || '/DataInbox/Index';
+                                    window.location.href = safeSurveyRedirect(result.redirectUrl, '/DataInbox/Index');
                                 }, 2000);
                             } else {
                                 // Show success message
-                                const successDiv = document.createElement('div');
-                                successDiv.className = 'alert alert-success alert-dismissible fade show';
-                                successDiv.style.margin = '1rem 0';
-                                successDiv.innerHTML = `
-                                    <i class="bi bi-check-circle me-2"></i>Survey completed successfully!
-                                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                                `;
+                                const successDiv = createDismissibleSurveyAlert(
+                                    'alert-success',
+                                    'bi bi-check-circle',
+                                    '',
+                                    'Survey completed successfully!');
                                 document.querySelector('.survey-container').insertBefore(successDiv, document.getElementById('surveyContainer'));
 
                                 // Redirect after a short delay
@@ -516,17 +561,16 @@
                                 }, 1500);
                             }
                         } else {
-                            throw new Error(result.error || 'Failed to save survey');
+                            console.error('Survey completion was rejected.');
+                            throw new Error('Survey completion was rejected.');
                         }
-                    } catch (error) {                        // Show error message
-                        const errorDiv = document.createElement('div');
-                        errorDiv.className = 'alert alert-danger alert-dismissible fade show';
-                        errorDiv.style.margin = '1rem 0';
-                        errorDiv.innerHTML = `
-                            <i class="bi bi-exclamation-triangle me-2"></i>
-                            <strong>Error:</strong> ${error.message || 'An error occurred while saving the survey. Please try again.'}
-                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                        `;
+                    } catch (error) {
+                        console.error('Survey completion failed.');
+                        const errorDiv = createDismissibleSurveyAlert(
+                            'alert-danger',
+                            'bi bi-exclamation-triangle',
+                            'Survey could not be saved:',
+                            'Please try again. If the problem persists, contact an administrator.');
                         document.querySelector('.survey-container').insertBefore(errorDiv, document.getElementById('surveyContainer'));
                         
                         // Re-enable button
@@ -538,7 +582,7 @@
 
                 // Attach event listener
                 document.getElementById('completeSurveyBtnTop').addEventListener('click', handleSurveyCompletion);
-            } catch (error) {                alert('Failed to load survey. Please check the console for details.');
+            } catch (error) {                alert('The survey could not be loaded. Please refresh the page and try again.');
             }
         })();
     </script>

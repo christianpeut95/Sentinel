@@ -21,6 +21,7 @@ namespace Sentinel.Pages.Contacts
         private readonly ICaseIdGeneratorService _caseIdGenerator;
         private readonly IAuditService _auditService;
         private readonly IDiseaseAccessService _diseaseAccessService;
+        private readonly IPermissionService _permissionService;
         private readonly ITaskService _taskService;
         private readonly ILogger<CreateNewContactModel> _logger;
 
@@ -29,6 +30,7 @@ namespace Sentinel.Pages.Contacts
             ICaseIdGeneratorService caseIdGenerator,
             IAuditService auditService,
             IDiseaseAccessService diseaseAccessService,
+            IPermissionService permissionService,
             ITaskService taskService,
             ILogger<CreateNewContactModel> logger)
         {
@@ -36,6 +38,7 @@ namespace Sentinel.Pages.Contacts
             _caseIdGenerator = caseIdGenerator;
             _auditService = auditService;
             _diseaseAccessService = diseaseAccessService;
+            _permissionService = permissionService;
             _taskService = taskService;
             _logger = logger;
         }
@@ -132,6 +135,32 @@ namespace Sentinel.Pages.Contacts
                     return new JsonResult(new { success = false, message = "Disease is required." });
                 }
 
+                var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+                if (string.IsNullOrWhiteSpace(userId))
+                {
+                    return Unauthorized();
+                }
+
+                // The wizard posts JSON, so client-side selections are not an
+                // authorisation boundary. Use the same filtered queries as the
+                // rest of the case/contact workflows.
+                if (!await _context.Patients.AnyAsync(p => p.Id == request.PatientId) ||
+                    !await _diseaseAccessService.CanAccessDiseaseAsync(userId, request.DiseaseId.Value) ||
+                    !await _context.Diseases.AnyAsync(d => d.Id == request.DiseaseId.Value && d.IsActive))
+                {
+                    return NotFound();
+                }
+
+                if (request.ConfirmationStatusId.HasValue &&
+                    !await _context.CaseStatuses.AnyAsync(cs =>
+                        cs.Id == request.ConfirmationStatusId.Value &&
+                        cs.IsActive &&
+                        (cs.ApplicableTo == CaseTypeApplicability.Contact ||
+                         cs.ApplicableTo == CaseTypeApplicability.Both)))
+                {
+                    return new JsonResult(new { success = false, message = "The selected case status is not available." });
+                }
+
                 // Create the contact case
                 var newContact = new Case
                 {
@@ -151,7 +180,6 @@ namespace Sentinel.Pages.Contacts
                 // Task auto-creation now handled by CaseCreationInterceptor
                 
                 // Log audit
-                var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
                 var ipAddress = HttpContext.Connection.RemoteIpAddress?.ToString();
                 await _auditService.LogChangeAsync(
                     "Case",
@@ -192,6 +220,38 @@ namespace Sentinel.Pages.Contacts
                     return new JsonResult(new { success = false, message = "Both contact and source case IDs are required." });
                 }
 
+                var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+                if (string.IsNullOrWhiteSpace(userId))
+                {
+                    return Unauthorized();
+                }
+
+                if (!await _permissionService.HasPermissionAsync(userId, PermissionModule.Case, PermissionAction.Edit) ||
+                    !await _permissionService.HasPermissionAsync(userId, PermissionModule.Exposure, PermissionAction.Create))
+                {
+                    return Forbid();
+                }
+
+                // Do not use FindAsync here: the ordinary query applies the
+                // hierarchy-aware case visibility filter to both posted IDs.
+                var visibleCases = await _context.Cases
+                    .Where(c => c.Id == request.ContactCaseId || c.Id == request.SourceCaseId)
+                    .Select(c => new { c.Id, c.Type })
+                    .ToListAsync();
+
+                if (visibleCases.Count != 2 ||
+                    !visibleCases.Any(c => c.Id == request.ContactCaseId && c.Type == CaseType.Contact))
+                {
+                    return NotFound();
+                }
+
+                if (request.ContactClassificationId.HasValue &&
+                    !await _context.ContactClassifications.AnyAsync(c =>
+                        c.Id == request.ContactClassificationId.Value && c.IsActive))
+                {
+                    return new JsonResult(new { success = false, message = "The selected contact classification is not available." });
+                }
+
                 // Create the exposure event that links the contact to the source case
                 var exposure = new ExposureEvent
                 {
@@ -210,7 +270,6 @@ namespace Sentinel.Pages.Contacts
                 await _context.SaveChangesAsync();
 
                 // Log audit
-                var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
                 var ipAddress = HttpContext.Connection.RemoteIpAddress?.ToString();
                 await _auditService.LogChangeAsync(
                     "ExposureEvent",

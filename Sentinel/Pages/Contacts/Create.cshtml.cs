@@ -103,7 +103,8 @@ namespace Sentinel.Pages.Contacts
             if (patientId.HasValue)
             {
                 Case.PatientId = patientId.Value;
-                SelectedPatient = await _context.Patients.FindAsync(patientId.Value);
+                SelectedPatient = await _context.Patients
+                    .FirstOrDefaultAsync(p => p.Id == patientId.Value);
             }
 
             return Page();
@@ -114,6 +115,38 @@ namespace Sentinel.Pages.Contacts
 
         public async Task<IActionResult> OnPostAsync()
         {
+            // Treat posted select values as untrusted. The normal entity filters and
+            // hierarchy-aware disease access are the authority, not the values that
+            // happened to be present in the create form.
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
+            if (Case.DiseaseId.HasValue &&
+                !await _diseaseAccessService.CanAccessDiseaseAsync(userId, Case.DiseaseId.Value))
+            {
+                return Forbid();
+            }
+
+            if (Case.PatientId == Guid.Empty ||
+                !await _context.Patients.AnyAsync(p => p.Id == Case.PatientId))
+            {
+                return NotFound();
+            }
+
+            if (Case.DiseaseId.HasValue &&
+                !await _context.Diseases.AnyAsync(d => d.Id == Case.DiseaseId.Value && d.IsActive))
+            {
+                ModelState.AddModelError("Case.DiseaseId", "Select an active disease that you can access.");
+            }
+
+            if (Case.ConfirmationStatusId.HasValue &&
+                !await _context.CaseStatuses.AnyAsync(cs =>
+                    cs.Id == Case.ConfirmationStatusId.Value &&
+                    cs.IsActive &&
+                    (cs.ApplicableTo == CaseTypeApplicability.Contact ||
+                     cs.ApplicableTo == CaseTypeApplicability.Both)))
+            {
+                ModelState.AddModelError("Case.ConfirmationStatusId", "Select an active status that applies to contacts.");
+            }
+
             if (!ModelState.IsValid)
             {
                 ViewData["PatientId"] = new SelectList(
@@ -134,7 +167,6 @@ namespace Sentinel.Pages.Contacts
                         .ToListAsync(),
                     "Id", "Name");
 
-                var userId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
                 var accessibleDiseaseIds = await _diseaseAccessService.GetAccessibleDiseaseIdsAsync(userId);
 
                 ViewData["DiseaseId"] = new SelectList(
@@ -156,27 +188,30 @@ namespace Sentinel.Pages.Contacts
 
             try
             {
-                // Ensure Type is set to Contact
-                Case.Type = CaseType.Contact;
-
-                // Set default Date of Onset to today if not provided
-                if (!Case.DateOfOnset.HasValue)
+                // Preserve the boundary between form data and a persistent Case.  A
+                // contact creation form may not set classification, workflow, audit or
+                // navigation properties merely by adding extra form fields.
+                var caseToCreate = new Case
                 {
-                    Case.DateOfOnset = DateTime.Today;
-                }
+                    Id = Guid.NewGuid(),
+                    FriendlyId = await _caseIdGenerator.GenerateNextCaseIdAsync(),
+                    PatientId = Case.PatientId,
+                    DiseaseId = Case.DiseaseId,
+                    ConfirmationStatusId = Case.ConfirmationStatusId,
+                    DateOfOnset = Case.DateOfOnset ?? DateTime.Today,
+                    DateOfNotification = Case.DateOfNotification,
+                    Type = CaseType.Contact
+                };
 
-                Case.Id = Guid.NewGuid();
-                Case.FriendlyId = await _caseIdGenerator.GenerateNextCaseIdAsync();
-
-                _context.Cases.Add(Case);
+                _context.Cases.Add(caseToCreate);
                 await _context.SaveChangesAsync();
 
                 // Auto-create tasks based on disease configuration
-                if (Case.DiseaseId.HasValue)
+                if (caseToCreate.DiseaseId.HasValue)
                 {
                     try
                     {
-                        var tasksCreated = await _taskService.AutoCreateTasksForNewCase(Case.Id);
+                        var tasksCreated = await _taskService.AutoCreateTasksForNewCase(caseToCreate.Id);
                     }
                     catch (Exception ex)
                     {
@@ -186,16 +221,16 @@ namespace Sentinel.Pages.Contacts
 
                 await _auditService.LogChangeAsync(
                     entityType: "Case",
-                    entityId: Case.Id.ToString(),
+                    entityId: caseToCreate.Id.ToString(),
                     fieldName: "Created",
                     oldValue: null,
-                    newValue: $"Contact {Case.FriendlyId} created",
+                    newValue: $"Contact {caseToCreate.FriendlyId} created",
                     userId: User.FindFirst(ClaimTypes.NameIdentifier)?.Value,
                     ipAddress: HttpContext.Connection.RemoteIpAddress?.ToString()
                 );
 
-                TempData["SuccessMessage"] = $"Contact {Case.FriendlyId} created successfully.";
-                return RedirectToPage("./Details", new { id = Case.Id });
+                TempData["SuccessMessage"] = $"Contact {caseToCreate.FriendlyId} created successfully.";
+                return RedirectToPage("./Details", new { id = caseToCreate.Id });
             }
             catch (Exception ex)
             {

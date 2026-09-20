@@ -255,7 +255,7 @@ Generated_Code/
 # to a newer Visual Studio version. Backup files are not needed,
 # because we have git ;-)
 _UpgradeReport_Files/
-Backup*/
+/Backup*/
 UpgradeLog*.XML
 UpgradeLog*.htm
 ServiceFabricBackup/
@@ -443,18 +443,27 @@ wwwroot/dist/
 
 # Project-specific folders to ignore
 Docs/
+# Keep the maintained security baseline and ASVS evidence under source control.
+# Git treats paths case-insensitively on Windows, so this must explicitly
+# override the legacy `Docs/` archive rule above.
+!docs/
+!docs/security/
+!docs/security/*.md
 Docker/
 Mockups/
 User-Documentation/
 Migrations_ARCHIVED_DO_NOT_USE/
-.github/
 Sentinel/Docs/
 Sentinel/Docker/
 Sentinel/Mockups/
 Sentinel/User-Documentation/
 Sentinel/Migrations_ARCHIVED_DO_NOT_USE/
-Sentinel/.github/
 /Sentinel/wwwroot/data
+
+# Generated local verification caches. These can contain development data and
+# must never become release artefacts or be committed.
+/Sentinel/bin_temp/
+/Sentinel.HL7Generator/bin_verify/
 
 # Protected user uploads and timeline data. These are stored outside wwwroot
 # and must be persisted through the deployment volume, never committed.
@@ -464,3 +473,8 @@ Sentinel/.github/
 # Local-only development diagnostic endpoint (never commit or publish)
 /Sentinel/Pages/Tools/TestUnhandledException.cshtml
 /Sentinel/Pages/Tools/TestUnhandledException.cshtml.cs
+
+# SurveyJS Creator is supplied only by a private, explicitly enabled demo or
+# deployment override. Do not add its separately licensed assets to the repo.
+/Sentinel/wwwroot/lib/survey-creator-core/
+/Sentinel/wwwroot/lib/survey-creator-knockout/

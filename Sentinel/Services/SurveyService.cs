@@ -187,10 +187,23 @@ namespace Sentinel.Services
                     task.TaskTemplateId, taskId);
             }
 
-            result.HasSurvey = !string.IsNullOrEmpty(surveyJson);
-
-            if (!result.HasSurvey)
+            if (string.IsNullOrWhiteSpace(surveyJson))
                 return result;
+
+            // Definitions are configuration supplied by administrators, but they are
+            // subsequently rendered in another user's browser.  Validate here as
+            // well as at save time so legacy/imported/database-inserted definitions
+            // cannot bypass the renderer safety rules.
+            if (!SurveyDefinitionSafetyValidator.TryValidate(surveyJson, out var validationError))
+            {
+                _logger.LogError(
+                    "Survey definition selected for task {TaskId} failed the renderer safety validation: {ValidationError}",
+                    taskId,
+                    validationError);
+                return result;
+            }
+
+            result.HasSurvey = true;
 
             result.SurveyDefinitionJson = surveyJson!;
 
@@ -260,6 +273,13 @@ namespace Sentinel.Services
 
             if (task == null)
                 throw new ArgumentException($"Task {taskId} not found");
+
+            // Enforce terminal workflow states in the trusted service layer.
+            // Completion endpoints perform the same check for a clear HTTP/UI
+            // response, but callers must not be able to bypass it by invoking
+            // the survey service directly.
+            if (task.Status is CaseTaskStatus.Completed or CaseTaskStatus.Cancelled)
+                throw new SurveyTaskStateException(task.Status);
 
             // =====================================================
             // CRITICAL: ALWAYS save response JSON first (even if mappings fail later)
@@ -433,8 +453,7 @@ namespace Sentinel.Services
                     // Throw custom exception to inform user that data was saved but needs review
                     throw new InvalidOperationException(
                         $"Survey data was saved, but automatic mapping failed. " +
-                        $"A review item has been created for manual processing. " +
-                        $"Error: {ex.Message}",
+                        $"A review item has been created for manual processing.",
                         ex
                     );
                 }
@@ -452,7 +471,7 @@ namespace Sentinel.Services
                     // Even if review item creation fails, survey JSON is saved
                     throw new InvalidOperationException(
                         $"Survey data was saved, but automatic mapping failed and review item creation also failed. " +
-                        $"Please contact support. Original error: {ex.Message}",
+                        $"Please contact an administrator.",
                         ex
                     );
                 }

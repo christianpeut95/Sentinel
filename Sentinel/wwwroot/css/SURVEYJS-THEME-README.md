@@ -44,8 +44,8 @@ This stylesheet overrides the default SurveyJS `defaultV2.css` theme to match th
 <!-- 2️⃣ Sentinel Theme Override (Must come AFTER) -->
 <link href="~/css/sentinel-survey-theme.css" rel="stylesheet" />
 
-<!-- For Survey Creator (Designer mode): -->
-<link href="~/lib/survey-creator-core/survey-creator-core.min.css" rel="stylesheet" />
+<!-- The optional SurveyJS Creator designer CSS is loaded only by the
+     operator-managed demo override. See docs/deployment/survey-designer.md. -->
 ```
 
 **⚠️ Order matters!** The Sentinel theme overrides SurveyJS defaults, so it must load **after** `defaultV2.min.css`.
@@ -79,9 +79,10 @@ This stylesheet overrides the default SurveyJS `defaultV2.css` theme to match th
 </script>
 ```
 
-#### Survey Creator (Designer Mode)
+#### Optional Survey Creator (Designer Mode)
 ```html
-<!-- Already applied in DesignSurvey.cshtml -->
+<!-- Loaded by DesignSurvey.cshtml only when the operator-managed demo
+     override supplies SurveyJS Creator assets. -->
 <link href="~/lib/survey-core/defaultV2.min.css" rel="stylesheet" />
 <link href="~/lib/survey-creator-core/survey-creator-core.min.css" rel="stylesheet" />
 <link href="~/css/sentinel-survey-theme.css" rel="stylesheet" />

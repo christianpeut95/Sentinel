@@ -9,6 +9,7 @@
 @inject ICollectionMappingService CollectionMappingService
 @inject ISurveyMappingService MappingService
 @inject IJSRuntime JS
+@inject ILogger<CollectionMappingEditor> Logger
 
 <div class="apple-card mb-4">
     <div class="apple-card-header">
@@ -500,7 +501,8 @@
         }
         catch (Exception ex)
         {
-            ValidationErrors.Add($"Error parsing matrix columns: {ex.Message}");
+            Logger.LogWarning(ex, "Unable to parse matrix columns for a collection mapping");
+            ValidationErrors.Add("The matrix columns could not be read. Check the selected survey question and try again.");
         }
     }
 
@@ -555,7 +557,8 @@
         }
         catch (Exception ex)
         {
-            ValidationErrors.Add($"Error loading entity fields: {ex.Message}");
+            Logger.LogWarning(ex, "Unable to load entity fields for a collection mapping");
+            ValidationErrors.Add("The target entity fields could not be loaded. Please try again.");
         }
     }
 
@@ -638,7 +641,8 @@
         }
         catch (Exception ex)
         {
-            ValidationErrors.Add($"Validation error: {ex.Message}");
+            Logger.LogWarning(ex, "Unable to validate a collection mapping configuration");
+            ValidationErrors.Add("The collection mapping could not be validated. Review its settings and try again.");
         }
 
         StateHasChanged();

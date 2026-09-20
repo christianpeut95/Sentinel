@@ -43,12 +43,20 @@ namespace Sentinel.Pages.Settings.States
                 return Page();
             }
 
-            _context.Attach(State).State = EntityState.Modified;
+            var stateToUpdate = await _context.States.FindAsync(State.Id);
+            if (stateToUpdate == null)
+            {
+                return NotFound();
+            }
+
+            stateToUpdate.Code = State.Code;
+            stateToUpdate.Name = State.Name;
+            stateToUpdate.IsActive = State.IsActive;
 
             try
             {
                 await _context.SaveChangesAsync();
-                TempData["SuccessMessage"] = $"State '{State.Name}' has been updated successfully.";
+                TempData["SuccessMessage"] = $"State '{stateToUpdate.Name}' has been updated successfully.";
             }
             catch (DbUpdateConcurrencyException)
             {

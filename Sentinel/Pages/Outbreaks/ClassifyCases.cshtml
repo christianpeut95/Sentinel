@@ -85,7 +85,7 @@
                             Unclassified Cases (@Model.UnclassifiedCases.Count)
                         </h5>
                         <div class="btn-group btn-group-sm">
-                            <button type="button" class="btn btn-outline-warning" onclick="selectAllUnclassified()">
+                            <button type="button" class="btn btn-outline-warning js-select-all-unclassified">
                                 <i class="bi bi-check-all"></i> Select All
                             </button>
                             <button type="button" class="btn btn-warning" id="bulkClassifyBtn" disabled data-bs-toggle="modal" data-bs-target="#bulkClassifyModal">
@@ -99,7 +99,7 @@
                         <table class="table table-hover">
                             <thead>
                                 <tr>
-                                    <th width="40"><input type="checkbox" id="selectAllCheckbox" onchange="toggleAllUnclassified(this)"></th>
+                                    <th width="40"><input type="checkbox" id="selectAllCheckbox" class="js-toggle-all-unclassified"></th>
                                     <th>Case ID</th>
                                     <th>Patient</th>
                                     <th>Disease</th>
@@ -112,7 +112,7 @@
                                 @foreach (var oc in Model.UnclassifiedCases)
                                 {
                                     <tr>
-                                        <td><input type="checkbox" class="unclassified-checkbox" value="@oc.Id" onchange="updateBulkButton()"></td>
+                                        <td><input type="checkbox" class="unclassified-checkbox js-unclassified-checkbox" value="@oc.Id"></td>
                                         <td>
                                             <a asp-page="/Cases/Details" asp-route-id="@oc.Case.Id" target="_blank">
                                                 @oc.Case.FriendlyId
@@ -136,8 +136,10 @@
                                             <small class="text-muted">@oc.LinkedDate.ToString("MMM d")</small>
                                         </td>
                                         <td>
-                                            <button type="button" class="btn btn-sm btn-primary" 
-                                                    onclick="showClassifyModal(@oc.Id, '@oc.Case.Patient?.GivenName @oc.Case.Patient?.FamilyName', '@oc.Case.FriendlyId')">
+                                            <button type="button" class="btn btn-sm btn-primary js-show-classify-modal"
+                                                    data-outbreak-case-id="@oc.Id"
+                                                    data-patient-name="@($"{oc.Case.Patient?.GivenName} {oc.Case.Patient?.FamilyName}".Trim())"
+                                                    data-case-friendly-id="@oc.Case.FriendlyId">
                                                 <i class="bi bi-clipboard-check"></i> Classify
                                             </button>
                                         </td>
@@ -232,8 +234,10 @@
                                             </small>
                                         </td>
                                         <td>
-                                            <button type="button" class="btn btn-sm btn-outline-primary" 
-                                                    onclick="showClassifyModal(@oc.Id, '@oc.Case.Patient?.GivenName @oc.Case.Patient?.FamilyName', '@oc.Case.FriendlyId')">
+                                            <button type="button" class="btn btn-sm btn-outline-primary js-show-classify-modal"
+                                                    data-outbreak-case-id="@oc.Id"
+                                                    data-patient-name="@($"{oc.Case.Patient?.GivenName} {oc.Case.Patient?.FamilyName}".Trim())"
+                                                    data-case-friendly-id="@oc.Case.FriendlyId">
                                                 <i class="bi bi-pencil"></i> Reclassify
                                             </button>
                                         </td>
@@ -386,6 +390,19 @@
 
 @section Scripts {
     <script>
+        document.querySelector('.js-select-all-unclassified')?.addEventListener('click', selectAllUnclassified);
+        document.querySelector('.js-toggle-all-unclassified')?.addEventListener('change', function () {
+            toggleAllUnclassified(this);
+        });
+        document.querySelectorAll('.js-unclassified-checkbox').forEach(function (checkbox) {
+            checkbox.addEventListener('change', updateBulkButton);
+        });
+        document.querySelectorAll('.js-show-classify-modal').forEach(function (button) {
+            button.addEventListener('click', function () {
+                showClassifyModal(this.dataset.outbreakCaseId, this.dataset.patientName, this.dataset.caseFriendlyId);
+            });
+        });
+
         function showClassifyModal(outbreakCaseId, patientName, caseId) {
             document.getElementById('classifyOutbreakCaseId').value = outbreakCaseId;
             document.getElementById('classifyPatientName').textContent = patientName;

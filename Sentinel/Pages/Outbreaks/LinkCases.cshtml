@@ -104,7 +104,7 @@
                         <button type="submit" class="btn btn-primary">
                             <i class="bi bi-search me-1"></i>Search
                         </button>
-                        <button type="button" class="btn btn-outline-secondary" onclick="clearSearch()">
+                        <button type="button" class="btn btn-outline-secondary js-clear-outbreak-search">
                             <i class="bi bi-x-circle me-1"></i>Clear
                         </button>
                     </div>
@@ -156,7 +156,7 @@
                                 }
                             </div>
                             <span class="badge bg-secondary">
-                                @(query.LastRunMatchCount?.ToString() ?? "—")
+                                @(query.LastRunMatchCount?.ToString() ?? "â€”")
                             </span>
                         </a>
                     }
@@ -177,10 +177,10 @@
                             <small class="text-muted">Select cases/contacts to link to outbreak</small>
                         </div>
                         <div>
-                            <button type="button" class="btn btn-sm btn-outline-primary" onclick="selectAll()">
+                            <button type="button" class="btn btn-sm btn-outline-primary js-select-all-cases">
                                 <i class="bi bi-check-all"></i> Select All
                             </button>
-                            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="selectNone()">
+                            <button type="button" class="btn btn-sm btn-outline-secondary js-select-no-cases">
                                 <i class="bi bi-x"></i> Clear
                             </button>
                         </div>
@@ -189,7 +189,7 @@
                         <div class="mb-3">
                             <label class="form-label">Classification (for Cases only)</label>
                             <select name="classification" class="form-select">
-                                <option value="">— Not Specified —</option>
+                                <option value="">â€” Not Specified â€”</option>
                                 <option value="@CaseClassification.Confirmed">Confirmed</option>
                                 <option value="@CaseClassification.Probable">Probable</option>
                                 <option value="@CaseClassification.Suspect">Suspect</option>
@@ -202,7 +202,7 @@
                                 <thead>
                                     <tr>
                                         <th width="40">
-                                            <input type="checkbox" id="selectAllCheckbox" onchange="toggleAll(this)">
+                                            <input type="checkbox" id="selectAllCheckbox" class="js-toggle-all-cases">
                                         </th>
                                         <th>Type</th>
                                         <th>Case ID</th>
@@ -336,6 +336,13 @@
 
         // Initialize
         document.addEventListener('DOMContentLoaded', function() {
+            document.querySelector('.js-clear-outbreak-search')?.addEventListener('click', clearSearch);
+            document.querySelector('.js-select-all-cases')?.addEventListener('click', selectAll);
+            document.querySelector('.js-select-no-cases')?.addEventListener('click', selectNone);
+            document.querySelector('.js-toggle-all-cases')?.addEventListener('change', function () {
+                toggleAll(this);
+            });
+
             document.querySelectorAll('.case-checkbox').forEach(cb => {
                 cb.addEventListener('change', updateLinkButton);
             });

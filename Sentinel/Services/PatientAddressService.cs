@@ -83,7 +83,7 @@ namespace Sentinel.Services
                 {
                     _logger.LogError(ex, "Geocoding failed for Patient {PatientId} address: {Address}",
                         patient.Id, fullAddress);
-                    result.Errors.Add($"Geocoding failed: {ex.Message}");
+                    result.Errors.Add("Geocoding could not be completed for the updated address. The address was saved, and you can try geocoding again later.");
                 }
             }
 

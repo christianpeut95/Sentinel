@@ -1,12 +1,9 @@
 // Report Builder - Collection Queries Module (Part 2)
 // This is a continuation of report-builder.js
 
-console.log('[report-builder-collections.js] Loading...');
-
 // Add these functions to the ReportBuilder object
 
 ReportBuilder.addCollectionQuery = async function() {
-    console.log('[addCollectionQuery] Called');
     const queryId = this.nextCollectionQueryId++;
     const container = document.getElementById('collectionQueries');
 
@@ -46,19 +43,19 @@ ReportBuilder.addCollectionQueryCard = function(queryId, collections) {
         <div class="rb-collection-query" id="collection-query-${queryId}" data-query-id="${queryId}">
             <div class="rb-collection-header">
                 <span class="rb-collection-title">Collection Query #${queryId}</span>
-                <button class="rb-item-action" onclick="ReportBuilder.removeCollectionQuery(${queryId})" title="Remove query">×</button>
+                <button type="button" class="rb-item-action js-remove-collection-query" title="Remove query">×</button>
             </div>
             <div class="rb-collection-body">
                 <div class="rb-collection-row">
                     <label>Collection:</label>
-                    <select class="rb-collection-select" id="collection-${queryId}" onchange="ReportBuilder.updateCollectionFields(${queryId})">
+                    <select class="rb-collection-select js-collection-select" id="collection-${queryId}">
                         <option value="">Select collection...</option>
                         ${collections.map(c => `<option value="${this.escapeHtml(c.value)}" data-type="${this.escapeHtml(c.entityType)}">${this.escapeHtml(c.label)}</option>`).join('')}
                     </select>
                 </div>
                 <div class="rb-collection-row">
                     <label>Operation:</label>
-                    <select class="rb-collection-select" id="operation-${queryId}" onchange="ReportBuilder.updateCollectionOperator(${queryId})">
+                    <select class="rb-collection-select js-collection-operation" id="operation-${queryId}">
                         <option value="">Select operation...</option>
                         <option value="HasAny">Has Any</option>
                         <option value="Count">Count</option>
@@ -76,7 +73,7 @@ ReportBuilder.addCollectionQueryCard = function(queryId, collections) {
                 </div>
                 <div id="operator-container-${queryId}"></div>
                 <div class="rb-collection-switch">
-                    <input type="checkbox" id="display-as-column-${queryId}" onchange="ReportBuilder.toggleDisplayMode(${queryId})">
+                    <input type="checkbox" class="js-collection-display-mode" id="display-as-column-${queryId}">
                     <label for="display-as-column-${queryId}">Display as column (instead of filter)</label>
                 </div>
                 <div id="column-name-container-${queryId}" style="display:none;" class="rb-collection-row">
@@ -86,7 +83,7 @@ ReportBuilder.addCollectionQueryCard = function(queryId, collections) {
                 <div class="rb-subfilters-section">
                     <div class="rb-subfilters-header">
                         <span>Sub-Filters</span>
-                        <button class="rb-add-btn-sm" onclick="ReportBuilder.addCollectionSubFilter(${queryId})">+ Add</button>
+                        <button type="button" class="rb-add-btn-sm js-add-collection-subfilter">+ Add</button>
                     </div>
                     <div class="rb-subfilters-container" id="subfilters-${queryId}">
                         <div class="rb-empty-state-sm">No sub-filters</div>
@@ -97,6 +94,14 @@ ReportBuilder.addCollectionQueryCard = function(queryId, collections) {
     `;
 
     container.insertAdjacentHTML('beforeend', queryHtml);
+
+    const queryCard = document.getElementById(`collection-query-${queryId}`);
+    queryCard.querySelector('.js-remove-collection-query').addEventListener('click', () => this.removeCollectionQuery(queryId));
+    queryCard.querySelector('.js-collection-select').addEventListener('change', () => this.updateCollectionFields(queryId));
+    queryCard.querySelector('.js-collection-operation').addEventListener('change', () => this.updateCollectionOperator(queryId));
+    queryCard.querySelector('.js-collection-display-mode').addEventListener('change', () => this.toggleDisplayMode(queryId));
+    queryCard.querySelector('.js-add-collection-subfilter').addEventListener('click', () => this.addCollectionSubFilter(queryId));
+
     this.updateStatusBar();
 };
 
@@ -107,19 +112,17 @@ ReportBuilder.addCollectionQueryCard = function(queryId, collections) {
  * @returns {Promise<Array>} Array of collection options with value, label, entityType
  */
 ReportBuilder.getAvailableCollections = async function(entityType) {
-    console.log('[getAvailableCollections] Fetching collections for entity type:', entityType);
-
     try {
         const response = await fetch(`/api/reports/collection-metadata/${entityType}`);
         if (!response.ok) {
-            console.error('[getAvailableCollections] API request failed:', response.status);
+            console.error('Collection metadata request failed.');
             return this.getFallbackCollections(entityType);
         }
 
         const data = await response.json();
 
         if (!data.success || !data.collections) {
-            console.error('[getAvailableCollections] Invalid API response:', data);
+            console.error('[getAvailableCollections] Invalid API response.');
             return this.getFallbackCollections(entityType);
         }
 
@@ -149,11 +152,10 @@ ReportBuilder.getAvailableCollections = async function(entityType) {
             }
         }
 
-        console.log('[getAvailableCollections] Built collection list:', collections);
         return collections;
 
     } catch (error) {
-        console.error('[getAvailableCollections] Error fetching collections:', error);
+        console.error('Collection metadata could not be loaded.');
         return this.getFallbackCollections(entityType);
     }
 };
@@ -162,7 +164,7 @@ ReportBuilder.getAvailableCollections = async function(entityType) {
  * Fallback hardcoded collections if API fetch fails (backward compatibility)
  */
 ReportBuilder.getFallbackCollections = function(entityType) {
-    console.warn('[getFallbackCollections] Using hardcoded fallback collections');
+    console.warn('Using fallback collection metadata.');
     const collections = {
         'Case': [
             { value: 'ExposureEvents', label: 'Exposures', entityType: 'ExposureEvent' },
@@ -242,13 +244,6 @@ ReportBuilder.updateCollectionFields = async function(queryId) {
     const parentCollectionName = pathParts[0];
     const subCollectionName = pathParts.length > 1 ? pathParts[1] : null;
 
-    console.log('[updateCollectionFields] Fetching metadata for:', {
-        collectionPath,
-        parent: parentCollectionName,
-        sub: subCollectionName,
-        entityType
-    });
-
     try {
         const aggregateFieldSelect = document.getElementById(`aggregate-field-${queryId}`);
         if (aggregateFieldSelect) {
@@ -260,8 +255,6 @@ ReportBuilder.updateCollectionFields = async function(queryId) {
         if (!response.ok) throw new Error('Failed to fetch collection metadata');
 
         const data = await response.json();
-
-        console.log('[updateCollectionFields] Collection metadata API response:', data);
 
         if (data.success && data.collections) {
             const query = this.collectionQueries.find(q => q.id === queryId);
@@ -277,10 +270,8 @@ ReportBuilder.updateCollectionFields = async function(queryId) {
                 const subCollections = parentMetadata?.subCollections || parentMetadata?.SubCollections;
                 if (subCollectionName && subCollections) {
                     query.collectionMetadata = subCollections[subCollectionName];
-                    console.log('[updateCollectionFields] Using sub-collection metadata:', query.collectionMetadata);
                 } else {
                     query.collectionMetadata = parentMetadata;
-                    console.log('[updateCollectionFields] Using parent collection metadata:', query.collectionMetadata);
                 }
             }
         }
@@ -314,14 +305,8 @@ ReportBuilder.updateCollectionFields = async function(queryId) {
                 .filter(Boolean);
             query.collectionEntityType = query.subCollectionName || query.collectionName;
 
-            console.log('[updateCollectionFields] ✅ Stored sub-field metadata:', {
-                subFields: query.collectionSubFields.length,
-                subFieldsMetadata: query.collectionSubFieldsMetadata.length,
-                entityType: query.collectionEntityType,
-                isNested: !!subCollectionName
-            });
         } else if (query) {
-            console.error('[updateCollectionFields] ❌ No collection metadata returned for:', collectionPath);
+            console.error('Collection metadata was not returned.');
         }
 
         // Clear existing sub-filters since collection type changed
@@ -332,13 +317,12 @@ ReportBuilder.updateCollectionFields = async function(queryId) {
             if (query) {
                 query.subFilters = [];
             }
-            console.log('[updateCollectionFields] Cleared existing sub-filters for new collection type');
         }
 
         await this.updateCollectionOperator(queryId);
 
     } catch (error) {
-        console.error('[updateCollectionFields] ❌ Error:', error);
+        console.error('Collection metadata could not be loaded.');
         ReportBuilderNotifications.showToast('Failed to load collection metadata. Please try again.', 'error', 5000);
     }
 };
@@ -406,14 +390,11 @@ ReportBuilder.updateAggregateFieldOptions = function(queryId) {
     const aggregatableFields = metadata?.aggregatableFields || metadata?.AggregatableFields;
     if (!aggregatableFields) {
         aggregateFieldContainer.style.display = 'none';
-        console.log('[updateAggregateFieldOptions] No aggregatable fields available for query', queryId);
         return;
     }
 
     if (['Min', 'Max', 'Sum', 'Average'].includes(operation)) {
         let hasOptions = false;
-
-        console.log('[updateAggregateFieldOptions] Building aggregate options for', operation, 'from fields:', aggregatableFields);
 
         for (const [fieldName, fieldInfo] of Object.entries(aggregatableFields)) {
             const allowedOperations = fieldInfo.allowedOperations || fieldInfo.AllowedOperations || [];
@@ -458,15 +439,6 @@ ReportBuilder.addCollectionSubFilter = function(queryId) {
     const fields = query.collectionSubFields;
     const fieldsMetadata = query.collectionSubFieldsMetadata || [];
 
-    console.log('[addCollectionSubFilter] Adding sub-filter for query', queryId, {
-        isNested: !!query.subCollectionName,
-        collectionName: query.collectionName,
-        subCollectionName: query.subCollectionName,
-        fieldsCount: fields.length
-    });
-    console.log('[addCollectionSubFilter] Fields:', fields);
-    console.log('[addCollectionSubFilter] Metadata:', fieldsMetadata);
-
     const placeholder = container.querySelector('.rb-empty-state-sm');
     if (placeholder) {
         container.innerHTML = '';
@@ -478,8 +450,6 @@ ReportBuilder.addCollectionSubFilter = function(queryId) {
         const metadata = fieldsMetadata.find(m => m.fieldPath === fieldName || m.name === fieldName);
         const dataType = metadata?.dataType || 'String';
         const displayName = this.formatFieldName(fieldName);
-
-        console.log(`[addCollectionSubFilter] Field: ${fieldName}, DataType: ${dataType}, Metadata:`, metadata);
 
         return `<option value="${this.escapeHtml(fieldName)}" data-type="${this.escapeHtml(dataType)}">${this.escapeHtml(displayName)}</option>`;
     }).join('');
@@ -496,11 +466,14 @@ ReportBuilder.addCollectionSubFilter = function(queryId) {
             <div class="rb-subfilter-value-container" id="subfilter-value-container-${queryId}-${subFilterId}">
                 <input type="text" class="rb-subfilter-value" id="subfilter-value-${queryId}-${subFilterId}" placeholder="Value">
             </div>
-            <button class="rb-item-action" onclick="ReportBuilder.removeCollectionSubFilter(${queryId}, ${subFilterId})" title="Remove sub-filter">×</button>
+            <button type="button" class="rb-item-action js-remove-collection-subfilter" title="Remove sub-filter">×</button>
         </div>
     `;
 
     container.insertAdjacentHTML('beforeend', subFilterHtml);
+    document.getElementById(`subfilter-${queryId}-${subFilterId}`)
+        .querySelector('.js-remove-collection-subfilter')
+        .addEventListener('click', () => this.removeCollectionSubFilter(queryId, subFilterId));
 
     if (query) {
         if (!query.subFilters) query.subFilters = [];
@@ -522,17 +495,13 @@ ReportBuilder.setupSubFilterSmartInput = function(queryId, subFilterId) {
     const valueContainer = document.getElementById(`subfilter-value-container-${queryId}-${subFilterId}`);
 
     if (!fieldSelect || !operatorSelect || !valueContainer) {
-        console.warn(`Sub-filter elements not found for query ${queryId}, subfilter ${subFilterId}`);
+        console.warn('Collection sub-filter elements were not found.');
         return;
     }
-
-    console.log('[setupSubFilterSmartInput] Setting up smart input for query', queryId, 'subfilter', subFilterId);
 
     fieldSelect.addEventListener('change', (e) => {
         const selectedOption = e.target.options[e.target.selectedIndex];
         const dataType = selectedOption.dataset.type || 'String';
-
-        console.log('[SubFilter] Field changed to', e.target.value, 'DataType:', dataType, 'Option dataset:', selectedOption.dataset);
 
         // Pass false to keep operator dropdown visible for sub-filters
         this.updateOperators(operatorSelect, dataType, false);
@@ -546,8 +515,6 @@ ReportBuilder.setupSubFilterSmartInput = function(queryId, subFilterId) {
     operatorSelect.addEventListener('change', (e) => {
         const selectedOption = fieldSelect.options[fieldSelect.selectedIndex];
         const dataType = selectedOption.dataset.type || 'String';
-
-        console.log('[SubFilter] Operator changed to', e.target.value, 'DataType:', dataType);
 
         valueContainer.innerHTML = '<input type="text" class="form-control form-control-sm subfilter-value" placeholder="Value">';
         const tempInput = valueContainer.querySelector('input');
@@ -617,8 +584,6 @@ ReportBuilder.extractDateFilterValue = function(filterElement) {
  * @param {Object} query - The saved collection query object
  */
 ReportBuilder.restoreCollectionQuery = async function(query) {
-    console.log('[restoreCollectionQuery] Restoring query:', query);
-
     try {
         // Normalize property names (handle both PascalCase from C# and camelCase from JS)
         const collectionName = query.collectionName || query.CollectionName;
@@ -636,20 +601,6 @@ ReportBuilder.restoreCollectionQuery = async function(query) {
             ? `${collectionName}.${subCollectionName}` 
             : collectionName;
 
-        console.log('[restoreCollectionQuery] Normalized values:', {
-            collectionName, 
-            subCollectionName,
-            collectionPath,
-            isNested: !!subCollectionName,
-            operation, 
-            displayAsColumn, 
-            columnName, 
-            aggregateField, 
-            comparator, 
-            value,
-            subFiltersCount: subFilters.length
-        });
-
         // Verify container exists
         const container = document.getElementById('collectionQueries');
         if (!container) {
@@ -662,7 +613,6 @@ ReportBuilder.restoreCollectionQuery = async function(query) {
         const entityType = document.getElementById('entityTypeSelector').value;
         const collections = await this.getAvailableCollections(entityType);
 
-        console.log('[restoreCollectionQuery] Creating card with queryId:', queryId);
         this.addCollectionQueryCard(queryId, collections);
 
         // Store query object
@@ -680,14 +630,13 @@ ReportBuilder.restoreCollectionQuery = async function(query) {
         // Verify the card was created
         const queryCard = document.getElementById(`collection-query-${queryId}`);
         if (!queryCard) {
-            console.error('[restoreCollectionQuery] Query card not created for queryId:', queryId);
+            console.error('Collection query card could not be created.');
             return;
         }
 
         // Set collection path (use full path for nested collections)
         const collectionSelect = document.getElementById(`collection-${queryId}`);
         if (collectionSelect && collectionPath) {
-            console.log('[restoreCollectionQuery] Setting collection to:', collectionPath);
             collectionSelect.value = collectionPath;
 
             // Trigger change to load collection metadata
@@ -695,7 +644,7 @@ ReportBuilder.restoreCollectionQuery = async function(query) {
                 await this.updateCollectionFields(queryId);
                 await new Promise(resolve => setTimeout(resolve, 300));
             } catch (error) {
-                console.error('[restoreCollectionQuery] updateCollectionFields failed:', error);
+                console.error('Collection metadata could not be restored.');
                 // Continue anyway - the collection might still work
             }
         }
@@ -703,7 +652,6 @@ ReportBuilder.restoreCollectionQuery = async function(query) {
         // Set operation
         const operationSelect = document.getElementById(`operation-${queryId}`);
         if (operationSelect && operation) {
-            console.log('[restoreCollectionQuery] Setting operation to:', operation);
             operationSelect.value = operation;
             operationSelect.dispatchEvent(new Event('change'));
             await new Promise(resolve => setTimeout(resolve, 100));
@@ -712,7 +660,6 @@ ReportBuilder.restoreCollectionQuery = async function(query) {
         // Set display as column mode
         const displayAsColumnCheckbox = document.getElementById(`display-as-column-${queryId}`);
         if (displayAsColumnCheckbox && displayAsColumn) {
-            console.log('[restoreCollectionQuery] Enabling display as column');
             displayAsColumnCheckbox.checked = true;
             this.toggleDisplayMode(queryId);
             await new Promise(resolve => setTimeout(resolve, 100));
@@ -722,7 +669,6 @@ ReportBuilder.restoreCollectionQuery = async function(query) {
                 const columnNameInput = document.getElementById(`column-name-${queryId}`);
                 if (columnNameInput) {
                     columnNameInput.value = columnName;
-                    console.log('[restoreCollectionQuery] Set column name to:', columnName);
                 }
             }
         }
@@ -733,7 +679,6 @@ ReportBuilder.restoreCollectionQuery = async function(query) {
             const aggregateFieldSelect = document.getElementById(`aggregate-field-${queryId}`);
             if (aggregateFieldSelect) {
                 aggregateFieldSelect.value = aggregateField;
-                console.log('[restoreCollectionQuery] Set aggregate field to:', aggregateField);
             }
         }
 
@@ -742,34 +687,30 @@ ReportBuilder.restoreCollectionQuery = async function(query) {
             const comparatorSelect = document.getElementById(`comparator-${queryId}`);
             if (comparatorSelect) {
                 comparatorSelect.value = comparator;
-                console.log('[restoreCollectionQuery] Set comparator to:', comparator);
             }
 
             if (value !== undefined && value !== null) {
                 const valueInput = document.getElementById(`value-${queryId}`);
                 if (valueInput) {
                     valueInput.value = value;
-                    console.log('[restoreCollectionQuery] Set value to:', value);
                 }
             }
         }
 
         // Restore sub-filters
         if (subFilters && subFilters.length > 0) {
-            console.log('[restoreCollectionQuery] Restoring', subFilters.length, 'sub-filters');
             for (const subFilter of subFilters) {
                 try {
                     await this.restoreCollectionSubFilter(queryId, subFilter);
                     await new Promise(resolve => setTimeout(resolve, 200));
                 } catch (error) {
-                    console.error('[restoreCollectionQuery] Failed to restore sub-filter:', error, subFilter);
+                    console.error('Collection sub-filter could not be restored.');
                 }
             }
         }
 
-        console.log('[restoreCollectionQuery] ✅ Query restored successfully');
     } catch (error) {
-        console.error('[restoreCollectionQuery] ❌ Failed to restore query:', error, query);
+        console.error('Collection query could not be restored.');
         throw error;
     }
 };
@@ -780,8 +721,6 @@ ReportBuilder.restoreCollectionQuery = async function(query) {
  * @param {Object} subFilter - The sub-filter object
  */
 ReportBuilder.restoreCollectionSubFilter = async function(queryId, subFilter) {
-    console.log('[restoreCollectionSubFilter] Restoring sub-filter:', subFilter);
-
     // Normalize property names (handle both PascalCase from C# and camelCase from JS)
     const field = subFilter.field || subFilter.Field;
     const operator = subFilter.operator || subFilter.Operator;
@@ -793,13 +732,9 @@ ReportBuilder.restoreCollectionSubFilter = async function(queryId, subFilter) {
     const dynamicDateOffsetUnit = subFilter.dynamicDateOffsetUnit || subFilter.DynamicDateOffsetUnit;
 
     if (!field || !operator) {
-        console.error('[restoreCollectionSubFilter] Missing required fields:', { field, operator });
+        console.error('Collection sub-filter is missing required settings.');
         return;
     }
-
-    console.log('[restoreCollectionSubFilter] Normalized:', { 
-        field, operator, value, dataType, isDynamicDate, dynamicDateType, dynamicDateOffset, dynamicDateOffsetUnit 
-    });
 
     // Add sub-filter
     this.addCollectionSubFilter(queryId);
@@ -825,28 +760,18 @@ ReportBuilder.restoreCollectionSubFilter = async function(queryId, subFilter) {
     const valueContainer = document.getElementById(`subfilter-value-container-${queryId}-${subFilterId}`);
 
     if (!fieldSelect || !operatorSelect || !valueContainer) {
-        console.error('[restoreCollectionSubFilter] Missing sub-filter elements. Found:', {
-            fieldSelect: !!fieldSelect,
-            operatorSelect: !!operatorSelect,
-            valueContainer: !!valueContainer,
-            subFilterEl: subFilterElId,
-            subFilterId: subFilterId
-        });
+        console.error('Collection sub-filter elements were not found.');
         return;
     }
 
     // Set field value
     fieldSelect.value = field;
-    console.log('[restoreCollectionSubFilter] Set field to:', field);
-
     // Wait a bit before getting the data type
     await new Promise(resolve => setTimeout(resolve, 50));
 
     // Get data type from the selected option
     const selectedOption = fieldSelect.options[fieldSelect.selectedIndex];
     const actualDataType = selectedOption?.dataset.type || dataType;
-
-    console.log('[restoreCollectionSubFilter] Field data type:', actualDataType, 'from option:', selectedOption);
 
     // Update operators based on data type
     this.updateOperators(operatorSelect, actualDataType);
@@ -865,9 +790,6 @@ ReportBuilder.restoreCollectionSubFilter = async function(queryId, subFilter) {
     // For date fields, the operator will be set via the combined dropdown later
     if (!isDateField) {
         operatorSelect.value = operator;
-        console.log('[restoreCollectionSubFilter] Set operator to:', operator);
-    } else {
-        console.log('[restoreCollectionSubFilter] Skipping operator set for date field - will use combined dropdown');
     }
 
     // Clear the value container and create appropriate input based on data type and operator
@@ -891,10 +813,6 @@ ReportBuilder.restoreCollectionSubFilter = async function(queryId, subFilter) {
                           (dynamicDateOffset || (value && !isNaN(parseInt(value))));
 
     if ((isDynamicDate && (dynamicDateType || dynamicDateOffset)) || isInLastOrNext) {
-        console.log('[restoreCollectionSubFilter] Restoring dynamic date:', { 
-            operator, value, isDynamicDate, dynamicDateType, dynamicDateOffset, dynamicDateOffsetUnit, isInLastOrNext 
-        });
-
         const combinedSelect = valueContainer.querySelector('.filter-date-combined');
         if (combinedSelect) {
             let matchedPreset = false;
@@ -906,7 +824,6 @@ ReportBuilder.restoreCollectionSubFilter = async function(queryId, subFilter) {
 
                 if (presetOption) {
                     combinedSelect.value = presetValue;
-                    console.log('[restoreCollectionSubFilter] Set to InLast/InNext preset (offset):', presetValue);
                     matchedPreset = true;
                 }
             }
@@ -918,7 +835,6 @@ ReportBuilder.restoreCollectionSubFilter = async function(queryId, subFilter) {
 
                 if (presetOption) {
                     combinedSelect.value = presetValue;
-                    console.log('[restoreCollectionSubFilter] Set to InLast/InNext preset (legacy):', presetValue);
                     matchedPreset = true;
                 }
             }
@@ -933,7 +849,6 @@ ReportBuilder.restoreCollectionSubFilter = async function(queryId, subFilter) {
 
                     if (inLastOption) {
                         combinedSelect.value = inLastValue;
-                        console.log('[restoreCollectionSubFilter] Set to InLast preset:', inLastValue);
                         matchedPreset = true;
                     }
 
@@ -944,7 +859,6 @@ ReportBuilder.restoreCollectionSubFilter = async function(queryId, subFilter) {
 
                         if (inNextOption) {
                             combinedSelect.value = inNextValue;
-                            console.log('[restoreCollectionSubFilter] Set to InNext preset:', inNextValue);
                             matchedPreset = true;
                         }
                     }
@@ -958,7 +872,6 @@ ReportBuilder.restoreCollectionSubFilter = async function(queryId, subFilter) {
 
                 if (presetOption) {
                     combinedSelect.value = presetValue;
-                    console.log('[restoreCollectionSubFilter] Set to dynamic type preset:', presetValue);
                     matchedPreset = true;
                 }
             }
@@ -1009,11 +922,6 @@ ReportBuilder.restoreCollectionSubFilter = async function(queryId, subFilter) {
                             directionSelect.value = direction;
                         }
 
-                        console.log('[restoreCollectionSubFilter] Set custom dynamic date:', { 
-                            offset: dynamicDateOffset, 
-                            unit: dynamicDateOffsetUnit, 
-                            direction: dynamicDateType 
-                        });
                     }
                 }
             }
@@ -1030,19 +938,16 @@ ReportBuilder.restoreCollectionSubFilter = async function(queryId, subFilter) {
             const actualValueInput = valueContainer.querySelector('.subfilter-value');
             if (actualValueInput) {
                 actualValueInput.value = value;
-                console.log('[restoreCollectionSubFilter] Set static date value to:', value);
             }
         } else {
             // For non-date fields, just set the value
             const actualValueInput = valueContainer.querySelector('.subfilter-value');
             if (actualValueInput) {
                 actualValueInput.value = value;
-                console.log('[restoreCollectionSubFilter] Set value to:', value);
             } else {
                 console.warn('[restoreCollectionSubFilter] Value input not found after update');
             }
         }
     }
 
-    console.log('[restoreCollectionSubFilter] ✅ Sub-filter restored with smart filtering and dynamic date support');
 };

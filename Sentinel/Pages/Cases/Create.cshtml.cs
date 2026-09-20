@@ -8,6 +8,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using Sentinel.Data;
 using Sentinel.Models;
 using Sentinel.Models.Lookups;
@@ -26,6 +27,7 @@ namespace Sentinel.Pages.Cases
         private readonly ITaskService _taskService;
         private readonly IJurisdictionService _jurisdictionService;
         private readonly IPatientAddressService _patientAddressService;
+        private readonly ILogger<CreateModel> _logger;
 
         public CreateModel(
             ApplicationDbContext context, 
@@ -35,7 +37,8 @@ namespace Sentinel.Pages.Cases
             IExposureRequirementService exposureRequirementService,
             ITaskService taskService,
             IJurisdictionService jurisdictionService,
-            IPatientAddressService patientAddressService)
+            IPatientAddressService patientAddressService,
+            ILogger<CreateModel> logger)
         {
             _context = context;
             _caseIdGenerator = caseIdGenerator;
@@ -45,6 +48,7 @@ namespace Sentinel.Pages.Cases
             _taskService = taskService;
             _jurisdictionService = jurisdictionService;
             _patientAddressService = patientAddressService;
+            _logger = logger;
         }
 
         public Disease? DiseaseRequirements { get; set; }
@@ -84,7 +88,7 @@ namespace Sentinel.Pages.Cases
                     .ThenBy(d => d.Name)
                     .Select(d => new { 
                         d.Id, 
-                        DisplayName = new string('—', d.Level) + " " + d.Name 
+                        DisplayName = new string('â€”', d.Level) + " " + d.Name
                     })
                     .ToListAsync(),
                 "Id", "DisplayName");
@@ -112,7 +116,8 @@ namespace Sentinel.Pages.Cases
             if (patientId.HasValue)
             {
                 Case.PatientId = patientId.Value;
-                SelectedPatient = await _context.Patients.FindAsync(patientId.Value);
+                SelectedPatient = await _context.Patients
+                    .FirstOrDefaultAsync(p => p.Id == patientId.Value);
             }
 
             return Page();
@@ -123,6 +128,31 @@ namespace Sentinel.Pages.Cases
 
         public async Task<IActionResult> OnPostAsync()
         {
+            // The create form's identifiers are client input. Confirm both parent
+            // resources through their normal query filters before a new case is
+            // attached to them.
+            if (Case.PatientId == Guid.Empty ||
+                !await _context.Patients.AnyAsync(p => p.Id == Case.PatientId))
+            {
+                return NotFound();
+            }
+
+            if (!Case.DiseaseId.HasValue ||
+                !await _context.Diseases.AnyAsync(d => d.Id == Case.DiseaseId.Value && d.IsActive))
+            {
+                return NotFound();
+            }
+
+            if (Case.ConfirmationStatusId.HasValue &&
+                !await _context.CaseStatuses.AnyAsync(cs =>
+                    cs.Id == Case.ConfirmationStatusId.Value &&
+                    cs.IsActive &&
+                    (cs.ApplicableTo == CaseTypeApplicability.Case ||
+                     cs.ApplicableTo == CaseTypeApplicability.Both)))
+            {
+                ModelState.AddModelError("Case.ConfirmationStatusId", "Select an active status that applies to cases.");
+            }
+
             if (!ModelState.IsValid)
             {
                 ViewData["PatientId"] = new SelectList(
@@ -152,7 +182,7 @@ namespace Sentinel.Pages.Cases
                         .ThenBy(d => d.Name)
                         .Select(d => new { 
                             d.Id, 
-                            DisplayName = new string('—', d.Level) + " " + d.Name 
+                            DisplayName = new string('â€”', d.Level) + " " + d.Name
                         })
                         .ToListAsync(),
                     "Id", "DisplayName");
@@ -167,11 +197,24 @@ namespace Sentinel.Pages.Cases
 
             try
             {
-                // Set default Date of Onset to today if not provided
-                if (!Case.DateOfOnset.HasValue)
+                // A case type, identifiers, classifications, workflow state and audit
+                // fields are all server-controlled. Copy only the values rendered by
+                // the create form into a new persistent Case.
+                var caseToCreate = new Case
                 {
-                    Case.DateOfOnset = DateTime.Today;
-                }
+                    Id = Guid.NewGuid(),
+                    FriendlyId = await _caseIdGenerator.GenerateNextCaseIdAsync(),
+                    PatientId = Case.PatientId,
+                    DiseaseId = Case.DiseaseId,
+                    DateOfOnset = Case.DateOfOnset ?? DateTime.Today,
+                    DateOfNotification = Case.DateOfNotification,
+                    ClinicalNotificationDate = Case.ClinicalNotificationDate,
+                    ClinicalNotifierOrganisation = Case.ClinicalNotifierOrganisation,
+                    ClinicalNotificationNotes = Case.ClinicalNotificationNotes,
+                    ConfirmationStatusId = Case.ConfirmationStatusId,
+                    Type = CaseType.Case
+                };
+                Case = caseToCreate;
 
                 // Validate exposure requirements if disease requires it
                 if (Case.DiseaseId.HasValue)
@@ -188,13 +231,10 @@ namespace Sentinel.Pages.Cases
                     }
                 }
 
-                Case.Id = Guid.NewGuid();
-                Case.FriendlyId = await _caseIdGenerator.GenerateNextCaseIdAsync();
-
                 // Auto-detect jurisdictions from patient's address if not set
                 await AutoDetectJurisdictionsFromPatientAsync();
 
-                _context.Cases.Add(Case);
+                _context.Cases.Add(caseToCreate);
                 await _context.SaveChangesAsync();
 
                 // Snapshot patient address to case (if disease configured for it)
@@ -227,7 +267,8 @@ namespace Sentinel.Pages.Cases
                     if (requirements != null && requirements.DefaultToResidentialAddress)
                     {
                         System.Diagnostics.Debug.WriteLine("Loading patient...");
-                        var patient = await _context.Patients.FindAsync(Case.PatientId);
+                        var patient = await _context.Patients
+                            .FirstOrDefaultAsync(p => p.Id == Case.PatientId);
                         System.Diagnostics.Debug.WriteLine($"Patient found: {patient != null}");
                         System.Diagnostics.Debug.WriteLine($"Patient AddressLine: {patient?.AddressLine}");
                         
@@ -384,12 +425,12 @@ namespace Sentinel.Pages.Cases
 
                 if (detectedJurisdictions.Any())
                 {
-                    Console.WriteLine($"Auto-detected {detectedJurisdictions.Count} jurisdictions for case from patient address");
+                    _logger.LogInformation("Automatically detected {JurisdictionCount} jurisdictions for a case", detectedJurisdictions.Count);
                 }
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Error auto-detecting jurisdictions for case: {ex.Message}");
+                _logger.LogWarning(ex, "Could not auto-detect case jurisdictions");
             }
         }
     }

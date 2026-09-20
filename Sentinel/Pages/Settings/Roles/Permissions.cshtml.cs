@@ -75,11 +75,8 @@ namespace Sentinel.Pages.Settings.Roles
 
         public async Task<IActionResult> OnPostGrantAsync(string roleId, int permissionId)
         {
-            // Debug logging
             var permission = await _context.Permissions.FindAsync(permissionId);
             var permissionName = permission?.Name ?? "Unknown";
-            
-            Console.WriteLine($"[DEBUG] Granting permission - RoleId: {roleId}, PermissionId: {permissionId}, Name: {permissionName}");
             
             await _permissionService.GrantPermissionToRoleAsync(roleId, permissionId);
             await _sessionInvalidationService.InvalidateUsersInRoleAsync(roleId);

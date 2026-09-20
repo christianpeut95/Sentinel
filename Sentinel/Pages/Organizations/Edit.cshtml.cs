@@ -78,7 +78,6 @@ namespace Sentinel.Pages.Organizations
             try
             {
                 var existingOrganization = await _context.Organizations
-                    .AsNoTracking()
                     .FirstOrDefaultAsync(o => o.Id == Organization.Id);
 
                 if (existingOrganization == null)
@@ -87,9 +86,18 @@ namespace Sentinel.Pages.Organizations
                     return RedirectToPage("./Index");
                 }
 
-                Organization.ModifiedAt = DateTime.UtcNow;
-
-                _context.Attach(Organization).State = EntityState.Modified;
+                // Only fields presented by this form may be changed.  Do not attach the
+                // request-bound entity: hidden/audit/navigation fields are not a client API.
+                existingOrganization.Name = Organization.Name;
+                existingOrganization.OrganizationTypeId = Organization.OrganizationTypeId;
+                existingOrganization.ExportCode = Organization.ExportCode;
+                existingOrganization.IsActive = Organization.IsActive;
+                existingOrganization.Address = Organization.Address;
+                existingOrganization.ContactPerson = Organization.ContactPerson;
+                existingOrganization.Phone = Organization.Phone;
+                existingOrganization.Email = Organization.Email;
+                existingOrganization.Notes = Organization.Notes;
+                existingOrganization.ModifiedAt = DateTime.UtcNow;
 
                 try
                 {
@@ -97,16 +105,16 @@ namespace Sentinel.Pages.Organizations
 
                     await _auditService.LogChangeAsync(
                         entityType: "Organization",
-                        entityId: Organization.Id.ToString(),
+                        entityId: existingOrganization.Id.ToString(),
                         fieldName: "Organization Updated",
                         oldValue: null,
-                        newValue: Organization.Name,
+                        newValue: existingOrganization.Name,
                         userId: User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value,
                         ipAddress: HttpContext.Connection.RemoteIpAddress?.ToString()
                     );
 
                     TempData["SuccessMessage"] = "Organization updated successfully.";
-                    return RedirectToPage("./Details", new { id = Organization.Id });
+                    return RedirectToPage("./Details", new { id = existingOrganization.Id });
                 }
                 catch (DbUpdateConcurrencyException)
                 {

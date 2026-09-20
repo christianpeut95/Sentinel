@@ -9,6 +9,7 @@ using Sentinel.Services;
 namespace Sentinel.Pages.Cases
 {
     [Authorize(Policy = "Permission.Audit.View")]
+    [Authorize(Policy = "Permission.Case.View")]
     public class AuditHistoryModel : PageModel
     {
         private readonly ApplicationDbContext _context;

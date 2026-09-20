@@ -23,7 +23,7 @@
             <div class="card shadow-sm mb-4">
                 <div class="card-header">
                     <h5 class="mb-0">
-                        <i class="bi @(Model.Folder.Icon ?? "bi-folder") me-2"></i>
+                        <i class="bi @Model.Folder.SafeIcon me-2"></i>
                         @Model.Folder.Name
                     </h5>
                     @if (!string.IsNullOrEmpty(Model.Folder.Description))

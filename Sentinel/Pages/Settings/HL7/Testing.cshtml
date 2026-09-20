@@ -92,18 +92,9 @@
                         </div>
                     </div>
                 </div>
-                @if (Model.MonitoringStatus.MonitoredPaths.Any())
-                {
-                    <div class="mt-2">
-                        <strong>Monitored Paths:</strong>
-                        <ul class="mb-0">
-                            @foreach (var path in Model.MonitoringStatus.MonitoredPaths)
-                            {
-                                <li><code>@path</code></li>
-                            }
-                        </ul>
-                    </div>
-                }
+                <div class="mt-2 text-muted small">
+                    The configured monitored sources are active. Folder locations are intentionally not shown here.
+                </div>
             </div>
         </div>
     }
@@ -121,7 +112,7 @@
                         <i class="bi bi-trash3"></i> Clear All Test Data
                     </button>
                 </form>
-                <button type="button" class="btn btn-secondary" onclick="location.reload()">
+                <button type="button" class="btn btn-secondary js-reload-hl7-testing">
                     <i class="bi bi-arrow-clockwise"></i> Refresh
                 </button>
             </div>
@@ -169,10 +160,10 @@
                                 <tr class="@(message.Status == HL7ProcessingStatus.ProcessingFailed ? "table-danger" : "")">
                                     <td>
                                         <code class="small">@message.MessageControlId</code>
-                                        @if (!string.IsNullOrEmpty(message.ErrorMessage))
+                                        @if (message.HasProcessingError)
                                         {
                                             <br />
-                                            <small class="text-danger" title="@message.ErrorMessage">
+                                            <small class="text-danger">
                                                 <i class="bi bi-exclamation-triangle"></i> Error
                                             </small>
                                         }
@@ -185,7 +176,7 @@
                                                 <span class="badge bg-success" title="Processed successfully">✅ Success</span>
                                                 break;
                                             case HL7ProcessingStatus.ProcessingFailed:
-                                                <span class="badge bg-danger" title="@message.ErrorMessage">❌ Failed</span>
+                                                <span class="badge bg-danger" title="Processing failed">❌ Failed</span>
                                                 break;
                                             case HL7ProcessingStatus.AwaitingManualReview:
                                                 <span class="badge bg-warning text-dark" title="Requires manual review">⚠️ Review</span>
@@ -246,8 +237,8 @@
                                     </td>
                                     <td>
                                         <div class="btn-group btn-group-sm" role="group">
-                                            <button type="button" class="btn btn-info btn-sm" 
-                                                    onclick="viewDetails('@message.Id')" 
+                                            <button type="button" class="btn btn-info btn-sm js-view-hl7-details"
+                                                    data-message-id="@message.Id"
                                                     title="View message details">
                                                 <i class="bi bi-eye"></i>
                                             </button>
@@ -301,12 +292,49 @@
 
 @section Scripts {
     <script>
+        document.addEventListener('click', function (event) {
+            if (event.target.closest('.js-reload-hl7-testing')) {
+                window.location.reload();
+                return;
+            }
+
+            const detailsButton = event.target.closest('.js-view-hl7-details');
+            if (detailsButton) {
+                viewDetails(detailsButton.dataset.messageId);
+            }
+        });
+
+        function escapeHtml(value) {
+            return String(value == null ? '' : value)
+                .replace(/&/g, '&amp;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;');
+        }
+
+        function formatDate(value) {
+            const date = new Date(value);
+            return Number.isNaN(date.getTime()) ? '-' : date.toLocaleDateString();
+        }
+
         async function viewDetails(messageId) {
             const modal = new bootstrap.Modal(document.getElementById('detailsModal'));
             modal.show();
 
             try {
-                const response = await fetch(`?handler=ViewDetails&messageId=${messageId}`);
+                const response = await fetch(`/api/hl7/diagnostics/messages/${encodeURIComponent(messageId)}`, {
+                    headers: {
+                        'Accept': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
+                });
+                if (!response.ok) {
+                    throw new Error(`Failed to load message details (${response.status})`);
+                }
+                if (!response.headers.get('content-type')?.includes('application/json')) {
+                    throw new Error('Message-details endpoint returned an unexpected response type');
+                }
                 const data = await response.json();
 
                 let html = '<div class="container-fluid">';
@@ -314,22 +342,22 @@
                 // Message Info
                 html += '<h6 class="border-bottom pb-2 mb-3">Message Information</h6>';
                 html += '<div class="row mb-3">';
-                html += `<div class="col-md-4"><strong>Control ID:</strong> <code>${data.messageControlId}</code></div>`;
-                html += `<div class="col-md-4"><strong>Type:</strong> ${data.messageType || '-'}</div>`;
-                html += `<div class="col-md-4"><strong>Status:</strong> <span class="badge bg-secondary">${data.status}</span></div>`;
+                html += `<div class="col-md-4"><strong>Control ID:</strong> <code>${escapeHtml(data.messageControlId || '-')}</code></div>`;
+                html += `<div class="col-md-4"><strong>Type:</strong> ${escapeHtml(data.messageType || '-')}</div>`;
+                html += `<div class="col-md-4"><strong>Status:</strong> <span class="badge bg-secondary">${escapeHtml(data.status || '-')}</span></div>`;
                 html += '</div>';
 
-                if (data.errorMessage) {
-                    html += `<div class="alert alert-danger"><strong>Error:</strong> ${data.errorMessage}</div>`;
+                if (data.hasProcessingError) {
+                    html += '<div class="alert alert-danger"><strong>Processing failed.</strong> Review the application logs using this message control ID for technical details.</div>';
                 }
 
                 // Patient Info
                 if (data.patient) {
                     html += '<h6 class="border-bottom pb-2 mb-3 mt-4">Patient Information</h6>';
                     html += '<div class="row mb-3">';
-                    html += `<div class="col-md-4"><strong>ID:</strong> ${data.patient.friendlyId}</div>`;
-                    html += `<div class="col-md-4"><strong>Name:</strong> ${data.patient.firstName} ${data.patient.lastName}</div>`;
-                    html += `<div class="col-md-4"><strong>DOB:</strong> ${new Date(data.patient.dateOfBirth).toLocaleDateString()}</div>`;
+                    html += `<div class="col-md-4"><strong>ID:</strong> ${escapeHtml(data.patient.friendlyId || '-')}</div>`;
+                    html += `<div class="col-md-4"><strong>Name:</strong> ${escapeHtml(data.patient.firstName || '-')} ${escapeHtml(data.patient.lastName || '-')}</div>`;
+                    html += `<div class="col-md-4"><strong>DOB:</strong> ${formatDate(data.patient.dateOfBirth)}</div>`;
                     html += '</div>';
                 }
 
@@ -337,8 +365,8 @@
                 if (data.labResult) {
                     html += '<h6 class="border-bottom pb-2 mb-3 mt-4">Lab Result Information</h6>';
                     html += '<div class="row mb-3">';
-                    html += `<div class="col-md-6"><strong>ID:</strong> ${data.labResult.friendlyId}</div>`;
-                    html += `<div class="col-md-6"><strong>Collection Date:</strong> ${new Date(data.labResult.specimenCollectionDate).toLocaleDateString()}</div>`;
+                    html += `<div class="col-md-6"><strong>ID:</strong> ${escapeHtml(data.labResult.friendlyId || '-')}</div>`;
+                    html += `<div class="col-md-6"><strong>Collection Date:</strong> ${formatDate(data.labResult.specimenCollectionDate)}</div>`;
                     html += '</div>';
 
                     if (data.labResult.markers && data.labResult.markers.length > 0) {
@@ -348,22 +376,16 @@
                         html += '<tbody>';
                         data.labResult.markers.forEach(marker => {
                             html += '<tr>';
-                            html += `<td><code>${marker.testCode}</code></td>`;
-                            html += `<td>${marker.testName || '-'}</td>`;
-                            html += `<td>${marker.qualitativeResult || '-'}</td>`;
-                            html += `<td>${marker.quantitativeValue || '-'}</td>`;
-                            html += `<td>${marker.units || '-'}</td>`;
-                            html += `<td>${marker.interpretationFlag || '-'}</td>`;
+                            html += `<td><code>${escapeHtml(marker.testCode || '-')}</code></td>`;
+                            html += `<td>${escapeHtml(marker.testName || '-')}</td>`;
+                            html += `<td>${escapeHtml(marker.qualitativeResult || '-')}</td>`;
+                            html += `<td>${escapeHtml(marker.quantitativeValue || '-')}</td>`;
+                            html += `<td>${escapeHtml(marker.units || '-')}</td>`;
+                            html += `<td>${escapeHtml(marker.interpretationFlag || '-')}</td>`;
                             html += '</tr>';
                         });
                         html += '</tbody></table>';
                     }
-                }
-
-                // Processing Notes
-                if (data.processingNotes) {
-                    html += '<h6 class="border-bottom pb-2 mb-3 mt-4">Processing Notes</h6>';
-                    html += `<pre class="bg-light p-3" style="white-space: pre-wrap; max-height: 300px; overflow-y: auto;">${data.processingNotes}</pre>`;
                 }
 
                 // Raw Content (collapsed)
@@ -375,15 +397,16 @@
                 html += '</h2>';
                 html += '<div id="rawContent" class="accordion-collapse collapse" data-bs-parent="#rawContentAccordion">';
                 html += '<div class="accordion-body">';
-                html += `<pre style="white-space: pre-wrap; font-size: 0.8rem; max-height: 400px; overflow-y: auto;">${data.rawContent || 'No raw content available'}</pre>`;
+                html += `<pre style="white-space: pre-wrap; font-size: 0.8rem; max-height: 400px; overflow-y: auto;">${escapeHtml(data.rawContent || 'No raw content available')}</pre>`;
                 html += '</div></div></div></div>';
 
                 html += '</div>';
 
                 document.getElementById('detailsContent').innerHTML = html;
             } catch (error) {
+                console.error('HL7 message details could not be loaded.');
                 document.getElementById('detailsContent').innerHTML = 
-                    `<div class="alert alert-danger">Error loading details: ${error.message}</div>`;
+                    '<div class="alert alert-danger">Message details could not be loaded. Please try again.</div>';
             }
         }
     </script>

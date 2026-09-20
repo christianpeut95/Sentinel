@@ -124,6 +124,12 @@ namespace Sentinel.Services
         Task<CaseTask> UpdateTask(Guid taskId, CaseTask updatedTask);
 
         /// <summary>
+        /// Marks an active task as in progress. Terminal tasks cannot be
+        /// reopened through this normal workflow action.
+        /// </summary>
+        Task<CaseTask> StartTask(Guid taskId);
+
+        /// <summary>
         /// Marks a task as complete
         /// </summary>
         Task<CaseTask> CompleteTask(Guid taskId, string? completionNotes, string userId);

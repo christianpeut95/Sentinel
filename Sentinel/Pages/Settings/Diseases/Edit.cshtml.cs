@@ -60,7 +60,7 @@ namespace Sentinel.Pages.Settings.Diseases
             return Page();
         }
 
-        public async Task<IActionResult> OnPostAsync(string action)
+        public async Task<IActionResult> OnPostSaveBasicAsync(string action)
         {
             if (!ModelState.IsValid)
             {
@@ -88,22 +88,25 @@ namespace Sentinel.Pages.Settings.Diseases
                     return Page();
                 }
 
-                // Check if entity is already being tracked
-                var trackedEntity = _context.ChangeTracker.Entries<Disease>()
-                    .FirstOrDefault(e => e.Entity.Id == Disease.Id);
+                var diseaseToUpdate = await _context.Diseases
+                    .FirstOrDefaultAsync(d => d.Id == Disease.Id);
+                if (diseaseToUpdate == null)
+                {
+                    return NotFound();
+                }
 
-                if (trackedEntity != null)
-                {
-                    // Update the tracked entity instead of attaching a new one
-                    var entry = trackedEntity;
-                    entry.CurrentValues.SetValues(Disease);
-                    entry.State = EntityState.Modified;
-                }
-                else
-                {
-                    // No tracked entity, safe to attach
-                    _context.Attach(Disease).State = EntityState.Modified;
-                }
+                // The hierarchy and audit fields are maintained server-side by the DbContext.
+                // Copy only the fields rendered by the Basic Information form.
+                diseaseToUpdate.Name = Disease.Name;
+                diseaseToUpdate.Code = Disease.Code;
+                diseaseToUpdate.ExportCode = Disease.ExportCode;
+                diseaseToUpdate.DiseaseCategoryId = Disease.DiseaseCategoryId;
+                diseaseToUpdate.Description = Disease.Description;
+                diseaseToUpdate.ParentDiseaseId = Disease.ParentDiseaseId;
+                diseaseToUpdate.DisplayOrder = Disease.DisplayOrder;
+                diseaseToUpdate.AccessLevel = Disease.AccessLevel;
+                diseaseToUpdate.IsActive = Disease.IsActive;
+                diseaseToUpdate.ModifiedAt = DateTime.UtcNow;
 
                 try
                 {
@@ -121,8 +124,8 @@ namespace Sentinel.Pages.Settings.Diseases
                     }
                 }
 
-                var diseaseName = Disease.Name;
-                var diseaseId = Disease.Id;
+                var diseaseName = diseaseToUpdate.Name;
+                var diseaseId = diseaseToUpdate.Id;
                 
                 TempData["SuccessMessage"] = $"Disease '{diseaseName}' has been updated successfully.";
                 

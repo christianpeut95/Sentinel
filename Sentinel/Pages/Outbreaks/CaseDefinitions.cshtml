@@ -58,7 +58,7 @@
         <div class="card border-danger h-100">
             <div class="card-header bg-danger text-white d-flex justify-content-between align-items-center">
                 <h6 class="mb-0"><i class="bi bi-check-circle-fill me-2"></i>Confirmed Case</h6>
-                <button type="button" class="btn btn-sm btn-light" onclick="openDefinitionModal(@((int)CaseClassification.Confirmed), null)">
+                <button type="button" class="btn btn-sm btn-light js-open-definition-modal" data-classification="@((int)CaseClassification.Confirmed)">
                     <i class="bi bi-plus"></i> Create
                 </button>
             </div>
@@ -71,8 +71,8 @@
                         <p class="mb-0">@Model.ConfirmedDefinition.DefinitionText</p>
                     }
                     <div class="mt-3">
-                        <button type="button" class="btn btn-sm btn-outline-primary" 
-                                onclick="openDefinitionModal(@((int)CaseClassification.Confirmed), @Model.ConfirmedDefinition.Id)">
+                        <button type="button" class="btn btn-sm btn-outline-primary js-open-definition-modal"
+                                data-classification="@((int)CaseClassification.Confirmed)" data-definition-id="@Model.ConfirmedDefinition.Id">
                             <i class="bi bi-pencil"></i> Edit
                         </button>
                         <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-toggle="collapse" data-bs-target="#confirmedHistory">
@@ -107,7 +107,7 @@
                 else
                 {
                     <p class="text-muted mb-0">No confirmed case definition set.</p>
-                    <button type="button" class="btn btn-sm btn-danger mt-2" onclick="openDefinitionModal(@((int)CaseClassification.Confirmed), null)">
+                    <button type="button" class="btn btn-sm btn-danger mt-2 js-open-definition-modal" data-classification="@((int)CaseClassification.Confirmed)">
                         <i class="bi bi-plus-circle"></i> Create Definition
                     </button>
                 }
@@ -120,7 +120,7 @@
         <div class="card border-warning h-100">
             <div class="card-header bg-warning d-flex justify-content-between align-items-center">
                 <h6 class="mb-0"><i class="bi bi-exclamation-circle-fill me-2"></i>Probable Case</h6>
-                <button type="button" class="btn btn-sm btn-light" onclick="openDefinitionModal(@((int)CaseClassification.Probable), null)">
+                <button type="button" class="btn btn-sm btn-light js-open-definition-modal" data-classification="@((int)CaseClassification.Probable)">
                     <i class="bi bi-plus"></i> Create
                 </button>
             </div>
@@ -133,8 +133,8 @@
                         <p class="mb-0">@Model.ProbableDefinition.DefinitionText</p>
                     }
                     <div class="mt-3">
-                        <button type="button" class="btn btn-sm btn-outline-primary" 
-                                onclick="openDefinitionModal(@((int)CaseClassification.Probable), @Model.ProbableDefinition.Id)">
+                        <button type="button" class="btn btn-sm btn-outline-primary js-open-definition-modal"
+                                data-classification="@((int)CaseClassification.Probable)" data-definition-id="@Model.ProbableDefinition.Id">
                             <i class="bi bi-pencil"></i> Edit
                         </button>
                         <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-toggle="collapse" data-bs-target="#probableHistory">
@@ -169,7 +169,7 @@
                 else
                 {
                     <p class="text-muted mb-0">No probable case definition set.</p>
-                    <button type="button" class="btn btn-sm btn-warning mt-2" onclick="openDefinitionModal(@((int)CaseClassification.Probable), null)">
+                    <button type="button" class="btn btn-sm btn-warning mt-2 js-open-definition-modal" data-classification="@((int)CaseClassification.Probable)">
                         <i class="bi bi-plus-circle"></i> Create Definition
                     </button>
                 }
@@ -182,7 +182,7 @@
         <div class="card border-secondary h-100">
             <div class="card-header bg-secondary text-white d-flex justify-content-between align-items-center">
                 <h6 class="mb-0"><i class="bi bi-question-circle-fill me-2"></i>Suspect Case</h6>
-                <button type="button" class="btn btn-sm btn-light" onclick="openDefinitionModal(@((int)CaseClassification.Suspect), null)">
+                <button type="button" class="btn btn-sm btn-light js-open-definition-modal" data-classification="@((int)CaseClassification.Suspect)">
                     <i class="bi bi-plus"></i> Create
                 </button>
             </div>
@@ -195,8 +195,8 @@
                         <p class="mb-0">@Model.SuspectDefinition.DefinitionText</p>
                     }
                     <div class="mt-3">
-                        <button type="button" class="btn btn-sm btn-outline-primary" 
-                                onclick="openDefinitionModal(@((int)CaseClassification.Suspect), @Model.SuspectDefinition.Id)">
+                        <button type="button" class="btn btn-sm btn-outline-primary js-open-definition-modal"
+                                data-classification="@((int)CaseClassification.Suspect)" data-definition-id="@Model.SuspectDefinition.Id">
                             <i class="bi bi-pencil"></i> Edit
                         </button>
                         <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-toggle="collapse" data-bs-target="#suspectHistory">
@@ -231,7 +231,7 @@
                 else
                 {
                     <p class="text-muted mb-0">No suspect case definition set.</p>
-                    <button type="button" class="btn btn-sm btn-secondary mt-2" onclick="openDefinitionModal(@((int)CaseClassification.Suspect), null)">
+                    <button type="button" class="btn btn-sm btn-secondary mt-2 js-open-definition-modal" data-classification="@((int)CaseClassification.Suspect)">
                         <i class="bi bi-plus-circle"></i> Create Definition
                     </button>
                 }
@@ -244,7 +244,7 @@
         <div class="card border-light h-100">
             <div class="card-header bg-light d-flex justify-content-between align-items-center">
                 <h6 class="mb-0"><i class="bi bi-x-circle-fill me-2"></i>Not a Case</h6>
-                <button type="button" class="btn btn-sm btn-secondary" onclick="openDefinitionModal(@((int)CaseClassification.NotACase), null)">
+                <button type="button" class="btn btn-sm btn-secondary js-open-definition-modal" data-classification="@((int)CaseClassification.NotACase)">
                     <i class="bi bi-plus"></i> Create
                 </button>
             </div>
@@ -257,8 +257,8 @@
                         <p class="mb-0">@Model.NotACaseDefinition.DefinitionText</p>
                     }
                     <div class="mt-3">
-                        <button type="button" class="btn btn-sm btn-outline-primary" 
-                                onclick="openDefinitionModal(@((int)CaseClassification.NotACase), @Model.NotACaseDefinition.Id)">
+                        <button type="button" class="btn btn-sm btn-outline-primary js-open-definition-modal"
+                                data-classification="@((int)CaseClassification.NotACase)" data-definition-id="@Model.NotACaseDefinition.Id">
                             <i class="bi bi-pencil"></i> Edit
                         </button>
                         <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-toggle="collapse" data-bs-target="#notacaseHistory">
@@ -293,7 +293,7 @@
                 else
                 {
                     <p class="text-muted mb-0">No exclusion criteria defined.</p>
-                    <button type="button" class="btn btn-sm btn-secondary mt-2" onclick="openDefinitionModal(@((int)CaseClassification.NotACase), null)">
+                    <button type="button" class="btn btn-sm btn-secondary mt-2 js-open-definition-modal" data-classification="@((int)CaseClassification.NotACase)">
                         <i class="bi bi-plus-circle"></i> Create Definition
                     </button>
                 }
@@ -339,7 +339,7 @@
                         <div id="criteriaBuilder" class="border rounded p-3 bg-light">
                             <div class="d-flex justify-content-between align-items-center mb-3">
                                 <h6 class="mb-0">Criteria Rules</h6>
-                                <button type="button" class="btn btn-sm btn-success" onclick="openAddCriterionModal()">
+                                <button type="button" class="btn btn-sm btn-success js-open-add-criterion-modal">
                                     <i class="bi bi-plus-circle"></i> Add Criterion
                                 </button>
                             </div>
@@ -416,7 +416,7 @@
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <button type="button" class="btn btn-primary" onclick="addCriterion()">
+                <button type="button" class="btn btn-primary js-add-criterion">
                     <i class="bi bi-plus-circle"></i> Add Criterion
                 </button>
             </div>
@@ -442,8 +442,28 @@
         let currentCriteria = [];
         let customFieldsCache = [];
 
+        function escapeHtml(value) {
+            return String(value == null ? '' : value)
+                .replace(/&/g, '&amp;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;');
+        }
+
         // Load custom fields on page load
         document.addEventListener('DOMContentLoaded', async function() {
+            document.querySelectorAll('.js-open-definition-modal').forEach(button => {
+                button.addEventListener('click', function () {
+                    const definitionId = this.dataset.definitionId
+                        ? Number.parseInt(this.dataset.definitionId, 10)
+                        : null;
+                    openDefinitionModal(Number.parseInt(this.dataset.classification, 10), definitionId);
+                });
+            });
+            document.querySelector('.js-open-add-criterion-modal')?.addEventListener('click', openAddCriterionModal);
+            document.querySelector('.js-add-criterion')?.addEventListener('click', addCriterion);
+
             await loadCustomFields();
         });
 
@@ -453,7 +473,7 @@
                 if (!response.ok) throw new Error('Failed to load custom fields');
                 customFieldsCache = await response.json();
             } catch (error) {
-                console.error('Error loading custom fields:', error);
+                console.error('Custom fields could not be loaded.');
             }
         }
 
@@ -492,7 +512,7 @@
                                 updateCriteriaDisplay();
                             }
                         } catch (e) {
-                            console.error('Error parsing criteria JSON:', e);
+                            console.error('The saved criteria could not be read.');
                         }
                     }
                 }
@@ -547,7 +567,7 @@
 
         async function loadCustomFieldWithLookup(customFieldId) {
             try {
-                const response = await fetch(`/api/CustomFields/${customFieldId}`);
+                const response = await fetch(`/api/CustomFields/${encodeURIComponent(customFieldId)}`);
                 if (!response.ok) throw new Error('Failed to load custom field details');
 
                 const customField = await response.json();
@@ -557,9 +577,9 @@
                     inputContainer.innerHTML = `
                         <label class="form-label">Select Value <span class="text-danger">*</span></label>
                         <select class="form-select" id="criterionInput" required>
-                            <option value="">-- Select ${customField.label} --</option>
+                            <option value="">-- Select ${escapeHtml(customField.label)} --</option>
                             ${customField.lookupValues.map(v => `
-                                <option value="${v.id}">${v.displayText}</option>
+                                <option value="${escapeHtml(v.id)}">${escapeHtml(v.displayText)}</option>
                             `).join('')}
                         </select>
                     `;
@@ -567,7 +587,7 @@
                     showRegularInput(customField.fieldType);
                 }
             } catch (error) {
-                console.error('Error loading custom field:', error);
+                console.error('Custom field details could not be loaded.');
                 alert('Failed to load custom field details');
             }
         }
@@ -727,13 +747,18 @@
                                     <span class="text-muted">${escapeHtml(criterion.operatorText)}</span>
                                     ${criterion.input ? `<strong>${escapeHtml(criterion.input)}</strong>` : ''}
                                 </div>
-                                <button type="button" class="btn btn-sm btn-danger" onclick="removeCriterion(${index})">
+                                <button type="button" class="btn btn-sm btn-danger js-remove-criterion" data-criterion-index="${index}">
                                     <i class="bi bi-trash"></i>
                                 </button>
                             </div>
                         </div>
                     </div>
                 `).join('');
+                criteriaList.querySelectorAll('.js-remove-criterion').forEach(button => {
+                    button.addEventListener('click', function () {
+                        removeCriterion(Number.parseInt(this.dataset.criterionIndex, 10));
+                    });
+                });
             }
 
             // Update hidden JSON field

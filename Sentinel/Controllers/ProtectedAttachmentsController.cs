@@ -58,6 +58,7 @@ public sealed class ProtectedAttachmentsController : Controller
 
         if (labResult?.CaseId is not Guid caseId ||
             string.IsNullOrWhiteSpace(labResult.AttachmentPath) ||
+            !await HasPermissionAsync(PermissionModule.Case, PermissionAction.View) ||
             !await HasPermissionAsync(PermissionModule.Laboratory, PermissionAction.View) ||
             !await _caseAccessService.CanAccessCaseAsync(caseId, cancellationToken))
         {

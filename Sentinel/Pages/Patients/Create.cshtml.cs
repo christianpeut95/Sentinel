@@ -13,6 +13,7 @@ using Sentinel.Data;
 using Sentinel.Models;
 using Sentinel.Models.Lookups;
 using Sentinel.Services;
+using System.Text.Json;
 
 namespace Sentinel.Pages.Patients
 {
@@ -134,6 +135,35 @@ namespace Sentinel.Pages.Patients
 
             try
             {
+                // Only form fields belong to a patient-creation request.  Identifiers,
+                // audit/deletion state, case relationships and coordinates are
+                // server-controlled; coordinates are calculated from the address below.
+                var patientToCreate = new Patient
+                {
+                    Id = Guid.NewGuid(),
+                    GivenName = Patient.GivenName,
+                    FamilyName = Patient.FamilyName,
+                    DateOfBirth = Patient.DateOfBirth,
+                    SexAtBirthId = Patient.SexAtBirthId,
+                    GenderId = Patient.GenderId,
+                    HomePhone = Patient.HomePhone,
+                    MobilePhone = Patient.MobilePhone,
+                    EmailAddress = Patient.EmailAddress,
+                    AddressLine = Patient.AddressLine,
+                    City = Patient.City,
+                    PostalCode = Patient.PostalCode,
+                    CountryOfBirthId = Patient.CountryOfBirthId,
+                    LanguageSpokenAtHomeId = Patient.LanguageSpokenAtHomeId,
+                    AncestryId = Patient.AncestryId,
+                    AtsiStatusId = Patient.AtsiStatusId,
+                    OccupationId = Patient.OccupationId,
+                    IsDeceased = Patient.IsDeceased,
+                    DateOfDeath = Patient.DateOfDeath,
+                    CreatedAt = DateTime.UtcNow,
+                    CreatedByUserId = User.FindFirstValue(ClaimTypes.NameIdentifier)
+                };
+                Patient = patientToCreate;
+
                 // Check for potential duplicates unless user has confirmed
                 if (!ConfirmDuplicate)
                 {
@@ -158,10 +188,6 @@ namespace Sentinel.Pages.Patients
                         return Page();
                     }
                 }
-
-                // Set CreatedAt and CreatedBy
-                Patient.CreatedAt = DateTime.UtcNow;
-                Patient.CreatedByUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
 
                 // Retry logic for ID generation with race condition handling
                 int maxRetries = 5;
@@ -197,7 +223,7 @@ namespace Sentinel.Pages.Patients
                         }
 
                         // Save patient first - don't make user wait for jurisdiction detection
-                        _context.Patients.Add(Patient);
+                        _context.Patients.Add(patientToCreate);
                         await _context.SaveChangesAsync();
                         saved = true; // Success!
 
@@ -212,7 +238,7 @@ namespace Sentinel.Pages.Patients
                                                         && (sqlEx.Number == 2601 || sqlEx.Number == 2627))
                     {
                         // Duplicate key error - clear the FriendlyId and retry
-                        _context.Entry(Patient).State = EntityState.Detached;
+                        _context.Entry(patientToCreate).State = EntityState.Detached;
                         Patient.FriendlyId = null;
                         
                         if (attempt == maxRetries)
@@ -244,8 +270,8 @@ namespace Sentinel.Pages.Patients
                 }
                 catch (Exception cfEx)
                 {
-                    // Log custom field error but don't fail the patient creation
-                    TempData["WarningMessage"] = $"Patient created but some custom fields failed to save: {cfEx.Message}";
+                    _logger.LogWarning(cfEx, "Custom field values failed to save for newly created patient {PatientId}", Patient.Id);
+                    TempData["WarningMessage"] = "Patient created, but some custom fields could not be saved. Please reopen the patient and try again.";
                 }
 
                 // Handle popup mode for creating contacts from exposure workflow
@@ -279,15 +305,25 @@ namespace Sentinel.Pages.Patients
                     _context.Cases.Add(newCase);
                     await _context.SaveChangesAsync();
 
+                    // Serialize all server data before inserting it into the script.
+                    // Escaping a quote alone does not safely cover script terminators,
+                    // line separators, or other JavaScript syntax characters in a name.
+                    var contactPayload = JsonSerializer.Serialize(new
+                    {
+                        Id = newCase.Id,
+                        FriendlyId = newCase.FriendlyId,
+                        PatientName = $"{Patient.GivenName} {Patient.FamilyName}"
+                    });
+
                     // Return script to close popup and notify parent
-                    var patientName = $"{Patient.GivenName} {Patient.FamilyName}";
                     return Content($@"
                         <html>
                         <head><title>Contact Created</title></head>
                         <body>
                             <script>
+                                const contact = {contactPayload};
                                 if (window.opener && window.opener.contactCreated) {{
-                                    window.opener.contactCreated('{newCase.Id}', '{newCase.FriendlyId}', '{patientName.Replace("'", "\\'")}');
+                                    window.opener.contactCreated(contact.Id, contact.FriendlyId, contact.PatientName);
                                 }}
                                 window.close();
                             </script>
@@ -295,7 +331,7 @@ namespace Sentinel.Pages.Patients
                             <p>If it doesn't, <a href='javascript:window.close()'>click here to close</a>.</p>
                         </body>
                         </html>
-                    ", "text/html");
+                    ", "text/html; charset=utf-8");
                 }
 
                 TempData["SuccessMessage"] = $"Patient {Patient.GivenName} {Patient.FamilyName} has been created successfully.";
@@ -491,7 +527,7 @@ namespace Sentinel.Pages.Patients
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Error searching jurisdictions: {ex.Message}");
+                _logger.LogWarning(ex, "Could not search jurisdictions for patient entry");
                 return new JsonResult(new List<object>());
             }
         }
@@ -581,13 +617,13 @@ namespace Sentinel.Pages.Patients
                 {
                     // Save the updated jurisdictions
                     await scopedContext.SaveChangesAsync();
-                    Console.WriteLine($"? Background task: Auto-detected and saved {detectedJurisdictions.Count} jurisdictions for patient {patientId}");
+                    _logger.LogInformation("Automatically detected and saved {JurisdictionCount} jurisdictions for a patient", detectedJurisdictions.Count);
                 }
             }
             catch (Exception ex)
             {
-                // Don't fail - just log the error
-                Console.WriteLine($"? Background task error: Failed to auto-detect jurisdictions: {ex.Message}");
+                // Do not fail a patient save solely because jurisdiction enrichment failed.
+                _logger.LogWarning(ex, "Could not auto-detect patient jurisdictions");
             }
         }
     }

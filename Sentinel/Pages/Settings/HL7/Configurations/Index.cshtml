@@ -219,7 +219,7 @@
                                     <i class="bi bi-gear"></i>
                                 </a>
                                 <button type="button" class="sn-btn sn-btn--ghost sn-btn--sm" 
-                                        onclick="confirmDelete('@config.Id', '@config.ConfigurationName')" title="Delete">
+                                        data-configuration-name="@config.ConfigurationName" onclick="confirmDelete('@config.Id', this.dataset.configurationName)" title="Delete">
                                     <i class="bi bi-trash"></i>
                                 </button>
                             </div>

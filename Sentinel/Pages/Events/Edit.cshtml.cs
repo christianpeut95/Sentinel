@@ -64,7 +64,27 @@ namespace Sentinel.Pages.Events
                 return Page();
             }
 
-            _context.Attach(Event).State = EntityState.Modified;
+            // Never attach the browser-bound entity as Modified. Load the
+            // persisted record and copy only fields rendered by this edit form,
+            // preserving audit fields, navigation properties and collections.
+            var eventToUpdate = await _context.Events
+                .FirstOrDefaultAsync(existing => existing.Id == Event.Id);
+
+            if (eventToUpdate == null)
+            {
+                return NotFound();
+            }
+
+            eventToUpdate.Name = Event.Name;
+            eventToUpdate.EventTypeId = Event.EventTypeId;
+            eventToUpdate.LocationId = Event.LocationId;
+            eventToUpdate.StartDateTime = Event.StartDateTime;
+            eventToUpdate.EndDateTime = Event.EndDateTime;
+            eventToUpdate.EstimatedAttendees = Event.EstimatedAttendees;
+            eventToUpdate.IsIndoor = Event.IsIndoor;
+            eventToUpdate.OrganizerOrganizationId = Event.OrganizerOrganizationId;
+            eventToUpdate.Description = Event.Description;
+            eventToUpdate.IsActive = Event.IsActive;
 
             try
             {

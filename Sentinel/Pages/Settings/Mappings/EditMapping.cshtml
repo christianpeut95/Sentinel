@@ -216,7 +216,7 @@
                                             @if (hasConfig)
                                             {
                                                 <span>Configuration is active and ready to process survey data</span>
-                                                <button type="button" class="btn btn-link btn-sm p-0 ms-2" onclick="$('#configPreview').toggle()">
+                                                <button type="button" class="btn btn-link btn-sm p-0 ms-2 js-survey-mapping-action" data-survey-mapping-action="toggle-config-preview">
                                                     <i class="bi bi-eye"></i> View JSON
                                                 </button>
                                             }
@@ -229,13 +229,13 @@
                                     <div class="col-md-4 text-end">
                                         @if (Model.MappingId.HasValue && Model.MappingId.Value != Guid.Empty)
                                         {
-                                            <button type="button" class="btn btn-@(hasConfig ? "outline-primary" : "primary") btn-sm" onclick="openCollectionEditor()">
+                                            <button type="button" class="btn btn-@(hasConfig ? "outline-primary" : "primary") btn-sm js-survey-mapping-action" data-survey-mapping-action="open-collection-editor">
                                                 <i class="bi bi-@(hasConfig ? "pencil" : "plus-circle")"></i> 
                                                 @(hasConfig ? "Edit Config" : "Configure")
                                             </button>
                                             @if (hasConfig)
                                             {
-                                                <button type="button" class="btn btn-outline-danger btn-sm ms-1" onclick="clearCollectionConfig()" title="Clear configuration">
+                                                <button type="button" class="btn btn-outline-danger btn-sm ms-1 js-survey-mapping-action" data-survey-mapping-action="clear-collection-config" title="Clear configuration">
                                                     <i class="bi bi-x-circle"></i>
                                                 </button>
                                             }
@@ -315,6 +315,20 @@
 @section Scripts {
     <script>
         $(document).ready(function() {
+            $(document).on('click', '.js-survey-mapping-action', function() {
+                switch (this.dataset.surveyMappingAction) {
+                    case 'toggle-config-preview':
+                        $('#configPreview').toggle();
+                        break;
+                    case 'open-collection-editor':
+                        openCollectionEditor();
+                        break;
+                    case 'clear-collection-config':
+                        clearCollectionConfig();
+                        break;
+                }
+            });
+
             // Update descriptions and show/hide review options based on Mapping Action
             function updateMappingActionUI() {
                 var action = $('#Mapping_MappingAction').val();

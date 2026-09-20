@@ -50,7 +50,23 @@ namespace Sentinel.Pages.Settings.Occupations
                 return Page();
             }
 
-            _context.Attach(Occupation).State = EntityState.Modified;
+            var occupationToUpdate = await _context.Occupations.FindAsync(Occupation.Id);
+            if (occupationToUpdate == null)
+            {
+                return NotFound();
+            }
+
+            occupationToUpdate.Code = Occupation.Code;
+            occupationToUpdate.Name = Occupation.Name;
+            occupationToUpdate.MajorGroupCode = Occupation.MajorGroupCode;
+            occupationToUpdate.MajorGroupName = Occupation.MajorGroupName;
+            occupationToUpdate.SubMajorGroupCode = Occupation.SubMajorGroupCode;
+            occupationToUpdate.SubMajorGroupName = Occupation.SubMajorGroupName;
+            occupationToUpdate.MinorGroupCode = Occupation.MinorGroupCode;
+            occupationToUpdate.MinorGroupName = Occupation.MinorGroupName;
+            occupationToUpdate.UnitGroupCode = Occupation.UnitGroupCode;
+            occupationToUpdate.UnitGroupName = Occupation.UnitGroupName;
+            occupationToUpdate.IsActive = Occupation.IsActive;
 
             try
             {

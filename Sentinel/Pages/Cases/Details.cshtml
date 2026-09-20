@@ -2,7 +2,6 @@
 @model Sentinel.Pages.Cases.DetailsModel
 @using Sentinel.Models
 @using Sentinel.Models.Lookups
-@using System.Text.Encodings.Web
 
 @{
     ViewData["Title"] = "Case Details";
@@ -17,20 +16,6 @@
             return nonceStr;
         }
         return string.Empty;
-    }
-
-    public string EscapeJs(string? value)
-    {
-        if (string.IsNullOrEmpty(value))
-            return string.Empty;
-        // Escape for JavaScript string literals
-        return value
-            .Replace("\\", "\\\\")  // Must be first - escape backslashes
-            .Replace("'", "\\'")    // Escape single quotes
-            .Replace("\"", "\\\"")  // Escape double quotes  
-            .Replace("\n", "\\n")   // Escape newlines
-            .Replace("\r", "\\r")   // Escape carriage returns
-            .Replace("\t", "\\t");  // Escape tabs
     }
 }
 
@@ -244,12 +229,12 @@
                         <strong style="color: var(--forest);">@Model.Case.Patient.GivenName @Model.Case.Patient.FamilyName</strong>
                         @if (Model.Case.Disease != null)
                         {
-                            <span class="mx-2">•</span>
+                            <span class="mx-2">â€¢</span>
                             <span>@Model.Case.Disease.Name</span>
                         }
                         @if (Model.Case.ConfirmationStatus != null)
                         {
-                            <span class="mx-2">•</span>
+                            <span class="mx-2">â€¢</span>
                             <span class="chip chip-success">@Model.Case.ConfirmationStatus.Name</span>
                         }
                     </p>
@@ -308,8 +293,8 @@
 
                                 if (jurisdictions.Any())
                                 {
-                                    <span class="mx-2">•</span>
-                                    @string.Join(" • ", jurisdictions)
+                                    <span class="mx-2">â€¢</span>
+                                    @string.Join(" â€¢ ", jurisdictions)
                                 }
                             }
                             else
@@ -339,13 +324,13 @@
                                 if (jurisdictionsOnly.Any())
                                 {
                                     <i class="bi bi-pin-map me-1" style="color: var(--signal-dk);"></i>
-                                    @string.Join(" • ", jurisdictionsOnly)
+                                    @string.Join(" â€¢ ", jurisdictionsOnly)
                                 }
                             }
 
                             @if (Model.Case.CaseAddressManualOverride)
                             {
-                                <span class="mx-2">•</span>
+                                <span class="mx-2">â€¢</span>
                                 <span class="chip chip-info" style="font-size: 0.65rem;" title="Address manually set">Manual Override</span>
                             }
                         }
@@ -355,7 +340,7 @@
                             <span class="text-muted">No address or jurisdiction recorded</span>
                             @if (Model.PatientHasDifferentAddress)
                             {
-                                <span class="mx-2">•</span>
+                                <span class="mx-2">â€¢</span>
                                 <i class="bi bi-info-circle me-1" style="color: var(--status-watch);" title="Patient has address data"></i>
                                 <span style="color: var(--status-watch);">Patient has address available</span>
                             }
@@ -414,7 +399,7 @@
                 </a>
                 @if (Model.PatientHasDifferentAddress)
                 {
-                    <button type="button" class="btn btn-sm" style="background: var(--status-watch); color: white; border: none; font-weight: 600;" onclick="copyAddressFromPatient()" title="Copy address and jurisdiction data from patient record">
+                    <button type="button" class="btn btn-sm js-case-details-action" style="background: var(--status-watch); color: white; border: none; font-weight: 600;" data-case-details-action="copy-address" title="Copy address and jurisdiction data from patient record">
                         <i class="bi bi-arrow-down-circle"></i> Copy Address from Patient
                         @if (Model.PatientJurisdictionMappingInProgress)
                         {
@@ -425,20 +410,20 @@
                 <button type="button" class="btn btn-sentinel-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addNoteModal">
                     <i class="bi bi-plus-circle"></i> Add Note
                 </button>
-                <button type="button" class="btn btn-sentinel-primary btn-sm" onclick="openAddLabResult()">
+                <button type="button" class="btn btn-sentinel-primary btn-sm js-case-details-action" data-case-details-action="add-lab-result">
                     <i class="bi bi-plus-circle"></i> Add Lab Result
                 </button>
-                <button type="button" class="btn btn-sentinel-primary btn-sm" onclick="openAddExposure()">
+                <button type="button" class="btn btn-sentinel-primary btn-sm js-case-details-action" data-case-details-action="add-exposure">
                     <i class="bi bi-plus-circle"></i> Add Exposure
                 </button>
                 <a asp-page="/Cases/Contacts/BulkCreate" asp-route-caseId="@Model.Case.Id" class="btn btn-sentinel-primary btn-sm">
                     <i class="bi bi-people-fill"></i> Bulk Create Contacts
                 </a>
-                <button type="button" class="btn btn-sentinel-primary btn-sm" onclick="openAddTask()">
+                <button type="button" class="btn btn-sentinel-primary btn-sm js-case-details-action" data-case-details-action="add-task">
                     <i class="bi bi-plus-circle"></i> Add Task
                 </button>
             }
-            @if (Model.Case.DiseaseId.HasValue)
+            @if (Model.Case.DiseaseId.HasValue && Model.CanEditCase)
             {
                 <form method="post" asp-page-handler="EvaluateDefinitions" asp-route-id="@Model.Case.Id" style="display: inline;">
                     <button type="submit" class="btn btn-sm" style="background: var(--signal-dk); color: white; border: none; font-weight: 600;">
@@ -539,9 +524,12 @@
                     <i class="bi bi-clipboard-data" style="color: var(--signal-dk);"></i>
                     Case Information
                 </h3>
-                <a asp-page="./Edit" asp-route-id="@Model.Case.Id" class="btn btn-sentinel-secondary btn-sm">
-                    <i class="bi bi-pencil"></i> Edit
-                </a>
+                @if (Model.CanEditCase)
+                {
+                    <a asp-page="./Edit" asp-route-id="@Model.Case.Id" class="btn btn-sentinel-secondary btn-sm">
+                        <i class="bi bi-pencil"></i> Edit
+                    </a>
+                }
             </div>
             <div class="sentinel-card-body">
             @if (Model.Case.Disease != null)
@@ -733,7 +721,7 @@
                     if (fieldsWithValues.Any())
                     {
                         <div class="custom-field-category">
-                            <div class="category-header" onclick="toggleCategory('@categoryId')">
+                            <div class="category-header js-case-details-action" data-case-details-action="toggle-category" data-category-id="@categoryId">
                                 <div class="category-title">
                                     <i class="bi bi-file-text"></i>
                                     <span>@categoryGroup.Key</span>
@@ -998,9 +986,12 @@
                     <i class="bi bi-heart-pulse" style="color: var(--signal-dk);"></i>
                     Symptoms (@Model.CaseSymptoms.Count)
                 </h3>
-                <a asp-page="./Edit" asp-route-id="@Model.Case.Id" class="btn btn-sentinel-secondary btn-sm">
-                    <i class="bi bi-pencil"></i> Edit
-                </a>
+                @if (Model.CanEditCase)
+                {
+                    <a asp-page="./Edit" asp-route-id="@Model.Case.Id" class="btn btn-sentinel-secondary btn-sm">
+                        <i class="bi bi-pencil"></i> Edit
+                    </a>
+                }
             </div>
             <div class="sentinel-card-body">
             @if (Model.CaseSymptoms.Any())
@@ -1074,13 +1065,18 @@
                 <div style="text-align: center; padding: var(--spacing-5) var(--spacing-3); color: var(--graphite);">
                     <i class="bi bi-heart-pulse" style="font-size: 2.5rem; color: var(--hairline); margin-bottom: var(--spacing-3); display: block;"></i>
                     <p style="margin: var(--spacing-2) 0; font-size: 0.875rem;">No symptoms recorded</p>
-                    <a asp-page="./Edit" asp-route-id="@Model.Case.Id" class="btn btn-sentinel-secondary btn-sm" style="margin-top: var(--spacing-2);">Add Symptoms</a>
+                    @if (Model.CanEditCase)
+                    {
+                        <a asp-page="./Edit" asp-route-id="@Model.Case.Id" class="btn btn-sentinel-secondary btn-sm" style="margin-top: var(--spacing-2);">Add Symptoms</a>
+                    }
                 </div>
             }
             </div>
         </div>
 
         <!-- RIGHT SIDE (2 columns): Lab Results - Wide and Half Height -->
+        @if (Model.CanViewLabResults)
+        {
         <div class="sentinel-card wide half-height lab-results-card">
             <div class="sentinel-card-header" style="display: flex; justify-content: space-between; align-items: center;">
                 <h3 style="color: var(--forest); font-weight: 600; font-size: 1.125rem; margin: 0; font-family: var(--f-sans);">
@@ -1091,9 +1087,9 @@
                     <button type="button" class="sn-btn sn-btn--ghost sn-btn--sm" data-bs-toggle="modal" data-bs-target="#viewAllLabResultsModal">
                         <i class="bi bi-list-ul"></i> View All
                     </button>
-                    @if (Model.CanEditCase)
+                    @if (Model.CanCreateLabResults)
                     {
-                        <button type="button" class="sn-btn sn-btn--signal sn-btn--sm" onclick="openAddLabResult()">
+                        <button type="button" class="sn-btn sn-btn--signal sn-btn--sm js-case-details-action" data-case-details-action="add-lab-result">
                             <i class="bi bi-plus-circle"></i> Add
                         </button>
                     }
@@ -1205,12 +1201,18 @@
                                 </td>
                                 <td style="padding: 8px 12px; text-align: right;">
                                     <div style="display: flex; gap: 4px; justify-content: flex-end;">
-                                        <button type="button" class="sn-btn sn-btn--ghost sn-btn--sm" onclick="window.open('/Cases/EditLabResult/@labResult.Id/@Model.Case.Id', '_blank', 'width=1200,height=900,scrollbars=yes,resizable=yes')" title="Edit">
-                                            <i class="bi bi-pencil"></i>
-                                        </button>
-                                        <button type="button" class="sn-btn sn-btn--ghost sn-btn--sm" onclick="window.viewLabResult('@labResult.Id')" title="View Details">
-                                            <i class="bi bi-eye"></i>
-                                        </button>
+                                        @if (Model.CanEditLabResults)
+                                        {
+                                            <button type="button" class="sn-btn sn-btn--ghost sn-btn--sm js-case-details-action" data-case-details-action="edit-lab-result" data-lab-result-id="@labResult.Id" title="Edit">
+                                                <i class="bi bi-pencil"></i>
+                                            </button>
+                                        }
+                                        @if (Model.CanViewLabResults)
+                                        {
+                                            <button type="button" class="sn-btn sn-btn--ghost sn-btn--sm js-case-details-action" data-case-details-action="view-lab-result" data-lab-result-id="@labResult.Id" title="View Details">
+                                                <i class="bi bi-eye"></i>
+                                            </button>
+                                        }
                                     </div>
                                 </td>
                             </tr>
@@ -1284,7 +1286,7 @@
                                                             <td>
                                                                 @if (marker.ReferenceRangeLow.HasValue || marker.ReferenceRangeHigh.HasValue)
                                                                 {
-                                                                    <small class="text-muted">@(marker.ReferenceRangeLow?.ToString() ?? "—")–@(marker.ReferenceRangeHigh?.ToString() ?? "—")</small>
+                                                                    <small class="text-muted">@(marker.ReferenceRangeLow?.ToString() ?? "â€”")â€“@(marker.ReferenceRangeHigh?.ToString() ?? "â€”")</small>
                                                                 }
                                                                 else
                                                                 {
@@ -1336,9 +1338,9 @@
                 <div style="text-align: center; padding: var(--spacing-6) var(--spacing-4);">
                     <i class="bi bi-clipboard-pulse" style="font-size: 3rem; color: var(--hairline); display: block; margin-bottom: var(--spacing-3);"></i>
                     <p style="color: var(--graphite); margin-bottom: var(--spacing-3);">No lab results yet</p>
-                    @if (Model.CanEditCase)
+                    @if (Model.CanCreateLabResults)
                     {
-                        <button type="button" class="sn-btn sn-btn--signal sn-btn--sm" onclick="openAddLabResult()">
+                        <button type="button" class="sn-btn sn-btn--signal sn-btn--sm js-case-details-action" data-case-details-action="add-lab-result">
                             <i class="bi bi-plus-circle"></i> Add Lab Result
                         </button>
                     }
@@ -1346,6 +1348,7 @@
             }
             </div>
         </div>
+        }
 
         <!-- RIGHT SIDE: Acquisitions (How THIS case was exposed) -->
         <div class="sentinel-card acquisitions-card">
@@ -1355,7 +1358,7 @@
                     Acquisitions (@Model.Acquisitions.Count)
                 </h3>
                 <div class="d-flex gap-2">
-                    @if (Model.Acquisitions.Any(e => e.LocationId.HasValue || e.EventId.HasValue))
+                    @if (Model.CanEditCase && Model.Acquisitions.Any(e => e.LocationId.HasValue || e.EventId.HasValue))
                     {
                         var firstExposure = Model.Acquisitions.FirstOrDefault(e => e.LocationId.HasValue || e.EventId.HasValue);
                         <a asp-page="/Outbreaks/CreateFromExposure"
@@ -1369,7 +1372,7 @@
                     }
                     @if (Model.CanEditCase)
                     {
-                        <button type="button" class="btn btn-sentinel-secondary btn-sm" onclick="openAddExposure()">
+                        <button type="button" class="btn btn-sentinel-secondary btn-sm js-case-details-action" data-case-details-action="add-exposure">
                             <i class="bi bi-plus-circle"></i> Add
                         </button>
                     }
@@ -1522,10 +1525,10 @@
                                     }
                                 </td>
                                 <td class="text-end">
-                                    <button type="button" class="btn btn-sm btn-link p-0" onclick="openEditExposure('@exposure.Id')" title="Edit Exposure" style="color: var(--signal-dk);">
+                                    <button type="button" class="btn btn-sm btn-link p-0 js-case-details-action" data-case-details-action="edit-exposure" data-exposure-id="@exposure.Id" title="Edit Exposure" style="color: var(--signal-dk);">
                                         <i class="bi bi-pencil"></i>
                                     </button>
-                                    <form method="post" asp-page-handler="DeleteExposure" asp-route-id="@Model.Case.Id" asp-route-exposureId="@exposure.Id" class="d-inline" onsubmit="return confirm('Are you sure you want to delete this exposure?');">
+                                    <form method="post" asp-page-handler="DeleteExposure" asp-route-id="@Model.Case.Id" asp-route-exposureId="@exposure.Id" class="d-inline js-case-details-confirm" data-confirm-message="Are you sure you want to delete this exposure?">
                                         <button type="submit" class="btn btn-sm btn-link p-0" title="Delete Exposure" style="color: var(--status-outbreak);">
                                             <i class="bi bi-trash"></i>
                                         </button>
@@ -1553,14 +1556,9 @@
                     <p style="color: var(--graphite); margin-bottom: var(--spacing-3);">No exposures recorded</p>
                     @if (Model.CanEditCase)
                     {
-                        <div class="btn-group" role="group">
-                            <a asp-page="/Cases/Exposures/NaturalEntry" asp-route-caseId="@Model.Case.Id" class="btn btn-sentinel-primary btn-sm">
-                                <i class="bi bi-calendar-week me-1"></i>Natural Entry
-                            </a>
-                            <button type="button" class="btn btn-sentinel-secondary btn-sm" onclick="openAddExposure()">
-                                <i class="bi bi-ui-checks me-1"></i>Traditional Form
-                            </button>
-                        </div>
+                        <button type="button" class="btn btn-sentinel-secondary btn-sm js-case-details-action" data-case-details-action="add-exposure">
+                            <i class="bi bi-ui-checks me-1"></i>Add exposure
+                        </button>
                     }
                 </div>
             }
@@ -1575,12 +1573,15 @@
                     Transmissions (@Model.Transmissions.Count)
                 </h3>
                 <div class="d-flex gap-1">
-                    <a asp-page="/Outbreaks/CreateFromExposure"
-                       asp-route-caseId="@Model.Case.Id"
-                       class="btn btn-sentinel-primary btn-sm"
-                       title="Create Contact Tracing Event">
-                        <i class="bi bi-diagram-3"></i>
-                    </a>
+                    @if (Model.CanEditCase)
+                    {
+                        <a asp-page="/Outbreaks/CreateFromExposure"
+                           asp-route-caseId="@Model.Case.Id"
+                           class="btn btn-sentinel-primary btn-sm"
+                           title="Create Contact Tracing Event">
+                            <i class="bi bi-diagram-3"></i>
+                        </a>
+                    }
                     @if (Model.CanEditCase)
                     {
                         <a asp-page="/Cases/Contacts/BulkCreate"
@@ -1598,7 +1599,7 @@
                     }
                     @if (Model.CanEditCase)
                     {
-                        <button type="button" class="btn btn-sentinel-secondary btn-sm" onclick="openAddExposure()" title="Add Exposure">
+                        <button type="button" class="btn btn-sentinel-secondary btn-sm js-case-details-action" data-case-details-action="add-exposure" title="Add Exposure">
                             <i class="bi bi-plus-circle"></i>
                         </button>
                     }
@@ -1765,10 +1766,10 @@
                                             </a>
                                         }
                                     }
-                                    <button type="button" class="btn btn-sm btn-link p-0" style="color: var(--signal-dk);" onclick="openEditExposure('@exposure.Id')" title="Edit Exposure">
+                                    <button type="button" class="btn btn-sm btn-link p-0 js-case-details-action" style="color: var(--signal-dk);" data-case-details-action="edit-exposure" data-exposure-id="@exposure.Id" title="Edit Exposure">
                                         <i class="bi bi-pencil"></i>
                                     </button>
-                                    <form method="post" asp-page-handler="DeleteExposure" asp-route-id="@Model.Case.Id" asp-route-exposureId="@exposure.Id" class="d-inline" onsubmit="return confirm('Are you sure you want to delete this exposure?');">
+                                    <form method="post" asp-page-handler="DeleteExposure" asp-route-id="@Model.Case.Id" asp-route-exposureId="@exposure.Id" class="d-inline js-case-details-confirm" data-confirm-message="Are you sure you want to delete this exposure?">
                                         <button type="submit" class="btn btn-sm btn-link p-0" style="color: var(--status-outbreak);" title="Delete Exposure">
                                             <i class="bi bi-trash"></i>
                                         </button>
@@ -1818,7 +1819,7 @@
                     }
                     @if (Model.CanEditCase)
                     {
-                        <button type="button" class="btn btn-sentinel-secondary btn-sm" onclick="openAddTask()">
+                        <button type="button" class="btn btn-sentinel-secondary btn-sm js-case-details-action" data-case-details-action="add-task">
                             <i class="bi bi-plus-circle"></i> Add
                         </button>
                     }
@@ -1966,15 +1967,15 @@
                                         }
                                         else
                                         {
-                                            <button type="button" class="btn btn-sm btn-link p-0 me-1" onclick="openCompleteTaskModal('@task.Id', '@EscapeJs(task.TaskTemplate?.Name)')" title="Complete">
+                                            <button type="button" class="btn btn-sm btn-link p-0 me-1 js-case-details-action" data-case-details-action="complete-task" data-task-id="@task.Id" data-task-title="@(task.TaskTemplate?.Name ?? task.Title)" title="Complete">
                                                 <i class="bi bi-check-circle"></i>
                                             </button>
                                         }
                                     }
 
-                                    @if (task.Status != CaseTaskStatus.Completed && task.Status != CaseTaskStatus.Cancelled)
+                                    @if (Model.CanEditCase && task.Status != CaseTaskStatus.Completed && task.Status != CaseTaskStatus.Cancelled)
                                     {
-                                        <button type="button" class="btn btn-sm btn-link p-0 me-1" onclick="window.open('/Cases/EditTask?id=@task.Id&caseId=@task.CaseId', '_blank', 'width=900,height=700')" title="Edit Task">
+                                        <button type="button" class="btn btn-sm btn-link p-0 me-1 js-case-details-action" data-case-details-action="edit-task" data-task-id="@task.Id" data-task-case-id="@task.CaseId" title="Edit Task">
                                             <i class="bi bi-pencil"></i>
                                         </button>
                                     }
@@ -2001,7 +2002,7 @@
                     <p style="color: var(--graphite); margin-bottom: var(--spacing-3);">No tasks yet</p>
                     @if (Model.CanEditCase)
                     {
-                        <button type="button" class="btn btn-sentinel-secondary btn-sm" onclick="openAddTask()">Add Task</button>
+                        <button type="button" class="btn btn-sentinel-secondary btn-sm js-case-details-action" data-case-details-action="add-task">Add Task</button>
                     }
                 </div>
             }
@@ -2049,12 +2050,15 @@
                             </div>
                         }
                         <div class="text-end" style="margin-top: var(--spacing-2);">
-                            <form method="post" asp-page-handler="DeleteNote" asp-route-id="@Model.Case.Id" asp-route-noteId="@note.Id"
-                                  onsubmit="return confirm('Are you sure you want to delete this note?');" style="display: inline;">
-                                <button type="submit" class="btn btn-sm btn-link p-0" style="color: var(--status-outbreak);">
-                                    <i class="bi bi-trash"></i> Delete
-                                </button>
-                            </form>
+                            @if (Model.CanDeleteCase)
+                            {
+                                <form method="post" asp-page-handler="DeleteNote" asp-route-id="@Model.Case.Id" asp-route-noteId="@note.Id"
+                                      onsubmit="return confirm('Are you sure you want to delete this note?');" style="display: inline;">
+                                    <button type="submit" class="btn btn-sm btn-link p-0" style="color: var(--status-outbreak);">
+                                        <i class="bi bi-trash"></i> Delete
+                                    </button>
+                                </form>
+                            }
                         </div>
                     </div>
                 }
@@ -2141,6 +2145,8 @@
     </div>
 </div>
 
+@if (Model.CanViewLabResults)
+{
 <!-- View All Lab Results Modal -->
 <div class="modal fade" id="viewAllLabResultsModal" tabindex="-1" aria-labelledby="viewAllLabResultsModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-xl">
@@ -2249,9 +2255,12 @@
                                             }
                                         </td>
                                         <td style="text-align: right;">
-                                            <button type="button" class="btn btn-sm btn-link p-0" onclick="window.open('/Cases/ViewLabResult?labResultId=@labResult.Id&caseId=@labResult.CaseId', '_blank', 'width=1000,height=800')" title="View Lab Result">
-                                                <i class="bi bi-eye"></i>
-                                            </button>
+                                            @if (Model.CanViewLabResults)
+                                            {
+                                                <button type="button" class="btn btn-sm btn-link p-0 js-case-details-action" data-case-details-action="view-lab-result" data-lab-result-id="@labResult.Id" data-lab-result-case-id="@labResult.CaseId" title="View Lab Result">
+                                                    <i class="bi bi-eye"></i>
+                                                </button>
+                                            }
                                         </td>
                                     </tr>
                                 }
@@ -2270,6 +2279,7 @@
         </div>
     </div>
 </div>
+}
 
 <!-- View All Tasks Modal -->
 <div class="modal fade" id="viewAllTasksModal" tabindex="-1" aria-labelledby="viewAllTasksModalLabel" aria-hidden="true">
@@ -2403,7 +2413,7 @@
                                             }
                                             else
                                             {
-                                                <button type="button" class="btn btn-sm btn-link p-0 me-1" onclick="openCompleteTaskModal('@task.Id', '@EscapeJs(task.TaskTemplate?.Name)')" title="Complete">
+                                                <button type="button" class="btn btn-sm btn-link p-0 me-1 js-case-details-action" data-case-details-action="complete-task" data-task-id="@task.Id" data-task-title="@(task.TaskTemplate?.Name ?? task.Title)" title="Complete">
                                                     <i class="bi bi-check-circle"></i>
                                                 </button>
                                             }
@@ -2411,7 +2421,7 @@
 
                                         @if (task.Status != CaseTaskStatus.Completed && task.Status != CaseTaskStatus.Cancelled)
                                         {
-                                            <button type="button" class="btn btn-sm btn-link p-0 me-1" onclick="window.open('/Cases/EditTask?id=@task.Id&caseId=@task.CaseId', '_blank', 'width=900,height=700')" title="Edit Task">
+                                            <button type="button" class="btn btn-sm btn-link p-0 me-1 js-case-details-action" data-case-details-action="edit-task" data-task-id="@task.Id" data-task-case-id="@task.CaseId" title="Edit Task">
                                                 <i class="bi bi-pencil"></i>
                                             </button>
                                         }
@@ -2434,7 +2444,7 @@
                 <button type="button" class="btn-sentinel-secondary" data-bs-dismiss="modal">Close</button>
                 @if (Model.CanEditCase)
                 {
-                    <button type="button" class="btn-sentinel-primary" onclick="openAddTask(); if(typeof jQuery !== 'undefined') jQuery('#viewAllTasksModal').modal('hide');">
+                    <button type="button" class="btn-sentinel-primary js-case-details-action" data-case-details-action="add-task-and-close" data-modal-id="viewAllTasksModal">
                         <i class="bi bi-plus-circle me-1"></i>Add New Task
                     </button>
                 }
@@ -2748,10 +2758,10 @@
                                         }
                                     </td>
                                     <td class="text-end">
-                                        <button type="button" class="btn btn-sm btn-link p-0 me-2" style="color: var(--signal-dk);" onclick="openEditExposure('@exposure.Id')" title="Edit">
+                                        <button type="button" class="btn btn-sm btn-link p-0 me-2 js-case-details-action" style="color: var(--signal-dk);" data-case-details-action="edit-exposure" data-exposure-id="@exposure.Id" title="Edit">
                                             <i class="bi bi-pencil"></i>
                                         </button>
-                                        <form method="post" asp-page-handler="DeleteExposure" asp-route-id="@Model.Case.Id" asp-route-exposureId="@exposure.Id" class="d-inline" onsubmit="return confirm('Delete this transmission?');">
+                                        <form method="post" asp-page-handler="DeleteExposure" asp-route-id="@Model.Case.Id" asp-route-exposureId="@exposure.Id" class="d-inline js-case-details-confirm" data-confirm-message="Delete this transmission?">
                                             <button type="submit" class="btn btn-sm btn-link p-0" style="color: var(--status-outbreak);" title="Delete">
                                                 <i class="bi bi-trash"></i>
                                             </button>
@@ -2775,7 +2785,7 @@
                 <button type="button" class="btn-sentinel-secondary" data-bs-dismiss="modal">Close</button>
                 @if (Model.CanEditCase)
                 {
-                    <button type="button" class="btn-sentinel-primary" onclick="openAddExposure(); if(typeof jQuery !== 'undefined') jQuery('#viewAllTransmissionsModal').modal('hide');">
+                    <button type="button" class="btn-sentinel-primary js-case-details-action" data-case-details-action="add-exposure-and-close" data-modal-id="viewAllTransmissionsModal">
                         <i class="bi bi-plus-circle me-1"></i>Add New Exposure
                     </button>
                 }
@@ -2785,6 +2795,41 @@
 </div>
 
 <script nonce="@GetCspNonce()">
+    document.addEventListener('click', (event) => {
+        const action = event.target.closest('.js-case-details-action');
+        if (!action) return;
+
+        switch (action.dataset.caseDetailsAction) {
+            case 'copy-address': copyAddressFromPatient(action); break;
+            case 'add-lab-result': openAddLabResult(); break;
+            case 'add-exposure': openAddExposure(); break;
+            case 'add-task': openAddTask(); break;
+            case 'toggle-category':
+                if (typeof window.toggleCategory === 'function') window.toggleCategory(action.dataset.categoryId);
+                break;
+            case 'edit-lab-result': openEditLabResult(action.dataset.labResultId); break;
+            case 'view-lab-result': openViewLabResult(action.dataset.labResultId, action.dataset.labResultCaseId); break;
+            case 'edit-exposure': openEditExposure(action.dataset.exposureId); break;
+            case 'complete-task': openCompleteTaskModal(action.dataset.taskId, action.dataset.taskTitle); break;
+            case 'edit-task': openEditTask(action.dataset.taskId, action.dataset.taskCaseId); break;
+            case 'add-task-and-close':
+                openAddTask();
+                hideCaseDetailsModal(action.dataset.modalId);
+                break;
+            case 'add-exposure-and-close':
+                openAddExposure();
+                hideCaseDetailsModal(action.dataset.modalId);
+                break;
+        }
+    });
+
+    document.addEventListener('submit', (event) => {
+        const form = event.target.closest('.js-case-details-confirm');
+        if (form && !window.confirm(form.dataset.confirmMessage)) {
+            event.preventDefault();
+        }
+    });
+
     // Global function to handle exposure type visibility
     function updateExposureTypeVisibility() {
         var exposureTypeSelect = document.getElementById('modalExposureTypeSelect');
@@ -2833,8 +2878,16 @@
         window.open('/Cases/AddLabResult/@Model.Case.Id', '_blank', 'width=1200,height=900,scrollbars=yes,resizable=yes');
     }
 
+    function openEditLabResult(labResultId) {
+        window.open('/Cases/EditLabResult/' + labResultId + '/@Model.Case.Id', '_blank', 'width=1200,height=900,scrollbars=yes,resizable=yes');
+    }
+
+    function openViewLabResult(labResultId, caseId) {
+        window.open('/Cases/ViewLabResult?labResultId=' + labResultId + '&caseId=' + (caseId || '@Model.Case.Id'), '_blank', 'width=1000,height=800');
+    }
+
     window.viewLabResult = function(labResultId) {
-        window.open('/Cases/ViewLabResult?labResultId=' + labResultId, '_blank', 'width=1000,height=800,scrollbars=yes,resizable=yes');
+        openViewLabResult(labResultId, '@Model.Case.Id');
     }
 
     function toggleLabResultMarkers(rowId) {
@@ -2842,7 +2895,7 @@
         const icon = document.getElementById('icon-' + rowId);
 
         if (!markerRow || !icon) {
-            console.error('Could not find marker row or icon for:', rowId);
+            console.error('Laboratory marker controls were not found.');
             return;
         }
 
@@ -2887,6 +2940,16 @@
         window.open('@Url.Page("/Cases/AddTask", new { caseId = Model.Case.Id })', '_blank', 'width=900,height=800,scrollbars=yes,resizable=yes');
     }
 
+    function openEditTask(taskId, caseId) {
+        window.open('/Cases/EditTask?id=' + encodeURIComponent(taskId) + '&caseId=' + encodeURIComponent(caseId), '_blank', 'width=900,height=700');
+    }
+
+    function hideCaseDetailsModal(modalId) {
+        if (modalId && typeof jQuery !== 'undefined') {
+            jQuery('#' + modalId).modal('hide');
+        }
+    }
+
     function openCompleteTaskModal(taskId, taskName) {
         // Implementation for completing tasks without surveys
         alert('Complete task: ' + taskName);
@@ -2901,7 +2964,7 @@
         var modal = new bootstrap.Modal(document.getElementById('editTaskModal'));
         modal.show();
 
-        fetch('/Cases/EditTask?id=' + taskId + '&caseId=' + caseId + '&handler=ModalContent', {
+        fetch('/Cases/EditTask?id=' + encodeURIComponent(taskId) + '&caseId=' + encodeURIComponent(caseId) + '&handler=ModalContent', {
             method: 'GET',
             headers: {
                 'X-Requested-With': 'XMLHttpRequest'
@@ -2929,8 +2992,6 @@
             setTimeout(function() {
                 if (typeof jQuery !== 'undefined') {
                     var $searchInput = jQuery("#assignedToUserSearch");
-                    console.log('Initializing autocomplete for:', $searchInput.length, 'element(s)');
-
                     // Destroy any existing autocomplete instance
                     if ($searchInput.hasClass('ui-autocomplete-input')) {
                         $searchInput.autocomplete('destroy');
@@ -2939,13 +3000,11 @@
                     $searchInput.autocomplete({
                         appendTo: "#editTaskModal",  // Render inside modal to fix z-index issues
                         source: function(request, response) {
-                            console.log('Autocomplete source called with term:', request.term);
                             jQuery.ajax({
-                                url: '/api/Patients/SearchUsers',
+                                url: '/api/users/search',
                                 data: { term: request.term },
                                 dataType: 'json',
                                 success: function(data) {
-                                    console.log('Autocomplete API response:', data);
                                     response(data.map(function(item) {
                                         return {
                                             label: item.text,
@@ -2954,15 +3013,14 @@
                                         };
                                     }));
                                 },
-                                error: function(xhr, status, error) {
-                                    console.error('Autocomplete API error:', status, error);
+                                error: function() {
+                                    console.error('Assignee lookup could not be completed.');
                                     response([]);
                                 }
                             });
                         },
                         minLength: 2,
                         select: function(event, ui) {
-                            console.log('Autocomplete item selected:', ui.item);
                             jQuery("#assignedToUserId").val(ui.item.id);
                             return true;
                         },
@@ -2973,14 +3031,13 @@
                             }
                         }
                     });
-                    console.log('Autocomplete initialized successfully');
                 } else {
                     console.error('jQuery not available for autocomplete initialization');
                 }
             }, 100);  // Small delay to ensure DOM is fully rendered
         })
-        .catch(error => {
-            console.error('Error loading task:', error);
+        .catch(() => {
+            console.error('Task details could not be loaded.');
             document.getElementById('editTaskModalContent').innerHTML = `
                 <div class="modal-header">
                     <h5 class="modal-title"><i class="bi bi-exclamation-triangle me-2"></i>Error</h5>
@@ -3015,7 +3072,7 @@
         })
         .then(response => {
             if (!response.ok) {
-                return response.text().then(text => { throw new Error(text); });
+                throw new Error('Task update request failed.');
             }
             return response.json();
         })
@@ -3026,14 +3083,14 @@
                 modal.hide();
                 location.reload();
             } else {
-                // Show error message
-                alert('Error: ' + (data.message || 'Failed to save changes'));
+                console.error('Task update was rejected.');
+                alert('The task could not be saved. Please review the details and try again.');
                 submitButton.disabled = false;
                 submitButton.innerHTML = originalText;
             }
         })
-        .catch(error => {
-            console.error('Error saving task:', error);
+        .catch(() => {
+            console.error('Task update could not be saved.');
             alert('Failed to save changes. Please try again.');
             submitButton.disabled = false;
             submitButton.innerHTML = originalText;
@@ -3176,7 +3233,40 @@
         // COPY ADDRESS FROM PATIENT
         // ========================================================================
 
-        function copyAddressFromPatient() {
+        function showAddressCopyAlert(message, hasWarnings) {
+            const host = document.querySelector('.case-details-container');
+            if (!host) return;
+
+            const alert = document.createElement('div');
+            alert.className = `alert alert-${hasWarnings ? 'warning' : 'success'} alert-dismissible fade show`;
+            alert.setAttribute('role', 'alert');
+
+            const icon = document.createElement('i');
+            icon.className = hasWarnings
+                ? 'bi bi-exclamation-triangle-fill me-2'
+                : 'bi bi-check-circle-fill me-2';
+            alert.appendChild(icon);
+
+            if (hasWarnings) {
+                const heading = document.createElement('strong');
+                heading.textContent = 'Address Copied with Warnings:';
+                alert.appendChild(heading);
+                alert.appendChild(document.createElement('br'));
+            }
+
+            alert.appendChild(document.createTextNode(message || 'The address was copied.'));
+
+            const closeButton = document.createElement('button');
+            closeButton.type = 'button';
+            closeButton.className = 'btn-close';
+            closeButton.setAttribute('data-bs-dismiss', 'alert');
+            closeButton.setAttribute('aria-label', 'Close');
+            alert.appendChild(closeButton);
+
+            host.prepend(alert);
+        }
+
+        function copyAddressFromPatient(btn) {
             if (!confirm('Copy address and jurisdiction data from the patient record to this case?\n\n?? This will overwrite any existing case address data.')) {
                 return;
             }
@@ -3184,7 +3274,6 @@
             const caseId = '@Model.Case.Id';
 
             // Show loading state
-            const btn = event.target.closest('button');
             const originalHtml = btn.innerHTML;
             btn.disabled = true;
             btn.innerHTML = '<i class="bi bi-hourglass-split spinner-border spinner-border-sm me-1"></i> Copying...';
@@ -3202,41 +3291,20 @@
                 btn.innerHTML = originalHtml;
 
                 if (data.success) {
-                    if (data.warning) {
-                        // Show warning message
-                        const alertHtml = `
-                            <div class="alert alert-warning alert-dismissible fade show" role="alert">
-                                <i class="bi bi-exclamation-triangle-fill me-2"></i>
-                                <strong>Address Copied with Warnings:</strong><br/>
-                                ${data.message}
-                                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                            </div>
-                        `;
-                        document.querySelector('.case-details-container').insertAdjacentHTML('afterbegin', alertHtml);
-                    } else {
-                        // Show success message
-                        const alertHtml = `
-                            <div class="alert alert-success alert-dismissible fade show" role="alert">
-                                <i class="bi bi-check-circle-fill me-2"></i>
-                                ${data.message}
-                                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                            </div>
-                        `;
-                        document.querySelector('.case-details-container').insertAdjacentHTML('afterbegin', alertHtml);
-                    }
+                    showAddressCopyAlert(data.message, Boolean(data.warning));
 
                     if (data.reloadPage) {
                         // Reload after 2 seconds to show updated address
                         setTimeout(() => location.reload(), 2000);
                     }
                 } else {
-                    alert('Error: ' + data.message);
+                    alert('The address could not be copied. Please try again.');
                 }
             })
             .catch(error => {
                 btn.disabled = false;
                 btn.innerHTML = originalHtml;
-                alert('Error copying address: ' + error.message);
+                alert('The address could not be copied. Please try again.');
             });
         }
 </script>

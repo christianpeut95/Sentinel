@@ -51,8 +51,7 @@ namespace Sentinel.Pages.Settings.HL7
                     LabResultId = m.LabResultId,
                     HasCase = m.LabResult != null && m.LabResult.CaseId != null,
                     CaseId = m.LabResult != null ? m.LabResult.CaseId : null,
-                    ErrorMessage = m.ErrorMessage,
-                    ProcessingNotes = m.ProcessingNotes
+                    HasProcessingError = !string.IsNullOrEmpty(m.ErrorMessage)
                 })
                 .ToListAsync();
 
@@ -73,18 +72,14 @@ namespace Sentinel.Pages.Settings.HL7
 
                 if (result.Success)
                 {
-                    TempData["SuccessMessage"] = $"✅ Message reprocessed successfully!\n" +
-                        $"Patient: {result.PatientId}\n" +
-                        $"Lab Result: {result.LabResultId}\n" +
-                        $"Cases Created: {string.Join(", ", result.CasesCreated)}\n" +
-                        $"Cases Linked: {string.Join(", ", result.CasesLinked)}";
+                    TempData["SuccessMessage"] = "Message reprocessed successfully.";
                 }
                 else
                 {
-                    TempData["ErrorMessage"] = $"❌ Reprocessing completed with errors:\n{string.Join("\n", result.Errors)}";
+                    TempData["ErrorMessage"] = "Message reprocessing completed with errors. Review the application logs using the message control ID for technical details.";
                     if (result.Warnings.Any())
                     {
-                        TempData["WarningMessage"] = $"⚠️ Warnings:\n{string.Join("\n", result.Warnings)}";
+                        TempData["WarningMessage"] = "Message reprocessing completed with warnings. Review the application logs using the message control ID for technical details.";
                     }
                 }
             }
@@ -141,52 +136,6 @@ namespace Sentinel.Pages.Settings.HL7
             return RedirectToPage();
         }
 
-        public async Task<IActionResult> OnGetViewDetailsAsync(Guid messageId)
-        {
-            var message = await _context.HL7Messages
-                .Include(m => m.Patient)
-                .Include(m => m.LabResult)
-                    .ThenInclude(lr => lr!.Markers)
-                .FirstOrDefaultAsync(m => m.Id == messageId);
-
-            if (message == null)
-            {
-                return NotFound();
-            }
-
-            return new JsonResult(new
-            {
-                message.MessageControlId,
-                message.MessageType,
-                message.Status,
-                RawContent = message.RawMessage,
-                message.ErrorMessage,
-                message.ProcessingNotes,
-                Patient = message.Patient != null ? new
-                {
-                    message.Patient.FriendlyId,
-                    FirstName = message.Patient.GivenName,
-                    LastName = message.Patient.FamilyName,
-                    message.Patient.DateOfBirth
-                } : null,
-                LabResult = message.LabResult != null ? new
-                {
-                    message.LabResult.FriendlyId,
-                    message.LabResult.SpecimenCollectionDate,
-                    MarkerCount = message.LabResult.Markers?.Count ?? 0,
-                    Markers = message.LabResult.Markers?.Select(m => new
-                    {
-                        m.TestCode,
-                        TestName = m.Pathogen?.Name ?? m.LOINCCode ?? m.TestCode,
-                        m.QualitativeResultText,
-                        m.QuantitativeValue,
-                        Units = m.QuantitativeUnit,
-                        m.InterpretationFlag
-                    })
-                } : null
-            });
-        }
-
         public class HL7MessageViewModel
         {
             public Guid Id { get; set; }
@@ -201,8 +150,7 @@ namespace Sentinel.Pages.Settings.HL7
             public Guid? LabResultId { get; set; }
             public bool HasCase { get; set; }
             public Guid? CaseId { get; set; }
-            public string? ErrorMessage { get; set; }
-            public string? ProcessingNotes { get; set; }
+            public bool HasProcessingError { get; set; }
         }
     }
 }

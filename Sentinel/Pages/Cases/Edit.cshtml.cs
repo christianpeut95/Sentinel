@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using Sentinel.Data;
 using Sentinel.Models;
 using Sentinel.Models.Lookups;
@@ -26,6 +27,7 @@ namespace Sentinel.Pages.Cases
         private readonly IJurisdictionService _jurisdictionService;
         private readonly IGeocodingService _geocodingService;
         private readonly IServiceProvider _serviceProvider;
+        private readonly ILogger<EditModel> _logger;
 
         public EditModel(
             ApplicationDbContext context, 
@@ -36,7 +38,8 @@ namespace Sentinel.Pages.Cases
             ITaskService taskService,
             IJurisdictionService jurisdictionService,
             IGeocodingService geocodingService,
-            IServiceProvider serviceProvider)
+            IServiceProvider serviceProvider,
+            ILogger<EditModel> logger)
         {
             _context = context;
             _auditService = auditService;
@@ -47,6 +50,7 @@ namespace Sentinel.Pages.Cases
             _jurisdictionService = jurisdictionService;
             _geocodingService = geocodingService;
             _serviceProvider = serviceProvider;
+            _logger = logger;
         }
 
         [BindProperty]
@@ -137,7 +141,7 @@ namespace Sentinel.Pages.Cases
                     .ThenBy(d => d.Name)
                     .Select(d => new { 
                         d.Id, 
-                        DisplayName = new string('—', d.Level) + " " + d.Name 
+                        DisplayName = new string('â€”', d.Level) + " " + d.Name
                     })
                     .ToListAsync(),
                 "Id", "DisplayName");
@@ -201,6 +205,39 @@ namespace Sentinel.Pages.Cases
 
         public async Task<IActionResult> OnPostAsync()
         {
+            // Validate the existing case through the normal query filter before
+            // considering any bound form values. FindAsync can return an entity by
+            // primary key without applying the hierarchy-aware visibility boundary.
+            var currentCase = await _context.Cases
+                .AsNoTracking()
+                .FirstOrDefaultAsync(c => c.Id == Case.Id);
+
+            if (currentCase == null)
+            {
+                return NotFound();
+            }
+
+            var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
+            if (currentCase.DiseaseId.HasValue &&
+                !await _diseaseAccessService.CanAccessDiseaseAsync(currentUserId, currentCase.DiseaseId.Value))
+            {
+                return Forbid();
+            }
+
+            // Dropdown restrictions are a usability feature, not an authorisation
+            // control. Reject a tampered disease or patient identifier unless it is
+            // available in this request's scoped data set.
+            if (Case.DiseaseId.HasValue &&
+                !await _diseaseAccessService.CanAccessDiseaseAsync(currentUserId, Case.DiseaseId.Value))
+            {
+                return Forbid();
+            }
+
+            if (!await _context.Patients.AnyAsync(p => p.Id == Case.PatientId))
+            {
+                return NotFound();
+            }
+
             if (!ModelState.IsValid)
             {
                 ViewData["PatientId"] = new SelectList(
@@ -233,7 +270,7 @@ namespace Sentinel.Pages.Cases
                         .ThenBy(d => d.Name)
                         .Select(d => new { 
                             d.Id, 
-                            DisplayName = new string('—', d.Level) + " " + d.Name 
+                            DisplayName = new string('â€”', d.Level) + " " + d.Name
                         })
                         .ToListAsync(),
                     "Id", "DisplayName");
@@ -277,8 +314,10 @@ namespace Sentinel.Pages.Cases
                 _context.Entry(existingEntry.Entity).State = EntityState.Detached;
             }
 
-            // Load the tracked entity from database (now guaranteed fresh, not cached)
-            var caseToUpdate = await _context.Cases.FindAsync(Case.Id);
+            // Load the tracked entity through the normal query filter. This is both
+            // fresh and constrained to cases visible through the disease hierarchy.
+            var caseToUpdate = await _context.Cases
+                .FirstOrDefaultAsync(c => c.Id == Case.Id);
             if (caseToUpdate == null)
             {
                 return NotFound();
@@ -683,9 +722,9 @@ namespace Sentinel.Pages.Cases
                 }
             }
 
-            await _context.SaveChangesAsync();
-
-            // Update case date of onset if earliest symptom onset is earlier
+            // Update case date of onset if earliest symptom onset is earlier. The
+            // case is already tracked by OnPostAsync, so keep this in the same
+            // unit of work as symptoms, custom fields and the case edit.
             if (earliestOnset.HasValue)
             {
                 var caseToUpdate = await _context.Cases.FindAsync(Case.Id);
@@ -695,8 +734,6 @@ namespace Sentinel.Pages.Cases
                     {
                         var oldDate = caseToUpdate.DateOfOnset;
                         caseToUpdate.DateOfOnset = earliestOnset.Value;
-                        
-                        await _context.SaveChangesAsync();
                         
                         var dateChangeMsg = oldDate.HasValue
                             ? $"Case date of onset auto-updated from {oldDate.Value:dd MMM yyyy} to {earliestOnset.Value:dd MMM yyyy} (earliest symptom onset)"
@@ -804,27 +841,22 @@ namespace Sentinel.Pages.Cases
                         case 1:
                             caseEntity.Jurisdiction1Id = jurisdiction.Id;
                             anyAssigned = true;
-                            Console.WriteLine($"? Assigned Case Jurisdiction1: {jurisdiction.Name} (Type: {jurisdiction.JurisdictionType?.Name})");
                             break;
                         case 2:
                             caseEntity.Jurisdiction2Id = jurisdiction.Id;
                             anyAssigned = true;
-                            Console.WriteLine($"? Assigned Case Jurisdiction2: {jurisdiction.Name} (Type: {jurisdiction.JurisdictionType?.Name})");
                             break;
                         case 3:
                             caseEntity.Jurisdiction3Id = jurisdiction.Id;
                             anyAssigned = true;
-                            Console.WriteLine($"? Assigned Case Jurisdiction3: {jurisdiction.Name} (Type: {jurisdiction.JurisdictionType?.Name})");
                             break;
                         case 4:
                             caseEntity.Jurisdiction4Id = jurisdiction.Id;
                             anyAssigned = true;
-                            Console.WriteLine($"? Assigned Case Jurisdiction4: {jurisdiction.Name} (Type: {jurisdiction.JurisdictionType?.Name})");
                             break;
                         case 5:
                             caseEntity.Jurisdiction5Id = jurisdiction.Id;
                             anyAssigned = true;
-                            Console.WriteLine($"? Assigned Case Jurisdiction5: {jurisdiction.Name} (Type: {jurisdiction.JurisdictionType?.Name})");
                             break;
                     }
                 }
@@ -833,13 +865,13 @@ namespace Sentinel.Pages.Cases
                 {
                     // Save the updated jurisdictions
                     await scopedContext.SaveChangesAsync();
-                    Console.WriteLine($"? Background task: Auto-detected and saved {detectedJurisdictions.Count} jurisdictions for case {caseId}");
+                    _logger.LogInformation("Automatically detected and saved {JurisdictionCount} jurisdictions for a case", detectedJurisdictions.Count);
                 }
             }
             catch (Exception ex)
             {
-                // Don't fail - just log the error
-                Console.WriteLine($"? Background task error: Failed to auto-detect case jurisdictions: {ex.Message}");
+                // Do not fail a case save solely because jurisdiction enrichment failed.
+                _logger.LogWarning(ex, "Could not auto-detect case jurisdictions");
             }
         }
     }

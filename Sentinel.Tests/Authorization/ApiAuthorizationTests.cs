@@ -1,14 +1,18 @@
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Authorization.Infrastructure;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Sentinel.Authorization;
 using System.Net;
 using System.Security.Claims;
 using System.Text.Encodings.Web;
+using System.Text.Json;
 using Xunit;
 
 namespace Sentinel.Tests.Authorization;
@@ -17,30 +21,29 @@ namespace Sentinel.Tests.Authorization;
 /// Tests authorization on newly secured API controllers
 /// Verifies permission policies and rate limiting are properly applied
 /// </summary>
-public class ApiAuthorizationTests : IClassFixture<WebApplicationFactory<Program>>
+public class ApiAuthorizationTests : IClassFixture<SentinelWebApplicationFactory>
 {
-    private readonly WebApplicationFactory<Program> _factory;
+    private readonly SentinelWebApplicationFactory _factory;
 
-    public ApiAuthorizationTests(WebApplicationFactory<Program> factory)
+    public ApiAuthorizationTests(SentinelWebApplicationFactory factory)
     {
         _factory = factory;
     }
 
+    private HttpClient CreateSecureClient() => _factory.CreateClient(
+        new WebApplicationFactoryClientOptions
+        {
+            BaseAddress = new Uri("https://localhost")
+        });
+
     private HttpClient CreateClientWithAuth(params string[] permissions)
     {
-        return _factory.WithWebHostBuilder(builder =>
-        {
-            builder.ConfigureTestServices(services =>
-            {
-                services.AddAuthentication("Test")
-                    .AddScheme<AuthenticationSchemeOptions, TestAuthHandler>("Test", options => { });
-
-                services.AddSingleton<IAuthorizationHandler>(sp =>
-                {
-                    return new TestPermissionHandler(permissions);
-                });
-            });
-        }).CreateClient();
+        var client = CreateSecureClient();
+        client.DefaultRequestHeaders.Add(TestAuthHandler.UserHeaderName, "test-user");
+        client.DefaultRequestHeaders.Add(
+            TestPermissionHandler.PermissionsHeaderName,
+            string.Join(',', permissions));
+        return client;
     }
 
     #region LocationLookupApiController Tests (CRITICAL - was completely unsecured)
@@ -49,7 +52,7 @@ public class ApiAuthorizationTests : IClassFixture<WebApplicationFactory<Program
     public async Task LocationLookup_UnauthenticatedUser_ReturnsForbidden()
     {
         // Arrange
-        var client = _factory.CreateClient();
+        var client = CreateSecureClient();
 
         // Act
         var response = await client.GetAsync("/api/location-lookup/search?query=test");
@@ -59,10 +62,10 @@ public class ApiAuthorizationTests : IClassFixture<WebApplicationFactory<Program
     }
 
     [Fact]
-    public async Task LocationLookup_AuthenticatedUser_ReturnsOk()
+    public async Task LocationLookup_WithReferenceDataViewPermission_ReturnsOk()
     {
         // Arrange
-        var client = CreateClientWithAuth(); // No specific permission required, just authenticated
+        var client = CreateClientWithAuth("Permission.ReferenceData.View");
 
         // Act
         var response = await client.GetAsync("/api/location-lookup/search?query=test");
@@ -73,40 +76,10 @@ public class ApiAuthorizationTests : IClassFixture<WebApplicationFactory<Program
 
     #endregion
 
-    #region TimelineEntryApiController Tests
-
-    [Fact]
-    public async Task TimelineApi_WithoutCaseEditPermission_ReturnsForbidden()
-    {
-        // Arrange
-        var client = CreateClientWithAuth("Permission.Case.View"); // Wrong permission
-
-        // Act
-        var response = await client.GetAsync("/api/timeline/00000000-0000-0000-0000-000000000001");
-
-        // Assert
-        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
-    }
-
-    [Fact]
-    public async Task TimelineApi_WithCaseEditPermission_ReturnsOk()
-    {
-        // Arrange
-        var client = CreateClientWithAuth("Permission.Case.Edit");
-
-        // Act
-        var response = await client.GetAsync("/api/timeline/00000000-0000-0000-0000-000000000001");
-
-        // Assert - Will return OK with empty timeline or 404 if case doesn't exist, but not 403
-        Assert.NotEqual(HttpStatusCode.Forbidden, response.StatusCode);
-    }
-
-    #endregion
-
     #region SurveyMappingApiController Tests
 
     [Fact]
-    public async Task SurveyMapping_WithoutSurveyEditPermission_ReturnsForbidden()
+    public async Task SurveyMapping_WithoutSettingsEditPermission_ReturnsForbidden()
     {
         // Arrange
         var client = CreateClientWithAuth("Permission.Survey.View");
@@ -119,16 +92,81 @@ public class ApiAuthorizationTests : IClassFixture<WebApplicationFactory<Program
     }
 
     [Fact]
-    public async Task SurveyMapping_WithSurveyEditPermission_ReturnsOk()
+    public async Task SurveyMapping_WithSettingsEditPermission_ReturnsOk()
     {
         // Arrange
-        var client = CreateClientWithAuth("Permission.Survey.Edit");
+        var client = CreateClientWithAuth("Permission.Settings.Edit");
 
         // Act
         var response = await client.GetAsync("/api/SurveyMappingApi/configuration?surveyTemplateId=00000000-0000-0000-0000-000000000001");
 
         // Assert
-        Assert.NotEqual(HttpStatusCode.Forbidden, response.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+    }
+
+    #endregion
+
+    #region UserLookupController Tests
+
+    [Fact]
+    public async Task UserLookup_UnauthenticatedUser_ReturnsUnauthorized()
+    {
+        var client = CreateSecureClient();
+
+        var response = await client.GetAsync("/api/users/search?term=te");
+
+        Assert.True(
+            response.StatusCode == HttpStatusCode.Unauthorized,
+            $"Expected unauthorized but received {(int)response.StatusCode}: {await response.Content.ReadAsStringAsync()}");
+    }
+
+    [Fact]
+    public async Task UserLookup_AuthenticatedUserWithoutPatientSearchPermission_ReturnsOk()
+    {
+        var client = CreateClientWithAuth();
+
+        var response = await client.GetAsync("/api/users/search?term=te");
+
+        Assert.True(
+            response.StatusCode == HttpStatusCode.OK,
+            $"Expected OK but received {(int)response.StatusCode}: {await response.Content.ReadAsStringAsync()}");
+    }
+
+    [Fact]
+    public async Task UserLookup_ReturnsOnlyTheAssignmentContract()
+    {
+        var userId = Guid.NewGuid().ToString();
+        const string userName = "lookup.assignee@example.test";
+
+        await using (var scope = _factory.Services.CreateAsyncScope())
+        {
+            var context = scope.ServiceProvider.GetRequiredService<Sentinel.Data.ApplicationDbContext>();
+            context.Users.Add(new Sentinel.Models.ApplicationUser
+            {
+                Id = userId,
+                UserName = userName,
+                NormalizedUserName = userName.ToUpperInvariant(),
+                Email = userName,
+                NormalizedEmail = userName.ToUpperInvariant(),
+                EmailConfirmed = true,
+                SecurityStamp = Guid.NewGuid().ToString()
+            });
+            await context.SaveChangesAsync();
+        }
+
+        var client = CreateClientWithAuth();
+        var response = await client.GetAsync("/api/users/search?term=lookup");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        var item = Assert.Single(document.RootElement.EnumerateArray());
+
+        Assert.Equal(userId, item.GetProperty("id").GetString());
+        Assert.Equal(userName, item.GetProperty("text").GetString());
+        Assert.Equal(userName, item.GetProperty("displayName").GetString());
+        Assert.False(item.TryGetProperty("email", out _));
+        Assert.False(item.TryGetProperty("securityStamp", out _));
+        Assert.False(item.TryGetProperty("passwordHash", out _));
     }
 
     #endregion
@@ -149,7 +187,7 @@ public class ApiAuthorizationTests : IClassFixture<WebApplicationFactory<Program
     }
 
     [Fact]
-    public async Task ReportsApi_Delete_WithReportEditPermission_NotForbidden()
+    public async Task ReportsApi_Delete_WithReportEditPermission_ReachesAntiforgeryValidation()
     {
         // Arrange
         var client = CreateClientWithAuth("Permission.Report.Edit");
@@ -157,8 +195,9 @@ public class ApiAuthorizationTests : IClassFixture<WebApplicationFactory<Program
         // Act
         var response = await client.DeleteAsync("/api/reports/1");
 
-        // Assert - Will return 404 if not found, but not 403
-        Assert.NotEqual(HttpStatusCode.Forbidden, response.StatusCode);
+        // Authorization succeeded. The deliberately token-less unsafe request
+        // must then be stopped by ASP.NET Core antiforgery validation.
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
 
     [Fact]
@@ -205,7 +244,7 @@ public class ApiAuthorizationTests : IClassFixture<WebApplicationFactory<Program
     }
 
     [Fact]
-    public async Task HL7Diagnostics_WithHL7ViewPermission_NotForbidden()
+    public async Task HL7Diagnostics_WithHL7ViewPermission_ReturnsDiagnosticReport()
     {
         // Arrange
         var client = CreateClientWithAuth("Permission.HL7.View");
@@ -214,7 +253,7 @@ public class ApiAuthorizationTests : IClassFixture<WebApplicationFactory<Program
         var response = await client.GetAsync("/api/hl7/diagnostics/lab-result/00000000-0000-0000-0000-000000000001");
 
         // Assert
-        Assert.NotEqual(HttpStatusCode.Forbidden, response.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
     }
 
     #endregion
@@ -236,7 +275,7 @@ public class ApiAuthorizationTests : IClassFixture<WebApplicationFactory<Program
     }
 
     [Fact]
-    public async Task CaseDefinitionCriteria_WithSettingsEditPermission_NotForbidden()
+    public async Task CaseDefinitionCriteria_WithSettingsEditPermission_ReachesAntiforgeryValidation()
     {
         // Arrange
         var client = CreateClientWithAuth("Permission.Settings.Edit");
@@ -245,8 +284,9 @@ public class ApiAuthorizationTests : IClassFixture<WebApplicationFactory<Program
         // Act
         var response = await client.PostAsync("/api/case-definitions/1/criteria/laboratory", content);
 
-        // Assert - Will return BadRequest if model invalid, but not 403
-        Assert.NotEqual(HttpStatusCode.Forbidden, response.StatusCode);
+        // Authorization succeeded. The deliberately token-less unsafe request
+        // must then be stopped by ASP.NET Core antiforgery validation.
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
 
     #endregion
@@ -287,6 +327,9 @@ public class ApiAuthorizationTests : IClassFixture<WebApplicationFactory<Program
 /// </summary>
 public class TestAuthHandler : AuthenticationHandler<AuthenticationSchemeOptions>
 {
+    public const string SchemeName = "SentinelTest";
+    public const string UserHeaderName = "X-Sentinel-Test-User";
+
     public TestAuthHandler(IOptionsMonitor<AuthenticationSchemeOptions> options,
         ILoggerFactory logger, UrlEncoder encoder)
         : base(options, logger, encoder)
@@ -295,10 +338,20 @@ public class TestAuthHandler : AuthenticationHandler<AuthenticationSchemeOptions
 
     protected override Task<AuthenticateResult> HandleAuthenticateAsync()
     {
-        var claims = new[] { new Claim(ClaimTypes.Name, "test-user") };
-        var identity = new ClaimsIdentity(claims, "Test");
+        if (!Request.Headers.TryGetValue(UserHeaderName, out var userId) ||
+            string.IsNullOrWhiteSpace(userId))
+        {
+            return Task.FromResult(AuthenticateResult.NoResult());
+        }
+
+        var claims = new[]
+        {
+            new Claim(ClaimTypes.NameIdentifier, userId.ToString()),
+            new Claim(ClaimTypes.Name, userId.ToString())
+        };
+        var identity = new ClaimsIdentity(claims, SchemeName);
         var principal = new ClaimsPrincipal(identity);
-        var ticket = new AuthenticationTicket(principal, "Test");
+        var ticket = new AuthenticationTicket(principal, SchemeName);
 
         return Task.FromResult(AuthenticateResult.Success(ticket));
     }
@@ -309,19 +362,30 @@ public class TestAuthHandler : AuthenticationHandler<AuthenticationSchemeOptions
 /// </summary>
 public class TestPermissionHandler : IAuthorizationHandler
 {
-    private readonly HashSet<string> _permissions;
-
-    public TestPermissionHandler(params string[] permissions)
-    {
-        _permissions = new HashSet<string>(permissions);
-    }
+    public const string PermissionsHeaderName = "X-Sentinel-Test-Permissions";
 
     public Task HandleAsync(AuthorizationHandlerContext context)
     {
+        var permissions = (context.Resource as HttpContext)?
+            .Request.Headers[PermissionsHeaderName]
+            .SelectMany(value => value.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+            .Select(permission => permission.StartsWith("Permission.", StringComparison.Ordinal)
+                ? permission["Permission.".Length..]
+                : permission)
+            .ToHashSet(StringComparer.Ordinal)
+            ?? new HashSet<string>(StringComparer.Ordinal);
+
         foreach (var requirement in context.PendingRequirements.ToList())
         {
+            if (requirement is DenyAnonymousAuthorizationRequirement &&
+                context.User.Identity?.IsAuthenticated == true)
+            {
+                context.Succeed(requirement);
+                continue;
+            }
+
             if (requirement is PermissionRequirement permReq &&
-                _permissions.Contains(permReq.GetPermissionKey()))
+                permissions.Contains(permReq.GetPermissionKey()))
             {
                 context.Succeed(requirement);
             }

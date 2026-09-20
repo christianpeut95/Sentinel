@@ -10,9 +10,9 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Add Exposure - @Model.Case.FriendlyId</title>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" />
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" />
-    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="~/lib/bootstrap-icons/font/bootstrap-icons.min.css" />
+    <link href="~/lib/select2/dist/css/select2.min.css" rel="stylesheet" />
     <link href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css" rel="stylesheet" />
     <style>
         body {
@@ -207,7 +207,7 @@
                         <select asp-for="Exposure.SourceCaseId" class="form-select select2-case" id="caseSelect">
                             <option value="">Type to search for case/contact...</option>
                         </select>
-                        <button type="button" class="btn btn-outline-success" onclick="openCreateContact()" title="Create New Contact">
+                        <button type="button" class="btn btn-outline-success" data-browser-action="open-create-contact" title="Create New Contact">
                             <i class="bi bi-plus-circle me-1"></i>Create New Contact
                         </button>
                     </div>
@@ -245,7 +245,7 @@
             </div>
 
             <div class="btn-toolbar">
-                <button type="button" class="btn btn-secondary" onclick="window.close()">
+                <button type="button" class="btn btn-secondary" data-browser-action="close-window">
                     <i class="bi bi-x-circle me-1"></i>Cancel
                 </button>
                 <button type="submit" class="btn btn-primary">
@@ -255,9 +255,9 @@
         </form>
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+    <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="~/lib/jquery/dist/jquery.min.js"></script>
+    <script src="~/lib/select2/dist/js/select2.min.js"></script>
     <script>
         $(document).ready(function() {
             // Initialize Select2 for Events
@@ -467,9 +467,12 @@
             // Show success message
             alert('Contact created successfully: ' + patientName);
             
-            // Notify parent window if this is in an iframe
+            // Contact creation is a same-origin workflow. Do not disclose the
+            // created case identifier to an arbitrary opener.
             if (window.opener && window.opener !== window) {
-                window.opener.postMessage({ type: 'contactCreated', caseId: caseId }, '*');
+                window.opener.postMessage(
+                    { type: 'contactCreated', caseId: caseId },
+                    window.location.origin);
             }
         };
     </script>

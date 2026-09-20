@@ -114,7 +114,7 @@
             <span class="text-muted">Started @Model.Outbreak.StartDate.ToString("MMMM d, yyyy")</span>
             @if (Model.Outbreak.EndDate.HasValue)
             {
-                <span class="text-muted">• Ended @Model.Outbreak.EndDate.Value.ToString("MMMM d, yyyy")</span>
+                <span class="text-muted">â€¢ Ended @Model.Outbreak.EndDate.Value.ToString("MMMM d, yyyy")</span>
             }
         </div>
         @if (!string.IsNullOrEmpty(Model.Outbreak.Description))
@@ -491,8 +491,8 @@
                         <h6 class="text-muted mb-1">Total Cases</h6>
                         <h2 class="mb-0">@Model.Statistics.TotalCases</h2>
                         <small class="text-muted">
-                            @Model.Statistics.ConfirmedCases Confirmed • 
-                            @Model.Statistics.ProbableCases Probable • 
+                            @Model.Statistics.ConfirmedCases Confirmed â€¢ 
+                            @Model.Statistics.ProbableCases Probable â€¢ 
                             @Model.Statistics.SuspectCases Suspect
                         </small>
                     </div>
@@ -709,10 +709,10 @@
                     <a asp-page="LinkCases" asp-route-id="@Model.Outbreak.Id" class="btn btn-outline-danger">
                         <i class="bi bi-plus-circle me-1"></i>Link Case
                     </a>
-                    <button type="button" class="btn btn-outline-danger" onclick="selectAllCases()">
+                    <button type="button" class="btn btn-outline-danger js-outbreak-action" data-outbreak-action="select-all-cases">
                         <i class="bi bi-check-all me-1"></i>Select All
                     </button>
-                    <button type="button" class="btn btn-danger" id="bulkActionsCasesBtn" disabled onclick="bulkActionsCases()">
+                    <button type="button" class="btn btn-danger js-outbreak-action" id="bulkActionsCasesBtn" data-outbreak-action="bulk-actions-cases" disabled>
                         <i class="bi bi-lightning me-1"></i>Bulk Actions
                     </button>
                 </div>
@@ -724,7 +724,7 @@
                         <table class="table table-hover">
                             <thead>
                                 <tr>
-                                    <th width="40"><input type="checkbox" id="selectAllCasesCheckbox" onchange="toggleAllCases(this)"></th>
+                                    <th width="40"><input type="checkbox" id="selectAllCasesCheckbox" class="js-toggle-all-cases"></th>
                                     <th>Patient</th>
                                     <th>Classification</th>
                                     <th>Disease</th>
@@ -784,8 +784,9 @@
                                                 <a asp-page="/Cases/Details" asp-route-id="@outbreakCase.Case.Id" class="btn btn-sm btn-outline-primary" title="View Case">
                                                     <i class="bi bi-eye"></i>
                                                 </a>
-                                                <button type="button" class="btn btn-sm btn-outline-danger" 
-                                                        onclick="unlinkCase(@outbreakCase.Id, '@outbreakCase.Case.Patient?.GivenName @outbreakCase.Case.Patient?.FamilyName')" 
+                                                <button type="button" class="btn btn-sm btn-outline-danger js-unlink-outbreak-case"
+                                                        data-outbreak-case-id="@outbreakCase.Id"
+                                                        data-patient-name="@($"{outbreakCase.Case.Patient?.GivenName} {outbreakCase.Case.Patient?.FamilyName}".Trim())"
                                                         title="Unlink">
                                                     <i class="bi bi-link-45deg"></i>
                                                 </button>
@@ -833,10 +834,10 @@
                     <a asp-page="LinkCases" asp-route-id="@Model.Outbreak.Id" class="btn btn-outline-info">
                         <i class="bi bi-plus-circle me-1"></i>Link Contact
                     </a>
-                    <button type="button" class="btn btn-outline-info" onclick="selectAllContacts()">
+                    <button type="button" class="btn btn-outline-info js-outbreak-action" data-outbreak-action="select-all-contacts">
                         <i class="bi bi-check-all me-1"></i>Select All
                     </button>
-                    <button type="button" class="btn btn-info" id="bulkActionsContactsBtn" disabled onclick="bulkActionsContacts()">
+                    <button type="button" class="btn btn-info js-outbreak-action" id="bulkActionsContactsBtn" data-outbreak-action="bulk-actions-contacts" disabled>
                         <i class="bi bi-lightning me-1"></i>Bulk Actions
                     </button>
                 </div>
@@ -848,7 +849,7 @@
                         <table class="table table-hover">
                             <thead>
                                 <tr>
-                                    <th width="40"><input type="checkbox" id="selectAllContactsCheckbox" onchange="toggleAllContacts(this)"></th>
+                                    <th width="40"><input type="checkbox" id="selectAllContactsCheckbox" class="js-toggle-all-contacts"></th>
                                     <th>Contact</th>
                                     <th>Disease</th>
                                     <th>Notification Date</th>
@@ -887,8 +888,9 @@
                                                 <a asp-page="/Cases/Details" asp-route-id="@outbreakCase.Case.Id" class="btn btn-sm btn-outline-primary" title="View Contact">
                                                     <i class="bi bi-eye"></i>
                                                 </a>
-                                                <button type="button" class="btn btn-sm btn-outline-danger" 
-                                                        onclick="unlinkCase(@outbreakCase.Id, '@outbreakCase.Case.Patient?.GivenName @outbreakCase.Case.Patient?.FamilyName')" 
+                                                <button type="button" class="btn btn-sm btn-outline-danger js-unlink-outbreak-case"
+                                                        data-outbreak-case-id="@outbreakCase.Id"
+                                                        data-patient-name="@($"{outbreakCase.Case.Patient?.GivenName} {outbreakCase.Case.Patient?.FamilyName}".Trim())"
                                                         title="Unlink">
                                                     <i class="bi bi-link-45deg"></i>
                                                 </button>
@@ -1027,6 +1029,8 @@
 
 @section Scripts {
     <script>
+        const outbreakId = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.Outbreak.Id));
+
         function toggleAllCases(checkbox) {
             document.querySelectorAll('.case-checkbox').forEach(cb => cb.checked = checkbox.checked);
             updateBulkActionButtons();
@@ -1045,28 +1049,69 @@
             document.getElementById('bulkActionsContactsBtn').disabled = contactsSelected === 0;
         }
         
-        function bulkActionsCases() {
-            const selectedIds = Array.from(document.querySelectorAll('.case-checkbox:checked'))
+        function navigateToBulkActions(selector) {
+            const selectedIds = Array.from(document.querySelectorAll(`${selector}:checked`))
                 .map(cb => cb.value)
-                .join(',');
-            
-            if (selectedIds) {
-                window.location.href = `/Outbreaks/BulkActions?id=@Model.Outbreak.Id&caseIds=${selectedIds}`;
+                .filter(Boolean);
+
+            if (selectedIds.length === 0) {
+                return;
             }
+
+            const parameters = new URLSearchParams({
+                id: outbreakId,
+                caseIds: selectedIds.join(',')
+            });
+            window.location.assign(`/Outbreaks/BulkActions?${parameters.toString()}`);
+        }
+
+        function bulkActionsCases() {
+            navigateToBulkActions('.case-checkbox');
         }
         
         function bulkActionsContacts() {
-            const selectedIds = Array.from(document.querySelectorAll('.contact-checkbox:checked'))
-                .map(cb => cb.value)
-                .join(',');
-            
-            if (selectedIds) {
-                window.location.href = `/Outbreaks/BulkActions?id=@Model.Outbreak.Id&caseIds=${selectedIds}`;
-            }
+            navigateToBulkActions('.contact-checkbox');
         }
         
         // Update on individual checkbox change
         document.addEventListener('DOMContentLoaded', function() {
+            document.addEventListener('click', function (event) {
+                const action = event.target.closest('.js-outbreak-action');
+                if (action) {
+                    switch (action.dataset.outbreakAction) {
+                        case 'select-all-cases':
+                            selectAllCases();
+                            break;
+                        case 'bulk-actions-cases':
+                            bulkActionsCases();
+                            break;
+                        case 'select-all-contacts':
+                            selectAllContacts();
+                            break;
+                        case 'bulk-actions-contacts':
+                            bulkActionsContacts();
+                            break;
+                    }
+                    return;
+                }
+
+                const unlinkButton = event.target.closest('.js-unlink-outbreak-case');
+                if (unlinkButton) {
+                    const outbreakCaseId = Number(unlinkButton.dataset.outbreakCaseId);
+                    if (Number.isSafeInteger(outbreakCaseId) && outbreakCaseId > 0) {
+                        unlinkCase(outbreakCaseId, unlinkButton.dataset.patientName || 'this patient');
+                    }
+                }
+            });
+
+            document.querySelector('.js-toggle-all-cases')?.addEventListener('change', function () {
+                toggleAllCases(this);
+            });
+
+            document.querySelector('.js-toggle-all-contacts')?.addEventListener('change', function () {
+                toggleAllContacts(this);
+            });
+
             document.querySelectorAll('.case-checkbox, .contact-checkbox').forEach(cb => {
                 cb.addEventListener('change', updateBulkActionButtons);
             });

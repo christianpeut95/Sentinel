@@ -12,7 +12,7 @@ namespace Sentinel.Services
         Task<SystemSettings?> GetSettingsAsync();
         Task<bool> IsSetupCompletedAsync();
         Task<bool> ValidateTokenAsync(string token);
-        Task<SystemSettings> CompleteSetupAsync(string userId);
+        Task<SystemSettings> CompleteSetupAsync(string userId, string setupToken);
         Task<SystemSettings> UpdateSettingsAsync(SystemSettings settings);
         Task SaveSmtpSettingsAsync(string host, int port, bool enableSsl, string? username, string? password, string fromEmail, string fromDisplayName);
         Task<bool> GetFeedbackWidgetEnabledAsync();
@@ -94,8 +94,13 @@ namespace Sentinel.Services
             }
         }
 
-        public async Task<SystemSettings> CompleteSetupAsync(string userId)
+        public async Task<SystemSettings> CompleteSetupAsync(string userId, string setupToken)
         {
+            if (!await ValidateTokenAsync(setupToken))
+            {
+                throw new UnauthorizedAccessException("The setup token is invalid or has expired.");
+            }
+
             var settings = await GetSettingsAsync();
 
             if (settings == null)

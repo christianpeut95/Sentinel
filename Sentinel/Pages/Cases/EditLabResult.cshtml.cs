@@ -11,6 +11,7 @@ using System.Text.Json;
 namespace Sentinel.Pages.Cases
 {
     [Authorize(Policy = "Permission.Laboratory.Edit")]
+    [Authorize(Policy = "Permission.Case.Edit")]
     public class EditLabResultModel : PageModel
     {
         private readonly ApplicationDbContext _context;
@@ -41,7 +42,25 @@ namespace Sentinel.Pages.Cases
 
         public async Task<IActionResult> OnGetAsync(Guid labResultId, string caseId)
         {
+            if (!Guid.TryParse(caseId, out var caseGuid))
+            {
+                return NotFound();
+            }
+
             CaseId = caseId;
+
+            // Resolve the parent case through the normal query filter before reading
+            // its child result. This applies the hierarchy-aware disease visibility
+            // boundary and makes the route's case ID an enforced relationship, rather
+            // than a cosmetic value used only for navigation.
+            var @case = await _context.Cases
+                .AsNoTracking()
+                .FirstOrDefaultAsync(c => c.Id == caseGuid);
+
+            if (@case == null)
+            {
+                return NotFound();
+            }
 
             LabResult = await _context.LabResults
                 .Include(lr => lr.Laboratory)
@@ -53,7 +72,7 @@ namespace Sentinel.Pages.Cases
                     .ThenInclude(m => m.Pathogen)
                 .Include(lr => lr.Markers)
                     .ThenInclude(m => m.TestMethod)
-                .FirstOrDefaultAsync(lr => lr.Id == labResultId);
+                .FirstOrDefaultAsync(lr => lr.Id == labResultId && lr.CaseId == caseGuid);
 
             if (LabResult == null)
             {
@@ -67,11 +86,27 @@ namespace Sentinel.Pages.Cases
 
         public async Task<IActionResult> OnPostAsync(Guid labResultId, string caseId)
         {
+            if (!Guid.TryParse(caseId, out var caseGuid))
+            {
+                return NotFound();
+            }
+
             CaseId = caseId;
+
+            // Do not start from the child entity alone: a laboratory-result ID must
+            // always be authorised through its visible parent case.
+            var @case = await _context.Cases
+                .AsNoTracking()
+                .FirstOrDefaultAsync(c => c.Id == caseGuid);
+
+            if (@case == null)
+            {
+                return NotFound();
+            }
 
             var labResultToUpdate = await _context.LabResults
                 .Include(lr => lr.Markers)
-                .FirstOrDefaultAsync(lr => lr.Id == labResultId);
+                .FirstOrDefaultAsync(lr => lr.Id == labResultId && lr.CaseId == caseGuid);
 
             if (labResultToUpdate == null)
             {
@@ -178,13 +213,25 @@ namespace Sentinel.Pages.Cases
             // Handle attachment upload
             if (LabResultAttachment != null && LabResultAttachment.Length > 0)
             {
-                var storedFile = await _fileStorage.SaveAttachmentAsync(
-                    LabResultAttachment,
-                    ProtectedFileStorageService.LabResultsCategory,
-                    HttpContext.RequestAborted);
-                labResultToUpdate.AttachmentPath = storedFile.StorageKey;
-                labResultToUpdate.AttachmentFileName = storedFile.OriginalFileName;
-                labResultToUpdate.AttachmentSize = storedFile.Length;
+                try
+                {
+                    var storedFile = await _fileStorage.SaveAttachmentAsync(
+                        LabResultAttachment,
+                        ProtectedFileStorageService.LabResultsCategory,
+                        HttpContext.RequestAborted);
+                    labResultToUpdate.AttachmentPath = storedFile.StorageKey;
+                    labResultToUpdate.AttachmentFileName = storedFile.OriginalFileName;
+                    labResultToUpdate.AttachmentSize = storedFile.Length;
+                }
+                catch (Exception ex)
+                {
+                    ModelState.AddModelError("", Sentinel.Services.UserFacingError.Create(
+                        HttpContext,
+                        ex,
+                        "The attachment could not be accepted. Check its type, content and size before trying again."));
+                    await LoadSelectLists();
+                    return Page();
+                }
             }
 
             await _context.SaveChangesAsync();

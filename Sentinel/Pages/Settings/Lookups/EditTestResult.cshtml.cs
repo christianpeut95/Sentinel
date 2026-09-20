@@ -53,7 +53,21 @@ namespace Sentinel.Pages.Settings.Lookups
                 return Page();
             }
 
-            _context.Attach(TestResult).State = EntityState.Modified;
+            var testResultToUpdate = await _context.TestResults.FindAsync(TestResult.Id);
+            if (testResultToUpdate == null)
+            {
+                return NotFound();
+            }
+
+            // TestTypeId is configured separately and is not a field on this form.
+            testResultToUpdate.Name = TestResult.Name;
+            testResultToUpdate.Description = TestResult.Description;
+            testResultToUpdate.SnomedCode = TestResult.SnomedCode;
+            testResultToUpdate.SnomedDisplay = TestResult.SnomedDisplay;
+            testResultToUpdate.Hl7Code = TestResult.Hl7Code;
+            testResultToUpdate.ExportCode = TestResult.ExportCode;
+            testResultToUpdate.DisplayOrder = TestResult.DisplayOrder;
+            testResultToUpdate.IsActive = TestResult.IsActive;
 
             try
             {
@@ -71,7 +85,7 @@ namespace Sentinel.Pages.Settings.Lookups
                 }
             }
 
-            TempData["SuccessMessage"] = $"Test result '{TestResult.Name}' has been updated successfully.";
+            TempData["SuccessMessage"] = $"Test result '{testResultToUpdate.Name}' has been updated successfully.";
             return RedirectToPage("./TestResults");
         }
 

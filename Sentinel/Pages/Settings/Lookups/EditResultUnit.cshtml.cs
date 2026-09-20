@@ -67,10 +67,20 @@ namespace Sentinel.Pages.Settings.Lookups
 
             try
             {
-                _context.Attach(ResultUnit).State = EntityState.Modified;
+                var resultUnitToUpdate = await _context.ResultUnits.FindAsync(ResultUnit.Id);
+                if (resultUnitToUpdate == null)
+                {
+                    return NotFound();
+                }
+
+                resultUnitToUpdate.Name = ResultUnit.Name;
+                resultUnitToUpdate.Abbreviation = ResultUnit.Abbreviation;
+                resultUnitToUpdate.Description = ResultUnit.Description;
+                resultUnitToUpdate.DisplayOrder = ResultUnit.DisplayOrder;
+                resultUnitToUpdate.IsActive = ResultUnit.IsActive;
                 await _context.SaveChangesAsync();
 
-                TempData["SuccessMessage"] = $"Result unit '{ResultUnit.Name}' updated successfully.";
+                TempData["SuccessMessage"] = $"Result unit '{resultUnitToUpdate.Name}' updated successfully.";
                 return RedirectToPage("./ResultUnits");
             }
             catch (DbUpdateConcurrencyException)

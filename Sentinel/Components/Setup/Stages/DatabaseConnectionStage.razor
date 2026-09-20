@@ -124,7 +124,7 @@
             _testResult = new TestResult
             {
                 Success = false,
-                Message = $"Connection error: {ex.Message}"
+                Message = "The database connection could not be established. Check the configured connection settings and try again."
             };
 
             Logger.LogError(ex, "Database connection test failed with exception");

@@ -12,7 +12,6 @@ using Sentinel.Models;
 namespace Sentinel.Pages
 {
     [Authorize]
-    [IgnoreAntiforgeryToken]
     public class DashboardModel : PageModel
     {
         private static readonly string[] DashboardPermissionKeys =
@@ -288,7 +287,12 @@ namespace Sentinel.Pages
                 }
             }
 
-            var data = await _dashboardService.GetWidgetDataAsync(request.WidgetId, userId, settings);
+            if (!DashboardConfigPolicy.TryNormalizeSettings(settings, out var normalizedSettings))
+            {
+                return BadRequest("Invalid widget settings");
+            }
+
+            var data = await _dashboardService.GetWidgetDataAsync(request.WidgetId, userId, normalizedSettings);
             return new JsonResult(data);
         }
 
@@ -318,10 +322,24 @@ namespace Sentinel.Pages
                 widget.Settings[kvp.Key] = kvp.Value;
             }
 
-            await _dashboardService.SaveUserDashboardConfigAsync(userId, config);
+            if (!DashboardConfigPolicy.TryNormalizeSettings(widget.Settings, out var normalizedSettings))
+            {
+                return BadRequest("Invalid widget settings");
+            }
+
+            widget.Settings = normalizedSettings;
+
+            try
+            {
+                await _dashboardService.SaveUserDashboardConfigAsync(userId, config);
+            }
+            catch (ArgumentException)
+            {
+                return BadRequest("Invalid dashboard configuration");
+            }
 
             // Return fresh data with new settings
-            var data = await _dashboardService.GetWidgetDataAsync(request.WidgetId, userId, widget.Settings);
+            var data = await _dashboardService.GetWidgetDataAsync(request.WidgetId, userId, normalizedSettings);
             return new JsonResult(new { success = true, data });
         }
 
@@ -333,11 +351,18 @@ namespace Sentinel.Pages
             if (!await _permissionService.HasPermissionAsync(userId, "Case.View"))
                 return Forbid();
 
-            await _dashboardService.SaveUserDashboardConfigAsync(userId, config);
+            try
+            {
+                await _dashboardService.SaveUserDashboardConfigAsync(userId, config);
+            }
+            catch (ArgumentException)
+            {
+                return BadRequest("Invalid dashboard configuration");
+            }
             return new JsonResult(new { success = true });
         }
 
-        public async Task<IActionResult> OnGetResetConfigAsync()
+        public async Task<IActionResult> OnPostResetConfigAsync()
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             if (userId == null) return Unauthorized();

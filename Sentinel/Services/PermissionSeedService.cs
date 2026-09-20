@@ -290,10 +290,13 @@ namespace Sentinel.Services
                 logger);
             totalAssignments += adminAssignments;
 
-            // Surveillance Manager - All except delete audit logs
+            // Surveillance Manager - broad operational access, but not the
+            // deliberately break-glass development test-data capability.
             var managerAssignments = await AssignPermissionsToRole(
                 context, roleManager, "Surveillance Manager",
-                permissions.Where(p => !(p.Module == PermissionModule.Audit && p.Action == PermissionAction.Delete))
+                permissions.Where(p =>
+                        !(p.Module == PermissionModule.Audit && p.Action == PermissionAction.Delete) &&
+                        !(p.Module == PermissionModule.System && p.Action == PermissionAction.ManageTestData))
                     .Select(p => p.Id).ToList(),
                 logger);
             totalAssignments += managerAssignments;

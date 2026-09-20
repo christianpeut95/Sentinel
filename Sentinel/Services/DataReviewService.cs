@@ -13,17 +13,20 @@ public class DataReviewService : IDataReviewService
     private readonly IHttpContextAccessor _httpContextAccessor;
     private readonly ICollectionMappingService _collectionMappingService;
     private readonly ITaskService _taskService;
+    private readonly ILogger<DataReviewService> _logger;
 
     public DataReviewService(
         ApplicationDbContext context, 
         IHttpContextAccessor httpContextAccessor,
         ICollectionMappingService collectionMappingService,
-        ITaskService taskService)
+        ITaskService taskService,
+        ILogger<DataReviewService> logger)
     {
         _context = context;
         _httpContextAccessor = httpContextAccessor;
         _collectionMappingService = collectionMappingService;
         _taskService = taskService;
+        _logger = logger;
     }
 
     private string? GetCurrentUserId()
@@ -252,10 +255,10 @@ public class DataReviewService : IDataReviewService
 
     public async Task<bool> ConfirmReviewAsync(int reviewQueueId, string? notes = null)
     {
+        // Do not include the optional Task navigation here. Its case-scoped query filter
+        // can otherwise exclude a review with no task before the Pending-state guard runs.
+        // The task is loaded independently below only when TaskId has a value.
         var reviewItem = await _context.ReviewQueue
-            .Include(r => r.Task)
-                .ThenInclude(t => t!.Case)
-                    .ThenInclude(c => c!.Patient)
             .FirstOrDefaultAsync(r => r.Id == reviewQueueId);
             
         if (reviewItem == null || reviewItem.ReviewStatus != ReviewStatuses.Pending)
@@ -263,18 +266,21 @@ public class DataReviewService : IDataReviewService
             return false;
         }
 
-        // APPLY THE FIELD CHANGE for SurveyFieldChange entity type
-        if (reviewItem.EntityType == "SurveyFieldChange" && reviewItem.ChangeSnapshot != null)
+        // A review must not advance if its approved change cannot be applied.  Leaving it
+        // Pending lets an authorised reviewer correct the configuration or data and retry.
+        if (reviewItem.EntityType == "SurveyFieldChange")
         {
             try
             {
-                await ApplySurveyFieldChangeAsync(reviewItem);
+                if (!await ApplySurveyFieldChangeAsync(reviewItem))
+                {
+                    return false;
+                }
             }
             catch (Exception ex)
             {
-                // Log error but still mark as reviewed
-                // TODO: Add ILogger to log the error
-                reviewItem.ReviewNotes = $"Applied with errors: {ex.Message}\n{notes}";
+                _logger.LogError(ex, "Could not apply survey field change for review {ReviewQueueId}", reviewItem.Id);
+                return false;
             }
         }
 
@@ -304,7 +310,8 @@ public class DataReviewService : IDataReviewService
             }
             catch (Exception ex)
             {
-                reviewItem.ReviewNotes = $"Error creating entity: {ex.Message}\n{notes}";
+                _logger.LogError(ex, "Could not create the approved collection-mapping entity for review {ReviewQueueId}", reviewItem.Id);
+                return false;
             }
         }
 
@@ -318,7 +325,7 @@ public class DataReviewService : IDataReviewService
         if (reviewItem.TaskId.HasValue)
         {
             var task = await _context.CaseTasks.FindAsync(reviewItem.TaskId.Value);
-            if (task != null && task.Status != CaseTaskStatus.Completed)
+            if (task != null && !TaskWorkflowPolicy.IsTerminal(task.Status))
             {
                 task.Status = CaseTaskStatus.Completed;
                 task.CompletedAt = DateTime.UtcNow;
@@ -354,28 +361,29 @@ public class DataReviewService : IDataReviewService
             }
             catch (Exception ex)
             {
-                // Log but don't fail - the entity was created successfully
-                // Task creation failure shouldn't block the approval
+                // The approved entity is already committed. The follow-up task is a
+                // best-effort convenience, but the failure must remain diagnosable.
+                _logger.LogError(ex, "Could not auto-create follow-up tasks for review-created contact {ContactCaseId}", createdEntity.EntityId);
             }
         }
         
         return true;
     }
 
-    private async Task ApplySurveyFieldChangeAsync(ReviewQueue reviewItem)
+    private async Task<bool> ApplySurveyFieldChangeAsync(ReviewQueue reviewItem)
     {
-        if (reviewItem.ChangeSnapshot == null) return;
+        if (string.IsNullOrWhiteSpace(reviewItem.ChangeSnapshot)) return false;
 
         // Parse the change snapshot
         var snapshot = JsonSerializer.Deserialize<SurveyFieldChangeSnapshot>(reviewItem.ChangeSnapshot);
-        if (snapshot == null) return;
+        if (snapshot == null || string.IsNullOrWhiteSpace(snapshot.Field)) return false;
 
         // Load the case with patient
         var caseEntity = await _context.Cases
             .Include(c => c.Patient)
             .FirstOrDefaultAsync(c => c.Id == reviewItem.CaseId);
 
-        if (caseEntity == null) return;
+        if (caseEntity == null) return false;
 
         // Load the mapping to get field type information
         var mapping = await _context.SurveyFieldMappings
@@ -384,45 +392,54 @@ public class DataReviewService : IDataReviewService
         if (mapping == null)
         {
             // Fallback: try to apply based on field path
-            await ApplyFieldChangeWithoutMapping(caseEntity, snapshot.Field, snapshot.NewValue);
-            return;
+            return await ApplyFieldChangeWithoutMapping(caseEntity, snapshot.Field, snapshot.NewValue);
         }
 
         // Use the same SetFieldValueAsync logic from SurveyMappingService
-        await SetFieldValueFromReviewAsync(mapping, caseEntity, snapshot.NewValue);
+        return await SetFieldValueFromReviewAsync(mapping, caseEntity, snapshot.NewValue);
     }
 
-    private async Task SetFieldValueFromReviewAsync(SurveyFieldMapping mapping, Case caseEntity, object? value)
+    private async Task<bool> SetFieldValueFromReviewAsync(SurveyFieldMapping mapping, Case caseEntity, object? value)
     {
         // Check for CustomField FIRST (uses colon separator, not dot)
         if (mapping.TargetFieldPath.StartsWith("CustomField:"))
         {
-            await SetCustomFieldValueFromReviewAsync(mapping, caseEntity, value);
-            return;
+            return await SetCustomFieldValueFromReviewAsync(mapping, caseEntity, value);
         }
 
         // For standard fields, split by dot
         var parts = mapping.TargetFieldPath.Split('.');
+        if (parts.Length < 2)
+        {
+            return false;
+        }
 
         if (parts[0] == "Patient" && caseEntity.Patient != null)
         {
-            SetPropertyValue(caseEntity.Patient, parts.Skip(1).ToArray(), value);
+            return SetPropertyValue(caseEntity.Patient, parts.Skip(1).ToArray(), value);
         }
         else if (parts[0] == "Case")
         {
-            SetPropertyValue(caseEntity, parts.Skip(1).ToArray(), value);
+            return SetPropertyValue(caseEntity, parts.Skip(1).ToArray(), value);
         }
+
+        return false;
     }
 
-    private void SetPropertyValue(object obj, string[] propertyPath, object? value)
+    private bool SetPropertyValue(object obj, string[] propertyPath, object? value)
     {
+        if (propertyPath.Length == 0)
+        {
+            return false;
+        }
+
         for (int i = 0; i < propertyPath.Length - 1; i++)
         {
             var property = obj.GetType().GetProperty(propertyPath[i]);
-            if (property == null) return;
+            if (property == null) return false;
             
             var nextObj = property.GetValue(obj);
-            if (nextObj == null) return;
+            if (nextObj == null) return false;
             
             obj = nextObj;
         }
@@ -432,7 +449,10 @@ public class DataReviewService : IDataReviewService
         {
             var convertedValue = ConvertValueToPropertyType(value, finalProperty.PropertyType);
             finalProperty.SetValue(obj, convertedValue);
+            return true;
         }
+
+        return false;
     }
 
     private object? ConvertValueToPropertyType(object? value, Type targetType)
@@ -510,14 +530,14 @@ public class DataReviewService : IDataReviewService
         return value;
     }
 
-    private async Task SetCustomFieldValueFromReviewAsync(SurveyFieldMapping mapping, Case caseEntity, object? value)
+    private async Task<bool> SetCustomFieldValueFromReviewAsync(SurveyFieldMapping mapping, Case caseEntity, object? value)
     {
         var fieldName = mapping.TargetFieldPath.Replace("CustomField:", "");
         
         var fieldDef = await _context.CustomFieldDefinitions
             .FirstOrDefaultAsync(f => f.Name == fieldName);
 
-        if (fieldDef == null) return;
+        if (fieldDef == null) return false;
 
         switch (fieldDef.FieldType)
         {
@@ -541,7 +561,7 @@ public class DataReviewService : IDataReviewService
                         Value = value?.ToString()
                     });
                 }
-                break;
+                return true;
 
             case CustomFieldType.Number:
                 var existingNumber = await _context.CaseCustomFieldNumbers
@@ -562,8 +582,9 @@ public class DataReviewService : IDataReviewService
                             Value = numValue
                         });
                     }
+                    return true;
                 }
-                break;
+                return false;
 
             case CustomFieldType.Date:
                 var existingDate = await _context.CaseCustomFieldDates
@@ -584,8 +605,9 @@ public class DataReviewService : IDataReviewService
                             Value = dateValue
                         });
                     }
+                    return true;
                 }
-                break;
+                return false;
 
             case CustomFieldType.Checkbox:
                 var existingBool = await _context.CaseCustomFieldBooleans
@@ -606,73 +628,81 @@ public class DataReviewService : IDataReviewService
                             Value = boolValue
                         });
                     }
+                    return true;
                 }
-                break;
+                return false;
 
             case CustomFieldType.Dropdown:
                 var existingLookup = await _context.CaseCustomFieldLookups
                     .FirstOrDefaultAsync(cf => cf.CaseId == caseEntity.Id && cf.FieldDefinitionId == fieldDef.Id);
                 
-                // Try to find lookup value by name or ID
-                int? lookupValueId = null;
-                
-                if (int.TryParse(value?.ToString(), out var directId))
+                if (!fieldDef.LookupTableId.HasValue)
                 {
-                    lookupValueId = directId;
+                    return false;
                 }
-                else if (fieldDef.LookupTableId.HasValue)
+
+                var submittedLookupValue = value?.ToString();
+                var lookupValue = int.TryParse(submittedLookupValue, out var directId)
+                    ? await _context.LookupValues.FirstOrDefaultAsync(lv =>
+                        lv.LookupTableId == fieldDef.LookupTableId.Value && lv.Id == directId)
+                    : await _context.LookupValues.FirstOrDefaultAsync(lv =>
+                        lv.LookupTableId == fieldDef.LookupTableId.Value && lv.Value == submittedLookupValue);
+
+                if (lookupValue == null)
                 {
-                    var lookupValue = await _context.LookupValues
-                        .FirstOrDefaultAsync(lv => lv.LookupTableId == fieldDef.LookupTableId.Value 
-                                                && lv.Value == value.ToString());
-                    
-                    if (lookupValue != null)
-                    {
-                        lookupValueId = lookupValue.Id;
-                    }
+                    return false;
                 }
-                
-                if (lookupValueId.HasValue)
+
+                if (existingLookup != null)
                 {
-                    if (existingLookup != null)
-                    {
-                        existingLookup.LookupValueId = lookupValueId;
-                    }
-                    else
-                    {
-                        _context.CaseCustomFieldLookups.Add(new CaseCustomFieldLookup
-                        {
-                            CaseId = caseEntity.Id,
-                            FieldDefinitionId = fieldDef.Id,
-                            LookupValueId = lookupValueId
-                        });
-                    }
+                    existingLookup.LookupValueId = lookupValue.Id;
                 }
-                break;
+                else
+                {
+                    _context.CaseCustomFieldLookups.Add(new CaseCustomFieldLookup
+                    {
+                        CaseId = caseEntity.Id,
+                        FieldDefinitionId = fieldDef.Id,
+                        LookupValueId = lookupValue.Id
+                    });
+                }
+                return true;
         }
+
+        return false;
     }
 
-    private async Task ApplyFieldChangeWithoutMapping(Case caseEntity, string fieldPath, object? value)
+    private async Task<bool> ApplyFieldChangeWithoutMapping(Case caseEntity, string fieldPath, object? value)
     {
         // Fallback for when mapping is not found
         // Basic implementation for common fields
+        if (string.IsNullOrWhiteSpace(fieldPath))
+        {
+            return false;
+        }
+
         var parts = fieldPath.Split('.');
 
-        if (parts[0] == "Case")
+        if (parts.Length > 1 && parts[0] == "Case")
         {
-            SetPropertyValue(caseEntity, parts.Skip(1).ToArray(), value);
+            return SetPropertyValue(caseEntity, parts.Skip(1).ToArray(), value);
         }
-        else if (parts[0] == "Patient" && caseEntity.Patient != null)
+        else if (parts.Length > 1 && parts[0] == "Patient" && caseEntity.Patient != null)
         {
-            SetPropertyValue(caseEntity.Patient, parts.Skip(1).ToArray(), value);
+            return SetPropertyValue(caseEntity.Patient, parts.Skip(1).ToArray(), value);
         }
 
         await Task.CompletedTask;
+        return false;
     }
 
     public async Task<bool> DismissReviewAsync(int reviewQueueId, string? notes = null)
     {
-        var reviewItem = await _context.ReviewQueue.FindAsync(reviewQueueId);
+        // FindAsync bypasses global query filters. A dismissed review is a mutation,
+        // so it must first be visible through the same case/patient/disease/task
+        // boundary enforced for the inbox and detail page.
+        var reviewItem = await _context.ReviewQueue
+            .FirstOrDefaultAsync(r => r.Id == reviewQueueId);
         if (reviewItem == null || reviewItem.ReviewStatus != ReviewStatuses.Pending)
         {
             return false;
@@ -699,7 +729,19 @@ public class DataReviewService : IDataReviewService
             .Include(r => r.Case)
             .FirstOrDefaultAsync(r => r.Id == reviewQueueId);
 
-        if (reviewItem == null)
+        if (reviewItem == null ||
+            reviewItem.ReviewStatus != ReviewStatuses.Pending ||
+            !reviewItem.CaseId.HasValue ||
+            string.IsNullOrWhiteSpace(taskTitle) ||
+            taskTitle.Length > 200 ||
+            taskDescription?.Length > 2000 ||
+            assignedToUserId?.Length > 450)
+        {
+            return null;
+        }
+
+        if (!string.IsNullOrWhiteSpace(assignedToUserId) &&
+            !await _context.Users.AnyAsync(user => user.Id == assignedToUserId && user.IsEnabled))
         {
             return null;
         }
@@ -709,7 +751,7 @@ public class DataReviewService : IDataReviewService
             Id = Guid.NewGuid(),
             Title = taskTitle,
             Description = taskDescription ?? $"Review required for {reviewItem.EntityType}",
-            CaseId = reviewItem.CaseId ?? Guid.Empty,
+            CaseId = reviewItem.CaseId.Value,
             Status = CaseTaskStatus.Pending,
             Priority = reviewItem.Priority switch
             {
@@ -791,16 +833,21 @@ public class DataReviewService : IDataReviewService
             query = query.Where(r => r.CreatedDate <= toDate.Value);
         }
 
+        // The pending badge must represent the same filtered population as the
+        // list (entity type, disease, and time range), not every pending review
+        // in the database. Calculate it before the optional status filter so it
+        // remains useful when the caller requests completed or all items.
+        var pendingCount = await query
+            .Where(r => r.ReviewStatus == ReviewStatuses.Pending)
+            .CountAsync();
+
         if (!string.IsNullOrEmpty(reviewStatus))
         {
             query = query.Where(r => r.ReviewStatus == reviewStatus);
         }
 
-        // Get total counts
+        // Get total count for the active status filter.
         var totalCount = await query.CountAsync();
-        var pendingCount = await _context.ReviewQueue
-            .Where(r => r.ReviewStatus == ReviewStatuses.Pending)
-            .CountAsync();
 
         // Get paged items
         var items = await query

@@ -201,7 +201,7 @@ namespace Sentinel.Services
             {
                 _logger.LogError(ex, "Error geocoding patient {PatientId}: {Address}",
                     item.PatientId, item.FullAddress);
-                _queueService.MarkFailed(item.Id, ex.Message);
+                _queueService.MarkFailed(item.Id, "Geocoding could not be completed. Please retry the address later.");
             }
         }
 

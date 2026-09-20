@@ -53,12 +53,21 @@ namespace Sentinel.Pages.Settings.Lookups
                 return Page();
             }
 
-            _context.Attach(EventType).State = EntityState.Modified;
+            var eventTypeToUpdate = await _context.EventTypes.FindAsync(EventType.Id);
+            if (eventTypeToUpdate == null)
+            {
+                return NotFound();
+            }
+
+            eventTypeToUpdate.Name = EventType.Name;
+            eventTypeToUpdate.Description = EventType.Description;
+            eventTypeToUpdate.DisplayOrder = EventType.DisplayOrder;
+            eventTypeToUpdate.IsActive = EventType.IsActive;
 
             try
             {
                 await _context.SaveChangesAsync();
-                TempData["SuccessMessage"] = $"Event type '{EventType.Name}' updated successfully.";
+                TempData["SuccessMessage"] = $"Event type '{eventTypeToUpdate.Name}' updated successfully.";
             }
             catch (DbUpdateConcurrencyException)
             {

@@ -11,6 +11,8 @@ using System.Text;
 namespace Sentinel.Pages.Settings.Jurisdictions
 {
     [Authorize(Policy = "Permission.Location.ImportPopulation")]
+    [RequestSizeLimit(5 * 1024 * 1024)]
+    [RequestFormLimits(MultipartBodyLengthLimit = 5 * 1024 * 1024)]
     public class BulkPopulationUploadModel : PageModel
     {
         private const long MaximumCsvBytes = 5 * 1024 * 1024;

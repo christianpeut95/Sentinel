@@ -78,7 +78,6 @@ public class CollectionQueryFilterBuilder
         // These don't have navigation properties on Patient and must use post-processing
         if (entityType == "Patient" && (query.CollectionName == "Cases" || query.CollectionName == "Contacts"))
         {
-            Console.WriteLine($"[CollectionFilterBuilder] Skipping SQL filter for Patient virtual collection: {query.CollectionName}");
             return null;
         }
 
@@ -94,7 +93,6 @@ public class CollectionQueryFilterBuilder
             return null;
         }
 
-        Console.WriteLine($"[CollectionFilterBuilder] Building SQL filter for {query.Operation} on {query.CollectionName} with {query.SubFilters?.Count ?? 0} subfilters");
 
         return query.Operation switch
         {
@@ -295,7 +293,6 @@ public class CollectionQueryFilterBuilder
 
         if (string.IsNullOrEmpty(tableName) || string.IsNullOrEmpty(foreignKeyField))
         {
-            Console.WriteLine($"[CollectionFilterBuilder] Unknown collection: {query.CollectionName} for {entityType}");
             return null;
         }
 
@@ -346,7 +343,6 @@ public class CollectionQueryFilterBuilder
 
         if (string.IsNullOrEmpty(collectionPath) || string.IsNullOrEmpty(foreignKeyField))
         {
-            Console.WriteLine($"[CollectionFilterBuilder] Unknown collection: {query.CollectionName} for {entityType}");
             return null;
         }
 
@@ -386,13 +382,11 @@ public class CollectionQueryFilterBuilder
 
         if (string.IsNullOrEmpty(collectionPath) || string.IsNullOrEmpty(foreignKeyField))
         {
-            Console.WriteLine($"[CollectionFilterBuilder] Unknown collection: {query.CollectionName} for {entityType}");
             return null;
         }
 
         if (string.IsNullOrEmpty(query.AggregateField))
         {
-            Console.WriteLine($"[CollectionFilterBuilder] AggregateField required for {aggregateFunction} operation");
             return null;
         }
 
@@ -516,7 +510,6 @@ public class CollectionQueryFilterBuilder
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"[CollectionFilterBuilder] Failed to resolve dynamic date {subFilter.DynamicDateType}: {ex.Message}");
                     // Fall through to regular condition building
                 }
             }
@@ -697,7 +690,6 @@ public class CollectionQueryFilterBuilder
             };
         }
 
-        Console.WriteLine($"[CollectionFilterBuilder] Unknown collection mapping: {collectionName} for {entityType}");
         return (null, null);
     }
 

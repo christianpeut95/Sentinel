@@ -167,7 +167,7 @@ namespace Sentinel.Services.CaseDefinitionEvaluation
             catch (Exception ex)
             {
                 _logger.LogError(ex, "❌ Error evaluating case definition");
-                result.Rationale = $"Error evaluating case definition: {ex.Message}";
+                result.Rationale = "The case definition could not be evaluated. Review the application logs for technical details.";
                 result.RecommendedAction = RecommendedAction.FlagForReview;
                 return result;
             }

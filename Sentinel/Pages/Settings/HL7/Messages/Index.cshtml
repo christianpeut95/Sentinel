@@ -268,8 +268,8 @@
                                 @if (msg.Status == Sentinel.Models.HL7ProcessingStatus.ProcessingFailed || 
                                      msg.Status == Sentinel.Models.HL7ProcessingStatus.AwaitingManualReview)
                                 {
-                                    <button type="button" class="sn-btn sn-btn--ghost sn-btn--sm" 
-                                            onclick="reprocessMessage('@msg.Id')" title="Reprocess">
+                                    <button type="button" class="sn-btn sn-btn--ghost sn-btn--sm js-reprocess-hl7-message"
+                                            data-message-id="@msg.Id" title="Reprocess">
                                         <i class="bi bi-arrow-clockwise"></i>
                                     </button>
                                 }
@@ -319,19 +319,30 @@
 
 @section Scripts {
     <script>
+        document.addEventListener('click', function (event) {
+            const reprocessButton = event.target.closest('.js-reprocess-hl7-message');
+            if (reprocessButton) {
+                reprocessMessage(reprocessButton.dataset.messageId);
+            }
+        });
+
         function reprocessMessage(id) {
             if (confirm('Reprocess this message? This will attempt to re-extract data and re-match cases.')) {
-                fetch(`/api/hl7/reprocess/${id}`, { method: 'POST' })
+                fetch(`/api/hl7/reprocess/${encodeURIComponent(id)}`, { method: 'POST' })
                     .then(response => response.json())
                     .then(data => {
                         if (data.success) {
                             alert('Message reprocessed successfully.');
                             location.reload();
                         } else {
-                            alert('Error reprocessing message: ' + data.error);
+                            console.error('HL7 reprocessing was rejected.');
+                            alert('The HL7 message could not be reprocessed. Please try again.');
                         }
                     })
-                    .catch(error => alert('Error: ' + error));
+                    .catch(() => {
+                        console.error('HL7 reprocessing request failed.');
+                        alert('The HL7 message could not be reprocessed. Please try again.');
+                    });
             }
         }
     </script>

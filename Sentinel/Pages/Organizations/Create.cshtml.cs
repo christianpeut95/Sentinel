@@ -64,24 +64,36 @@ namespace Sentinel.Pages.Organizations
 
             try
             {
-                Organization.Id = Guid.NewGuid();
-                Organization.CreatedAt = DateTime.UtcNow;
+                var organizationToCreate = new Organization
+                {
+                    Id = Guid.NewGuid(),
+                    Name = Organization.Name,
+                    OrganizationTypeId = Organization.OrganizationTypeId,
+                    Address = Organization.Address,
+                    Phone = Organization.Phone,
+                    Email = Organization.Email,
+                    ContactPerson = Organization.ContactPerson,
+                    ExportCode = Organization.ExportCode,
+                    IsActive = Organization.IsActive,
+                    Notes = Organization.Notes,
+                    CreatedAt = DateTime.UtcNow
+                };
 
-                _context.Organizations.Add(Organization);
+                _context.Organizations.Add(organizationToCreate);
                 await _context.SaveChangesAsync();
 
                 await _auditService.LogChangeAsync(
                     entityType: "Organization",
-                    entityId: Organization.Id.ToString(),
+                    entityId: organizationToCreate.Id.ToString(),
                     fieldName: "Organization Created",
                     oldValue: null,
-                    newValue: Organization.Name,
+                    newValue: organizationToCreate.Name,
                     userId: User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value,
                     ipAddress: HttpContext.Connection.RemoteIpAddress?.ToString()
                 );
 
                 TempData["SuccessMessage"] = "Organization created successfully.";
-                return RedirectToPage("./Details", new { id = Organization.Id });
+                return RedirectToPage("./Details", new { id = organizationToCreate.Id });
             }
             catch (Exception ex)
             {

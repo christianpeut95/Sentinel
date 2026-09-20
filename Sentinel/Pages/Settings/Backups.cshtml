@@ -132,7 +132,7 @@
                                 <div class="btn-group btn-group-sm" role="group">
                                     @if (backup.FileExists)
                                     {
-                                        <form method="post" asp-page-handler="DeleteBackup" asp-route-fileName="@backup.BackupFileName" style="display: inline;" 
+                                        <form method="post" asp-page-handler="DeleteBackup" asp-route-backupId="@backup.Id" style="display: inline;"
                                               onsubmit="return confirm('Are you sure you want to delete this backup? This action cannot be undone.');">
                                             <button type="submit" class="btn btn-outline-danger btn-sm" title="Delete this backup">
                                                 <i class="bi bi-trash"></i>

@@ -273,7 +273,7 @@
                     <!-- Actions -->
                     <div class="row">
                         <div class="col-md-12">
-                            <button type="submit" class="btn-sentinel-primary" style="background: var(--status-outbreak); border-color: var(--status-outbreak); padding: 12px 24px; font-size: 16px;" onclick="return confirm('Are you sure you want to merge these patients? This action cannot be undone.');">
+                            <button type="submit" class="btn-sentinel-primary js-confirm-submit" data-confirm-message="Are you sure you want to merge these patients? This action cannot be undone." style="background: var(--status-outbreak); border-color: var(--status-outbreak); padding: 12px 24px; font-size: 16px;">
                                 <i class="bi bi-check-circle"></i> Confirm Merge
                             </button>
                             <a asp-page="./SelectMerge" class="btn-sentinel-secondary" style="padding: 12px 24px; font-size: 16px; margin-left: var(--spacing-2);">

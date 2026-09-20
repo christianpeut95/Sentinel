@@ -9,6 +9,7 @@ using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.EntityFrameworkCore;
 using Sentinel.Data;
 using Sentinel.Models;
+using Sentinel.Models.Lookups;
 using Sentinel.Services;
 
 namespace Sentinel.Pages.Cases
@@ -114,6 +115,11 @@ namespace Sentinel.Pages.Cases
         {
             try
             {
+                if (request == null)
+                {
+                    return new JsonResult(new { success = false, message = "A case request is required." });
+                }
+
                 if (request.PatientId == Guid.Empty)
                 {
                     return new JsonResult(new { success = false, message = "Patient ID is required." });
@@ -122,6 +128,30 @@ namespace Sentinel.Pages.Cases
                 if (!request.DiseaseId.HasValue)
                 {
                     return new JsonResult(new { success = false, message = "Disease is required." });
+                }
+
+                // The wizard posts JSON, so neither its previously rendered
+                // selections nor client-side step checks are an authorisation
+                // boundary. Use the same scoped entity queries as other case
+                // creation routes.
+                if (!await _context.Patients.AnyAsync(p => p.Id == request.PatientId))
+                {
+                    return NotFound();
+                }
+
+                if (!await _context.Diseases.AnyAsync(d => d.Id == request.DiseaseId.Value && d.IsActive))
+                {
+                    return NotFound();
+                }
+
+                if (request.ConfirmationStatusId.HasValue &&
+                    !await _context.CaseStatuses.AnyAsync(cs =>
+                        cs.Id == request.ConfirmationStatusId.Value &&
+                        cs.IsActive &&
+                        (cs.ApplicableTo == CaseTypeApplicability.Case ||
+                         cs.ApplicableTo == CaseTypeApplicability.Both)))
+                {
+                    return new JsonResult(new { success = false, message = "The selected case status is not available." });
                 }
 
                 // Create the case
@@ -245,8 +275,8 @@ namespace Sentinel.Pages.Cases
                 }
                 catch (Exception taskEx)
                 {
-                    // Log but don't fail case creation
-                    Console.WriteLine($"Failed to auto-create tasks: {taskEx.Message}");
+                    // Log but don't fail case creation.
+                    _logger.LogError(taskEx, "Could not auto-create case tasks");
                 }
 
                 // Log audit

@@ -1,0 +1,52 @@
+# Version control and editor state
+.git/
+.github/
+.vs/
+
+# Build output and local verification artefacts
+**/bin/
+**/obj/
+**/bin_temp/
+**/bin_verify/
+**/TestResults/
+**/[Tt]est[Rr]esult*/
+**/*.trx
+**/*.coverage
+**/*.coveragexml
+
+# Local configuration, secrets and operational data
+.env
+.env.*
+!Sentinel/.env.example
+**/appsettings.Development.json
+**/secrets.json
+Sentinel/App_Data/SentinelFiles/
+Sentinel/wwwroot/uploads/
+Sentinel/wwwroot/data/
+
+# SurveyJS Creator is a separately licensed optional designer. It is never
+# incorporated into the standard public Sentinel image.
+Sentinel/wwwroot/lib/survey-creator-core/
+Sentinel/wwwroot/lib/survey-creator-knockout/
+
+# Source and documents not required for the application image
+Sentinel.Tests/
+Sentinel.HL7Generator/
+Scripts/
+docs/
+Migrations/
+Services/
+README.md
+CHANGELOG.md
+CONTRIBUTING.md
+SECURITY.md
+
+# Operating-system and IDE files
+**/*.user
+**/*.suo
+**/*.rsuser
+**/*.userosscache
+**/*.sln.docstates
+.DS_Store
+Thumbs.db
+Desktop.ini

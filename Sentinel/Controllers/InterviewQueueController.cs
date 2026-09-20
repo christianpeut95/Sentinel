@@ -6,6 +6,7 @@ using Sentinel.Data;
 using Sentinel.Models;
 using Sentinel.Services;
 using System.Security.Claims;
+using System.Text.Json;
 
 namespace Sentinel.Controllers;
 
@@ -40,7 +41,7 @@ public class InterviewQueueController : ControllerBase
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
             var tasks = await _assignmentService.GetAssignedTasksForWorkerAsync(userId);
-            return Ok(tasks);
+            return Ok(tasks.Select(ToTaskResponse));
         }
         catch (Exception ex)
         {
@@ -63,7 +64,7 @@ public class InterviewQueueController : ControllerBase
                 return Ok(new { message = "No tasks available", task = (CaseTask?)null });
             }
 
-            return Ok(new { message = "Task assigned", task });
+            return Ok(new { message = "Task assigned", task = ToTaskResponse(task) });
         }
         catch (Exception ex)
         {
@@ -92,7 +93,17 @@ public class InterviewQueueController : ControllerBase
                 request.DurationSeconds,
                 request.NextCallbackScheduled);
 
-            return Ok(attempt);
+            return Ok(ToCallAttemptResponse(attempt));
+        }
+        catch (ArgumentException ex)
+        {
+            _logger.LogWarning(ex, "Rejected invalid call attempt input for task {TaskId}", request.TaskId);
+            return BadRequest(new { error = "The call attempt details are not valid." });
+        }
+        catch (InvalidOperationException ex)
+        {
+            _logger.LogWarning(ex, "Rejected call attempt state for task {TaskId}", request.TaskId);
+            return Conflict(new { error = "The task is no longer available for a call attempt." });
         }
         catch (Exception ex)
         {
@@ -112,7 +123,7 @@ public class InterviewQueueController : ControllerBase
         try
         {
             var attempts = await _assignmentService.GetCallAttemptsAsync(taskId);
-            return Ok(attempts);
+            return Ok(attempts.Select(ToCallAttemptResponse));
         }
         catch (Exception ex)
         {
@@ -128,7 +139,7 @@ public class InterviewQueueController : ControllerBase
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
             var stats = await _assignmentService.GetWorkerStatisticsAsync(userId, fromDate);
-            return Ok(stats);
+            return Ok(ToWorkerStatisticsResponse(stats));
         }
         catch (Exception ex)
         {
@@ -167,7 +178,7 @@ public class InterviewQueueController : ControllerBase
         try
         {
             var data = await _assignmentService.GetSupervisorDashboardAsync();
-            return Ok(data);
+            return Ok(ToSupervisorDashboardResponse(data));
         }
         catch (Exception ex)
         {
@@ -183,7 +194,7 @@ public class InterviewQueueController : ControllerBase
         try
         {
             var tasks = await _assignmentService.GetUnassignedInterviewTasksAsync();
-            return Ok(tasks);
+            return Ok(tasks.Select(ToTaskResponse));
         }
         catch (Exception ex)
         {
@@ -278,7 +289,7 @@ public class InterviewQueueController : ControllerBase
         try
         {
             var workers = await _assignmentService.GetAvailableWorkersAsync(language);
-            return Ok(workers);
+            return Ok(workers.Select(ToWorkerResponse));
         }
         catch (Exception ex)
         {
@@ -323,7 +334,179 @@ public class InterviewQueueController : ControllerBase
             PermissionModule.Task,
             PermissionAction.Edit);
     }
+
+    // API contracts must be explicit. Returning EF/Identity entities from this controller
+    // can disclose fields that a caller does not need, including Identity security metadata,
+    // task survey content and contact details loaded through navigation properties.
+    private static InterviewQueueTaskResponse ToTaskResponse(CaseTask task) => new(
+        task.Id,
+        task.CaseId,
+        task.Title,
+        task.Description,
+        task.TaskType?.Name,
+        task.Priority,
+        task.Status,
+        task.AssignmentType,
+        task.AssignedToUserId,
+        task.AssignedToUser is null ? null : BuildDisplayName(task.AssignedToUser),
+        task.CreatedAt,
+        task.DueDate,
+        task.CompletedAt,
+        task.IsInterviewTask,
+        task.LanguageRequired,
+        task.MaxCallAttempts,
+        task.CurrentAttemptCount,
+        task.EscalationLevel,
+        task.LastCallAttempt,
+        task.AutoAssignedAt,
+        task.Case is null ? null : new InterviewQueueCaseResponse(
+            task.Case.Id,
+            task.Case.FriendlyId,
+            task.Case.DiseaseId,
+            task.Case.Disease?.Name));
+
+    private static InterviewQueueCallAttemptResponse ToCallAttemptResponse(TaskCallAttempt attempt) => new(
+        attempt.Id,
+        attempt.TaskId,
+        attempt.AttemptedAt,
+        attempt.Outcome,
+        attempt.Notes,
+        attempt.DurationSeconds,
+        attempt.NextCallbackScheduled,
+        attempt.AttemptedByUser is null
+            ? null
+            : new InterviewQueueUserResponse(
+                attempt.AttemptedByUser.Id,
+                BuildDisplayName(attempt.AttemptedByUser)));
+
+    private static InterviewQueueWorkerResponse ToWorkerResponse(ApplicationUser worker) => new(
+        worker.Id,
+        BuildDisplayName(worker),
+        worker.PrimaryLanguage,
+        ParseLanguages(worker.LanguagesSpokenJson),
+        worker.AvailableForAutoAssignment,
+        worker.CurrentTaskCapacity);
+
+    private static InterviewQueueWorkerStatisticsResponse ToWorkerStatisticsResponse(WorkerStatistics stats) => new(
+        stats.UserId,
+        stats.WorkerName,
+        stats.TasksAssigned,
+        stats.TasksCompleted,
+        stats.TasksInProgress,
+        stats.CallsToday,
+        stats.SuccessfulCallsToday,
+        stats.CompletionRate,
+        stats.AverageDurationSeconds,
+        stats.LanguagesSpoken,
+        stats.IsAvailable);
+
+    private static InterviewQueueSupervisorDashboardResponse ToSupervisorDashboardResponse(SupervisorDashboardData data) => new(
+        data.UnassignedTaskCount,
+        data.EscalatedTaskCount,
+        data.ActiveWorkerCount,
+        data.TotalTasksToday,
+        data.CompletedTasksToday,
+        data.WorkerStats.Select(ToWorkerStatisticsResponse).ToList(),
+        data.EscalatedTasks.Select(ToTaskResponse).ToList(),
+        data.UnassignedTasks.Select(ToTaskResponse).ToList(),
+        data.LanguageCoverage);
+
+    private static string BuildDisplayName(ApplicationUser user)
+    {
+        var name = $"{user.FirstName} {user.LastName}".Trim();
+        return string.IsNullOrWhiteSpace(name) ? user.UserName ?? "Unknown user" : name;
+    }
+
+    private static IReadOnlyList<string> ParseLanguages(string? languagesJson)
+    {
+        if (string.IsNullOrWhiteSpace(languagesJson))
+        {
+            return Array.Empty<string>();
+        }
+
+        try
+        {
+            return JsonSerializer.Deserialize<List<string>>(languagesJson) ?? new List<string>();
+        }
+        catch (JsonException)
+        {
+            return Array.Empty<string>();
+        }
+    }
 }
+
+public sealed record InterviewQueueTaskResponse(
+    Guid Id,
+    Guid CaseId,
+    string Title,
+    string? Description,
+    string? TaskTypeName,
+    TaskPriority Priority,
+    CaseTaskStatus Status,
+    TaskAssignmentType AssignmentType,
+    string? AssignedToUserId,
+    string? AssignedToUserName,
+    DateTime CreatedAt,
+    DateTime? DueDate,
+    DateTime? CompletedAt,
+    bool IsInterviewTask,
+    string? LanguageRequired,
+    int MaxCallAttempts,
+    int CurrentAttemptCount,
+    int EscalationLevel,
+    DateTime? LastCallAttempt,
+    DateTime? AutoAssignedAt,
+    InterviewQueueCaseResponse? Case);
+
+public sealed record InterviewQueueCaseResponse(
+    Guid Id,
+    string FriendlyId,
+    Guid? DiseaseId,
+    string? DiseaseName);
+
+public sealed record InterviewQueueCallAttemptResponse(
+    Guid Id,
+    Guid TaskId,
+    DateTime AttemptedAt,
+    CallOutcome Outcome,
+    string? Notes,
+    int? DurationSeconds,
+    DateTime? NextCallbackScheduled,
+    InterviewQueueUserResponse? AttemptedByUser);
+
+public sealed record InterviewQueueUserResponse(string Id, string DisplayName);
+
+public sealed record InterviewQueueWorkerResponse(
+    string Id,
+    string DisplayName,
+    string? PrimaryLanguage,
+    IReadOnlyList<string> LanguagesSpoken,
+    bool AvailableForAutoAssignment,
+    int CurrentTaskCapacity);
+
+public sealed record InterviewQueueWorkerStatisticsResponse(
+    string UserId,
+    string WorkerName,
+    int TasksAssigned,
+    int TasksCompleted,
+    int TasksInProgress,
+    int CallsToday,
+    int SuccessfulCallsToday,
+    double CompletionRate,
+    double AverageDurationSeconds,
+    IReadOnlyList<string> LanguagesSpoken,
+    bool IsAvailable);
+
+public sealed record InterviewQueueSupervisorDashboardResponse(
+    int UnassignedTaskCount,
+    int EscalatedTaskCount,
+    int ActiveWorkerCount,
+    int TotalTasksToday,
+    int CompletedTasksToday,
+    IReadOnlyList<InterviewQueueWorkerStatisticsResponse> WorkerStats,
+    IReadOnlyList<InterviewQueueTaskResponse> EscalatedTasks,
+    IReadOnlyList<InterviewQueueTaskResponse> UnassignedTasks,
+    IReadOnlyDictionary<string, int> LanguageCoverage);
 
 public class LogCallAttemptRequest
 {

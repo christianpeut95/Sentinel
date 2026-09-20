@@ -5,7 +5,7 @@
 
 @{
     ViewData["Title"] = "Create Case";
-    Layout = "~/Pages/Shared/_Layout.cshtml";
+    Layout = "~/Pages/Shared/_LayoutSentinel.cshtml";
 }
 @functions {
     public string GetCspNonce()
@@ -366,7 +366,7 @@
                 $genderSelect.empty();
                 $genderSelect.append('<option value="">-- Select --</option>');
                 genders.forEach(function(gender) {
-                    $genderSelect.append('<option value="' + gender.value + '">' + gender.text + '</option>');
+                    $genderSelect.append($('<option>', { value: gender.value ?? '' }).text(gender.text ?? ''));
                 });
             }
 

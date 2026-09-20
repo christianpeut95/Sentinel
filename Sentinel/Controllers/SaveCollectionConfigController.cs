@@ -6,6 +6,7 @@ using Sentinel.Services;
 using Sentinel.Models;
 using Microsoft.EntityFrameworkCore;
 using System.Text.Json;
+using System.ComponentModel.DataAnnotations;
 
 namespace Sentinel.Pages.Settings.Mappings
 {
@@ -34,6 +35,9 @@ namespace Sentinel.Pages.Settings.Mappings
         [HttpPost("SaveCollectionConfig")]
         public async Task<IActionResult> SaveCollectionConfig([FromBody] SaveConfigRequest request)
         {
+            if (!ModelState.IsValid || string.IsNullOrWhiteSpace(request.ConfigJson))
+                return BadRequest(new { error = "A mapping ID and non-empty collection configuration are required." });
+
             if (request.MappingId == Guid.Empty)
                 return BadRequest(new { error = "Mapping ID is required. Please save the mapping first before configuring collection settings." });
 
@@ -47,9 +51,12 @@ namespace Sentinel.Pages.Settings.Mappings
             try
             {
                 var config = JsonSerializer.Deserialize<CollectionMappingConfig>(request.ConfigJson);
-                if (config != null)
+                if (config == null)
                 {
-                    var validationResult = _validationService.ValidateConfig(config);
+                    return BadRequest(new { error = "The collection configuration is empty or incomplete. Correct the configuration and try again." });
+                }
+
+                var validationResult = _validationService.ValidateConfig(config);
                     
                     if (!validationResult.IsValid)
                     {
@@ -78,7 +85,6 @@ namespace Sentinel.Pages.Settings.Mappings
                             suggestions = validationResult.Suggestions
                         });
                     }
-                }
             }
             catch (JsonException jsonEx)
             {
@@ -132,7 +138,10 @@ namespace Sentinel.Pages.Settings.Mappings
 
     public class SaveConfigRequest
     {
+        [Required]
         public Guid MappingId { get; set; }
+
+        [Required]
         public string ConfigJson { get; set; } = string.Empty;
     }
 }

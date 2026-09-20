@@ -69,12 +69,17 @@ namespace Sentinel.Services
                     return GetDefaultConfig("User");
                 }
 
-                // Ensure PinnedDiseases is never null
-                config.PinnedDiseases ??= new List<string>();
-                config.Widgets ??= new List<WidgetConfig>();
-                config.TimeDefaults ??= new TimeDefaults();
+                // Dashboard configuration is persisted user preference, but it
+                // still controls server-side query settings. Re-apply the same
+                // bounded allow-list on read so legacy or manually corrupted
+                // JSON cannot reach a widget query.
+                if (!DashboardConfigPolicy.TryNormalize(config, out var normalized, out _))
+                {
+                    _logger.LogWarning("Ignoring invalid persisted dashboard configuration for user {UserId}", userId);
+                    return GetDefaultConfig("User");
+                }
 
-                return config;
+                return normalized;
             }
             catch
             {
@@ -87,7 +92,12 @@ namespace Sentinel.Services
             var user = await _context.Users.FindAsync(userId);
             if (user == null) return;
 
-            user.DashboardConfigJson = JsonSerializer.Serialize(config);
+            if (!DashboardConfigPolicy.TryNormalize(config, out var normalized, out _))
+            {
+                throw new ArgumentException("The dashboard configuration is invalid.", nameof(config));
+            }
+
+            user.DashboardConfigJson = JsonSerializer.Serialize(normalized);
             await _context.SaveChangesAsync();
         }
 

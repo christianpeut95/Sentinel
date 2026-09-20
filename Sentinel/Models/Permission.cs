@@ -21,7 +21,8 @@ namespace Sentinel.Models
         Occupation,
         // Append-only: permission enum values are persisted in the database.
         Organization,
-        ReferenceData
+        ReferenceData,
+        System
     }
 
     public enum PermissionAction
@@ -47,7 +48,8 @@ namespace Sentinel.Models
         Upload,
         ImportPopulation,
         // Append-only: permission enum values are persisted in the database.
-        ManageRoles
+        ManageRoles,
+        ManageTestData
     }
 
     public class Permission

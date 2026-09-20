@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.EntityFrameworkCore;
 using Sentinel.Data;
 using Sentinel.Models;
@@ -7,11 +8,14 @@ using Sentinel.Middleware;
 using AntDesign;
 using System.Text.Json;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
+using Microsoft.AspNetCore.HttpOverrides;
+using Microsoft.AspNetCore.DataProtection;
 using System.Threading.RateLimiting;
 using Serilog;
 using Serilog.Events;
 using Serilog.Formatting.Compact;
 using Serilog.Sinks.MSSqlServer;
+using Sentinel.Extensions;
 
 // Configure Serilog before creating the builder (file logging only for now)
 Log.Logger = new LoggerConfiguration()
@@ -39,6 +43,20 @@ Log.Logger = new LoggerConfiguration()
     .CreateLogger();
 
 var builder = WebApplication.CreateBuilder(args);
+
+var useForwardedHeaders = builder.Configuration.GetValue<bool>("ReverseProxy:UseForwardedHeaders");
+if (useForwardedHeaders)
+{
+    // Docker publishes only Caddy. The private Sentinel service therefore
+    // accepts forwarded scheme/client information from that internal proxy.
+    // Do not enable this setting when Kestrel is published directly.
+    builder.Services.Configure<ForwardedHeadersOptions>(options =>
+    {
+        options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+        options.KnownNetworks.Clear();
+        options.KnownProxies.Clear();
+    });
+}
 
 // Use Serilog for all logging
 builder.Host.UseSerilog();
@@ -68,29 +86,36 @@ if (!string.IsNullOrEmpty(envGeocodingEmail))
     builder.Configuration["Geocoding:Email"] = envGeocodingEmail;
 }
 
-// Keep the default request budget close to the protected-attachment limit.
+// Keep the default request budget aligned with the protected-attachment limit.
 // Jurisdiction shapefile endpoints explicitly opt into their larger 100 MB limit.
+var configuredProtectedUploadBytes = builder.Configuration.GetValue<long?>("FileStorage:MaxUploadBytes");
+var defaultMultipartRequestLimit = configuredProtectedUploadBytes is > 0
+    ? configuredProtectedUploadBytes.Value
+    : 26_214_400L;
+
 builder.Services.Configure<KestrelServerOptions>(options =>
 {
-    options.Limits.MaxRequestBodySize = 31_457_280; // 30 MB
+    options.Limits.MaxRequestBodySize = defaultMultipartRequestLimit;
     options.Limits.RequestHeadersTimeout = TimeSpan.FromMinutes(5);
 });
 
 // Configure Form options for multipart requests
 builder.Services.Configure<Microsoft.AspNetCore.Http.Features.FormOptions>(options =>
 {
-    options.MultipartBodyLengthLimit = 31_457_280; // 30 MB
+    options.MultipartBodyLengthLimit = defaultMultipartRequestLimit;
     options.ValueLengthLimit = 1_048_576; // 1 MB per non-file form value
     options.MultipartHeadersLengthLimit = 16384;
-    options.BufferBodyLengthLimit = 31_457_280;
+    options.BufferBodyLengthLimit = defaultMultipartRequestLimit;
 });
 
 // Database
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
     ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
 
-// Now that we have the connection string, add SQL Server sink to Serilog
-Log.Logger = new LoggerConfiguration()
+// Now that we have the connection string, add the SQL Server sink to Serilog.
+// The isolated integration-test host deliberately has no SQL Server; it verifies
+// authorization against an in-memory context instead.
+var applicationLoggerConfiguration = new LoggerConfiguration()
     .MinimumLevel.Information()
     .MinimumLevel.Override("Microsoft", LogEventLevel.Warning)
     .MinimumLevel.Override("Microsoft.Hosting.Lifetime", LogEventLevel.Information)
@@ -111,16 +136,21 @@ Log.Logger = new LoggerConfiguration()
         path: "logs/sentinel-.txt",
         rollingInterval: RollingInterval.Day,
         retainedFileCountLimit: 30,
-        outputTemplate: "{Timestamp:yyyy-MM-dd HH:mm:ss.fff zzz} [{Level:u3}] {Message:lj}{NewLine}{Exception}")
-    .WriteTo.MSSqlServer(
+        outputTemplate: "{Timestamp:yyyy-MM-dd HH:mm:ss.fff zzz} [{Level:u3}] {Message:lj}{NewLine}{Exception}");
+
+if (!builder.Environment.IsEnvironment("Testing"))
+{
+    applicationLoggerConfiguration.WriteTo.MSSqlServer(
         connectionString: connectionString,
         sinkOptions: new MSSqlServerSinkOptions
         {
             TableName = "SentinelLogs",
             SchemaName = "dbo",
             AutoCreateSqlTable = true
-        })
-    .CreateLogger();
+        });
+}
+
+Log.Logger = applicationLoggerConfiguration.CreateLogger();
 
 // Register the CaseCreationInterceptor (must be registered before DbContext)
 builder.Services.AddSingleton<CaseCreationInterceptor>();
@@ -209,6 +239,33 @@ builder.Services.ConfigureApplicationCookie(options =>
     options.LoginPath = "/Identity/Account/Login";
     options.LogoutPath = "/Identity/Account/Logout";
     options.AccessDeniedPath = "/Identity/Account/AccessDenied";
+
+    // Browser navigation should still follow the ordinary Identity flow, but
+    // APIs must return HTTP authorization statuses rather than an HTML login
+    // redirect. Consumers can then reliably distinguish unauthenticated (401)
+    // from unauthorized (403) requests without parsing a redirected page.
+    options.Events.OnRedirectToLogin = context =>
+    {
+        if (context.Request.Path.StartsWithSegments("/api", StringComparison.OrdinalIgnoreCase))
+        {
+            context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+            return Task.CompletedTask;
+        }
+
+        context.Response.Redirect(context.RedirectUri);
+        return Task.CompletedTask;
+    };
+    options.Events.OnRedirectToAccessDenied = context =>
+    {
+        if (context.Request.Path.StartsWithSegments("/api", StringComparison.OrdinalIgnoreCase))
+        {
+            context.Response.StatusCode = StatusCodes.Status403Forbidden;
+            return Task.CompletedTask;
+        }
+
+        context.Response.Redirect(context.RedirectUri);
+        return Task.CompletedTask;
+    };
 });
 
 // Identity creates additional short-lived cookies for external sign-in and
@@ -387,6 +444,13 @@ builder.Services.AddAntiforgery(options =>
     ConfigureSecureHostCookie(options.Cookie, "__Host-Sentinel.AntiForgery");
 });
 
+builder.Services.AddHsts(options =>
+{
+    // The public deployment terminates HTTPS at Caddy; retain HTTPS on return
+    // visits for at least the ASVS Level 1 minimum period.
+    options.MaxAge = TimeSpan.FromDays(365);
+});
+
 // Razor Pages with global authorization
 builder.Services.AddRazorPages(options =>
 {
@@ -414,8 +478,16 @@ builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 
 // ── Encryption & Email Services ────────────────────────
-// Data Protection for encrypting sensitive configuration
-builder.Services.AddDataProtection();
+// Data Protection for encrypting sensitive configuration. Docker provides a
+// protected, named volume through DataProtection:KeyRingPath so cookies and
+// encrypted settings survive a container replacement.
+var dataProtection = builder.Services.AddDataProtection().SetApplicationName("Sentinel");
+var dataProtectionKeyRingPath = builder.Configuration["DataProtection:KeyRingPath"];
+if (!string.IsNullOrWhiteSpace(dataProtectionKeyRingPath))
+{
+    Directory.CreateDirectory(dataProtectionKeyRingPath);
+    dataProtection.PersistKeysToFileSystem(new DirectoryInfo(dataProtectionKeyRingPath));
+}
 
 // Encryption service for SMTP passwords and other secrets
 builder.Services.AddSingleton<Sentinel.Services.IEncryptionService, Sentinel.Services.EncryptionService>();
@@ -528,11 +600,6 @@ builder.Services.AddScoped<Sentinel.Services.IPatientAddressService, Sentinel.Se
 builder.Services.AddScoped<Sentinel.Services.TestDataGeneratorService>();
 builder.Services.AddScoped<Sentinel.Helpers.PermissionHelper>();
 
-// Natural Language Timeline Entry Services
-builder.Services.AddScoped<Sentinel.Services.INaturalLanguageParserService, Sentinel.Services.NaturalLanguageParserService>();
-builder.Services.AddScoped<Sentinel.Services.ITimelineStorageService, Sentinel.Services.TimelineStorageService>();
-builder.Services.AddScoped<Sentinel.Services.IEntityMemoryService, Sentinel.Services.EntityMemoryService>();
-
 // HttpContextAccessor for audit logging
 builder.Services.AddHttpContextAccessor();
 
@@ -553,10 +620,10 @@ if (geocodingProvider == "nominatim")
 }
 else // Default to Google
 {
-    builder.Services.AddHttpClient<Sentinel.Services.ILocationLookupService, Sentinel.Services.GoogleLocationLookupService>(c =>
-    {
-        c.BaseAddress = new Uri("https://maps.googleapis.com/maps/api/");
-    });
+    // GoogleLocationLookupService uses the current Geocoding v4 and Places
+    // endpoints with absolute URLs and header-based API key authentication.
+    // Do not configure the retired Maps API v3 base URL here.
+    builder.Services.AddHttpClient<Sentinel.Services.ILocationLookupService, Sentinel.Services.GoogleLocationLookupService>();
 }
 
 // Legacy Geocoding Service (delegates to ILocationLookupService for backward compatibility)
@@ -573,6 +640,13 @@ var app = builder.Build();
 _ = app.Services.GetRequiredService<ICommonPasswordDenyList>();
 
 // Middleware
+if (useForwardedHeaders)
+{
+    // Must run before HSTS and HTTPS redirection so the request scheme from
+    // Caddy is used rather than the private HTTP hop to Kestrel.
+    app.UseForwardedHeaders();
+}
+
 // This must be the outermost application handler. It logs every exception that
 // escapes an endpoint and replaces the response with a safe, traceable error.
 // ErrorReportingMiddleware remains further in the pipeline so it can submit a
@@ -602,6 +676,27 @@ app.UseWhen(
 
 app.UseHttpsRedirection();
 
+// Baseline browser hardening. SAMEORIGIN permits Sentinel's own embedded case
+// subforms while preventing other sites from framing authenticated pages.
+app.Use(async (context, next) =>
+{
+    context.Response.OnStarting(() =>
+    {
+        context.Response.Headers["X-Content-Type-Options"] = "nosniff";
+        context.Response.Headers["X-Frame-Options"] = "SAMEORIGIN";
+        context.Response.Headers["Referrer-Policy"] = "strict-origin-when-cross-origin";
+        context.Response.Headers["Permissions-Policy"] = "geolocation=(), camera=(), microphone=()";
+        // Establish CSP protections that are compatible with the current Razor and
+        // client-library model. A stricter script/style policy can follow once the
+        // remaining inline and third-party CDN scripts have been migrated.
+        context.Response.Headers["Content-Security-Policy"] =
+            "base-uri 'self'; object-src 'none'; frame-ancestors 'self'; form-action 'self'";
+        return Task.CompletedTask;
+    });
+
+    await next();
+});
+
 // Sensitive data used to be written under wwwroot/uploads and wwwroot/data.
 // Deny those legacy paths before static-file middleware so stale files cannot
 // be retrieved by a guessed URL during or after migration.
@@ -627,7 +722,13 @@ app.UseSession(); // Add session middleware (must be before authentication)
 // ── Setup Redirect Middleware ──────────────────────────────────
 // Redirect all requests to /Setup if initial setup is not completed
 // Must come AFTER UseRouting() but BEFORE UseAuthentication()
-app.UseSetupRedirect();
+// The isolated integration-test host has no deployment setup state. Keeping
+// that redirect out of this one test-only environment lets the tests exercise
+// the endpoint's actual authentication/authorization response instead.
+if (!app.Environment.IsEnvironment("Testing"))
+{
+    app.UseSetupRedirect();
+}
 
 app.UseRateLimiter();
 
@@ -638,6 +739,11 @@ app.UseMiddleware<Sentinel.Middleware.PageViewTrackingMiddleware>();
 app.UseMiddleware<Sentinel.Middleware.ErrorReportingMiddleware>();
 
 app.UseAuthentication();
+// Enforce immediate session replacement at the application boundary as well as
+// through ASP.NET Identity's configured security-stamp validator. A later
+// successful sign-in rotates the stored stamp, so an older browser cookie is
+// rejected before it can reach an endpoint.
+app.UseMiddleware<UserSessionValidationMiddleware>();
 app.UseAuthorization();
 
 // Disease access control middleware - must come after authentication
@@ -829,7 +935,10 @@ app.MapDelete("/api/lab-results/{id}", async (Guid id, ApplicationDbContext cont
     await context.SaveChangesAsync();
 
     return Results.Ok();
-}).RequireAuthorization("Permission.Laboratory.Delete");
+}).RequireAuthorization("Permission.Laboratory.Delete")
+  .RequireAuthorization("Permission.Case.Edit")
+  .WithMetadata(new RequireAntiforgeryTokenAttribute(true))
+  .RequireValidAntiforgery();
 
 // API endpoint to get exposures for a case
 app.MapGet("/api/cases/{caseId}/exposures", async (Guid caseId, ApplicationDbContext context, Sentinel.Services.ICaseAccessService caseAccessService) =>
@@ -872,7 +981,10 @@ app.MapDelete("/api/exposures/{id}", async (Guid id, ApplicationDbContext contex
     await context.SaveChangesAsync();
 
     return Results.Ok();
-}).RequireAuthorization("Permission.Exposure.Delete");
+}).RequireAuthorization("Permission.Exposure.Delete")
+  .RequireAuthorization("Permission.Case.Edit")
+  .WithMetadata(new RequireAntiforgeryTokenAttribute(true))
+  .RequireValidAntiforgery();
 
 // API endpoint to get patient address for a case
 app.MapGet("/api/patients/{caseId}/address", async (Guid caseId, ApplicationDbContext context, Sentinel.Services.ICaseAccessService caseAccessService) =>
@@ -904,23 +1016,27 @@ app.MapGet("/api/patients/{caseId}/address", async (Guid caseId, ApplicationDbCo
 // API endpoint for user autocomplete (for task assignment)
 app.MapGet("/api/users/search", async (string? term, Microsoft.AspNetCore.Identity.UserManager<ApplicationUser> userManager) =>
 {
-    if (string.IsNullOrWhiteSpace(term))
+    if (string.IsNullOrWhiteSpace(term) || term.Trim().Length < 2)
         return Results.Json(Array.Empty<object>());
 
+    var normalizedTerm = term.Trim().ToUpperInvariant();
+
     var users = userManager.Users
-        .Where(u => u.Email != null && u.Email.Contains(term))
-        .OrderBy(u => u.Email)
+        .Where(u =>
+            (u.UserName != null && u.UserName.ToUpper().Contains(normalizedTerm)) ||
+            (u.Email != null && u.Email.ToUpper().Contains(normalizedTerm)))
+        .OrderBy(u => u.UserName)
         .Take(20)
         .Select(u => new
         {
-            Id = u.Id,
-            Email = u.Email,
-            DisplayName = u.Email
+            id = u.Id,
+            text = u.UserName ?? u.Email ?? "Unknown user",
+            displayName = u.UserName ?? u.Email ?? "Unknown user"
         })
         .ToList();
 
     return Results.Json(users);
-}).RequireAuthorization("Permission.Task.Edit");
+}).RequireAuthorization();
 
 // API endpoint for disease exposure requirements
 app.MapGet("/api/diseases/{id:guid}/exposure-requirements", async (Guid id, IExposureRequirementService service, ApplicationDbContext context) =>
@@ -946,361 +1062,11 @@ app.MapGet("/api/diseases/{id:guid}/exposure-requirements", async (Guid id, IExp
     });
 }).RequireAuthorization("Permission.Case.Create");
 
-// API endpoint to reorder case definition criteria
-app.MapPatch("/api/case-definitions/{id:int}/criteria/{criterionId:int}/reorder", async (int id, int criterionId, ApplicationDbContext context, HttpRequest request, ILogger<Program> logger) =>
+// Apply migrations and seed data on startup with retry logic. The test host
+// replaces this context with an in-memory database and supplies its own data.
+if (!app.Environment.IsEnvironment("Testing"))
 {
-    using var reader = new StreamReader(request.Body);
-    var body = await reader.ReadToEndAsync();
-    var data = JsonSerializer.Deserialize<JsonElement>(body);
-
-    if (!data.TryGetProperty("direction", out var directionElement))
-        return Results.BadRequest("Direction is required");
-
-    var direction = directionElement.GetString();
-    if (direction != "up" && direction != "down")
-        return Results.BadRequest("Direction must be 'up' or 'down'");
-
-    logger.LogInformation("Reordering criterion {CriterionId} in definition {DefinitionId}, direction: {Direction}", criterionId, id, direction);
-
-    var criterion = await context.CaseDefinitionCriteria
-        .FirstOrDefaultAsync(c => c.Id == criterionId && c.CaseDefinitionId == id);
-
-    if (criterion == null)
-    {
-        logger.LogWarning("Criterion {CriterionId} not found", criterionId);
-        return Results.NotFound();
-    }
-
-    // Get all criteria at the same level (same parent and group)
-    var siblings = await context.CaseDefinitionCriteria
-        .Where(c => c.CaseDefinitionId == id && 
-                    c.ParentCriteriaId == criterion.ParentCriteriaId &&
-                    c.GroupNumber == criterion.GroupNumber)
-        .OrderBy(c => c.DisplayOrder)
-        .ThenBy(c => c.Id) // Secondary sort by ID for stability when DisplayOrders are equal
-        .ToListAsync();
-
-    logger.LogInformation("Found {Count} siblings. Current criterion DisplayOrder: {DisplayOrder}", siblings.Count, criterion.DisplayOrder);
-
-    var currentIndex = siblings.FindIndex(c => c.Id == criterionId);
-    if (currentIndex == -1)
-        return Results.NotFound();
-
-    // Calculate new index
-    var newIndex = direction == "up" ? currentIndex - 1 : currentIndex + 1;
-
-    // Check bounds
-    if (newIndex < 0 || newIndex >= siblings.Count)
-    {
-        logger.LogWarning("Cannot move beyond bounds. Current index: {CurrentIndex}, New index: {NewIndex}, Total: {Total}", currentIndex, newIndex, siblings.Count);
-        return Results.BadRequest("Cannot move criterion beyond bounds");
-    }
-
-    // Remove from current position and insert at new position
-    var item = siblings[currentIndex];
-    siblings.RemoveAt(currentIndex);
-    siblings.Insert(newIndex, item);
-
-    // Re-index all siblings with sequential DisplayOrder values
-    for (int i = 0; i < siblings.Count; i++)
-    {
-        siblings[i].DisplayOrder = i;
-        logger.LogInformation("Updated criterion {Id} DisplayOrder to {Order}", siblings[i].Id, i);
-    }
-
-    await context.SaveChangesAsync();
-
-    logger.LogInformation("Changes saved successfully");
-
-    return Results.Ok();
-}).RequireAuthorization("Permission.Settings.Edit");
-
-// API endpoint to move criteria to a different parent
-app.MapPatch("/api/case-definitions/{id:int}/criteria/{criterionId:int}/move-to-parent", async (int id, int criterionId, ApplicationDbContext context, HttpRequest request) =>
-{
-    using var reader = new StreamReader(request.Body);
-    var body = await reader.ReadToEndAsync();
-    var data = JsonSerializer.Deserialize<JsonElement>(body);
-
-    int? parentCriteriaId = null;
-    if (data.TryGetProperty("parentCriteriaId", out var parentElement) && 
-        parentElement.ValueKind != JsonValueKind.Null)
-    {
-        parentCriteriaId = parentElement.GetInt32();
-    }
-
-    var criterion = await context.CaseDefinitionCriteria
-        .FirstOrDefaultAsync(c => c.Id == criterionId && c.CaseDefinitionId == id);
-
-    if (criterion == null)
-        return Results.NotFound();
-
-    // Validate parent exists if specified
-    if (parentCriteriaId.HasValue)
-    {
-        var parentExists = await context.CaseDefinitionCriteria
-            .AnyAsync(c => c.Id == parentCriteriaId.Value && c.CaseDefinitionId == id);
-
-        if (!parentExists)
-            return Results.BadRequest("Parent criterion not found");
-    }
-
-    criterion.ParentCriteriaId = parentCriteriaId;
-    await context.SaveChangesAsync();
-
-    return Results.Ok();
-}).RequireAuthorization("Permission.Settings.Edit");
-
-// API endpoint to get a single criterion by ID
-app.MapGet("/api/case-definitions/{id:int}/criteria/{criterionId:int}", async (int id, int criterionId, ApplicationDbContext context) =>
-{
-    var criterion = await context.CaseDefinitionCriteria
-        .FirstOrDefaultAsync(c => c.Id == criterionId && c.CaseDefinitionId == id);
-
-    if (criterion == null)
-        return Results.NotFound();
-
-    return Results.Json(new
-    {
-        id = criterion.Id,
-        caseDefinitionId = criterion.CaseDefinitionId,
-        parentCriteriaId = criterion.ParentCriteriaId,
-        criterionType = (int)criterion.CriterionType,
-        logicalOperator = (int)criterion.LogicalOperator,
-        groupNumber = criterion.GroupNumber,
-        fieldPath = criterion.FieldPath,
-        @operator = (int)criterion.Operator,
-        valueJson = criterion.ValueJson,
-        displayText = criterion.DisplayText,
-        displayOrder = criterion.DisplayOrder
-    });
-}).RequireAuthorization("Permission.Settings.Edit");
-
-// API endpoint to update laboratory criterion
-app.MapPut("/api/case-definitions/{id:int}/criteria/{criterionId:int}/laboratory", async (int id, int criterionId, ApplicationDbContext context, HttpRequest request) =>
-{
-    using var reader = new StreamReader(request.Body);
-    var body = await reader.ReadToEndAsync();
-    var data = JsonSerializer.Deserialize<JsonElement>(body);
-
-    var criterion = await context.CaseDefinitionCriteria
-        .FirstOrDefaultAsync(c => c.Id == criterionId && c.CaseDefinitionId == id);
-
-    if (criterion == null)
-        return Results.NotFound();
-
-    // Extract data
-    var specimenTypeIds = data.GetProperty("specimenTypeIds").EnumerateArray()
-        .Select(e => e.GetInt32()).ToList();
-    var pathogenIds = data.GetProperty("pathogenIds").EnumerateArray()
-        .Select(e => Guid.Parse(e.GetString()!)).ToList();
-    var testMethodIds = data.GetProperty("testMethodIds").EnumerateArray()
-        .Select(e => e.GetInt32()).ToList();
-    var resultValues = data.GetProperty("resultValues").EnumerateArray()
-        .Select(e => e.GetString()!).ToList();
-
-    object? timeConstraint = null;
-    if (data.TryGetProperty("timeConstraint", out var timeConstraintElement) && 
-        timeConstraintElement.ValueKind != JsonValueKind.Null)
-    {
-        timeConstraint = new
-        {
-            days = timeConstraintElement.GetProperty("days").GetInt32(),
-            relativeTo = timeConstraintElement.GetProperty("relativeTo").GetString(),
-            direction = timeConstraintElement.GetProperty("direction").GetString()
-        };
-    }
-
-    // Extract storage preferences
-    int? specimenStoragePreference = data.TryGetProperty("specimenStoragePreference", out var ssp) ? ssp.GetInt32() : (int?)null;
-    int? canonicalSpecimenTypeId = data.TryGetProperty("canonicalSpecimenTypeId", out var cst) && cst.ValueKind != JsonValueKind.Null ? cst.GetInt32() : (int?)null;
-    int? pathogenStoragePreference = data.TryGetProperty("pathogenStoragePreference", out var psp) ? psp.GetInt32() : (int?)null;
-    string? canonicalPathogenId = data.TryGetProperty("canonicalPathogenId", out var cpg) && cpg.ValueKind != JsonValueKind.Null ? cpg.GetString() : null;
-    int? testMethodStoragePreference = data.TryGetProperty("testMethodStoragePreference", out var tsp) ? tsp.GetInt32() : (int?)null;
-    int? canonicalTestMethodId = data.TryGetProperty("canonicalTestMethodId", out var ctm) && ctm.ValueKind != JsonValueKind.Null ? ctm.GetInt32() : (int?)null;
-    int? resultStoragePreference = data.TryGetProperty("resultStoragePreference", out var rsp) ? rsp.GetInt32() : (int?)null;
-    string? canonicalResultValue = data.TryGetProperty("canonicalResultValue", out var crv) && crv.ValueKind != JsonValueKind.Null ? crv.GetString() : null;
-
-    // Build ValueJson including storage preferences
-    var valueObj = new
-    {
-        specimenTypeIds,
-        pathogenIds,
-        testMethodIds,
-        resultValues,
-        timeConstraint,
-        specimenStoragePreference,
-        canonicalSpecimenTypeId,
-        pathogenStoragePreference,
-        canonicalPathogenId,
-        testMethodStoragePreference,
-        canonicalTestMethodId,
-        resultStoragePreference,
-        canonicalResultValue
-    };
-
-    // Update criterion
-    criterion.ValueJson = JsonSerializer.Serialize(valueObj);
-    criterion.DisplayText = data.GetProperty("displayText").GetString()!;
-    criterion.LogicalOperator = (Sentinel.Models.CaseDefinitions.LogicalOperator)data.GetProperty("logicalOperator").GetInt32();
-
-    // Update lab-specific fields directly on the criterion
-    criterion.AcceptableSpecimenTypesJson = JsonSerializer.Serialize(specimenTypeIds);
-    criterion.SpecimenStoragePreference = specimenStoragePreference.HasValue ? (Sentinel.Models.CaseDefinitions.DataStoragePreference)specimenStoragePreference.Value : Sentinel.Models.CaseDefinitions.DataStoragePreference.StoreAsReceived;
-    criterion.CanonicalSpecimenTypeId = canonicalSpecimenTypeId;
-    criterion.AcceptablePathogensJson = JsonSerializer.Serialize(pathogenIds);
-    criterion.BiomarkerStoragePreference = pathogenStoragePreference.HasValue ? (Sentinel.Models.CaseDefinitions.DataStoragePreference)pathogenStoragePreference.Value : Sentinel.Models.CaseDefinitions.DataStoragePreference.StoreAsReceived;
-    criterion.CanonicalPathogenId = canonicalPathogenId != null ? Guid.Parse(canonicalPathogenId) : (Guid?)null;
-    criterion.AcceptableTestMethodsJson = JsonSerializer.Serialize(testMethodIds);
-    criterion.TestMethodStoragePreference = testMethodStoragePreference.HasValue ? (Sentinel.Models.CaseDefinitions.DataStoragePreference)testMethodStoragePreference.Value : Sentinel.Models.CaseDefinitions.DataStoragePreference.StoreAsReceived;
-    criterion.CanonicalTestMethodId = canonicalTestMethodId;
-    criterion.AcceptableResultsJson = JsonSerializer.Serialize(resultValues);
-    criterion.ResultStoragePreference = resultStoragePreference.HasValue ? (Sentinel.Models.CaseDefinitions.DataStoragePreference)resultStoragePreference.Value : Sentinel.Models.CaseDefinitions.DataStoragePreference.StoreAsReceived;
-    criterion.Description = canonicalResultValue;
-
-    await context.SaveChangesAsync();
-
-    return Results.Ok(new { success = true, criterionId = criterion.Id });
-}).RequireAuthorization("Permission.Settings.Edit");
-
-// API endpoint to update clinical criterion
-app.MapPut("/api/case-definitions/{id:int}/criteria/{criterionId:int}/clinical", async (int id, int criterionId, ApplicationDbContext context, HttpRequest request) =>
-{
-    using var reader = new StreamReader(request.Body);
-    var body = await reader.ReadToEndAsync();
-    var data = JsonSerializer.Deserialize<JsonElement>(body);
-
-    var criterion = await context.CaseDefinitionCriteria
-        .FirstOrDefaultAsync(c => c.Id == criterionId && c.CaseDefinitionId == id);
-
-    if (criterion == null)
-        return Results.NotFound();
-
-    // Extract data
-    var symptomIds = data.GetProperty("symptomIds").EnumerateArray()
-        .Select(e => e.GetInt32()).ToList();
-    var requireAll = data.GetProperty("requireAll").GetBoolean();
-
-    int? minCount = null;
-    if (data.TryGetProperty("minCount", out var minCountElement) && 
-        minCountElement.ValueKind != JsonValueKind.Null)
-    {
-        minCount = minCountElement.GetInt32();
-    }
-
-    string? severityFilter = null;
-    if (data.TryGetProperty("severityFilter", out var severityElement) && 
-        severityElement.ValueKind != JsonValueKind.Null)
-    {
-        severityFilter = severityElement.GetString();
-    }
-
-    // Build ValueJson
-    var valueObj = new
-    {
-        symptomIds,
-        requireAll,
-        minCount,
-        severityFilter
-    };
-
-    // Update criterion
-    criterion.ValueJson = JsonSerializer.Serialize(valueObj);
-    criterion.DisplayText = data.GetProperty("displayText").GetString()!;
-    criterion.LogicalOperator = (Sentinel.Models.CaseDefinitions.LogicalOperator)data.GetProperty("logicalOperator").GetInt32();
-    criterion.Operator = requireAll ? Sentinel.Models.CaseDefinitions.ComparisonOperator.Equals : Sentinel.Models.CaseDefinitions.ComparisonOperator.InList;
-
-    await context.SaveChangesAsync();
-
-    return Results.Ok(new { success = true, criterionId = criterion.Id });
-}).RequireAuthorization("Permission.Settings.Edit");
-
-// API endpoint to update custom field criterion
-app.MapPut("/api/case-definitions/{id:int}/criteria/{criterionId:int}/custom-field", async (int id, int criterionId, ApplicationDbContext context, HttpRequest request) =>
-{
-    using var reader = new StreamReader(request.Body);
-    var body = await reader.ReadToEndAsync();
-    var data = JsonSerializer.Deserialize<JsonElement>(body);
-
-    var criterion = await context.CaseDefinitionCriteria
-        .FirstOrDefaultAsync(c => c.Id == criterionId && c.CaseDefinitionId == id);
-
-    if (criterion == null)
-        return Results.NotFound();
-
-    // Extract data
-    var customFieldId = data.GetProperty("customFieldId").GetInt32();
-    var operatorValue = data.GetProperty("operator").GetString()!;
-    var value = data.GetProperty("value").GetString()!;
-
-    // Load custom field to get details
-    var customField = await context.CustomFieldDefinitions
-        .FirstOrDefaultAsync(cf => cf.Id == customFieldId);
-
-    if (customField == null)
-        return Results.BadRequest("Custom field not found");
-
-    // Build ValueJson
-    var valueObj = new
-    {
-        customFieldId,
-        customFieldName = customField.Name,
-        customFieldLabel = customField.Label,
-        fieldType = customField.FieldType.ToString(),
-        value,
-        @operator = operatorValue
-    };
-
-    // Update criterion
-    criterion.ValueJson = JsonSerializer.Serialize(valueObj);
-    criterion.DisplayText = data.GetProperty("displayText").GetString()!;
-    criterion.LogicalOperator = (Sentinel.Models.CaseDefinitions.LogicalOperator)data.GetProperty("logicalOperator").GetInt32();
-
-    await context.SaveChangesAsync();
-
-    return Results.Ok(new { success = true, criterionId = criterion.Id });
-}).RequireAuthorization("Permission.Settings.Edit");
-
-// API endpoint to update case field criterion
-app.MapPut("/api/case-definitions/{id:int}/criteria/{criterionId:int}/case-field", async (int id, int criterionId, ApplicationDbContext context, HttpRequest request) =>
-{
-    using var reader = new StreamReader(request.Body);
-    var body = await reader.ReadToEndAsync();
-    var data = JsonSerializer.Deserialize<JsonElement>(body);
-
-    var criterion = await context.CaseDefinitionCriteria
-        .FirstOrDefaultAsync(c => c.Id == criterionId && c.CaseDefinitionId == id);
-
-    if (criterion == null)
-        return Results.NotFound();
-
-    // Extract data
-    var fieldPath = data.GetProperty("fieldPath").GetString()!;
-    var operatorValue = data.GetProperty("operator").GetString()!;
-    var value = data.GetProperty("value").GetString()!;
-
-    // Build ValueJson
-    var valueObj = new
-    {
-        fieldPath,
-        @operator = operatorValue,
-        value
-    };
-
-    // Update criterion
-    criterion.FieldPath = fieldPath;
-    criterion.ValueJson = JsonSerializer.Serialize(valueObj);
-    criterion.DisplayText = data.GetProperty("displayText").GetString()!;
-    criterion.LogicalOperator = (Sentinel.Models.CaseDefinitions.LogicalOperator)data.GetProperty("logicalOperator").GetInt32();
-
-    await context.SaveChangesAsync();
-
-    return Results.Ok(new { success = true, criterionId = criterion.Id });
-}).RequireAuthorization("Permission.Settings.Edit");
-
-// Apply migrations and seed data on startup with retry logic
-using (var scope = app.Services.CreateScope())
-{
+    using var scope = app.Services.CreateScope();
     var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
     var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
     
@@ -1446,8 +1212,10 @@ using (var scope = app.Services.CreateScope())
 // ║ SETUP TOKEN GENERATION                                               ║
 // ║ Generate a secure token on first run for initial setup access       ║
 // ╚══════════════════════════════════════════════════════════════════════╝
-using (var scope = app.Services.CreateScope())
+// The isolated integration-test host must not create a setup token or file.
+if (!app.Environment.IsEnvironment("Testing"))
 {
+    using var scope = app.Services.CreateScope();
     var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
     var encryptionService = scope.ServiceProvider.GetRequiredService<Sentinel.Services.IEncryptionService>();
     var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();

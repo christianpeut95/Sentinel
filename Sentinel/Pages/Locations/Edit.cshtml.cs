@@ -58,51 +58,60 @@ namespace Sentinel.Pages.Locations
                 return Page();
             }
 
-            // Get original location to check if address changed
-            var originalLocation = await _context.Locations
-                .AsNoTracking()
-                .FirstOrDefaultAsync(l => l.Id == Location.Id);
+            // Never attach the browser-bound entity as Modified. Use the
+            // persisted record for both the address comparison and the update,
+            // so audit, navigation and computed geocoding fields cannot be
+            // supplied by a crafted form post.
+            var locationToUpdate = await _context.Locations
+                .FirstOrDefaultAsync(existing => existing.Id == Location.Id);
 
-            if (originalLocation == null)
+            if (locationToUpdate == null)
             {
                 return NotFound();
             }
 
+            bool addressChanged = locationToUpdate.Address != Location.Address;
+
+            locationToUpdate.Name = Location.Name;
+            locationToUpdate.LocationTypeId = Location.LocationTypeId;
+            locationToUpdate.Address = Location.Address;
+            locationToUpdate.OrganizationId = Location.OrganizationId;
+            locationToUpdate.IsHighRisk = Location.IsHighRisk;
+            locationToUpdate.IsActive = Location.IsActive;
+            locationToUpdate.Notes = Location.Notes;
+
             // Geocode if address changed or manual re-geocode requested
-            bool addressChanged = originalLocation.Address != Location.Address;
-            if ((addressChanged || geocode) && !string.IsNullOrEmpty(Location.Address))
+            if ((addressChanged || geocode) && !string.IsNullOrEmpty(locationToUpdate.Address))
             {
                 try
                 {
-                    var result = await _geocodingService.GeocodeAsync(Location.Address);
+                    var result = await _geocodingService.GeocodeAsync(locationToUpdate.Address);
                     if (result.Latitude.HasValue && result.Longitude.HasValue)
                     {
-                        Location.Latitude = (decimal)result.Latitude.Value;
-                        Location.Longitude = (decimal)result.Longitude.Value;
-                        Location.GeocodingStatus = "Success";
+                        locationToUpdate.Latitude = (decimal)result.Latitude.Value;
+                        locationToUpdate.Longitude = (decimal)result.Longitude.Value;
+                        locationToUpdate.GeocodingStatus = "Success";
                     }
                     else
                     {
-                        Location.GeocodingStatus = "Failed";
+                        locationToUpdate.GeocodingStatus = "Failed";
                     }
-                    Location.LastGeocoded = DateTime.UtcNow;
+                    locationToUpdate.LastGeocoded = DateTime.UtcNow;
                 }
                 catch
                 {
-                    Location.GeocodingStatus = "Failed";
-                    Location.LastGeocoded = DateTime.UtcNow;
+                    locationToUpdate.GeocodingStatus = "Failed";
+                    locationToUpdate.LastGeocoded = DateTime.UtcNow;
                 }
             }
-
-            _context.Attach(Location).State = EntityState.Modified;
 
             try
             {
                 await _context.SaveChangesAsync();
 
-                var geocodeMessage = addressChanged && Location.Latitude.HasValue 
+                var geocodeMessage = addressChanged && locationToUpdate.Latitude.HasValue 
                     ? " (Address re-geocoded successfully)" 
-                    : addressChanged && Location.GeocodingStatus == "Failed" ? " (Geocoding failed)" : "";
+                    : addressChanged && locationToUpdate.GeocodingStatus == "Failed" ? " (Geocoding failed)" : "";
 
                 TempData["SuccessMessage"] = $"Location '{Location.Name}' updated successfully.{geocodeMessage}";
                 return RedirectToPage("./Index");

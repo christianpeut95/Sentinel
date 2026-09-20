@@ -38,7 +38,8 @@ namespace Sentinel.Services.Telemetry
                 var json = JsonSerializer.Serialize(report, jsonOptions);
                 _logger.LogInformation("Submitting error report {ErrorId} for installation {InstallationId}", 
                     report.ErrorId, report.InstallationId);
-                _logger.LogDebug("Error report payload: {Payload}", json);
+                _logger.LogDebug("Error report {ErrorId} serialized ({PayloadLength} bytes)",
+                    report.ErrorId, Encoding.UTF8.GetByteCount(json));
 
                 var content = new StringContent(json, Encoding.UTF8, "application/json");
                 var response = await _httpClient.PostAsync(ErrorsEndpoint, content);

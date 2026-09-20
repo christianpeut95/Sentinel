@@ -4,7 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
-using OfficeOpenXml;
+using ClosedXML.Excel;
 using Sentinel.Data;
 using Sentinel.Models.Lookups;
 
@@ -20,7 +20,6 @@ namespace Sentinel.Services
         {
             _context = context;
             _logger = logger;
-            ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
         }
 
         public async Task<ImportResult> ImportFromExcelAsync(Stream fileStream)
@@ -29,8 +28,8 @@ namespace Sentinel.Services
 
             try
             {
-                using var package = new ExcelPackage(fileStream);
-                var worksheet = package.Workbook.Worksheets.FirstOrDefault();
+                using var workbook = new XLWorkbook(fileStream);
+                var worksheet = workbook.Worksheets.FirstOrDefault();
 
                 if (worksheet == null)
                 {
@@ -50,7 +49,7 @@ namespace Sentinel.Services
                 int dataStartRow = 1;
                 for (int row = 1; row <= 20; row++)
                 {
-                    var cellValue = worksheet.Cells[row, 1].Value?.ToString()?.Trim();
+                    var cellValue = worksheet.Cell(row, 1).GetString().Trim();
                     // Look for the first numeric code (major group starts with "1")
                     if (cellValue != null && cellValue.All(char.IsDigit) && cellValue.Length >= 1)
                     {
@@ -59,7 +58,7 @@ namespace Sentinel.Services
                     }
                 }
 
-                int rowCount = worksheet.Dimension?.Rows ?? 0;
+                int rowCount = worksheet.LastRowUsed()?.RowNumber() ?? 0;
                 if (rowCount > MaximumWorksheetRows)
                 {
                     result.Success = false;
@@ -90,13 +89,13 @@ namespace Sentinel.Services
                         // Check columns 1-6 for a code (codes appear in different columns based on hierarchy)
                         for (int col = 1; col <= 6; col++)
                         {
-                            var cellValue = worksheet.Cells[row, col].Value?.ToString()?.Trim().Replace(" ", "");
+                            var cellValue = worksheet.Cell(row, col).GetString().Trim().Replace(" ", "");
                             if (!string.IsNullOrWhiteSpace(cellValue) && cellValue.All(char.IsDigit))
                             {
                                 code = cellValue;
                                 codeColumn = col;
                                 // Name is in the next column
-                                name = worksheet.Cells[row, col + 1].Value?.ToString()?.Trim();
+                                name = worksheet.Cell(row, col + 1).GetString().Trim();
                                 break;
                             }
                         }

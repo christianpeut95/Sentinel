@@ -19,7 +19,7 @@
     <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/sentinel-design-system.css" asp-append-version="true" />
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <link rel="stylesheet" href="~/lib/bootstrap-icons/font/bootstrap-icons.min.css">
 </head>
 <body style="padding: 24px; background: var(--bone);">
 
@@ -40,10 +40,10 @@
         }
     </div>
     <div>
-        <button type="button" class="sn-btn sn-btn--ghost sn-btn--sm" onclick="window.close()">
+        <button type="button" class="sn-btn sn-btn--ghost sn-btn--sm" data-browser-action="close-window">
             <i class="bi bi-x-lg"></i> Close
         </button>
-        <button type="button" class="sn-btn sn-btn--ghost sn-btn--sm" onclick="window.print()" style="margin-left: 8px;">
+        <button type="button" class="sn-btn sn-btn--ghost sn-btn--sm" data-browser-action="print-window" style="margin-left: 8px;">
             <i class="bi bi-printer"></i> Print
         </button>
     </div>

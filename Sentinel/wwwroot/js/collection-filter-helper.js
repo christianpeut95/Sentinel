@@ -4,6 +4,24 @@
  */
 
 const collectionFilterHelper = {
+    // This helper returns small, fixed markup fragments for the legacy report UI.
+    // Metadata and saved field names can be administrator-configured, so never
+    // interpolate them into those fragments without encoding for the context.
+    escapeHtml: function(value) {
+        const element = document.createElement('span');
+        element.textContent = value == null ? '' : String(value);
+        return element.innerHTML;
+    },
+
+    escapeAttribute: function(value) {
+        return String(value == null ? '' : value)
+            .replace(/&/g, '&amp;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;');
+    },
+
     /**
      * Render collection filter UI when user selects a collection field
      */
@@ -11,20 +29,23 @@ const collectionFilterHelper = {
         const { fieldPath, displayName, collectionElementType, collectionSubFields } = collectionMetadata;
         
         // Store subfields as a data attribute for later retrieval
-        const subFieldsData = JSON.stringify(collectionSubFields);
+        const subFieldsData = this.escapeAttribute(JSON.stringify(collectionSubFields || []));
+        const safeFilterId = this.escapeAttribute(filterId);
+        const safeDisplayName = this.escapeHtml(displayName);
+        const safeFieldPath = this.escapeHtml(fieldPath);
         
         return `
-            <div class="collection-filter-container border rounded p-3 mt-2" style="background: #f8f9fa;" data-subfields='${subFieldsData.replace(/'/g, '&apos;')}' data-filter-id="${filterId}">
+            <div class="collection-filter-container border rounded p-3 mt-2" style="background: #f8f9fa;" data-subfields='${subFieldsData}' data-filter-id="${safeFilterId}">
                 <h6 class="mb-3">
                     <i class="bi bi-collection-fill text-primary me-2"></i>
-                    Query: ${displayName}
+                    Query: ${safeDisplayName}
                 </h6>
                 
                 <!-- Collection Operator Selection -->
                 <div class="row mb-3">
                     <div class="col-md-6">
                         <label class="form-label small fw-bold">Collection Operator:</label>
-                        <select class="form-select form-select-sm collection-operator" data-filter-id="${filterId}">
+                        <select class="form-select form-select-sm collection-operator" data-filter-id="${safeFilterId}">
                             <option value="HasAny" selected>Has Any (at least one matches)</option>
                             <option value="HasAll">Has All (all match)</option>
                             <option value="Count">Count (number of items)</option>
@@ -47,16 +68,16 @@ const collectionFilterHelper = {
                 </div>
                 
                 <!-- Sub-Filters Container -->
-                <div class="sub-filters-container" data-filter-id="${filterId}">
+                <div class="sub-filters-container" data-filter-id="${safeFilterId}">
                     <div class="d-flex justify-content-between align-items-center mb-2">
                         <label class="form-label small fw-bold mb-0">Filter Conditions:</label>
-                        <button type="button" class="btn btn-sm btn-outline-primary add-condition-btn" data-filter-id="${filterId}">
+                        <button type="button" class="btn btn-sm btn-outline-primary add-condition-btn" data-filter-id="${safeFilterId}">
                             <i class="bi bi-plus-circle me-1"></i>Add Condition
                         </button>
                     </div>
                     
                     <!-- Sub-filters will be added here -->
-                    <div class="sub-filter-list" id="sub-filter-list-${filterId}">
+                    <div class="sub-filter-list" id="sub-filter-list-${safeFilterId}">
                         <div class="text-muted small text-center py-2">
                             <i class="bi bi-info-circle me-1"></i>
                             Click "Add Condition" to filter items in this collection
@@ -67,8 +88,8 @@ const collectionFilterHelper = {
                 <!-- Collection Filter Preview -->
                 <div class="alert alert-info alert-sm mb-0 mt-3" style="font-size: 0.875rem;">
                     <i class="bi bi-lightbulb-fill me-1"></i>
-                    <strong>Preview:</strong> <span class="collection-filter-preview" id="preview-${filterId}">
-                        ${fieldPath}.Any()
+                    <strong>Preview:</strong> <span class="collection-filter-preview" id="preview-${safeFilterId}">
+                        ${safeFieldPath}.Any()
                     </span>
                 </div>
             </div>
@@ -80,6 +101,8 @@ const collectionFilterHelper = {
      */
     addSubFilter: function(filterId, subFields) {
         const subFilterId = `${filterId}-${Date.now()}`;
+        const safeFilterId = this.escapeAttribute(filterId);
+        const safeSubFilterId = this.escapeAttribute(subFilterId);
         const listContainer = document.getElementById(`sub-filter-list-${filterId}`);
         
         // Remove placeholder
@@ -89,12 +112,12 @@ const collectionFilterHelper = {
         }
         
         const subFilterHtml = `
-            <div class="sub-filter-item border rounded p-2 mb-2" id="sub-filter-${subFilterId}" data-sub-filter-id="${subFilterId}">
+            <div class="sub-filter-item border rounded p-2 mb-2" id="sub-filter-${safeSubFilterId}" data-sub-filter-id="${safeSubFilterId}">
                 <div class="row g-2">
                     <div class="col-md-4">
                         <select class="form-select form-select-sm sub-filter-field" required>
                             <option value="">Select field...</option>
-                            ${subFields.map(field => `<option value="${field}">${this.formatFieldName(field)}</option>`).join('')}
+                            ${subFields.map(field => `<option value="${this.escapeAttribute(field)}">${this.escapeHtml(this.formatFieldName(String(field)))}</option>`).join('')}
                         </select>
                     </div>
                     <div class="col-md-3">
@@ -111,7 +134,7 @@ const collectionFilterHelper = {
                         <input type="text" class="form-control form-control-sm sub-filter-value" placeholder="Value">
                     </div>
                     <div class="col-md-1">
-                        <button class="btn btn-sm btn-outline-danger" onclick="collectionFilterHelper.removeSubFilter('${subFilterId}', ${filterId})">
+                        <button type="button" class="btn btn-sm btn-outline-danger remove-sub-filter-btn" data-remove-sub-filter>
                             <i class="bi bi-x"></i>
                         </button>
                     </div>
@@ -124,6 +147,9 @@ const collectionFilterHelper = {
         
         // Add listeners to update preview
         const subFilterEl = document.getElementById(`sub-filter-${subFilterId}`);
+        subFilterEl.querySelector('[data-remove-sub-filter]')?.addEventListener('click', () => {
+            this.removeSubFilter(subFilterId, filterId);
+        });
         subFilterEl.querySelectorAll('select, input').forEach(el => {
             el.addEventListener('change', () => this.updateCollectionFilterPreview(filterId));
             el.addEventListener('input', () => this.updateCollectionFilterPreview(filterId));

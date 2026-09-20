@@ -24,6 +24,9 @@ else
             {
                 foreach (var item in activityData.Items.Take(8))
                 {
+                    var activityStatus = new[] { "outbreak", "watch", "resolved", "info", "clear" }.Contains(item.Status)
+                        ? item.Status
+                        : "info";
                     var link = item.EntityType switch
                     {
                         "Case" => $"/Cases/Details?id={item.EntityId}",
@@ -36,7 +39,7 @@ else
                     };
 
                     <div class="activity-item">
-                        <span class="activity-chip @item.Status">
+                        <span class="activity-chip @activityStatus">
                             <span style="width:5px;height:5px;border-radius:50%;background:currentColor;"></span>
                             @item.ActivityType
                         </span>
@@ -65,7 +68,7 @@ else
             {
                 foreach (var disease in diseaseData.Diseases.Take(8))
                 {
-                    <div class="disease-row" onclick="window.location.href='/Cases?diseaseId=@disease.DiseaseId'">
+                    <div class="disease-row js-widget-navigation" data-widget-navigation-url="/Cases?diseaseId=@disease.DiseaseId" role="link" tabindex="0">
                         <div class="disease-name">@disease.DiseaseName</div>
                         <div class="disease-counts">
                             <span class="disease-count-item">
@@ -91,23 +94,30 @@ else
             var hl7Data = widgetData.Data as Sentinel.Models.Dashboard.HL7OverviewData;
             if (hl7Data != null)
             {
+                var healthStatusClass = hl7Data.HealthStatus?.ToLowerInvariant() switch
+                {
+                    "healthy" => "healthy",
+                    "warning" => "warning",
+                    "error" => "error",
+                    _ => "warning"
+                };
                 <div class="kpi-grid">
-                    <div class="kpi-tile" onclick="window.location.href='/Settings/HL7/Messages?status=Processed'" style="cursor: pointer;">
+                    <div class="kpi-tile js-widget-navigation" data-widget-navigation-url="/Settings/HL7/Messages?status=Processed" role="link" tabindex="0" style="cursor: pointer;">
                         <div class="kpi-label">Processed</div>
                         <div class="kpi-value">@hl7Data.ProcessedCount</div>
                     </div>
-                    <div class="kpi-tile" onclick="window.location.href='/Settings/HL7/Messages?status=Rejected'" style="cursor: pointer;">
+                    <div class="kpi-tile js-widget-navigation" data-widget-navigation-url="/Settings/HL7/Messages?status=Rejected" role="link" tabindex="0" style="cursor: pointer;">
                         <div class="kpi-label">Rejected</div>
                         <div class="kpi-value" style="color:@(hl7Data.RejectedCount > 0 ? "var(--outbreak)" : "var(--forest)")">@hl7Data.RejectedCount</div>
                     </div>
-                    <div class="kpi-tile" onclick="window.location.href='/Settings/HL7/Messages?status=AwaitingReview'" style="cursor: pointer;">
+                    <div class="kpi-tile js-widget-navigation" data-widget-navigation-url="/Settings/HL7/Messages?status=AwaitingReview" role="link" tabindex="0" style="cursor: pointer;">
                         <div class="kpi-label">Awaiting Review</div>
                         <div class="kpi-value">@hl7Data.AwaitingReviewCount</div>
                     </div>
                     <div class="kpi-tile">
                         <div class="kpi-label">System Status</div>
                         <div style="margin-top:8px;">
-                            <span class="activity-chip @hl7Data.HealthStatus">@hl7Data.HealthStatus.ToUpper()</span>
+                            <span class="activity-chip @healthStatusClass">@healthStatusClass.ToUpperInvariant()</span>
                         </div>
                     </div>
                 </div>
@@ -152,7 +162,7 @@ else
             {
                 foreach (var outbreak in outbreakData.ActiveOutbreaks.Take(5))
                 {
-                    <div class="outbreak-card" onclick="window.location.href='/Outbreaks/View/@outbreak.OutbreakId'">
+                    <div class="outbreak-card js-widget-navigation" data-widget-navigation-url="/Outbreaks/View/@outbreak.OutbreakId" role="link" tabindex="0">
                         <div class="outbreak-name">@outbreak.OutbreakName</div>
                         <div class="outbreak-meta">
                             <span>@outbreak.LinkedCasesCount cases</span>
@@ -172,7 +182,7 @@ else
             var reviewData = widgetData.Data as Sentinel.Models.Dashboard.DataReviewQueueData;
             if (reviewData != null)
             {
-                <div class="kpi-tile" style="margin-bottom:16px;cursor:pointer;" onclick="window.location.href='/DataInbox'">
+                <div class="kpi-tile js-widget-navigation" data-widget-navigation-url="/DataInbox" role="link" tabindex="0" style="margin-bottom:16px;cursor:pointer;">
                     <div class="kpi-label">Total Items</div>
                     <div class="kpi-value">@reviewData.TotalItems</div>
                 </div>
@@ -181,7 +191,7 @@ else
                     <div style="font-size:11px;font-weight:600;margin-bottom:8px;color:var(--graphite);font-family:var(--f-mono)">BY TYPE</div>
                     foreach (var item in reviewData.ItemsByType.Take(5))
                     {
-                        <div class="disease-row" onclick="window.location.href='/DataInbox?type=@item.ReviewType'">
+                        <div class="disease-row js-widget-navigation" data-widget-navigation-url="/DataInbox?type=@item.ReviewType" role="link" tabindex="0">
                             <div style="font-size:13px;">@item.ReviewType</div>
                             <div style="font-family:var(--f-mono);font-size:12px;">
                                 <strong style="color:var(--forest)">@item.Count</strong>

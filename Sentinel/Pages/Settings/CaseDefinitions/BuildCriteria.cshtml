@@ -6,6 +6,10 @@
     Layout = "~/Pages/Shared/_LayoutSentinel.cshtml";
 }
 
+<form id="criteriaAntiforgeryForm" class="d-none" aria-hidden="true">
+    @Html.AntiForgeryToken()
+</form>
+
 <link rel="stylesheet" href="~/css/sentinel-design-system.css" />
 
 <style>
@@ -453,10 +457,10 @@
                                         </div>
 
                                         <div class="btn-group btn-group-sm">
-                                            <button type="button" class="sn-btn sn-btn-ghost sn-btn-sm" onclick="editCriterion(@criterion.Id)" title="Edit">
+                                            <button type="button" class="sn-btn sn-btn-ghost sn-btn-sm js-criteria-action" data-criteria-action="edit-criterion" data-criterion-id="@criterion.Id" title="Edit">
                                                 <i class="bi bi-pencil"></i>
                                             </button>
-                                            <button type="button" class="sn-btn sn-btn-ghost sn-btn-sm" onclick="deleteCriterion(@criterion.Id)" title="Delete">
+                                            <button type="button" class="sn-btn sn-btn-ghost sn-btn-sm js-criteria-action" data-criteria-action="delete-criterion" data-criterion-id="@criterion.Id" title="Delete">
                                                 <i class="bi bi-trash"></i>
                                             </button>
                                         </div>
@@ -556,13 +560,13 @@
                                             </div>
 
                                             <div class="btn-group btn-group-sm">
-                                                <button type="button" class="sn-btn sn-btn-ghost sn-btn-sm" onclick="moveCriterionToParent(@child.Id, null)" title="Ungroup">
+                                                <button type="button" class="sn-btn sn-btn-ghost sn-btn-sm js-criteria-action" data-criteria-action="ungroup-criterion" data-criterion-id="@child.Id" title="Ungroup">
                                                     <i class="bi bi-box-arrow-up-right"></i>
                                                 </button>
-                                                <button type="button" class="sn-btn sn-btn-ghost sn-btn-sm" onclick="editCriterion(@child.Id)" title="Edit">
+                                                <button type="button" class="sn-btn sn-btn-ghost sn-btn-sm js-criteria-action" data-criteria-action="edit-criterion" data-criterion-id="@child.Id" title="Edit">
                                                     <i class="bi bi-pencil"></i>
                                                 </button>
-                                                <button type="button" class="sn-btn sn-btn-ghost sn-btn-sm" onclick="deleteCriterion(@child.Id)" title="Delete">
+                                                <button type="button" class="sn-btn sn-btn-ghost sn-btn-sm js-criteria-action" data-criteria-action="delete-criterion" data-criterion-id="@child.Id" title="Delete">
                                                     <i class="bi bi-trash"></i>
                                                 </button>
                                             </div>
@@ -577,13 +581,13 @@
                                     </div>
                                     <div class="row g-2">
                                         <div class="col-6">
-                                            <button type="button" class="add-criterion-btn" style="padding: 0.625rem; font-size: 0.8125rem;" onclick="openAddToGroupModal(@criterion.Id, 'laboratory')">
+                                            <button type="button" class="add-criterion-btn js-criteria-action" style="padding: 0.625rem; font-size: 0.8125rem;" data-criteria-action="open-add-to-group" data-parent-criterion-id="@criterion.Id" data-criterion-type="laboratory">
                                                 <i class="bi bi-clipboard-pulse"></i>
                                                 <span>Lab Test</span>
                                             </button>
                                         </div>
                                         <div class="col-6">
-                                            <button type="button" class="add-criterion-btn" style="padding: 0.625rem; font-size: 0.8125rem;" onclick="openAddToGroupModal(@criterion.Id, 'clinical')">
+                                            <button type="button" class="add-criterion-btn js-criteria-action" style="padding: 0.625rem; font-size: 0.8125rem;" data-criteria-action="open-add-to-group" data-parent-criterion-id="@criterion.Id" data-criterion-type="clinical">
                                                 <i class="bi bi-heart-pulse"></i>
                                                 <span>Clinical</span>
                                             </button>
@@ -677,14 +681,14 @@
                                     <div class="btn-group btn-group-sm">
                                         @if (!isLast && nextCriterion?.ParentCriteriaId == null)
                                         {
-                                            <button type="button" class="sn-btn sn-btn-ghost sn-btn-sm" onclick="moveCriterionToParent(@nextCriterion.Id, @criterion.Id)" title="Group with below">
+                                            <button type="button" class="sn-btn sn-btn-ghost sn-btn-sm js-criteria-action" data-criteria-action="group-with-next" data-criterion-id="@nextCriterion.Id" data-parent-criterion-id="@criterion.Id" title="Group with below">
                                                 <i class="bi bi-braces"></i>
                                             </button>
                                         }
-                                        <button type="button" class="sn-btn sn-btn-ghost sn-btn-sm" onclick="editCriterion(@criterion.Id)" title="Edit">
+                                        <button type="button" class="sn-btn sn-btn-ghost sn-btn-sm js-criteria-action" data-criteria-action="edit-criterion" data-criterion-id="@criterion.Id" title="Edit">
                                             <i class="bi bi-pencil"></i>
                                         </button>
-                                        <button type="button" class="sn-btn sn-btn-ghost sn-btn-sm" onclick="deleteCriterion(@criterion.Id)" title="Delete">
+                                        <button type="button" class="sn-btn sn-btn-ghost sn-btn-sm js-criteria-action" data-criteria-action="delete-criterion" data-criterion-id="@criterion.Id" title="Delete">
                                             <i class="bi bi-trash"></i>
                                         </button>
                                     </div>
@@ -699,13 +703,13 @@
         <!-- Add Criterion Buttons -->
         <div class="row g-3 mb-4">
             <div class="col-md-6">
-                <button type="button" class="add-criterion-btn" data-bs-toggle="modal" data-bs-target="#labCriterionModal" onclick="resetToRootLevel()">
+                <button type="button" class="add-criterion-btn js-criteria-action" data-bs-toggle="modal" data-bs-target="#labCriterionModal" data-criteria-action="reset-root-level">
                     <i class="bi bi-clipboard-pulse" style="font-size: 1.25rem;"></i>
                     <span>Add Laboratory Test Criterion</span>
                 </button>
             </div>
             <div class="col-md-6">
-                <button type="button" class="add-criterion-btn" data-bs-toggle="modal" data-bs-target="#clinicalCriterionModal" onclick="resetToRootLevel()">
+                <button type="button" class="add-criterion-btn js-criteria-action" data-bs-toggle="modal" data-bs-target="#clinicalCriterionModal" data-criteria-action="reset-root-level">
                     <i class="bi bi-heart-pulse" style="font-size: 1.25rem;"></i>
                     <span>Add Clinical Symptom Criterion</span>
                 </button>
@@ -755,7 +759,7 @@
                         <div class="specimen-grid" id="specimenGrid">
                             @foreach (var specimen in Model.SpecimenTypes)
                             {
-                                <div class="specimen-item" data-id="@specimen.Id" onclick="toggleSpecimen(this)">
+                                <div class="specimen-item js-criteria-action" data-id="@specimen.Id" data-criteria-action="toggle-specimen">
                                     <div class="specimen-item-name">@specimen.Name</div>
                                     @if (!string.IsNullOrEmpty(specimen.SnomedCode))
                                     {
@@ -798,7 +802,7 @@
                         <div class="specimen-grid" id="pathogenGrid">
                             @foreach (var pathogen in Model.Pathogens)
                             {
-                                <div class="specimen-item" data-id="@pathogen.Id" data-name="@pathogen.Name" onclick="togglePathogen(this)">
+                                <div class="specimen-item js-criteria-action" data-id="@pathogen.Id" data-name="@pathogen.Name" data-criteria-action="toggle-pathogen">
                                     <div class="specimen-item-name">@pathogen.Name</div>
                                 </div>
                             }
@@ -837,7 +841,7 @@
                         <div class="specimen-grid" id="testMethodGrid">
                             @foreach (var method in Model.TestMethods)
                             {
-                                <div class="specimen-item" data-id="@method.Id" data-name="@method.Name" onclick="toggleTestMethod(this)">
+                                <div class="specimen-item js-criteria-action" data-id="@method.Id" data-name="@method.Name" data-criteria-action="toggle-test-method">
                                     <div class="specimen-item-name">@method.Name</div>
                                 </div>
                             }
@@ -876,35 +880,35 @@
                             Select common values or add custom ones
                         </div>
                         <input type="text" class="sn-input mb-2" id="resultValueSearch" placeholder="Search or type custom value..." />
-                        <button type="button" class="btn btn-sm sn-btn-secondary mb-2" onclick="addCustomResultValue()" style="width: 100%;">
+                        <button type="button" class="btn btn-sm sn-btn-secondary mb-2 js-criteria-action" data-criteria-action="add-custom-result-value" style="width: 100%;">
                             <i class="bi bi-plus-circle"></i> Add Custom Value from Search Box
                         </button>
                         <div class="specimen-grid" id="resultValueGrid">
-                            <div class="specimen-item" data-value="Positive" onclick="toggleResultValue(this)">
+                            <div class="specimen-item js-criteria-action" data-value="Positive" data-criteria-action="toggle-result-value">
                                 <div class="specimen-item-name">Positive</div>
                             </div>
-                            <div class="specimen-item" data-value="Negative" onclick="toggleResultValue(this)">
+                            <div class="specimen-item js-criteria-action" data-value="Negative" data-criteria-action="toggle-result-value">
                                 <div class="specimen-item-name">Negative</div>
                             </div>
-                            <div class="specimen-item" data-value="Detected" onclick="toggleResultValue(this)">
+                            <div class="specimen-item js-criteria-action" data-value="Detected" data-criteria-action="toggle-result-value">
                                 <div class="specimen-item-name">Detected</div>
                             </div>
-                            <div class="specimen-item" data-value="Not Detected" onclick="toggleResultValue(this)">
+                            <div class="specimen-item js-criteria-action" data-value="Not Detected" data-criteria-action="toggle-result-value">
                                 <div class="specimen-item-name">Not Detected</div>
                             </div>
-                            <div class="specimen-item" data-value="Reactive" onclick="toggleResultValue(this)">
+                            <div class="specimen-item js-criteria-action" data-value="Reactive" data-criteria-action="toggle-result-value">
                                 <div class="specimen-item-name">Reactive</div>
                             </div>
-                            <div class="specimen-item" data-value="Non-Reactive" onclick="toggleResultValue(this)">
+                            <div class="specimen-item js-criteria-action" data-value="Non-Reactive" data-criteria-action="toggle-result-value">
                                 <div class="specimen-item-name">Non-Reactive</div>
                             </div>
-                            <div class="specimen-item" data-value="Indeterminate" onclick="toggleResultValue(this)">
+                            <div class="specimen-item js-criteria-action" data-value="Indeterminate" data-criteria-action="toggle-result-value">
                                 <div class="specimen-item-name">Indeterminate</div>
                             </div>
-                            <div class="specimen-item" data-value="Equivocal" onclick="toggleResultValue(this)">
+                            <div class="specimen-item js-criteria-action" data-value="Equivocal" data-criteria-action="toggle-result-value">
                                 <div class="specimen-item-name">Equivocal</div>
                             </div>
-                            <div class="specimen-item" data-value="Inconclusive" onclick="toggleResultValue(this)">
+                            <div class="specimen-item js-criteria-action" data-value="Inconclusive" data-criteria-action="toggle-result-value">
                                 <div class="specimen-item-name">Inconclusive</div>
                             </div>
                         </div>
@@ -965,7 +969,7 @@
             </div>
             <div class="modal-footer">
                 <button type="button" class="sn-btn sn-btn-ghost" data-bs-dismiss="modal">Cancel</button>
-                <button type="button" class="sn-btn sn-btn-signal" onclick="saveLabCriterion()">Add Criterion</button>
+                <button type="button" class="sn-btn sn-btn-signal js-criteria-action" data-criteria-action="save-lab-criterion">Add Criterion</button>
             </div>
         </div>
     </div>
@@ -1017,7 +1021,7 @@
                         <div class="specimen-grid" id="symptomGrid">
                             @foreach (var symptom in Model.Symptoms)
                             {
-                                <div class="specimen-item" data-id="@symptom.Id" onclick="toggleSymptom(this)">
+                                <div class="specimen-item js-criteria-action" data-id="@symptom.Id" data-criteria-action="toggle-symptom">
                                     <div class="specimen-item-name">@symptom.Name</div>
                                 </div>
                             }
@@ -1046,7 +1050,7 @@
             </div>
             <div class="modal-footer">
                 <button type="button" class="sn-btn sn-btn-ghost" data-bs-dismiss="modal">Cancel</button>
-                <button type="button" class="sn-btn sn-btn-signal" onclick="saveClinicalCriterion()">Add Criterion</button>
+                <button type="button" class="sn-btn sn-btn-signal js-criteria-action" data-criteria-action="save-clinical-criterion">Add Criterion</button>
             </div>
         </div>
     </div>
@@ -1068,7 +1072,7 @@
                     <!-- Field Selection -->
                     <div class="mb-4">
                         <label class="text-label">Custom Field *</label>
-                        <select class="sn-input" id="customFieldSelect" onchange="updateCustomFieldOperators()">
+                        <select class="sn-input js-criteria-custom-field" id="customFieldSelect">
                             <option value="">Select a field...</option>
                             @foreach (var field in Model.CustomFields.GroupBy(f => f.Category))
                             {
@@ -1105,7 +1109,7 @@
             </div>
             <div class="modal-footer">
                 <button type="button" class="sn-btn sn-btn-ghost" data-bs-dismiss="modal">Cancel</button>
-                <button type="button" class="sn-btn sn-btn-signal" onclick="saveCustomFieldCriterion()">Add Criterion</button>
+                <button type="button" class="sn-btn sn-btn-signal js-criteria-action" data-criteria-action="save-custom-field-criterion">Add Criterion</button>
             </div>
         </div>
     </div>
@@ -1158,14 +1162,14 @@
             </div>
             <div class="modal-footer">
                 <button type="button" class="sn-btn sn-btn-ghost" data-bs-dismiss="modal">Cancel</button>
-                <button type="button" class="sn-btn sn-btn-signal" onclick="saveCaseFieldCriterion()">Add Criterion</button>
+                <button type="button" class="sn-btn sn-btn-signal js-criteria-action" data-criteria-action="save-case-field-criterion">Add Criterion</button>
             </div>
         </div>
     </div>
 </div>
 
 @section Scripts {
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
 
     <script>
         // Selected items tracking
@@ -1175,6 +1179,59 @@
         let selectedTestMethodIds = [];
         let selectedResultValues = [];
         window.currentParentCriterionId = null; // Track which group we're adding to (null = root level)
+
+        document.addEventListener('click', (event) => {
+            const action = event.target.closest('.js-criteria-action');
+            if (!action) return;
+
+            const criterionId = Number(action.dataset.criterionId);
+            const parentCriterionId = Number(action.dataset.parentCriterionId);
+            switch (action.dataset.criteriaAction) {
+                case 'edit-criterion':
+                    if (Number.isInteger(criterionId)) editCriterion(criterionId);
+                    break;
+                case 'delete-criterion':
+                    if (Number.isInteger(criterionId)) deleteCriterion(criterionId);
+                    break;
+                case 'ungroup-criterion':
+                    if (Number.isInteger(criterionId)) moveCriterionToParent(criterionId, null);
+                    break;
+                case 'group-with-next':
+                    if (Number.isInteger(criterionId) && Number.isInteger(parentCriterionId)) moveCriterionToParent(criterionId, parentCriterionId);
+                    break;
+                case 'open-add-to-group':
+                    if (Number.isInteger(parentCriterionId) && ['laboratory', 'clinical'].includes(action.dataset.criterionType)) {
+                        openAddToGroupModal(parentCriterionId, action.dataset.criterionType);
+                    }
+                    break;
+                case 'reset-root-level': resetToRootLevel(); break;
+                case 'toggle-specimen': toggleSpecimen(action); break;
+                case 'toggle-pathogen': togglePathogen(action); break;
+                case 'toggle-test-method': toggleTestMethod(action); break;
+                case 'add-custom-result-value': addCustomResultValue(); break;
+                case 'toggle-result-value': toggleResultValue(action); break;
+                case 'save-lab-criterion': saveLabCriterion(); break;
+                case 'toggle-symptom': toggleSymptom(action); break;
+                case 'save-clinical-criterion': saveClinicalCriterion(); break;
+                case 'save-custom-field-criterion': saveCustomFieldCriterion(); break;
+                case 'save-case-field-criterion': saveCaseFieldCriterion(); break;
+            }
+        });
+
+        document.addEventListener('change', (event) => {
+            if (event.target.matches('.js-criteria-custom-field')) {
+                updateCustomFieldOperators();
+            }
+        });
+
+        function getAntiforgeryHeaders(headers = {}) {
+            const token = document.querySelector('#criteriaAntiforgeryForm input[name="__RequestVerificationToken"]')?.value;
+            if (!token) {
+                throw new Error('The security token is missing. Refresh the page and try again.');
+            }
+
+            return { ...headers, RequestVerificationToken: token };
+        }
 
         function appendSelectionChip(container, name, onRemove) {
             const chip = document.createElement('div');
@@ -1503,8 +1560,6 @@
 
         // Save Lab Criterion
         async function saveLabCriterion() {
-            console.log('saveLabCriterion called, editingCriterionId:', window.editingCriterionId);
-
             if (selectedSpecimenIds.length === 0) {
                 alert('Please select at least one specimen type');
                 return;
@@ -1534,17 +1589,6 @@
             const canonicalPathogenIdValue = pathogenStoragePref === 2 ? document.getElementById('canonicalPathogen').value || null : null;
             const canonicalTestMethodId = testMethodStoragePref === 2 ? parseInt(document.getElementById('canonicalTestMethod').value) || null : null;
             const canonicalResultValue = resultStoragePref === 2 ? document.getElementById('canonicalResultValue').value.trim() || null : null;
-
-            console.log('Storage preferences:', {
-                specimenStoragePref,
-                canonicalSpecimenTypeId,
-                pathogenStoragePref,
-                canonicalPathogenIdValue,
-                testMethodStoragePref,
-                canonicalTestMethodId,
-                resultStoragePref,
-                canonicalResultValue
-            });
 
             // Validate canonical selections if storage preference is set to canonical
             if (specimenStoragePref === 2 && !canonicalSpecimenTypeId) {
@@ -1618,8 +1662,6 @@
                 canonicalResultValue: canonicalResultValue
             };
 
-            console.log('Sending data:', JSON.stringify(data, null, 2));
-
             try {
                 const isEditing = window.editingCriterionId !== null && window.editingCriterionId !== undefined;
                 const url = isEditing 
@@ -1627,32 +1669,25 @@
                     : '/api/case-definitions/@Model.DefinitionId/criteria/laboratory';
                 const method = isEditing ? 'PUT' : 'POST';
 
-                console.log(`Making ${method} request to:`, url);
-
                 const response = await fetch(url, {
                     method: method,
-                    headers: {
+                    headers: getAntiforgeryHeaders({
                         'Content-Type': 'application/json'
-                    },
+                    }),
                     body: JSON.stringify(data)
                 });
 
-                console.log('Response status:', response.status);
-
                 if (response.ok) {
-                    const responseData = await response.json();
-                    console.log('Response data:', responseData);
                     window.currentParentCriterionId = null;
                     window.editingCriterionId = null;
                     location.reload();
                 } else {
-                    const errorText = await response.text();
-                    console.error('Failed to save criterion:', errorText);
-                    alert('Failed to save criterion: ' + errorText);
+                    console.error('Laboratory criterion could not be saved.');
+                    alert('The criterion could not be saved. Please try again.');
                 }
             } catch (error) {
-                console.error('Error:', error);
-                alert('An error occurred while saving: ' + error.message);
+                console.error('Laboratory criterion could not be saved.');
+                alert('The criterion could not be saved. Please refresh the page and try again.');
             }
         }
 
@@ -1710,9 +1745,9 @@
 
                 const response = await fetch(url, {
                     method: method,
-                    headers: {
+                    headers: getAntiforgeryHeaders({
                         'Content-Type': 'application/json'
-                    },
+                    }),
                     body: JSON.stringify(data)
                 });
 
@@ -1724,7 +1759,7 @@
                     alert('Failed to save criterion');
                 }
             } catch (error) {
-                console.error('Error:', error);
+                console.error('Clinical criterion could not be saved.');
                 alert('An error occurred while saving');
             }
         }
@@ -1767,9 +1802,9 @@
 
                 const response = await fetch(url, {
                     method: method,
-                    headers: {
+                    headers: getAntiforgeryHeaders({
                         'Content-Type': 'application/json'
-                    },
+                    }),
                     body: JSON.stringify(data)
                 });
 
@@ -1781,7 +1816,7 @@
                     alert('Failed to save criterion');
                 }
             } catch (error) {
-                console.error('Error:', error);
+                console.error('Custom-field criterion could not be saved.');
                 alert('An error occurred while saving');
             }
         }
@@ -1824,9 +1859,9 @@
 
                 const response = await fetch(url, {
                     method: method,
-                    headers: {
+                    headers: getAntiforgeryHeaders({
                         'Content-Type': 'application/json'
-                    },
+                    }),
                     body: JSON.stringify(data)
                 });
 
@@ -1838,7 +1873,7 @@
                     alert('Failed to save criterion');
                 }
             } catch (error) {
-                console.error('Error:', error);
+                console.error('Case-data criterion could not be saved.');
                 alert('An error occurred while saving');
             }
         }
@@ -1851,7 +1886,8 @@
 
             try {
                 const response = await fetch('/api/case-definitions/@Model.DefinitionId/criteria/' + id, {
-                    method: 'DELETE'
+                    method: 'DELETE',
+                    headers: getAntiforgeryHeaders()
                 });
 
                 if (response.ok) {
@@ -1860,7 +1896,7 @@
                     alert('Failed to delete criterion');
                 }
             } catch (error) {
-                console.error('Error:', error);
+                console.error('Criterion could not be deleted.');
                 alert('An error occurred while deleting');
             }
         }
@@ -1875,20 +1911,20 @@
             try {
                 const response = await fetch(`/api/case-definitions/@Model.DefinitionId/criteria/${criterionId}/move-to-parent`, {
                     method: 'PATCH',
-                    headers: {
+                    headers: getAntiforgeryHeaders({
                         'Content-Type': 'application/json'
-                    },
+                    }),
                     body: JSON.stringify({ parentCriteriaId: parentId })
                 });
 
                 if (response.ok) {
                     location.reload();
                 } else {
-                    const error = await response.text();
-                    alert('Failed to move criterion: ' + error);
+                    console.error('Criterion could not be moved.');
+                    alert('The criterion could not be moved. Please try again.');
                 }
             } catch (error) {
-                console.error('Error:', error);
+                console.error('Criterion could not be moved.');
                 alert('An error occurred while moving criterion');
             }
         }
@@ -1899,7 +1935,6 @@
             // Fix invalid values (0 or anything else) to default to AND (1)
             let validOperator = currentOperator;
             if (currentOperator !== 1 && currentOperator !== 2) {
-                console.warn(`Invalid operator ${currentOperator} for criterion ${criterionId}, defaulting to AND (1)`);
                 validOperator = 1; // Default to AND
             }
 
@@ -1907,14 +1942,12 @@
             const newOperator = validOperator === 1 ? 2 : 1;
             const newOperatorLabel = newOperator === 1 ? 'AND' : 'OR';
 
-            console.log(`Toggling criterion ${criterionId}: ${validOperator} → ${newOperator} (${newOperatorLabel})`);
-
             try {
                 const response = await fetch(`/api/case-definitions/@Model.DefinitionId/criteria/${criterionId}/operator`, {
                     method: 'PATCH',
-                    headers: {
+                    headers: getAntiforgeryHeaders({
                         'Content-Type': 'application/json'
-                    },
+                    }),
                     body: JSON.stringify({ logicalOperator: newOperator })
                 });
 
@@ -1924,7 +1957,7 @@
                     alert('Failed to update operator');
                 }
             } catch (error) {
-                console.error('Error:', error);
+                console.error('Criterion operator could not be updated.');
                 alert('An error occurred while updating operator');
             }
         }
@@ -1936,7 +1969,6 @@
             // Fix invalid values (0 or anything else) to default to AND (1)
             let validOperator = currentOperator;
             if (currentOperator !== 1 && currentOperator !== 2) {
-                console.warn(`Invalid group exit operator ${currentOperator} for criterion ${criterionId}, defaulting to AND (1)`);
                 validOperator = 1; // Default to AND
             }
 
@@ -1944,14 +1976,12 @@
             const newOperator = validOperator === 1 ? 2 : 1;
             const newOperatorLabel = newOperator === 1 ? 'AND' : 'OR';
 
-            console.log(`Toggling group exit operator for criterion ${criterionId}: ${validOperator} → ${newOperator} (${newOperatorLabel})`);
-
             try {
                 const response = await fetch(`/api/case-definitions/@Model.DefinitionId/criteria/${criterionId}/group-exit-operator`, {
                     method: 'PATCH',
-                    headers: {
+                    headers: getAntiforgeryHeaders({
                         'Content-Type': 'application/json'
-                    },
+                    }),
                     body: JSON.stringify({ groupExitOperator: newOperator })
                 });
 
@@ -1961,35 +1991,31 @@
                     alert('Failed to update group exit operator');
                 }
             } catch (error) {
-                console.error('Error:', error);
+                console.error('Group operator could not be updated.');
                 alert('An error occurred while updating group exit operator');
             }
         }
 
         // Move criterion up or down in display order
         async function moveCriterion(criterionId, direction) {
-            console.log('moveCriterion called:', criterionId, direction);
             try {
                 const response = await fetch(`/api/case-definitions/@Model.DefinitionId/criteria/${criterionId}/reorder`, {
                     method: 'PATCH',
-                    headers: {
+                    headers: getAntiforgeryHeaders({
                         'Content-Type': 'application/json'
-                    },
+                    }),
                     body: JSON.stringify({ direction: direction })
                 });
-
-                console.log('Response status:', response.status);
 
                 if (response.ok) {
                     location.reload();
                 } else {
-                    const errorText = await response.text();
-                    console.error('Reorder failed:', errorText);
-                    alert('Failed to reorder criterion: ' + errorText);
+                    console.error('Criterion could not be reordered.');
+                    alert('The criterion could not be reordered. Please try again.');
                 }
             } catch (error) {
-                console.error('Error:', error);
-                alert('An error occurred while reordering: ' + error.message);
+                console.error('Criterion could not be reordered.');
+                alert('The criterion could not be reordered. Please refresh the page and try again.');
             }
         }
 
@@ -2031,9 +2057,6 @@
                 }
 
                 const criterion = await response.json();
-                console.log('Loaded criterion for editing:', criterion);
-                console.log('Storage preferences from API:', criterion.storagePreferences);
-
                 window.editingCriterionId = criterionId;
 
                 // Clear existing selections
@@ -2041,8 +2064,6 @@
 
                 // Parse the ValueJson
                 const valueData = JSON.parse(criterion.valueJson);
-                console.log('Parsed valueData:', valueData);
-
                 // Open the appropriate modal based on criterion type
                 switch (criterion.criterionType) {
                     case 2: // Laboratory
@@ -2074,15 +2095,13 @@
                         break;
                 }
             } catch (error) {
-                console.error('Error loading criterion:', error);
+                console.error('Criterion could not be loaded.');
                 alert('An error occurred while loading the criterion');
             }
         }
 
         // Load lab criterion data into the modal for editing
         async function loadLabCriterionForEdit(valueData, storagePreferences) {
-            console.log('loadLabCriterionForEdit called with:', { valueData, storagePreferences });
-
             // Set specimen types
             if (valueData.specimenTypeIds) {
                 selectedSpecimenIds = [...valueData.specimenTypeIds];
@@ -2133,8 +2152,6 @@
             // Determine which source to use for storage preferences
             // Priority: storagePreferences (from separate table) > valueData (from JSON)
             let prefs;
-            let source;
-
             if (storagePreferences && (
                 storagePreferences.specimenStoragePreference || 
                 storagePreferences.pathogenStoragePreference || 
@@ -2143,23 +2160,17 @@
             )) {
                 // Use storagePreferences from the CaseDefinitionLabCriteria table
                 prefs = storagePreferences;
-                source = 'storagePreferences (CaseDefinitionLabCriteria table)';
             } else if (valueData.specimenStoragePreference || valueData.pathogenStoragePreference || 
                        valueData.testMethodStoragePreference || valueData.resultStoragePreference) {
                 // Use storage preferences from valueData (stored in ValueJson)
                 prefs = valueData;
-                source = 'valueData (ValueJson field)';
             } else {
                 // No storage preferences found, use defaults
                 prefs = {};
-                source = 'defaults (none found)';
             }
-
-            console.log('Using preferences from:', source, prefs);
 
             // Specimen storage preference
             const specimenPref = prefs.specimenStoragePreference || 1;
-            console.log('Setting specimen storage preference to:', specimenPref, 'canonical:', prefs.canonicalSpecimenTypeId);
             const specimenRadio = document.querySelector(`input[name="specimenStoragePreference"][value="${specimenPref}"]`);
             if (specimenRadio) {
                 specimenRadio.checked = true;
@@ -2171,7 +2182,6 @@
 
             // Pathogen storage preference
             const pathogenPref = prefs.pathogenStoragePreference || 1;
-            console.log('Setting pathogen storage preference to:', pathogenPref, 'canonical:', prefs.canonicalPathogenId);
             const pathogenRadio = document.querySelector(`input[name="pathogenStoragePreference"][value="${pathogenPref}"]`);
             if (pathogenRadio) {
                 pathogenRadio.checked = true;
@@ -2183,7 +2193,6 @@
 
             // Test method storage preference
             const testMethodPref = prefs.testMethodStoragePreference || 1;
-            console.log('Setting test method storage preference to:', testMethodPref, 'canonical:', prefs.canonicalTestMethodId);
             const testMethodRadio = document.querySelector(`input[name="testMethodStoragePreference"][value="${testMethodPref}"]`);
             if (testMethodRadio) {
                 testMethodRadio.checked = true;
@@ -2195,7 +2204,6 @@
 
             // Result storage preference
             const resultPref = prefs.resultStoragePreference || 1;
-            console.log('Setting result storage preference to:', resultPref, 'canonical:', prefs.canonicalResultValue);
             const resultRadio = document.querySelector(`input[name="resultStoragePreference"][value="${resultPref}"]`);
             if (resultRadio) {
                 resultRadio.checked = true;
@@ -2205,7 +2213,6 @@
                 }
             }
 
-            console.log('Finished loading lab criterion for edit');
         }
 
         // Load clinical criterion data into the modal for editing

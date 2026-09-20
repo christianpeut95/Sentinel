@@ -9,16 +9,24 @@ using System.Threading.Tasks;
 
 namespace Sentinel.Pages.Tools
 {
-    [Authorize(Policy = "Permission.Settings.ManageOrganization")]
+    [Authorize(Policy = "Permission.System.ManageTestData")]
     public class TestDataGeneratorModel : PageModel
     {
         private readonly TestDataGeneratorService _testDataGenerator;
         private readonly ApplicationDbContext _context;
+        private readonly IHostEnvironment _environment;
+        private readonly IConfiguration _configuration;
 
-        public TestDataGeneratorModel(TestDataGeneratorService testDataGenerator, ApplicationDbContext context)
+        public TestDataGeneratorModel(
+            TestDataGeneratorService testDataGenerator,
+            ApplicationDbContext context,
+            IHostEnvironment environment,
+            IConfiguration configuration)
         {
             _testDataGenerator = testDataGenerator;
             _context = context;
+            _environment = environment;
+            _configuration = configuration;
         }
 
         [BindProperty]
@@ -61,9 +69,15 @@ namespace Sentinel.Pages.Tools
         public int ActiveDiseaseCount { get; set; }
         public List<SelectListItem> AvailableDiseases { get; set; } = new();
 
-        public async Task OnGetAsync()
+        public async Task<IActionResult> OnGetAsync()
         {
+            if (!IsTestDataEnabled())
+            {
+                return NotFound();
+            }
+
             await LoadSystemStatisticsAsync();
+            return Page();
         }
 
         private async Task LoadSystemStatisticsAsync()
@@ -86,6 +100,11 @@ namespace Sentinel.Pages.Tools
 
         public async Task<IActionResult> OnPostGenerateAsync()
         {
+            if (!IsTestDataEnabled())
+            {
+                return NotFound();
+            }
+
             if (PatientCount < 1 || PatientCount > 500)
             {
                 ModelState.AddModelError(nameof(PatientCount), "Patient count must be between 1 and 500");
@@ -108,6 +127,11 @@ namespace Sentinel.Pages.Tools
 
         public async Task<IActionResult> OnPostQuickAsync(int count)
         {
+            if (!IsTestDataEnabled())
+            {
+                return NotFound();
+            }
+
             PatientCount = count;
             UseGeocoding = count <= 50;
 
@@ -116,6 +140,11 @@ namespace Sentinel.Pages.Tools
 
         public async Task<IActionResult> OnPostGenerateCasesAsync()
         {
+            if (!IsTestDataEnabled())
+            {
+                return NotFound();
+            }
+
             if (StartYear < 2015 || StartYear > 2030 || EndYear < 2015 || EndYear > 2030)
             {
                 ModelState.AddModelError("", "Years must be between 2015 and 2030");
@@ -171,6 +200,11 @@ namespace Sentinel.Pages.Tools
 
         public async Task<IActionResult> OnPostQuickCasesAsync(string preset)
         {
+            if (!IsTestDataEnabled())
+            {
+                return NotFound();
+            }
+
             var currentYear = DateTime.UtcNow.Year;
 
             switch (preset)
@@ -208,6 +242,11 @@ namespace Sentinel.Pages.Tools
 
         public async Task<IActionResult> OnPostDeleteAllDataAsync()
         {
+            if (!IsTestDataEnabled())
+            {
+                return NotFound();
+            }
+
             var result = await _testDataGenerator.DeleteAllTestDataAsync(
                 DeleteConfirmationCode,
                 (message) => System.Diagnostics.Debug.WriteLine(message)
@@ -225,5 +264,8 @@ namespace Sentinel.Pages.Tools
             await LoadSystemStatisticsAsync();
             return Page();
         }
+
+        private bool IsTestDataEnabled() =>
+            _environment.IsDevelopment() || _configuration.GetValue<bool>("Demo:EnableDemoMode");
     }
 }

@@ -38,6 +38,8 @@ public class ReviewModel : PageModel
     }
 
     public ReviewQueueDetail? ReviewDetail { get; set; }
+    public bool CanResolveReviews { get; private set; }
+    public bool CanCreateReviewTasks { get; private set; }
 
     [BindProperty]
     public string? ReviewNotes { get; set; }
@@ -45,13 +47,17 @@ public class ReviewModel : PageModel
     // Helper method to get full ReviewQueue entity with all properties
     public async Task<ReviewQueue?> GetFullReviewQueueEntityAsync(int id)
     {
-        return await _context.ReviewQueue.FindAsync(id);
+        // Use a query rather than FindAsync so the ReviewQueue object-level filters
+        // (case, patient, disease and task visibility) apply to data rendered by
+        // this Razor page.
+        return await _context.ReviewQueue.FirstOrDefaultAsync(r => r.Id == id);
     }
     
     // Helper method to get patient by ID for duplicate display
     public async Task<Patient?> GetPatientByIdAsync(Guid id)
     {
-        return await _context.Patients.FindAsync(id);
+        // Do not bypass the optional case-scoped patient visibility filter.
+        return await _context.Patients.FirstOrDefaultAsync(p => p.Id == id);
     }
 
     [BindProperty]
@@ -65,6 +71,9 @@ public class ReviewModel : PageModel
 
     public async Task<IActionResult> OnGetAsync(int id)
     {
+        CanResolveReviews = await CanResolveReviewsAsync();
+        CanCreateReviewTasks = await CanCreateReviewTasksAsync();
+
         ReviewDetail = await _reviewService.GetReviewItemDetailAsync(id);
 
         if (ReviewDetail == null)
@@ -180,7 +189,10 @@ public class ReviewModel : PageModel
                             .ThenInclude(t => t!.Case)  // Load Task.Case
                         .Include(r => r.Task)
                             .ThenInclude(t => t!.TaskTemplate)  // Load Task.TaskTemplate
-                        .FirstOrDefaultAsync(r => r.Id == id);
+                        .FirstOrDefaultAsync(r =>
+                            r.Id == id &&
+                            r.ReviewStatus == ReviewStatuses.Pending &&
+                            (r.ChangeType == "PotentialDuplicate" || r.ChangeType == "DuplicateDetected"));
 
                     if (reviewQueue == null)
                     {
@@ -229,6 +241,16 @@ public class ReviewModel : PageModel
                         if (!Guid.TryParse(SelectedPatientId, out patientId))
                         {
                             TempData["ErrorMessage"] = "Invalid patient ID selected.";
+                            return;
+                        }
+
+                        // The patient picker value is client controlled. Resolve it
+                        // through the normal scoped query before linking data to it.
+                        if (!await _context.Patients
+                                .AsNoTracking()
+                                .AnyAsync(patient => patient.Id == patientId))
+                        {
+                            TempData["ErrorMessage"] = "The selected patient is no longer available.";
                             return;
                         }
                     }
@@ -377,7 +399,10 @@ public class ReviewModel : PageModel
                             .ThenInclude(t => t!.Case)
                         .Include(r => r.Task)
                             .ThenInclude(t => t!.TaskTemplate)
-                        .FirstOrDefaultAsync(r => r.Id == id);
+                        .FirstOrDefaultAsync(r =>
+                            r.Id == id &&
+                            r.ReviewStatus == ReviewStatuses.Pending &&
+                            r.ChangeType == "PendingCreation");
 
                     if (reviewQueue == null)
                     {

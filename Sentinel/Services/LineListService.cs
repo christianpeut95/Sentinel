@@ -121,6 +121,17 @@ public class LineListService : ILineListService
     
     public async Task<List<LineListDataRow>> GetLineListDataAsync(int outbreakId, List<string> fieldPaths, string? sortConfig = null, string? filterConfig = null)
     {
+        // The controller validates its request, but keep this service boundary
+        // defensive for future callers. Only fields exposed by the outbreak's
+        // configured metadata may be extracted.
+        var allowedFieldPaths = (await GetAvailableFieldsAsync(outbreakId))
+            .Select(field => field.FieldPath)
+            .ToHashSet(StringComparer.Ordinal);
+        fieldPaths = fieldPaths
+            .Where(allowedFieldPaths.Contains)
+            .Distinct(StringComparer.Ordinal)
+            .ToList();
+
         // Build base query with AsSplitQuery to avoid cartesian explosion with many includes
         // This is critical for proper data loading with complex navigation properties
         var query = _context.OutbreakCases
@@ -198,25 +209,6 @@ public class LineListService : ILineListService
 
         var outbreakCases = await query.ToListAsync();
         
-        // Debug logging to verify data is loaded
-        if (outbreakCases.Any())
-        {
-            var firstCase = outbreakCases.First();
-            var hasPatient = firstCase.Case?.Patient != null;
-            var hasSexAtBirth = firstCase.Case?.Patient?.SexAtBirth != null;
-            var hasDisease = firstCase.Case?.Disease != null;
-            
-            Console.WriteLine($"[LineList Debug] First case - Patient loaded: {hasPatient}, SexAtBirth loaded: {hasSexAtBirth}, Disease loaded: {hasDisease}");
-            if (hasPatient && firstCase.Case?.Patient != null)
-            {
-                Console.WriteLine($"[LineList Debug] Patient ID: {firstCase.Case.Patient.Id}, SexAtBirthId: {firstCase.Case.Patient.SexAtBirthId}");
-            }
-            if (firstCase.Case != null)
-            {
-                Console.WriteLine($"[LineList Debug] Case DiseaseId: {firstCase.Case.DiseaseId}");
-            }
-        }
-        
         // Convert to line list rows
         var rows = new List<LineListDataRow>();
         
@@ -250,7 +242,6 @@ public class LineListService : ILineListService
                 var patient = outbreakCase.Case?.Patient;
                 if (patient == null)
                 {
-                    Console.WriteLine($"[LineList Debug] Patient is NULL for case {outbreakCase.CaseId}, fieldPath: {fieldPath}");
                     return null;
                 }
                 
@@ -303,7 +294,6 @@ public class LineListService : ILineListService
                 var caseData = outbreakCase.Case;
                 if (caseData == null)
                 {
-                    Console.WriteLine($"[LineList Debug] Case is NULL for outbreakCase {outbreakCase.Id}, fieldPath: {fieldPath}");
                     return null;
                 }
                 
@@ -335,12 +325,6 @@ public class LineListService : ILineListService
                 else
                 {
                     result = null;
-                }
-                
-                // Debug disease field
-                if (fieldPath == "Case.Disease.Name")
-                {
-                    Console.WriteLine($"[LineList Debug] Disease - CaseId: {caseData.Id}, DiseaseId: {caseData.DiseaseId}, Disease loaded: {caseData.Disease != null}, Value: {result}");
                 }
                 
                 return result;
@@ -405,7 +389,6 @@ public class LineListService : ILineListService
     {
         if (caseData?.ExposureEvents == null || !caseData.ExposureEvents.Any())
         {
-            Console.WriteLine($"[LineList Debug] Exposure - CaseId: {caseData?.Id}, ExposureEvents: {caseData?.ExposureEvents?.Count() ?? 0}");
             return null;
         }
         
@@ -416,7 +399,6 @@ public class LineListService : ILineListService
         
         if (primaryExposure == null)
         {
-            Console.WriteLine($"[LineList Debug] Exposure - CaseId: {caseData?.Id}, Primary exposure is null");
             return null;
         }
         
@@ -434,7 +416,6 @@ public class LineListService : ILineListService
             _ => null
         } : null;
         
-        Console.WriteLine($"[LineList Debug] Exposure - CaseId: {caseData?.Id}, Field: {parts[1]}, Value: {result}");
         return result;
     }
     
@@ -442,7 +423,6 @@ public class LineListService : ILineListService
     {
         if (caseData?.LabResults == null || !caseData.LabResults.Any())
         {
-            Console.WriteLine($"[LineList Debug] Lab - CaseId: {caseData?.Id}, LabResults: {caseData?.LabResults?.Count() ?? 0}, Field: {(parts.Length > 1 ? parts[1] : "unknown")}");
             return null;
         }
         
@@ -452,7 +432,6 @@ public class LineListService : ILineListService
         
         if (latestLab == null)
         {
-            Console.WriteLine($"[LineList Debug] Lab - CaseId: {caseData?.Id}, Latest lab is null");
             return null;
         }
 
@@ -468,7 +447,6 @@ public class LineListService : ILineListService
             _ => null
         } : null;
 
-        Console.WriteLine($"[LineList Debug] Lab - CaseId: {caseData?.Id}, Field: {parts[1]}, LabId: {latestLab.Id}, Value: {result}");
         return result;
     }
     
@@ -558,21 +536,34 @@ public class LineListService : ILineListService
         // Header row
         var headers = fieldPaths.Select(fp => 
             availableFields.FirstOrDefault(f => f.FieldPath == fp)?.DisplayName ?? fp);
-        csv.AppendLine(string.Join(",", headers.Select(CsvEscape)));
+        csv.AppendLine(string.Join(",", headers.Select(EscapeCsvCell)));
         
         // Data rows
         foreach (var row in data)
         {
             var values = fieldPaths.Select(fp => row.Values.GetValueOrDefault(fp)?.ToString() ?? "");
-            csv.AppendLine(string.Join(",", values.Select(CsvEscape)));
+            csv.AppendLine(string.Join(",", values.Select(EscapeCsvCell)));
         }
         
         return Encoding.UTF8.GetBytes(csv.ToString());
     }
     
-    private string CsvEscape(string? value)
+    /// <summary>
+    /// Escapes a CSV cell and prevents spreadsheet applications from treating
+    /// user-supplied content as a formula when an export is opened.
+    /// </summary>
+    internal static string EscapeCsvCell(string? value)
     {
         if (string.IsNullOrEmpty(value)) return "\"\"";
+
+        // CSV is commonly opened in a spreadsheet application. Prefix values
+        // which that application could interpret as a formula so that user
+        // supplied names, addresses and free text remain data, not code.
+        if (value[0] is '=' or '+' or '-' or '@' or '\t' or '\r')
+        {
+            value = $"'{value}";
+        }
+
         if (value.Contains(",") || value.Contains("\"") || value.Contains("\n"))
         {
             return $"\"{value.Replace("\"", "\"\"")}\"";

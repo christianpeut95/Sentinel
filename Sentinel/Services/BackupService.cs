@@ -13,14 +13,15 @@ namespace Sentinel.Services
     {
         Task<BackupResult> CreateBackupAsync(BackupType backupType);
         Task<List<BackupInfo>> GetBackupHistoryAsync();
-        Task<bool> RestoreBackupAsync(string backupFileName);
-        Task<bool> DeleteBackupAsync(string backupFileName);
+        Task<bool> RestoreBackupAsync(int backupId);
+        Task<bool> DeleteBackupAsync(int backupId);
     }
 
     public class BackupService : IBackupService
     {
         private readonly string _connectionString;
         private readonly string _backupPath;
+        private readonly string _backupRoot;
         private readonly ILogger<BackupService> _logger;
         private readonly IConfiguration _configuration;
 
@@ -38,11 +39,12 @@ namespace Sentinel.Services
             _backupPath = string.IsNullOrWhiteSpace(configuredPath) 
                 ? @"C:\DatabaseBackups\SurveillanceMVP" 
                 : configuredPath;
+            _backupRoot = Path.GetFullPath(_backupPath);
 
             // Ensure backup directory exists
-            if (!Directory.Exists(_backupPath))
+            if (!Directory.Exists(_backupRoot))
             {
-                Directory.CreateDirectory(_backupPath);
+                Directory.CreateDirectory(_backupRoot);
             }
         }
 
@@ -80,7 +82,7 @@ namespace Sentinel.Services
             {
                 var timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
                 var backupFileName = $"SurveillanceMVP_{backupType}_{timestamp}.bak";
-                var fullPath = Path.Combine(_backupPath, backupFileName);
+                var fullPath = GetOwnedBackupPath(backupFileName);
 
                 using var connection = new SqlConnection(_connectionString);
                 await connection.OpenAsync();
@@ -110,7 +112,9 @@ namespace Sentinel.Services
             catch (Exception ex)
             {
                 result.Success = false;
-                result.ErrorMessage = ex.Message;
+                // BackupResult is rendered by the settings UI and written to backup
+                // history. Keep provider, path and connection details in the log only.
+                result.ErrorMessage = "Backup failed. Check the application logs for details.";
                 result.EndTime = DateTime.Now;
 
                 _logger.LogError(ex, "Backup failed: {BackupType}", backupType);
@@ -148,6 +152,7 @@ namespace Sentinel.Services
 
             var query = @"
                 SELECT TOP 50
+                    Id,
                     BackupType,
                     BackupFileName,
                     BackupFilePath,
@@ -166,32 +171,40 @@ namespace Sentinel.Services
 
             while (await reader.ReadAsync())
             {
+                var backupFileName = reader.GetString(2);
                 backups.Add(new BackupInfo
                 {
-                    BackupType = Enum.Parse<BackupType>(reader.GetString(0)),
-                    BackupFileName = reader.GetString(1),
-                    BackupFilePath = reader.GetString(2),
-                    SizeInBytes = reader.GetInt64(3),
-                    StartTime = reader.GetDateTime(4),
-                    EndTime = reader.GetDateTime(5),
-                    Success = reader.GetBoolean(6),
-                    ErrorMessage = reader.IsDBNull(7) ? null : reader.GetString(7),
-                    CreatedBy = reader.IsDBNull(8) ? null : reader.GetString(8),
-                    FileExists = File.Exists(reader.GetString(2))
+                    Id = reader.GetInt32(0),
+                    BackupType = Enum.Parse<BackupType>(reader.GetString(1)),
+                    BackupFileName = backupFileName,
+                    BackupFilePath = reader.GetString(3),
+                    SizeInBytes = reader.GetInt64(4),
+                    StartTime = reader.GetDateTime(5),
+                    EndTime = reader.GetDateTime(6),
+                    Success = reader.GetBoolean(7),
+                    ErrorMessage = reader.IsDBNull(8) ? null : reader.GetString(8),
+                    CreatedBy = reader.IsDBNull(9) ? null : reader.GetString(9),
+                    FileExists = TryGetOwnedBackupPath(backupFileName, out var backupPath) && File.Exists(backupPath)
                 });
             }
 
             return backups;
         }
 
-        public async Task<bool> RestoreBackupAsync(string backupFileName)
+        public async Task<bool> RestoreBackupAsync(int backupId)
         {
             try
             {
-                var fullPath = Path.Combine(_backupPath, backupFileName);
+                var backupFileName = await GetRecordedBackupFileNameAsync(backupId);
+                if (backupFileName == null || !TryGetOwnedBackupPath(backupFileName, out var fullPath))
+                {
+                    _logger.LogWarning("Restore requested for an invalid or unavailable backup record {BackupId}", backupId);
+                    return false;
+                }
+
                 if (!File.Exists(fullPath))
                 {
-                    _logger.LogError("Backup file not found: {FileName}", backupFileName);
+                    _logger.LogError("Backup file not found for backup record {BackupId}", backupId);
                     return false;
                 }
 
@@ -229,21 +242,27 @@ namespace Sentinel.Services
                 using var setMultiUserCommand = new SqlCommand(setMultiUserScript, connection);
                 await setMultiUserCommand.ExecuteNonQueryAsync();
 
-                _logger.LogInformation("Database restored successfully from: {FileName}", backupFileName);
+                _logger.LogInformation("Database restored successfully from backup record {BackupId}", backupId);
                 return true;
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Restore failed for: {FileName}", backupFileName);
+                _logger.LogError(ex, "Restore failed for backup record {BackupId}", backupId);
                 return false;
             }
         }
 
-        public async Task<bool> DeleteBackupAsync(string backupFileName)
+        public async Task<bool> DeleteBackupAsync(int backupId)
         {
             try
             {
-                var fullPath = Path.Combine(_backupPath, backupFileName);
+                var backupFileName = await GetRecordedBackupFileNameAsync(backupId);
+                if (backupFileName == null || !TryGetOwnedBackupPath(backupFileName, out var fullPath))
+                {
+                    _logger.LogWarning("Delete requested for an invalid or unavailable backup record {BackupId}", backupId);
+                    return false;
+                }
+
                 if (File.Exists(fullPath))
                 {
                     File.Delete(fullPath);
@@ -253,19 +272,62 @@ namespace Sentinel.Services
                 using var connection = new SqlConnection(_connectionString);
                 await connection.OpenAsync();
 
-                var query = "DELETE FROM BackupHistory WHERE BackupFileName = @FileName";
+                var query = "DELETE FROM BackupHistory WHERE Id = @BackupId";
                 using var command = new SqlCommand(query, connection);
-                command.Parameters.AddWithValue("@FileName", backupFileName);
+                command.Parameters.AddWithValue("@BackupId", backupId);
                 await command.ExecuteNonQueryAsync();
 
-                _logger.LogInformation("Backup deleted: {FileName}", backupFileName);
+                _logger.LogInformation("Backup record {BackupId} deleted", backupId);
                 return true;
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Failed to delete backup: {FileName}", backupFileName);
+                _logger.LogError(ex, "Failed to delete backup record {BackupId}", backupId);
                 return false;
             }
+        }
+
+        private async Task<string?> GetRecordedBackupFileNameAsync(int backupId)
+        {
+            using var connection = new SqlConnection(_connectionString);
+            await connection.OpenAsync();
+
+            const string query = @"
+                SELECT BackupFileName
+                FROM BackupHistory
+                WHERE Id = @BackupId AND Success = 1";
+
+            using var command = new SqlCommand(query, connection);
+            command.Parameters.AddWithValue("@BackupId", backupId);
+            return await command.ExecuteScalarAsync() as string;
+        }
+
+        private string GetOwnedBackupPath(string backupFileName)
+        {
+            if (!TryGetOwnedBackupPath(backupFileName, out var fullPath))
+            {
+                throw new InvalidOperationException("The backup filename is invalid.");
+            }
+
+            return fullPath;
+        }
+
+        private bool TryGetOwnedBackupPath(string? backupFileName, out string fullPath)
+        {
+            fullPath = string.Empty;
+            if (string.IsNullOrWhiteSpace(backupFileName) ||
+                !string.Equals(backupFileName, Path.GetFileName(backupFileName), StringComparison.Ordinal) ||
+                !backupFileName.EndsWith(".bak", StringComparison.OrdinalIgnoreCase))
+            {
+                return false;
+            }
+
+            fullPath = Path.GetFullPath(Path.Combine(_backupRoot, backupFileName));
+            var rootWithSeparator = _backupRoot.EndsWith(Path.DirectorySeparatorChar)
+                ? _backupRoot
+                : _backupRoot + Path.DirectorySeparatorChar;
+
+            return fullPath.StartsWith(rootWithSeparator, StringComparison.OrdinalIgnoreCase);
         }
 
         private async Task LogBackupAsync(BackupResult result)
@@ -327,6 +389,7 @@ namespace Sentinel.Services
 
     public class BackupInfo
     {
+        public int Id { get; set; }
         public BackupType BackupType { get; set; }
         public string BackupFileName { get; set; } = string.Empty;
         public string BackupFilePath { get; set; } = string.Empty;

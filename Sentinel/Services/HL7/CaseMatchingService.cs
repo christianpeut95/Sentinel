@@ -115,7 +115,7 @@ namespace Sentinel.Services.HL7
                             }
                             catch (Exception ex)
                             {
-                                diagnosticLog.Add($"    ⚠️ Error querying pathogen: {ex.Message}");
+                                diagnosticLog.Add("    ⚠️ The pathogen lookup could not be completed. Full details are available in the application logs.");
                                 _logger.LogWarning(ex, "Error querying pathogen in diagnostic section");
                             }
 
@@ -290,11 +290,11 @@ namespace Sentinel.Services.HL7
                     }
                     catch (Exception ex)
                     {
-                        diagnosticLog.Add($"❌ Error processing disease {identification.Disease.Name}: {ex.Message}");
+                        diagnosticLog.Add($"❌ The disease match for {identification.Disease.Name} could not be completed. Full details are available in the application logs.");
                         _logger.LogError(ex,
                             "Error processing disease {Disease} for LabResult {LabResultId}",
                             identification.Disease.Name, labResult.FriendlyId);
-                        result.Errors.Add($"Error processing {identification.Disease.Name}: {ex.Message}");
+                        result.Errors.Add($"The disease match for {identification.Disease.Name} could not be completed. Check the application logs using the message control ID.");
                         result.Success = false;
                     }
                 }
@@ -309,9 +309,9 @@ namespace Sentinel.Services.HL7
             }
             catch (Exception ex)
             {
-                diagnosticLog.Add($"❌ Fatal error: {ex.Message}");
+                diagnosticLog.Add("❌ Case matching could not be completed. Full details are available in the application logs.");
                 _logger.LogError(ex, "Error in ProcessLabResultAsync for LabResult {LabResultId}", labResult.FriendlyId);
-                result.Errors.Add($"Processing failed: {ex.Message}");
+                result.Errors.Add("Case matching failed. Check the application logs using the message control ID.");
                 result.Warnings.Add(string.Join("\n", diagnosticLog));
                 result.Success = false;
             }

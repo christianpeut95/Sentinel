@@ -40,6 +40,12 @@ namespace Sentinel.Pages.Settings.HL7.FieldMappings
 
         public async Task<IActionResult> OnPostAsync()
         {
+            if (!await ValidateReferencesAsync())
+            {
+                await LoadSelectListsAsync();
+                return Page();
+            }
+
             if (!ModelState.IsValid)
             {
                 await LoadSelectListsAsync();
@@ -86,6 +92,26 @@ namespace Sentinel.Pages.Settings.HL7.FieldMappings
 
             TempData["SuccessMessage"] = $"Field mapping for '{Mapping.HL7TestCode}' has been updated successfully.";
             return RedirectToPage("./Index", new { diseaseId = Mapping.DiseaseId });
+        }
+
+        private async Task<bool> ValidateReferencesAsync()
+        {
+            var isValid = true;
+
+            if (!await _context.Diseases.AnyAsync(d => d.Id == Mapping.DiseaseId && d.IsActive))
+            {
+                ModelState.AddModelError("Mapping.DiseaseId", "Select an active disease.");
+                isValid = false;
+            }
+
+            if (!await _context.CustomFieldDefinitions.AnyAsync(cf =>
+                    cf.Id == Mapping.CustomFieldDefinitionId && cf.IsActive && cf.ShowOnCaseForm))
+            {
+                ModelState.AddModelError("Mapping.CustomFieldDefinitionId", "Select an active case custom field.");
+                isValid = false;
+            }
+
+            return isValid;
         }
 
         private async Task LoadSelectListsAsync()

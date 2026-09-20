@@ -310,7 +310,7 @@
             <div class="row g-3">
                 <div class="col-md-3">
                     <label class="form-label">Entity Type</label>
-                    <select name="EntityType" class="form-select" asp-for="EntityType" onchange="this.form.submit()">
+                    <select name="EntityType" class="form-select js-auto-submit-filter" asp-for="EntityType">
                         @foreach (var type in Model.EntityTypes)
                         {
                             <option value="@type.Value">
@@ -336,7 +336,7 @@
 
                 <div class="col-md-3">
                     <label class="form-label">Time Range</label>
-                    <select name="TimeRange" class="form-select" asp-for="TimeRange" onchange="this.form.submit()">
+                    <select name="TimeRange" class="form-select js-auto-submit-filter" asp-for="TimeRange">
                         <option value="24h">Past 24 hours</option>
                         <option value="48h">Past 48 hours</option>
                         <option value="7d">Past 7 days</option>
@@ -407,8 +407,8 @@
                     
                     <div class="list-group-item list-group-item-action review-item p-0 @entityClass" data-review-id="@item.Id" data-visual-group="@item.VisualGroupId">
                         <!-- Single Line Row -->
-                        <div class="d-flex align-items-center p-3 review-row" style="cursor: pointer;" 
-                             onclick="@(isVisuallyGrouped ? $"toggleVisualGroup('{item.VisualGroupId}')" : $"toggleReviewPreview({item.Id})")">
+                        <div class="d-flex align-items-center p-3 review-row js-review-row" style="cursor: pointer;"
+                             data-review-id="@item.Id" data-is-visual-group="@isVisuallyGrouped">
                             <div class="flex-shrink-0 me-3">
                                 @if (isVisuallyGrouped)
                                 {
@@ -580,7 +580,7 @@
                             <div class="flex-shrink-0 ms-3">
                                 @if (!isVisuallyGrouped)
                                 {
-                                    <div class="btn-group btn-group-sm" onclick="event.stopPropagation();">
+                                    <div class="btn-group btn-group-sm js-stop-review-row">
                                         <a href="/DataInbox/Review?id=@item.Id" class="btn btn-primary" title="Review & Resolve">
                                             <i class="bi bi-eye me-1"></i> Review
                                         </a>
@@ -588,7 +588,7 @@
                                 }
                                 else
                                 {
-                                    <button class="btn btn-sm btn-outline-secondary" onclick="event.stopPropagation(); toggleVisualGroup('@item.VisualGroupId');">
+                                    <button type="button" class="btn btn-sm btn-outline-secondary js-toggle-visual-group" data-visual-group-id="@item.VisualGroupId">
                                         <i class="bi bi-chevron-down me-1"></i> Expand
                                     </button>
                                 }
@@ -645,16 +645,15 @@
                                                         <i class="bi bi-exclamation-triangle"></i>
                                                     </a>
                                                 }
-                                                else if (member.ChangeType == "PendingCreation")
+                                                else if (member.ChangeType == "PendingCreation" && Model.CanCreateRecordsFromReviews)
                                                 {
                                                     @* Always-review new patient - can quick approve *@
-                                                    <button type="button" class="btn btn-sm btn-success" 
-                                                            title="Approve New Patient" 
-                                                            onclick="quickResolveAlwaysReview(@member.Id, event)">
+                                                    <button type="button" class="btn btn-sm btn-success js-quick-resolve-review"
+                                                            title="Approve New Patient" data-review-id="@member.Id">
                                                         <i class="bi bi-check-lg"></i>
                                                     </button>
                                                 }
-                                                else
+                                                else if (Model.CanResolveReviews)
                                                 {
                                                     @* Simple confirmation cases *@
                                                     <form method="post" asp-page-handler="Confirm" asp-route-id="@member.Id" class="d-inline">
@@ -791,6 +790,37 @@
 
 @section Scripts {
 <script>
+    document.addEventListener('click', function (event) {
+        const quickResolveButton = event.target.closest('.js-quick-resolve-review');
+        if (quickResolveButton) {
+            quickResolveAlwaysReview(Number.parseInt(quickResolveButton.dataset.reviewId, 10), event);
+            return;
+        }
+
+        const groupToggleButton = event.target.closest('.js-toggle-visual-group');
+        if (groupToggleButton) {
+            event.preventDefault();
+            event.stopPropagation();
+            toggleVisualGroup(groupToggleButton.dataset.visualGroupId);
+            return;
+        }
+
+        if (event.target.closest('.js-stop-review-row')) {
+            return;
+        }
+
+        const reviewRow = event.target.closest('.js-review-row');
+        if (!reviewRow) {
+            return;
+        }
+
+        if ((reviewRow.dataset.isVisualGroup || '').toLowerCase() === 'true') {
+            toggleVisualGroup(reviewRow.closest('[data-visual-group]').dataset.visualGroup);
+        } else {
+            toggleReviewPreview(Number.parseInt(reviewRow.dataset.reviewId, 10));
+        }
+    });
+
     function toggleReviewPreview(reviewId) {
         const preview = document.getElementById('preview-' + reviewId);
         if (preview) {
@@ -799,7 +829,8 @@
     }
 
     function toggleVisualGroup(groupId) {
-        const groupContainer = document.querySelector(`[data-visual-group="${groupId}"]`);
+        const groupContainer = Array.from(document.querySelectorAll('[data-visual-group]'))
+            .find(element => element.dataset.visualGroup === groupId);
         if (!groupContainer) {            return;
         }
         
@@ -906,12 +937,16 @@
                 // Show success message
                 showToast('success', '? Patient created and entities processed successfully!');
             } else {
-                const errorText = await response.text();
-                alert('Failed to approve review: ' + errorText);
+                // Do not retain a server response body in the browser console: an
+                // inbox response may contain patient or survey-processing detail.
+                console.error('Failed to approve review.');
+                alert('The review could not be approved. Please try again.');
                 button.disabled = false;
                 button.innerHTML = originalHtml;
             }
-        } catch (error) {            alert('Failed to approve review: ' + error.message);
+        } catch (error) {
+            console.error('Failed to approve review.');
+            alert('The review could not be approved. Please try again.');
             button.disabled = false;
             button.innerHTML = originalHtml;
         }

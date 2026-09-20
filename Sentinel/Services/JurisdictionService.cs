@@ -108,7 +108,7 @@ namespace Sentinel.Services
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"Error checking jurisdiction {entry.jurisdiction.Name}: {ex.Message}");
+                    _logger.LogWarning(ex, "Could not evaluate a jurisdiction geometry");
                 }
             }
 
@@ -117,7 +117,6 @@ namespace Sentinel.Services
 
         private async Task<Dictionary<int, (Jurisdiction jurisdiction, Geometry geometry)>> LoadAndCacheGeometriesAsync()
         {
-            Console.WriteLine("Loading and parsing jurisdiction geometries...");
             var startTime = DateTime.Now;
 
             var jurisdictionsWithBoundaries = await _context.Jurisdictions
@@ -140,7 +139,7 @@ namespace Sentinel.Services
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"Error parsing jurisdiction {jurisdiction.Name}: {ex.Message}");
+                    _logger.LogWarning(ex, "Could not parse a jurisdiction geometry");
                 }
             }
 
@@ -148,7 +147,7 @@ namespace Sentinel.Services
             _cache.Set(GEOMETRY_CACHE_KEY, cachedGeometries, TimeSpan.FromHours(1));
 
             var duration = (DateTime.Now - startTime).TotalMilliseconds;
-            Console.WriteLine($"Loaded and cached {cachedGeometries.Count} geometries in {duration}ms");
+            _logger.LogDebug("Loaded and cached {GeometryCount} jurisdiction geometries in {DurationMs}ms", cachedGeometries.Count, duration);
 
             return cachedGeometries;
         }
@@ -177,7 +176,7 @@ namespace Sentinel.Services
         public void ClearGeometryCache()
         {
             _cache.Remove(GEOMETRY_CACHE_KEY);
-            Console.WriteLine("Geometry cache cleared");
+            _logger.LogDebug("Jurisdiction geometry cache cleared");
         }
 
         private List<Coordinate> ExtractAllCoordinates(JsonElement coordsElement)

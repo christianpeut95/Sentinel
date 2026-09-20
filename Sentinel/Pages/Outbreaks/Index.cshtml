@@ -599,7 +599,11 @@ else
                 <tbody>
                     @foreach (var outbreak in Model.Outbreaks)
                     {
-                        <tr onclick="window.location.href='@Url.Page("./Details", new { id = outbreak.Id })'">
+                        <tr class="js-outbreak-row"
+                            data-details-url="@Url.Page("./Details", new { id = outbreak.Id })"
+                            role="link"
+                            tabindex="0"
+                            aria-label="View outbreak @outbreak.Name">
                             <td>
                                 @{
                                     var statusClass = outbreak.Status switch
@@ -617,7 +621,7 @@ else
                             <td>
                                 <strong>@outbreak.Name</strong>
                             </td>
-                            <td>@(outbreak.PrimaryDisease?.Name ?? "—")</td>
+                            <td>@(outbreak.PrimaryDisease?.Name ?? "â€”")</td>
                             <td>
                                 @if (outbreak.PrimaryLocation != null)
                                 {
@@ -635,7 +639,7 @@ else
                                 }
                                 else
                                 {
-                                    <span class="text-muted">—</span>
+                                    <span class="text-muted">â€”</span>
                                 }
                             </td>
                             <td>@outbreak.StartDate.ToString("dd MMM yyyy")</td>
@@ -651,16 +655,16 @@ else
                                 }
                                 <span class="count-badge contact">@contactCount</span>
                             </td>
-                            <td>@(outbreak.LeadInvestigator?.UserName ?? "—")</td>
-                            <td style="text-align: center;" onclick="event.stopPropagation()">
+                            <td>@(outbreak.LeadInvestigator?.UserName ?? "â€”")</td>
+                            <td style="text-align: center;" class="outbreak-actions">
                                 <a asp-page="./Details" asp-route-id="@outbreak.Id" class="btn-icon" title="View Details">
                                     <i class="bi bi-eye"></i>
                                 </a>
                                 <a asp-page="./Edit" asp-route-id="@outbreak.Id" class="btn-icon" title="Edit">
                                     <i class="bi bi-pencil"></i>
                                 </a>
-                                <form method="post" asp-page-handler="Delete" asp-route-id="@outbreak.Id" class="d-inline"
-                                      onsubmit="return confirm('Delete outbreak &quot;@outbreak.Name&quot;? This cannot be undone.')">
+                                <form method="post" asp-page-handler="Delete" asp-route-id="@outbreak.Id" class="d-inline js-confirm-outbreak-delete"
+                                      data-outbreak-name="@outbreak.Name">
                                     <button type="submit" class="btn-icon text-danger" title="Delete">
                                         <i class="bi bi-trash"></i>
                                     </button>
@@ -714,6 +718,38 @@ else
 
 @section Scripts {
     <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            document.querySelectorAll('.js-outbreak-row').forEach(function (row) {
+                function openOutbreak(event) {
+                    if (event.target.closest('a, button, form, input, select, textarea, label')) {
+                        return;
+                    }
+
+                    const detailsUrl = row.dataset.detailsUrl;
+                    if (detailsUrl) {
+                        window.location.assign(detailsUrl);
+                    }
+                }
+
+                row.addEventListener('click', openOutbreak);
+                row.addEventListener('keydown', function (event) {
+                    if (event.key === 'Enter' || event.key === ' ') {
+                        event.preventDefault();
+                        openOutbreak(event);
+                    }
+                });
+            });
+
+            document.querySelectorAll('.js-confirm-outbreak-delete').forEach(function (form) {
+                form.addEventListener('submit', function (event) {
+                    const outbreakName = form.dataset.outbreakName || 'this outbreak';
+                    if (!window.confirm(`Delete outbreak "${outbreakName}"? This cannot be undone.`)) {
+                        event.preventDefault();
+                    }
+                });
+            });
+        });
+
         // Auto-refresh every 60 seconds for active outbreaks
         setTimeout(function() {
             location.reload();

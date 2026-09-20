@@ -184,7 +184,7 @@
                                             <button type="button" 
                                                     class="sn-btn sn-btn--ghost sn-btn--sm" 
                                                     title="Delete"
-                                                    onclick="confirmDelete('@result.Id', '@result.Name')">
+                                                    data-result-name="@result.Name" onclick="confirmDelete('@result.Id', this.dataset.resultName)">
                                                 <i class="bi bi-trash"></i>
                                             </button>
                                         }

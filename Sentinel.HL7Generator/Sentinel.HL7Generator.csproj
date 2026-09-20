@@ -4,6 +4,17 @@
     <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <PackageLicenseExpression>GPL-3.0-or-later</PackageLicenseExpression>
+    <Copyright>Copyright (C) 2026 Christian Peut and Sentinel contributors</Copyright>
+    <!-- Build output must never be treated as source files. -->
+    <DefaultItemExcludes>$(DefaultItemExcludes);artifacts/**</DefaultItemExcludes>
   </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Remove="bin\**\*;obj\**\*;artifacts\**\*" />
+    <Content Remove="bin\**\*;obj\**\*;artifacts\**\*" />
+    <EmbeddedResource Remove="bin\**\*;obj\**\*;artifacts\**\*" />
+    <None Remove="bin\**\*;obj\**\*;artifacts\**\*" />
+  </ItemGroup>
 
 </Project>

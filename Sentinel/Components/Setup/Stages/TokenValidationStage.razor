@@ -49,7 +49,7 @@
 </div>
 
 @code {
-    [Parameter] public EventCallback OnTokenValidated { get; set; }
+    [Parameter] public EventCallback<string> OnTokenValidated { get; set; }
 
     private string _token = "";
     private string _error = "";
@@ -66,16 +66,16 @@
 
             if (isValid)
             {
-                await OnTokenValidated.InvokeAsync();
+                await OnTokenValidated.InvokeAsync(_token);
             }
             else
             {
                 _error = "Invalid or expired setup token. Please check your setup-token.txt file or server logs.";
             }
         }
-        catch (Exception ex)
+        catch (Exception)
         {
-            _error = $"An error occurred: {ex.Message}";
+            _error = "We could not validate the setup token. Please try again.";
         }
         finally
         {

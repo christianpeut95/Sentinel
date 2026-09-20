@@ -55,10 +55,10 @@ public class SurveyCompletionApiController : ControllerBase
                 return NotFound(new { success = false, error = "Task not found" });
             }
 
-            if (task.Status == CaseTaskStatus.Completed)
+            if (TaskWorkflowPolicy.IsTerminal(task.Status))
             {
-                _logger.LogWarning("Survey completion rejected because task {TaskId} is already completed", taskId);
-                return Conflict(new { success = false, error = "This task is already completed." });
+                _logger.LogWarning("Survey completion rejected because task {TaskId} is in terminal state {TaskStatus}", taskId, task.Status);
+                return Conflict(new { success = false, error = TaskStateMessage(task.Status) });
             }
 
             var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
@@ -100,6 +100,11 @@ public class SurveyCompletionApiController : ControllerBase
             _logger.LogInformation("Successfully completed survey for task {TaskId}", taskId);
             return Ok(new { success = true });
         }
+        catch (SurveyTaskStateException ex)
+        {
+            _logger.LogInformation(ex, "Survey completion rejected after service-level task state validation for task {TaskId}", taskId);
+            return Conflict(new { success = false, error = TaskStateMessage(ex.Status) });
+        }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error saving survey for task {TaskId}", taskId);
@@ -113,4 +118,9 @@ public class SurveyCompletionApiController : ControllerBase
             });
         }
     }
+
+    private static string TaskStateMessage(CaseTaskStatus status) =>
+        status == CaseTaskStatus.Completed
+            ? "This task is already completed."
+            : "This task has been cancelled.";
 }

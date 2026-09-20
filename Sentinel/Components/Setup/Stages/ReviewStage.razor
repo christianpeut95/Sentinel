@@ -183,6 +183,7 @@
 @code {
     [Parameter] public EventCallback OnComplete { get; set; }
     [Parameter] public EventCallback OnPrevious { get; set; }
+    [Parameter] public string? SetupToken { get; set; }
     [Parameter] public InitialSetupWizard.AdminAccountData AdminData { get; set; } = new();
     [Parameter] public InitialSetupWizard.HttpsConfigData HttpsData { get; set; } = new();
     [Parameter] public InitialSetupWizard.OrganizationData OrgData { get; set; } = new();
@@ -203,6 +204,17 @@
 
         try
         {
+            // Revalidate immediately before privileged setup work. The service
+            // repeats this check when setup is committed to prevent bypassing
+            // expiry or reusing a token after it has been consumed.
+            if (string.IsNullOrWhiteSpace(SetupToken)
+                || !await SystemSettingsService.ValidateTokenAsync(SetupToken))
+            {
+                _error = "The setup token is invalid or has expired. Restart the setup process using a current token.";
+                _isCompleting = false;
+                return;
+            }
+
             // Step 1: Apply pending migrations
             _currentStep = "Applying database migrations...";
             StateHasChanged();
@@ -340,7 +352,7 @@
                 }
 
                 // Mark setup as complete
-                await SystemSettingsService.CompleteSetupAsync(adminUser.Id);
+                await SystemSettingsService.CompleteSetupAsync(adminUser.Id, SetupToken);
                 Logger.LogInformation("Setup completed successfully");
             }
 
@@ -354,7 +366,7 @@
         catch (Exception ex)
         {
             Logger.LogError(ex, "Setup failed");
-            _error = ex.Message;
+            _error = "Setup could not be completed. Review the application logs for technical details and try again.";
             _isCompleting = false;
             StateHasChanged();
         }

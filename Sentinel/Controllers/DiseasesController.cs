@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using Sentinel.Data;
 using Sentinel.Services;
 using System;
@@ -19,11 +20,16 @@ namespace Sentinel.Controllers
     {
         private readonly ApplicationDbContext _context;
         private readonly IDiseaseAccessService _diseaseAccessService;
+        private readonly ILogger<DiseasesController> _logger;
 
-        public DiseasesController(ApplicationDbContext context, IDiseaseAccessService diseaseAccessService)
+        public DiseasesController(
+            ApplicationDbContext context,
+            IDiseaseAccessService diseaseAccessService,
+            ILogger<DiseasesController> logger)
         {
             _context = context;
             _diseaseAccessService = diseaseAccessService;
+            _logger = logger;
         }
 
         [HttpGet("search")]
@@ -71,7 +77,7 @@ namespace Sentinel.Controllers
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Error in disease search: {ex.Message}");
+                _logger.LogError(ex, "Disease search failed");
                 return Ok(new object[] { });
             }
         }

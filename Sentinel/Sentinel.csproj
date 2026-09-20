@@ -7,30 +7,33 @@
     <Version>0.9.0-beta</Version>
     <AssemblyVersion>0.9.0.0</AssemblyVersion>
     <FileVersion>0.9.0.0</FileVersion>
+    <PackageLicenseExpression>GPL-3.0-or-later</PackageLicenseExpression>
+    <Copyright>Copyright (C) 2026 Christian Peut and Sentinel contributors</Copyright>
     <IncludeSourceRevisionInInformationalVersion>true</IncludeSourceRevisionInInformationalVersion>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <UserSecretsId>aspnet-Sentinel-a57ac8ba-ccc6-4d7a-b380-485d37f1148d</UserSecretsId>
     <RootNamespace>Sentinel</RootNamespace>
     <IsTransformWebConfigDisabled>true</IsTransformWebConfigDisabled>
+    <!-- Build output must never be treated as application source or published content. -->
+    <DefaultItemExcludes>$(DefaultItemExcludes);artifacts/**</DefaultItemExcludes>
   </PropertyGroup>
 
   <ItemGroup>
     <PackageReference Include="AntDesign" Version="1.5.1" />
     <PackageReference Include="CsvHelper" Version="33.1.0" />
     <PackageReference Include="Dapper" Version="2.1.79" />
-    <PackageReference Include="EPPlus" Version="7.5.2" />
+    <PackageReference Include="ClosedXML" Version="0.105.1" />
     <PackageReference Include="MailKit" Version="4.17.0" />
-    <PackageReference Include="Microsoft.AspNetCore.Components.QuickGrid.EntityFrameworkAdapter" Version="10.0.2" />
-    <PackageReference Include="Microsoft.AspNetCore.Diagnostics.EntityFrameworkCore" Version="10.0.2" />
-    <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="10.0.2" />
-    <PackageReference Include="Microsoft.AspNetCore.Identity.UI" Version="10.0.2" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="10.0.2" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="10.0.2">
+    <PackageReference Include="Microsoft.AspNetCore.Components.QuickGrid.EntityFrameworkAdapter" Version="10.0.12" />
+    <PackageReference Include="Microsoft.AspNetCore.Diagnostics.EntityFrameworkCore" Version="10.0.12" />
+    <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="10.0.12" />
+    <PackageReference Include="Microsoft.AspNetCore.Identity.UI" Version="10.0.12" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="10.0.12" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="10.0.12">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
-    <PackageReference Include="Microsoft.VisualStudio.Web.CodeGeneration.Design" Version="10.0.2" />
     <PackageReference Include="MimeKit" Version="4.17.0" />
     <PackageReference Include="NetTopologySuite" Version="2.5.0" />
     <PackageReference Include="NetTopologySuite.IO.GeoJSON" Version="4.0.0" />
@@ -48,6 +51,13 @@
   <ItemGroup>
     <Compile Remove="..\Surveillance-MVP_NEW_ConfigureCollection.cshtml" />
     <Content Remove="..\Surveillance-MVP_NEW_ConfigureCollection.cshtml" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Remove="bin\**\*;obj\**\*;artifacts\**\*" />
+    <Content Remove="bin\**\*;obj\**\*;artifacts\**\*" />
+    <EmbeddedResource Remove="bin\**\*;obj\**\*;artifacts\**\*" />
+    <None Remove="bin\**\*;obj\**\*;artifacts\**\*" />
   </ItemGroup>
 
   <ItemGroup>

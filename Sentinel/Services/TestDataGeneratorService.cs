@@ -12,8 +12,10 @@ namespace Sentinel.Services
         private readonly IGeocodingService _geocodingService;
         private readonly IJurisdictionService _jurisdictionService;
         private readonly IConfiguration _configuration;
+        private readonly IHostEnvironment _environment;
         private readonly IPatientIdGeneratorService _patientIdGenerator;
         private readonly ICaseIdGeneratorService _caseIdGenerator;
+        private readonly ILogger<TestDataGeneratorService> _logger;
         private readonly Random _random = new Random();
         
         // Service-level lookup cache to avoid reloading on every call
@@ -80,15 +82,19 @@ namespace Sentinel.Services
             IGeocodingService geocodingService,
             IJurisdictionService jurisdictionService,
             IConfiguration configuration,
+            IHostEnvironment environment,
             IPatientIdGeneratorService patientIdGenerator,
-            ICaseIdGeneratorService caseIdGenerator)
+            ICaseIdGeneratorService caseIdGenerator,
+            ILogger<TestDataGeneratorService> logger)
         {
             _context = context;
             _geocodingService = geocodingService;
             _jurisdictionService = jurisdictionService;
             _configuration = configuration;
+            _environment = environment;
             _patientIdGenerator = patientIdGenerator;
             _caseIdGenerator = caseIdGenerator;
+            _logger = logger;
         }
 
         public async Task<TestDataGenerationResult> GeneratePatientsAsync(
@@ -97,6 +103,12 @@ namespace Sentinel.Services
             Action<string>? progressCallback = null)
         {
             var result = new TestDataGenerationResult();
+            if (!IsTestDataEnabled())
+            {
+                result.Errors.Add("Test data generation is available only in Development or Demo mode.");
+                return result;
+            }
+
             var orgConfig = _configuration.GetSection("Organization");
             var state = orgConfig["State"] ?? "South Australia";
             var country = orgConfig["Country"] ?? "Australia";
@@ -146,7 +158,8 @@ namespace Sentinel.Services
                 }
                 catch (Exception ex)
                 {
-                    result.Errors.Add($"Patient {i + 1}: {ex.Message}");
+                    _logger.LogError(ex, "Failed to generate test patient {PatientNumber}", i + 1);
+                    result.Errors.Add($"Patient {i + 1} could not be created. Check the application logs for details.");
                 }
             }
 
@@ -357,6 +370,11 @@ namespace Sentinel.Services
         {
             options ??= new CaseGenerationOptions();
             var result = new TestDataGenerationResult();
+            if (!IsTestDataEnabled())
+            {
+                result.Errors.Add("Test data generation is available only in Development or Demo mode.");
+                return result;
+            }
 
             progressCallback?.Invoke("Loading diseases and lookup data...");
 
@@ -469,7 +487,8 @@ namespace Sentinel.Services
                     }
                     catch (Exception ex)
                     {
-                        result.Errors.Add($"Year {year}, Case {i + 1}: {ex.Message}");
+                        _logger.LogError(ex, "Failed to generate test case {CaseNumber} for year {Year}", i + 1, year);
+                        result.Errors.Add($"Year {year}, case {i + 1} could not be created. Check the application logs for details.");
                     }
                 }
 
@@ -947,8 +966,8 @@ namespace Sentinel.Services
         }
         
         /// <summary>
-        /// DEMO ONLY: Deletes all test data (patients, cases, and related records) from the database.
-        /// This method has multiple safeguards and only works in Demo mode.
+        /// DEVELOPMENT/DEMO ONLY: Deletes all test data (patients, cases, and related records) from the database.
+        /// This method has multiple safeguards and is unavailable in production.
         /// </summary>
         public async Task<TestDataDeletionResult> DeleteAllTestDataAsync(
             string confirmationCode,
@@ -956,12 +975,12 @@ namespace Sentinel.Services
         {
             var result = new TestDataDeletionResult();
             
-            // SAFEGUARD 1: Check if we're in Demo mode
-            var isDemoMode = _configuration.GetValue<bool>("Demo:EnableDemoMode");
-            if (!isDemoMode)
+            // SAFEGUARD 1: Never permit destructive test-data operations in a
+            // production environment. The page also applies this check, but the
+            // service enforces it for any future caller.
+            if (!IsTestDataEnabled())
             {
-                result.Errors.Add("? BLOCKED: This function is only available in Demo mode.");
-                result.Errors.Add("Set 'Demo:EnableDemoMode' to true in appsettings.json");
+                result.Errors.Add("? BLOCKED: This function is only available in Development or Demo mode.");
                 return result;
             }
             
@@ -1138,14 +1157,14 @@ namespace Sentinel.Services
             }
             catch (Exception ex)
             {
-                result.Errors.Add($"? Error during deletion: {ex.Message}");
-                if (ex.InnerException != null)
-                {
-                    result.Errors.Add($"Inner exception: {ex.InnerException.Message}");
-                }
+                _logger.LogError(ex, "Failed to delete generated test data");
+                result.Errors.Add("Generated test data could not be deleted. Check the application logs for details.");
                 return result;
             }
         }
+
+        private bool IsTestDataEnabled() =>
+            _environment.IsDevelopment() || _configuration.GetValue<bool>("Demo:EnableDemoMode");
 
         private async Task<int?> GetStateIdFromCodeAsync(string? stateCode)
         {

@@ -67,10 +67,19 @@ namespace Sentinel.Pages.Settings.Lookups
 
             try
             {
-                _context.Attach(OrganizationType).State = EntityState.Modified;
+                var organizationTypeToUpdate = await _context.OrganizationTypes.FindAsync(OrganizationType.Id);
+                if (organizationTypeToUpdate == null)
+                {
+                    return NotFound();
+                }
+
+                organizationTypeToUpdate.Name = OrganizationType.Name;
+                organizationTypeToUpdate.Description = OrganizationType.Description;
+                organizationTypeToUpdate.DisplayOrder = OrganizationType.DisplayOrder;
+                organizationTypeToUpdate.IsActive = OrganizationType.IsActive;
                 await _context.SaveChangesAsync();
 
-                TempData["SuccessMessage"] = $"Organization type '{OrganizationType.Name}' updated successfully.";
+                TempData["SuccessMessage"] = $"Organization type '{organizationTypeToUpdate.Name}' updated successfully.";
                 return RedirectToPage("./OrganizationTypes");
             }
             catch (DbUpdateConcurrencyException)

@@ -872,7 +872,8 @@ namespace Sentinel.Tests.Services.CaseDefinitionEvaluation
             // Assert
             Assert.False(result.IsMatch);
             Assert.NotNull(result.ErrorMessage);
-            Assert.Contains("error", result.ErrorMessage.ToLower());
+            Assert.Contains("could not be evaluated", result.ErrorMessage, StringComparison.OrdinalIgnoreCase);
+            Assert.DoesNotContain("json", result.ErrorMessage, StringComparison.OrdinalIgnoreCase);
         }
 
         [Fact]

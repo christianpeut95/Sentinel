@@ -89,6 +89,11 @@ namespace Sentinel.Pages.Settings.CaseDefinitions
                 return NotFound();
             }
 
+            if (!CaseDefinitionWorkflowPolicy.CanArchive(definition.Status))
+            {
+                return BadRequest(new { error = "This case definition has already been archived." });
+            }
+
             // Archive the definition
             definition.Status = CaseDefinitionStatus.Archived;
             definition.ModifiedAt = DateTime.UtcNow;

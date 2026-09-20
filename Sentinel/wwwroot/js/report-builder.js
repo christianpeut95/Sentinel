@@ -1,5 +1,4 @@
 // Report Builder - Main Module
-console.log('[report-builder.js] Loading...');
 
 const ReportBuilder = {
     selectedFields: [],
@@ -14,9 +13,38 @@ const ReportBuilder = {
     lastAutoSave: null,
 
     escapeHtml(value) {
-        const element = document.createElement('div');
-        element.textContent = value ?? '';
-        return element.innerHTML;
+        // Field labels and paths can include administrator-configured values and
+        // are used in both element text and quoted attributes throughout the
+        // report builder. Encode the full HTML-attribute character set so the
+        // helper is safe in either context.
+        return String(value ?? '')
+            .replace(/&/g, '&amp;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;');
+    },
+
+    navigateToEntityType(entityType) {
+        // Entity types are currently supplied by a fixed select list, but treat
+        // the value as query data so a modified DOM cannot alter URL structure.
+        const url = new URL(window.location.href);
+        url.searchParams.set('entityType', String(entityType ?? ''));
+        window.location.assign(`${url.pathname}${url.search}${url.hash}`);
+    },
+
+    toSafeOptionalInteger(value) {
+        const numericValue = Number(value);
+        return Number.isSafeInteger(numericValue) && numericValue > 0
+            ? numericValue
+            : null;
+    },
+
+    toSafeLogicOperator(value) {
+        const normalizedValue = String(value ?? '').toUpperCase();
+        return normalizedValue === 'AND' || normalizedValue === 'OR'
+            ? normalizedValue
+            : null;
     },
 
     // Auto-save functionality
@@ -61,9 +89,8 @@ const ReportBuilder = {
             localStorage.setItem(this.AUTO_SAVE_KEY, JSON.stringify(draftData));
             this.lastAutoSave = new Date();
             this.updateAutoSaveStatus();
-            console.log('[AutoSave] Draft saved at', this.lastAutoSave.toLocaleTimeString());
         } catch (error) {
-            console.error('[AutoSave] Error saving draft:', error);
+            console.error('Report draft could not be saved locally.');
         }
     },
 
@@ -73,10 +100,9 @@ const ReportBuilder = {
             if (!draftJson) return null;
 
             const draft = JSON.parse(draftJson);
-            console.log('[AutoSave] Found draft from', draft.timestamp);
             return draft;
         } catch (error) {
-            console.error('[AutoSave] Error loading draft:', error);
+            console.error('Report draft could not be loaded locally.');
             return null;
         }
     },
@@ -86,9 +112,8 @@ const ReportBuilder = {
             localStorage.removeItem(this.AUTO_SAVE_KEY);
             this.lastAutoSave = null;
             this.updateAutoSaveStatus();
-            console.log('[AutoSave] Draft cleared');
         } catch (error) {
-            console.error('[AutoSave] Error clearing draft:', error);
+            console.error('Report draft could not be cleared locally.');
         }
     },
 
@@ -179,34 +204,46 @@ const ReportBuilder = {
                                       `${conditionCount} conditions`;
         }
 
-        let summary = `<span class="kw">SELECT</span> `;
-        if (this.selectedFields.length === 0) {
-            summary += `<span class="val">*</span>`;
-        } else {
-            summary += `<span class="val">${this.selectedFields.length} field${this.selectedFields.length !== 1 ? 's' : ''}</span>`;
-        }
-        summary += ` <span class="kw">FROM</span> <span class="val">${entityType}</span>`;
+        querySummary.replaceChildren();
+        const appendToken = (className, text) => {
+            const token = document.createElement('span');
+            token.className = className;
+            token.textContent = text;
+            querySummary.appendChild(token);
+        };
+        const appendSpace = () => querySummary.appendChild(document.createTextNode(' '));
+
+        appendToken('kw', 'SELECT');
+        appendSpace();
+        appendToken('val', this.selectedFields.length === 0
+            ? '*'
+            : `${this.selectedFields.length} field${this.selectedFields.length !== 1 ? 's' : ''}`);
+        appendSpace();
+        appendToken('kw', 'FROM');
+        appendSpace();
+        appendToken('val', entityType);
 
         if (this.filters.length > 0) {
-            summary += ` <span class="kw">WHERE</span> <span class="val">${this.filters.length} filter${this.filters.length !== 1 ? 's' : ''}</span>`;
+            appendSpace();
+            appendToken('kw', 'WHERE');
+            appendSpace();
+            appendToken('val', `${this.filters.length} filter${this.filters.length !== 1 ? 's' : ''}`);
         }
 
         if (this.collectionQueries.length > 0) {
-            summary += ` <span class="kw">WITH</span> <span class="val">${this.collectionQueries.length} collection quer${this.collectionQueries.length !== 1 ? 'ies' : 'y'}</span>`;
+            appendSpace();
+            appendToken('kw', 'WITH');
+            appendSpace();
+            appendToken('val', `${this.collectionQueries.length} collection quer${this.collectionQueries.length !== 1 ? 'ies' : 'y'}`);
         }
-
-        querySummary.innerHTML = summary;
     },
 
     // Initialize with data passed from Razor page
     init(savedReport) {
-        console.log('[ReportBuilder.init] Called with savedReport:', savedReport);
-
         try {
             // Store reportId if present
             if (savedReport && savedReport.reportId) {
                 this.reportId = savedReport.reportId;
-                console.log('[ReportBuilder.init] Stored reportId:', this.reportId);
             }
 
             // Check for auto-saved draft FIRST
@@ -224,7 +261,6 @@ const ReportBuilder = {
                 ReportBuilderNotifications.confirm(
                     `Found an auto-saved draft from ${timeAgo} (${draftDate.toLocaleString()}).\n\nWould you like to restore this draft?`,
                     () => {
-                        console.log('[ReportBuilder.init] Restoring auto-saved draft');
                         const draft = self.loadAutoSavedDraft();
                         if (draft) {
                             // Continue initialization with the draft as savedReport
@@ -232,7 +268,6 @@ const ReportBuilder = {
                         }
                     },
                     () => {
-                        console.log('[ReportBuilder.init] User declined draft restore');
                         self.clearAutoSavedDraft();
                         // Continue initialization without draft
                         self.continueInitialization(null);
@@ -244,9 +279,9 @@ const ReportBuilder = {
 
             this.continueInitialization(savedReport);
         } catch (error) {
-            console.error('[ReportBuilder.init] Error during initialization:', error);
+            console.error('The report builder could not be initialized.');
             this.hideLoading();
-            ReportBuilderNotifications.showToast('Error initializing report builder: ' + error.message, 'error', 5000);
+            ReportBuilderNotifications.showToast('The report builder could not be initialized. Please reload the page.', 'error', 5000);
         }
     },
 
@@ -256,22 +291,17 @@ const ReportBuilder = {
                 this.showLoading('Loading Report', 'Restoring filters and collection queries...');
             }
 
-            console.log('[ReportBuilder.init] Setting up drag/drop');
             this.setupDragDrop();
 
-            console.log('[ReportBuilder.init] Setting up event listeners');
             this.setupEventListeners();
 
-            console.log('[ReportBuilder.init] Setting up field search');
             this.setupFieldSearch();
 
             // Load available fields for the current entity type
             const entityType = document.getElementById('entityTypeSelector')?.value || 'Case';
-            console.log('[ReportBuilder.init] Loading fields for entity type:', entityType);
             this.loadAvailableFields(entityType);
 
             if (savedReport) {
-                console.log('[ReportBuilder.init] Loading saved report');
                 this.loadSavedReport(savedReport);
             } else {
                 // No saved report, hide loading immediately
@@ -286,17 +316,14 @@ const ReportBuilder = {
                 this.updateAutoSaveStatus();
             }, 10000); // Update every 10 seconds
 
-            console.log('[ReportBuilder.init] Initialization complete');
         } catch (error) {
-            console.error('[ReportBuilder.init] Error during initialization:', error);
+            console.error('The report builder could not be initialized.');
             this.hideLoading();
-            ReportBuilderNotifications.showToast('Error initializing report builder: ' + error.message, 'error', 5000);
+            ReportBuilderNotifications.showToast('The report builder could not be initialized. Please reload the page.', 'error', 5000);
         }
     },
 
     async loadAvailableFields(entityType) {
-        console.log('[loadAvailableFields] Loading fields for:', entityType);
-
         try {
             // Load both recommended and all fields
             const [recommendedResponse, groupedResponse] = await Promise.all([
@@ -311,17 +338,14 @@ const ReportBuilder = {
             const recommendedFields = await recommendedResponse.json();
             const fieldsByCategory = await groupedResponse.json();
 
-            console.log('[loadAvailableFields] Loaded recommended:', recommendedFields.length);
-            console.log('[loadAvailableFields] Loaded categories:', Object.keys(fieldsByCategory).length);
-
             this.renderFieldCategories(fieldsByCategory, recommendedFields);
         } catch (error) {
-            console.error('[loadAvailableFields] Error:', error);
+            console.error('Report fields could not be loaded.');
             const container = document.getElementById('fieldCategories');
             if (container) {
                 container.innerHTML = `
                     <div class="rb-empty-state">
-                        <div class="rb-empty-state-text">Failed to load fields: ${this.escapeHtml(error.message)}</div>
+                        <div class="rb-empty-state-text">Fields could not be loaded. Please refresh the page and try again.</div>
                     </div>
                 `;
             }
@@ -349,7 +373,7 @@ const ReportBuilder = {
                                  data-field-path="${this.escapeHtml(field.fieldPath)}"
                                  data-display-name="${this.escapeHtml(field.displayName)}"
                                  data-data-type="${this.escapeHtml(field.dataType)}"
-                                 data-is-custom="${field.isCustomField || false}"
+                                 data-is-custom="${Boolean(field.isCustomField)}"
                                  data-custom-id="${this.escapeHtml(field.customFieldDefinitionId || '')}"
                                  title="${this.escapeHtml(field.fieldPath)}">
                                 <span class="rb-field-icon">${this.getFieldIcon(field.dataType)}</span>
@@ -389,7 +413,7 @@ const ReportBuilder = {
                                  data-field-path="${this.escapeHtml(field.fieldPath)}"
                                  data-display-name="${this.escapeHtml(field.displayName)}"
                                  data-data-type="${this.escapeHtml(field.dataType)}"
-                                 data-is-custom="${field.isCustomField || false}"
+                                 data-is-custom="${Boolean(field.isCustomField)}"
                                  data-custom-id="${this.escapeHtml(field.customFieldDefinitionId || '')}"
                                  title="${this.escapeHtml(field.fieldPath)}">
                                 <span class="rb-field-icon">${this.getFieldIcon(field.dataType)}</span>
@@ -451,26 +475,38 @@ const ReportBuilder = {
             'Guid': '🔑',
             'Enum': '⚙',
         };
-        return iconMap[dataType] || '•';
+        return Object.hasOwn(iconMap, dataType) ? iconMap[dataType] : '•';
     },
 
     loadSavedReport(savedReport) {
+        // Report configuration can originate from persisted records or the
+        // browser's auto-save store. Normalise IDs/operators before using them
+        // to create element IDs, attributes or CSS selectors.
+        savedReport = {
+            ...savedReport,
+            filters: Array.isArray(savedReport?.filters)
+                ? savedReport.filters.filter(filter => filter && typeof filter === 'object').map(filter => ({
+                    ...filter,
+                    groupId: this.toSafeOptionalInteger(filter.groupId),
+                    logicOperator: this.toSafeLogicOperator(filter.logicOperator),
+                    groupLogicOperator: this.toSafeLogicOperator(filter.groupLogicOperator)
+                }))
+                : []
+        };
+
         // Store savedReport for use in restoreFilter
         this.currentSavedReport = savedReport;
 
         // If this is an autosaved draft (has timestamp), clear preview config to avoid stale state
         if (savedReport.timestamp) {
             this.savedPreviewConfiguration = null;
-            console.log('[loadSavedReport] Draft detected - cleared preview configuration');
         } else {
             // Store pivot and preview configurations if present (server saved report)
             if (savedReport.pivotConfiguration) {
                 this.savedPivotConfiguration = savedReport.pivotConfiguration;
-                console.log('[loadSavedReport] Stored pivot configuration');
             }
             if (savedReport.previewConfiguration) {
                 this.savedPreviewConfiguration = savedReport.previewConfiguration;
-                console.log('[loadSavedReport] Stored preview configuration');
             }
         }
 
@@ -513,10 +549,10 @@ const ReportBuilder = {
                                     <strong><i class="bi bi-parentheses"></i> Filter Group ${groupId}</strong>
                                 </div>
                                 <div class="btn-group btn-group-sm">
-                                    <button class="btn btn-sm btn-outline-primary" onclick="ReportBuilder.addFilterToGroup(${groupId})">
+                                    <button type="button" class="btn btn-sm btn-outline-primary js-add-filter-to-group">
                                         <i class="bi bi-plus"></i> Add Filter
                                     </button>
-                                    <button class="btn btn-sm btn-outline-danger" onclick="ReportBuilder.removeGroup(${groupId})">
+                                    <button type="button" class="btn btn-sm btn-outline-danger js-remove-filter-group">
                                         <i class="bi bi-x"></i> Remove Group
                                     </button>
                                 </div>
@@ -543,6 +579,9 @@ const ReportBuilder = {
                         container.innerHTML = '';
                     }
                     container.insertAdjacentHTML('beforeend', groupHtml);
+                    const groupElement = document.getElementById(`group-${groupId}`);
+                    groupElement.querySelector('.js-add-filter-to-group').addEventListener('click', () => this.addFilterToGroup(groupId));
+                    groupElement.querySelector('.js-remove-filter-group').addEventListener('click', () => this.removeGroup(groupId));
                     this.filterGroups.push({ id: groupId, filters: [] });
 
                     // Restore group logic operator if saved
@@ -591,7 +630,7 @@ const ReportBuilder = {
                             // Wait between queries to ensure proper DOM updates
                             await new Promise(resolve => setTimeout(resolve, 300));
                         } catch (error) {
-                            console.error('[loadSavedReport] Failed to restore collection query:', error);
+                            console.error('A collection query could not be restored.');
                         }
                     }
 
@@ -599,10 +638,9 @@ const ReportBuilder = {
                     this.updateLoadingProgress('✓ Report loaded successfully');
                     setTimeout(() => {
                         this.hideLoading();
-                        console.log('[loadSavedReport] ✅ All restoration complete - loading overlay hidden');
                     }, 500);
                 } catch (error) {
-                    console.error('[loadSavedReport] Error during restoration:', error);
+                    console.error('The report configuration could not be restored.');
                     this.hideLoading();
                 }
             }, 500);
@@ -610,7 +648,6 @@ const ReportBuilder = {
             // No collection queries, hide loading after a short delay
             setTimeout(() => {
                 this.hideLoading();
-                console.log('[loadSavedReport] ✅ Report loaded (no collection queries) - loading overlay hidden');
             }, 800);
         }
     },
@@ -639,7 +676,7 @@ const ReportBuilder = {
         }
 
         if (!filterEl) {
-            console.warn(`[restoreFilter] Could not find filter element for index ${filterIndex}, groupId: ${filter.groupId}`);
+            console.warn('A report filter control could not be restored.');
             return;
         }
 
@@ -874,7 +911,7 @@ const ReportBuilder = {
             const dataType = metadata?.dataType || subFilter.dataType || 'String';
             const displayName = this.formatFieldName(fieldName);
             const selected = fieldName === subFilter.field ? 'selected' : '';
-            return `<option value="${fieldName}" data-type="${dataType}" ${selected}>${displayName}</option>`;
+            return `<option value="${this.escapeHtml(fieldName)}" data-type="${this.escapeHtml(dataType)}" ${selected}>${this.escapeHtml(displayName)}</option>`;
         }).join('');
 
         const operatorOptions = [
@@ -906,11 +943,10 @@ const ReportBuilder = {
                         </div>
                         <div class="col-md-4" id="subfilter-value-container-${queryId}-${subFilterId}">
                             <input type="text" class="form-control form-control-sm subfilter-value" 
-                                   placeholder="Value" value="${subFilter.value || ''}">
+                                   placeholder="Value" value="${this.escapeHtml(subFilter.value || '')}">
                         </div>
                         <div class="col-md-1">
-                            <button type="button" class="btn btn-sm btn-outline-danger" 
-                                    onclick="ReportBuilder.removeCollectionSubFilter(${queryId}, ${subFilterId})">
+                            <button type="button" class="btn btn-sm btn-outline-danger js-remove-collection-subfilter">
                                 <i class="bi bi-x"></i>
                             </button>
                         </div>
@@ -918,18 +954,18 @@ const ReportBuilder = {
                 </div>
             </div>
         `);
+        document.getElementById(`subfilter-${queryId}-${subFilterId}`)
+            .querySelector('.js-remove-collection-subfilter')
+            .addEventListener('click', () => this.removeCollectionSubFilter(queryId, subFilterId));
 
         this.setupSubFilterSmartInput(queryId, subFilterId);
     },
 
     setupDragDrop() {
         // Drag and drop removed - using + buttons instead
-        console.log('[setupDragDrop] Skipped (using + buttons)');
     },
 
     setupEventListeners() {
-        console.log('[setupEventListeners] Starting');
-
         const btnPreview = document.getElementById('btnPreview');
         const btnSave = document.getElementById('btnSave');
         const btnAddFilter = document.getElementById('btnAddFilter');
@@ -941,48 +977,38 @@ const ReportBuilder = {
 
         if (btnPreview) {
             btnPreview.addEventListener('click', () => { 
-                console.log('[btnPreview] Clicked'); 
                 this.preview(); 
             });
-            console.log('[setupEventListeners] btnPreview wired');
         } else {
             console.warn('[setupEventListeners] btnPreview not found');
         }
 
         if (btnSave) {
             btnSave.addEventListener('click', () => { 
-                console.log('[btnSave] Clicked'); 
                 this.save(); 
             });
-            console.log('[setupEventListeners] btnSave wired');
         } else {
             console.warn('[setupEventListeners] btnSave not found');
         }
 
         if (btnAddFilter) {
             btnAddFilter.addEventListener('click', () => { 
-                console.log('[btnAddFilter] Clicked'); 
                 this.addFilter(); 
             });
-            console.log('[setupEventListeners] btnAddFilter wired');
         } else {
             console.warn('[setupEventListeners] btnAddFilter not found');
         }
 
         if (btnAddGroup) {
             btnAddGroup.addEventListener('click', () => { 
-                console.log('[btnAddGroup] Clicked'); 
                 this.addFilterGroup(); 
             });
-            console.log('[setupEventListeners] btnAddGroup wired');
         }
 
         if (btnAddCollection) {
             btnAddCollection.addEventListener('click', () => { 
-                console.log('[btnAddCollection] Clicked'); 
                 this.addCollectionQuery(); 
             });
-            console.log('[setupEventListeners] btnAddCollection wired');
         } else {
             console.warn('[setupEventListeners] btnAddCollection not found');
         }
@@ -990,27 +1016,21 @@ const ReportBuilder = {
         // Wire up inline "Add" buttons for Filters and Collection Queries
         if (btnAddFilterInline) {
             btnAddFilterInline.addEventListener('click', () => { 
-                console.log('[btnAddFilterInline] Clicked'); 
                 this.addFilter(); 
             });
-            console.log('[setupEventListeners] btnAddFilterInline wired');
         }
 
         if (btnAddCollectionInline) {
             btnAddCollectionInline.addEventListener('click', () => { 
-                console.log('[btnAddCollectionInline] Clicked'); 
                 this.addCollectionQuery(); 
             });
-            console.log('[setupEventListeners] btnAddCollectionInline wired');
         }
 
         const btnClearAll = document.getElementById('btnClearAll');
         if (btnClearAll) {
             btnClearAll.addEventListener('click', () => { 
-                console.log('[btnClearAll] Clicked'); 
                 this.clearAll(); 
             });
-            console.log('[setupEventListeners] btnClearAll wired');
         } else {
             console.warn('[setupEventListeners] btnClearAll not found');
         }
@@ -1026,7 +1046,7 @@ const ReportBuilder = {
                     ReportBuilderNotifications.confirm(
                         'Changing the entity type will clear all fields, filters, and collection queries.',
                         () => {
-                            window.location.href = '?entityType=' + newValue;
+                            this.navigateToEntityType(newValue);
                         },
                         () => {
                             e.target.value = originalValue;
@@ -1040,12 +1060,9 @@ const ReportBuilder = {
                     return;
                 }
 
-                window.location.href = '?entityType=' + e.target.value;
+                this.navigateToEntityType(e.target.value);
             });
-            console.log('[setupEventListeners] entityTypeSelector wired');
         }
-
-        console.log('[setupEventListeners] Complete');
     },
 
     setupFieldSearch() {
@@ -1063,12 +1080,10 @@ const ReportBuilder = {
             });
         });
 
-        console.log('[setupFieldSearch] Field search initialized');
     },
 
     addField(field) {
         if (this.selectedFields.some(f => f.fieldPath === field.fieldPath)) {
-            console.log('[addField] Field already added:', field.fieldPath);
             return;
         }
 
@@ -1113,7 +1128,6 @@ const ReportBuilder = {
 
     setupFieldReordering() {
         // Reordering removed for simplicity
-        console.log('[setupFieldReordering] Skipped');
     },
 
     // ==================== FILTER FUNCTIONS ====================
@@ -1152,12 +1166,15 @@ const ReportBuilder = {
                         <option value="IsNotNull">is not null</option>
                     </select>
                     <input type="text" class="rb-filter-value" id="value-${filterId}" placeholder="Value">
-                    <button class="rb-item-action" onclick="ReportBuilder.removeFilter(${filterId})" title="Remove filter">×</button>
+                    <button type="button" class="rb-item-action js-remove-standalone-filter" title="Remove filter">×</button>
                 </div>
             </div>
         `;
 
         container.insertAdjacentHTML('beforeend', filterHtml);
+        document.getElementById(`filter-${filterId}`)
+            .querySelector('.js-remove-standalone-filter')
+            .addEventListener('click', () => this.removeFilter(filterId));
         this.filters.push({ id: filterId });
         this.setupSmartFilter(filterId);
         this.updateStatusBar();
@@ -1186,21 +1203,13 @@ const ReportBuilder = {
         const valueInput = document.getElementById(`value-${filterId}`);
 
         if (!fieldSelect || !operatorSelect || !valueInput) {
-            console.warn(`[setupSmartFilter] Elements not found for filter ${filterId}`, { 
-                fieldSelect: !!fieldSelect, 
-                operatorSelect: !!operatorSelect, 
-                valueInput: !!valueInput 
-            });
+            console.warn('Report filter controls were not found.');
             return;
         }
-
-        console.log(`[setupSmartFilter] Setting up filter ${filterId}`);
 
         fieldSelect.addEventListener('change', (e) => {
             const selectedOption = e.target.options[e.target.selectedIndex];
             const dataType = selectedOption.dataset.type || 'String';
-
-            console.log('[MainFilter] Field changed to', e.target.value, 'DataType:', dataType, 'Option dataset:', selectedOption.dataset);
 
             this.updateOperators(operatorSelect, dataType);
             this.updateValueInput(valueInput, dataType, operatorSelect.value);
@@ -1209,8 +1218,6 @@ const ReportBuilder = {
         operatorSelect.addEventListener('change', (e) => {
             const selectedOption = fieldSelect.options[fieldSelect.selectedIndex];
             const dataType = selectedOption.dataset.type || 'String';
-
-            console.log('[MainFilter] Operator changed to', e.target.value, 'DataType:', dataType);
 
             this.updateValueInput(valueInput, dataType, e.target.value);
         });
@@ -1271,7 +1278,6 @@ const ReportBuilder = {
             `<option value="${op.value}">${op.label}</option>`
         ).join('');
 
-        console.log(`[updateOperators] DataType: ${dataType}, Normalized: ${normalizedType}, Operators: ${operators.length}, hideOperatorForDates: ${hideOperatorForDates}`);
     },
 
     getDateOperators() {
@@ -1309,13 +1315,11 @@ const ReportBuilder = {
         }
 
         if (!valueContainer) {
-            console.warn('[updateValueInput] No value container found', { isSubFilter, inputElement });
+            console.warn('Report filter value control was not found.');
             return;
         }
 
         const uniqueId = inputElement.id || `filter-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-
-        console.log(`[updateValueInput] DataType: ${dataType}, Operator: ${operator}, isSubFilter: ${isSubFilter}`);
 
         // Find operator select in the same row for visibility control
         const filterRow = valueContainer.closest('.rb-filter-row, .rb-subfilter-row');
@@ -1411,10 +1415,10 @@ const ReportBuilder = {
                         <strong><i class="bi bi-parentheses"></i> Filter Group ${groupId}</strong>
                     </div>
                     <div class="btn-group btn-group-sm">
-                        <button class="btn btn-sm btn-outline-primary" onclick="ReportBuilder.addFilterToGroup(${groupId})">
+                        <button type="button" class="btn btn-sm btn-outline-primary js-add-filter-to-group">
                             <i class="bi bi-plus"></i> Add Filter
                         </button>
-                        <button class="btn btn-sm btn-outline-danger" onclick="ReportBuilder.removeGroup(${groupId})">
+                        <button type="button" class="btn btn-sm btn-outline-danger js-remove-filter-group">
                             <i class="bi bi-x"></i> Remove Group
                         </button>
                     </div>
@@ -1441,6 +1445,9 @@ const ReportBuilder = {
             container.innerHTML = '';
         }
         container.insertAdjacentHTML('beforeend', groupHtml);
+        const groupElement = document.getElementById(`group-${groupId}`);
+        groupElement.querySelector('.js-add-filter-to-group').addEventListener('click', () => this.addFilterToGroup(groupId));
+        groupElement.querySelector('.js-remove-filter-group').addEventListener('click', () => this.removeGroup(groupId));
         this.filterGroups.push({ id: groupId, filters: [] });
     },
 
@@ -1473,7 +1480,7 @@ const ReportBuilder = {
                         <input type="text" class="form-control form-control-sm filter-value" id="value-${filterId}" placeholder="Value">
                     </div>
                     <div class="col-md-1">
-                        <button class="btn btn-sm btn-outline-danger" onclick="ReportBuilder.removeFilterFromGroup(${filterId}, ${groupId})">
+                        <button type="button" class="btn btn-sm btn-outline-danger js-remove-filter-from-group">
                             <i class="bi bi-x"></i>
                         </button>
                     </div>
@@ -1496,6 +1503,9 @@ const ReportBuilder = {
             groupContainer.innerHTML = '';
         }
         groupContainer.insertAdjacentHTML('beforeend', filterHtml);
+        document.getElementById(`filter-${filterId}`)
+            .querySelector('.js-remove-filter-from-group')
+            .addEventListener('click', () => this.removeFilterFromGroup(filterId, groupId));
 
         const group = this.filterGroups.find(g => g.id === groupId);
         if (group) {
@@ -1539,8 +1549,6 @@ const ReportBuilder = {
     },
 
     clearAll() {
-        console.log('[clearAll] Clearing all fields, filters, and collection queries');
-
         // Capture 'this' context for use in callback
         const self = this;
 
@@ -1595,15 +1603,13 @@ const ReportBuilder = {
         const valueContainer = document.getElementById(`subfilter-value-container-${queryId}-${subFilterId}`);
 
         if (!fieldSelect || !operatorSelect || !valueContainer) {
-            console.warn(`Sub-filter elements not found for query ${queryId}, subfilter ${subFilterId}`);
+            console.warn('Collection sub-filter controls were not found.');
             return;
         }
 
         fieldSelect.addEventListener('change', (e) => {
             const selectedOption = e.target.options[e.target.selectedIndex];
             const dataType = selectedOption.dataset.type || 'String';
-
-            console.log(`[SubFilter] Field changed to ${e.target.value}, dataType: ${dataType}`);
 
             this.updateOperators(operatorSelect, dataType);
 
@@ -1616,8 +1622,6 @@ const ReportBuilder = {
         operatorSelect.addEventListener('change', (e) => {
             const selectedOption = fieldSelect.options[fieldSelect.selectedIndex];
             const dataType = selectedOption.dataset.type || 'String';
-
-            console.log(`[SubFilter] Operator changed to ${e.target.value}, dataType: ${dataType}`);
 
             valueContainer.innerHTML = '<input type="text" class="form-control form-control-sm subfilter-value" placeholder="Value">';
             const tempInput = valueContainer.querySelector('input');

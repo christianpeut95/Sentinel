@@ -410,7 +410,7 @@
                         <h4 id="selectedPatientName"></h4>
                         <p id="selectedPatientDetails"></p>
                     </div>
-                    <button type="button" class="btn-change" onclick="changePatient()">
+                    <button type="button" class="btn-change js-contact-wizard-action" data-contact-wizard-action="change-patient">
                         <i class="bi bi-arrow-left-right"></i>
                         Change
                     </button>
@@ -426,7 +426,7 @@
 
             <div class="step-actions">
                 <div></div>
-                <button type="button" class="btn-modern btn-primary" onclick="nextStep()" id="step1Next" disabled>
+                <button type="button" class="btn-modern btn-primary js-contact-wizard-action" data-contact-wizard-action="next-step" id="step1Next" disabled>
                     Next
                     <i class="bi bi-arrow-right"></i>
                 </button>
@@ -495,11 +495,11 @@
             </div>
 
             <div class="step-actions">
-                <button type="button" class="btn-modern btn-secondary" onclick="prevStep()">
+                <button type="button" class="btn-modern btn-secondary js-contact-wizard-action" data-contact-wizard-action="previous-step">
                     <i class="bi bi-arrow-left"></i>
                     Back
                 </button>
-                <button type="button" class="btn-modern btn-primary" onclick="nextStep()">
+                <button type="button" class="btn-modern btn-primary js-contact-wizard-action" data-contact-wizard-action="next-step">
                     Next
                     <i class="bi bi-arrow-right"></i>
                 </button>
@@ -529,7 +529,7 @@
 
                 <div class="text-center mt-3">
                     <p class="text-muted mb-2">Or skip this step if you don't know the source case yet</p>
-                    <button type="button" class="btn-modern btn-secondary" onclick="skipSourceCase()">
+                    <button type="button" class="btn-modern btn-secondary js-contact-wizard-action" data-contact-wizard-action="skip-source-case">
                         <i class="bi bi-skip-forward"></i>
                         Skip for Now
                     </button>
@@ -543,7 +543,7 @@
                         <h4 id="selectedSourceCaseName"></h4>
                         <p id="selectedSourceCaseDetails"></p>
                     </div>
-                    <button type="button" class="btn-change" onclick="changeSourceCase()">
+                    <button type="button" class="btn-change js-contact-wizard-action" data-contact-wizard-action="change-source-case">
                         <i class="bi bi-arrow-left-right"></i>
                         Change
                     </button>
@@ -602,11 +602,11 @@
             <input type="hidden" id="selectedSourceCaseId" />
 
             <div class="step-actions">
-                <button type="button" class="btn-modern btn-secondary" onclick="prevStep()">
+                <button type="button" class="btn-modern btn-secondary js-contact-wizard-action" data-contact-wizard-action="previous-step">
                     <i class="bi bi-arrow-left"></i>
                     Back
                 </button>
-                <button type="button" class="btn-modern btn-primary" onclick="nextStep()" id="step3Next">
+                <button type="button" class="btn-modern btn-primary js-contact-wizard-action" data-contact-wizard-action="next-step" id="step3Next">
                     Next
                     <i class="bi bi-arrow-right"></i>
                 </button>
@@ -622,11 +622,11 @@
             </div>
 
             <div class="step-actions">
-                <button type="button" class="btn-modern btn-secondary" onclick="prevStep()">
+                <button type="button" class="btn-modern btn-secondary js-contact-wizard-action" data-contact-wizard-action="previous-step">
                     <i class="bi bi-arrow-left"></i>
                     Back
                 </button>
-                <button type="button" class="btn-modern btn-success" onclick="submitContact()">
+                <button type="button" class="btn-modern btn-success js-contact-wizard-action" data-contact-wizard-action="submit-contact">
                     <i class="bi bi-check-circle"></i>
                     Create Contact
                 </button>
@@ -641,12 +641,52 @@
     
 <script src="~/lib/jquery/dist/jquery.min.js"></script>
 <script>
+    document.addEventListener('click', (event) => {
+        const action = event.target.closest('.js-contact-wizard-action');
+        if (!action) return;
+
+        switch (action.dataset.contactWizardAction) {
+            case 'change-patient': changePatient(); break;
+            case 'next-step': nextStep(); break;
+            case 'previous-step': prevStep(); break;
+            case 'skip-source-case': skipSourceCase(); break;
+            case 'change-source-case': changeSourceCase(); break;
+            case 'submit-contact': submitContact(); break;
+        }
+    });
+
     let currentStep = 1;
     let selectedPatient = null;
     let selectedSourceCase = null;
     let createdContactId = null;
 
     $(document).ready(function() {    });
+
+    function escapeHtml(value) {
+        return String(value == null ? '' : value)
+            .replace(/&/g, '&amp;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;');
+    }
+
+    function safeLocalRedirect(value, fallback) {
+        if (typeof value !== 'string') {
+            return fallback;
+        }
+
+        try {
+            const candidate = new URL(value, window.location.origin);
+            return candidate.origin === window.location.origin &&
+                candidate.pathname.startsWith('/') &&
+                !candidate.pathname.startsWith('//')
+                ? `${candidate.pathname}${candidate.search}${candidate.hash}`
+                : fallback;
+        } catch {
+            return fallback;
+        }
+    }
 
     // Patient Search with Debounce
     let searchTimeout;
@@ -874,7 +914,7 @@
                     $(`.step[data-step="3"]`).addClass('active');
                     $('html, body').animate({ scrollTop: 0 }, 300);
                 } else {
-                    alert('Error creating contact: ' + (response.message || 'Unknown error'));
+                    alert('The contact could not be created. Please check the entered information and try again.');
                     $nextBtn.prop('disabled', false).html(originalText);
                 }
             },
@@ -891,8 +931,8 @@
         summaryHtml += `
             <div class="mb-4">
                 <h5 style="color: #7c3aed; margin-bottom: 1rem;"><i class="bi bi-person me-2"></i>Patient</h5>
-                <p><strong>${selectedPatient.name}</strong></p>
-                <p class="text-muted">DOB: ${selectedPatient.dob || 'N/A'} | ID: ${selectedPatient.friendlyId}</p>
+                <p><strong>${escapeHtml(selectedPatient.name)}</strong></p>
+                <p class="text-muted">DOB: ${escapeHtml(selectedPatient.dob || 'N/A')} | ID: ${escapeHtml(selectedPatient.friendlyId)}</p>
             </div>
         `;
         
@@ -905,8 +945,8 @@
         summaryHtml += `
             <div class="mb-4">
                 <h5 style="color: #7c3aed; margin-bottom: 1rem;"><i class="bi bi-file-medical me-2"></i>Contact Details</h5>
-                <p><strong>Disease:</strong> ${disease}</p>
-                <p><strong>Status:</strong> ${status || 'Not specified'}</p>
+                <p><strong>Disease:</strong> ${escapeHtml(disease)}</p>
+                <p><strong>Status:</strong> ${escapeHtml(status || 'Not specified')}</p>
                 <p><strong>Date of First Exposure:</strong> ${dateOfOnset ? new Date(dateOfOnset).toLocaleDateString() : 'Not specified'}</p>
                 <p><strong>Date Identified:</strong> ${dateOfNotification ? new Date(dateOfNotification).toLocaleDateString() : 'Not specified'}</p>
             </div>
@@ -922,12 +962,12 @@
             summaryHtml += `
                 <div class="mb-4">
                     <h5 style="color: #7c3aed; margin-bottom: 1rem;"><i class="bi bi-diagram-3 me-2"></i>Source Case & Exposure</h5>
-                    <p><strong>Source Case:</strong> ${selectedSourceCase.friendlyId} - ${selectedSourceCase.patientName}</p>
-                    <p><strong>Source Disease:</strong> ${selectedSourceCase.diseaseName}</p>
-                    <p><strong>Contact Classification:</strong> ${classification || 'Not specified'}</p>
+                    <p><strong>Source Case:</strong> ${escapeHtml(selectedSourceCase.friendlyId)} - ${escapeHtml(selectedSourceCase.patientName)}</p>
+                    <p><strong>Source Disease:</strong> ${escapeHtml(selectedSourceCase.diseaseName)}</p>
+                    <p><strong>Contact Classification:</strong> ${escapeHtml(classification || 'Not specified')}</p>
                     <p><strong>Exposure Period:</strong> ${exposureStart ? new Date(exposureStart).toLocaleDateString() : 'Not specified'} 
                        ${exposureEnd ? ' to ' + new Date(exposureEnd).toLocaleDateString() : ''}</p>
-                    ${exposureDesc ? '<p><strong>Description:</strong> ' + exposureDesc + '</p>' : ''}
+                    ${exposureDesc ? '<p><strong>Description:</strong> ' + escapeHtml(exposureDesc) + '</p>' : ''}
                 </div>
             `;
         } else {
@@ -980,20 +1020,22 @@
                 }),
                 success: function(response) {
                     if (response.success) {
-                        window.location.href = response.redirectUrl;
+                        window.location.href = safeLocalRedirect(
+                            response.redirectUrl,
+                            `/Contacts/Details?id=${encodeURIComponent(createdContactId)}`);
                     } else {
-                        alert('Error linking to source case: ' + (response.message || 'Unknown error'));
+                        alert('The contact could not be linked to the source case. Please try again.');
                         $submitBtn.prop('disabled', false).html(originalText);
                     }
                 },
                 error: function(xhr) {
                     alert('Error linking to source case. Redirecting to contact details...');                    // Still redirect to contact details even if exposure link fails
-                    window.location.href = `/Contacts/Details?id=${createdContactId}`;
+                    window.location.href = `/Contacts/Details?id=${encodeURIComponent(createdContactId)}`;
                 }
             });
         } else {
             // No source case - just redirect to contact details
-            window.location.href = `/Contacts/Details?id=${createdContactId}`;
+            window.location.href = `/Contacts/Details?id=${encodeURIComponent(createdContactId)}`;
         }
     }
 </script>

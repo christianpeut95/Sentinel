@@ -136,12 +136,19 @@ public class InterviewQueueModel : PageModel
 
     public async Task<IActionResult> OnPostSkipTaskAsync(Guid taskId)
     {
+        if (!await CanEditAssignedTaskAsync(taskId))
+        {
+            return Forbid();
+        }
+
         try
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
-            await _assignmentService.SkipTaskAsync(taskId, userId);
+            var skipped = await _assignmentService.SkipTaskAsync(taskId, userId);
 
-            TempData["InfoMessage"] = "Task skipped. Getting next task...";
+            TempData[skipped ? "InfoMessage" : "ErrorMessage"] = skipped
+                ? "Task skipped. Getting next task..."
+                : "The task is no longer available to skip.";
         }
         catch (Exception ex)
         {

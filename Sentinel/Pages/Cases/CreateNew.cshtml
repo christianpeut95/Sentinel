@@ -74,7 +74,7 @@
                         <h4 id="selectedPatientName"></h4>
                         <p id="selectedPatientDetails"></p>
                     </div>
-                    <button type="button" class="btn-change" onclick="changePatient()">
+                    <button type="button" class="btn-change js-case-wizard-action" data-case-wizard-action="change-patient">
                         <i class="bi bi-arrow-left-right"></i>
                         Change
                     </button>
@@ -343,7 +343,7 @@
 
             <div class="step-actions">
                 <div></div>
-                <button type="button" class="btn-modern btn-primary" onclick="nextStep()" id="step1Next" disabled>
+                <button type="button" class="btn-modern btn-primary js-case-wizard-action" data-case-wizard-action="next-step" id="step1Next" disabled>
                     Next
                     <i class="bi bi-arrow-right"></i>
                 </button>
@@ -411,11 +411,11 @@
             </div>
 
             <div class="step-actions">
-                <button type="button" class="btn-modern btn-secondary" onclick="prevStep()">
+                <button type="button" class="btn-modern btn-secondary js-case-wizard-action" data-case-wizard-action="previous-step">
                     <i class="bi bi-arrow-left"></i>
                     Back
                 </button>
-                <button type="button" class="btn-modern btn-primary" onclick="nextStep()">
+                <button type="button" class="btn-modern btn-primary js-case-wizard-action" data-case-wizard-action="next-step">
                     Next
                     <i class="bi bi-arrow-right"></i>
                 </button>
@@ -426,7 +426,7 @@
         <div class="step-content" data-step="3">
             <h2 style="font-size: 20px; font-weight: 600; margin-bottom: 1.5rem; color: var(--forest); font-family: var(--f-sans);">Laboratory Results (Optional)</h2>
             
-            <button type="button" class="btn-add" onclick="addLabResult()">
+            <button type="button" class="btn-add js-case-wizard-action" data-case-wizard-action="add-lab-result">
                 <i class="bi bi-plus-circle"></i>
                 Add Lab Result
             </button>
@@ -436,11 +436,11 @@
             </div>
 
             <div class="step-actions">
-                <button type="button" class="btn-modern btn-secondary" onclick="prevStep()">
+                <button type="button" class="btn-modern btn-secondary js-case-wizard-action" data-case-wizard-action="previous-step">
                     <i class="bi bi-arrow-left"></i>
                     Back
                 </button>
-                <button type="button" class="btn-modern btn-primary" onclick="nextStep()">
+                <button type="button" class="btn-modern btn-primary js-case-wizard-action" data-case-wizard-action="next-step">
                     Next
                     <i class="bi bi-arrow-right"></i>
                 </button>
@@ -478,7 +478,7 @@
                 </div>
             </div>
             
-            <button type="button" class="btn-add" onclick="addExposure()">
+            <button type="button" class="btn-add js-case-wizard-action" data-case-wizard-action="add-exposure">
                 <i class="bi bi-plus-circle"></i>
                 Add Exposure
             </button>
@@ -488,11 +488,11 @@
             </div>
 
             <div class="step-actions">
-                <button type="button" class="btn-modern btn-secondary" onclick="prevStep()">
+                <button type="button" class="btn-modern btn-secondary js-case-wizard-action" data-case-wizard-action="previous-step">
                     <i class="bi bi-arrow-left"></i>
                     Back
                 </button>
-                <button type="button" class="btn-modern btn-primary" onclick="nextStep()">
+                <button type="button" class="btn-modern btn-primary js-case-wizard-action" data-case-wizard-action="next-step">
                     Next
                     <i class="bi bi-arrow-right"></i>
                 </button>
@@ -508,7 +508,7 @@
             </div>
 
             <div class="step-actions">
-                <button type="button" class="btn-modern btn-secondary" onclick="prevStep()">
+                <button type="button" class="btn-modern btn-secondary js-case-wizard-action" data-case-wizard-action="previous-step">
                     <i class="bi bi-arrow-left"></i>
                     Back
                 </button>
@@ -531,6 +531,19 @@
 <link href="~/lib/select2/dist/css/select2.min.css" rel="stylesheet" />
 <script src="~/lib/select2/dist/js/select2.min.js"></script>
 <script nonce="@GetCspNonce()">
+    document.addEventListener('click', (event) => {
+        const action = event.target.closest('.js-case-wizard-action');
+        if (!action) return;
+
+        switch (action.dataset.caseWizardAction) {
+            case 'change-patient': changePatient(); break;
+            case 'next-step': nextStep(); break;
+            case 'previous-step': prevStep(); break;
+            case 'add-lab-result': addLabResult(); break;
+            case 'add-exposure': addExposure(); break;
+        }
+    });
+
     let currentStep = 1;
     let selectedPatient = null;
     let labResults = [];
@@ -545,6 +558,10 @@
         var languages = @Html.Raw(Json.Serialize(Model.Languages));
         var Ancestries = @Html.Raw(Json.Serialize(Model.Ancestries));
         var atsiStatuses = @Html.Raw(Json.Serialize(Model.AtsiStatuses));
+
+        function appendLookupOption($select, id, name) {
+            $select.append($('<option>', { value: id ?? '' }).text(name ?? ''));
+        }
         
         // Populate Gender dropdown
         if (genders && genders.length > 0) {
@@ -552,7 +569,7 @@
             $genderSelect.empty();
             $genderSelect.append('<option value="">-- Select --</option>');
             genders.forEach(function(gender) {
-                $genderSelect.append('<option value="' + gender.id + '">' + gender.name + '</option>');
+                appendLookupOption($genderSelect, gender.id, gender.name);
             });
         }
 
@@ -562,7 +579,7 @@
             $sexSelect.empty();
             $sexSelect.append('<option value="">-- Select --</option>');
             sexAtBirths.forEach(function(sex) {
-                $sexSelect.append('<option value="' + sex.id + '">' + sex.name + '</option>');
+                appendLookupOption($sexSelect, sex.id, sex.name);
             });
         }
 
@@ -572,7 +589,7 @@
             $countrySelect.empty();
             $countrySelect.append('<option value="">-- Select --</option>');
             countries.forEach(function(country) {
-                $countrySelect.append('<option value="' + country.id + '">' + country.name + '</option>');
+                appendLookupOption($countrySelect, country.id, country.name);
             });
         }
 
@@ -582,7 +599,7 @@
             $languageSelect.empty();
             $languageSelect.append('<option value="">-- Select --</option>');
             languages.forEach(function(language) {
-                $languageSelect.append('<option value="' + language.id + '">' + language.name + '</option>');
+                appendLookupOption($languageSelect, language.id, language.name);
             });
         }
 
@@ -592,7 +609,7 @@
             $ethnicitySelect.empty();
             $ethnicitySelect.append('<option value="">-- Select --</option>');
             Ancestries.forEach(function(ethnicity) {
-                $ethnicitySelect.append('<option value="' + ethnicity.id + '">' + ethnicity.name + '</option>');
+                appendLookupOption($ethnicitySelect, ethnicity.id, ethnicity.name);
             });
         }
 
@@ -602,7 +619,7 @@
             $atsiSelect.empty();
             $atsiSelect.append('<option value="">-- Select --</option>');
             atsiStatuses.forEach(function(status) {
-                $atsiSelect.append('<option value="' + status.id + '">' + status.name + '</option>');
+                appendLookupOption($atsiSelect, status.id, status.name);
             });
         }
 
@@ -740,9 +757,6 @@
                             }
                         }
 
-                        if (!matched) {
-                            console.log('Could not match state "' + state + '" to any State option');
-                        }
                     }
                 }
 
@@ -1082,7 +1096,8 @@
                         $(`.step[data-step="3"]`).addClass('active');
                         $('html, body').animate({ scrollTop: 0 }, 300);
                     } else {
-                        alert('Error creating case: ' + (response.message || 'Unknown error'));
+                        console.error('Case creation was rejected.');
+                        alert('The case could not be created. Please review the details and try again.');
                         $nextBtn.prop('disabled', false).html(originalText);
                     }
                 },
@@ -1208,14 +1223,22 @@
         }
 
         // Simple toast notification
+        function escapeHtml(value) {
+            return String(value == null ? '' : value)
+                .replace(/&/g, '&amp;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;');
+        }
+
         function showToast(message, type = 'success') {
             const bgColor = type === 'success' ? '#10b981' : '#ef4444';
-            const toast = $(`
-                <div style="position: fixed; top: 20px; right: 20px; background: ${bgColor}; color: white; 
-                     padding: 1rem 1.5rem; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); z-index: 9999;">
-                    <i class="bi bi-check-circle me-2"></i>${message}
-                </div>
-            `);
+            const toast = $('<div>', {
+                style: `position: fixed; top: 20px; right: 20px; background: ${bgColor}; color: white; padding: 1rem 1.5rem; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); z-index: 9999;`
+            });
+            toast.append($('<i>', { class: 'bi bi-check-circle me-2' }));
+            toast.append(document.createTextNode(String(message ?? '')));
             
             $('body').append(toast);
             
@@ -1252,11 +1275,11 @@
                     <div class="list-group-item">
                         <div class="d-flex justify-content-between align-items-start">
                             <div>
-                                <h6 class="mb-1">${result.testTypeName || 'Lab Test'}</h6>
-                                <p class="mb-1"><strong>Result:</strong> ${result.testResultName || 'N/A'}</p>
+                                <h6 class="mb-1">${escapeHtml(result.testTypeName || 'Lab Test')}</h6>
+                                <p class="mb-1"><strong>Result:</strong> ${escapeHtml(result.testResultName || 'N/A')}</p>
                                 <small class="text-muted">Collected: ${result.specimenCollectionDate ? new Date(result.specimenCollectionDate).toLocaleDateString() : 'N/A'}</small>
                             </div>
-                            <button type="button" class="btn btn-sm btn-outline-danger" onclick="deleteLabResult('${result.id}')">
+                            <button type="button" class="btn btn-sm btn-outline-danger js-delete-lab-result" data-result-id="${escapeHtml(result.id)}">
                                 <i class="bi bi-trash"></i>
                             </button>
                         </div>
@@ -1266,6 +1289,9 @@
             html += '</div>';
             
             $container.html(html);
+            $container.find('.js-delete-lab-result').on('click', function() {
+                deleteLabResult(this.dataset.resultId);
+            });
         }
 
         function deleteLabResult(resultId) {
@@ -1440,11 +1466,11 @@
                     <div class="list-group-item">
                         <div class="d-flex justify-content-between align-items-start">
                             <div>
-                                <h6 class="mb-1">${location}</h6>
-                                <p class="mb-1"><strong>Type:</strong> ${exposure.exposureType}</p>
+                                <h6 class="mb-1">${escapeHtml(location)}</h6>
+                                <p class="mb-1"><strong>Type:</strong> ${escapeHtml(exposure.exposureType)}</p>
                                 <small class="text-muted">Period: ${startDate} - ${endDate}</small>
                             </div>
-                            <button type="button" class="btn btn-sm btn-outline-danger" onclick="deleteExposure('${exposure.id}')">
+                            <button type="button" class="btn btn-sm btn-outline-danger js-delete-exposure" data-exposure-id="${escapeHtml(exposure.id)}">
                                 <i class="bi bi-trash"></i>
                             </button>
                         </div>
@@ -1454,13 +1480,16 @@
             html += '</div>';
             
             $container.html(html);
+            $container.find('.js-delete-exposure').on('click', function() {
+                deleteExposure(this.dataset.exposureId);
+            });
         }
 
         function deleteExposure(exposureId) {
             if (!confirm('Are you sure you want to delete this exposure?')) return;
             
             $.ajax({
-                url: `/api/exposures/${exposureId}`,
+                url: `/api/exposures/${encodeURIComponent(exposureId)}`,
                 type: 'DELETE',
                 success: function() {
                     loadExposures(); // Refresh list
@@ -1474,15 +1503,15 @@
         function populateReviewSummary() {
             let html = `
                 <h3 style="font-weight: 600; margin-bottom: 1rem; color: var(--forest); font-family: var(--f-sans);">Patient Information</h3>
-                <p style="font-family: var(--f-sans);"><strong>Name:</strong> ${selectedPatient.name}</p>
-                <p style="font-family: var(--f-sans);"><strong>DOB:</strong> ${selectedPatient.dob || 'N/A'}</p>
-                <p style="font-family: var(--f-sans);"><strong>ID:</strong> ${selectedPatient.friendlyId}</p>
+                <p style="font-family: var(--f-sans);"><strong>Name:</strong> ${escapeHtml(selectedPatient.name)}</p>
+                <p style="font-family: var(--f-sans);"><strong>DOB:</strong> ${escapeHtml(selectedPatient.dob || 'N/A')}</p>
+                <p style="font-family: var(--f-sans);"><strong>ID:</strong> ${escapeHtml(selectedPatient.friendlyId)}</p>
                 <hr style="margin: 1.5rem 0; border-color: var(--hairline);">
                 <h3 style="font-weight: 600; margin-bottom: 1rem; color: var(--forest); font-family: var(--f-sans);">Case Details</h3>
-                <p style="font-family: var(--f-sans);"><strong>Disease:</strong> ${$('#diseaseSelect option:selected').text()}</p>
-                <p style="font-family: var(--f-sans);"><strong>Status:</strong> ${$('select[name="ConfirmationStatusId"] option:selected').text() || 'Not specified'}</p>
-                <p style="font-family: var(--f-sans);"><strong>Date of Onset:</strong> ${$('input[name="DateOfOnset"]').val() || 'Not specified'}</p>
-                <p style="font-family: var(--f-sans);"><strong>Date of Notification:</strong> ${$('input[name="DateOfNotification"]').val()}</p>
+                <p style="font-family: var(--f-sans);"><strong>Disease:</strong> ${escapeHtml($('#diseaseSelect option:selected').text())}</p>
+                <p style="font-family: var(--f-sans);"><strong>Status:</strong> ${escapeHtml($('select[name="ConfirmationStatusId"] option:selected').text() || 'Not specified')}</p>
+                <p style="font-family: var(--f-sans);"><strong>Date of Onset:</strong> ${escapeHtml($('input[name="DateOfOnset"]').val() || 'Not specified')}</p>
+                <p style="font-family: var(--f-sans);"><strong>Date of Notification:</strong> ${escapeHtml($('input[name="DateOfNotification"]').val())}</p>
             `;
 
             if (labResults.length > 0 || exposures.length > 0) {
@@ -1505,7 +1534,7 @@
         // Prevent form submission in Step 5 - just redirect to existing case
 $('form').on('submit', function(e) {
     if (currentStep === 5 && createdCaseId) {
-        e.preventDefault();        window.location.href = `/Cases/Details?id=${createdCaseId}`;
+        e.preventDefault();        window.location.href = `/Cases/Details?id=${encodeURIComponent(createdCaseId)}`;
         return false;
     }
 });
@@ -1517,7 +1546,7 @@ $('form').on('submit', function(e) {
                 location.reload();
                 return;
             }
-            window.location.href = `/Cases/Details?id=${createdCaseId}`;
+            window.location.href = `/Cases/Details?id=${encodeURIComponent(createdCaseId)}`;
         };
     </script>
 

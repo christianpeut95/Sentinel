@@ -160,7 +160,7 @@
         catch (Exception ex)
         {
             Logger.LogError(ex, "Error analyzing message");
-            ErrorMessage = $"An error occurred: {ex.Message}";
+            ErrorMessage = "The sample message could not be analyzed. Check that it is a valid HL7 message and try again.";
         }
         finally
         {

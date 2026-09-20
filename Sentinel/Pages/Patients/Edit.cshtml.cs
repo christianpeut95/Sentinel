@@ -11,6 +11,7 @@ using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Sentinel.Data;
 using Sentinel.Models;
 using Sentinel.Models.Lookups;
@@ -30,8 +31,18 @@ namespace Sentinel.Pages.Patients
         private readonly IJurisdictionService _jurisdictionService;
         private readonly IServiceProvider _serviceProvider;
         private readonly IPatientAddressService _patientAddressService;
+        private readonly ILogger<EditModel> _logger;
 
-        public EditModel(Sentinel.Data.ApplicationDbContext context, IGeocodingService geocoder, IPatientCustomFieldService customFieldService, IAuditService auditService, IPatientIdGeneratorService patientIdGenerator, IJurisdictionService jurisdictionService, IServiceProvider serviceProvider, IPatientAddressService patientAddressService)
+        public EditModel(
+            Sentinel.Data.ApplicationDbContext context,
+            IGeocodingService geocoder,
+            IPatientCustomFieldService customFieldService,
+            IAuditService auditService,
+            IPatientIdGeneratorService patientIdGenerator,
+            IJurisdictionService jurisdictionService,
+            IServiceProvider serviceProvider,
+            IPatientAddressService patientAddressService,
+            ILogger<EditModel> logger)
         {
             _context = context;
             _geocoder = geocoder;
@@ -41,6 +52,7 @@ namespace Sentinel.Pages.Patients
             _jurisdictionService = jurisdictionService;
             _serviceProvider = serviceProvider;
             _patientAddressService = patientAddressService;
+            _logger = logger;
         }
 
         [BindProperty]
@@ -211,7 +223,10 @@ namespace Sentinel.Pages.Patients
                 catch (Exception cfEx)
                 {
                     // Log custom field error but don't fail the patient update
-                    TempData["WarningMessage"] = $"Patient updated but some custom fields failed to save: {cfEx.Message}";
+                    TempData["WarningMessage"] = Sentinel.Services.UserFacingError.Create(
+                        HttpContext,
+                        cfEx,
+                        "The patient was updated, but some custom fields could not be saved.");
                 }
 
                 // Build success message with geocoding info
@@ -241,7 +256,12 @@ namespace Sentinel.Pages.Patients
                 else
                 {
                     TempData["ErrorMessage"] = "A concurrency error occurred. The patient may have been modified by another user.";
-                    throw;
+                    if (!await LoadPatientForEditAsync(Patient.Id, populateInput: false))
+                    {
+                        return NotFound();
+                    }
+
+                    return Page();
                 }
             }
             catch (Exception ex)
@@ -525,27 +545,22 @@ namespace Sentinel.Pages.Patients
                         case 1:
                             patient.Jurisdiction1Id = jurisdiction.Id;
                             anyAssigned = true;
-                            Console.WriteLine($"✓ Assigned Jurisdiction1: {jurisdiction.Name} (Type: {jurisdiction.JurisdictionType?.Name})");
                             break;
                         case 2:
                             patient.Jurisdiction2Id = jurisdiction.Id;
                             anyAssigned = true;
-                            Console.WriteLine($"✓ Assigned Jurisdiction2: {jurisdiction.Name} (Type: {jurisdiction.JurisdictionType?.Name})");
                             break;
                         case 3:
                             patient.Jurisdiction3Id = jurisdiction.Id;
                             anyAssigned = true;
-                            Console.WriteLine($"✓ Assigned Jurisdiction3: {jurisdiction.Name} (Type: {jurisdiction.JurisdictionType?.Name})");
                             break;
                         case 4:
                             patient.Jurisdiction4Id = jurisdiction.Id;
                             anyAssigned = true;
-                            Console.WriteLine($"✓ Assigned Jurisdiction4: {jurisdiction.Name} (Type: {jurisdiction.JurisdictionType?.Name})");
                             break;
                         case 5:
                             patient.Jurisdiction5Id = jurisdiction.Id;
                             anyAssigned = true;
-                            Console.WriteLine($"✓ Assigned Jurisdiction5: {jurisdiction.Name} (Type: {jurisdiction.JurisdictionType?.Name})");
                             break;
                     }
                 }
@@ -554,13 +569,13 @@ namespace Sentinel.Pages.Patients
                 {
                     // Save the updated jurisdictions
                     await scopedContext.SaveChangesAsync();
-                    Console.WriteLine($"? Background task: Auto-detected and saved {detectedJurisdictions.Count} jurisdictions for patient {patientId}");
+                    _logger.LogInformation("Automatically detected and saved {JurisdictionCount} jurisdictions for a patient", detectedJurisdictions.Count);
                 }
             }
             catch (Exception ex)
             {
-                // Don't fail - just log the error
-                Console.WriteLine($"? Background task error: Failed to auto-detect jurisdictions: {ex.Message}");
+                // Do not fail a patient save solely because jurisdiction enrichment failed.
+                _logger.LogWarning(ex, "Could not auto-detect patient jurisdictions");
             }
         }
     }

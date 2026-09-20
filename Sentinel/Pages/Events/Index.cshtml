@@ -244,7 +244,7 @@
            class="form-control quick-search-input" 
            id="quickSearchEvents" 
            placeholder="Quick search events..."
-           onkeyup="quickFilterEvents()" />
+           />
 </div>
 
 @if (TempData["SuccessMessage"] != null)
@@ -456,7 +456,7 @@
                                 </a>
                                 @if (!Model.ExposureCounts.ContainsKey(evt.Id) || Model.ExposureCounts[evt.Id] == 0)
                                 {
-                                    <button type="button" class="btn btn-outline-danger" onclick="confirmDelete('@evt.Id', '@evt.Name')" title="Delete">
+                                    <button type="button" class="btn btn-outline-danger js-delete-event" data-event-id="@evt.Id" data-event-name="@evt.Name" title="Delete">
                                         <i class="bi bi-trash"></i>
                                     </button>
                                 }
@@ -516,5 +516,14 @@
             }
         }
     }
+
+    document.addEventListener('DOMContentLoaded', function () {
+        document.getElementById('quickSearchEvents')?.addEventListener('input', quickFilterEvents);
+        document.querySelectorAll('.js-delete-event').forEach(function (button) {
+            button.addEventListener('click', function () {
+                confirmDelete(button.dataset.eventId, button.dataset.eventName);
+            });
+        });
+    });
 </script>
 }

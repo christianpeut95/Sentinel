@@ -69,22 +69,22 @@ namespace Sentinel.Areas.Identity.Pages.Account
             try
             {
                 var token = await _userManager.GeneratePasswordResetTokenAsync(user);
-                var callbackUrl = Url.Page(
+                var resetPageUrl = Url.Page(
                     "/Account/ResetPassword",
                     pageHandler: null,
-                    values: new
-                    {
-                        area = "Identity",
-                        userId = user.Id,
-                        code = PasswordResetTokenEncoding.Encode(token)
-                    },
+                    values: new { area = "Identity" },
                     protocol: Request.Scheme);
 
-                if (string.IsNullOrWhiteSpace(callbackUrl))
+                if (string.IsNullOrWhiteSpace(resetPageUrl))
                 {
                     _logger.LogError("Failed to generate a password reset callback URL");
                     return Page();
                 }
+
+                var callbackUrl = PasswordResetTokenEncoding.AddToResetLinkFragment(
+                    resetPageUrl,
+                    user.Id,
+                    token);
 
                 var userName = !string.IsNullOrWhiteSpace(user.FirstName)
                     ? $"{user.FirstName} {user.LastName}".Trim()

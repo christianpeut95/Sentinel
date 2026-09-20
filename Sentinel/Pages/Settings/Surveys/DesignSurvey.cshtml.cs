@@ -1,24 +1,33 @@
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.EntityFrameworkCore;
 using Sentinel.Data;
 using Sentinel.Models;
+using Sentinel.Services;
 using System.Text.Json;
 
 namespace Sentinel.Pages.Settings.Surveys
 {
     [Authorize(Policy = "Permission.Survey.Edit")]
-    [IgnoreAntiforgeryToken] // Allow AJAX POST without antiforgery token
     public class DesignSurveyModel : PageModel
     {
         private readonly ApplicationDbContext _context;
         private readonly ILogger<DesignSurveyModel> _logger;
+        private readonly IConfiguration _configuration;
+        private readonly IWebHostEnvironment _environment;
 
-        public DesignSurveyModel(ApplicationDbContext context, ILogger<DesignSurveyModel> logger)
+        public DesignSurveyModel(
+            ApplicationDbContext context,
+            ILogger<DesignSurveyModel> logger,
+            IConfiguration configuration,
+            IWebHostEnvironment environment)
         {
             _context = context;
             _logger = logger;
+            _configuration = configuration;
+            _environment = environment;
         }
 
         public string SurveyTemplateId { get; set; } = string.Empty;
@@ -31,12 +40,20 @@ namespace Sentinel.Pages.Settings.Surveys
         public string? OutputMappingJson { get; set; }
         public string? InputMappingJson { get; set; }
         public string ReturnUrl { get; set; } = "/Settings/Surveys/SurveyTemplates";
+        public bool IsSurveyDesignerEnabled { get; private set; }
+        public string SurveyDesignerUnavailableMessage { get; private set; } = string.Empty;
 
         public async Task<IActionResult> OnGetAsync(Guid? id, string? returnUrl)
         {
             if (!string.IsNullOrWhiteSpace(returnUrl) && Url.IsLocalUrl(returnUrl))
             {
                 ReturnUrl = returnUrl;
+            }
+
+            ConfigureSurveyDesignerAvailability();
+            if (!IsSurveyDesignerEnabled)
+            {
+                return Page();
             }
 
             if (id == null)
@@ -64,18 +81,23 @@ namespace Sentinel.Pages.Settings.Surveys
             VersionStatus = surveyTemplate.VersionStatus.ToString();
             IsSystemTemplate = surveyTemplate.IsSystemTemplate;
 
-            // Pass the survey JSON directly (will be serialized in the view)
+            // Definitions are configuration, but SurveyJS renders them in the
+            // browser. Reapply the same safety rules used on save so older or
+            // manually imported definitions cannot reach the designer unchecked.
             if (!string.IsNullOrWhiteSpace(surveyTemplate.SurveyDefinitionJson))
             {
-                try
+                if (SurveyDefinitionSafetyValidator.TryValidate(
+                        surveyTemplate.SurveyDefinitionJson,
+                        out var validationError))
                 {
-                    // Validate it's proper JSON
-                    var jsonDoc = JsonDocument.Parse(surveyTemplate.SurveyDefinitionJson);
                     SurveyDefinitionJson = surveyTemplate.SurveyDefinitionJson;
                 }
-                catch (JsonException ex)
+                else
                 {
-                    _logger.LogError(ex, "Invalid survey JSON for template {TemplateId}", id);
+                    _logger.LogError(
+                        "Survey template {TemplateId} has an unsafe or invalid definition and will not be loaded into the designer: {ValidationError}",
+                        id,
+                        validationError);
                     SurveyDefinitionJson = "null";
                 }
             }
@@ -93,27 +115,22 @@ namespace Sentinel.Pages.Settings.Surveys
 
         public async Task<IActionResult> OnPostAsync(Guid? id, [FromBody] SaveSurveyRequest request)
         {
+            if (!IsSurveyDesignerAvailable())
+            {
+                // Do not expose a write endpoint when the optional designer is
+                // not installed for this deployment.
+                return NotFound();
+            }
+
             if (string.IsNullOrWhiteSpace(request.SurveyDefinitionJson))
             {
                 return BadRequest("Survey definition is required");
             }
 
-            // Validate JSON
-            try
+            if (!SurveyDefinitionSafetyValidator.TryValidate(request.SurveyDefinitionJson, out var validationError))
             {
-                var jsonDoc = JsonDocument.Parse(request.SurveyDefinitionJson);
-                
-                if (!jsonDoc.RootElement.TryGetProperty("title", out _) &&
-                    !jsonDoc.RootElement.TryGetProperty("elements", out _) &&
-                    !jsonDoc.RootElement.TryGetProperty("pages", out _))
-                {
-                    return BadRequest("Survey JSON must contain a 'title' and either 'elements' or 'pages' property");
-                }
-            }
-            catch (JsonException ex)
-            {
-                _logger.LogWarning(ex, "Invalid survey JSON submitted for template {TemplateId}", id);
-                return BadRequest("The survey definition is not valid JSON. Correct it and try again.");
+                _logger.LogWarning("Unsafe or invalid survey JSON submitted for template {TemplateId}: {ValidationError}", id, validationError);
+                return BadRequest(validationError);
             }
 
             if (id == null || id == Guid.Empty)
@@ -211,6 +228,44 @@ namespace Sentinel.Pages.Settings.Surveys
             public string SurveyDefinitionJson { get; set; } = string.Empty;
             public string? OutputMappingJson { get; set; }
             public string? InputMappingJson { get; set; }
+        }
+
+        private void ConfigureSurveyDesignerAvailability()
+        {
+            IsSurveyDesignerEnabled = IsSurveyDesignerAvailable();
+
+            if (IsSurveyDesignerEnabled)
+            {
+                return;
+            }
+
+            SurveyDesignerUnavailableMessage = string.Equals(
+                _configuration["SurveyDesigner:Provider"],
+                "SurveyJsCreator",
+                StringComparison.OrdinalIgnoreCase)
+                ? "The visual survey designer is enabled in configuration, but its required assets are not installed."
+                : "The visual survey designer is not included in this Sentinel deployment.";
+        }
+
+        private bool IsSurveyDesignerAvailable()
+        {
+            if (!string.Equals(
+                    _configuration["SurveyDesigner:Provider"],
+                    "SurveyJsCreator",
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                return false;
+            }
+
+            return _environment.WebRootFileProvider
+                .GetFileInfo("lib/survey-creator-core/survey-creator-core.min.css")
+                .Exists
+                && _environment.WebRootFileProvider
+                    .GetFileInfo("lib/survey-creator-core/survey-creator-core.min.js")
+                    .Exists
+                && _environment.WebRootFileProvider
+                    .GetFileInfo("lib/survey-creator-knockout/survey-creator-knockout.min.js")
+                    .Exists;
         }
     }
 }

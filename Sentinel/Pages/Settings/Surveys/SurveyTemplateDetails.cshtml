@@ -180,7 +180,8 @@
                                             <button type="submit" 
                                                     class="btn btn-sm btn-success"
                                                     title="Set this version as active"
-                                                    onclick="return confirm('Are you sure you want to activate version @version.VersionNumber? This will archive the current active version.');">
+                                                    data-version-number="@version.VersionNumber"
+                                                    onclick="return confirmActivateSurveyVersion(this);">
                                                 <i class="bi bi-check-circle me-1"></i>Activate
                                             </button>
                                         </form>
@@ -429,3 +430,12 @@
         </div>
     </div>
 </div>
+
+@section Scripts {
+    <script>
+        function confirmActivateSurveyVersion(button) {
+            const version = button.dataset.versionNumber || 'this version';
+            return window.confirm('Are you sure you want to activate version ' + version + '? This will archive the current active version.');
+        }
+    </script>
+}

@@ -16,14 +16,16 @@ namespace Sentinel.Services.Email
         public Task<bool> SendEmailAsync(string to, string subject, string body, bool isHtml = true)
         {
             _logger.LogInformation("MOCK EMAIL: To={To}, Subject={Subject}, IsHtml={IsHtml}", to, subject, isHtml);
-            _logger.LogDebug("MOCK EMAIL BODY:\n{Body}", body);
             return Task.FromResult(true);
         }
 
         public Task<bool> SendPasswordResetEmailAsync(string to, string resetLink, string userName)
         {
-            _logger.LogInformation("MOCK PASSWORD RESET EMAIL: To={To}, UserName={UserName}, ResetLink={ResetLink}", 
-                to, userName, resetLink);
+            // Reset links contain a credential. Development logs are frequently
+            // copied into issue reports, so never write the link (or its token)
+            // to a log sink.
+            _logger.LogInformation("MOCK PASSWORD RESET EMAIL: To={To}, UserName={UserName}",
+                to, userName);
             return Task.FromResult(true);
         }
 

@@ -98,6 +98,10 @@ public static class PermissionCatalog
         new(PermissionModule.Occupation, PermissionAction.Import, "Import occupation classifications"),
 
         new(PermissionModule.Organization, PermissionAction.View, "View organisations"),
-        new(PermissionModule.ReferenceData, PermissionAction.View, "View shared reference data and address suggestions")
+        new(PermissionModule.ReferenceData, PermissionAction.View, "View shared reference data and address suggestions"),
+
+        // Test-data generation can create or destroy large amounts of surveillance data.
+        // It is deliberately separate from ordinary organisation/system configuration.
+        new(PermissionModule.System, PermissionAction.ManageTestData, "Generate or delete development test data")
     ];
 }

@@ -265,7 +265,7 @@ else if (Model.ShouldPromptForExposure)
                     </label>
                     <div class="input-group">
                         <input type="text" class="form-control" id="caseAutocomplete" placeholder="Start typing case ID or patient name..." style="border: 1px solid var(--hairline); border-radius: 8px 0 0 8px; padding: 10px; font-family: var(--f-sans);" />
-                        <button type="button" class="btn" onclick="openCreateContact()" title="Create New Contact" style="background: var(--signal-dk); color: white; border-radius: 0 8px 8px 0; padding: 10px 16px; font-weight: 600; border: none; font-family: var(--f-sans);">
+                        <button type="button" class="btn" data-browser-action="open-create-contact" title="Create New Contact" style="background: var(--signal-dk); color: white; border-radius: 0 8px 8px 0; padding: 10px 16px; font-weight: 600; border: none; font-family: var(--f-sans);">
                             <i class="bi bi-plus-circle me-1"></i>Create New Contact
                         </button>
                     </div>
@@ -513,19 +513,23 @@ else if (Model.ShouldPromptForExposure)
 @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
     
 <script>
-    // TEST: This should run immediately when script loads    // Wait for jQuery and jQuery UI to be ready
-    $(function() {            const exposureTypeSelect = document.getElementById('exposureTypeSelect');
+    // Wait for jQuery and jQuery UI to be ready.
+    $(function() {
+            const exposureTypeSelect = document.getElementById('exposureTypeSelect');
             const eventFields = document.getElementById('eventFields');
             const locationFields = document.getElementById('locationFields');
             const contactFields = document.getElementById('contactFields');
             const travelFields = document.getElementById('travelFields');
             const locallyAcquiredFields = document.getElementById('locallyAcquiredFields');
 
-            // Debug: Check if elements exist            if (!exposureTypeSelect) {                return;
+            if (!exposureTypeSelect) {
+                return;
             }
 
             function updateFieldVisibility() {
-                const selectedType = exposureTypeSelect.value;                // Hide all
+                const selectedType = exposureTypeSelect.value;
+
+                // Hide all exposure-type sections before showing the selected one.
                 eventFields.style.display = 'none';
                 locationFields.style.display = 'none';
                 contactFields.style.display = 'none';
@@ -534,15 +538,20 @@ else if (Model.ShouldPromptForExposure)
 
                 // Show relevant fields
                 switch(selectedType) {
-                    case '1': // Event                        eventFields.style.display = 'block';
+                    case '1': // Event
+                        eventFields.style.display = 'block';
                         break;
-                    case '2': // Location                        locationFields.style.display = 'block';
+                    case '2': // Location
+                        locationFields.style.display = 'block';
                         break;
-                    case '3': // Contact                        contactFields.style.display = 'block';
+                    case '3': // Contact
+                        contactFields.style.display = 'block';
                         break;
-                    case '4': // Travel                        travelFields.style.display = 'block';
+                    case '4': // Travel
+                        travelFields.style.display = 'block';
                         break;
-                    case '5': // Locally Acquired                        locallyAcquiredFields.style.display = 'block';
+                    case '5': // Locally Acquired
+                        locallyAcquiredFields.style.display = 'block';
                         loadPatientAddress();
                         break;
                     default:                }

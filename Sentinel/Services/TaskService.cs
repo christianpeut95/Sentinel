@@ -530,6 +530,9 @@ namespace Sentinel.Services
             if (task == null)
                 throw new InvalidOperationException("Task not found");
 
+            if (TaskWorkflowPolicy.IsTerminal(task.Status))
+                throw new InvalidOperationException("Completed or cancelled tasks cannot be changed through the normal task workflow.");
+
             task.Title = updatedTask.Title;
             task.Description = updatedTask.Description;
             task.Priority = updatedTask.Priority;
@@ -541,11 +544,33 @@ namespace Sentinel.Services
             return task;
         }
 
+        public async Task<CaseTask> StartTask(Guid taskId)
+        {
+            var task = await _context.CaseTasks.FindAsync(taskId);
+            if (task == null)
+                throw new InvalidOperationException("Task not found");
+
+            if (TaskWorkflowPolicy.IsTerminal(task.Status))
+                throw new InvalidOperationException("Completed or cancelled tasks cannot be started.");
+
+            if (task.Status != CaseTaskStatus.InProgress)
+            {
+                task.Status = CaseTaskStatus.InProgress;
+                task.ModifiedAt = DateTime.UtcNow;
+                await _context.SaveChangesAsync();
+            }
+
+            return task;
+        }
+
         public async Task<CaseTask> CompleteTask(Guid taskId, string? completionNotes, string userId)
         {
             var task = await _context.CaseTasks.FindAsync(taskId);
             if (task == null)
                 throw new InvalidOperationException("Task not found");
+
+            if (TaskWorkflowPolicy.IsTerminal(task.Status))
+                throw new InvalidOperationException("Completed or cancelled tasks cannot be completed again.");
 
             task.Status = CaseTaskStatus.Completed;
             task.CompletedAt = DateTime.UtcNow;
@@ -562,6 +587,9 @@ namespace Sentinel.Services
             var task = await _context.CaseTasks.FindAsync(taskId);
             if (task == null)
                 throw new InvalidOperationException("Task not found");
+
+            if (TaskWorkflowPolicy.IsTerminal(task.Status))
+                throw new InvalidOperationException("Completed or cancelled tasks cannot be cancelled again.");
 
             task.Status = CaseTaskStatus.Cancelled;
             task.CancelledAt = DateTime.UtcNow;

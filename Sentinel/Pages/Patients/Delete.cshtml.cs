@@ -54,7 +54,10 @@ namespace Sentinel.Pages.Patients
 
             try
             {
-                var patient = await _context.Patients.FindAsync(id);
+                // Re-resolve through the normal patient query filter immediately
+                // before deletion. This preserves case-scoped patient visibility
+                // and avoids a primary-key FindAsync bypass on a forged POST.
+                var patient = await _context.Patients.FirstOrDefaultAsync(p => p.Id == id);
                 if (patient != null)
                 {
                     var patientName = $"{patient.GivenName} {patient.FamilyName}";

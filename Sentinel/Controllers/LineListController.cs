@@ -45,7 +45,7 @@ public class LineListController : ControllerBase
             }
 
             var fields = await _lineListService.GetAvailableFieldsAsync(outbreakId);
-            return Ok(fields);
+            return Ok(fields.Select(ToFieldResponse));
         }
         catch (Exception ex)
         {
@@ -64,6 +64,11 @@ public class LineListController : ControllerBase
                 return NotFound();
             }
 
+            if (!await ContainsOnlyConfiguredFieldsAsync(request.OutbreakId, request.FieldPaths))
+            {
+                return BadRequest(new { error = "One or more selected fields are not available for this outbreak." });
+            }
+
             var data = await _lineListService.GetLineListDataAsync(
                 request.OutbreakId, 
                 request.FieldPaths, 
@@ -74,7 +79,7 @@ public class LineListController : ControllerBase
             _logger.LogInformation("Returning {Count} line list rows with {FieldCount} fields", 
                 data.Count, request.FieldPaths.Count);
             
-            return Ok(data);
+            return Ok(data.Select(ToDataResponse));
         }
         catch (Exception ex)
         {
@@ -98,11 +103,9 @@ public class LineListController : ControllerBase
             var userConfigs = await _lineListService.GetUserConfigurationsAsync(outbreakId, userId);
             var sharedConfigs = await _lineListService.GetSharedConfigurationsAsync(outbreakId);
             
-            return Ok(new
-            {
-                userConfigurations = userConfigs,
-                sharedConfigurations = sharedConfigs
-            });
+            return Ok(new LineListConfigurationsResponse(
+                userConfigs.Select(ToConfigurationResponse).ToList(),
+                sharedConfigs.Select(ToConfigurationResponse).ToList()));
         }
         catch (Exception ex)
         {
@@ -112,39 +115,55 @@ public class LineListController : ControllerBase
     }
     
     [HttpPost("configurations")]
-    public async Task<IActionResult> SaveConfiguration([FromBody] OutbreakLineListConfiguration config)
+    public async Task<IActionResult> SaveConfiguration([FromBody] SaveLineListConfigurationRequest request)
     {
         try
         {
-            if (!await _outbreakAccessService.CanAccessOutbreakAsync(config.OutbreakId))
+            if (request.OutbreakId <= 0 || !await _outbreakAccessService.CanAccessOutbreakAsync(request.OutbreakId))
             {
                 return NotFound();
             }
 
-            _logger.LogInformation("Attempting to save configuration: {ConfigName} for outbreak {OutbreakId}", 
-                config.Name, config.OutbreakId);
+            if (!ModelState.IsValid)
+            {
+                return ValidationProblem(ModelState);
+            }
+
+            _logger.LogInformation("Saving line-list configuration for outbreak {OutbreakId}", request.OutbreakId);
             
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
+            OutbreakLineListConfiguration config;
             
             // If creating new, set user ID and creator
-            if (config.Id == 0)
+            if (request.Id == 0)
             {
-                config.UserId = config.IsShared ? null : userId;
-                config.CreatedByUserId = userId;
+                config = new OutbreakLineListConfiguration
+                {
+                    OutbreakId = request.OutbreakId,
+                    Name = request.Name,
+                    Description = request.Description,
+                    SelectedFields = request.SelectedFields,
+                    SortConfiguration = request.SortConfiguration,
+                    FilterConfiguration = request.FilterConfiguration,
+                    IsShared = request.IsShared,
+                    IsDefault = request.IsDefault,
+                    UserId = request.IsShared ? null : userId,
+                    CreatedByUserId = userId
+                };
                 _logger.LogInformation("Creating new configuration for user {UserId}", userId);
             }
             // If updating, verify ownership
             else
             {
                 var existing = await _context.OutbreakLineListConfigurations
-                    .FirstOrDefaultAsync(c => c.Id == config.Id);
+                    .FirstOrDefaultAsync(c => c.Id == request.Id);
 
                 if (existing is null)
                 {
                     return NotFound();
                 }
 
-                if (existing.OutbreakId != config.OutbreakId)
+                if (existing.OutbreakId != request.OutbreakId)
                 {
                     return BadRequest(new { error = "The configuration does not belong to the selected outbreak." });
                 }
@@ -152,29 +171,30 @@ public class LineListController : ControllerBase
                 if (existing.UserId != userId && existing.CreatedByUserId != userId)
                 {
                     _logger.LogWarning("User {UserId} attempted to update configuration {ConfigId} they don't own", 
-                        userId, config.Id);
+                        userId, request.Id);
                     return Forbid();
                 }
 
                 // Update only the fields the owner is allowed to change. Do
                 // not bind ownership, outbreak, or audit fields from the HTTP
                 // payload.
-                existing.Name = config.Name;
-                existing.Description = config.Description;
-                existing.SelectedFields = config.SelectedFields;
-                existing.SortConfiguration = config.SortConfiguration;
-                existing.IsShared = config.IsShared;
-                existing.IsDefault = config.IsDefault;
+                existing.Name = request.Name;
+                existing.Description = request.Description;
+                existing.SelectedFields = request.SelectedFields;
+                existing.SortConfiguration = request.SortConfiguration;
+                existing.FilterConfiguration = request.FilterConfiguration;
+                existing.IsShared = request.IsShared;
+                existing.IsDefault = request.IsDefault;
                 config = existing;
             }
             
             var saved = await _lineListService.SaveConfigurationAsync(config);
             _logger.LogInformation("Configuration saved successfully with ID {ConfigId}", saved.Id);
-            return Ok(saved);
+            return Ok(ToConfigurationResponse(saved));
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error saving line list configuration for outbreak {OutbreakId}", config.OutbreakId);
+            _logger.LogError(ex, "Error saving line list configuration for outbreak {OutbreakId}", request.OutbreakId);
             return StatusCode(500, new
             {
                 error = "The line-list configuration could not be saved. Please try again.",
@@ -182,6 +202,30 @@ public class LineListController : ControllerBase
             });
         }
     }
+
+    private static LineListConfigurationResponse ToConfigurationResponse(OutbreakLineListConfiguration config) => new(
+        config.Id,
+        config.Name,
+        config.Description,
+        config.SelectedFields,
+        config.SortConfiguration,
+        config.FilterConfiguration,
+        config.IsShared,
+        config.IsDefault,
+        config.CreatedByUser is null ? null : new LineListConfigurationCreatorResponse(config.CreatedByUser.UserName));
+
+    private static LineListFieldResponse ToFieldResponse(LineListField field) => new(
+        field.FieldPath,
+        field.DisplayName,
+        field.Category,
+        field.DataType,
+        field.IsSortable,
+        field.IsFilterable);
+
+    private static LineListDataResponse ToDataResponse(LineListDataRow row) => new(
+        row.CaseId,
+        row.OutbreakCaseId,
+        row.Values);
     
     [HttpDelete("configurations/{id}")]
     public async Task<IActionResult> DeleteConfiguration(int id)
@@ -261,6 +305,11 @@ public class LineListController : ControllerBase
                 return NotFound();
             }
 
+            if (!await ContainsOnlyConfiguredFieldsAsync(request.OutbreakId, request.FieldPaths))
+            {
+                return BadRequest(new { error = "One or more selected fields are not available for this outbreak." });
+            }
+
             var csvData = await _lineListService.ExportToCsvAsync(
                 request.OutbreakId,
                 request.FieldPaths,
@@ -276,6 +325,20 @@ public class LineListController : ControllerBase
             return StatusCode(500, new { error = "Failed to export data" });
         }
     }
+
+    private async Task<bool> ContainsOnlyConfiguredFieldsAsync(int outbreakId, IEnumerable<string>? fieldPaths)
+    {
+        if (fieldPaths is null)
+        {
+            return false;
+        }
+
+        var allowedFieldPaths = (await _lineListService.GetAvailableFieldsAsync(outbreakId))
+            .Select(field => field.FieldPath)
+            .ToHashSet(StringComparer.Ordinal);
+
+        return fieldPaths.All(allowedFieldPaths.Contains);
+    }
 }
 
 public class LineListDataRequest
@@ -285,6 +348,57 @@ public class LineListDataRequest
     public string? SortConfig { get; set; }
     public string? FilterConfig { get; set; }
 }
+
+public sealed class SaveLineListConfigurationRequest
+{
+    public int Id { get; init; }
+    public int OutbreakId { get; init; }
+
+    [System.ComponentModel.DataAnnotations.Required]
+    [System.ComponentModel.DataAnnotations.StringLength(100)]
+    public string Name { get; init; } = string.Empty;
+
+    [System.ComponentModel.DataAnnotations.StringLength(500)]
+    public string? Description { get; init; }
+
+    [System.ComponentModel.DataAnnotations.Required]
+    public string SelectedFields { get; init; } = "[]";
+
+    public string SortConfiguration { get; init; } = "[]";
+    public string? FilterConfiguration { get; init; }
+    public bool IsShared { get; init; }
+    public bool IsDefault { get; init; }
+}
+
+public sealed record LineListConfigurationResponse(
+    int Id,
+    string Name,
+    string? Description,
+    string SelectedFields,
+    string SortConfiguration,
+    string? FilterConfiguration,
+    bool IsShared,
+    bool IsDefault,
+    LineListConfigurationCreatorResponse? CreatedByUser);
+
+public sealed record LineListConfigurationCreatorResponse(string? UserName);
+
+public sealed record LineListConfigurationsResponse(
+    IReadOnlyList<LineListConfigurationResponse> UserConfigurations,
+    IReadOnlyList<LineListConfigurationResponse> SharedConfigurations);
+
+public sealed record LineListFieldResponse(
+    string FieldPath,
+    string DisplayName,
+    string Category,
+    string DataType,
+    bool IsSortable,
+    bool IsFilterable);
+
+public sealed record LineListDataResponse(
+    Guid CaseId,
+    int OutbreakCaseId,
+    IReadOnlyDictionary<string, object?> Values);
 
 public class LineListExportRequest
 {

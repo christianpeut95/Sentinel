@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Microsoft.AspNetCore.Http;
 using Moq;
 using Sentinel.Data;
 using Sentinel.Models;
@@ -45,7 +46,9 @@ OBX|3|CWE|94500-6^SARS-CoV-2 RNA^LN||260415000^Not detected^SCT||||||F|||2026062
             .UseInMemoryDatabase(databaseName: $"TestDb_{Guid.NewGuid()}")
             .Options;
 
-        _context = new ApplicationDbContext(options);
+        _context = new ApplicationDbContext(
+            options,
+            new HttpContextAccessor { HttpContext = new DefaultHttpContext() });
         _loggerMock = new Mock<ILogger<HL7ParserService>>();
         _service = new HL7ParserService(_context, _loggerMock.Object);
     }

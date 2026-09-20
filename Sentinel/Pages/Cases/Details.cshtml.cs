@@ -99,6 +99,11 @@ namespace Sentinel.Pages.Cases
         public IFormFile? LabResultAttachment { get; set; }
 
         public bool CanEditCase { get; private set; }
+        public bool CanDeleteCase { get; private set; }
+        public bool CanViewLabResults { get; private set; }
+        public bool CanCreateLabResults { get; private set; }
+        public bool CanEditLabResults { get; private set; }
+        public bool CanDeleteLabResults { get; private set; }
 
 
 
@@ -153,7 +158,12 @@ namespace Sentinel.Pages.Cases
             }
 
             Case = caseEntity;
-            CanEditCase = await UserCanEditCaseAsync();
+            CanEditCase = await UserCanEditCaseAsync(caseEntity.Id);
+            CanDeleteCase = await UserCanDeleteCaseAsync(caseEntity.Id);
+            CanViewLabResults = await UserCanViewLabResultsAsync(caseEntity.Id);
+            CanCreateLabResults = await UserCanManageLabResultsAsync(caseEntity.Id, PermissionAction.Create);
+            CanEditLabResults = await UserCanManageLabResultsAsync(caseEntity.Id, PermissionAction.Edit);
+            CanDeleteLabResults = await UserCanManageLabResultsAsync(caseEntity.Id, PermissionAction.Delete);
 
             // Load manual override user name if applicable
             if (Case.ConfirmationStatusManualOverride && !string.IsNullOrEmpty(Case.ConfirmationStatusManualOverrideByUserId))
@@ -304,6 +314,46 @@ namespace Sentinel.Pages.Cases
                  await _diseaseAccessService.CanAccessDiseaseAsync(userId, caseAccess.DiseaseId.Value));
         }
 
+        private async Task<bool> UserCanDeleteCaseAsync(Guid caseId)
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            return !string.IsNullOrWhiteSpace(userId) &&
+                await _permissionService.HasPermissionAsync(userId, PermissionModule.Case, PermissionAction.Delete) &&
+                await UserCanViewCaseAsync(caseId);
+        }
+
+        private async Task<bool> UserCanViewLabResultsAsync(Guid caseId)
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            return !string.IsNullOrWhiteSpace(userId) &&
+                await _permissionService.HasPermissionAsync(userId, PermissionModule.Laboratory, PermissionAction.View) &&
+                await UserCanViewCaseAsync(caseId);
+        }
+
+        private async Task<bool> UserCanManageLabResultsAsync(Guid caseId, PermissionAction action)
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            return !string.IsNullOrWhiteSpace(userId) &&
+                await _permissionService.HasPermissionAsync(userId, PermissionModule.Laboratory, action) &&
+                await UserCanEditCaseAsync(caseId);
+        }
+
+        private async Task<bool> UserCanManageExposuresAsync(Guid caseId, PermissionAction action)
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            return !string.IsNullOrWhiteSpace(userId) &&
+                await _permissionService.HasPermissionAsync(userId, PermissionModule.Exposure, action) &&
+                await UserCanEditCaseAsync(caseId);
+        }
+
+        private async Task<bool> UserCanManageTasksAsync(Guid caseId, PermissionAction action)
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            return !string.IsNullOrWhiteSpace(userId) &&
+                await _permissionService.HasPermissionAsync(userId, PermissionModule.Task, action) &&
+                await UserCanEditCaseAsync(caseId);
+        }
+
         private async Task LoadLabResultDropdowns()
         {
             LaboratoriesList = new SelectList(
@@ -406,13 +456,24 @@ namespace Sentinel.Pages.Cases
             // Handle file attachment
             if (Attachment != null && Attachment.Length > 0)
             {
-                var storedFile = await _fileStorage.SaveAttachmentAsync(
-                    Attachment,
-                    ProtectedFileStorageService.NotesCategory,
-                    HttpContext.RequestAborted);
-                NewNote.AttachmentPath = storedFile.StorageKey;
-                NewNote.AttachmentFileName = storedFile.OriginalFileName;
-                NewNote.AttachmentSize = storedFile.Length;
+                try
+                {
+                    var storedFile = await _fileStorage.SaveAttachmentAsync(
+                        Attachment,
+                        ProtectedFileStorageService.NotesCategory,
+                        HttpContext.RequestAborted);
+                    NewNote.AttachmentPath = storedFile.StorageKey;
+                    NewNote.AttachmentFileName = storedFile.OriginalFileName;
+                    NewNote.AttachmentSize = storedFile.Length;
+                }
+                catch (Exception ex)
+                {
+                    TempData["ErrorMessage"] = Sentinel.Services.UserFacingError.Create(
+                        HttpContext,
+                        ex,
+                        "The attachment could not be accepted. Check its type, content and size before trying again.");
+                    return RedirectToPage(new { id });
+                }
             }
 
             _context.Notes.Add(NewNote);
@@ -434,9 +495,16 @@ namespace Sentinel.Pages.Cases
 
         public async Task<IActionResult> OnPostAddLabResultAsync(Guid id)
         {
-            if (!await UserCanEditCaseAsync(id))
+            if (!await UserCanManageLabResultsAsync(id, PermissionAction.Create))
             {
                 return Forbid();
+            }
+
+            var caseEntity = await _context.Cases
+                .FirstOrDefaultAsync(c => c.Id == id);
+            if (caseEntity == null)
+            {
+                return NotFound();
             }
 
             // Manually bind the LabResult from form data
@@ -467,11 +535,11 @@ namespace Sentinel.Pages.Cases
 
             // Set the case ID and other required fields
             NewLabResult.Id = Guid.NewGuid();
-            NewLabResult.CaseId = id;
+            NewLabResult.CaseId = caseEntity.Id;
+            NewLabResult.TestedDiseaseId = caseEntity.DiseaseId;
             
             // Generate FriendlyId based on existing lab results count
             var existingLabResultsCount = await _context.LabResults.CountAsync(lr => lr.CaseId == id);
-            var caseEntity = await _context.Cases.FindAsync(id);
             NewLabResult.FriendlyId = $"{caseEntity?.FriendlyId}-LAB{existingLabResultsCount + 1:D3}";
             
             NewLabResult.CreatedAt = DateTime.UtcNow;
@@ -487,13 +555,24 @@ namespace Sentinel.Pages.Cases
             // Handle file attachment
             if (LabResultAttachment != null && LabResultAttachment.Length > 0)
             {
-                var storedFile = await _fileStorage.SaveAttachmentAsync(
-                    LabResultAttachment,
-                    ProtectedFileStorageService.LabResultsCategory,
-                    HttpContext.RequestAborted);
-                NewLabResult.AttachmentPath = storedFile.StorageKey;
-                NewLabResult.AttachmentFileName = storedFile.OriginalFileName;
-                NewLabResult.AttachmentSize = storedFile.Length;
+                try
+                {
+                    var storedFile = await _fileStorage.SaveAttachmentAsync(
+                        LabResultAttachment,
+                        ProtectedFileStorageService.LabResultsCategory,
+                        HttpContext.RequestAborted);
+                    NewLabResult.AttachmentPath = storedFile.StorageKey;
+                    NewLabResult.AttachmentFileName = storedFile.OriginalFileName;
+                    NewLabResult.AttachmentSize = storedFile.Length;
+                }
+                catch (Exception ex)
+                {
+                    TempData["ErrorMessage"] = Sentinel.Services.UserFacingError.Create(
+                        HttpContext,
+                        ex,
+                        "The attachment could not be accepted. Check its type, content and size before trying again.");
+                    return RedirectToPage(new { id });
+                }
             }
 
             try
@@ -529,7 +608,7 @@ namespace Sentinel.Pages.Cases
 
         public async Task<IActionResult> OnPostUpdateLabResultAsync(Guid id, Guid labResultId)
         {
-            if (!await UserCanEditCaseAsync(id))
+            if (!await UserCanManageLabResultsAsync(id, PermissionAction.Edit))
             {
                 return Forbid();
             }
@@ -585,13 +664,24 @@ namespace Sentinel.Pages.Cases
             // Handle file attachment
             if (LabResultAttachment != null && LabResultAttachment.Length > 0)
             {
-                var storedFile = await _fileStorage.SaveAttachmentAsync(
-                    LabResultAttachment,
-                    ProtectedFileStorageService.LabResultsCategory,
-                    HttpContext.RequestAborted);
-                existingLabResult.AttachmentPath = storedFile.StorageKey;
-                existingLabResult.AttachmentFileName = storedFile.OriginalFileName;
-                existingLabResult.AttachmentSize = storedFile.Length;
+                try
+                {
+                    var storedFile = await _fileStorage.SaveAttachmentAsync(
+                        LabResultAttachment,
+                        ProtectedFileStorageService.LabResultsCategory,
+                        HttpContext.RequestAborted);
+                    existingLabResult.AttachmentPath = storedFile.StorageKey;
+                    existingLabResult.AttachmentFileName = storedFile.OriginalFileName;
+                    existingLabResult.AttachmentSize = storedFile.Length;
+                }
+                catch (Exception ex)
+                {
+                    TempData["ErrorMessage"] = Sentinel.Services.UserFacingError.Create(
+                        HttpContext,
+                        ex,
+                        "The attachment could not be accepted. Check its type, content and size before trying again.");
+                    return RedirectToPage(new { id });
+                }
             }
 
             try
@@ -626,7 +716,7 @@ namespace Sentinel.Pages.Cases
 
         public async Task<JsonResult> OnGetLabResultDetailsAsync(Guid id, Guid labResultId)
         {
-            if (!await UserCanViewCaseAsync(id))
+            if (!await UserCanViewLabResultsAsync(id))
             {
                 return new JsonResult(new { success = false, message = "Access denied" }) { StatusCode = StatusCodes.Status403Forbidden };
             }
@@ -768,7 +858,7 @@ namespace Sentinel.Pages.Cases
 
         public async Task<IActionResult> OnPostDeleteLabResultAsync(Guid id, Guid labResultId)
         {
-            if (!await UserCanEditCaseAsync(id))
+            if (!await UserCanManageLabResultsAsync(id, PermissionAction.Delete))
             {
                 return Forbid();
             }
@@ -799,7 +889,7 @@ namespace Sentinel.Pages.Cases
 
         public async Task<IActionResult> OnPostDeleteExposureAsync(Guid id, Guid exposureId)
         {
-            if (!await UserCanEditCaseAsync(id))
+            if (!await UserCanManageExposuresAsync(id, PermissionAction.Delete))
             {
                 return Forbid();
             }
@@ -851,9 +941,20 @@ namespace Sentinel.Pages.Cases
             string? Description,
             bool IsReportingExposure)
         {
-            if (!await UserCanEditCaseAsync(CaseId))
+            if (!await UserCanManageExposuresAsync(CaseId, PermissionAction.Create))
             {
                 return Forbid();
+            }
+
+            if (SourceCaseId.HasValue &&
+                !await _context.Cases.AnyAsync(c => c.Id == SourceCaseId.Value))
+            {
+                return NotFound();
+            }
+
+            if (!await CanUseExposureReferencesAsync(EventId, LocationId))
+            {
+                return NotFound();
             }
 
             try
@@ -929,6 +1030,33 @@ namespace Sentinel.Pages.Cases
             return RedirectToPage(new { id = CaseId });
         }
 
+        private async Task<bool> CanUseExposureReferencesAsync(Guid? eventId, Guid? locationId)
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrWhiteSpace(userId))
+            {
+                return false;
+            }
+
+            if (locationId.HasValue &&
+                (!await _permissionService.HasPermissionAsync(userId, PermissionModule.Location, PermissionAction.View) ||
+                 !await _context.Locations.AnyAsync(location =>
+                     location.Id == locationId.Value && location.IsActive)))
+            {
+                return false;
+            }
+
+            if (eventId.HasValue &&
+                (!await _permissionService.HasPermissionAsync(userId, PermissionModule.Event, PermissionAction.View) ||
+                 !await _context.Events.AnyAsync(@event =>
+                     @event.Id == eventId.Value && @event.IsActive)))
+            {
+                return false;
+            }
+
+            return true;
+        }
+
         // ========================================================================
         // TASK MANAGEMENT HANDLERS
         // ========================================================================
@@ -936,7 +1064,7 @@ namespace Sentinel.Pages.Cases
 
         public async Task<IActionResult> OnPostCompleteTaskAsync(Guid id, Guid taskId, string? completionNotes)
         {
-            if (!await UserCanEditCaseAsync(id))
+            if (!await UserCanManageTasksAsync(id, PermissionAction.Edit))
             {
                 return Forbid();
             }
@@ -948,6 +1076,12 @@ namespace Sentinel.Pages.Cases
                 if (task == null || task.CaseId != id)
                 {
                     TempData["ErrorMessage"] = "Task not found.";
+                    return RedirectToPage(new { id });
+                }
+
+                if (TaskWorkflowPolicy.IsTerminal(task.Status))
+                {
+                    TempData["ErrorMessage"] = "Completed or cancelled tasks cannot be completed again.";
                     return RedirectToPage(new { id });
                 }
 
@@ -983,7 +1117,7 @@ namespace Sentinel.Pages.Cases
 
         public async Task<IActionResult> OnPostUpdateTaskAsync(Guid id, Guid taskId, CaseTaskStatus status, TaskPriority priority, DateTime? dueDate, string? assignedToUserId)
         {
-            if (!await UserCanEditCaseAsync(id))
+            if (!await UserCanManageTasksAsync(id, PermissionAction.Edit))
             {
                 return Forbid();
             }
@@ -995,6 +1129,19 @@ namespace Sentinel.Pages.Cases
                 if (task == null || task.CaseId != id)
                 {
                     TempData["ErrorMessage"] = "Task not found.";
+                    return RedirectToPage(new { id });
+                }
+
+                if (TaskWorkflowPolicy.IsTerminal(task.Status))
+                {
+                    TempData["ErrorMessage"] = "Completed or cancelled tasks cannot be changed through the normal task workflow.";
+                    return RedirectToPage(new { id });
+                }
+
+                if (!Enum.IsDefined(status) || !Enum.IsDefined(priority) ||
+                    !TaskWorkflowPolicy.CanChangeStatus(task.Status, status))
+                {
+                    TempData["ErrorMessage"] = "The requested task status or priority is invalid.";
                     return RedirectToPage(new { id });
                 }
 
@@ -1053,7 +1200,7 @@ namespace Sentinel.Pages.Cases
 
         public async Task<IActionResult> OnPostCancelTaskAsync(Guid id, Guid taskId, string? cancellationReason)
         {
-            if (!await UserCanEditCaseAsync(id))
+            if (!await UserCanManageTasksAsync(id, PermissionAction.Edit))
             {
                 return Forbid();
             }
@@ -1065,6 +1212,12 @@ namespace Sentinel.Pages.Cases
                 if (task == null || task.CaseId != id)
                 {
                     TempData["ErrorMessage"] = "Task not found.";
+                    return RedirectToPage(new { id });
+                }
+
+                if (TaskWorkflowPolicy.IsTerminal(task.Status))
+                {
+                    TempData["ErrorMessage"] = "Completed or cancelled tasks cannot be cancelled again.";
                     return RedirectToPage(new { id });
                 }
 
@@ -1096,7 +1249,7 @@ namespace Sentinel.Pages.Cases
 
         public async Task<IActionResult> OnPostDeleteTaskAsync(Guid id, Guid taskId)
         {
-            if (!await UserCanEditCaseAsync(id))
+            if (!await UserCanManageTasksAsync(id, PermissionAction.Delete))
             {
                 return Forbid();
             }
@@ -1192,7 +1345,7 @@ namespace Sentinel.Pages.Cases
 
         public async Task<IActionResult> OnPostAddTaskFromTemplateAsync(Guid id, Guid taskTemplateId)
         {
-            if (!await UserCanEditCaseAsync(id))
+            if (!await UserCanManageTasksAsync(id, PermissionAction.Create))
             {
                 return Forbid();
             }
@@ -1324,7 +1477,7 @@ namespace Sentinel.Pages.Cases
             Guid? surveyTemplateId,
             string? customSurveyJson)
         {
-            if (!await UserCanEditCaseAsync(id))
+            if (!await UserCanManageTasksAsync(id, PermissionAction.Create))
             {
                 return Forbid();
             }
@@ -1441,7 +1594,7 @@ namespace Sentinel.Pages.Cases
             bool IncludeSurvey,
             Guid? SurveyTemplateId)
         {
-            if (!await UserCanEditCaseAsync(id))
+            if (!await UserCanManageTasksAsync(id, PermissionAction.Create))
             {
                 return Forbid();
             }

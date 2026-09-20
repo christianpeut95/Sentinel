@@ -30,10 +30,10 @@
                     <input type="datetime-local" id="toDate" class="form-control" asp-for="ToDate" />
                 </div>
                 <div class="col-md-3 d-flex align-items-end">
-                    <button type="button" class="btn btn-primary" onclick="loadLogs()">
+                    <button type="button" class="btn btn-primary js-load-logs">
                         <i class="bi bi-search"></i> Search
                     </button>
-                    <button type="button" class="btn btn-secondary ms-2" onclick="clearFilters()">
+                    <button type="button" class="btn btn-secondary ms-2 js-clear-log-filters">
                         <i class="bi bi-x-circle"></i> Clear
                     </button>
                 </div>
@@ -53,10 +53,10 @@
                     <span id="logCount" class="text-muted"></span>
                 </div>
                 <div class="col text-end">
-                    <button type="button" class="btn btn-sm btn-outline-primary" onclick="previousPage()" id="prevBtn" disabled>
+                    <button type="button" class="btn btn-sm btn-outline-primary js-previous-log-page" id="prevBtn" disabled>
                         <i class="bi bi-chevron-left"></i> Previous
                     </button>
-                    <button type="button" class="btn btn-sm btn-outline-primary" onclick="nextPage()" id="nextBtn" disabled>
+                    <button type="button" class="btn btn-sm btn-outline-primary js-next-log-page" id="nextBtn" disabled>
                         Next <i class="bi bi-chevron-right"></i>
                     </button>
                 </div>
@@ -77,17 +77,24 @@
             const toDate = document.getElementById('toDate').value;
 
             try {
-                const response = await fetch(`/api/admin/logs?page=${currentPage}&pageSize=${pageSize}&level=${levelFilter}&from=${fromDate}&to=${toDate}`);
+                const query = new URLSearchParams({
+                    page: String(currentPage),
+                    pageSize: String(pageSize),
+                    level: levelFilter,
+                    from: fromDate,
+                    to: toDate
+                });
+                const response = await fetch('/api/admin/logs?' + query.toString());
                 const data = await response.json();
 
                 displayLogs(data.logs);
                 totalRecords = data.totalCount;
                 updatePagination();
             } catch (error) {
-                console.error('Error loading logs:', error);
+                console.error('Logs could not be loaded.');
                 document.getElementById('logsContainer').innerHTML = `
                     <div class="alert alert-danger">
-                        <i class="bi bi-exclamation-triangle"></i> Error loading logs: ${escapeHtml(error.message)}
+                        <i class="bi bi-exclamation-triangle"></i> Logs could not be loaded. Please try again.
                     </div>`;
             }
         }
@@ -113,7 +120,7 @@
                             </div>
                             <div class="col">
                                 <div class="d-flex justify-content-between">
-                                    <strong>${log.Level}</strong>
+                                    <strong>${escapeHtml(log.Level || 'Unknown')}</strong>
                                     <small class="text-muted">${new Date(log.TimeStamp).toLocaleString()}</small>
                                 </div>
                                 <div class="mt-1">${escapeHtml(log.Message)}</div>
@@ -151,9 +158,12 @@
         }
 
         function escapeHtml(text) {
-            const div = document.createElement('div');
-            div.textContent = text;
-            return div.innerHTML;
+            return String(text ?? '')
+                .replace(/&/g, '&amp;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;');
         }
 
         function updatePagination() {
@@ -188,6 +198,10 @@
 
         // Set default date range (last 24 hours)
         document.addEventListener('DOMContentLoaded', function() {
+            document.querySelector('.js-load-logs')?.addEventListener('click', loadLogs);
+            document.querySelector('.js-clear-log-filters')?.addEventListener('click', clearFilters);
+            document.querySelector('.js-previous-log-page')?.addEventListener('click', previousPage);
+            document.querySelector('.js-next-log-page')?.addEventListener('click', nextPage);
             const toDate = new Date();
             const fromDate = new Date(toDate.getTime() - (24 * 60 * 60 * 1000));
 

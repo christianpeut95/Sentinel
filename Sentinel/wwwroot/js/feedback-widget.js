@@ -256,7 +256,8 @@
 
         showAlert(message, type = 'danger') {
             const alert = document.getElementById('feedback-alert');
-            alert.className = `alert alert-${type}`;
+            const safeType = type === 'success' ? 'success' : 'danger';
+            alert.className = `alert alert-${safeType}`;
             alert.textContent = message;
             alert.style.display = 'block';
         },
@@ -314,7 +315,7 @@
                     this.showAlert(result.message || 'Failed to submit feedback. Please try again.', 'danger');
                 }
             } catch (error) {
-                console.error('Feedback submission error:', error);
+                console.error('Feedback submission failed.');
                 this.showAlert('An error occurred. Please check your connection and try again.', 'danger');
             } finally {
                 submitBtn.disabled = false;

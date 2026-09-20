@@ -15,13 +15,22 @@ namespace Sentinel.Pages.Settings.Mappings
             _mappingService = mappingService;
         }
 
-        [BindProperty(SupportsGet = true)]
+        [BindProperty]
         public Guid Id { get; set; }
 
-        [BindProperty(SupportsGet = true)]
+        [BindProperty]
         public string? ReturnUrl { get; set; }
 
-        public async Task<IActionResult> OnGetAsync()
+        // Destructive actions must never be performed through a GET request.
+        // This route is retained for backwards compatibility with the settings
+        // workflow. Razor Pages validates antiforgery tokens for POST requests
+        // by default; this PageModel deliberately does not opt out.
+        public IActionResult OnGet()
+        {
+            return RedirectToPage("/Settings/Index");
+        }
+
+        public async Task<IActionResult> OnPostAsync()
         {
             try
             {

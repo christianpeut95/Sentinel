@@ -324,8 +324,53 @@
     <script nonce="@GetCspNonce()">
         (function() {
             try {
+                function sanitizeSurveyDefinition(definition) {
+                    function sanitizeNode(node) {
+                        if (Array.isArray(node)) {
+                            return node
+                                .map(sanitizeNode)
+                                .filter(item => item !== undefined);
+                        }
+
+                        if (node && typeof node === 'object') {
+                            if (typeof node.type === 'string' && node.type.toLowerCase() === 'html') {
+                                return undefined;
+                            }
+
+                            const safeNode = {};
+                            Object.entries(node).forEach(([key, value]) => {
+                                // SurveyJS treats these values as executable HTML. Sentinel survey
+                                // definitions are structured configuration, never a rich-text channel.
+                                if (['html', 'htmlcontent', 'completedhtml', 'completedbeforehtml', 'loadinghtml']
+                                    .includes(key.toLowerCase())) {
+                                    return;
+                                }
+
+                                const safeValue = sanitizeNode(value);
+                                if (safeValue !== undefined) {
+                                    safeNode[key] = safeValue;
+                                }
+                            });
+                            return safeNode;
+                        }
+
+                        return node;
+                    }
+
+                    return sanitizeNode(definition) || {};
+                }
+
+                function escapeSurveyHtml(value) {
+                    return String(value ?? '')
+                        .replace(/&/g, '&amp;')
+                        .replace(/</g, '&lt;')
+                        .replace(/>/g, '&gt;')
+                        .replace(/"/g, '&quot;')
+                        .replace(/'/g, '&#39;');
+                }
+
                 // Parse JSON data
-                const surveyDefinition = JSON.parse(@Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.SurveyDefinitionJson ?? "{}")));
+                const surveyDefinition = sanitizeSurveyDefinition(JSON.parse(@Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.SurveyDefinitionJson ?? "{}"))));
                 const surveyResponse = JSON.parse(@Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.SurveyResponseJson ?? "{}")));
                 
                 // Validate data
@@ -344,6 +389,11 @@
 
                 // Create survey model
                 const survey = new Survey.Model(surveyDefinition);
+                // SurveyJS inserts this callback's output as markup. Survey text is
+                // configuration, not trusted HTML, including for historic definitions.
+                survey.onTextMarkdown.add(function (_, options) {
+                    options.html = escapeSurveyHtml(options.text).replace(/\r?\n/g, '<br>');
+                });
                 // Set to display mode (read-only)
                 survey.mode = "display";
                 // Load the saved responses
@@ -364,13 +414,23 @@
                 
                 survey.render(surveyContainer);
             } catch (error) {
+                console.error('Survey results could not be loaded.');
                 const container = document.getElementById('surveyResultContainer');
                 if (container) {
-                    container.innerHTML = 
-                        '<div class="alert alert-danger">' +
-                        '<i class="bi bi-exclamation-triangle me-2"></i>' +
-                        '<strong>Error:</strong> ' + (error.message || 'Error loading survey results. Please contact support.') +
-                        '</div>';
+                    container.replaceChildren();
+
+                    const alert = document.createElement('div');
+                    alert.className = 'alert alert-danger';
+
+                    const icon = document.createElement('i');
+                    icon.className = 'bi bi-exclamation-triangle me-2';
+                    icon.setAttribute('aria-hidden', 'true');
+
+                    const title = document.createElement('strong');
+                    title.textContent = 'Unable to load survey results. ';
+
+                    alert.append(icon, title, document.createTextNode('Please try again or contact an administrator.'));
+                    container.appendChild(alert);
                 }
             }
         })();

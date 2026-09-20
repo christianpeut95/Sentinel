@@ -4,7 +4,9 @@ using Microsoft.AspNetCore.WebUtilities;
 namespace Sentinel.Services;
 
 /// <summary>
-/// Encodes Identity password-reset tokens for safe transport in URL query strings.
+/// Encodes Identity password-reset tokens for safe transport in browser URL
+/// fragments and POST form bodies. URL fragments are not included in HTTP
+/// requests, server access logs, or referrer headers.
 /// </summary>
 public static class PasswordResetTokenEncoding
 {
@@ -31,5 +33,14 @@ public static class PasswordResetTokenEncoding
         {
             return false;
         }
+    }
+
+    public static string AddToResetLinkFragment(string resetPageUrl, string userId, string token)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(resetPageUrl);
+        ArgumentException.ThrowIfNullOrWhiteSpace(userId);
+
+        var urlWithoutFragment = resetPageUrl.Split('#', 2)[0];
+        return $"{urlWithoutFragment}#userId={Uri.EscapeDataString(userId)}&code={Uri.EscapeDataString(Encode(token))}";
     }
 }

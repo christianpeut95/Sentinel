@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using Sentinel.Data;
 using System;
 using System.Linq;
@@ -16,10 +17,12 @@ namespace Sentinel.Controllers
     public class CountriesController : ControllerBase
     {
         private readonly ApplicationDbContext _context;
+        private readonly ILogger<CountriesController> _logger;
 
-        public CountriesController(ApplicationDbContext context)
+        public CountriesController(ApplicationDbContext context, ILogger<CountriesController> logger)
         {
             _context = context;
+            _logger = logger;
         }
 
         [HttpGet("search")]
@@ -52,7 +55,7 @@ namespace Sentinel.Controllers
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Error in countries search: {ex.Message}");
+                _logger.LogError(ex, "Country search failed");
                 return Ok(new object[] { });
             }
         }

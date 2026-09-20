@@ -9,15 +9,18 @@ namespace Sentinel.Services
         private readonly ApplicationDbContext _context;
         private readonly IAuditService _auditService;
         private readonly IPatientCustomFieldService _customFieldService;
+        private readonly ILogger<PatientMergeService> _logger;
 
         public PatientMergeService(
             ApplicationDbContext context,
             IAuditService auditService,
-            IPatientCustomFieldService customFieldService)
+            IPatientCustomFieldService customFieldService,
+            ILogger<PatientMergeService> logger)
         {
             _context = context;
             _auditService = auditService;
             _customFieldService = customFieldService;
+            _logger = logger;
         }
 
         public async Task<PatientMergeComparison> GetMergeComparisonAsync(Guid sourcePatientId, Guid targetPatientId)
@@ -84,8 +87,21 @@ namespace Sentinel.Services
 
             try
             {
-                var sourcePatient = await _context.Patients.FindAsync(sourcePatientId);
-                var targetPatient = await _context.Patients.FindAsync(targetPatientId);
+                // SourceId and TargetId are posted values. Resolve both through
+                // the normal query so optional case-scoped patient access applies
+                // even when a caller bypasses the comparison screen.
+                if (sourcePatientId == targetPatientId)
+                {
+                    result.ErrorMessage = "Cannot merge a patient with itself.";
+                    return result;
+                }
+
+                var patients = await _context.Patients
+                    .Where(patient => patient.Id == sourcePatientId || patient.Id == targetPatientId)
+                    .ToListAsync();
+
+                var sourcePatient = patients.FirstOrDefault(patient => patient.Id == sourcePatientId);
+                var targetPatient = patients.FirstOrDefault(patient => patient.Id == targetPatientId);
 
                 if (sourcePatient == null || targetPatient == null)
                 {
@@ -134,17 +150,21 @@ namespace Sentinel.Services
                         result.MergedPatientId = targetPatientId;
                         result.DeletedPatientId = sourcePatientId;
                     }
-                    catch (Exception ex)
+                    catch
                     {
                         await transaction.RollbackAsync();
-                        result.ErrorMessage = $"Merge failed: {ex.Message}";
                         throw; // Re-throw to allow strategy to retry if needed
                     }
                 });
             }
             catch (Exception ex)
             {
-                result.ErrorMessage = $"Transaction failed: {ex.Message}";
+                _logger.LogError(
+                    ex,
+                    "Unable to merge source patient {SourcePatientId} into target patient {TargetPatientId}",
+                    sourcePatientId,
+                    targetPatientId);
+                result.ErrorMessage = "The patient merge could not be completed. Please try again or contact an administrator with the request reference from the error page.";
             }
 
             return result;

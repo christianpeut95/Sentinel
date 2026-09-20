@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
 using Sentinel.Data;
 using Sentinel.Models;
+using System.Text.Json;
 
 namespace Sentinel.Pages.Cases
 {
@@ -13,10 +14,12 @@ namespace Sentinel.Pages.Cases
     public class AddExposureModel : PageModel
     {
         private readonly ApplicationDbContext _context;
+        private readonly IAuthorizationService _authorizationService;
 
-        public AddExposureModel(ApplicationDbContext context)
+        public AddExposureModel(ApplicationDbContext context, IAuthorizationService authorizationService)
         {
             _context = context;
+            _authorizationService = authorizationService;
         }
 
         [BindProperty(SupportsGet = true)]
@@ -58,12 +61,31 @@ namespace Sentinel.Pages.Cases
 
         public async Task<IActionResult> OnPostAsync()
         {
+            // Confirm the posted case is in the caller's hierarchy-aware case scope
+            // before processing any bound exposure values.
+            Case = await _context.Cases
+                .Include(c => c.Patient)
+                .Include(c => c.Disease)
+                .FirstOrDefaultAsync(c => c.Id == CaseId);
+
+            if (Case == null)
+            {
+                return NotFound();
+            }
+
+            if (Exposure.SourceCaseId.HasValue &&
+                !await _context.Cases.AnyAsync(c => c.Id == Exposure.SourceCaseId.Value))
+            {
+                ModelState.AddModelError(nameof(Exposure.SourceCaseId), "The selected source case is not available.");
+            }
+
+            if (!await CanUseReferencesAsync(Exposure))
+            {
+                return NotFound();
+            }
+
             if (!ModelState.IsValid)
             {
-                Case = await _context.Cases
-                    .Include(c => c.Patient)
-                    .Include(c => c.Disease)
-                    .FirstOrDefaultAsync(c => c.Id == CaseId);
                 return Page();
             }
 
@@ -91,10 +113,6 @@ namespace Sentinel.Pages.Cases
             // Validate exposure type-specific required fields
             if (!ValidateExposureTypeFields())
             {
-                Case = await _context.Cases
-                    .Include(c => c.Patient)
-                    .Include(c => c.Disease)
-                    .FirstOrDefaultAsync(c => c.Id == CaseId);
                 return Page();
             }
 
@@ -102,10 +120,6 @@ namespace Sentinel.Pages.Cases
             if (Exposure.ExposureEndDate.HasValue && Exposure.ExposureEndDate.Value <= Exposure.ExposureStartDate)
             {
                 ModelState.AddModelError("Exposure.ExposureEndDate", "End date/time must be after start date/time.");
-                Case = await _context.Cases
-                    .Include(c => c.Patient)
-                    .Include(c => c.Disease)
-                    .FirstOrDefaultAsync(c => c.Id == CaseId);
                 return Page();
             }
 
@@ -123,14 +137,30 @@ namespace Sentinel.Pages.Cases
                 }
             }
 
-            // Clear navigation properties
-            Exposure.ExposedCase = null;
-            Exposure.Event = null;
-            Exposure.Location = null;
-            Exposure.SourceCase = null;
+            // Persist only the fields offered by the form.  Audit values,
+            // soft-delete state, internal workflow state and navigation properties
+            // are never client-owned fields.
+            var exposureToCreate = new ExposureEvent
+            {
+                Id = Guid.NewGuid(),
+                ExposedCaseId = Exposure.ExposedCaseId,
+                ExposureType = Exposure.ExposureType,
+                ExposureStatus = Exposure.ExposureStatus,
+                ExposureStartDate = Exposure.ExposureStartDate,
+                ExposureEndDate = Exposure.ExposureEndDate,
+                EventId = Exposure.EventId,
+                LocationId = Exposure.LocationId,
+                SourceCaseId = Exposure.SourceCaseId,
+                CountryCode = Exposure.CountryCode,
+                Description = Exposure.Description,
+                IsReportingExposure = Exposure.IsReportingExposure
+            };
 
-            _context.ExposureEvents.Add(Exposure);
+            _context.ExposureEvents.Add(exposureToCreate);
             await _context.SaveChangesAsync();
+
+            // JSON-serialize the return URL: it is written into an inline script.
+            var caseDetailsUrl = JsonSerializer.Serialize($"/Cases/Details?id={CaseId}");
 
             // Check if loaded in iframe (for CreateNew workflow)
             return Content(
@@ -144,10 +174,10 @@ namespace Sentinel.Pages.Cases
                         window.close();
                     } else {
                         // Fallback - redirect to case details
-                        window.location.href = '/Cases/Details?id=' + '" + CaseId + @"';
+                        window.location.href = " + caseDetailsUrl + @";
                     }
                 </script>",
-                "text/html"
+                "text/html; charset=utf-8"
             );
         }
 
@@ -188,6 +218,31 @@ namespace Sentinel.Pages.Cases
                     break;
             }
 
+
+            return true;
+        }
+
+        private async Task<bool> CanUseReferencesAsync(ExposureEvent exposure)
+        {
+            if (exposure.LocationId.HasValue)
+            {
+                if (!(await _authorizationService.AuthorizeAsync(User, "Permission.Location.View")).Succeeded ||
+                    !await _context.Locations.AnyAsync(location =>
+                        location.Id == exposure.LocationId.Value && location.IsActive))
+                {
+                    return false;
+                }
+            }
+
+            if (exposure.EventId.HasValue)
+            {
+                if (!(await _authorizationService.AuthorizeAsync(User, "Permission.Event.View")).Succeeded ||
+                    !await _context.Events.AnyAsync(@event =>
+                        @event.Id == exposure.EventId.Value && @event.IsActive))
+                {
+                    return false;
+                }
+            }
 
             return true;
         }

@@ -844,18 +844,18 @@
         <h1 class="page-title-v2">Review <em>inbox</em>.</h1>
         <div style="display: flex; gap: 12px; align-items: center;">
             <form method="get" style="display: flex; gap: 12px; align-items: center;">
-                <select name="TimeRange" class="form-select form-select-sm" onchange="this.form.submit()" style="width: auto;">
+                <select name="TimeRange" class="form-select form-select-sm js-inbox-filter" style="width: auto;">
                     <option value="24h" selected="@(Model.TimeRange == "24h")">24h</option>
                     <option value="48h" selected="@(Model.TimeRange == "48h")">48h</option>
                     <option value="7d" selected="@(Model.TimeRange == "7d")">7d</option>
                     <option value="30d" selected="@(Model.TimeRange == "30d")">30d</option>
                 </select>
                 <div class="btn-group btn-group-sm" role="group">
-                    <input type="radio" class="btn-check" name="Status" id="statusPending" value="Pending" checked="@(Model.Status == "Pending")" onchange="this.form.submit()" />
+                    <input type="radio" class="btn-check js-inbox-filter" name="Status" id="statusPending" value="Pending" checked="@(Model.Status == "Pending")" />
                     <label class="btn btn-outline-primary" for="statusPending">
                         Pending <span class="badge bg-primary ms-1">@Model.PendingCount</span>
                     </label>
-                    <input type="radio" class="btn-check" name="Status" id="statusAll" value="All" checked="@(string.IsNullOrEmpty(Model.Status) || Model.Status == "All")" onchange="this.form.submit()" />
+                    <input type="radio" class="btn-check js-inbox-filter" name="Status" id="statusAll" value="All" checked="@(string.IsNullOrEmpty(Model.Status) || Model.Status == "All")" />
                     <label class="btn btn-outline-primary" for="statusAll">
                         All <span class="badge bg-secondary ms-1">@Model.ReviewQueue.TotalCount</span>
                     </label>
@@ -904,7 +904,7 @@
                         var priorityClass = item.Priority >= 3 ? "high" : item.Priority == 2 ? "medium" : "low";
                         var isSelected = Model.SelectedItemId == item.Id;
 
-                        <div class="li-v2 @(isSelected ? "selected" : "")" data-item-id="@item.Id" onclick="selectItem(@item.Id)">
+                        <div class="li-v2 @(isSelected ? "selected" : "") js-select-review-item" data-item-id="@item.Id" role="button" tabindex="0">
                             <div class="pri-v2 @priorityClass"></div>
                             <div>
                                 <div class="nm-v2">
@@ -917,7 +917,7 @@
                                 <div class="ol-v2">
                                     @if (!string.IsNullOrEmpty(item.CaseFriendlyId))
                                     {
-                                        <a href="/Cases/Details?id=@item.CaseId" class="case-id-link-v2" title="View case details" onclick="event.stopPropagation();">
+                                        <a href="/Cases/Details?id=@item.CaseId" class="case-id-link-v2" title="View case details">
                                             <span class="cs">@item.CaseFriendlyId</span>
                                         </a>
                                         <text> · </text>
@@ -1222,11 +1222,11 @@
                         <textarea id="taskDescription" rows="3" placeholder="Enter task description..."></textarea>
                     </div>
                     <div style="display: flex; gap: 10px;">
-                        <button type="button" class="btn-v2 primary" onclick="submitTask()">
+                        <button type="button" class="btn-v2 primary js-submit-inbox-task">
                             <i class="bi bi-check-lg"></i>
                             Create Task
                         </button>
-                        <button type="button" class="btn-v2 ghost" onclick="cancelTask()">
+                        <button type="button" class="btn-v2 ghost js-cancel-inbox-task">
                             Cancel
                         </button>
                     </div>
@@ -1235,15 +1235,7 @@
             </div>
 
             <div class="actbar-v2">
-                @{
-                    // Determine if dismiss should be shown
-                    // Don't show dismiss for changes that are already applied and can't be rolled back
-                    var showDismiss = !(
-                        (item.EntityType == "CaseChange" && (item.ChangeType == "FieldChanged" || item.ChangeType == "Updated")) ||
-                        (item.EntityType == "LabResult" && item.ChangeType == "New") ||
-                        (item.ChangeType == "Updated")
-                    );
-                }
+                @{ var showDismiss = InboxV2Model.CanDismissReview(item.EntityType, item.ChangeType); }
 
                 @if (showDismiss && Model.CanResolveReviews)
                 {
@@ -1256,7 +1248,7 @@
                 }
                 @if (Model.CanCreateReviewTasks)
                 {
-                <button type="button" class="btn-v2 soft" onclick="toggleTaskForm()">
+                <button type="button" class="btn-v2 soft js-toggle-inbox-task-form">
                     <i class="bi bi-plus-lg"></i>
                     Create task
                 </button>
@@ -1296,6 +1288,31 @@
 
 @section Scripts {
 <script>
+    document.querySelectorAll('.js-inbox-filter').forEach(function (input) {
+        input.addEventListener('change', function () {
+            this.form?.submit();
+        });
+    });
+
+    document.querySelectorAll('.js-select-review-item').forEach(function (item) {
+        item.addEventListener('click', function (event) {
+            if (event.target.closest('a, button, input, select, textarea, label')) {
+                return;
+            }
+            selectItem(this.dataset.itemId);
+        });
+        item.addEventListener('keydown', function (event) {
+            if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault();
+                selectItem(this.dataset.itemId);
+            }
+        });
+    });
+
+    document.querySelector('.js-toggle-inbox-task-form')?.addEventListener('click', toggleTaskForm);
+    document.querySelector('.js-cancel-inbox-task')?.addEventListener('click', cancelTask);
+    document.querySelector('.js-submit-inbox-task')?.addEventListener('click', submitTask);
+
     function selectItem(itemId) {
         const params = new URLSearchParams(window.location.search);
         params.set('selectedId', itemId);
@@ -1349,8 +1366,8 @@
                 alert('Failed to create task');
             }
         })
-        .catch(err => {
-            console.error(err);
+        .catch(() => {
+            console.error('Data Inbox task creation could not be completed.');
             alert('Error creating task');
         });
     }

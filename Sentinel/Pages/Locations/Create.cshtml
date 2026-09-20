@@ -97,7 +97,7 @@
                     <i class="bi bi-check-circle me-1"></i>Continue Anyway (Create Duplicate)
                 </button>
             </form>
-            <button type="button" class="btn btn-secondary" onclick="window.location.reload();">
+            <button type="button" class="btn btn-secondary" data-browser-action="reload-page">
                 <i class="bi bi-arrow-counterclockwise me-1"></i>Go Back and Edit
             </button>
             <a asp-page="./Index" class="btn btn-outline-secondary">
@@ -265,7 +265,6 @@
 
         // Only initialize if Google provider is configured
         if (!SentinelGeocoding.shouldUseGoogleMaps()) {
-            console.log('Place search disabled - using', SentinelGeocoding.getConfig()?.provider || 'nominatim');
             placeInput.placeholder = 'Place search requires Google Maps (currently using ' + (SentinelGeocoding.getConfig()?.provider || 'Nominatim') + ')';
             placeInput.disabled = true;
             return;
@@ -277,6 +276,7 @@
             var sessionToken = new google.maps.places.AutocompleteSessionToken();
             var items = [];
             var focused = -1;
+            var lastPlaceResults = [];
             var config = SentinelGeocoding.getConfig();
                 
             function debounce(fn, ms) { var t; return function () { var args = arguments; clearTimeout(t); t = setTimeout(function () { fn.apply(null, args); }, ms); }; }
@@ -313,7 +313,7 @@
                 placeInput.setAttribute('aria-expanded', 'true');
                 items = Array.from(placeDropdown.querySelectorAll('[role="option"]'));
                 focused = -1;
-                window.__lastPlaceResults = preds;
+                lastPlaceResults = preds;
             }
 
             function focusItem(i) {
@@ -326,13 +326,11 @@
                     var sel = items[i];
                     if (!sel) return;
                     var idx = Number(sel.dataset.index);
-                    var pred = window.__lastPlaceResults && window.__lastPlaceResults[idx];
+                    var pred = lastPlaceResults[idx];
                     if (!pred) {
-                        console.error('No prediction found for index:', idx);
+                        console.error('The selected address prediction was not available.');
                         return;
                     }
-                    
-                    console.log('Fetching place details for:', pred.description, 'PlaceID:', pred.place_id);
                     
                     // Request more detailed fields for businesses
                     try {
@@ -341,10 +339,8 @@
                             fields: ['name', 'formatted_address', 'address_components', 'geometry', 'types', 'business_status'], 
                             sessionToken: sessionToken 
                         }, function (result, status) {
-                            console.log('Place details response:', status, result);
-                            
                             if (status !== google.maps.places.PlacesServiceStatus.OK || !result) {
-                                console.error('Place details error:', status);
+                                console.error('Place details could not be loaded.');
                                 
                                 // Fallback: At least fill the name and address with the prediction description
                                 var nameInput = document.getElementById('locationNameInput');
@@ -354,7 +350,7 @@
                                     if (addressInput) addressInput.value = pred.description;
                                     showWarningMessage('Location filled from search, but coordinates unavailable. Please verify details.');
                                 } else {
-                                    alert('Unable to get place details. Status: ' + status + '\n\nPlease check:\n1. Places API is enabled in Google Cloud Console\n2. Billing is set up\n3. API key has Places API permissions');
+                                    alert('The selected place could not be retrieved. Please try again or enter the details manually.');
                                 }
                                 clearDropdown();
                                 return;
@@ -389,8 +385,8 @@
                             sessionToken = new google.maps.places.AutocompleteSessionToken();
                         });
                     } catch (error) {
-                        console.error('Error calling getDetails:', error);
-                        alert('Error fetching place details: ' + error.message);
+                        console.error('Place details could not be loaded.');
+                        alert('The selected place could not be retrieved. Please try again.');
                         clearDropdown();
                     }
                 }
@@ -428,9 +424,12 @@
                 }
 
                 function escapeHtml(value) {
-                    var element = document.createElement('div');
-                    element.textContent = value == null ? '' : String(value);
-                    return element.innerHTML;
+                    return String(value == null ? '' : value)
+                        .replace(/&/g, '&amp;')
+                        .replace(/"/g, '&quot;')
+                        .replace(/'/g, '&#39;')
+                        .replace(/</g, '&lt;')
+                        .replace(/>/g, '&gt;');
                 }
 
                 function fetchSuggestions(q) {
@@ -477,7 +476,6 @@
                     }, 150); 
                 });
                 
-                console.log('Place search initialized with Google Maps');
             });
         });
         
@@ -497,8 +495,8 @@
                                     return { label: label, value: item.name, orgId: item.id, name: item.name };
                                 }));
                             },
-                            error: function(err) {
-                                console.error('Organization search error:', err);
+                            error: function() {
+                                console.error('Organisation search could not be completed.');
                                 response([]);
                             }
                         })

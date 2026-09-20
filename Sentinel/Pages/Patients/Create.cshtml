@@ -112,7 +112,7 @@
                         <i class="bi bi-check-circle"></i>Continue Anyway
                     </button>
                 </form>
-                <button type="button" class="btn-sentinel-secondary" onclick="window.location.reload();">
+                <button type="button" class="btn-sentinel-secondary" data-browser-action="reload-page">
                     <i class="bi bi-arrow-counterclockwise"></i>Go Back and Edit
                 </button>
                 <a asp-page="./Index" class="btn-sentinel-secondary">
@@ -545,7 +545,6 @@ $(document).ready(function() {
 
     // Only initialize if Google provider is configured
     if (!SentinelGeocoding.shouldUseGoogleMaps()) {
-        console.log('Place search disabled - using', SentinelGeocoding.getConfig()?.provider || 'nominatim');
         placeInput.placeholder = 'Place search requires Google Maps (currently using ' + (SentinelGeocoding.getConfig()?.provider || 'Nominatim') + ')';
         placeInput.disabled = true;
         return;
@@ -557,6 +556,7 @@ $(document).ready(function() {
         var sessionToken = new google.maps.places.AutocompleteSessionToken();
         var items = [];
         var focused = -1;
+        var lastPlaceResults = [];
         var config = SentinelGeocoding.getConfig();
             
         function debounce(fn, ms) { var t; return function () { var args = arguments; clearTimeout(t); t = setTimeout(function () { fn.apply(null, args); }, ms); }; }
@@ -593,7 +593,7 @@ $(document).ready(function() {
                 placeInput.setAttribute('aria-expanded', 'true')
                 items = Array.from(placeDropdown.querySelectorAll('[role="option"]'))
                 focused = -1
-                window.__lastPlaceResults = preds
+                lastPlaceResults = preds;
             }
 
             function focusItem(i) {
@@ -606,13 +606,11 @@ $(document).ready(function() {
                 var sel = items[i];
                 if (!sel) return;
                 var idx = Number(sel.dataset.index);
-                var pred = window.__lastPlaceResults && window.__lastPlaceResults[idx];
+                var pred = lastPlaceResults[idx];
                 if (!pred) {
-                    console.error('No prediction found for index:', idx);
+                    console.error('The selected address prediction was not available.');
                     return;
                 }
-                
-                console.log('Fetching place details for:', pred.description, 'PlaceID:', pred.place_id);
                 
                 try {
                     detailsService.getDetails({ 
@@ -620,10 +618,8 @@ $(document).ready(function() {
                         fields: ['name', 'formatted_address', 'address_components', 'geometry'], 
                         sessionToken: sessionToken 
                     }, function (result, status) {
-                        console.log('Place details response:', status, result);
-                        
                         if (status !== google.maps.places.PlacesServiceStatus.OK || !result) {
-                            console.error('Place details error:', status);
+                            console.error('Place details could not be loaded.');
                             
                             // Fallback: At least fill the address field with the prediction description
                             var addressInput = document.getElementById('addressInput');
@@ -631,7 +627,7 @@ $(document).ready(function() {
                                 addressInput.value = pred.description;
                                 showWarningMessage('Address filled from search, but coordinates unavailable. Please verify address details.');
                             } else {
-                                alert('Unable to get place details. Status: ' + status + '\n\nPlease check:\n1. Places API is enabled in Google Cloud Console\n2. Billing is set up\n3. API key has Places API permissions');
+                                alert('The selected place could not be retrieved. Please try again or enter the address manually.');
                             }
                             clearDropdown();
                             return;
@@ -673,8 +669,8 @@ $(document).ready(function() {
                         sessionToken = new google.maps.places.AutocompleteSessionToken();
                     });
                 } catch (error) {
-                    console.error('Error calling getDetails:', error);
-                    alert('Error fetching place details: ' + error.message);
+                    console.error('Place details could not be loaded.');
+                    alert('The selected place could not be retrieved. Please try again.');
                     clearDropdown();
                 }
             }
@@ -713,7 +709,7 @@ $(document).ready(function() {
                     }
                 })
                 .catch(error => {
-                    console.error('Error detecting jurisdictions:', error);
+                    console.error('Jurisdiction detection could not be completed.');
                 });
             }
 
@@ -750,9 +746,12 @@ $(document).ready(function() {
             }
 
             function escapeHtml(value) {
-                var element = document.createElement('div');
-                element.textContent = value == null ? '' : String(value);
-                return element.innerHTML;
+                return String(value == null ? '' : value)
+                    .replace(/&/g, '&amp;')
+                    .replace(/"/g, '&quot;')
+                    .replace(/'/g, '&#39;')
+                    .replace(/</g, '&lt;')
+                    .replace(/>/g, '&gt;');
             }
 
             function fetchSuggestions(q) {
@@ -795,7 +794,6 @@ $(document).ready(function() {
                 }, 150); 
             });
             
-            console.log('Place search initialized with Google Maps');
         });
     });
 </script>
@@ -853,9 +851,14 @@ $(document).ready(function() {
                 return false
             }
         }).autocomplete("instance")._renderItem = function (ul, item) {
-            return $("<li>")
-                .append("<div><strong>" + item.value + "</strong><br/><small class='text-muted'>" + item.code + (item.majorGroup ? " - " + item.majorGroup : "") + "</small></div>")
-                .appendTo(ul)
+            const $content = $('<div>');
+            $('<strong>').text(item.value ?? '').appendTo($content);
+            $content.append(document.createElement('br'));
+            $('<small>', { class: 'text-muted' })
+                .text(`${item.code ?? ''}${item.majorGroup ? ` - ${item.majorGroup}` : ''}`)
+                .appendTo($content);
+
+            return $('<li>').append($content).appendTo(ul);
         }
         // Clear hidden field when search input is cleared
             $searchInput.on('input', function () {
@@ -899,9 +902,9 @@ $(document).ready(function() {
                     return false
                 }
             }).autocomplete("instance")._renderItem = function(ul, item) {
-                return $("<li>")
-                    .append("<div>" + item.label + "</div>")
-                    .appendTo(ul)
+                return $('<li>')
+                    .append($('<div>').text(item.label ?? ''))
+                    .appendTo(ul);
             }
             // Clear hidden field when search input is cleared
             $searchInput.on('input', function() {
@@ -1077,7 +1080,12 @@ $(document).ready(function() {
                 }
 
                 function escapeHtml(value) {
-                    return $('<div>').text(value == null ? '' : String(value)).html()
+                    return String(value == null ? '' : value)
+                        .replace(/&/g, '&amp;')
+                        .replace(/"/g, '&quot;')
+                        .replace(/'/g, '&#39;')
+                        .replace(/</g, '&lt;')
+                        .replace(/>/g, '&gt;');
                 }
 
                 function calculateAge(dateOfBirth) {
@@ -1113,8 +1121,18 @@ $(document).ready(function() {
                                 return
                             }
 
-                            if (window.opener && typeof window.opener.contactCreated === 'function') {
-                                window.opener.contactCreated(response.caseId, response.caseFriendlyId, response.patientName)
+                            // Only invoke the callback for the Sentinel window that
+                            // opened this same-origin workflow. An external site can
+                            // open this page in a popup, but must never receive the
+                            // created contact's identifiers or demographic text.
+                            try {
+                                if (window.opener &&
+                                    window.opener.location.origin === window.location.origin &&
+                                    typeof window.opener.contactCreated === 'function') {
+                                    window.opener.contactCreated(response.caseId, response.caseFriendlyId, response.patientName)
+                                }
+                            } catch {
+                                // Accessing a foreign opener is intentionally blocked.
                             }
 
                             window.close()

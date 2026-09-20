@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using Sentinel.Data;
 using Sentinel.Models;
 using Sentinel.Models.Reporting;
@@ -29,19 +30,22 @@ public class ReportDataService : IReportDataService
     private readonly IDynamicDateResolver _dynamicDateResolver;
     private readonly CollectionQueryFilterBuilder _collectionFilterBuilder;
     private readonly IReportDataAccessService _reportDataAccessService;
+    private readonly ILogger<ReportDataService> _logger;
 
     public ReportDataService(
         ApplicationDbContext context,
         IReportFieldMetadataService fieldMetadataService,
         IDynamicDateResolver dynamicDateResolver,
         CollectionQueryFilterBuilder collectionFilterBuilder,
-        IReportDataAccessService reportDataAccessService)
+        IReportDataAccessService reportDataAccessService,
+        ILogger<ReportDataService> logger)
     {
         _context = context;
         _fieldMetadataService = fieldMetadataService;
         _dynamicDateResolver = dynamicDateResolver;
         _collectionFilterBuilder = collectionFilterBuilder;
         _reportDataAccessService = reportDataAccessService;
+        _logger = logger;
     }
 
     public async Task<List<Dictionary<string, object?>>> GetReportDataAsync(ReportDefinition reportDefinition)
@@ -98,7 +102,6 @@ public class ReportDataService : IReportDataService
         // Get base data with SQL-level collection filters
         var data = await ExtractDataAsync(reportDefinition, options, collectionQueries);
 
-        Console.WriteLine($"[GetReportPreview] Fetched {data.Count} rows (sqlFilters={hasSqlCollectionFilters}, postFilters={hasPostProcessingFilters})");
 
         // Then add collection query columns and apply filters
         if (collectionQueries?.Any() == true)
@@ -108,12 +111,10 @@ public class ReportDataService : IReportDataService
             // Apply collection query filters (queries with DisplayAsColumn = false)
             data = ApplyCollectionQueryFilters(data, collectionQueries);
 
-            Console.WriteLine($"[GetReportPreview] After filtering: {data.Count} rows");
 
             // NOW limit to 100 rows for preview display
             if (data.Count > 100)
             {
-                Console.WriteLine($"[GetReportPreview] Limiting to 100 rows for preview");
                 data = data.Take(100).ToList();
             }
         }
@@ -192,13 +193,13 @@ public class ReportDataService : IReportDataService
         }
         catch (ArgumentException ex)
         {
-            // Validation is reported to the caller; runtime extraction separately rejects
-            // invalid filters rather than falling back to an unfiltered query.
-            return (false, $"Validation error: {ex.Message}");
+            _logger.LogWarning(ex, "Report definition validation rejected an invalid configuration");
+            return (false, "The report definition contains an invalid field or filter configuration.");
         }
         catch (Exception ex)
         {
-            return (false, $"Validation error: {ex.Message}");
+            _logger.LogError(ex, "Unexpected error validating report definition");
+            return (false, "The report definition could not be validated. Please try again.");
         }
     }
 
@@ -251,7 +252,6 @@ public class ReportDataService : IReportDataService
         DataExtractionOptions options,
         List<CollectionQueryDto>? collectionQueries = null)
     {
-        Console.WriteLine($"[ReportData] Starting data extraction for {reportDefinition.EntityType}");
 
         // STEP 1: Load ALL metadata upfront (completes all DB operations)
         var fieldMetadata = await GetFieldMetadataForReport(reportDefinition);
@@ -273,17 +273,14 @@ public class ReportDataService : IReportDataService
                     .Where(cfd => customFieldIds.Contains(cfd.Id))
                     .ToDictionaryAsync(cfd => cfd.Id, cfd => cfd);
                 
-                Console.WriteLine($"[ReportData] Loaded {customFieldDefinitions.Count} custom field definitions");
             }
         }
 
         // STEP 3: Now build queries (no more DB operations from this point)
         var baseQuery = BuildBaseQuery(reportDefinition.EntityType);
-        Console.WriteLine($"[ReportData] Base query built for {reportDefinition.EntityType}");
 
         // STEP 4: Apply filters (passes pre-loaded custom field definitions)
         baseQuery = ApplyFiltersAsync(baseQuery, reportDefinition, customFieldDefinitions, fieldMetadata);
-        Console.WriteLine($"[ReportData] Filters applied: {reportDefinition.Filters.Count}");
 
         // STEP 4.5: Apply SQL-level collection filters (if any)
         if (collectionQueries?.Any() == true)
@@ -294,7 +291,6 @@ public class ReportDataService : IReportDataService
 
             if (sqlCollectionFilters.Any())
             {
-                Console.WriteLine($"[ReportData] Applying {sqlCollectionFilters.Count} SQL-level collection filters");
 
                 foreach (var collectionQuery in sqlCollectionFilters)
                 {
@@ -304,7 +300,6 @@ public class ReportDataService : IReportDataService
 
                     if (!string.IsNullOrEmpty(filterClause))
                     {
-                        Console.WriteLine($"[ReportData] Collection filter: {filterClause}");
                         baseQuery = baseQuery.Where(ReportQueryParsingConfig, filterClause);
                     }
                 }
@@ -315,7 +310,6 @@ public class ReportDataService : IReportDataService
         if (options.MaxRows.HasValue)
         {
             baseQuery = baseQuery.Take(options.MaxRows.Value);
-            Console.WriteLine($"[ReportData] Row limit applied: {options.MaxRows.Value}");
         }
 
         // STEP 6: Execute query based on entity type
@@ -359,7 +353,6 @@ public class ReportDataService : IReportDataService
                 throw new NotSupportedException($"Entity type '{reportDefinition.EntityType}' is not supported");
         }
         
-        Console.WriteLine($"[ReportData] Extracted {result.Count} rows with {reportDefinition.Fields.Count} fields each");
 
         return result;
     }
@@ -509,7 +502,8 @@ public class ReportDataService : IReportDataService
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Error applying custom field filters: {ex.Message}");
+            _logger.LogError(ex, "Unable to apply custom-field report filters");
+            throw new InvalidOperationException("The report filters could not be applied.", ex);
         }
 
         return query;
@@ -524,7 +518,6 @@ public class ReportDataService : IReportDataService
     {
         if (!filter.CustomFieldDefinitionId.HasValue)
         {
-            Console.WriteLine($"Warning: Custom field filter missing CustomFieldDefinitionId");
             return query;
         }
 
@@ -534,7 +527,6 @@ public class ReportDataService : IReportDataService
         // Get the custom field definition from the pre-loaded dictionary
         if (!customFieldDefinitions.TryGetValue(customFieldId, out var customFieldDef))
         {
-            Console.WriteLine($"Warning: Custom field definition {customFieldId} not found");
             return query;
         }
 
@@ -963,7 +955,6 @@ public class ReportDataService : IReportDataService
                 // Combine all clauses into one group: (clause1 AND/OR clause2 AND/OR clause3)
                 var combinedClause = "(" + string.Join(" ", filterClauses) + ")";
                 
-                Console.WriteLine($"[Filter] Group clause: {combinedClause}");
 
                 // Apply combined group clause
                 var whereMethod = typeof(System.Linq.Dynamic.Core.DynamicQueryableExtensions)
@@ -978,7 +969,8 @@ public class ReportDataService : IReportDataService
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Error applying filter group: {ex.Message}");
+            _logger.LogError(ex, "Unable to apply a report filter group");
+            throw new InvalidOperationException("The report filters could not be applied.", ex);
         }
 
         return query;
@@ -1022,20 +1014,13 @@ public class ReportDataService : IReportDataService
         }
         catch (ArgumentException argEx)
         {
-            // Validation errors should be surfaced to the user
-            Console.WriteLine($"[VALIDATION ERROR] Filter validation failed for {filter.FieldPath}: {argEx.Message}");
-            throw; // Re-throw validation errors so they reach the user
+            _logger.LogWarning(argEx, "Report filter validation failed for field {FieldPath}", filter.FieldPath);
+            throw;
         }
         catch (Exception ex)
         {
-            // Log filter application error WITH inner exception details
-            Console.WriteLine($"Error applying filter {filter.FieldPath}: {ex.Message}");
-            if (ex.InnerException != null)
-            {
-                Console.WriteLine($"Inner Exception: {ex.InnerException.Message}");
-                Console.WriteLine($"Stack Trace: {ex.InnerException.StackTrace}");
-            }
-            // For other errors, swallow and continue (backward compatible)
+            _logger.LogError(ex, "Unable to apply report filter for field {FieldPath}", filter.FieldPath);
+            throw new InvalidOperationException("The report filter could not be applied.", ex);
         }
 
         return query;
@@ -1110,11 +1095,9 @@ public class ReportDataService : IReportDataService
                 );
                 value = resolvedDate.ToString("yyyy-MM-dd");
 
-                Console.WriteLine($"[Dynamic Date] Resolved {filter.DynamicDateType} (offset: {filter.DynamicDateOffset} {filter.DynamicDateOffsetUnit}) to {value}");
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[Dynamic Date Error] Failed to resolve dynamic date: {ex.Message}");
                 // Fall back to original value if resolution fails
             }
         }
@@ -1155,8 +1138,6 @@ public class ReportDataService : IReportDataService
         }
 
         // Log the generated WHERE clause for debugging
-        Console.WriteLine($"[WHERE CLAUSE] Field: {fieldPath}, Operator: {filter.Operator}, Value: {value}, DataType: {dataType}, IsNullable: {isNullable}");
-        Console.WriteLine($"[WHERE CLAUSE] Generated: {whereClause}");
 
         return whereClause;
     }
@@ -1208,7 +1189,6 @@ public class ReportDataService : IReportDataService
                 throw new ArgumentException($"Collection operation '{collectionOperator}' is not supported.");
             }
             
-            Console.WriteLine($"[Collection Filter] {collectionPath} ? {collectionOperator}");
 
             // Parse sub-filters from JSON
             var subFilters = string.IsNullOrEmpty(filter.CollectionSubFilters)
@@ -1223,11 +1203,9 @@ public class ReportDataService : IReportDataService
 
             if (string.IsNullOrEmpty(whereClause))
             {
-                Console.WriteLine($"[Collection Filter] Empty where clause, skipping");
-                return query;
+                throw new ArgumentException("The collection filter requires at least one valid condition.");
             }
 
-            Console.WriteLine($"[Collection Filter] Generated: {whereClause}");
 
             // Apply to typed query
             var clrType = GetClrType(entityType);
@@ -1249,8 +1227,8 @@ public class ReportDataService : IReportDataService
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[Collection Filter] Error: {ex.Message}");
-            return query;
+            _logger.LogError(ex, "Unable to apply collection report filter for {CollectionPath}", filter.FieldPath);
+            throw new InvalidOperationException("The collection filter could not be applied.", ex);
         }
     }
 
@@ -1380,11 +1358,9 @@ public class ReportDataService : IReportDataService
                     subFilter.DynamicDateOffsetUnit
                 );
                 value = resolvedDate.ToString("yyyy-MM-dd");
-                Console.WriteLine($"[Collection SubFilter] Resolved {subFilter.DynamicDateType} (offset: {subFilter.DynamicDateOffset} {subFilter.DynamicDateOffsetUnit}) to {value}");
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[Collection SubFilter] Failed to resolve dynamic date: {ex.Message}");
                 // Fall back to original value
             }
         }
@@ -1452,7 +1428,6 @@ public class ReportDataService : IReportDataService
         // Standard date operators - parse the date value
         if (!DateTime.TryParse(value, out var dateValue))
         {
-            Console.WriteLine($"[VALIDATION ERROR] Invalid date value '{value}' for operator '{operatorType}' on field '{fieldExpression}'");
             throw new ArgumentException($"Invalid date value: '{value}'. Please enter a valid date.");
         }
 
@@ -1465,7 +1440,6 @@ public class ReportDataService : IReportDataService
         var startStr = startOfDay.ToString("yyyy-MM-ddTHH:mm:ss");
         var endStr = endOfDay.ToString("yyyy-MM-ddTHH:mm:ss");
 
-        Console.WriteLine($"[DATE RANGE] Input: {value}, Parsed: {dateValue:yyyy-MM-dd}, UTC Range: {startStr} to {endStr}");
 
         // For non-nullable DateTime fields, don't check .HasValue
         // Use .Date property to ensure date-only comparison and avoid timezone issues
@@ -1536,7 +1510,6 @@ public class ReportDataService : IReportDataService
         var startStr = startDate.ToString("yyyy-MM-ddTHH:mm:ss");
         var endStr = endDate.ToString("yyyy-MM-ddTHH:mm:ss");
 
-        Console.WriteLine($"[InLast Filter] Range: {startStr} to {endStr} (last {days} days)");
 
         if (!isNullable)
         {
@@ -1559,7 +1532,6 @@ public class ReportDataService : IReportDataService
         var startStr = startDate.ToString("yyyy-MM-ddTHH:mm:ss");
         var endStr = endDate.ToString("yyyy-MM-ddTHH:mm:ss");
 
-        Console.WriteLine($"[InNext Filter] Range: {startStr} to {endStr} (next {days} days)");
 
         if (!isNullable)
         {
@@ -1585,7 +1557,6 @@ public class ReportDataService : IReportDataService
         // Validate numeric value before building clause
         if (!IsValidNumericValue(value, operatorType))
         {
-            Console.WriteLine($"[VALIDATION ERROR] Invalid numeric value '{value}' for operator '{operatorType}' on field '{fieldExpression}'");
             throw new ArgumentException($"Invalid numeric value: '{value}'. Please enter a valid number.");
         }
 
@@ -1729,17 +1700,14 @@ public class ReportDataService : IReportDataService
         // Cast to Case query
         var caseQuery = baseQuery.Cast<Case>();
         
-        Console.WriteLine($"[ExtractCase] Query cast to Case");
 
         // Dynamically include navigation properties based on fields used in report
         caseQuery = IncludeNavigationProperties(caseQuery, reportDefinition.Fields);
         
-        Console.WriteLine($"[ExtractCase] Navigation properties included");
 
         // Load data
         var cases = await caseQuery.ToListAsync();
         
-        Console.WriteLine($"[ExtractCase] Loaded {cases.Count} cases from database");
 
         // Get custom field definitions needed
         var customFieldIds = reportDefinition.Fields
@@ -1752,7 +1720,6 @@ public class ReportDataService : IReportDataService
         var caseIds = cases.Select(c => c.Id).ToList();
         var customFieldData = await LoadCaseCustomFieldsAsync(caseIds, customFieldIds);
         
-        Console.WriteLine($"[ExtractCase] Loaded custom fields for {caseIds.Count} cases");
 
         // Transform to dictionaries
         var result = new List<Dictionary<string, object?>>();
@@ -1778,7 +1745,6 @@ public class ReportDataService : IReportDataService
             result.Add(row);
         }
         
-        Console.WriteLine($"[ExtractCase] Transformed {result.Count} rows");
 
         return result;
     }
@@ -1808,7 +1774,6 @@ public class ReportDataService : IReportDataService
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Warning: Could not include navigation property '{navPath}': {ex.Message}");
             }
         }
 
@@ -1914,7 +1879,6 @@ public class ReportDataService : IReportDataService
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Warning: Could not include navigation property '{navPath}': {ex.Message}");
             }
         }
 
@@ -1996,7 +1960,6 @@ public class ReportDataService : IReportDataService
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Warning: Could not include navigation property '{navPath}': {ex.Message}");
             }
         }
 
@@ -2067,7 +2030,6 @@ public class ReportDataService : IReportDataService
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Warning: Could not include navigation property '{navPath}': {ex.Message}");
             }
         }
 
@@ -2138,7 +2100,6 @@ public class ReportDataService : IReportDataService
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Warning: Could not include navigation property '{navPath}': {ex.Message}");
             }
         }
 
@@ -2209,7 +2170,6 @@ public class ReportDataService : IReportDataService
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Warning: Could not include navigation property '{navPath}': {ex.Message}");
             }
         }
 
@@ -2286,7 +2246,6 @@ public class ReportDataService : IReportDataService
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Error extracting field {field.FieldPath}: {ex.Message}");
             return null;
         }
     }
@@ -2399,7 +2358,6 @@ public class ReportDataService : IReportDataService
             .Where(cf => caseIds.Contains(cf.CaseId) && fieldDefinitionIds.Contains(cf.FieldDefinitionId))
             .ToListAsync();
 
-        Console.WriteLine($"[LoadCustomFields] Loaded {stringFields.Count + numberFields.Count + dateFields.Count + booleanFields.Count + lookupFields.Count} custom field values");
 
         // Pivot data
         foreach (var caseId in caseIds)
@@ -2478,7 +2436,6 @@ public class ReportDataService : IReportDataService
             .Where(cf => patientIds.Contains(cf.PatientId) && fieldDefinitionIds.Contains(cf.FieldDefinitionId))
             .ToListAsync();
 
-        Console.WriteLine($"[LoadPatientCustomFields] Loaded {stringFields.Count + numberFields.Count + dateFields.Count + booleanFields.Count + lookupFields.Count} custom field values");
 
         // Pivot data
         foreach (var patientId in patientIds)
@@ -2533,7 +2490,6 @@ public class ReportDataService : IReportDataService
         List<CollectionQueryDto> collectionQueries,
         string entityType)
     {
-        Console.WriteLine($"[CollectionColumns] Processing {collectionQueries.Count} collection queries for {rows.Count} rows");
 
         // Get queries that need column values computed:
         // 1. Display queries (DisplayAsColumn = true) - will be shown in final output
@@ -2551,12 +2507,9 @@ public class ReportDataService : IReportDataService
 
         if (!queriesToProcess.Any())
         {
-            Console.WriteLine($"[CollectionColumns] No display or filter queries found");
             return rows;
         }
 
-        Console.WriteLine($"[CollectionColumns] {displayQueries.Count} queries will be displayed as columns");
-        Console.WriteLine($"[CollectionColumns] {filterQueries.Count} queries are filter queries (temporary columns)");
 
         // For each row
         foreach (var row in rows)
@@ -2565,12 +2518,9 @@ public class ReportDataService : IReportDataService
 
             if (entityId == null)
             {
-                Console.WriteLine($"[CollectionColumns] ❌ Warning: Could not extract entity ID from row");
-                Console.WriteLine($"[CollectionColumns] Available keys in row: {string.Join(", ", row.Keys)}");
                 continue;
             }
 
-            Console.WriteLine($"[CollectionColumns] ✅ Found entity ID: {entityId} (Type: {entityId.GetType().Name})");
 
             // For each collection query (both display and filter)
             foreach (var query in queriesToProcess)
@@ -2579,11 +2529,9 @@ public class ReportDataService : IReportDataService
                 var value = await CalculateCollectionValueAsync(entityId, query, entityType);
                 row[columnName] = value;
 
-                Console.WriteLine($"[CollectionColumns] Added column '{columnName}' = '{value}' for entity {entityId} (DisplayAsColumn={query.DisplayAsColumn})");
             }
         }
         
-        Console.WriteLine($"[CollectionColumns] Finished adding collection columns");
         return rows;
     }
 
@@ -2601,11 +2549,9 @@ public class ReportDataService : IReportDataService
 
         if (!filterQueries.Any())
         {
-            Console.WriteLine($"[CollectionFilters] No filter queries found");
             return rows;
         }
 
-        Console.WriteLine($"[CollectionFilters] Applying {filterQueries.Count} filter queries to {rows.Count} rows");
 
         var filteredRows = new List<Dictionary<string, object?>>();
 
@@ -2619,7 +2565,6 @@ public class ReportDataService : IReportDataService
 
                 if (!row.ContainsKey(columnName))
                 {
-                    Console.WriteLine($"[CollectionFilters] Warning: Column '{columnName}' not found in row");
                     includeRow = false;
                     break;
                 }
@@ -2627,7 +2572,6 @@ public class ReportDataService : IReportDataService
                 var value = row[columnName];
                 var passes = EvaluateComparison(value, query.Comparator, query.Value);
 
-                Console.WriteLine($"[CollectionFilters] Row filter: {columnName} ({value}) {query.Comparator} {query.Value} = {passes}");
 
                 if (!passes)
                 {
@@ -2649,7 +2593,6 @@ public class ReportDataService : IReportDataService
             }
         }
 
-        Console.WriteLine($"[CollectionFilters] Filtered {rows.Count} rows to {filteredRows.Count} rows");
         return filteredRows;
     }
 
@@ -2719,7 +2662,6 @@ public class ReportDataService : IReportDataService
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[CollectionFilters] Error evaluating comparison: {ex.Message}");
             return false;
         }
     }
@@ -2767,7 +2709,6 @@ public class ReportDataService : IReportDataService
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[CollectionColumns] Error calculating {query.Operation} for {query.CollectionName}: {ex.Message}");
             return null;
         }
     }
@@ -2796,7 +2737,6 @@ public class ReportDataService : IReportDataService
         // Cases use Guid IDs
         if (!(entityId is Guid caseGuid))
         {
-            Console.WriteLine($"[CollectionColumns] Invalid entityId type for Case: {entityId.GetType()}");
             return false;
         }
 
@@ -2816,7 +2756,6 @@ public class ReportDataService : IReportDataService
                     return await ApplySubFiltersAndCheckAnyAsync(markerQuery, query.SubFilters);
 
                 default:
-                    Console.WriteLine($"[CollectionColumns] Unsupported nested collection: {query.CollectionName}.{query.SubCollectionName}");
                     return false;
             }
         }
@@ -2866,7 +2805,6 @@ public class ReportDataService : IReportDataService
         // Patients use Guid IDs
         if (!(entityId is Guid patientGuid))
         {
-            Console.WriteLine($"[CollectionColumns] Invalid entityId type for Patient: {entityId.GetType()}");
             return false;
         }
 
@@ -2896,7 +2834,6 @@ public class ReportDataService : IReportDataService
         // Outbreaks use int IDs
         if (!(entityId is int outbreakId))
         {
-            Console.WriteLine($"[CollectionColumns] Invalid entityId type for Outbreak: {entityId.GetType()}");
             return false;
         }
 
@@ -2909,7 +2846,6 @@ public class ReportDataService : IReportDataService
                 
             case "Tasks":
                 // Outbreak tasks not currently supported in the data model
-                Console.WriteLine($"[CollectionColumns] Outbreak tasks not yet implemented");
                 return false;
                 
             default:
@@ -2945,14 +2881,10 @@ public class ReportDataService : IReportDataService
         
         try
         {
-            Console.WriteLine($"[CollectionColumns] Generated Dynamic LINQ query: {combinedWhere}");
             return await query.Where(combinedWhere).AnyAsync();
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[CollectionColumns] Error applying sub-filters: {ex.Message}");
-            Console.WriteLine($"[CollectionColumns] Failed query: {combinedWhere}");
-            Console.WriteLine($"[CollectionColumns] Exception details: {ex}");
             return false;
         }
     }
@@ -3025,14 +2957,14 @@ public class ReportDataService : IReportDataService
 
         try
         {
-            Console.WriteLine($"[MarkerFilter] Generated Dynamic LINQ query: {combinedWhere}");
             return query.Where(combinedWhere);
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[MarkerFilter] Error applying sub-filters: {ex.Message}");
-            Console.WriteLine($"[MarkerFilter] Failed query: {combinedWhere}");
-            return query; // Return unfiltered query on error
+            _logger.LogError(ex, "Unable to apply marker sub-filters");
+            // A failed collection criterion must never broaden a result. Return an
+            // empty query for this derived calculation rather than the unfiltered set.
+            return query.Take(0);
         }
     }
 
@@ -3081,7 +3013,8 @@ public class ReportDataService : IReportDataService
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"[MarkerFilter] Error applying LabResult filter: {ex.Message}");
+                    _logger.LogError(ex, "Unable to apply a lab-result marker sub-filter");
+                    return labResultQuery.Take(0);
                 }
             }
         }
@@ -3101,12 +3034,12 @@ public class ReportDataService : IReportDataService
 
                 try
                 {
-                    Console.WriteLine($"[MarkerFilter] Applying marker filter to LabResults: {markerAnyClause}");
                     labResultQuery = labResultQuery.Where(markerAnyClause);
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"[MarkerFilter] Error applying marker filters: {ex.Message}");
+                    _logger.LogError(ex, "Unable to apply marker sub-filters to lab results");
+                    return labResultQuery.Take(0);
                 }
             }
         }
@@ -3436,7 +3369,6 @@ public class ReportDataService : IReportDataService
         // This is equivalent to: Count(all items) == Count(filtered items)
         
         // For now, return false - can implement if needed
-        Console.WriteLine($"[CollectionColumns] HasAll not fully implemented yet");
         return false;
     }
 
@@ -3461,7 +3393,6 @@ public class ReportDataService : IReportDataService
         // Cases use Guid IDs
         if (!(entityId is Guid caseGuid))
         {
-            Console.WriteLine($"[CollectionColumns] Invalid entityId type for Case: {entityId.GetType()}");
             return 0;
         }
 
@@ -3481,7 +3412,6 @@ public class ReportDataService : IReportDataService
                     return await ApplySubFiltersAndCountAsync(markerQuery, query.SubFilters);
 
                 default:
-                    Console.WriteLine($"[CollectionColumns] Unsupported nested collection for Count: {query.CollectionName}.{query.SubCollectionName}");
                     return 0;
             }
         }
@@ -3531,7 +3461,6 @@ public class ReportDataService : IReportDataService
         // Patients use Guid IDs
         if (!(entityId is Guid patientGuid))
         {
-            Console.WriteLine($"[CollectionColumns] Invalid entityId type for Patient: {entityId.GetType()}");
             return 0;
         }
 
@@ -3555,7 +3484,6 @@ public class ReportDataService : IReportDataService
         // Outbreaks use int IDs
         if (!(entityId is int outbreakId))
         {
-            Console.WriteLine($"[CollectionColumns] Invalid entityId type for Outbreak: {entityId.GetType()}");
             return 0;
         }
 
@@ -3568,7 +3496,6 @@ public class ReportDataService : IReportDataService
                 
             case "Tasks":
                 // Outbreak tasks not currently supported in the data model
-                Console.WriteLine($"[CollectionColumns] Outbreak tasks not yet implemented");
                 return 0;
                 
             default:
@@ -3605,7 +3532,6 @@ public class ReportDataService : IReportDataService
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[CollectionColumns] Error applying sub-filters for count: {ex.Message}");
             return 0;
         }
     }
@@ -3614,7 +3540,6 @@ public class ReportDataService : IReportDataService
     {
         if (string.IsNullOrEmpty(query.AggregateField))
         {
-            Console.WriteLine($"[CollectionColumns] Sum requires AggregateField");
             return null;
         }
 
@@ -3631,7 +3556,6 @@ public class ReportDataService : IReportDataService
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[CollectionColumns] Error calculating sum: {ex.Message}");
             return null;
         }
     }
@@ -3640,7 +3564,6 @@ public class ReportDataService : IReportDataService
     {
         if (string.IsNullOrEmpty(query.AggregateField))
         {
-            Console.WriteLine($"[CollectionColumns] Average requires AggregateField");
             return null;
         }
 
@@ -3657,7 +3580,6 @@ public class ReportDataService : IReportDataService
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[CollectionColumns] Error calculating average: {ex.Message}");
             return null;
         }
     }
@@ -3666,7 +3588,6 @@ public class ReportDataService : IReportDataService
     {
         if (string.IsNullOrEmpty(query.AggregateField))
         {
-            Console.WriteLine($"[CollectionColumns] Min requires AggregateField");
             return null;
         }
 
@@ -3685,7 +3606,6 @@ public class ReportDataService : IReportDataService
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[CollectionColumns] Error calculating min: {ex.Message}");
             return null;
         }
     }
@@ -3694,7 +3614,6 @@ public class ReportDataService : IReportDataService
     {
         if (string.IsNullOrEmpty(query.AggregateField))
         {
-            Console.WriteLine($"[CollectionColumns] Max requires AggregateField");
             return null;
         }
 
@@ -3713,7 +3632,6 @@ public class ReportDataService : IReportDataService
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[CollectionColumns] Error calculating max: {ex.Message}");
             return null;
         }
     }
@@ -3751,7 +3669,6 @@ public class ReportDataService : IReportDataService
                     };
 
                 default:
-                    Console.WriteLine($"[CollectionColumns] Unsupported nested collection for Sum: {query.CollectionName}.{query.SubCollectionName}");
                     return null;
             }
         }
@@ -3799,7 +3716,6 @@ public class ReportDataService : IReportDataService
                     };
 
                 default:
-                    Console.WriteLine($"[CollectionColumns] Unsupported nested collection for Average: {query.CollectionName}.{query.SubCollectionName}");
                     return null;
             }
         }
@@ -3850,7 +3766,6 @@ public class ReportDataService : IReportDataService
                     };
 
                 default:
-                    Console.WriteLine($"[CollectionColumns] Unsupported nested collection for Min: {query.CollectionName}.{query.SubCollectionName}");
                     return null;
             }
         }
@@ -3935,7 +3850,6 @@ public class ReportDataService : IReportDataService
                     };
 
                 default:
-                    Console.WriteLine($"[CollectionColumns] Unsupported nested collection for Max: {query.CollectionName}.{query.SubCollectionName}");
                     return null;
             }
         }

@@ -122,18 +122,23 @@ namespace Sentinel.Pages.Settings.Users
                 var token = await _userManager.GeneratePasswordResetTokenAsync(user);
 
                 // Build reset link
-                var resetLink = Url.Page(
+                var resetPageUrl = Url.Page(
                     "/Account/ResetPassword",
                     pageHandler: null,
-                    values: new { area = "Identity", userId = user.Id, code = PasswordResetTokenEncoding.Encode(token) },
+                    values: new { area = "Identity" },
                     protocol: Request.Scheme);
 
-                if (string.IsNullOrEmpty(resetLink))
+                if (string.IsNullOrEmpty(resetPageUrl))
                 {
                     _logger.LogError("Failed to generate password reset link for user {UserId}", userId);
                     StatusMessage = "Error: Failed to generate reset link.";
                     return RedirectToPage();
                 }
+
+                var resetLink = PasswordResetTokenEncoding.AddToResetLinkFragment(
+                    resetPageUrl,
+                    user.Id,
+                    token);
 
                 // Send password reset email
                 var userName = !string.IsNullOrEmpty(user.FirstName) 

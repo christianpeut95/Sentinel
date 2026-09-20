@@ -268,7 +268,7 @@
                 catch (Exception ex)
                 {
                     Logger.LogWarning(ex, "Failed to extract field {Field} from {FieldPath}", mapping.FieldName, mapping.FieldPath);
-                    TestResults[$"{mapping.FieldName} ({mapping.FieldPath}) [Error]"] = $"Could not extract: {ex.Message}";
+                    TestResults[$"{mapping.FieldName} ({mapping.FieldPath}) [Error]"] = "Could not extract this field. Check the field path and try again.";
                 }
             }
 
@@ -280,7 +280,7 @@
         catch (Exception ex)
         {
             Logger.LogError(ex, "Error testing message");
-            TestError = $"Could not parse message: {ex.Message}";
+            TestError = "The test message could not be parsed. Check that it is a valid HL7 message and try again.";
         }
         finally
         {

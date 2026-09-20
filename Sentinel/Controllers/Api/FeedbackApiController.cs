@@ -41,8 +41,10 @@ namespace Sentinel.Controllers.Api
             try
             {
                 // Log incoming request for debugging
-                _logger.LogInformation("Received feedback submission: Type={Type}, Summary={Summary}, IncludeDiagnostics={IncludeDiagnostics}",
-                    request?.Type, request?.Summary, request?.IncludeDiagnostics);
+                // The free-text fields can contain sensitive operational or health
+                // information. Log only non-content metadata.
+                _logger.LogInformation("Received feedback submission: Type={Type}, IncludeDiagnostics={IncludeDiagnostics}",
+                    request?.Type, request?.IncludeDiagnostics);
 
                 // Validate request
                 if (!ModelState.IsValid)

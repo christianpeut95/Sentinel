@@ -105,7 +105,7 @@
                             <i class="bi bi-list-ul"></i>
                         </a>
                     </div>
-                    <button class="btn btn-outline-secondary" onclick="showFolderModal()">
+                    <button type="button" class="btn btn-outline-secondary js-report-page-action" data-report-page-action="show-folder-modal">
                         <i class="bi bi-folder-plus me-1"></i> New Folder
                     </button>
                     <a href="/Reports/Builder" class="btn btn-primary">
@@ -121,7 +121,8 @@
         <div class="col-md-3 col-lg-2">
             <div class="folder-sidebar">
                 <!-- All Reports -->
-                <div class="folder-item @(!Model.CurrentFolderId.HasValue ? "active" : "")" onclick="window.location.href='/Reports'">
+                <div class="folder-item js-folder-navigation @(!Model.CurrentFolderId.HasValue ? "active" : "")"
+                     role="link" tabindex="0" data-folder-url="/Reports">
                     <i class="bi bi-collection folder-icon"></i>
                     <span class="ms-2">All Reports</span>
                 </div>
@@ -132,11 +133,13 @@
                 <div class="px-3 py-2 text-muted small fw-bold">MY FOLDERS</div>
                 @foreach (var folder in Model.MyFolders.Where(f => f.ParentFolderId == null))
                 {
-                    <div class="folder-item @(Model.CurrentFolderId == folder.Id ? "active" : "")" 
-                         onclick="window.location.href='/Reports?folderId=@folder.Id'"
-                         oncontextmenu="showFolderContextMenu(event, @folder.Id, '@folder.Name'); return false;"
-                         style="@(!string.IsNullOrEmpty(folder.Color) ? $"border-left-color: {folder.Color};" : "")">
-                        <i class="bi @(folder.Icon ?? "bi-folder") folder-icon"></i>
+                    <div class="folder-item js-folder-navigation js-folder-context-menu @(Model.CurrentFolderId == folder.Id ? "active" : "")"
+                         role="link" tabindex="0"
+                         data-folder-url="/Reports?folderId=@folder.Id"
+                         data-folder-id="@folder.Id"
+                         data-folder-name="@folder.Name"
+                         style="@(folder.SafeColor is not null ? $"border-left-color: {folder.SafeColor};" : "")">
+                        <i class="bi @folder.SafeIcon folder-icon"></i>
                         <span class="ms-2">@folder.Name</span>
                         @if (folder.Reports.Any())
                         {
@@ -151,8 +154,8 @@
                     <div class="px-3 py-2 text-muted small fw-bold">SHARED WITH ME</div>
                     @foreach (var folder in Model.SharedFolders)
                     {
-                        <div class="folder-item @(Model.CurrentFolderId == folder.Id ? "active" : "")" 
-                             onclick="window.location.href='/Reports?folderId=@folder.Id'">
+                        <div class="folder-item js-folder-navigation @(Model.CurrentFolderId == folder.Id ? "active" : "")"
+                             role="link" tabindex="0" data-folder-url="/Reports?folderId=@folder.Id">
                             <i class="bi bi-folder-symlink folder-icon"></i>
                             <span class="ms-2">@folder.Name</span>
                             @if (folder.Reports.Any())
@@ -363,7 +366,7 @@
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <button type="button" class="btn btn-primary" onclick="createFolder()">Create Folder</button>
+                <button type="button" class="btn btn-primary js-report-page-action" data-report-page-action="create-folder">Create Folder</button>
             </div>
         </div>
     </div>
@@ -406,7 +409,7 @@
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <button type="button" class="btn btn-primary" onclick="saveEditFolder()">Save Changes</button>
+                <button type="button" class="btn btn-primary js-report-page-action" data-report-page-action="save-edit-folder">Save Changes</button>
             </div>
         </div>
     </div>
@@ -434,7 +437,7 @@
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <button type="button" class="btn btn-primary" onclick="confirmMoveToFolder()">Move</button>
+                <button type="button" class="btn btn-primary js-report-page-action" data-report-page-action="confirm-move-to-folder">Move</button>
             </div>
         </div>
     </div>
@@ -454,7 +457,7 @@
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <button type="button" class="btn btn-danger" onclick="deleteReport()">Delete</button>
+                <button type="button" class="btn btn-danger js-report-page-action" data-report-page-action="delete-report">Delete</button>
             </div>
         </div>
     </div>
@@ -741,12 +744,80 @@
             }
         }
 
-        // Context menu handlers
+        // Folder navigation and context-menu handling intentionally use DOM data
+        // properties. Folder names can be user supplied, so never interpolate them
+        // into an inline JavaScript string.
         document.addEventListener('DOMContentLoaded', function() {
-            // Prevent default context menu on folder items
-            document.querySelectorAll('.folder-item').forEach(item => {
+            document.addEventListener('click', function (event) {
+                const pageAction = event.target.closest('.js-report-page-action');
+                if (pageAction) {
+                    switch (pageAction.dataset.reportPageAction) {
+                        case 'show-folder-modal':
+                            showFolderModal();
+                            break;
+                        case 'create-folder':
+                            createFolder();
+                            break;
+                        case 'save-edit-folder':
+                            saveEditFolder();
+                            break;
+                        case 'confirm-move-to-folder':
+                            confirmMoveToFolder();
+                            break;
+                        case 'delete-report':
+                            deleteReport();
+                            break;
+                    }
+                    return;
+                }
+
+                const reportAction = event.target.closest('.js-report-card-action');
+                if (!reportAction) {
+                    return;
+                }
+
+                event.preventDefault();
+                const reportId = Number(reportAction.dataset.reportId);
+                if (!Number.isSafeInteger(reportId) || reportId <= 0) {
+                    return;
+                }
+
+                switch (reportAction.dataset.reportAction) {
+                    case 'duplicate':
+                        duplicateReport(reportId);
+                        break;
+                    case 'move-to-folder':
+                        moveToFolder(reportId);
+                        break;
+                    case 'remove-from-folder':
+                        removeFromFolder(reportId);
+                        break;
+                    case 'confirm-delete':
+                        confirmDelete(reportId, reportAction.dataset.reportName || 'this report');
+                        break;
+                }
+            });
+
+            document.querySelectorAll('.js-folder-navigation').forEach(item => {
+                const navigate = () => {
+                    const url = item.dataset.folderUrl;
+                    if (url) {
+                        window.location.assign(url);
+                    }
+                };
+
+                item.addEventListener('click', navigate);
+                item.addEventListener('keydown', function (event) {
+                    if (event.key === 'Enter' || event.key === ' ') {
+                        event.preventDefault();
+                        navigate();
+                    }
+                });
+            });
+
+            document.querySelectorAll('.js-folder-context-menu').forEach(item => {
                 item.addEventListener('contextmenu', function(e) {
-                    // Custom context menu is handled by showFolderContextMenu
+                    showFolderContextMenu(e, this.dataset.folderId, this.dataset.folderName || '');
                 });
             });
         });

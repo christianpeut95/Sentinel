@@ -50,10 +50,23 @@ namespace Sentinel.Pages.Locations
                 return Page();
             }
 
+            // The browser is not allowed to supply audit/navigation/geocoding fields.
+            // Coordinates are obtained from server-side geocoding of the submitted address.
+            var locationToCreate = new Location
+            {
+                Name = Location.Name,
+                LocationTypeId = Location.LocationTypeId,
+                Address = Location.Address,
+                OrganizationId = Location.OrganizationId,
+                IsHighRisk = Location.IsHighRisk,
+                IsActive = Location.IsActive,
+                Notes = Location.Notes
+            };
+
             // Check for potential duplicates unless user has confirmed
             if (!ConfirmDuplicate)
             {
-                PotentialDuplicates = await _duplicateChecker.FindPotentialDuplicatesAsync(Location);
+                PotentialDuplicates = await _duplicateChecker.FindPotentialDuplicatesAsync(locationToCreate);
                 
                 if (PotentialDuplicates.Any())
                 {
@@ -65,40 +78,40 @@ namespace Sentinel.Pages.Locations
             }
 
             // Geocode address if provided
-            if (!string.IsNullOrEmpty(Location.Address))
+            if (!string.IsNullOrEmpty(locationToCreate.Address))
             {
                 try
                 {
-                    var result = await _geocodingService.GeocodeAsync(Location.Address);
+                    var result = await _geocodingService.GeocodeAsync(locationToCreate.Address);
                     if (result.Latitude.HasValue && result.Longitude.HasValue)
                     {
-                        Location.Latitude = (decimal)result.Latitude.Value;
-                        Location.Longitude = (decimal)result.Longitude.Value;
-                        Location.GeocodingStatus = "Success";
+                        locationToCreate.Latitude = (decimal)result.Latitude.Value;
+                        locationToCreate.Longitude = (decimal)result.Longitude.Value;
+                        locationToCreate.GeocodingStatus = "Success";
                     }
                     else
                     {
-                        Location.GeocodingStatus = "Failed";
+                        locationToCreate.GeocodingStatus = "Failed";
                     }
-                    Location.LastGeocoded = DateTime.UtcNow;
+                    locationToCreate.LastGeocoded = DateTime.UtcNow;
                 }
                 catch
                 {
-                    Location.GeocodingStatus = "Failed";
-                    Location.LastGeocoded = DateTime.UtcNow;
+                    locationToCreate.GeocodingStatus = "Failed";
+                    locationToCreate.LastGeocoded = DateTime.UtcNow;
                 }
             }
 
             try
             {
-                _context.Locations.Add(Location);
+                _context.Locations.Add(locationToCreate);
                 await _context.SaveChangesAsync();
 
-                var geocodeMessage = Location.Latitude.HasValue 
+                var geocodeMessage = locationToCreate.Latitude.HasValue
                     ? " (Address geocoded successfully)" 
-                    : Location.GeocodingStatus == "Failed" ? " (Geocoding failed)" : "";
+                    : locationToCreate.GeocodingStatus == "Failed" ? " (Geocoding failed)" : "";
 
-                TempData["SuccessMessage"] = $"Location '{Location.Name}' created successfully.{geocodeMessage}";
+                TempData["SuccessMessage"] = $"Location '{locationToCreate.Name}' created successfully.{geocodeMessage}";
                 return RedirectToPage("./Index");
             }
             catch (Exception ex)

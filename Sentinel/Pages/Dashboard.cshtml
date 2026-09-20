@@ -220,6 +220,10 @@
         text-decoration: underline;
     }
 
+    .dashboard-search-result:hover {
+        background: var(--signal-lt);
+    }
+
     /* Disease Widget */
     .disease-row {
         display: flex;
@@ -377,6 +381,26 @@
         0% { transform: rotate(0deg); }
         100% { transform: rotate(360deg); }
     }
+
+    .dashboard-quick-action:hover {
+        background: rgba(255, 255, 255, 0.15) !important;
+        transform: translateY(-2px);
+    }
+
+    .dashboard-recently-viewed-link:hover {
+        background: var(--signal-lt) !important;
+        border-color: var(--signal) !important;
+    }
+
+    .dashboard-outbreak-summary-link:hover {
+        border-color: var(--signal-dk) !important;
+        background: #FFF9F0 !important;
+    }
+
+    .dashboard-task-summary-link:hover {
+        border-color: var(--signal-dk) !important;
+        background: #F0F9FF !important;
+    }
 </style>
 
 <div class="dashboard-greeting">
@@ -386,11 +410,11 @@
     <div class="dashboard-actions">
         @if (Model.HasPermission("Case.View"))
         {
-            <button class="btn-customize" onclick="toggleDiseaseFilter()">
+            <button type="button" class="btn-customize js-toggle-disease-filter">
                 <i class="bi bi-funnel"></i> Filter Diseases @if(Model.Config.PinnedDiseases.Any()) { <span style="background:var(--signal);color:white;border-radius:50%;padding:2px 6px;font-size:10px;margin-left:4px;">@Model.Config.PinnedDiseases.Count</span> }
             </button>
         }
-        <button class="btn-customize" onclick="window.location.href='/dashboard?handler=ResetConfig'">
+        <button type="button" class="btn-customize js-reset-dashboard-config">
             <i class="bi bi-arrow-clockwise"></i> Reset Layout
         </button>
     </div>
@@ -403,10 +427,7 @@
         <input type="text" 
                id="quickSearch" 
                placeholder="Quick search: patient, case, contact, outbreak, event, location, ID, GUID..."
-               style="width: 100%; padding: 14px 16px 14px 48px; border: 2px solid var(--hairline); border-radius: 10px; font-size: 15px; background: white; transition: all 0.2s; box-shadow: 0 2px 8px rgba(0,0,0,0.05);"
-               onkeyup="performQuickSearch(this.value)"
-               onfocus="this.style.borderColor='var(--signal-dk)'; this.style.boxShadow='0 4px 16px rgba(35, 130, 90, 0.15)'"
-               onblur="this.style.borderColor='var(--hairline)'; this.style.boxShadow='0 2px 8px rgba(0,0,0,0.05)'">
+               style="width: 100%; padding: 14px 16px 14px 48px; border: 2px solid var(--hairline); border-radius: 10px; font-size: 15px; background: white; transition: all 0.2s; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
         <div id="quickSearchLoader" style="position: absolute; right: 16px; top: 50%; transform: translateY(-50%); display: none;">
             <div style="width: 18px; height: 18px; border: 2px solid var(--hairline); border-top: 2px solid var(--signal-dk); border-radius: 50%; animation: spin 0.6s linear infinite;"></div>
         </div>
@@ -423,28 +444,28 @@
     <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px;">
         @if (Model.HasPermission("Patient.Create"))
         {
-        <a asp-page="/Patients/Create" style="background: rgba(255,255,255,0.1); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; padding: 16px 20px; text-decoration: none; text-align: center; transition: all 0.2s; display: flex; align-items: center; justify-content: center; gap: 10px;" onmouseover="this.style.background='rgba(255,255,255,0.15)'; this.style.transform='translateY(-2px)'" onmouseout="this.style.background='rgba(255,255,255,0.1)'; this.style.transform='translateY(0)'">
+        <a asp-page="/Patients/Create" class="dashboard-quick-action" style="background: rgba(255,255,255,0.1); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; padding: 16px 20px; text-decoration: none; text-align: center; transition: all 0.2s; display: flex; align-items: center; justify-content: center; gap: 10px;">
             <i class="bi bi-person-plus-fill" style="font-size: 20px; color: #9BE8C6;"></i>
             <div style="font-weight: 500; color: white; font-size: 14px;">New Patient</div>
         </a>
         }
         @if (Model.HasPermission("Case.Create"))
         {
-        <a asp-page="/Cases/CreateNew" style="background: rgba(255,255,255,0.1); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; padding: 16px 20px; text-decoration: none; text-align: center; transition: all 0.2s; display: flex; align-items: center; justify-content: center; gap: 10px;" onmouseover="this.style.background='rgba(255,255,255,0.15)'; this.style.transform='translateY(-2px)'" onmouseout="this.style.background='rgba(255,255,255,0.1)'; this.style.transform='translateY(0)'">
+        <a asp-page="/Cases/CreateNew" class="dashboard-quick-action" style="background: rgba(255,255,255,0.1); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; padding: 16px 20px; text-decoration: none; text-align: center; transition: all 0.2s; display: flex; align-items: center; justify-content: center; gap: 10px;">
             <i class="bi bi-virus" style="font-size: 20px; color: #FFB84D;"></i>
             <div style="font-weight: 500; color: white; font-size: 14px;">New Case</div>
         </a>
         }
         @if (Model.HasPermission("Report.Edit"))
         {
-        <a asp-page="/Reports/Builder" style="background: rgba(255,255,255,0.1); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; padding: 16px 20px; text-decoration: none; text-align: center; transition: all 0.2s; display: flex; align-items: center; justify-content: center; gap: 10px;" onmouseover="this.style.background='rgba(255,255,255,0.15)'; this.style.transform='translateY(-2px)'" onmouseout="this.style.background='rgba(255,255,255,0.1)'; this.style.transform='translateY(0)'">
+        <a asp-page="/Reports/Builder" class="dashboard-quick-action" style="background: rgba(255,255,255,0.1); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; padding: 16px 20px; text-decoration: none; text-align: center; transition: all 0.2s; display: flex; align-items: center; justify-content: center; gap: 10px;">
             <i class="bi bi-bar-chart-fill" style="font-size: 20px; color: #7CC4E8;"></i>
             <div style="font-weight: 500; color: white; font-size: 14px;">Build Report</div>
         </a>
         }
         @if (Model.HasPermission("Outbreak.View"))
         {
-        <a asp-page="/Outbreaks/Index" style="background: rgba(255,255,255,0.1); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; padding: 16px 20px; text-decoration: none; text-align: center; transition: all 0.2s; display: flex; align-items: center; justify-content: center; gap: 10px;" onmouseover="this.style.background='rgba(255,255,255,0.15)'; this.style.transform='translateY(-2px)'" onmouseout="this.style.background='rgba(255,255,255,0.1)'; this.style.transform='translateY(0)'">
+        <a asp-page="/Outbreaks/Index" class="dashboard-quick-action" style="background: rgba(255,255,255,0.1); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; padding: 16px 20px; text-decoration: none; text-align: center; transition: all 0.2s; display: flex; align-items: center; justify-content: center; gap: 10px;">
             <i class="bi bi-diagram-3" style="font-size: 20px; color: #FF8585;"></i>
             <div style="font-weight: 500; color: white; font-size: 14px;">Outbreaks</div>
         </a>
@@ -477,7 +498,7 @@
                                  timeAgo.TotalHours < 24 ? $"{(int)timeAgo.TotalHours}h ago" :
                                  $"{(int)timeAgo.TotalDays}d ago";
 
-                <a asp-page="@pagePath" asp-route-id="@item.EntityId" style="display: flex; align-items: center; gap: 12px; padding: 12px; border-radius: 6px; text-decoration: none; color: var(--forest); margin-bottom: 8px; transition: background 0.15s; border: 1px solid transparent;" onmouseover="this.style.background='var(--signal-lt)'; this.style.borderColor='var(--signal)'" onmouseout="this.style.background='transparent'; this.style.borderColor='transparent'">
+                <a asp-page="@pagePath" asp-route-id="@item.EntityId" class="dashboard-recently-viewed-link" style="display: flex; align-items: center; gap: 12px; padding: 12px; border-radius: 6px; text-decoration: none; color: var(--forest); margin-bottom: 8px; transition: background 0.15s; border: 1px solid transparent;">
                     <div style="width: 36px; height: 36px; border-radius: 50%; background: linear-gradient(135deg, #E8F5F0 0%, #D9F2E5 100%); display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
                         <i class="bi bi-@iconBi" style="font-size: 16px; color: var(--signal-dk);"></i>
                     </div>
@@ -514,7 +535,7 @@
             {
                 var chipClass = ob.Status == "Active" ? "chip-outbreak" : "chip-watch";
 
-                <a asp-page="/Outbreaks/Details" asp-route-id="@ob.Id" style="display: flex; align-items: center; justify-content: space-between; padding: 12px; border: 1px solid var(--hairline); border-radius: 6px; text-decoration: none; color: var(--forest); margin-bottom: 8px; transition: all 0.15s;" onmouseover="this.style.borderColor='var(--signal-dk)'; this.style.background='#FFF9F0'" onmouseout="this.style.borderColor='var(--hairline)'; this.style.background='transparent'">
+                <a asp-page="/Outbreaks/Details" asp-route-id="@ob.Id" class="dashboard-outbreak-summary-link" style="display: flex; align-items: center; justify-content: space-between; padding: 12px; border: 1px solid var(--hairline); border-radius: 6px; text-decoration: none; color: var(--forest); margin-bottom: 8px; transition: all 0.15s;">
                     <div style="min-width: 0; flex: 1;">
                         <div style="font-weight: 500; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">@ob.Name</div>
                         <div style="font-size: 11px; color: var(--graphite); font-family: var(--f-mono); margin-top: 2px;">@(ob.DiseaseName ?? "No disease")</div>
@@ -555,7 +576,7 @@
                     _ => "chip-info"
                 };
 
-                <a asp-page="/Cases/Details" asp-route-id="@task.CaseId" style="display: flex; align-items: center; justify-content: space-between; padding: 12px; border: 1px solid var(--hairline); border-radius: 6px; text-decoration: none; color: var(--forest); margin-bottom: 8px; transition: all 0.15s;" onmouseover="this.style.borderColor='var(--signal-dk)'; this.style.background='#F0F9FF'" onmouseout="this.style.borderColor='var(--hairline)'; this.style.background='transparent'">
+                <a asp-page="/Cases/Details" asp-route-id="@task.CaseId" class="dashboard-task-summary-link" style="display: flex; align-items: center; justify-content: space-between; padding: 12px; border: 1px solid var(--hairline); border-radius: 6px; text-decoration: none; color: var(--forest); margin-bottom: 8px; transition: all 0.15s;">
                     <div style="min-width: 0; flex: 1;">
                         <div style="font-weight: 500; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">@task.Title</div>
                         <div style="font-size: 11px; color: var(--graphite); font-family: var(--f-mono); margin-top: 2px;">@(task.PatientName ?? "No patient")</div>
@@ -594,20 +615,20 @@
     <div style="background:var(--chalk);border-radius:12px;padding:32px;max-width:600px;max-height:80vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,0.2);">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;">
             <h3 style="font-size:20px;font-weight:600;color:var(--forest);margin:0;">Pin Diseases</h3>
-            <button onclick="toggleDiseaseFilter()" style="background:none;border:none;font-size:24px;cursor:pointer;color:var(--graphite);">&times;</button>
+            <button type="button" class="js-toggle-disease-filter" style="background:none;border:none;font-size:24px;cursor:pointer;color:var(--graphite);">&times;</button>
         </div>
         <p style="font-size:14px;color:var(--graphite);margin-bottom:20px;">Select diseases to focus your dashboard. Only data for pinned diseases will be shown.</p>
 
         <div style="display:flex;gap:12px;margin-bottom:16px;">
-            <button onclick="pinAll()" class="btn-customize" style="flex:1;">Pin All</button>
-            <button onclick="unpinAll()" class="btn-customize" style="flex:1;">Unpin All</button>
+            <button type="button" class="btn-customize js-pin-all-diseases" style="flex:1;">Pin All</button>
+            <button type="button" class="btn-customize js-unpin-all-diseases" style="flex:1;">Unpin All</button>
         </div>
 
         <div id="diseaseList" style="display:grid;gap:8px;">
             @foreach (var disease in Model.AvailableDiseases)
             {
-                <div class="disease-pin-item" data-disease-id="@disease.Id" style="display:flex;align-items:center;padding:12px;background:white;border:1px solid var(--hairline);border-radius:6px;cursor:pointer;transition:all 0.15s;" onclick="togglePin(this, '@disease.Id')">
-                    <input type="checkbox" @(disease.IsPinned ? "checked" : "") style="margin-right:12px;width:18px;height:18px;cursor:pointer;" onclick="event.stopPropagation();">
+                <div class="disease-pin-item js-disease-pin-item" data-disease-id="@disease.Id" style="display:flex;align-items:center;padding:12px;background:white;border:1px solid var(--hairline);border-radius:6px;cursor:pointer;transition:all 0.15s;">
+                    <input type="checkbox" @(disease.IsPinned ? "checked" : "") style="margin-right:12px;width:18px;height:18px;cursor:pointer;">
                     <div style="flex:1;">
                         <div style="font-weight:500;color:var(--forest);">@disease.Name</div>
                         @if (!string.IsNullOrEmpty(disease.Code))
@@ -637,7 +658,7 @@
                         <div class="widget-title">@widgetData.Title</div>
                         @if (widget.WidgetId == "recent-activity" || widget.WidgetId == "cases-by-disease" || widget.WidgetId == "hl7-overview" || widget.WidgetId == "tasks-surveys")
                         {
-                            <select class="widget-time-selector" onchange="updateWidgetTime('@widget.WidgetId', this.value)">
+                            <select class="widget-time-selector js-widget-time-selector" data-widget-id="@widget.WidgetId">
                                 @{
                                     var currentTime = widget.Settings.ContainsKey("timeWindow") ? widget.Settings["timeWindow"]?.ToString() : "24h";
                                 }
@@ -649,7 +670,7 @@
                         }
                     </div>
                     <div class="widget-controls">
-                        <button class="widget-refresh" onclick="refreshWidget('@widget.WidgetId')">
+                        <button type="button" class="widget-refresh js-widget-refresh" data-widget-id="@widget.WidgetId">
                             <i class="bi bi-arrow-clockwise"></i>
                         </button>
                     </div>
@@ -677,7 +698,7 @@
             const content = document.getElementById(`content-${widgetId}`);
 
             if (!card || !content) {
-                console.error('Widget elements not found:', widgetId);
+                console.error('Dashboard widget elements were not found.');
                 return;
             }
 
@@ -716,7 +737,7 @@
                     throw new Error(`Server returned ${response.status}`);
                 }
             } catch (error) {
-                console.error('Error refreshing widget:', error);
+                console.error('Dashboard widget could not be refreshed.');
                 content.innerHTML = '<div class="widget-error"><i class="bi bi-exclamation-triangle"></i> Failed to refresh widget</div>';
             } finally {
                 card.classList.remove('loading');
@@ -728,7 +749,7 @@
             const card = document.getElementById(`widget-${widgetId}`);
 
             if (!card) {
-                console.error('Widget card not found:', widgetId);
+                console.error('Dashboard widget card was not found.');
                 return;
             }
 
@@ -762,7 +783,7 @@
                     throw new Error(`Server returned ${response.status}`);
                 }
             } catch (error) {
-                console.error('Error updating widget settings:', error);
+                console.error('Dashboard widget settings could not be updated.');
             } finally {
                 card.classList.remove('loading');
             }
@@ -801,19 +822,99 @@
         }
 
         function escapeHtml(value) {
-            const element = document.createElement('div');
-            element.textContent = value == null ? '' : String(value);
-            return element.innerHTML;
+            // This helper is used in element text and quoted attributes in the
+            // dynamic dashboard widgets, so encode the complete attribute set.
+            return String(value == null ? '' : value)
+                .replace(/&/g, '&amp;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;');
         }
 
         function safeRelativeUrl(value) {
-            return typeof value === 'string' && value.startsWith('/') && !value.startsWith('//')
-                ? value
-                : '#';
+            if (typeof value !== 'string' || !value.startsWith('/') || value.startsWith('//')) {
+                return '#';
+            }
+
+            try {
+                const url = new URL(value, window.location.origin);
+                return url.origin === window.location.origin
+                    ? `${url.pathname}${url.search}${url.hash}`
+                    : '#';
+            } catch {
+                return '#';
+            }
         }
+
+        document.addEventListener('click', function (event) {
+            if (event.target.closest('.js-toggle-disease-filter')) {
+                toggleDiseaseFilter();
+                return;
+            }
+
+            if (event.target.closest('.js-reset-dashboard-config')) {
+                void resetDashboardConfig();
+                return;
+            }
+
+            if (event.target.closest('.js-pin-all-diseases')) {
+                pinAll();
+                return;
+            }
+
+            if (event.target.closest('.js-unpin-all-diseases')) {
+                unpinAll();
+                return;
+            }
+
+            const navigationTarget = event.target.closest('.js-dashboard-navigation');
+            if (!navigationTarget) {
+                return;
+            }
+
+            const url = safeRelativeUrl(navigationTarget.dataset.navigationUrl);
+            if (url !== '#') {
+                window.location.assign(url);
+            }
+        });
 
         function safeCssToken(value, allowed, fallback) {
             return allowed.includes(value) ? value : fallback;
+        }
+
+        // Dashboard counters are expected to be non-negative integers. Normalize
+        // API data before placing it into markup so a malformed response can never
+        // alter the surrounding document structure.
+        function displayCount(value) {
+            const numericValue = Number(value);
+            return Number.isFinite(numericValue) && numericValue >= 0
+                ? String(Math.trunc(numericValue))
+                : '0';
+        }
+
+        async function resetDashboardConfig() {
+            const token = getAntiForgeryToken();
+            if (!token) {
+                alert('The dashboard could not be reset. Please refresh the page and try again.');
+                return;
+            }
+
+            try {
+                const response = await fetch('/dashboard?handler=ResetConfig', {
+                    method: 'POST',
+                    headers: { 'RequestVerificationToken': token }
+                });
+
+                if (!response.ok) {
+                    throw new Error(`Dashboard reset failed (${response.status})`);
+                }
+
+                window.location.reload();
+            } catch (error) {
+                console.error('Dashboard reset could not be completed.');
+                alert('The dashboard could not be reset. Please try again.');
+            }
         }
 
         // Render functions for each widget type
@@ -851,15 +952,15 @@
             let html = '';
             data.diseases.slice(0, 8).forEach(disease => {
                 html += `
-                    <div class="disease-row" onclick="window.location.href='/Cases?diseaseId=${encodeURIComponent(disease.diseaseId)}'">
+                    <div class="disease-row js-dashboard-navigation" data-navigation-url="/Cases?diseaseId=${encodeURIComponent(disease.diseaseId)}">
                         <div class="disease-name">${escapeHtml(disease.diseaseName)}</div>
                         <div class="disease-counts">
                             <span class="disease-count-item">
-                                <strong>${disease.totalCount}</strong> total
+                                <strong>${displayCount(disease.totalCount)}</strong> total
                             </span>
                             ${disease.confirmedCount > 0 ? `
                                 <span class="disease-count-item">
-                                    <strong>${disease.confirmedCount}</strong> conf.
+                                    <strong>${displayCount(disease.confirmedCount)}</strong> conf.
                                 </span>
                             ` : ''}
                         </div>
@@ -879,17 +980,17 @@
 
             container.innerHTML = `
                 <div class="kpi-grid">
-                    <div class="kpi-tile" onclick="window.location.href='/Settings/HL7/Messages?status=Processed'">
+                    <div class="kpi-tile js-dashboard-navigation" data-navigation-url="/Settings/HL7/Messages?status=Processed">
                         <div class="kpi-label">Processed</div>
-                        <div class="kpi-value">${data.processedCount}</div>
+                        <div class="kpi-value">${displayCount(data.processedCount)}</div>
                     </div>
-                    <div class="kpi-tile" onclick="window.location.href='/Settings/HL7/Messages?status=Rejected'">
+                    <div class="kpi-tile js-dashboard-navigation" data-navigation-url="/Settings/HL7/Messages?status=Rejected">
                         <div class="kpi-label">Rejected</div>
-                        <div class="kpi-value" style="color:${data.rejectedCount > 0 ? 'var(--outbreak)' : 'var(--forest)'}">${data.rejectedCount}</div>
+                        <div class="kpi-value" style="color:${data.rejectedCount > 0 ? 'var(--outbreak)' : 'var(--forest)'}">${displayCount(data.rejectedCount)}</div>
                     </div>
-                    <div class="kpi-tile" onclick="window.location.href='/Settings/HL7/Messages?status=AwaitingReview'">
+                    <div class="kpi-tile js-dashboard-navigation" data-navigation-url="/Settings/HL7/Messages?status=AwaitingReview">
                         <div class="kpi-label">Awaiting Review</div>
-                        <div class="kpi-value">${data.awaitingReviewCount}</div>
+                        <div class="kpi-value">${displayCount(data.awaitingReviewCount)}</div>
                     </div>
                     <div class="kpi-tile">
                         <div class="kpi-label">System Status</div>
@@ -911,15 +1012,15 @@
                 <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px;">
                     <div class="kpi-tile">
                         <div class="kpi-label">Outstanding</div>
-                        <div class="kpi-value">${data.outstandingTasks}</div>
+                        <div class="kpi-value">${displayCount(data.outstandingTasks)}</div>
                     </div>
                     <div class="kpi-tile">
                         <div class="kpi-label">Completed Today</div>
-                        <div class="kpi-value" style="color:var(--signal-dk)">${data.completedToday}</div>
+                        <div class="kpi-value" style="color:var(--signal-dk)">${displayCount(data.completedToday)}</div>
                     </div>
                     <div class="kpi-tile">
                         <div class="kpi-label">Overdue</div>
-                        <div class="kpi-value" style="color:${data.overdueTasks > 0 ? 'var(--outbreak)' : 'var(--forest)'}">${data.overdueTasks}</div>
+                        <div class="kpi-value" style="color:${data.overdueTasks > 0 ? 'var(--outbreak)' : 'var(--forest)'}">${displayCount(data.overdueTasks)}</div>
                     </div>
                 </div>
             `;
@@ -930,7 +1031,7 @@
                     html += `
                         <div class="task-item">
                             <div style="font-size:13px;">${escapeHtml(taskType.taskType)}</div>
-                            <div style="font-family:var(--f-mono);font-size:12px;color:var(--graphite)">${taskType.count}</div>
+                            <div style="font-family:var(--f-mono);font-size:12px;color:var(--graphite)">${displayCount(taskType.count)}</div>
                         </div>
                     `;
                 });
@@ -947,12 +1048,12 @@
             let html = '';
             data.activeOutbreaks.slice(0, 5).forEach(outbreak => {
                 html += `
-                    <div class="outbreak-card" onclick="window.location.href='/Outbreaks/View/${encodeURIComponent(outbreak.outbreakId)}'">
+                    <div class="outbreak-card js-dashboard-navigation" data-navigation-url="/Outbreaks/View/${encodeURIComponent(outbreak.outbreakId)}">
                         <div class="outbreak-name">${escapeHtml(outbreak.outbreakName)}</div>
                         <div class="outbreak-meta">
-                            <span>${outbreak.linkedCasesCount} cases</span>
-                            <span>${outbreak.daysSinceDeclaration} days</span>
-                            <span>${outbreak.teamMemberCount} team</span>
+                            <span>${displayCount(outbreak.linkedCasesCount)} cases</span>
+                            <span>${displayCount(outbreak.daysSinceDeclaration)} days</span>
+                            <span>${displayCount(outbreak.teamMemberCount)} team</span>
                         </div>
                     </div>
                 `;
@@ -967,9 +1068,9 @@
             }
 
             let html = `
-                <div class="kpi-tile" style="margin-bottom:16px;" onclick="window.location.href='/DataInbox'">
+                <div class="kpi-tile js-dashboard-navigation" style="margin-bottom:16px;" data-navigation-url="/DataInbox">
                     <div class="kpi-label">Total Items</div>
-                    <div class="kpi-value">${data.totalItems}</div>
+                    <div class="kpi-value">${displayCount(data.totalItems)}</div>
                 </div>
             `;
 
@@ -977,11 +1078,11 @@
                 html += '<div style="font-size:11px;font-weight:600;margin-bottom:8px;color:var(--graphite);font-family:var(--f-mono)">BY TYPE</div>';
                 data.itemsByType.slice(0, 5).forEach(item => {
                     html += `
-                        <div class="disease-row" onclick="window.location.href='/DataInbox?type=${encodeURIComponent(item.reviewType)}'">
+                        <div class="disease-row js-dashboard-navigation" data-navigation-url="/DataInbox?type=${encodeURIComponent(item.reviewType)}">
                             <div style="font-size:13px;">${escapeHtml(item.reviewType)}</div>
                             <div style="font-family:var(--f-mono);font-size:12px;">
-                                <strong style="color:var(--forest)">${item.count}</strong>
-                                ${item.highPriorityCount > 0 ? `<span style="color:var(--outbreak);margin-left:8px;">⚠ ${item.highPriorityCount}</span>` : ''}
+                                <strong style="color:var(--forest)">${displayCount(item.count)}</strong>
+                                ${item.highPriorityCount > 0 ? `<span style="color:var(--outbreak);margin-left:8px;">⚠ ${displayCount(item.highPriorityCount)}</span>` : ''}
                             </div>
                         </div>
                     `;
@@ -1019,13 +1120,32 @@
             modal.style.display = modal.style.display === 'none' ? 'flex' : 'none';
         }
 
+        document.querySelectorAll('.js-widget-time-selector').forEach(selector => {
+            selector.addEventListener('change', () =>
+                updateWidgetTime(selector.dataset.widgetId, selector.value));
+        });
+
+        document.querySelectorAll('.js-widget-refresh').forEach(button => {
+            button.addEventListener('click', () => refreshWidget(button.dataset.widgetId));
+        });
+
+        document.querySelectorAll('.js-disease-pin-item').forEach(item => {
+            item.addEventListener('click', event => {
+                if (event.target.closest('input[type="checkbox"]')) {
+                    // The outer item owns the state transition; prevent the native
+                    // checkbox toggle from racing it.
+                    event.preventDefault();
+                }
+
+                togglePin(item, item.dataset.diseaseId);
+            });
+        });
+
         async function togglePin(element, diseaseId) {
             const checkbox = element.querySelector('input[type="checkbox"]');
             const pin = element.querySelector('.bi-pin-angle-fill');
 
             checkbox.checked = !checkbox.checked;
-
-            console.log('Toggle pin:', diseaseId, 'isPinned:', checkbox.checked);
 
             try {
                 const token = getAntiForgeryToken();
@@ -1067,16 +1187,15 @@
                         }, 500);
                     }
                 } else {
-                    const errorText = await response.text();
-                    console.error('Toggle pin failed:', response.status, errorText);
+                    console.error('Dashboard widget pinning could not be updated.');
                     // Revert checkbox if failed
                     checkbox.checked = !checkbox.checked;
                     alert('Failed to update disease filter. Please try again.');
                 }
             } catch (error) {
-                console.error('Error toggling pin:', error);
+                console.error('Dashboard widget pinning could not be updated.');
                 checkbox.checked = !checkbox.checked;
-                alert('Error updating disease filter: ' + error.message);
+                alert('Unable to update the disease filter. Please try again.');
             }
         }
 
@@ -1111,6 +1230,18 @@
 
         // Quick Search
         let searchTimeout;
+        const quickSearchInput = document.getElementById('quickSearch');
+        quickSearchInput?.addEventListener('input', function () {
+            performQuickSearch(this.value);
+        });
+        quickSearchInput?.addEventListener('focus', function () {
+            this.style.borderColor = 'var(--signal-dk)';
+            this.style.boxShadow = '0 4px 16px rgba(35, 130, 90, 0.15)';
+        });
+        quickSearchInput?.addEventListener('blur', function () {
+            this.style.borderColor = 'var(--hairline)';
+            this.style.boxShadow = '0 2px 8px rgba(0,0,0,0.05)';
+        });
         async function performQuickSearch(query) {
             clearTimeout(searchTimeout);
 
@@ -1132,7 +1263,7 @@
                         displaySearchResults(data.results);
                     }
                 } catch (error) {
-                    console.error('Search error:', error);
+                    console.error('Dashboard search could not be completed.');
                 } finally {
                     loader.style.display = 'none';
                 }
@@ -1170,11 +1301,15 @@
             let html = '<div style="padding: 8px;">';
 
             results.forEach(result => {
-                const color = typeColors[result.type] || '#D8D4C4';
-                const icon = typeIcons[result.type] || 'search';
+                // Restrict presentation tokens to this fixed map. Object.hasOwn
+                // avoids inherited Object.prototype properties being rendered
+                // when an unexpected API type is supplied.
+                const type = String(result.type ?? '');
+                const color = Object.hasOwn(typeColors, type) ? typeColors[type] : '#D8D4C4';
+                const icon = Object.hasOwn(typeIcons, type) ? typeIcons[type] : 'search';
                 const url = safeRelativeUrl(result.url);
                 html += `
-                    <a href="${url}" style="display: flex; align-items: center; gap: 12px; padding: 12px; border-radius: 8px; text-decoration: none; color: var(--forest); transition: background 0.15s; margin-bottom: 4px;" onmouseover="this.style.background='var(--signal-lt)'" onmouseout="this.style.background='transparent'">
+                    <a class="dashboard-search-result" href="${escapeHtml(url)}" style="display: flex; align-items: center; gap: 12px; padding: 12px; border-radius: 8px; text-decoration: none; color: var(--forest); transition: background 0.15s; margin-bottom: 4px;">
                         <div style="width: 40px; height: 40px; border-radius: 8px; background: ${color}22; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
                             <i class="bi bi-${icon}" style="font-size: 18px; color: ${color};"></i>
                         </div>

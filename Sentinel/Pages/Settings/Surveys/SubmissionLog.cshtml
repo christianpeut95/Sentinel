@@ -151,7 +151,7 @@
             <form method="get" class="row g-3 align-items-end">
                 <div class="col-12 col-sm-6 col-md-3">
                     <label class="form-label fw-semibold small text-muted">Time Period</label>
-                    <select name="DateRange" asp-for="DateRange" class="form-select" onchange="this.form.submit()">
+                    <select name="DateRange" asp-for="DateRange" class="form-select js-auto-submit-filter">
                         <option value="today">Today</option>
                         <option value="7days">Last 7 days</option>
                         <option value="30days">Last 30 days</option>
@@ -161,7 +161,7 @@
                 </div>
                 <div class="col-12 col-sm-6 col-md-3">
                     <label class="form-label fw-semibold small text-muted">Status</label>
-                    <select name="OutcomeFilter" asp-for="OutcomeFilter" class="form-select" onchange="this.form.submit()">
+                    <select name="OutcomeFilter" asp-for="OutcomeFilter" class="form-select js-auto-submit-filter">
                         <option value="">All statuses</option>
                         <option value="Completed">✓ Completed</option>
                         <option value="review">⏳ Needs Review</option>
@@ -171,7 +171,7 @@
                 </div>
                 <div class="col-12 col-sm-6 col-md-3">
                     <label class="form-label fw-semibold small text-muted">Disease</label>
-                    <select name="DiseaseFilter" asp-for="DiseaseFilter" asp-items="Model.DiseaseOptions" class="form-select" onchange="this.form.submit()">
+                    <select name="DiseaseFilter" asp-for="DiseaseFilter" asp-items="Model.DiseaseOptions" class="form-select js-auto-submit-filter">
                         <option value="">All diseases</option>
                     </select>
                 </div>
@@ -625,3 +625,11 @@
     .summary-card-hover:hover { box-shadow: 0 4px 16px rgba(0,0,0,.1) !important; transform: translateY(-2px); }
     .table > tbody > tr:last-child > td { border-bottom: none; }
 </style>
+
+@section Scripts {
+    <script>
+        document.querySelectorAll('.js-auto-submit-filter').forEach((filter) => {
+            filter.addEventListener('change', () => filter.form?.requestSubmit());
+        });
+    </script>
+}

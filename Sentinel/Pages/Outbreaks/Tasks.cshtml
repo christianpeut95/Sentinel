@@ -121,7 +121,7 @@
                 <div class="row g-3">
                     <div class="col-md-3">
                         <label class="form-label">Status</label>
-                        <select name="StatusFilter" class="form-select" onchange="this.form.submit()">
+                        <select name="StatusFilter" class="form-select js-outbreak-task-filter">
                             <option value="">All Statuses</option>
                             <option value="Pending" selected="@(Model.StatusFilter == "Pending")">Pending</option>
                             <option value="InProgress" selected="@(Model.StatusFilter == "InProgress")">In Progress</option>
@@ -131,11 +131,11 @@
                     </div>
                     <div class="col-md-3">
                         <label class="form-label">Assigned To</label>
-                        <select name="AssigneeFilter" class="form-select" asp-items="Model.AssigneeOptions" onchange="this.form.submit()"></select>
+                        <select name="AssigneeFilter" class="form-select js-outbreak-task-filter" asp-items="Model.AssigneeOptions"></select>
                     </div>
                     <div class="col-md-3">
                         <label class="form-label">Task Type</label>
-                        <select name="TypeFilter" class="form-select" asp-items="Model.TypeOptions" onchange="this.form.submit()"></select>
+                        <select name="TypeFilter" class="form-select js-outbreak-task-filter" asp-items="Model.TypeOptions"></select>
                     </div>
                     <div class="col-md-3">
                         <label class="form-label d-block">&nbsp;</label>
@@ -170,7 +170,7 @@
                 <span class="badge bg-secondary">@Model.FilteredTasks.Count</span>
             </h5>
             <div>
-                <button type="button" class="btn btn-sm btn-success" onclick="exportToExcel()">
+                <button type="button" class="btn btn-sm btn-success js-outbreak-task-action" data-outbreak-task-action="export">
                     <i class="bi bi-file-earmark-excel me-1"></i> Export to Excel
                 </button>
             </div>
@@ -289,6 +289,18 @@ function exportToExcel() {
     // Download
     XLSX.writeFile(wb, filename);
 }
+
+document.addEventListener('change', (event) => {
+    if (event.target.matches('.js-outbreak-task-filter')) {
+        event.target.form?.requestSubmit();
+    }
+});
+
+document.addEventListener('click', (event) => {
+    if (event.target.closest('.js-outbreak-task-action')?.dataset.outbreakTaskAction === 'export') {
+        exportToExcel();
+    }
+});
 </script>
 }
 

@@ -471,6 +471,7 @@
             var sessionToken = new google.maps.places.AutocompleteSessionToken();
             var items = [];
             var focused = -1;
+            var lastPlaceResults = [];
             var config = SentinelGeocoding.getConfig();
 
             function debounce(fn, ms) { var t; return function () { var args = arguments; clearTimeout(t); t = setTimeout(function () { fn.apply(null, args); }, ms); }; }
@@ -507,7 +508,7 @@
                 placeInput.setAttribute('aria-expanded', 'true');
                 items = Array.from(placeDropdown.querySelectorAll('[role="option"]'));
                 focused = -1;
-                window.__lastPlaceResults = preds;
+                lastPlaceResults = preds;
             }
 
             function focusItem(i) {
@@ -520,7 +521,7 @@
                 var sel = items[i];
                 if (!sel) return;
                 var idx = Number(sel.dataset.index);
-                var pred = window.__lastPlaceResults && window.__lastPlaceResults[idx];
+                var pred = lastPlaceResults[idx];
                 if (!pred) return;
                 detailsService.getDetails({
                     placeId: pred.place_id,
@@ -590,9 +591,6 @@
                             }
                         }
 
-                        if (!matched) {
-                            console.log('Could not match state "' + state + '" to any State option');
-                        }
                     }
                     if (postalEl) postalEl.value = postal;
 
@@ -635,9 +633,12 @@
             }
 
             function escapeHtml(value) {
-                var element = document.createElement('div');
-                element.textContent = value == null ? '' : String(value);
-                return element.innerHTML;
+                return String(value == null ? '' : value)
+                    .replace(/&/g, '&amp;')
+                    .replace(/"/g, '&quot;')
+                    .replace(/'/g, '&#39;')
+                    .replace(/</g, '&lt;')
+                    .replace(/>/g, '&gt;');
             }
 
             placeInput.addEventListener('input', debounce(function (e) { fetchSuggestions(e.target.value); }, 300));
@@ -710,9 +711,14 @@
                     return false
                 }
             }).autocomplete("instance")._renderItem = function (ul, item) {
-                return $("<li>")
-                    .append("<div><strong>" + item.value + "</strong><br/><small class='text-muted'>" + item.code + (item.majorGroup ? " - " + item.majorGroup : "") + "</small></div>")
-                    .appendTo(ul)
+                const $content = $('<div>');
+                $('<strong>').text(item.value ?? '').appendTo($content);
+                $content.append(document.createElement('br'));
+                $('<small>', { class: 'text-muted' })
+                    .text(`${item.code ?? ''}${item.majorGroup ? ` - ${item.majorGroup}` : ''}`)
+                    .appendTo($content);
+
+                return $('<li>').append($content).appendTo(ul);
             }
             // Clear hidden field when search input is cleared
             $searchInput.on('input', function () {

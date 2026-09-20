@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.EntityFrameworkCore;
 using Sentinel.Data;
 using Sentinel.Models.CaseDefinitions;
+using Sentinel.Services;
 using System.Security.Claims;
 
 namespace Sentinel.Pages.Settings.CaseDefinitions
@@ -53,6 +54,12 @@ namespace Sentinel.Pages.Settings.CaseDefinitions
                 return NotFound();
             }
 
+            if (!CaseDefinitionWorkflowPolicy.CanActivate(definition.Status))
+            {
+                TempData["ErrorMessage"] = "Only a draft case definition can be activated. Create a new draft to revise an archived or active definition.";
+                return RedirectToPage(new { id = Id });
+            }
+
             // Update definition to Current status
             definition.Status = CaseDefinitionStatus.Current;
             definition.ModifiedBy = User.FindFirstValue(ClaimTypes.NameIdentifier);
@@ -73,6 +80,12 @@ namespace Sentinel.Pages.Settings.CaseDefinitions
             if (definition == null)
             {
                 return NotFound();
+            }
+
+            if (!CaseDefinitionWorkflowPolicy.CanSaveDraft(definition.Status))
+            {
+                TempData["ErrorMessage"] = "Only a draft case definition can be saved as a draft.";
+                return RedirectToPage(new { id = Id });
             }
 
             // Keep as Draft status

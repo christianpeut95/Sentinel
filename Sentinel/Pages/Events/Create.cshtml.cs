@@ -50,10 +50,25 @@ namespace Sentinel.Pages.Events
 
             try
             {
-                _context.Events.Add(Event);
+                var eventToCreate = new Event
+                {
+                    Name = Event.Name,
+                    EventTypeId = Event.EventTypeId,
+                    LocationId = Event.LocationId,
+                    StartDateTime = Event.StartDateTime,
+                    EndDateTime = Event.EndDateTime,
+                    EstimatedAttendees = Event.EstimatedAttendees,
+                    // This form has no indoor/outdoor control; preserve its server-side default.
+                    IsIndoor = true,
+                    OrganizerOrganizationId = Event.OrganizerOrganizationId,
+                    Description = Event.Description,
+                    IsActive = Event.IsActive
+                };
+
+                _context.Events.Add(eventToCreate);
                 await _context.SaveChangesAsync();
 
-                TempData["SuccessMessage"] = $"Event '{Event.Name}' created successfully.";
+                TempData["SuccessMessage"] = $"Event '{eventToCreate.Name}' created successfully.";
                 return RedirectToPage("./Index");
             }
             catch (Exception ex)

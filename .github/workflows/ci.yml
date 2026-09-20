@@ -1,0 +1,48 @@
+name: Continuous integration
+
+on:
+  pull_request:
+  push:
+    branches:
+      - master
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-test:
+    name: Build and test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v5
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Restore
+        run: dotnet restore Sentinel.slnx
+
+      - name: Build
+        run: dotnet build Sentinel.slnx --configuration Release --no-restore
+
+      - name: Test
+        run: dotnet test Sentinel.Tests/Sentinel.Tests.csproj --configuration Release --no-build --no-restore
+
+      - name: Check NuGet packages for known vulnerabilities
+        run: dotnet list Sentinel.slnx package --vulnerable --include-transitive --no-restore
+
+  container-build:
+    name: Docker build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v5
+
+      - name: Build application image
+        run: docker build --file Sentinel/Dockerfile .

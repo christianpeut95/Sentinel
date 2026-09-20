@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Microsoft.AspNetCore.Http;
 using Moq;
 using Sentinel.Data;
 using Sentinel.Models;
@@ -45,7 +46,9 @@ OBX|1|ST|87070^CULTURE IDENTIFICATION^LN||STAPHYLOCOCCUS AUREUS||||||F|||2024050
             .UseInMemoryDatabase(databaseName: $"TestDb_{Guid.NewGuid()}")
             .Options;
 
-        _context = new ApplicationDbContext(options);
+        _context = new ApplicationDbContext(
+            options,
+            new HttpContextAccessor { HttpContext = new DefaultHttpContext() });
         _loggerMock = new Mock<ILogger<DuplicateDetectionService>>();
         _service = new DuplicateDetectionService(_context, _loggerMock.Object);
     }

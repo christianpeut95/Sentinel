@@ -189,8 +189,8 @@
 @if (!string.IsNullOrWhiteSpace(Model.Message.ErrorMessage))
 {
     <div class="alert alert-danger mb-4" role="alert">
-        <h6 class="alert-heading"><i class="bi bi-exclamation-triangle me-2"></i>Error Details</h6>
-        <pre style="margin:0;font-family:var(--f-mono);font-size:12px;white-space:pre-wrap">@Model.Message.ErrorMessage</pre>
+        <h6 class="alert-heading"><i class="bi bi-exclamation-triangle me-2"></i>Processing Error</h6>
+        <p class="mb-0">Technical details are available in the application logs. Use message control ID <code>@Model.Message.MessageControlId</code> when reviewing the log entry.</p>
     </div>
 }
 
@@ -198,11 +198,8 @@
 @if (!string.IsNullOrWhiteSpace(Model.Message.ProcessingNotes))
 {
     <div class="alert alert-info mb-4" role="alert" style="background:var(--signal-lt);border-color:var(--signal-dk);color:var(--forest)">
-        <h6 class="alert-heading"><i class="bi bi-info-circle me-2"></i>Processing Diagnostics</h6>
-        <div style="font-size:13px;line-height:1.8">
-            <strong>What happened during processing:</strong>
-            <pre style="margin:8px 0 0 0;font-family:var(--f-mono);font-size:12px;white-space:pre-wrap;color:var(--graphite);background:var(--chalk);padding:12px;border-radius:8px;border:1px solid var(--hairline)">@Model.Message.ProcessingNotes</pre>
-        </div>
+        <h6 class="alert-heading"><i class="bi bi-info-circle me-2"></i>Processing Information</h6>
+        <p class="mb-0">Technical processing information is retained in the application logs. Use message control ID <code>@Model.Message.MessageControlId</code> when reviewing the log entry.</p>
     </div>
 }
 

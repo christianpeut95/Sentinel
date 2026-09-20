@@ -15,18 +15,15 @@ namespace Sentinel.Pages.Dashboard
         private readonly ApplicationDbContext _context;
         private readonly ITaskService _taskService;
         private readonly IPermissionService _permissionService;
-        private readonly IDiseaseAccessService _diseaseAccessService;
 
         public MyTasksModel(
             ApplicationDbContext context,
             ITaskService taskService,
-            IPermissionService permissionService,
-            IDiseaseAccessService diseaseAccessService)
+            IPermissionService permissionService)
         {
             _context = context;
             _taskService = taskService;
             _permissionService = permissionService;
-            _diseaseAccessService = diseaseAccessService;
         }
 
         public List<CaseTask> AllTasks { get; set; } = new();
@@ -197,19 +194,20 @@ namespace Sentinel.Pages.Dashboard
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             if (string.IsNullOrWhiteSpace(userId) ||
+                !await _permissionService.HasPermissionAsync(userId, PermissionModule.Task, PermissionAction.Edit) ||
                 !await _permissionService.HasPermissionAsync(userId, PermissionModule.Case, PermissionAction.Edit))
             {
                 return false;
             }
 
+            // CaseTask has a query filter that depends on its Case navigation. Do
+            // not bypass it here: completing a task must use the exact same
+            // hierarchy-aware disease visibility as viewing its parent case.
             var task = await _context.CaseTasks
-                .IgnoreQueryFilters()
                 .Include(t => t.Case)
-                .FirstOrDefaultAsync(t => t.Id == taskId && t.Case != null && !t.Case.IsDeleted);
+                .FirstOrDefaultAsync(t => t.Id == taskId);
 
-            return task?.Case != null &&
-                (!task.Case.DiseaseId.HasValue ||
-                 await _diseaseAccessService.CanAccessDiseaseAsync(userId, task.Case.DiseaseId.Value));
+            return task?.Case != null;
         }
 
         // Quick actions. Razor Pages does not apply [Authorize] to individual
@@ -247,14 +245,8 @@ namespace Sentinel.Pages.Dashboard
 
             try
             {
-                var task = await _context.CaseTasks.FindAsync(taskId);
-                if (task != null)
-                {
-                    task.Status = CaseTaskStatus.InProgress;
-                    task.ModifiedAt = DateTime.UtcNow;
-                    await _context.SaveChangesAsync();
-                    TempData["SuccessMessage"] = "Task status updated to In Progress.";
-                }
+                await _taskService.StartTask(taskId);
+                TempData["SuccessMessage"] = "Task status updated to In Progress.";
             }
             catch (Exception ex)
             {

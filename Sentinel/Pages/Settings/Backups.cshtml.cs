@@ -66,21 +66,21 @@ public class BackupsModel : PageModel
         return Page();
     }
 
-    public async Task<IActionResult> OnPostDeleteBackupAsync(string fileName)
+    public async Task<IActionResult> OnPostDeleteBackupAsync(int backupId)
     {
         try
         {
-            _logger.LogInformation("Deleting backup: {FileName}", fileName);
-            var success = await _backupService.DeleteBackupAsync(fileName);
+            _logger.LogInformation("Deleting backup record {BackupId}", backupId);
+            var success = await _backupService.DeleteBackupAsync(backupId);
 
             if (success)
             {
-                StatusMessage = $"Backup deleted successfully: {fileName}";
+                StatusMessage = "Backup deleted successfully.";
                 StatusIsError = false;
             }
             else
             {
-                StatusMessage = $"Failed to delete backup: {fileName}";
+                StatusMessage = "The backup could not be deleted.";
                 StatusIsError = true;
             }
         }

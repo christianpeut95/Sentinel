@@ -67,11 +67,29 @@ namespace Sentinel.Pages.Settings.Lookups
 
             try
             {
-                SpecimenType.ModifiedAt = DateTime.UtcNow;
-                _context.Attach(SpecimenType).State = EntityState.Modified;
+                var specimenTypeToUpdate = await _context.SpecimenTypes.FindAsync(SpecimenType.Id);
+                if (specimenTypeToUpdate == null)
+                {
+                    return NotFound();
+                }
+
+                specimenTypeToUpdate.Name = SpecimenType.Name;
+                specimenTypeToUpdate.Description = SpecimenType.Description;
+                specimenTypeToUpdate.SnomedCode = SpecimenType.SnomedCode;
+                specimenTypeToUpdate.SnomedDisplay = SpecimenType.SnomedDisplay;
+                specimenTypeToUpdate.LoincSystemCode = SpecimenType.LoincSystemCode;
+                specimenTypeToUpdate.Hl7Code = SpecimenType.Hl7Code;
+                specimenTypeToUpdate.BodySite = SpecimenType.BodySite;
+                specimenTypeToUpdate.CollectionMethod = SpecimenType.CollectionMethod;
+                specimenTypeToUpdate.ExportCode = SpecimenType.ExportCode;
+                specimenTypeToUpdate.IsInvasive = SpecimenType.IsInvasive;
+                specimenTypeToUpdate.IsSterileSite = SpecimenType.IsSterileSite;
+                specimenTypeToUpdate.DisplayOrder = SpecimenType.DisplayOrder;
+                specimenTypeToUpdate.IsActive = SpecimenType.IsActive;
+                specimenTypeToUpdate.ModifiedAt = DateTime.UtcNow;
                 await _context.SaveChangesAsync();
 
-                TempData["SuccessMessage"] = $"Specimen type '{SpecimenType.Name}' updated successfully.";
+                TempData["SuccessMessage"] = $"Specimen type '{specimenTypeToUpdate.Name}' updated successfully.";
                 return RedirectToPage("./SpecimenTypes");
             }
             catch (DbUpdateConcurrencyException)

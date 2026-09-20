@@ -154,7 +154,7 @@
                         <label class="form-label">Installation ID</label>
                         <div class="input-group">
                             <input type="text" class="form-control" value="@Model.InstallationId" readonly>
-                            <button class="btn btn-outline-secondary" type="button" onclick="copyInstallationId()">
+                            <button class="btn btn-outline-secondary" type="button" data-browser-action="copy-installation-id">
                                 <i class="bi bi-clipboard"></i> Copy
                             </button>
                         </div>
@@ -189,7 +189,7 @@
     <partial name="_ValidationScriptsPartial" />
     <script>
         function copyInstallationId() {
-            const installationId = '@Model.InstallationId';
+    const installationId = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.InstallationId));
             navigator.clipboard.writeText(installationId).then(() => {
                 alert('Installation ID copied to clipboard!');
             });

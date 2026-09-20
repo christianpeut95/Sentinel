@@ -69,7 +69,7 @@ public class DuplicateDetectionService : IDuplicateDetectionService
         {
             _logger.LogError(ex, "Error checking for duplicate: {MessageControlId}", message.MessageControlId);
             result.RequiresManualReview = true;
-            result.DifferenceDescription = $"Error during duplicate check: {ex.Message}";
+            result.DifferenceDescription = "Duplicate checking could not be completed. Check the application logs using the message control ID.";
             return result;
         }
     }

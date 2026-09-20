@@ -165,14 +165,14 @@ public class HL7ParserService : IHL7ParserService
         {
             _logger.LogError(ex, "Failed to parse HL7 message: {MessageControlId}", hl7Message.MessageControlId);
             hl7Message.Status = HL7ProcessingStatus.ParsingFailed;
-            hl7Message.ErrorMessage = ex.Message;
+            hl7Message.ErrorMessage = "The message could not be parsed. Check the message structure and application logs using the message control ID.";
 
             // Create parsing issue
             hl7Message.ParsingIssues.Add(new HL7ParsingIssue
             {
                 IssueType = HL7IssueType.InvalidFormat,
                 Severity = HL7IssueSeverity.Critical,
-                Description = ex.Message,
+                Description = "Unexpected parser failure. Check the message structure and application logs using the message control ID.",
                 SegmentType = "MSH",
                 RawValue = rawMessage.Length > 500 ? rawMessage.Substring(0, 500) : rawMessage
             });
@@ -600,7 +600,7 @@ public class HL7ParserService : IHL7ParserService
         catch (Exception ex)
         {
             result.IsValid = false;
-            result.Errors.Add(ex.Message);
+            result.Errors.Add("The message preview could not be parsed. Check the message structure and application logs.");
             _logger.LogError(ex, "Preview parsing failed for HL7 message");
         }
 
@@ -690,11 +690,11 @@ public class HL7ParserService : IHL7ParserService
                 result.Errors.Add("• Message uses correct field separator (|) and encoding characters (^~\\&)");
                 result.Errors.Add("• MSH segment has proper structure: MSH|^~\\&|SendingApp|...");
                 result.Errors.Add("• Line breaks use standard format (\\r or \\n between segments)");
-                result.Errors.Add($"Technical details: {ex.Message}");
+                result.Errors.Add("Full parser details are available in the application logs.");
             }
             else
             {
-                result.Errors.Add(ex.Message);
+                result.Errors.Add("The message could not be parsed. Check the message structure and application logs.");
             }
         }
 

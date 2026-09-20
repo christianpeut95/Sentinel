@@ -156,7 +156,7 @@
                                             <button type="button" 
                                                     class="sn-btn sn-btn--ghost sn-btn--sm" 
                                                     title="Delete"
-                                                    onclick="confirmDelete('@method.Id', '@method.Name')">
+                                                    data-method-name="@method.Name" onclick="confirmDelete('@method.Id', this.dataset.methodName)">
                                                 <i class="bi bi-trash"></i>
                                             </button>
                                         }

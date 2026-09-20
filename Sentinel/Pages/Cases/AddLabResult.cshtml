@@ -18,8 +18,8 @@
     <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/sentinel-design-system.css" asp-append-version="true" />
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
-    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+    <link rel="stylesheet" href="~/lib/bootstrap-icons/font/bootstrap-icons.min.css">
+    <link href="~/lib/select2/dist/css/select2.min.css" rel="stylesheet" />
     <link href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css" rel="stylesheet" />
 </head>
 <body style="padding: 24px;">
@@ -347,7 +347,7 @@
 
 <script src="~/lib/jquery/dist/jquery.min.js"></script>
 <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+<script src="~/lib/select2/dist/js/select2.min.js"></script>
 
 <script>
     let markers = [];
@@ -366,13 +366,22 @@
         setupEventHandlers();
     });
 
+    function escapeHtml(value) {
+        return String(value == null ? '' : value)
+            .replace(/&/g, '&amp;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;');
+    }
+
     function loadTestMethods() {
         $.get('@Url.Page("/Cases/AddLabResult", "TestMethods")', function(data) {
             testMethods = data;
             const $select = $('#testMethodSelect, #modalTestMethod');
             $select.empty().append('<option value="">Select method...</option>');
             data.forEach(method => {
-                $select.append(`<option value="${method.id}">${method.name}</option>`);
+                $select.append($('<option>', { value: method.id }).text(method.name));
             });
         });
     }
@@ -383,7 +392,7 @@
             const $select = $('#modalQualitativeResult');
             $select.empty().append('<option value="">Select Result</option>');
             data.forEach(result => {
-                $select.append(`<option value="${result.id}" data-name="${result.name}">${result.name}</option>`);
+                $select.append($('<option>', { value: result.id, 'data-name': result.name }).text(result.name));
             });
         });
     }
@@ -641,30 +650,34 @@
             markers.forEach((marker, index) => {
                 let resultDisplay = '';
                 if (marker._resultType === 'qualitative') {
-                    resultDisplay = marker.QualitativeResult;
+                    resultDisplay = escapeHtml(marker.QualitativeResult);
                 } else {
-                    resultDisplay = `${marker.QuantitativeValue} ${marker.QuantitativeUnit || ''}`;
+                    resultDisplay = `${escapeHtml(marker.QuantitativeValue)} ${escapeHtml(marker.QuantitativeUnit || '')}`;
                     if (marker.InterpretationFlag) {
-                        resultDisplay += ` <span class="badge bg-warning">${marker.InterpretationFlag}</span>`;
+                        resultDisplay += ` <span class="badge bg-warning">${escapeHtml(marker.InterpretationFlag)}</span>`;
                     }
                 }
 
                 $tbody.append(`
                     <tr>
                         <td>
-                            <strong>${marker._pathogenName}</strong>
-                            ${marker.LOINCCode && marker.LOINCCode !== 'N/A' ? `<br/><small class="text-muted">${marker.LOINCCode}</small>` : ''}
+                            <strong>${escapeHtml(marker._pathogenName)}</strong>
+                            ${marker.LOINCCode && marker.LOINCCode !== 'N/A' ? `<br/><small class="text-muted">${escapeHtml(marker.LOINCCode)}</small>` : ''}
                         </td>
-                        <td>${marker._testMethodName}</td>
-                        <td><span class="badge bg-info">${marker._resultType}</span></td>
+                        <td>${escapeHtml(marker._testMethodName)}</td>
+                        <td><span class="badge bg-info">${escapeHtml(marker._resultType)}</span></td>
                         <td>${resultDisplay}</td>
                         <td>
-                            <button type="button" class="btn btn-sm btn-danger" onclick="removeMarker(${index})">
+                            <button type="button" class="btn btn-sm btn-danger js-remove-marker" data-marker-index="${index}">
                                 <i class="bi bi-trash"></i>
                             </button>
                         </td>
                     </tr>
                 `);
+            });
+
+            $tbody.find('.js-remove-marker').on('click', function() {
+                removeMarker(Number(this.dataset.markerIndex));
             });
         }
 

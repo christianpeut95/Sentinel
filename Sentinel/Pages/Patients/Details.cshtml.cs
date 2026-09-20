@@ -186,13 +186,24 @@ namespace Sentinel.Pages.Patients
             // Handle file attachment
             if (Attachment != null && Attachment.Length > 0)
             {
-                var storedFile = await _fileStorage.SaveAttachmentAsync(
-                    Attachment,
-                    ProtectedFileStorageService.NotesCategory,
-                    HttpContext.RequestAborted);
-                NewNote.AttachmentPath = storedFile.StorageKey;
-                NewNote.AttachmentFileName = storedFile.OriginalFileName;
-                NewNote.AttachmentSize = storedFile.Length;
+                try
+                {
+                    var storedFile = await _fileStorage.SaveAttachmentAsync(
+                        Attachment,
+                        ProtectedFileStorageService.NotesCategory,
+                        HttpContext.RequestAborted);
+                    NewNote.AttachmentPath = storedFile.StorageKey;
+                    NewNote.AttachmentFileName = storedFile.OriginalFileName;
+                    NewNote.AttachmentSize = storedFile.Length;
+                }
+                catch (Exception ex)
+                {
+                    TempData["ErrorMessage"] = Sentinel.Services.UserFacingError.Create(
+                        HttpContext,
+                        ex,
+                        "The attachment could not be accepted. Check its type, content and size before trying again.");
+                    return RedirectToPage(new { id });
+                }
             }
 
             _context.Notes.Add(NewNote);

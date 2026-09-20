@@ -57,13 +57,13 @@
 
     <div class="row mb-3">
         <div class="col">
-            <form method="post" asp-page-handler="GrantAll" asp-route-roleId="@Model.Role.Id" class="d-inline">
-                <button type="submit" class="btn btn-success" onclick="return confirm('Grant ALL permissions to this role?')">
+            <form method="post" asp-page-handler="GrantAll" asp-route-roleId="@Model.Role.Id" class="d-inline js-role-permission-confirm" data-confirm-message="Grant ALL permissions to this role?">
+                <button type="submit" class="btn btn-success">
                     <i class="bi bi-check-all"></i> Grant All Permissions
                 </button>
             </form>
-            <form method="post" asp-page-handler="RevokeAll" asp-route-roleId="@Model.Role.Id" class="d-inline ms-2">
-                <button type="submit" class="btn btn-danger" onclick="return confirm('Revoke ALL permissions from this role?')">
+            <form method="post" asp-page-handler="RevokeAll" asp-route-roleId="@Model.Role.Id" class="d-inline ms-2 js-role-permission-confirm" data-confirm-message="Revoke ALL permissions from this role?">
+                <button type="submit" class="btn btn-danger">
                     <i class="bi bi-x-circle"></i> Revoke All Permissions
                 </button>
             </form>
@@ -198,6 +198,17 @@
     </div>
 </div>
 
+@section Scripts {
+    <script>
+        document.addEventListener('submit', (event) => {
+            const form = event.target.closest('.js-role-permission-confirm');
+            if (form && !window.confirm(form.dataset.confirmMessage)) {
+                event.preventDefault();
+            }
+        });
+    </script>
+}
+
 @functions {
     private string GetModuleIcon(PermissionModule module)
     {
@@ -209,6 +220,7 @@
             PermissionModule.Audit => "clock-history",
             PermissionModule.User => "people",
             PermissionModule.Report => "graph-up",
+            PermissionModule.System => "tools",
             _ => "app"
         };
     }
@@ -232,6 +244,7 @@
             PermissionAction.ManageCustomLookups => "Manage Custom Lookups",
             PermissionAction.ManageSystemLookups => "Manage System Lookups",
             PermissionAction.ManageOrganization => "Manage Organization",
+            PermissionAction.ManageTestData => "Manage Test Data",
             PermissionAction.ResetPassword => "Reset Password",
             _ => action.ToString()
         };

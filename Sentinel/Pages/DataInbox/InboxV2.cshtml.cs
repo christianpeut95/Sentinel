@@ -179,7 +179,7 @@ public class InboxV2Model : PageModel
         var item = await _context.ReviewQueue
             .Include(r => r.Case)
             .Include(r => r.Patient)
-            .FirstOrDefaultAsync(r => r.Id == id);
+            .FirstOrDefaultAsync(r => r.Id == id && r.ReviewStatus == ReviewStatuses.Pending);
 
         if (item == null)
             return NotFound();
@@ -203,9 +203,9 @@ public class InboxV2Model : PageModel
         }
 
         var item = await _context.ReviewQueue
-            .FirstOrDefaultAsync(r => r.Id == id);
+            .FirstOrDefaultAsync(r => r.Id == id && r.ReviewStatus == ReviewStatuses.Pending);
 
-        if (item == null)
+        if (item == null || !CanDismissReview(item.EntityType, item.ChangeType))
             return NotFound();
 
         item.ReviewStatus = ReviewStatuses.Dismissed;
@@ -228,9 +228,9 @@ public class InboxV2Model : PageModel
 
         var item = await _context.ReviewQueue
             .Include(r => r.Patient)
-            .FirstOrDefaultAsync(r => r.Id == id);
+            .FirstOrDefaultAsync(r => r.Id == id && r.ReviewStatus == ReviewStatuses.Pending);
 
-        if (item == null)
+        if (item == null || item.ChangeType != "PotentialDuplicate")
             return NotFound();
 
         // For duplicate detection, keeping as new means confirming the creation
@@ -295,6 +295,15 @@ public class InboxV2Model : PageModel
                    PermissionModule.Task,
                    PermissionAction.Create);
     }
+
+    // This decision is rendered in the action bar, but it must also be made on
+    // the server so a forged POST cannot dismiss a change that is already applied
+    // and cannot be rolled back.
+    public static bool CanDismissReview(string? entityType, string? changeType) => !(
+        (entityType == "CaseChange" &&
+            (changeType == "FieldChanged" || changeType == "Updated")) ||
+        (entityType == "LabResult" && changeType == "New") ||
+        changeType == "Updated");
 
     private string GetChangeSummaryForMember(ReviewQueueItem item)
     {

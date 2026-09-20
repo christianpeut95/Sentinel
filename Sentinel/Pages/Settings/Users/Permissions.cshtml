@@ -108,6 +108,7 @@
             PermissionModule.Audit => "clock-history",
             PermissionModule.User => "people",
             PermissionModule.Report => "graph-up",
+            PermissionModule.System => "tools",
             _ => "app"
         };
     }
@@ -131,6 +132,7 @@
             PermissionAction.ManageCustomLookups => "Manage Custom Lookups",
             PermissionAction.ManageSystemLookups => "Manage System Lookups",
             PermissionAction.ManageOrganization => "Manage Organization",
+            PermissionAction.ManageTestData => "Manage Test Data",
             PermissionAction.ResetPassword => "Reset Password",
             _ => action.ToString()
         };

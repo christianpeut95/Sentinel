@@ -144,28 +144,56 @@ namespace Sentinel.Pages.Cases
                 return Page();
             }
 
-            // Set case ID and create lab result
-            LabResult.CaseId = Case.Id;
-            LabResult.CreatedAt = DateTime.UtcNow;
-            LabResult.FriendlyId = await GenerateLabResultIdAsync();
-            LabResult.Markers = markers;
+            // Do not trust hidden form values for ownership or disease context. Build
+            // a fresh persisted entity so attachment, patient, multiplex and audit
+            // fields cannot be supplied through an altered form submission.
+            var labResultToCreate = new LabResult
+            {
+                Id = Guid.NewGuid(),
+                FriendlyId = await GenerateLabResultIdAsync(),
+                CaseId = Case.Id,
+                TestedDiseaseId = Case.DiseaseId,
+                LaboratoryId = LabResult.LaboratoryId,
+                AccessionNumber = LabResult.AccessionNumber,
+                SpecimenCollectionDate = LabResult.SpecimenCollectionDate,
+                SpecimenTypeId = LabResult.SpecimenTypeId,
+                OrderingProviderId = LabResult.OrderingProviderId,
+                ResultDate = LabResult.ResultDate,
+                ResultUnitsId = LabResult.ResultUnitsId,
+                Notes = LabResult.Notes,
+                LabInterpretation = LabResult.LabInterpretation,
+                CreatedAt = DateTime.UtcNow,
+                Markers = markers
+            };
 
             // Handle attachment upload
             if (LabResultAttachment != null && LabResultAttachment.Length > 0)
             {
-                var storedFile = await _fileStorage.SaveAttachmentAsync(
-                    LabResultAttachment,
-                    ProtectedFileStorageService.LabResultsCategory,
-                    HttpContext.RequestAborted);
-                LabResult.AttachmentPath = storedFile.StorageKey;
-                LabResult.AttachmentFileName = storedFile.OriginalFileName;
-                LabResult.AttachmentSize = storedFile.Length;
+                try
+                {
+                    var storedFile = await _fileStorage.SaveAttachmentAsync(
+                        LabResultAttachment,
+                        ProtectedFileStorageService.LabResultsCategory,
+                        HttpContext.RequestAborted);
+                    labResultToCreate.AttachmentPath = storedFile.StorageKey;
+                    labResultToCreate.AttachmentFileName = storedFile.OriginalFileName;
+                    labResultToCreate.AttachmentSize = storedFile.Length;
+                }
+                catch (Exception ex)
+                {
+                    ModelState.AddModelError("", Sentinel.Services.UserFacingError.Create(
+                        HttpContext,
+                        ex,
+                        "The attachment could not be accepted. Check its type, content and size before trying again."));
+                    await LoadSelectLists();
+                    return Page();
+                }
             }
 
-            _context.LabResults.Add(LabResult);
+            _context.LabResults.Add(labResultToCreate);
             await _context.SaveChangesAsync();
 
-            TempData["SuccessMessage"] = $"Lab result {LabResult.FriendlyId} added successfully with {markers.Count} marker(s).";
+            TempData["SuccessMessage"] = $"Lab result {labResultToCreate.FriendlyId} added successfully with {markers.Count} marker(s).";
             return RedirectToPage("/Cases/Details", new { id = Case.Id });
         }
 

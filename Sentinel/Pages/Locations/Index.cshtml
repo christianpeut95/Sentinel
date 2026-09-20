@@ -258,7 +258,7 @@
            class="form-control quick-search-input" 
            id="quickSearchLocations" 
            placeholder="Quick search locations..."
-           onkeyup="quickFilterLocations()" />
+           />
 </div>
 
 @if (TempData["SuccessMessage"] != null)
@@ -472,7 +472,7 @@
                                 </a>
                                 @if (!Model.EventCounts.ContainsKey(location.Id) && !Model.ExposureCounts.ContainsKey(location.Id))
                                 {
-                                    <button type="button" class="btn btn-outline-danger" onclick="confirmDelete('@location.Id', '@location.Name')" title="Delete">
+                                    <button type="button" class="btn btn-outline-danger js-delete-location" data-location-id="@location.Id" data-location-name="@location.Name" title="Delete">
                                         <i class="bi bi-trash"></i>
                                     </button>
                                 }
@@ -533,5 +533,14 @@
             }
         }
     }
+
+    document.addEventListener('DOMContentLoaded', function () {
+        document.getElementById('quickSearchLocations')?.addEventListener('input', quickFilterLocations);
+        document.querySelectorAll('.js-delete-location').forEach(function (button) {
+            button.addEventListener('click', function () {
+                confirmDelete(button.dataset.locationId, button.dataset.locationName);
+            });
+        });
+    });
 </script>
 }

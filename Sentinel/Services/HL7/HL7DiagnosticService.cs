@@ -133,7 +133,10 @@ namespace Sentinel.Services.HL7
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error diagnosing lab result {LabResultId}", labResultId);
-                report.Issues.Add($"❌ Error during diagnosis: {ex.Message}");
+                // The diagnostic report is returned to the browser. Keep the technical
+                // exception only in the application log; database/provider details in
+                // ex.Message would otherwise be exposed to an HL7 user.
+                report.Issues.Add("❌ The diagnostic could not be completed. Check the application logs for details.");
                 return report;
             }
         }

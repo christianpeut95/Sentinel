@@ -37,7 +37,7 @@
             {
                 <div class="mb-2">
                     <span class="badge bg-light text-dark">
-                        <i class="bi @(Model.Folder.Icon ?? "bi-folder") me-1"></i>
+                        <i class="bi @Model.Folder.SafeIcon me-1"></i>
                         @Model.Folder.Name
                     </span>
                 </div>
@@ -71,21 +71,21 @@
                         <li><a class="dropdown-item" href="/Reports/Builder?reportId=@Model.Id">
                             <i class="bi bi-pencil me-2"></i>Edit
                         </a></li>
-                        <li><a class="dropdown-item" href="#" onclick="event.preventDefault(); duplicateReport(@Model.Id)">
+                        <li><a class="dropdown-item js-report-card-action" href="#" data-report-action="duplicate" data-report-id="@Model.Id">
                             <i class="bi bi-files me-2"></i>Duplicate
                         </a></li>
                         <li><hr class="dropdown-divider"></li>
-                        <li><a class="dropdown-item" href="#" onclick="event.preventDefault(); moveToFolder(@Model.Id)">
+                        <li><a class="dropdown-item js-report-card-action" href="#" data-report-action="move-to-folder" data-report-id="@Model.Id">
                             <i class="bi bi-folder me-2"></i>Move to Folder
                         </a></li>
                         @if (Model.Folder != null)
                         {
-                            <li><a class="dropdown-item" href="#" onclick="event.preventDefault(); removeFromFolder(@Model.Id)">
+                            <li><a class="dropdown-item js-report-card-action" href="#" data-report-action="remove-from-folder" data-report-id="@Model.Id">
                                 <i class="bi bi-folder-x me-2"></i>Remove from Folder
                             </a></li>
                         }
                         <li><hr class="dropdown-divider"></li>
-                        <li><a class="dropdown-item text-danger" href="#" onclick="event.preventDefault(); confirmDelete(@Model.Id, '@Model.Name')">
+                        <li><a class="dropdown-item text-danger js-report-card-action" href="#" data-report-action="confirm-delete" data-report-id="@Model.Id" data-report-name="@Model.Name">
                             <i class="bi bi-trash me-2"></i>Delete
                         </a></li>
                     </ul>

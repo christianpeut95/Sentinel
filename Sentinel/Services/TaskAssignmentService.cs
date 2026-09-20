@@ -72,7 +72,7 @@ namespace Sentinel.Services
                 .Include(t => t.Case)
                 .FirstOrDefaultAsync(t => t.Id == taskId);
 
-            if (task == null || task.AssignedToUserId != null)
+            if (task == null || task.AssignedToUserId != null || IsTerminal(task))
             {
                 return false;
             }
@@ -120,14 +120,16 @@ namespace Sentinel.Services
 
         public async Task<bool> ManuallyAssignTaskAsync(Guid taskId, string userId, string assignedByUserId)
         {
-            var task = await _context.CaseTasks.FindAsync(taskId);
-            if (task == null)
+            // Externally supplied task IDs must be read through the ordinary
+            // query so the hierarchy-aware case visibility filter is applied.
+            var task = await _context.CaseTasks.FirstOrDefaultAsync(t => t.Id == taskId);
+            if (task == null || IsTerminal(task))
             {
                 return false;
             }
 
             var user = await _context.Users.FindAsync(userId);
-            if (user == null)
+            if (user == null || !user.IsEnabled)
             {
                 return false;
             }
@@ -145,10 +147,19 @@ namespace Sentinel.Services
 
         public async Task<bool> ReassignTaskAsync(Guid taskId, string? newUserId, string reassignedByUserId, string reason)
         {
-            var task = await _context.CaseTasks.FindAsync(taskId);
-            if (task == null)
+            var task = await _context.CaseTasks.FirstOrDefaultAsync(t => t.Id == taskId);
+            if (task == null || IsTerminal(task))
             {
                 return false;
+            }
+
+            if (!string.IsNullOrWhiteSpace(newUserId))
+            {
+                var newAssignee = await _context.Users.FindAsync(newUserId);
+                if (newAssignee == null || !newAssignee.IsEnabled)
+                {
+                    return false;
+                }
             }
 
             var oldUserId = task.AssignedToUserId;
@@ -169,8 +180,8 @@ namespace Sentinel.Services
 
         public async Task<bool> EscalateTaskAsync(Guid taskId, string reason)
         {
-            var task = await _context.CaseTasks.FindAsync(taskId);
-            if (task == null)
+            var task = await _context.CaseTasks.FirstOrDefaultAsync(t => t.Id == taskId);
+            if (task == null || IsTerminal(task))
             {
                 return false;
             }
@@ -289,6 +300,8 @@ namespace Sentinel.Services
             int? durationSeconds = null, 
             DateTime? nextCallback = null)
         {
+            ValidateCallAttemptInput(userId, outcome, notes, durationSeconds);
+
             var task = await _context.CaseTasks
                 .Include(t => t.Case)
                     .ThenInclude(c => c!.Patient)
@@ -297,6 +310,11 @@ namespace Sentinel.Services
             if (task == null)
             {
                 throw new InvalidOperationException($"Task {taskId} not found");
+            }
+
+            if (IsTerminal(task))
+            {
+                throw new InvalidOperationException("A completed or cancelled task cannot receive a call attempt.");
             }
 
             var attempt = new TaskCallAttempt
@@ -344,6 +362,36 @@ namespace Sentinel.Services
 
             return attempt;
         }
+
+        private static void ValidateCallAttemptInput(
+            string userId,
+            CallOutcome outcome,
+            string? notes,
+            int? durationSeconds)
+        {
+            if (string.IsNullOrWhiteSpace(userId) || userId.Length > 450)
+            {
+                throw new ArgumentException("A valid worker is required.", nameof(userId));
+            }
+
+            if (!Enum.IsDefined(outcome))
+            {
+                throw new ArgumentOutOfRangeException(nameof(outcome), "The call outcome is not recognised.");
+            }
+
+            if (notes?.Length > 2000)
+            {
+                throw new ArgumentException("Call notes cannot exceed 2,000 characters.", nameof(notes));
+            }
+
+            if (durationSeconds is < 0 or > 86_400)
+            {
+                throw new ArgumentOutOfRangeException(nameof(durationSeconds), "The call duration must be between zero and 86,400 seconds.");
+            }
+        }
+
+        private static bool IsTerminal(CaseTask task) =>
+            TaskWorkflowPolicy.IsTerminal(task.Status);
 
         public async Task<List<TaskCallAttempt>> GetCallAttemptsAsync(Guid taskId)
         {
@@ -516,7 +564,7 @@ namespace Sentinel.Services
             var task = await _context.CaseTasks
                 .FirstOrDefaultAsync(t => t.Id == taskId && t.AssignedToUserId == userId);
 
-            if (task == null)
+            if (task == null || IsTerminal(task))
             {
                 _logger.LogWarning("Task {TaskId} not found or not assigned to user {UserId}", taskId, userId);
                 return false;

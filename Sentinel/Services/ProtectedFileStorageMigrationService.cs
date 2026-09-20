@@ -27,11 +27,6 @@ public sealed class ProtectedFileStorageMigrationService : IHostedService
         var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
         var fileStorage = scope.ServiceProvider.GetRequiredService<IProtectedFileStorageService>();
 
-        // TimelineStorageService owns the timeline migration. Resolve it here
-        // so the legacy JSON files are moved on startup rather than only after
-        // the first user opens a case timeline.
-        _ = scope.ServiceProvider.GetRequiredService<ITimelineStorageService>();
-
         var notes = await context.Notes
             .IgnoreQueryFilters()
             .Where(n => n.AttachmentPath != null && n.AttachmentPath.StartsWith("/uploads/notes/"))

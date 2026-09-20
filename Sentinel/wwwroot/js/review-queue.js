@@ -228,7 +228,7 @@
                     alert('Failed to complete review. Please try again.');
                 }
             } catch (error) {
-                console.error('Error completing review:', error);
+                console.error('Review completion could not be submitted.');
                 alert('An error occurred. Please try again.');
             }
         },

@@ -1,3 +1,4 @@
+using Microsoft.EntityFrameworkCore;
 using Sentinel.Services;
 using Sentinel.Services.Reporting;
 using Microsoft.Extensions.Logging;
@@ -7,29 +8,33 @@ using System.Text.Json;
 
 namespace Sentinel.Tests.Services
 {
-    public class SurveyFieldExtractionTests
+    public class SurveyFieldExtractionTests : IDisposable
     {
         private readonly SurveyMappingService _service;
-        private readonly Mock<Data.ApplicationDbContext> _mockContext;
+        private readonly Data.ApplicationDbContext _context;
         private readonly Mock<IReportFieldMetadataService> _mockFieldMetadataService;
         private readonly Mock<ICollectionMappingService> _mockCollectionMappingService;
         private readonly Mock<ILogger<SurveyMappingService>> _mockLogger;
 
         public SurveyFieldExtractionTests()
         {
-            _mockContext = new Mock<Data.ApplicationDbContext>(
-                new Microsoft.EntityFrameworkCore.DbContextOptions<Data.ApplicationDbContext>());
+            _context = new Data.ApplicationDbContext(
+                new DbContextOptionsBuilder<Data.ApplicationDbContext>()
+                    .UseInMemoryDatabase(Guid.NewGuid().ToString())
+                    .Options);
             _mockFieldMetadataService = new Mock<IReportFieldMetadataService>();
             _mockCollectionMappingService = new Mock<ICollectionMappingService>();
             _mockLogger = new Mock<ILogger<SurveyMappingService>>();
 
             _service = new SurveyMappingService(
-                _mockContext.Object,
+                _context,
                 _mockFieldMetadataService.Object,
                 _mockCollectionMappingService.Object,
                 _mockLogger.Object
             );
         }
+
+        public void Dispose() => _context.Dispose();
 
         #region Simple Question Tests
 
@@ -439,7 +444,9 @@ namespace Sentinel.Tests.Services
             Assert.Equal(4, matrixQuestions.Count);
 
             var arrayQuestions = questions.Where(q => q.IsArray).ToList();
-            Assert.Single(arrayQuestions);
+            Assert.Equal(2, arrayQuestions.Count);
+            Assert.Contains(arrayQuestions, q => q.Name == "contacts");
+            Assert.Contains(arrayQuestions, q => q.FieldPath == "contacts[].name");
 
             var calculatedQuestions = questions.Where(q => q.IsCalculated).ToList();
             Assert.Single(calculatedQuestions);
@@ -542,7 +549,7 @@ namespace Sentinel.Tests.Services
         }
 
         [Fact]
-        public async Task GetSurveyQuestionsAsync_WithMissingColumns_SkipsMatrix()
+        public async Task GetSurveyQuestionsAsync_WithMissingColumns_KeepsCollectionRoot()
         {
             // Arrange
             var surveyJson = @"{
@@ -559,11 +566,14 @@ namespace Sentinel.Tests.Services
             var questions = await _service.GetSurveyQuestionsAsync(surveyJson);
 
             // Assert
-            Assert.Empty(questions);
+            var root = Assert.Single(questions);
+            Assert.Equal("symptoms", root.Name);
+            Assert.Equal("matrixdropdown", root.Type);
+            Assert.Null(root.ParentMatrix);
         }
 
         [Fact]
-        public async Task GetSurveyQuestionsAsync_WithMissingRows_SkipsMatrix()
+        public async Task GetSurveyQuestionsAsync_WithMissingRows_KeepsCollectionRoot()
         {
             // Arrange
             var surveyJson = @"{
@@ -580,7 +590,10 @@ namespace Sentinel.Tests.Services
             var questions = await _service.GetSurveyQuestionsAsync(surveyJson);
 
             // Assert
-            Assert.Empty(questions);
+            var root = Assert.Single(questions);
+            Assert.Equal("symptoms", root.Name);
+            Assert.Equal("matrixdropdown", root.Type);
+            Assert.Null(root.ParentMatrix);
         }
 
         #endregion

@@ -213,8 +213,8 @@ public class HL7DataExtractionService : IHL7DataExtractionService
                 }
                 catch (Exception ex)
                 {
-                    result.Warnings.Add($"[LAB RESULT] ❌ Error creating lab result: {ex.Message}");
-                    result.Errors.Add($"Lab result creation failed: {ex.Message}");
+                    result.Warnings.Add("[LAB RESULT] ❌ Lab result creation failed. Check the application logs using the message control ID.");
+                    result.Errors.Add("Lab result creation failed. Check the application logs using the message control ID.");
                     _logger.LogError(ex, "Error creating lab result for message {MessageControlId}", message.MessageControlId);
                 }
 
@@ -273,7 +273,7 @@ public class HL7DataExtractionService : IHL7DataExtractionService
                     catch (Exception ex)
                     {
                         _logger.LogError(ex, "Error during case matching for LabResult {LabResultId}", result.LabResult.Id);
-                        result.Warnings.Add($"Case matching failed: {ex.Message}");
+                        result.Warnings.Add("Case matching failed. Check the application logs using the message control ID.");
                         // Continue processing - don't fail the entire extraction if case matching fails
                     }
                 }
@@ -383,11 +383,11 @@ public class HL7DataExtractionService : IHL7DataExtractionService
                     catch (Exception ex)
                     {
                         _logger.LogError(ex, "Error extracting data from HL7 message: {MessageControlId}", message.MessageControlId);
-                        result.Errors.Add($"Extraction failed: {ex.Message}");
+                        result.Errors.Add("HL7 extraction failed. Check the application logs using the message control ID.");
                         result.Success = false;
 
                         message.Status = HL7ProcessingStatus.ProcessingFailed;
-                        message.ErrorMessage = ex.Message;
+                        message.ErrorMessage = "HL7 extraction failed. Check the application logs using the message control ID.";
 
                         // Clear the context to avoid tracking issues
                         _context.ChangeTracker.Clear();
@@ -634,8 +634,13 @@ public class HL7DataExtractionService : IHL7DataExtractionService
             }
             else
             {
+                _logger.LogWarning(
+                    "[STAGING WORKFLOW] Commit failed for message {MessageControlId}: {Errors}",
+                    message.MessageControlId,
+                    string.Join(" | ", commitResult.Errors));
+
                 message.Status = HL7ProcessingStatus.ProcessingFailed;
-                message.ErrorMessage = string.Join("; ", commitResult.Errors);
+                message.ErrorMessage = "HL7 processing could not be completed. Check the application logs using the message control ID.";
 
                 // Save diagnostics even on failure
                 if (commitResult.Warnings.Any())
@@ -658,10 +663,10 @@ public class HL7DataExtractionService : IHL7DataExtractionService
             {
                 Success = false
             };
-            result.Errors.Add($"Staging workflow failed: {ex.Message}");
+            result.Errors.Add("HL7 staging failed. Check the application logs using the message control ID.");
 
             message.Status = HL7ProcessingStatus.ProcessingFailed;
-            message.ErrorMessage = ex.Message;
+            message.ErrorMessage = "HL7 staging failed. Check the application logs using the message control ID.";
 
             try
             {
@@ -707,26 +712,42 @@ public class HL7DataExtractionService : IHL7DataExtractionService
                 break;
 
             case PatientMatchingStrategy.StrictMatch:
-                // Try identifier match first
-                matchedPatient = await MatchByIdentifierAsync(patientData, cancellationToken);
+                // Resolve both available identity signals. An MRN is normally
+                // authoritative, but a message whose demographics uniquely
+                // identify someone else must never be silently attached to the
+                // MRN patient. Send that contradiction to review instead.
+                var identifierMatch = await MatchByIdentifierAsync(patientData, cancellationToken);
+                var strictMatches = await MatchByDemographicsAsync(patientData, strict: true, cancellationToken);
 
-                // If no match by identifier, try strict demographic match
-                if (matchedPatient == null)
+                if (identifierMatch != null)
                 {
-                    var strictMatches = await MatchByDemographicsAsync(patientData, strict: true, cancellationToken);
-                    if (strictMatches.Count == 1)
+                    var conflictingDemographicMatches = strictMatches
+                        .Where(patient => patient.Id != identifierMatch.Id)
+                        .ToList();
+
+                    if (conflictingDemographicMatches.Count > 0)
                     {
-                        matchedPatient = strictMatches[0];
-                        result.MatchMethod = "StrictMatch";
+                        result.RequiresManualReview = true;
+                        result.MatchMethod = "StrictMatch (Conflict)";
+                        result.ConflictReason =
+                            $"MRN {patientData.MRN} belongs to different patient than the supplied demographics. Possible duplicate in system.";
+                        result.ConflictingPatients = new List<Patient> { identifierMatch }
+                            .Concat(conflictingDemographicMatches)
+                            .ToList();
+                        return result;
                     }
-                    else if (strictMatches.Count > 1)
-                    {
-                        result.ConflictingPatients = strictMatches;
-                    }
-                }
-                else
-                {
+
+                    matchedPatient = identifierMatch;
                     result.MatchMethod = "StrictMatch (Identifier)";
+                }
+                else if (strictMatches.Count == 1)
+                {
+                    matchedPatient = strictMatches[0];
+                    result.MatchMethod = "StrictMatch";
+                }
+                else if (strictMatches.Count > 1)
+                {
+                    result.ConflictingPatients = strictMatches;
                 }
                 break;
 
@@ -3871,12 +3892,11 @@ public class HL7DataExtractionService : IHL7DataExtractionService
 
             stagingLog.Add("");
             stagingLog.Add($"[{DateTime.UtcNow:yyyy-MM-dd HH:mm:ss.fff}] ========== STAGING ERROR ==========");
-            stagingLog.Add($"❌ EXCEPTION: {ex.Message}");
-            stagingLog.Add($"Stack Trace: {ex.StackTrace}");
+            stagingLog.Add("❌ An unexpected staging error occurred. Full details are available in the application logs.");
 
             stage.Decision = ProcessingDecision.ManualReview;
-            stage.ManualReviewReason = $"Staging error: {ex.Message}";
-            stage.Errors.Add($"Staging failed: {ex.Message}");
+            stage.ManualReviewReason = "An unexpected staging error occurred. Check the application logs using the message control ID.";
+            stage.Errors.Add("Staging failed. Check the application logs using the message control ID.");
             stage.Warnings.AddRange(stagingLog);
 
             return stage;
@@ -4775,7 +4795,7 @@ public class HL7DataExtractionService : IHL7DataExtractionService
         }
         catch (Exception ex)
         {
-            stagingLog.Add($"❌ CRITICAL ERROR: {ex.Message}");
+            stagingLog.Add("❌ An unexpected disease-identification error occurred. Full details are available in the application logs.");
             _logger.LogError(ex, "[DISEASE ID] CRITICAL ERROR identifying diseases");
             return diseaseMatches;
         }
@@ -5353,7 +5373,7 @@ public class HL7DataExtractionService : IHL7DataExtractionService
         }
         catch (Exception ex)
         {
-            stagingLog.Add($"❌ ERROR: {ex.Message}");
+            stagingLog.Add("❌ An unexpected disease-identification error occurred. Full details are available in the application logs.");
             _logger.LogError(ex, "[DISEASE ID] Error identifying diseases from resolved fields");
             return diseaseMatches;
         }
@@ -6002,7 +6022,7 @@ public class HL7DataExtractionService : IHL7DataExtractionService
         {
             _logger.LogError(ex, "[STAGING] Error evaluating reinfection for disease {Disease}", diseaseMatch.Disease.Name);
             diseaseMatch.ReinfectionDecision = ReinfectionDecision.ManualReview;
-            diseaseMatch.ReinfectionReason = $"Error during evaluation: {ex.Message}";
+            diseaseMatch.ReinfectionReason = "Reinfection evaluation could not be completed. Check the application logs using the message control ID.";
         }
     }
 
@@ -7678,7 +7698,7 @@ public class HL7DataExtractionService : IHL7DataExtractionService
             }
             catch (Exception ex)
             {
-                stagingLog.Add($"   ⚠️ Multi-marker evaluation error: {ex.Message}");
+                stagingLog.Add("   ⚠️ Multi-marker evaluation could not be completed. Full details are available in the application logs.");
                 _logger.LogWarning(ex, "[DISEASE ID] Multi-marker evaluation failed");
             }
 
@@ -9118,8 +9138,7 @@ public class HL7DataExtractionService : IHL7DataExtractionService
             {
                 commitLog.Add("");
                 commitLog.Add($"[{DateTime.UtcNow:yyyy-MM-dd HH:mm:ss.fff}] ========== TRANSACTION ERROR ==========");
-                commitLog.Add($"❌ EXCEPTION during transaction: {ex.Message}");
-                commitLog.Add($"Stack trace: {ex.StackTrace}");
+                commitLog.Add("❌ The transaction failed. Full details are available in the application logs.");
                 commitLog.Add($"Rolling back transaction...");
 
                 result.Warnings.AddRange(stage.Warnings);
@@ -9137,15 +9156,14 @@ public class HL7DataExtractionService : IHL7DataExtractionService
         {
             commitLog.Add("");
             commitLog.Add($"[{DateTime.UtcNow:yyyy-MM-dd HH:mm:ss.fff}] ========== COMMIT FAILED ==========");
-            commitLog.Add($"❌ EXCEPTION: {ex.Message}");
-            commitLog.Add($"Stack trace: {ex.StackTrace}");
+            commitLog.Add("❌ The transaction failed. Full details are available in the application logs.");
 
             result.Warnings.AddRange(stage.Warnings);
             result.Warnings.AddRange(commitLog);
 
             _logger.LogError(ex, "[STAGING COMMIT] Error committing staged entities");
             result.Success = false;
-            result.Errors.Add($"Failed to commit staged entities: {ex.Message}");
+            result.Errors.Add("Failed to commit staged entities. Check the application logs using the message control ID.");
             return result;
         }
     }

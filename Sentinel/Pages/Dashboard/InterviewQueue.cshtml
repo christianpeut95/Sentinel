@@ -270,7 +270,7 @@
                         <!-- Skip Task Button -->
                         <form method="post" asp-page-handler="SkipTask" class="mb-3">
                             <input type="hidden" name="taskId" value="@Model.CurrentTask.Id" />
-                            <button type="submit" class="btn btn-outline-warning w-100" onclick="return confirm('Are you sure you want to skip this task? It will be reassigned to another worker.')">
+                            <button type="submit" class="btn btn-outline-warning w-100 js-confirm-submit" data-confirm-message="Are you sure you want to skip this task? It will be reassigned to another worker.">
                                 <i class="bi bi-skip-forward-circle me-2"></i>Skip to Next Task
                             </button>
                         </form>

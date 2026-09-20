@@ -35,10 +35,10 @@
     <link href="/_content/AntDesign/css/ant-design-blazor.css" rel="stylesheet" />
     
     <!-- jQuery UI for autocomplete -->
-    <link rel="stylesheet" href="https://code.jquery.com/ui/1.13.2/themes/base/jquery-ui.css" />
+    <link rel="stylesheet" href="~/lib/jquery-ui/dist/themes/base/jquery-ui.min.css" />
     
     <!-- Select2 for enhanced dropdowns -->
-    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+    <link href="~/lib/select2/dist/css/select2.min.css" rel="stylesheet" />
     
     <!-- SurveyJS for survey rendering -->
     <link href="https://unpkg.com/survey-core@1.12.4/defaultV2.min.css" rel="stylesheet" />
@@ -49,7 +49,7 @@
 <body>
     <div class="sentinel-layout">
         <!-- Mobile Toggle -->
-        <button class="sidebar-toggle" onclick="toggleSidebar()">
+        <button type="button" class="sidebar-toggle js-toggle-sidebar">
             <i class="bi bi-list"></i>
         </button>
 
@@ -233,8 +233,8 @@
 
     <script src="~/lib/jquery/dist/jquery.min.js"></script>
     <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="https://code.jquery.com/ui/1.13.2/jquery-ui.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+    <script src="~/lib/jquery-ui/dist/jquery-ui.min.js"></script>
+    <script src="~/lib/select2/dist/js/select2.min.js"></script>
     <script src="/_content/AntDesign/js/ant-design-blazor.js"></script>
     <script src="~/js/site.js" asp-append-version="true"></script>
     <script>
@@ -292,17 +292,13 @@
     </script>
     
     <!-- SurveyJS for survey rendering -->
-    <script src="https://unpkg.com/survey-core@1.12.4/survey.core.min.js" onerror="console.error('Failed to load survey-core')"></script>
-    <script src="https://unpkg.com/survey-js-ui@1.12.4/survey-js-ui.min.js" onerror="console.error('Failed to load survey-js-ui')"></script>
+    <script src="https://unpkg.com/survey-core@1.12.4/survey.core.min.js" data-external-library="survey-core"></script>
+    <script src="https://unpkg.com/survey-js-ui@1.12.4/survey-js-ui.min.js" data-external-library="survey-js-ui"></script>
     
     <script>
         // Verify SurveyJS loaded
         if (typeof Survey === 'undefined') {
-            console.error('CRITICAL: SurveyJS library failed to load!');
-            console.error('Check network tab for blocked requests');
-            console.error('Check CSP headers for script-src restrictions');
-        } else {
-            console.log('✓ SurveyJS loaded successfully', Survey);
+            console.error('Survey rendering library failed to load.');
         }
     </script>
     
@@ -315,7 +311,6 @@
         SentinelGeocoding.init({
             provider: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Configuration["Geocoding:Provider"] ?? "nominatim")),
             browserApiKey: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Configuration["Geocoding:GoogleMapsBrowserApiKey"] ?? "")),
-            email: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Configuration["Geocoding:Email"] ?? "")),
             defaultCountry: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Configuration["Organization:CountryCode"] ?? "AU"))
         });
     </script>
@@ -323,7 +318,6 @@
     <script>
         // Register custom date functions for SurveyJS
         if (typeof Survey !== 'undefined' && Survey.FunctionFactory && Survey.FunctionFactory.Instance) {
-            console.log('Registering SurveyJS custom functions...');
             
             // today() - returns current date as YYYY-MM-DD
             Survey.FunctionFactory.Instance.register("today", function() {
@@ -387,14 +381,15 @@
                 return diffDays;
             });
             
-            console.log('SurveyJS custom functions registered successfully');
         } else {
-            console.warn('SurveyJS not loaded - custom functions not registered');
+            console.warn('Survey custom functions could not be registered.');
         }
     </script>
     
     <script>
         // Enhanced sidebar toggle for mobile with overlay support
+        document.querySelector('.js-toggle-sidebar')?.addEventListener('click', toggleSidebar);
+
         function toggleSidebar() {
             const sidebar = document.getElementById('sentinelSidebar');
             sidebar.classList.toggle('open');
@@ -423,6 +418,101 @@
                     });
                 });
             }
+        });
+    </script>
+
+    <script>
+        document.addEventListener('error', (event) => {
+            const script = event.target;
+            if (script instanceof HTMLScriptElement && script.dataset.externalLibrary) {
+                console.error('An external client library failed to load.');
+            }
+        }, true);
+
+        document.addEventListener('click', (event) => {
+            switch (event.target.closest('[data-browser-action]')?.dataset.browserAction) {
+                case 'history-back':
+                    window.history.back();
+                    break;
+                case 'close-window':
+                    window.close();
+                    break;
+                case 'print-window':
+                    window.print();
+                    break;
+                case 'reload-page':
+                    window.location.reload();
+                    break;
+                case 'open-create-contact':
+                    window.openCreateContact?.();
+                    break;
+                case 'confirm-delete':
+                    window.confirmDelete?.();
+                    break;
+                case 'confirm-lookup-delete': {
+                    const itemId = Number(event.target.closest('[data-browser-action]')?.dataset.itemId);
+                    if (Number.isInteger(itemId)) {
+                        window.confirmDelete?.(itemId, event.target.closest('[data-browser-action]')?.dataset.itemName);
+                    }
+                    break;
+                }
+                case 'download-inventory':
+                    window.downloadInventory?.();
+                    break;
+                case 'copy-installation-id':
+                    window.copyInstallationId?.();
+                    break;
+            }
+        });
+
+        document.addEventListener('change', (event) => {
+            if (event.target.matches('.js-auto-submit-filter')) {
+                event.target.form?.requestSubmit();
+            }
+        });
+
+        document.addEventListener('submit', (event) => {
+            const form = event.target;
+            const confirmation = form.matches('.js-confirm-submit')
+                ? form
+                : form.querySelector('.js-confirm-submit');
+            if (confirmation && !window.confirm(confirmation.dataset.confirmMessage)) {
+                event.preventDefault();
+            }
+        });
+
+        // Widget content is often loaded after the page itself. Delegation keeps
+        // its navigation behaviour without embedding a route in an inline event
+        // handler. Only same-origin relative destinations are honoured.
+        function navigateDashboardWidget(widget) {
+            const href = widget?.dataset.widgetNavigationUrl;
+            if (!href) {
+                return;
+            }
+
+            const destination = new URL(href, window.location.origin);
+            if (destination.origin === window.location.origin) {
+                window.location.assign(destination.pathname + destination.search + destination.hash);
+            }
+        }
+
+        document.addEventListener('click', (event) => {
+            const widget = event.target.closest('.js-widget-navigation');
+            if (!widget || event.defaultPrevented || event.target.closest('a, button, input, select, textarea, label')) {
+                return;
+            }
+
+            navigateDashboardWidget(widget);
+        });
+
+        document.addEventListener('keydown', (event) => {
+            const widget = event.target.closest('.js-widget-navigation');
+            if (!widget || event.target !== widget || (event.key !== 'Enter' && event.key !== ' ')) {
+                return;
+            }
+
+            event.preventDefault();
+            navigateDashboardWidget(widget);
         });
     </script>
 

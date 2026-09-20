@@ -519,6 +519,10 @@ html, body {
   color: var(--chalk);
 }
 
+.js-forest-hover:hover {
+  background: var(--forest) !important;
+}
+
 .btn-sentinel-secondary {
   font-family: var(--f-sans);
   font-size: 14px;

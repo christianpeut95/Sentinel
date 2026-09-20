@@ -66,55 +66,82 @@ namespace Sentinel.Pages.Contacts
 
             Case = caseEntity;
 
-            ViewData["PatientId"] = new SelectList(
-                await _context.Patients
-                    .OrderBy(p => p.FamilyName)
-                    .ThenBy(p => p.GivenName)
-                    .Select(p => new { p.Id, FullName = p.GivenName + " " + p.FamilyName + " (" + p.FriendlyId + ")" })
-                    .ToListAsync(),
-                "Id", "FullName");
-
-            ViewData["ConfirmationStatusId"] = new SelectList(
-                await _context.CaseStatuses
-                    .Where(cs => cs.IsActive && 
-                                (cs.ApplicableTo == CaseTypeApplicability.Contact || 
-                                 cs.ApplicableTo == CaseTypeApplicability.Both))
-                    .OrderBy(cs => cs.DisplayOrder ?? int.MaxValue)
-                    .ThenBy(cs => cs.Name)
-                    .ToListAsync(),
-                "Id", "Name");
-
-            // Filter diseases based on access
-            var accessUserId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
-            var accessibleDiseaseIds = await _diseaseAccessService.GetAccessibleDiseaseIdsAsync(accessUserId);
-
-            ViewData["DiseaseId"] = new SelectList(
-                await _context.Diseases
-                    .Where(d => d.IsActive && accessibleDiseaseIds.Contains(d.Id))
-                    .OrderBy(d => d.Level)
-                    .ThenBy(d => d.DisplayOrder)
-                    .ThenBy(d => d.Name)
-                    .Select(d => new { 
-                        d.Id, 
-                        DisplayName = new string('?', d.Level) + " " + d.Name 
-                    })
-                    .ToListAsync(),
-                "Id", "DisplayName");
+            await LoadEditOptionsAsync(caseEntity.PatientId);
 
             return Page();
         }
 
         public async Task<IActionResult> OnPostAsync()
         {
+            var caseToUpdate = await _context.Cases
+                .Include(c => c.Patient)
+                .Include(c => c.Disease)
+                .FirstOrDefaultAsync(c => c.Id == Case.Id && c.Type == CaseType.Contact);
+
+            if (caseToUpdate == null)
+            {
+                return NotFound();
+            }
+
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
+            if (caseToUpdate.DiseaseId.HasValue &&
+                !await _diseaseAccessService.CanAccessDiseaseAsync(userId, caseToUpdate.DiseaseId.Value))
+            {
+                return Forbid();
+            }
+
             if (!ModelState.IsValid)
             {
+                Case.Patient = caseToUpdate.Patient;
+                Case.Disease = caseToUpdate.Disease;
+                Case.FriendlyId = caseToUpdate.FriendlyId;
+                await LoadEditOptionsAsync(caseToUpdate.PatientId);
                 return Page();
             }
 
-            // Ensure Type stays as Contact
-            Case.Type = CaseType.Contact;
+            if (Case.DiseaseId.HasValue)
+            {
+                if (!await _diseaseAccessService.CanAccessDiseaseAsync(userId, Case.DiseaseId.Value))
+                {
+                    return Forbid();
+                }
 
-            _context.Attach(Case).State = EntityState.Modified;
+                var diseaseIsActive = await _context.Diseases
+                    .AnyAsync(d => d.Id == Case.DiseaseId.Value && d.IsActive);
+                if (!diseaseIsActive)
+                {
+                    ModelState.AddModelError("Case.DiseaseId", "Select an active disease that you can access.");
+                }
+            }
+
+            if (Case.ConfirmationStatusId.HasValue)
+            {
+                var statusIsValidForContact = await _context.CaseStatuses.AnyAsync(cs =>
+                    cs.Id == Case.ConfirmationStatusId.Value &&
+                    cs.IsActive &&
+                    (cs.ApplicableTo == CaseTypeApplicability.Contact ||
+                     cs.ApplicableTo == CaseTypeApplicability.Both));
+                if (!statusIsValidForContact)
+                {
+                    ModelState.AddModelError("Case.ConfirmationStatusId", "Select an active status that applies to contacts.");
+                }
+            }
+
+            if (!ModelState.IsValid)
+            {
+                Case.Patient = caseToUpdate.Patient;
+                Case.Disease = caseToUpdate.Disease;
+                Case.FriendlyId = caseToUpdate.FriendlyId;
+                await LoadEditOptionsAsync(caseToUpdate.PatientId);
+                return Page();
+            }
+
+            // Preserve the patient, type, classifications, audit data and all other
+            // case fields.  This page deliberately allows only these contact fields.
+            caseToUpdate.DiseaseId = Case.DiseaseId;
+            caseToUpdate.ConfirmationStatusId = Case.ConfirmationStatusId;
+            caseToUpdate.DateOfOnset = Case.DateOfOnset;
+            caseToUpdate.DateOfNotification = Case.DateOfNotification;
 
             try
             {
@@ -122,16 +149,16 @@ namespace Sentinel.Pages.Contacts
                 
                 await _auditService.LogChangeAsync(
                     entityType: "Case",
-                    entityId: Case.Id.ToString(),
+                    entityId: caseToUpdate.Id.ToString(),
                     fieldName: "Updated",
                     oldValue: null,
-                    newValue: $"Contact {Case.FriendlyId} updated",
+                    newValue: $"Contact {caseToUpdate.FriendlyId} updated",
                     userId: User.FindFirst(ClaimTypes.NameIdentifier)?.Value,
                     ipAddress: HttpContext.Connection.RemoteIpAddress?.ToString()
                 );
 
-                TempData["SuccessMessage"] = $"Contact {Case.FriendlyId} updated successfully.";
-                return RedirectToPage("./Details", new { id = Case.Id });
+                TempData["SuccessMessage"] = $"Contact {caseToUpdate.FriendlyId} updated successfully.";
+                return RedirectToPage("./Details", new { id = caseToUpdate.Id });
             }
             catch (DbUpdateConcurrencyException)
             {
@@ -149,6 +176,45 @@ namespace Sentinel.Pages.Contacts
         private bool CaseExists(Guid id)
         {
             return _context.Cases.Any(e => e.Id == id);
+        }
+
+        private async Task LoadEditOptionsAsync(Guid patientId)
+        {
+            // A contact's patient is locked, so do not expose every patient in a disabled
+            // select element merely to render the current value.
+            ViewData["PatientId"] = new SelectList(
+                await _context.Patients
+                    .Where(p => p.Id == patientId)
+                    .Select(p => new { p.Id, FullName = p.GivenName + " " + p.FamilyName + " (" + p.FriendlyId + ")" })
+                    .ToListAsync(),
+                "Id", "FullName");
+
+            ViewData["ConfirmationStatusId"] = new SelectList(
+                await _context.CaseStatuses
+                    .Where(cs => cs.IsActive &&
+                                (cs.ApplicableTo == CaseTypeApplicability.Contact ||
+                                 cs.ApplicableTo == CaseTypeApplicability.Both))
+                    .OrderBy(cs => cs.DisplayOrder ?? int.MaxValue)
+                    .ThenBy(cs => cs.Name)
+                    .ToListAsync(),
+                "Id", "Name");
+
+            var accessUserId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
+            var accessibleDiseaseIds = await _diseaseAccessService.GetAccessibleDiseaseIdsAsync(accessUserId);
+
+            ViewData["DiseaseId"] = new SelectList(
+                await _context.Diseases
+                    .Where(d => d.IsActive && accessibleDiseaseIds.Contains(d.Id))
+                    .OrderBy(d => d.Level)
+                    .ThenBy(d => d.DisplayOrder)
+                    .ThenBy(d => d.Name)
+                    .Select(d => new
+                    {
+                        d.Id,
+                        DisplayName = new string('?', d.Level) + " " + d.Name
+                    })
+                    .ToListAsync(),
+                "Id", "DisplayName");
         }
     }
 }

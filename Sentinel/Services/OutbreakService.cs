@@ -259,7 +259,6 @@ public class OutbreakService : IOutbreakService
         var allDescendantIds = await GetAllDescendantIdsAsync(parentId);
         
         // DEBUG: Log what we found
-        Console.WriteLine($"Aggregating for parent {parentId}. Found {allDescendantIds.Count} outbreak(s): {string.Join(", ", allDescendantIds)}");
 
         var allCases = await _context.OutbreakCases
             .Include(oc => oc.Case)
@@ -269,13 +268,11 @@ public class OutbreakService : IOutbreakService
             .ToListAsync();
         
         // DEBUG: Log cases found
-        Console.WriteLine($"Found {allCases.Count} outbreak cases across all descendants");
         
         // Separate cases from contacts
         var cases = allCases.Where(oc => oc.Case?.Type == CaseType.Case).ToList();
         var contacts = allCases.Where(oc => oc.Case?.Type == CaseType.Contact).ToList();
         
-        Console.WriteLine($"  - Cases: {cases.Count}, Contacts: {contacts.Count}");
 
 
         var stats = new OutbreakStatistics

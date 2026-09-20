@@ -50,33 +50,29 @@ namespace Sentinel.Areas.Identity.Pages.Account
             public string Code { get; set; } = string.Empty;
         }
 
-        public async Task<IActionResult> OnGetAsync(string? userId, string? code)
+        public IActionResult OnGet()
         {
-            if (string.IsNullOrWhiteSpace(userId) || !PasswordResetTokenEncoding.TryDecode(code, out var decodedToken))
-            {
-                return RedirectToPage("./ForgotPassword");
-            }
-
-            var user = await _userManager.FindByIdAsync(userId);
-            if (user is not { IsEnabled: true })
-            {
-                return RedirectToPage("./ForgotPassword");
-            }
-
-            Input = new InputModel
-            {
-                UserId = userId,
-                Code = decodedToken
-            };
-
             ResetSuccessful = false;
             return Page();
         }
 
         public async Task<IActionResult> OnPostAsync()
         {
+            if (string.IsNullOrWhiteSpace(Input.UserId) || string.IsNullOrWhiteSpace(Input.Code))
+            {
+                ModelState.Clear();
+                ModelState.AddModelError(string.Empty, "The password reset link is invalid or incomplete. Please request a new one.");
+                return Page();
+            }
+
             if (!ModelState.IsValid)
             {
+                return Page();
+            }
+
+            if (!PasswordResetTokenEncoding.TryDecode(Input.Code, out var decodedToken))
+            {
+                ModelState.AddModelError(string.Empty, "The password reset link is invalid or has expired. Please request a new one.");
                 return Page();
             }
 
@@ -89,7 +85,7 @@ namespace Sentinel.Areas.Identity.Pages.Account
 
             try
             {
-                var result = await _userManager.ResetPasswordAsync(user, Input.Code, Input.Password);
+                var result = await _userManager.ResetPasswordAsync(user, decodedToken, Input.Password);
 
                 if (result.Succeeded)
                 {

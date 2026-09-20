@@ -8,13 +8,16 @@ using Sentinel.Models;
 namespace Sentinel.Pages.Cases
 {
     [Authorize(Policy = "Permission.Exposure.Edit")]
+    [Authorize(Policy = "Permission.Case.Edit")]
     public class EditExposureModel : PageModel
     {
         private readonly ApplicationDbContext _context;
+        private readonly IAuthorizationService _authorizationService;
 
-        public EditExposureModel(ApplicationDbContext context)
+        public EditExposureModel(ApplicationDbContext context, IAuthorizationService authorizationService)
         {
             _context = context;
+            _authorizationService = authorizationService;
         }
 
         [BindProperty(SupportsGet = true)]
@@ -35,17 +38,6 @@ namespace Sentinel.Pages.Cases
                 return NotFound();
             }
 
-            // Check both ExposedCaseId (acquisition) and SourceCaseId (transmission)
-            // to support editing exposures from either direction
-            Exposure = await _context.ExposureEvents
-                .FirstOrDefaultAsync(e => e.Id == Id && 
-                    (e.ExposedCaseId == CaseId || e.SourceCaseId == CaseId));
-
-            if (Exposure == null)
-            {
-                return NotFound();
-            }
-
             Case = await _context.Cases
                 .Include(c => c.Patient)
                 .Include(c => c.Disease)
@@ -56,17 +48,47 @@ namespace Sentinel.Pages.Cases
                 return NotFound();
             }
 
+            // Check both ExposedCaseId (acquisition) and SourceCaseId (transmission)
+            // only after the selected case has passed the case visibility boundary.
+            Exposure = await _context.ExposureEvents
+                .FirstOrDefaultAsync(e => e.Id == Id &&
+                    (e.ExposedCaseId == CaseId || e.SourceCaseId == CaseId));
+
+            if (Exposure == null)
+            {
+                return NotFound();
+            }
+
             return Page();
         }
 
         public async Task<IActionResult> OnPostAsync()
         {
+            // Resolve the parent case first. It is the source of truth for both
+            // object-level and hierarchy-aware disease access.
+            Case = await _context.Cases
+                .Include(c => c.Patient)
+                .Include(c => c.Disease)
+                .FirstOrDefaultAsync(c => c.Id == CaseId);
+
+            if (Case == null)
+            {
+                return NotFound();
+            }
+
+            if (Exposure.SourceCaseId.HasValue &&
+                !await _context.Cases.AnyAsync(c => c.Id == Exposure.SourceCaseId.Value))
+            {
+                ModelState.AddModelError(nameof(Exposure.SourceCaseId), "The selected source case is not available.");
+            }
+
+            if (!await CanUseReferencesAsync(Exposure))
+            {
+                return NotFound();
+            }
+
             if (!ModelState.IsValid)
             {
-                Case = await _context.Cases
-                    .Include(c => c.Patient)
-                    .Include(c => c.Disease)
-                    .FirstOrDefaultAsync(c => c.Id == CaseId);
                 return Page();
             }
 
@@ -83,10 +105,6 @@ namespace Sentinel.Pages.Cases
             // Validate exposure type-specific required fields
             if (!ValidateExposureTypeFields())
             {
-                Case = await _context.Cases
-                    .Include(c => c.Patient)
-                    .Include(c => c.Disease)
-                    .FirstOrDefaultAsync(c => c.Id == CaseId);
                 return Page();
             }
 
@@ -94,10 +112,6 @@ namespace Sentinel.Pages.Cases
             if (Exposure.ExposureEndDate.HasValue && Exposure.ExposureEndDate.Value <= Exposure.ExposureStartDate)
             {
                 ModelState.AddModelError("Exposure.ExposureEndDate", "End date/time must be after start date/time.");
-                Case = await _context.Cases
-                    .Include(c => c.Patient)
-                    .Include(c => c.Disease)
-                    .FirstOrDefaultAsync(c => c.Id == CaseId);
                 return Page();
             }
 
@@ -171,6 +185,31 @@ namespace Sentinel.Pages.Cases
                         return false;
                     }
                     break;
+            }
+
+            return true;
+        }
+
+        private async Task<bool> CanUseReferencesAsync(ExposureEvent exposure)
+        {
+            if (exposure.LocationId.HasValue)
+            {
+                if (!(await _authorizationService.AuthorizeAsync(User, "Permission.Location.View")).Succeeded ||
+                    !await _context.Locations.AnyAsync(location =>
+                        location.Id == exposure.LocationId.Value && location.IsActive))
+                {
+                    return false;
+                }
+            }
+
+            if (exposure.EventId.HasValue)
+            {
+                if (!(await _authorizationService.AuthorizeAsync(User, "Permission.Event.View")).Succeeded ||
+                    !await _context.Events.AnyAsync(@event =>
+                        @event.Id == exposure.EventId.Value && @event.IsActive))
+                {
+                    return false;
+                }
             }
 
             return true;

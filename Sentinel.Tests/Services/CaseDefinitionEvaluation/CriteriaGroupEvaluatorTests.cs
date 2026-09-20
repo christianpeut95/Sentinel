@@ -270,7 +270,7 @@ namespace Sentinel.Tests.Services.CaseDefinitionEvaluation
                 {
                     Id = 1,
                     ParentCriteriaId = null,
-                    CriterionType = CriterionType.Clinical,
+                    CriterionType = (CriterionType)0,
                     LogicalOperator = LogicalOperator.AND,
                     DisplayText = "Group",
                     DisplayOrder = 0,
@@ -281,7 +281,7 @@ namespace Sentinel.Tests.Services.CaseDefinitionEvaluation
                 {
                     Id = 2,
                     ParentCriteriaId = 1,
-                    CriterionType = CriterionType.Clinical,
+                    CriterionType = (CriterionType)0,
                     LogicalOperator = LogicalOperator.OR,
                     DisplayText = "Fever",
                     DisplayOrder = 0,
@@ -337,7 +337,7 @@ namespace Sentinel.Tests.Services.CaseDefinitionEvaluation
                 {
                     Id = 1,
                     ParentCriteriaId = null,
-                    CriterionType = CriterionType.Clinical,
+                    CriterionType = (CriterionType)0,
                     LogicalOperator = LogicalOperator.AND,
                     DisplayText = "Root Group",
                     DisplayOrder = 0,
@@ -348,7 +348,7 @@ namespace Sentinel.Tests.Services.CaseDefinitionEvaluation
                 {
                     Id = 2,
                     ParentCriteriaId = 1,
-                    CriterionType = CriterionType.Clinical,
+                    CriterionType = (CriterionType)0,
                     LogicalOperator = LogicalOperator.AND,
                     DisplayText = "Nested Group",
                     DisplayOrder = 0,

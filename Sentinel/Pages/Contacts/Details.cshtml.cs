@@ -78,6 +78,9 @@ namespace Sentinel.Pages.Contacts
         public IFormFile? LabResultAttachment { get; set; }
 
         public bool CanEditCase { get; private set; }
+        public bool CanDeleteCase { get; private set; }
+        public bool CanViewLabResults { get; private set; }
+        public bool CanCreateLabResults { get; private set; }
 
         public async Task<IActionResult> OnGetAsync(Guid? id)
         {
@@ -121,7 +124,10 @@ namespace Sentinel.Pages.Contacts
             }
 
             Contact = contactEntity;
-            CanEditCase = await UserCanEditCaseAsync();
+            CanEditCase = await UserCanEditCaseAsync(contactEntity.Id);
+            CanDeleteCase = await UserCanDeleteCaseAsync(contactEntity.Id);
+            CanViewLabResults = await UserCanViewLabResultsAsync(contactEntity.Id);
+            CanCreateLabResults = await UserCanCreateLabResultsAsync(contactEntity.Id);
 
             // Load notes
             Notes = await _context.Notes
@@ -129,19 +135,21 @@ namespace Sentinel.Pages.Contacts
                 .OrderByDescending(n => n.CreatedAt)
                 .ToListAsync();
 
-            // Load lab results
-            LabResults = await _context.LabResults
-                .Include(lr => lr.Laboratory)
-                .Include(lr => lr.OrderingProvider)
-                .Include(lr => lr.SpecimenType)
-                .Include(lr => lr.ResultUnits)
-                .Include(lr => lr.TestedDisease)
-                .Include(lr => lr.Markers).ThenInclude(m => m.Pathogen)
-                .Include(lr => lr.Markers).ThenInclude(m => m.TestMethod)
-                .Where(lr => lr.CaseId == id)
-                .OrderByDescending(lr => lr.ResultDate)
-                .ThenByDescending(lr => lr.SpecimenCollectionDate)
-                .ToListAsync();
+            if (CanViewLabResults)
+            {
+                LabResults = await _context.LabResults
+                    .Include(lr => lr.Laboratory)
+                    .Include(lr => lr.OrderingProvider)
+                    .Include(lr => lr.SpecimenType)
+                    .Include(lr => lr.ResultUnits)
+                    .Include(lr => lr.TestedDisease)
+                    .Include(lr => lr.Markers).ThenInclude(m => m.Pathogen)
+                    .Include(lr => lr.Markers).ThenInclude(m => m.TestMethod)
+                    .Where(lr => lr.CaseId == id)
+                    .OrderByDescending(lr => lr.ResultDate)
+                    .ThenByDescending(lr => lr.SpecimenCollectionDate)
+                    .ToListAsync();
+            }
 
             // Load custom fields if disease is selected
             if (Contact.DiseaseId.HasValue)
@@ -181,8 +189,10 @@ namespace Sentinel.Pages.Contacts
             // Load tasks
             Tasks = await _taskService.GetTasksForCase(id.Value);
 
-            // Load dropdown lists for lab results
-            await LoadLabResultDropdowns();
+            if (CanCreateLabResults)
+            {
+                await LoadLabResultDropdowns();
+            }
 
             // Load task templates for the contact's disease
             await LoadTaskTemplates();
@@ -198,11 +208,43 @@ namespace Sentinel.Pages.Contacts
             return Page();
         }
 
-        private async Task<bool> UserCanEditCaseAsync()
+        private async Task<bool> UserCanEditCaseAsync(Guid? caseId = null)
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrWhiteSpace(userId) ||
+                !await _permissionService.HasPermissionAsync(userId, PermissionModule.Case, PermissionAction.Edit))
+            {
+                return false;
+            }
+
+            // Mutations must use the normal case query so disease hierarchy and
+            // restricted-disease filters are applied to the supplied contact ID.
+            return !caseId.HasValue || await _context.Cases
+                .AnyAsync(c => c.Id == caseId.Value && !c.IsDeleted);
+        }
+
+        private async Task<bool> UserCanDeleteCaseAsync(Guid caseId)
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             return !string.IsNullOrWhiteSpace(userId)
-                && await _permissionService.HasPermissionAsync(userId, PermissionModule.Case, PermissionAction.Edit);
+                && await _permissionService.HasPermissionAsync(userId, PermissionModule.Case, PermissionAction.Delete)
+                && await _context.Cases.AnyAsync(c => c.Id == caseId && !c.IsDeleted);
+        }
+
+        private async Task<bool> UserCanViewLabResultsAsync(Guid caseId)
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            return !string.IsNullOrWhiteSpace(userId)
+                && await _permissionService.HasPermissionAsync(userId, PermissionModule.Laboratory, PermissionAction.View)
+                && await _context.Cases.AnyAsync(c => c.Id == caseId && c.Type == CaseType.Contact);
+        }
+
+        private async Task<bool> UserCanCreateLabResultsAsync(Guid caseId)
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            return !string.IsNullOrWhiteSpace(userId)
+                && await _permissionService.HasPermissionAsync(userId, PermissionModule.Laboratory, PermissionAction.Create)
+                && await UserCanEditCaseAsync(caseId);
         }
 
         // ========================================================================
@@ -211,7 +253,7 @@ namespace Sentinel.Pages.Contacts
 
         public async Task<IActionResult> OnPostAddNoteAsync(Guid id)
         {
-            if (!await UserCanEditCaseAsync())
+            if (!await UserCanEditCaseAsync(id))
             {
                 return Forbid();
             }
@@ -237,13 +279,24 @@ namespace Sentinel.Pages.Contacts
             // Handle file attachment
             if (Attachment != null && Attachment.Length > 0)
             {
-                var storedFile = await _fileStorage.SaveAttachmentAsync(
-                    Attachment,
-                    ProtectedFileStorageService.NotesCategory,
-                    HttpContext.RequestAborted);
-                NewNote.AttachmentPath = storedFile.StorageKey;
-                NewNote.AttachmentFileName = storedFile.OriginalFileName;
-                NewNote.AttachmentSize = storedFile.Length;
+                try
+                {
+                    var storedFile = await _fileStorage.SaveAttachmentAsync(
+                        Attachment,
+                        ProtectedFileStorageService.NotesCategory,
+                        HttpContext.RequestAborted);
+                    NewNote.AttachmentPath = storedFile.StorageKey;
+                    NewNote.AttachmentFileName = storedFile.OriginalFileName;
+                    NewNote.AttachmentSize = storedFile.Length;
+                }
+                catch (Exception ex)
+                {
+                    TempData["ErrorMessage"] = Sentinel.Services.UserFacingError.Create(
+                        HttpContext,
+                        ex,
+                        "The attachment could not be accepted. Check its type, content and size before trying again.");
+                    return RedirectToPage(new { id });
+                }
             }
 
             _context.Notes.Add(NewNote);
@@ -265,19 +318,15 @@ namespace Sentinel.Pages.Contacts
 
         public async Task<IActionResult> OnPostDeleteNoteAsync(Guid id, Guid noteId)
         {
-            // Check if user has Case.Delete permission
-            var userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
-            if (!await _permissionService.HasPermissionAsync(userId, PermissionModule.Case, PermissionAction.Delete))
+            if (!await UserCanDeleteCaseAsync(id))
             {
-                TempData["ErrorMessage"] = "You do not have permission to delete notes.";
-                return RedirectToPage(new { id });
+                return Forbid();
             }
 
             var note = await _context.Notes.FindAsync(noteId);
-            if (note == null)
+            if (note == null || note.CaseId != id)
             {
-                TempData["ErrorMessage"] = "Note not found.";
-                return RedirectToPage(new { id });
+                return NotFound();
             }
 
             await _context.SoftDeleteAsync(note);
@@ -298,9 +347,17 @@ namespace Sentinel.Pages.Contacts
 
         public async Task<IActionResult> OnPostAddLabResultAsync(Guid id)
         {
-            if (!await UserCanEditCaseAsync())
+            if (!await UserCanCreateLabResultsAsync(id))
             {
                 return Forbid();
+            }
+
+            var contactEntity = await _context.Cases
+                .FirstOrDefaultAsync(c => c.Id == id && c.Type == CaseType.Contact);
+
+            if (contactEntity == null)
+            {
+                return NotFound();
             }
 
             // Manually bind the LabResult from form data
@@ -331,11 +388,11 @@ namespace Sentinel.Pages.Contacts
 
             // Set the case ID and other required fields
             NewLabResult.Id = Guid.NewGuid();
-            NewLabResult.CaseId = id;
+            NewLabResult.CaseId = contactEntity.Id;
+            NewLabResult.TestedDiseaseId = contactEntity.DiseaseId;
             
             // Generate FriendlyId based on existing lab results count
             var existingLabResultsCount = await _context.LabResults.CountAsync(lr => lr.CaseId == id);
-            var contactEntity = await _context.Cases.FindAsync(id);
             NewLabResult.FriendlyId = $"{contactEntity?.FriendlyId}-LAB{existingLabResultsCount + 1:D3}";
             
             NewLabResult.CreatedAt = DateTime.UtcNow;
@@ -351,13 +408,24 @@ namespace Sentinel.Pages.Contacts
             // Handle file attachment
             if (LabResultAttachment != null && LabResultAttachment.Length > 0)
             {
-                var storedFile = await _fileStorage.SaveAttachmentAsync(
-                    LabResultAttachment,
-                    ProtectedFileStorageService.LabResultsCategory,
-                    HttpContext.RequestAborted);
-                NewLabResult.AttachmentPath = storedFile.StorageKey;
-                NewLabResult.AttachmentFileName = storedFile.OriginalFileName;
-                NewLabResult.AttachmentSize = storedFile.Length;
+                try
+                {
+                    var storedFile = await _fileStorage.SaveAttachmentAsync(
+                        LabResultAttachment,
+                        ProtectedFileStorageService.LabResultsCategory,
+                        HttpContext.RequestAborted);
+                    NewLabResult.AttachmentPath = storedFile.StorageKey;
+                    NewLabResult.AttachmentFileName = storedFile.OriginalFileName;
+                    NewLabResult.AttachmentSize = storedFile.Length;
+                }
+                catch (Exception ex)
+                {
+                    TempData["ErrorMessage"] = Sentinel.Services.UserFacingError.Create(
+                        HttpContext,
+                        ex,
+                        "The attachment could not be accepted. Check its type, content and size before trying again.");
+                    return RedirectToPage(new { id });
+                }
             }
 
             try
@@ -391,8 +459,16 @@ namespace Sentinel.Pages.Contacts
             return RedirectToPage(new { id });
         }
 
-        public async Task<JsonResult> OnGetLabResultDetailsAsync(Guid labResultId)
+        public async Task<JsonResult> OnGetLabResultDetailsAsync(Guid id, Guid labResultId)
         {
+            if (!await UserCanViewLabResultsAsync(id))
+            {
+                return new JsonResult(new { success = false, message = "Access denied" })
+                {
+                    StatusCode = StatusCodes.Status403Forbidden
+                };
+            }
+
             var labResult = await _context.LabResults
                 .Include(lr => lr.Laboratory)
                 .Include(lr => lr.OrderingProvider)
@@ -401,7 +477,7 @@ namespace Sentinel.Pages.Contacts
                 .Include(lr => lr.TestedDisease)
                 .Include(lr => lr.Markers).ThenInclude(m => m.Pathogen)
                 .Include(lr => lr.Markers).ThenInclude(m => m.TestMethod)
-                .FirstOrDefaultAsync(lr => lr.Id == labResultId);
+                .FirstOrDefaultAsync(lr => lr.Id == labResultId && lr.CaseId == id);
 
             if (labResult == null)
             {

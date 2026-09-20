@@ -40,23 +40,6 @@ public class ReportBuilderApiController : ControllerBase
     {
         try
         {
-            // Debug logging - log the incoming entity type
-            Console.WriteLine($"============ PREVIEW REQUEST ============");
-            Console.WriteLine($"Entity Type: {request?.EntityType}");
-            Console.WriteLine($"Fields Count: {request?.Fields?.Count}");
-            Console.WriteLine($"Filters Count: {request?.Filters?.Count}");
-            Console.WriteLine($"Collection Queries Count: {request?.CollectionQueries?.Count}");
-
-            // Log dynamic date filters if any
-            if (request?.Filters != null)
-            {
-                foreach (var filter in request.Filters.Where(f => f.IsDynamicDate))
-                {
-                    Console.WriteLine($"[DYNAMIC DATE FILTER] Field: {filter.FieldPath}, Type: {filter.DynamicDateType}, Offset: {filter.DynamicDateOffset} {filter.DynamicDateOffsetUnit}, Operator: {filter.Operator}");
-                }
-            }
-            Console.WriteLine($"==========================================");
-
             // Validate request
             if (request == null)
             {
@@ -72,6 +55,13 @@ public class ReportBuilderApiController : ControllerBase
             {
                 return BadRequest(new { success = false, error = "At least one field is required" });
             }
+
+            _logger.LogDebug(
+                "Report preview requested for entity type {EntityType} with {FieldCount} fields, {FilterCount} filters, and {CollectionQueryCount} collection queries.",
+                request.EntityType,
+                request.Fields.Count,
+                request.Filters?.Count ?? 0,
+                request.CollectionQueries?.Count ?? 0);
 
             // Validate and fix field paths
             var correctedFields = await ValidateAndCorrectFieldPaths(request.EntityType, request.Fields);
@@ -109,16 +99,13 @@ public class ReportBuilderApiController : ControllerBase
                 }).ToList() ?? new List<ReportFilter>()
             };
 
-            Console.WriteLine($"Report Definition Entity Type: {reportDef.EntityType}");
-
             // Get preview data with collection queries
             var data = await _reportDataService.GetReportPreviewAsync(reportDef, request.CollectionQueries ?? new List<CollectionQueryDto>());
 
-            // Debug logging
-            Console.WriteLine($"Preview returned {data.Count} rows for Entity Type: {reportDef.EntityType}");
-            Console.WriteLine($"Fields requested: {reportDef.Fields.Count}");
-            Console.WriteLine($"Filters applied: {reportDef.Filters.Count}");
-            Console.WriteLine($"Collection queries processed: {request.CollectionQueries?.Count ?? 0}");
+            _logger.LogDebug(
+                "Report preview completed for entity type {EntityType} with {RowCount} rows.",
+                reportDef.EntityType,
+                data.Count);
 
             return Ok(new
             {
@@ -181,12 +168,12 @@ public class ReportBuilderApiController : ControllerBase
                 if (possibleCorrections.Any())
                 {
                     var correction = possibleCorrections.First();
-                    Console.WriteLine($"?? Correcting field path: '{field.FieldPath}' ? '{correction}'");
+                    _logger.LogDebug("Corrected a report field path against server metadata.");
                     correctedField.FieldPath = correction;
                 }
                 else
                 {
-                    Console.WriteLine($"?? Warning: Field path '{field.FieldPath}' not found for entity '{entityType}'");
+                    _logger.LogWarning("A report preview referenced a field unavailable from the current server metadata.");
                 }
             }
 

@@ -122,9 +122,12 @@ document.addEventListener('DOMContentLoaded', function() {
     const labResultIdInput = document.getElementById('labResultIdInput');
 
     function escapeHtml(value) {
-        const element = document.createElement('div');
-        element.textContent = value == null ? '' : String(value);
-        return element.innerHTML;
+        return String(value == null ? '' : value)
+            .replace(/&/g, '&amp;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;');
     }
 
     // Load Pathogen Mappings
@@ -167,8 +170,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
             document.getElementById('mappingsContainer').style.display = 'block';
         } catch (error) {
-            console.error('Error loading mappings:', error);
-            alert('Error loading pathogen mappings. Check console for details.');
+            console.error('Pathogen mappings could not be loaded.');
+            alert('Pathogen mappings could not be loaded. Please try again.');
             document.getElementById('mappingsLoading').style.display = 'none';
         }
     });
@@ -186,7 +189,7 @@ document.addEventListener('DOMContentLoaded', function() {
         document.getElementById('diagnosticsResult').style.display = 'none';
 
         try {
-            const response = await fetch(`/api/hl7/diagnostics/lab-result/${labResultId}`);
+            const response = await fetch(`/api/hl7/diagnostics/lab-result/${encodeURIComponent(labResultId)}`);
             const report = await response.json();
 
             document.getElementById('diagnosticsLoading').style.display = 'none';
@@ -252,9 +255,9 @@ document.addEventListener('DOMContentLoaded', function() {
             document.getElementById('diagnosticsResult').innerHTML = html;
             document.getElementById('diagnosticsResult').style.display = 'block';
         } catch (error) {
-            console.error('Error running diagnostics:', error);
+            console.error('HL7 diagnostics could not be run.');
             document.getElementById('diagnosticsLoading').style.display = 'none';
-            alert('Error running diagnostics. Check console for details.');
+            alert('HL7 diagnostics could not be run. Please try again.');
         }
     });
 

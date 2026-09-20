@@ -38,7 +38,8 @@ namespace Sentinel.Services.Telemetry
                 var json = JsonSerializer.Serialize(report, jsonOptions);
                 _logger.LogInformation("Submitting usage report {ReportId} for installation {InstallationId}", 
                     report.ReportId, report.InstallationId);
-                _logger.LogInformation("Usage report payload: {Payload}", json);
+                _logger.LogDebug("Usage report {ReportId} serialized ({PayloadLength} bytes)",
+                    report.ReportId, Encoding.UTF8.GetByteCount(json));
 
                 var content = new StringContent(json, Encoding.UTF8, "application/json");
                 var response = await _httpClient.PostAsync(UsageEndpoint, content);
@@ -63,11 +64,8 @@ namespace Sentinel.Services.Telemetry
                     var contentType = response.Content.Headers.ContentType?.ToString() ?? "none";
                     _logger.LogWarning("Usage report {ReportId} rejected with validation error (400). ContentType: {ContentType}, Error: {Error}", 
                         report.ReportId, contentType, errorBody);
-                    _logger.LogWarning("Rejected payload was: {Payload}", json);
-
-                    // Log all response headers for debugging
-                    var headers = string.Join(", ", response.Headers.Select(h => $"{h.Key}={string.Join(";", h.Value)}"));
-                    _logger.LogWarning("Response headers: {Headers}", headers);
+                    _logger.LogDebug("Rejected usage report {ReportId} was {PayloadLength} bytes",
+                        report.ReportId, Encoding.UTF8.GetByteCount(json));
 
                     return false;
                 }

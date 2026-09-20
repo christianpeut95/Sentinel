@@ -71,12 +71,36 @@ namespace Sentinel.Pages.Settings.Pathogens
                 }
             }
 
+            // Load the persisted entity and apply only fields this page edits.
+            // Do not attach the browser-bound Pathogen as Modified: its audit
+            // fields, navigation values and any future server-owned properties
+            // must not be writable by a crafted post.
+            var pathogenToUpdate = await _context.Pathogens
+                .FirstOrDefaultAsync(existing => existing.Id == Pathogen.Id);
+
+            if (pathogenToUpdate == null)
+            {
+                return NotFound();
+            }
+
             // Get usage count for validation
             UsageCount = await _context.LabResultMarkers
                 .Where(m => m.PathogenId == Pathogen.Id)
                 .CountAsync();
 
-            _context.Attach(Pathogen).State = EntityState.Modified;
+            pathogenToUpdate.Name = Pathogen.Name;
+            pathogenToUpdate.ShortName = Pathogen.ShortName;
+            pathogenToUpdate.LOINCCode = Pathogen.LOINCCode;
+            pathogenToUpdate.LOINCDisplayName = Pathogen.LOINCDisplayName;
+            pathogenToUpdate.Description = Pathogen.Description;
+            pathogenToUpdate.DiseaseId = Pathogen.DiseaseId;
+            pathogenToUpdate.Category = Pathogen.Category;
+            pathogenToUpdate.ResultType = Pathogen.ResultType;
+            pathogenToUpdate.DefaultUnit = Pathogen.DefaultUnit;
+            pathogenToUpdate.DefaultReferenceRangeLow = Pathogen.DefaultReferenceRangeLow;
+            pathogenToUpdate.DefaultReferenceRangeHigh = Pathogen.DefaultReferenceRangeHigh;
+            pathogenToUpdate.DisplayOrder = Pathogen.DisplayOrder;
+            pathogenToUpdate.IsActive = Pathogen.IsActive;
 
             try
             {

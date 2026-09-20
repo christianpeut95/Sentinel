@@ -271,7 +271,7 @@ public class CollectionMappingService : ICollectionMappingService
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error processing collection row");
-                result.Errors.Add($"Row processing error: {ex.Message}");
+                result.Errors.Add("A collection row could not be processed. Check the mapping configuration and application logs.");
             }
         }
         
@@ -335,7 +335,7 @@ public class CollectionMappingService : ICollectionMappingService
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error processing collection row with context");
-                result.Errors.Add($"Row processing error: {ex.Message}");
+                result.Errors.Add("A collection row could not be processed. Check the mapping configuration and application logs.");
             }
         }
         
@@ -396,8 +396,11 @@ public class CollectionMappingService : ICollectionMappingService
             _logger.LogError(saveEx, "Failed to save related entities: {Message}\n\n{HelpfulMessage}", 
                 saveEx.Message, helpfulMessage);
             
-            result.Errors.Add($"Failed to save related entities: {saveEx.Message}");
-            result.Errors.Add(helpfulMessage);
+            result.Errors.Add("Related entities could not be saved. Check the mapping configuration and application logs.");
+            if (!string.IsNullOrWhiteSpace(helpfulMessage))
+            {
+                result.Errors.Add(helpfulMessage);
+            }
             result.Success = false;
         }
         
@@ -690,7 +693,7 @@ public class CollectionMappingService : ICollectionMappingService
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Failed to save Patient during reprocessing");
-                result.Errors.Add($"Failed to save {config.TargetEntityType}: {ex.Message}");
+                result.Errors.Add($"Failed to save {config.TargetEntityType}. Check the mapping configuration and application logs.");
                 return;
             }
         }
@@ -766,7 +769,7 @@ public class CollectionMappingService : ICollectionMappingService
                     "Failed to save primary entity {EntityType}. Related entities will not be created.",
                     config.TargetEntityType
                 );
-                result.Errors.Add($"Failed to save {config.TargetEntityType}: {saveEx.Message}");
+                result.Errors.Add($"Failed to save {config.TargetEntityType}. Check the mapping configuration and application logs.");
                 return; // Don't create related entities if primary save failed
             }
             
@@ -852,7 +855,7 @@ public class CollectionMappingService : ICollectionMappingService
                 catch (Exception ex)
                 {
                     _logger.LogError(ex, "Error creating related entity {EntityType}", relatedConfig.EntityType);
-                    result.Errors.Add($"Failed to create {relatedConfig.EntityType}: {ex.Message}");
+                    result.Errors.Add($"Failed to create {relatedConfig.EntityType}. Check the mapping configuration and application logs.");
 
                     // Later related entities can depend on this entity's ID. Continuing
                     // would create incomplete dependants (for example an ExposureEvent

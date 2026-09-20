@@ -50,7 +50,15 @@ namespace Sentinel.Pages.Settings.Countries
                 return Page();
             }
 
-            _context.Attach(Country).State = EntityState.Modified;
+            var countryToUpdate = await _context.Countries.FindAsync(Country.Id);
+            if (countryToUpdate == null)
+            {
+                return NotFound();
+            }
+
+            countryToUpdate.Code = Country.Code;
+            countryToUpdate.Name = Country.Name;
+            countryToUpdate.IsActive = Country.IsActive;
 
             try
             {

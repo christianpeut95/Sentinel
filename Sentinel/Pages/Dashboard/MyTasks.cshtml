@@ -66,7 +66,7 @@
                         <div class="row g-3 align-items-end">
                             <div class="col-md-3">
                                 <label class="form-label">Status</label>
-                                <select name="StatusFilter" class="form-select" asp-for="StatusFilter" onchange="this.form.submit()">
+                                <select name="StatusFilter" class="form-select js-auto-submit-filter" asp-for="StatusFilter">
                                     <option value="">All</option>
                                     <option value="Active">Active (Pending + In Progress)</option>
                                     <option value="@CaseTaskStatus.Pending">Pending</option>
@@ -78,7 +78,7 @@
                             </div>
                             <div class="col-md-3">
                                 <label class="form-label">Priority</label>
-                                <select name="PriorityFilter" class="form-select" asp-for="PriorityFilter" onchange="this.form.submit()">
+                                <select name="PriorityFilter" class="form-select js-auto-submit-filter" asp-for="PriorityFilter">
                                     <option value="">All</option>
                                     <option value="@TaskPriority.Urgent">Urgent</option>
                                     <option value="@TaskPriority.High">High</option>
@@ -88,7 +88,7 @@
                             </div>
                             <div class="col-md-3">
                                 <label class="form-label">Due Date</label>
-                                <select name="DueDateFilter" class="form-select" asp-for="DueDateFilter" onchange="this.form.submit()">
+                                <select name="DueDateFilter" class="form-select js-auto-submit-filter" asp-for="DueDateFilter">
                                     <option value="">All</option>
                                     <option value="Overdue">Overdue</option>
                                     <option value="DueToday">Due Today</option>
@@ -179,8 +179,8 @@
                                                         <strong>@task.CallAttempts.Count</strong> attempt(s)
                                                         â€¢ Last: @lastAttempt.AttemptedAt.ToString("dd MMM HH:mm")
                                                     </small>
-                                                    <button type="button" class="btn btn-sm btn-link p-0 ms-1" 
-                                                            onclick="showCallHistory('@task.Id')" 
+                                                    <button type="button" class="btn btn-sm btn-link p-0 ms-1 js-show-call-history"
+                                                            data-task-id="@task.Id"
                                                             title="View Call History">
                                                         <i class="bi bi-clock-history"></i>
                                                     </button>
@@ -265,7 +265,7 @@
                                                     }
                                                     else if (task.Status == CaseTaskStatus.Pending)
                                                     {
-                                                        <button type="button" class="btn btn-sm btn-primary" onclick="startTask('@task.Id')" title="Start Task">
+                                                        <button type="button" class="btn btn-sm btn-primary js-start-task" data-task-id="@task.Id" title="Start Task">
                                                             <i class="bi bi-play-fill"></i>
                                                         </button>
                                                     }
@@ -280,14 +280,14 @@
                                                         }
                                                         else
                                                         {
-                                                            <button type="button" class="btn btn-sm btn-success" onclick="completeTask('@task.Id', '@task.Title')" title="Complete">
+                                                            <button type="button" class="btn btn-sm btn-success js-complete-task" data-task-id="@task.Id" data-task-title="@task.Title" title="Complete">
                                                                 <i class="bi bi-check-circle"></i>
                                                             </button>
                                                         }
-                                                        <button type="button" class="btn btn-sm btn-info" onclick="logCallAttempt('@task.Id', '@task.Title')" title="Log Call Attempt">
+                                                        <button type="button" class="btn btn-sm btn-info js-log-call-attempt" data-task-id="@task.Id" data-task-title="@task.Title" title="Log Call Attempt">
                                                             <i class="bi bi-telephone-plus"></i>
                                                         </button>
-                                                        <button type="button" class="btn btn-sm btn-warning" onclick="cancelTask('@task.Id', '@task.Title')" title="Cancel">
+                                                        <button type="button" class="btn btn-sm btn-warning js-cancel-task" data-task-id="@task.Id" data-task-title="@task.Title" title="Cancel">
                                                             <i class="bi bi-x-circle"></i>
                                                         </button>
                                                     }
@@ -467,7 +467,7 @@
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <button type="button" class="btn btn-primary" onclick="saveCallAttempt()">
+                <button type="button" class="btn btn-primary js-save-call-attempt">
                     <i class="bi bi-save me-1"></i>Save Call Attempt
                 </button>
             </div>
@@ -581,7 +581,7 @@
                         case 8: outcomeText = 'Call Back Requested'; outcomeClass = 'primary'; break;
                     }
                     
-                    const userName = escapeHtml(attempt.attemptedByUser?.userName || attempt.attemptedByUser?.email || 'Unknown User');
+                    const userName = escapeHtml(attempt.attemptedByUser?.displayName || 'Unknown User');
                     
                     html += `
                         <div class="list-group-item">
@@ -612,10 +612,36 @@
         }
     }
     function escapeHtml(value) {
-        const element = document.createElement('div');
-        element.textContent = value ?? '';
-        return element.innerHTML;
+        return String(value ?? '')
+            .replace(/&/g, '&amp;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;');
     }
+
+    $(function () {
+        $('.js-auto-submit-filter').on('change', function () {
+            this.form?.requestSubmit();
+        });
+
+        $('.js-show-call-history').on('click', function () {
+            showCallHistory(this.dataset.taskId);
+        });
+        $('.js-start-task').on('click', function () {
+            startTask(this.dataset.taskId);
+        });
+        $('.js-complete-task').on('click', function () {
+            completeTask(this.dataset.taskId, this.dataset.taskTitle);
+        });
+        $('.js-log-call-attempt').on('click', function () {
+            logCallAttempt(this.dataset.taskId, this.dataset.taskTitle);
+        });
+        $('.js-cancel-task').on('click', function () {
+            cancelTask(this.dataset.taskId, this.dataset.taskTitle);
+        });
+        $('.js-save-call-attempt').on('click', saveCallAttempt);
+    });
 
 </script>
 }

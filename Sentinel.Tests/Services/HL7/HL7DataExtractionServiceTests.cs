@@ -5,6 +5,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Microsoft.AspNetCore.Http;
 using Moq;
 using Sentinel.Data;
 using Sentinel.Models;
@@ -30,7 +31,9 @@ namespace Sentinel.Tests.Services.HL7
                 .UseInMemoryDatabase(databaseName: $"TestDb_{Guid.NewGuid()}")
                 .Options;
 
-            _context = new ApplicationDbContext(options);
+            _context = new ApplicationDbContext(
+                options,
+                new HttpContextAccessor { HttpContext = new DefaultHttpContext() });
             _mockDuplicateService = new Mock<IDuplicateDetectionService>();
             _mockCaseMatchingService = new Mock<ICaseMatchingService>();
             _mockLogger = new Mock<ILogger<HL7DataExtractionService>>();

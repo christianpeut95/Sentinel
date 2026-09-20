@@ -631,6 +631,8 @@
                     </div>
                     
                     <!-- Action Form -->
+                    @if (Model.CanResolveReviews)
+                    {
                     <form method="post" asp-page-handler="ResolveAlwaysReview" asp-route-id="@Model.ReviewDetail.ReviewItem.Id" class="mt-3">
                         <div class="d-grid gap-2">
                             <button type="submit" class="btn btn-success btn-lg">
@@ -644,6 +646,7 @@
                             </small>
                         </div>
                     </form>
+                    }
                 </div>
             </div>
         }
@@ -746,11 +749,11 @@
                                         <a href="/Tasks/CompleteSurvey/@errorData["TaskId"]" class="btn btn-primary">
                                             <i class="bi bi-pencil"></i> Re-edit Survey
                                         </a>
-                                        <button type="button" class="btn btn-warning" onclick="if(confirm('Attempt to reprocess this survey? This will retry the automatic mapping.')) { reprocessSurvey('@errorData["TaskId"]'); }">
+                                        <button type="button" class="btn btn-warning js-reprocess-survey" data-task-id="@errorData["TaskId"]">
                                             <i class="bi bi-arrow-repeat"></i> Retry Automatic Processing
                                         </button>
                                     }
-                                    <button type="button" class="btn btn-secondary" onclick="window.print()">
+                                    <button type="button" class="btn btn-secondary js-print-review">
                                         <i class="bi bi-printer"></i> Print for Manual Entry
                                     </button>
                                 </div>
@@ -1068,6 +1071,8 @@
                     @if (Model.ReviewDetail.ReviewItem.ChangeType == "DuplicateDetected" || 
                          Model.ReviewDetail.ReviewItem.ChangeType == "PotentialDuplicate")
                     {
+                        @if (Model.CanResolveReviews)
+                        {
                         <!-- DUPLICATE-SPECIFIC ACTIONS -->
                         <div class="alert alert-info border-info mb-3">
                             <strong><i class="bi bi-hand-thumbs-up"></i> Make Your Selection:</strong>
@@ -1117,8 +1122,9 @@
                                 });
                             });
                         </script>
+                        }
                     }
-                    else if (Model.ReviewDetail.ReviewItem.ChangeType != "PendingCreation")
+                    else if (Model.ReviewDetail.ReviewItem.ChangeType != "PendingCreation" && Model.CanResolveReviews)
                     {
                         <!-- STANDARD REVIEW ACTIONS -->
                         <!-- Note: PendingCreation has its own form in the main content area -->
@@ -1128,8 +1134,8 @@
                                 <textarea asp-for="ReviewNotes" class="form-control" rows="3" 
                                           placeholder="Add any notes about your review..."></textarea>
                             </div>
-                            <button type="submit" class="btn btn-success w-100 mb-2 py-2" 
-                                    onclick="return confirm('Confirm this review?')">
+                            <button type="submit" class="btn btn-success w-100 mb-2 py-2 js-confirm-review"
+                                    data-confirmation-message="Confirm this review?">
                                 <i class="bi bi-check-lg me-2"></i> 
                                 <strong>Approve Changes</strong>
                             </button>
@@ -1137,8 +1143,8 @@
 
                         <form method="post" asp-page-handler="Dismiss" asp-route-id="@Model.ReviewDetail.ReviewItem.Id">
                             <input type="hidden" asp-for="ReviewNotes" />
-                            <button type="submit" class="btn btn-outline-danger w-100 mb-3 py-2" 
-                                    onclick="return confirm('Reject this review?')">
+                            <button type="submit" class="btn btn-outline-danger w-100 mb-3 py-2 js-confirm-review"
+                                    data-confirmation-message="Reject this review?">
                                 <i class="bi bi-x-lg me-2"></i> 
                                 <strong>Reject Changes</strong>
                             </button>
@@ -1147,6 +1153,8 @@
 
                     <hr />
 
+                    @if (Model.CanCreateReviewTasks)
+                    {
                     <!-- Create Task -->
                     <div class="card bg-light">
                         <div class="card-body">
@@ -1168,6 +1176,7 @@
                             </form>
                         </div>
                     </div>
+                    }
                 }
                 else
                 {
@@ -2176,10 +2185,31 @@
 
 @section Scripts {
 <script>
+    document.addEventListener('click', function (event) {
+        const reprocessButton = event.target.closest('.js-reprocess-survey');
+        if (reprocessButton) {
+            if (window.confirm('Attempt to reprocess this survey? This will retry the automatic mapping.')) {
+                reprocessSurvey(reprocessButton.dataset.taskId, reprocessButton);
+            }
+            return;
+        }
+
+        if (event.target.closest('.js-print-review')) {
+            window.print();
+        }
+    });
+
+    document.addEventListener('submit', function (event) {
+        const confirmationButton = event.target.querySelector('.js-confirm-review');
+        if (confirmationButton && !window.confirm(confirmationButton.dataset.confirmationMessage)) {
+            event.preventDefault();
+        }
+    });
+
     // Function to reprocess a failed survey
-    async function reprocessSurvey(taskId) {
+    async function reprocessSurvey(taskId, button) {
         try {
-            const btn = event.target;
+            const btn = button;
             btn.disabled = true;
             btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Reprocessing...';
             
@@ -2222,11 +2252,16 @@
                 alert('Survey reprocessed successfully! The review item will be marked as resolved.');
                 window.location.reload();
             } else {
-                throw new Error(result.error || 'Reprocessing failed');
+                throw new Error('Reprocessing failed');
             }
-        } catch (error) {            alert('Failed to reprocess survey: ' + error.message);
+        } catch (error) {
+            // Survey-processing errors can contain case, patient, or submitted
+            // answer data. Keep the diagnostic server-side and leave only a
+            // generic client-side failure marker.
+            console.error('Failed to reprocess survey.');
+            alert('The survey could not be reprocessed. Please try again. If the problem persists, contact an administrator.');
             
-            const btn = event.target;
+            const btn = button;
             btn.disabled = false;
             btn.innerHTML = '<i class="bi bi-arrow-repeat"></i> Retry Automatic Processing';
         }

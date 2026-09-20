@@ -49,22 +49,6 @@
       "survey-knockout-ui.min.js"
     ]
   },
-  {
-    "library": "survey-creator-core@1.9.131",
-    "destination": "wwwroot/lib/survey-creator-core/",
-    "files": [
-      "survey-creator-core.min.js",
-      "survey-creator-core.i18n.min.js",
-      "survey-creator-core.min.css"
-    ]
-    },
-    {
-      "library": "survey-creator-knockout@1.9.131",
-      "destination": "wwwroot/lib/survey-creator-knockout/",
-      "files": [
-        "survey-creator-knockout.min.js"
-      ]
-    },
     {
       "library": "knockout@3.5.1",
       "destination": "wwwroot/lib/knockout/",

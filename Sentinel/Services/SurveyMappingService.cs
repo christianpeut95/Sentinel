@@ -620,7 +620,7 @@ namespace Sentinel.Services
                 catch (Exception ex)
                 {
                     result.ErrorCount++;
-                    var errorMsg = $"Error processing mapping for {mapping.SurveyQuestionName}: {ex.Message}";
+                    var errorMsg = $"Automatic mapping could not be completed for '{mapping.SurveyQuestionName}'. Check the mapping configuration and application logs.";
                     result.Errors.Add(errorMsg);
                     _logger.LogError(ex, "Error processing mapping for question '{QuestionName}' -> '{TargetField}'",
                         mapping.SurveyQuestionName, mapping.TargetFieldPath);
@@ -2119,7 +2119,7 @@ namespace Sentinel.Services
                 catch (Exception ex)
                 {
                     result.ErrorCount++;
-                    var errorMsg = $"Error processing collection mapping for {mapping.SurveyQuestionName}: {ex.Message}";
+                    var errorMsg = $"Automatic collection mapping could not be completed for '{mapping.SurveyQuestionName}'. Check the mapping configuration and application logs.";
                     result.Errors.Add(errorMsg);
                     _logger.LogError(ex, "Error processing collection mapping '{Question}'", mapping.SurveyQuestionName);
                 }

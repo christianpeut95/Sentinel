@@ -359,7 +359,7 @@ public string? ReturnUrl { get; set; }
         catch (Exception ex)
         {
             Logger.LogError(ex, "Error loading collection mapping configuration");
-            errorMessage = $"Error loading configuration: {ex.Message}";
+            errorMessage = "The collection mapping configuration could not be loaded. Refresh the page or try again.";
         }
         finally
         {
@@ -565,7 +565,7 @@ public string? ReturnUrl { get; set; }
         catch (Exception ex)
         {
             Logger.LogError(ex, "Error loading entity fields for {EntityType}", entityType);
-            errorMessage = $"Error loading fields for {entityType}: {ex.Message}";
+            errorMessage = "The target entity fields could not be loaded. Please try again.";
         }
     }
 
@@ -627,7 +627,7 @@ public string? ReturnUrl { get; set; }
         catch (Exception ex)
         {
             Logger.LogError(ex, "Error saving configuration");
-            errorMessage = $"Error saving: {ex.Message}";
+            errorMessage = "The collection mapping could not be saved. Please review its settings and try again.";
         }
         finally
         {
@@ -674,7 +674,7 @@ public string? ReturnUrl { get; set; }
         catch (Exception ex)
         {
             Logger.LogError(ex, "Error fixing survey link for mapping {MappingId}", mapping?.Id);
-            errorMessage = $"Failed to fix survey link: {ex.Message}";
+            errorMessage = "The survey link could not be repaired. Please try again.";
         }
         finally
         {

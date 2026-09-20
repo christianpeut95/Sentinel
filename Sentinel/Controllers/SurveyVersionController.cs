@@ -4,6 +4,8 @@ using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Sentinel.Data;
 using Sentinel.Models;
+using Sentinel.Services;
+using System.ComponentModel.DataAnnotations;
 
 namespace Sentinel.Controllers
 {
@@ -25,6 +27,11 @@ namespace Sentinel.Controllers
         [HttpPost("SaveAsNewVersion")]
         public async Task<IActionResult> SaveAsNewVersion([FromBody] SaveAsVersionRequest request)
         {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ModelState);
+            }
+
             try
             {
                 _logger.LogInformation("Attempting to create new version from parent survey {ParentSurveyId}", request.ParentSurveyId);
@@ -59,8 +66,8 @@ namespace Sentinel.Controllers
                     return BadRequest($"Version {request.VersionNumber} already exists");
 
                 // Validate survey JSON
-                if (string.IsNullOrWhiteSpace(request.SurveyDefinitionJson))
-                    return BadRequest("Survey definition is required");
+                if (!SurveyDefinitionSafetyValidator.TryValidate(request.SurveyDefinitionJson, out var validationError))
+                    return BadRequest(validationError);
 
                 // Create new version
                 var newVersion = new SurveyTemplate
@@ -139,8 +146,8 @@ namespace Sentinel.Controllers
                 if (version == null)
                     return NotFound();
 
-                if (version.VersionStatus == SurveyVersionStatus.Active)
-                    return BadRequest("Version is already active");
+                if (!SurveyVersionWorkflowPolicy.CanPublish(version.VersionStatus))
+                    return BadRequest("Only a draft version can be published. Create a new version to republish archived or active content.");
 
                 // Find root parent
                 var rootParentId = version.ParentSurveyTemplateId ?? version.Id;
@@ -186,11 +193,8 @@ namespace Sentinel.Controllers
                 if (version == null)
                     return NotFound();
 
-                if (version.VersionStatus == SurveyVersionStatus.Archived)
-                    return BadRequest("Version is already archived");
-
-                if (version.VersionStatus == SurveyVersionStatus.Active)
-                    return BadRequest("Cannot archive active version. Publish another version first.");
+                if (!SurveyVersionWorkflowPolicy.CanArchive(version.VersionStatus))
+                    return BadRequest("Only a draft version can be archived. Published and archived versions are retained as history.");
 
                 version.VersionStatus = SurveyVersionStatus.Archived;
                 await _context.SaveChangesAsync();
@@ -252,10 +256,15 @@ namespace Sentinel.Controllers
 
     public class SaveAsVersionRequest
     {
+        [Required]
         public Guid ParentSurveyId { get; set; }
+        [Required]
+        [StringLength(20)]
         public string VersionNumber { get; set; } = string.Empty;
+        [StringLength(2000)]
         public string? VersionNotes { get; set; }
         public bool PublishImmediately { get; set; }
+        [Required]
         public string SurveyDefinitionJson { get; set; } = string.Empty;
         public string? InputMappingJson { get; set; }
         public string? OutputMappingJson { get; set; }

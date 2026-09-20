@@ -49,9 +49,9 @@ namespace Sentinel.Pages.Tasks
             if (taskSummary == null || !await _caseAccessService.CanAccessCaseAsync(taskSummary.CaseId))
                 return NotFound();
 
-            if (taskSummary.Status == CaseTaskStatus.Completed)
+            if (TaskWorkflowPolicy.IsTerminal(taskSummary.Status))
             {
-                TempData["ErrorMessage"] = "This task is already completed.";
+                TempData["ErrorMessage"] = TaskStateMessage(taskSummary.Status);
                 return RedirectToPage("/Dashboard/MyTasks");
             }
 
@@ -122,9 +122,9 @@ namespace Sentinel.Pages.Tasks
                 return NotFound();
             }
 
-            if (task.Status == CaseTaskStatus.Completed)
+            if (TaskWorkflowPolicy.IsTerminal(task.Status))
             {
-                return StatusCode(StatusCodes.Status409Conflict, new { error = "This task is already completed." });
+                return StatusCode(StatusCodes.Status409Conflict, new { error = TaskStateMessage(task.Status) });
             }
 
             if (task.Status == CaseTaskStatus.Pending || task.Status == CaseTaskStatus.WaitingForPatient)
@@ -165,10 +165,10 @@ namespace Sentinel.Pages.Tasks
                     return NotFound();
                 }
 
-                if (task.Status == CaseTaskStatus.Completed)
+                if (TaskWorkflowPolicy.IsTerminal(task.Status))
                 {
-                    _logger.LogWarning("Survey completion rejected because task {TaskId} is already completed", id);
-                    return new JsonResult(new { success = false, error = "This task is already completed." })
+                    _logger.LogWarning("Survey completion rejected because task {TaskId} is in terminal state {TaskStatus}", id, task.Status);
+                    return new JsonResult(new { success = false, error = TaskStateMessage(task.Status) })
                     {
                         StatusCode = StatusCodes.Status409Conflict
                     };
@@ -188,6 +188,14 @@ namespace Sentinel.Pages.Tasks
 
                 _logger.LogInformation("Successfully completed survey for task {TaskId}", id);
                 return new JsonResult(new { success = true });
+            }
+            catch (SurveyTaskStateException ex)
+            {
+                _logger.LogInformation(ex, "Survey completion rejected after service-level task state validation for task {TaskId}", id);
+                return new JsonResult(new { success = false, error = TaskStateMessage(ex.Status) })
+                {
+                    StatusCode = StatusCodes.Status409Conflict
+                };
             }
             catch (Exception ex)
             {
@@ -222,5 +230,10 @@ namespace Sentinel.Pages.Tasks
                 };
             }
         }
+
+        private static string TaskStateMessage(CaseTaskStatus status) =>
+            status == CaseTaskStatus.Completed
+                ? "This task is already completed."
+                : "This task has been cancelled.";
     }
 }

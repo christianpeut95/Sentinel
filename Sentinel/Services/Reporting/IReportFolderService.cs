@@ -7,7 +7,7 @@ public interface IReportFolderService
     Task<List<ReportFolder>> GetUserFoldersAsync(string userId);
     Task<List<ReportFolder>> GetSharedFoldersAsync(string userId);
     Task<ReportFolder?> GetFolderByIdAsync(int folderId, string userId);
-    Task<ReportFolder> CreateFolderAsync(ReportFolder folder, string userId);
+    Task<ReportFolder?> CreateFolderAsync(ReportFolder folder, string userId);
     Task<bool> UpdateFolderAsync(ReportFolder folder, string userId);
     Task<bool> DeleteFolderAsync(int folderId, string userId);
     Task<bool> CanAccessFolderAsync(int folderId, string userId);

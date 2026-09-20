@@ -99,10 +99,10 @@
                     </div>
 
                     <div class="d-flex justify-content-end gap-2">
-                        <button type="button" class="btn btn-secondary" onclick="window.close()">
+                        <button type="button" class="btn btn-secondary" data-browser-action="close-window">
                             <i class="bi bi-x-circle me-1"></i>Cancel
                         </button>
-                        <button type="submit" class="btn btn-primary" style="background: var(--signal-dk); border-color: var(--signal-dk);" onmouseover="this.style.background='var(--forest)'" onmouseout="this.style.background='var(--signal-dk)'">
+                        <button type="submit" class="btn btn-primary js-forest-hover" style="background: var(--signal-dk); border-color: var(--signal-dk);">
                             <i class="bi bi-save me-1"></i>Save Changes
                         </button>
                     </div>
@@ -114,8 +114,8 @@
             <!-- jQuery and jQuery UI -->
             <script src="~/lib/jquery/dist/jquery.min.js"></script>
             <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
-            <link rel="stylesheet" href="https://code.jquery.com/ui/1.13.2/themes/base/jquery-ui.css">
-            <script src="https://code.jquery.com/ui/1.13.2/jquery-ui.min.js"></script>
+            <link rel="stylesheet" href="~/lib/jquery-ui/dist/themes/base/jquery-ui.min.css">
+            <script src="~/lib/jquery-ui/dist/jquery-ui.min.js"></script>
             <style>
                 /* jQuery UI Autocomplete styling */
                 .ui-autocomplete {
@@ -136,7 +136,7 @@
                     $("#assignedToUserSearch").autocomplete({
                         source: function(request, response) {
                             $.ajax({
-                                url: '/api/Patients/SearchUsers',
+                                url: '/api/users/search',
                                 data: { term: request.term },
                                 dataType: 'json',
                                 success: function(data) {
@@ -168,7 +168,7 @@
             </script>
 
             <script src="~/lib/jquery-validation/dist/jquery.validate.min.js"></script>
-            <script src="~/lib/jquery-validation-unobtrusive/jquery.validate.unobtrusive.min.js"></script>
+            <script src="~/lib/jquery-validation-unobtrusive/dist/jquery.validate.unobtrusive.min.js"></script>
 
             </body>
             </html>

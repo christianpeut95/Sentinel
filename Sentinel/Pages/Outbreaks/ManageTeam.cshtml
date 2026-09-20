@@ -111,8 +111,8 @@
                                             </small>
                                         </td>
                                         <td>
-                                            <form method="post" asp-page-handler="RemoveMember" asp-route-id="@Model.Outbreak.Id" asp-route-memberId="@member.Id" 
-                                                  onsubmit="return confirm('Remove @member.User?.UserName from the team?');" class="d-inline">
+                                            <form method="post" asp-page-handler="RemoveMember" asp-route-id="@Model.Outbreak.Id" asp-route-memberId="@member.Id"
+                                                  class="d-inline js-confirm-outbreak-member-removal" data-user-name="@member.User?.UserName">
                                                 <button type="submit" class="btn btn-sm btn-outline-danger">
                                                     <i class="bi bi-person-dash"></i> Remove
                                                 </button>
@@ -193,3 +193,16 @@
 </div>
 
 @inject ApplicationDbContext Context
+
+@section Scripts {
+    <script>
+        document.querySelectorAll('.js-confirm-outbreak-member-removal').forEach(function (form) {
+            form.addEventListener('submit', function (event) {
+                const userName = form.dataset.userName || 'this team member';
+                if (!window.confirm('Remove ' + userName + ' from the team?')) {
+                    event.preventDefault();
+                }
+            });
+        });
+    </script>
+}

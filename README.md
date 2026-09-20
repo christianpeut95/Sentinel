@@ -5,8 +5,8 @@
   <br /><br />
 
   [![.NET](https://img.shields.io/badge/.NET-10.0-purple)](https://dotnet.microsoft.com/)
-  [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
-  [![Status](https://img.shields.io/badge/status-alpha-orange)]()
+  [![License](https://img.shields.io/badge/license-GPLv3-blue)](LICENSE.md)
+  [![Status](https://img.shields.io/badge/status-beta-blue)]()
 
   <br />
 
@@ -29,9 +29,13 @@ A publicly hosted demo is available at **https://demo.sentinelsurveillance.app**
 
 **Technology:** ASP.NET Core (.NET 10), Entity Framework Core 9, SQL Server 2019+, Blazor
 
-**Status:** Alpha — active development, suitable for evaluation and experimentation.
+**Status:** 0.9.0-beta — beta release preparation, suitable for evaluation and
+organisation-led deployment validation.
 
-> **Note:** Sentinel uses **SurveyJS** for the survey builder component. Production use of SurveyJS requires a developer licence (~$999/year per developer).
+> **Note:** Sentinel uses SurveyJS Form Library (MIT) to render surveys and
+> SurveyJS Creator for visual survey design. The Creator has separate vendor
+> terms; see [third-party release conditions](docs/licensing.md) before
+> distributing a Sentinel build.
 
 ---
 
@@ -248,7 +252,10 @@ cd Sentinel/Sentinel
 
 # Configure environment
 cp .env.example .env
-# Set DOCKERHUB_USERNAME in .env, then generate and save a SQL Server password
+# Set DOCKERHUB_USERNAME, SENTINEL_HOSTNAME and ACME_EMAIL in .env.
+# The hostname must already resolve to this server and ports 80 and 443 must
+# be reachable from the internet for the TLS certificate to be issued.
+# Then generate and save a SQL Server password.
 SQL_PASSWORD="$(openssl rand -base64 24 | tr -d '\n')Aa1!"
 sed -i "s|^SQL_PASSWORD=.*|SQL_PASSWORD=$SQL_PASSWORD|" .env
 chmod 600 .env
@@ -256,16 +263,17 @@ chmod 600 .env
 # Start stack
 docker compose up -d
 
-# Access at http://localhost:8080
+# Access at https://<SENTINEL_HOSTNAME>
 ```
 
 **Stack Components:**
-- `sentinel-app` — ASP.NET Core application
+- `sentinel-proxy` — Caddy reverse proxy, automatic HTTPS certificate and HTTP-to-HTTPS redirect
+- `sentinel-app` — ASP.NET Core application, private to the Docker network
 - `sentinel-db` — SQL Server 2022
 
 Migrations run automatically on first startup.
 
-The bundled database is available to Sentinel on its Docker network. No database port needs to be opened on the Linux host for a standard installation.
+The application and bundled database are available only on the Docker network. The proxy is the sole public service and publishes ports 80 and 443. Named volumes retain database data, protected files, Caddy certificates and ASP.NET Core Data Protection keys across restarts.
 
 ### Pre-built Docker Image
 
@@ -278,10 +286,18 @@ docker pull christianpeut/sentinel:latest
 | Variable | Description | Default |
 |---|---|---|
 | `SQL_PASSWORD` | Required SQL Server password for the bundled database | None |
+| `SENTINEL_HOSTNAME` | Public DNS hostname for the Sentinel site | None |
+| `ACME_EMAIL` | Email address used by Caddy for certificate notices | None |
 | `ASPNETCORE_ENVIRONMENT` | Environment name | `Production` |
 | `Demo__EnableDemoUsers` | Seed demo accounts | `false` |
 | `Demo__EnableDemoMode` | Enable demo mode (test data generator) | `false` |
 | `Demo__ShowDemoBanner` | Show demo banner in UI | `false` |
+
+---
+
+## Security documentation
+
+Security controls, production deployment checks and release procedures are maintained in [docs/security](docs/security/README.md). These documents include an [OWASP ASVS 5.0 Level 1 self-assessment](docs/security/owasp-asvs-l1-assessment.md), input-validation rules, account-abuse controls, authorization/data access, safe file handling, logging/telemetry, dependency remediation and Docker HTTPS deployment.
 
 ---
 
@@ -397,13 +413,13 @@ Demo__ShowDemoBanner=true
 | Provider | Notes |
 |---|---|
 | Nominatim | Free, no API key, rate limited (~1 req/sec) |
-| Google | Requires Google Maps API key, paid service |
+| Google | Requires a server-only key for Geocoding API v4 and Places API (New), plus a separately restricted browser key for Maps JavaScript autocomplete. |
 
 ---
 
 ## Status
 
-**Alpha — Active Development**
+**0.9.0-beta — Beta Release Preparation**
 
 ### Stable
 - Patient and case management
@@ -416,9 +432,11 @@ Demo__ShowDemoBanner=true
 - Bulk contact operations
 
 ### Known Limitations
-- Permissions audit incomplete
-- UI polish needed in some areas
-- Performance optimization needed for duplicate detection on large datasets
+- Each deployment must complete its environment-specific HTTPS, DNS, backup,
+  access-control and operational verification before handling live data.
+- UI polish and accessibility improvements continue through the beta period.
+- Duplicate detection needs performance testing against each organisation's
+  expected data volume.
 
 ---
 
@@ -441,12 +459,14 @@ Contributions are welcome.
 ### How to Help
 - **Report bugs** — Create an issue with reproduction steps
 - **Suggest features** — Open a discussion with use case
-- **Submit code** — Fork ? branch ? PR to `develop`
+- **Submit code** — Open a focused pull request against the repository's
+  default branch
 
 ### Before Submitting Code
-- Run `dotnet build` with no errors
-- Follow coding conventions in [`.github/copilot-instructions.md`](.github/copilot-instructions.md)
-- Update documentation if needed
+- Follow the [contribution guide](CONTRIBUTING.md), including local build and
+  test checks.
+- Update documentation when behaviour, configuration or security controls
+  change.
 
 ---
 
@@ -454,21 +474,31 @@ Contributions are welcome.
 
 Full documentation: [Sentinel Notion](https://www.notion.so/Sentinel-31b00376e60880bd9f11f04959729498)
 
+Maintainer release checks: [docs/releasing.md](docs/releasing.md)
+
 ---
 
 ## License
 
-**MIT License** — See [`LICENSE`](LICENSE) file for full terms.
+**GNU General Public License v3.0 or later** — Sentinel-owned source code is
+licensed under GPL-3.0-or-later. See [LICENSE.md](LICENSE.md) for the complete
+terms. You may use, modify and redistribute the covered source, including for
+commercial purposes, subject to the GPL's reciprocal source-code obligations
+when distributing a covered work.
 
-You are free to use, modify, and distribute this software for any purpose, including commercial use.
+Third-party components are not relicensed by Sentinel. Their terms, including
+components requiring separate commercial licensing, are recorded in
+[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md). A distributor must comply
+with both Sentinel's GPL terms and the applicable third-party terms.
 
 ### Third-Party Licenses
 
 | Library | License | Notes |
 |---|---|---|
-| SurveyJS | Commercial | Requires paid developer licence (~$999/year per developer) for production |
-| AG Grid Community | MIT | Free |
-| WebDataRocks | Free (non-commercial) | Attribution required |
+| SurveyJS Form Library | MIT | Runtime form-rendering component |
+| SurveyJS Creator | Commercial / operator-managed | Not included in the standard source or image. A demo override can mount separately obtained assets; see [deployment guidance](docs/deployment/survey-designer.md). |
+| ClosedXML 0.105.1 | MIT | Used for occupation-reference-data Excel import |
+| WebDataRocks | Separate vendor EULA | Attribution is displayed; review its current terms before distribution |
 | ASP.NET Core / EF Core | MIT | Free |
 | Bootstrap / Bootstrap Icons | MIT | Free |
 

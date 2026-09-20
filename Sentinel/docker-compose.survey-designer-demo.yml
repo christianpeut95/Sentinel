@@ -1,0 +1,22 @@
+# Optional override for an operator-managed Sentinel demo that supplies SurveyJS Creator
+# from a host directory. The standard image deliberately contains no Creator
+# assets and leaves the visual designer disabled.
+#
+# Run only alongside docker-compose.yml. See docs/deployment/survey-designer.md.
+services:
+  sentinel-web:
+    environment:
+      SurveyDesigner__Provider: SurveyJsCreator
+    volumes:
+      - type: bind
+        source: ${SURVEYJS_CREATOR_ASSETS_DIR:?Set SURVEYJS_CREATOR_ASSETS_DIR in .env before enabling the survey designer override}/survey-creator-core
+        target: /app/wwwroot/lib/survey-creator-core
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ${SURVEYJS_CREATOR_ASSETS_DIR:?Set SURVEYJS_CREATOR_ASSETS_DIR in .env before enabling the survey designer override}/survey-creator-knockout
+        target: /app/wwwroot/lib/survey-creator-knockout
+        read_only: true
+        bind:
+          create_host_path: false

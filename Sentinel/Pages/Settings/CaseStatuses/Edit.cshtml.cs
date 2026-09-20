@@ -43,12 +43,22 @@ namespace Sentinel.Pages.Settings.CaseStatuses
                 return Page();
             }
 
-            _context.Attach(CaseStatus).State = EntityState.Modified;
+            var caseStatusToUpdate = await _context.CaseStatuses.FindAsync(CaseStatus.Id);
+            if (caseStatusToUpdate == null)
+            {
+                return NotFound();
+            }
+
+            caseStatusToUpdate.Name = CaseStatus.Name;
+            caseStatusToUpdate.Description = CaseStatus.Description;
+            caseStatusToUpdate.DisplayOrder = CaseStatus.DisplayOrder;
+            caseStatusToUpdate.ApplicableTo = CaseStatus.ApplicableTo;
+            caseStatusToUpdate.IsActive = CaseStatus.IsActive;
 
             try
             {
                 await _context.SaveChangesAsync();
-                TempData["SuccessMessage"] = $"Case Status '{CaseStatus.Name}' has been updated successfully.";
+                TempData["SuccessMessage"] = $"Case Status '{caseStatusToUpdate.Name}' has been updated successfully.";
             }
             catch (DbUpdateConcurrencyException)
             {

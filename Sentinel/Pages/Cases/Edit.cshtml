@@ -291,7 +291,7 @@
                     <hr class="my-3" style="border-color: var(--hairline);" />
 
                     <!-- Delete Button -->
-                    <button type="button" class="btn btn-outline-danger w-100" onclick="confirmDelete()">
+                    <button type="button" class="btn btn-outline-danger w-100" data-browser-action="confirm-delete">
                         <i class="bi bi-trash me-2"></i>Delete Case
                     </button>
                 </div>
@@ -895,12 +895,12 @@
 
         // Show toast notification
         function showSymptomToast(symptomName, isAdded) {
-            var message = isAdded ? 
-                '<i class="bi bi-check-circle me-2"></i>' + symptomName + ' added' : 
-                '<i class="bi bi-x-circle me-2"></i>' + symptomName + ' removed';
-                
             // Create toast element
-            var toast = $('<div class="toast-symptom-notification">' + message + '</div>');
+            var toast = $('<div>', { class: 'toast-symptom-notification' });
+            toast.append($('<i>', {
+                class: isAdded ? 'bi bi-check-circle me-2' : 'bi bi-x-circle me-2'
+            }));
+            toast.append(document.createTextNode(`${symptomName ?? ''} ${isAdded ? 'added' : 'removed'}`));
             toast.css({
                 'position': 'fixed',
                 'top': '20px',
@@ -1027,15 +1027,19 @@
                 symptomIds.forEach(function(symptomId) {
                     var symptomText = $('.symptom-autocomplete option[value="' + symptomId + '"]').text();
                     var existingValue = $('input[name="onset_date_' + symptomId + '"]').val() || '';
-                    
-                    var html = '<div class="row mb-2">' +
-                        '<div class="col-md-6"><label class="form-label small">' + symptomText + '</label></div>' +
-                        '<div class="col-md-6">' +
-                        '<input type="date" class="form-control form-control-sm" ' +
-                        'name="onset_date_' + symptomId + '" value="' + existingValue + '" />' +
-                        '</div>' +
-                        '</div>';
-                    container.append(html);
+
+                    const $row = $('<div>', { class: 'row mb-2' });
+                    $('<div>', { class: 'col-md-6' })
+                        .append($('<label>', { class: 'form-label small' }).text(symptomText))
+                        .appendTo($row);
+                    $('<div>', { class: 'col-md-6' })
+                        .append($('<input>', {
+                            type: 'date',
+                            class: 'form-control form-control-sm',
+                            name: `onset_date_${symptomId}`
+                        }).val(existingValue))
+                        .appendTo($row);
+                    container.append($row);
                 });
             }
 

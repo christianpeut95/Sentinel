@@ -41,6 +41,8 @@ public class IndexModel : PageModel
     public List<EntityTypeOption> EntityTypes { get; set; } = new();
     public List<DiseaseOption> Diseases { get; set; } = new();
     public int PendingCount { get; set; }
+    public bool CanResolveReviews { get; private set; }
+    public bool CanCreateRecordsFromReviews { get; private set; }
 
     [BindProperty(SupportsGet = true)]
     public string? EntityType { get; set; }
@@ -56,6 +58,9 @@ public class IndexModel : PageModel
 
     public async Task OnGetAsync()
     {
+        CanResolveReviews = await CanResolveReviewsAsync();
+        CanCreateRecordsFromReviews = await CanCreateRecordsFromReviewsAsync();
+
         // Load filter options
         await LoadFilterOptionsAsync();
 
@@ -331,61 +336,105 @@ public class IndexModel : PageModel
     /// </summary>
     public async Task<IActionResult> OnPostQuickResolveAlwaysReviewAsync(int id)
     {
-        if (!await CanResolveReviewsAsync())
+        if (!await CanCreateRecordsFromReviewsAsync())
         {
             return Forbid();
         }
 
+        var resolved = false;
+        string? failure = null;
+
         try
         {
-            // Get the full ReviewQueue entity
-            var reviewQueue = await _context.ReviewQueue
-                .Include(r => r.Task)
-                    .ThenInclude(t => t!.Case)
-                .Include(r => r.Task)
-                    .ThenInclude(t => t!.TaskTemplate)
-                .FirstOrDefaultAsync(r => r.Id == id);
-                
-            if (reviewQueue == null)
+            // All records created by this shortcut belong to one approval. Execute the
+            // complete unit under the provider retry strategy, rather than committing a
+            // patient before dependent collection mapping has succeeded.
+            var strategy = _context.Database.CreateExecutionStrategy();
+            await strategy.ExecuteAsync(async () =>
             {
-                return new JsonResult(new { success = false, error = "Review item not found" });
-            }
-            
-            // Extract patient data from ProposedEntityDataJson
-            var newPatient = await ExtractPatientFromProposedData(reviewQueue.ProposedEntityDataJson);
-            if (newPatient == null)
-            {
-                return new JsonResult(new { success = false, error = "Could not extract patient data" });
-            }
-            
-            // Create patient
-            _context.Patients.Add(newPatient);
-            await _context.SaveChangesAsync();
-            
-            // Link case to patient if needed
-            if (reviewQueue.Task?.Case != null && 
-                (reviewQueue.Task.Case.PatientId == null || reviewQueue.Task.Case.PatientId == Guid.Empty))
-            {
-                reviewQueue.Task.Case.PatientId = newPatient.Id;
-                await _context.SaveChangesAsync();
-            }
-            
-            // Reprocess collection mappings to create related entities
-            try
-            {
-                await ReprocessCollectionMappingsAsync(reviewQueue, newPatient.Id, patientAlreadyExists: true);
-            }
-            catch (Exception reprocessEx)
-            {
-                // Log but continue - patient was created successfully
-                _logger.LogWarning(reprocessEx, "Collection mapping reprocessing failed for review {ReviewId}", id);
-            }
-            
-            // Mark review as confirmed
-            var result = await _reviewService.ConfirmReviewAsync(id, 
-                $"Quick approved: Created patient {newPatient.FriendlyId}");
-            
-            return new JsonResult(new { success = result });
+                await using var transaction = await _context.Database.BeginTransactionAsync();
+                try
+                {
+                    // Load the review without including its optional Task. An Include of
+                    // a task that is hidden by the case filter can otherwise hide the
+                    // review itself before we can return a safe failure.
+                    var reviewQueue = await _context.ReviewQueue
+                        .FirstOrDefaultAsync(r =>
+                            r.Id == id &&
+                            r.ReviewStatus == ReviewStatuses.Pending &&
+                            r.ChangeType == "PendingCreation");
+                    if (reviewQueue == null)
+                    {
+                        failure = "Review item not found or is no longer pending.";
+                        await transaction.RollbackAsync();
+                        _context.ChangeTracker.Clear();
+                        return;
+                    }
+
+                    if (!reviewQueue.TaskId.HasValue)
+                    {
+                        failure = "The review item does not have the required task context.";
+                        await transaction.RollbackAsync();
+                        _context.ChangeTracker.Clear();
+                        return;
+                    }
+
+                    reviewQueue.Task = await _context.CaseTasks
+                        .Include(task => task.Case)
+                        .Include(task => task.TaskTemplate)
+                        .FirstOrDefaultAsync(task => task.Id == reviewQueue.TaskId.Value);
+                    if (reviewQueue.Task?.Case == null)
+                    {
+                        failure = "The review item does not have an accessible case context.";
+                        await transaction.RollbackAsync();
+                        _context.ChangeTracker.Clear();
+                        return;
+                    }
+
+                    var newPatient = await ExtractPatientFromProposedData(reviewQueue.ProposedEntityDataJson);
+                    if (newPatient == null)
+                    {
+                        failure = "Could not extract patient data from the review item.";
+                        await transaction.RollbackAsync();
+                        _context.ChangeTracker.Clear();
+                        return;
+                    }
+
+                    _context.Patients.Add(newPatient);
+                    await _context.SaveChangesAsync();
+
+                    if (reviewQueue.Task.Case.PatientId == null || reviewQueue.Task.Case.PatientId == Guid.Empty)
+                    {
+                        reviewQueue.Task.Case.PatientId = newPatient.Id;
+                        await _context.SaveChangesAsync();
+                    }
+
+                    // A dependent mapping failure is fatal: it must not leave a patient
+                    // or a completed review without its requested related records.
+                    await ReprocessCollectionMappingsAsync(reviewQueue, newPatient.Id, patientAlreadyExists: true);
+
+                    if (!await _reviewService.ConfirmReviewAsync(
+                        id,
+                        $"Quick approved: Created patient {newPatient.FriendlyId}"))
+                    {
+                        failure = "The review could not be confirmed.";
+                        await transaction.RollbackAsync();
+                        _context.ChangeTracker.Clear();
+                        return;
+                    }
+
+                    await transaction.CommitAsync();
+                    resolved = true;
+                }
+                catch
+                {
+                    await transaction.RollbackAsync();
+                    _context.ChangeTracker.Clear();
+                    throw;
+                }
+            });
+
+            return new JsonResult(new { success = resolved, error = failure });
         }
         catch (Exception ex)
         {
@@ -407,6 +456,20 @@ public class IndexModel : PageModel
                    userId,
                    PermissionModule.Case,
                    PermissionAction.Edit);
+    }
+
+    private async Task<bool> CanCreateRecordsFromReviewsAsync()
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        return !string.IsNullOrWhiteSpace(userId) &&
+               await _permissionService.HasPermissionAsync(
+                   userId,
+                   PermissionModule.Case,
+                   PermissionAction.Edit) &&
+               await _permissionService.HasPermissionAsync(
+                   userId,
+                   PermissionModule.Case,
+                   PermissionAction.Create);
     }
 
     private async Task<Patient?> ExtractPatientFromProposedData(string? proposedDataJson)

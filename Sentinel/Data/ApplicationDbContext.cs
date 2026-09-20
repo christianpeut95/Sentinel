@@ -1190,6 +1190,11 @@ namespace Sentinel.Data
             builder.Entity<CaseCustomFieldLookup>().HasQueryFilter(cf => cf.Case != null);
             builder.Entity<ReviewQueue>().HasQueryFilter(rq =>
                 (rq.CaseId == null || rq.Case != null) &&
+                // Patient-only review items must respect the optional case-scoped
+                // patient visibility rule in exactly the same way as direct patient
+                // pages and APIs. Without this condition, the ReviewQueue root row
+                // remains visible even when its Patient navigation is filtered out.
+                (rq.PatientId == null || rq.Patient != null) &&
                 (rq.DiseaseId == null || rq.Disease != null) &&
                 (rq.TaskId == null || rq.Task != null));
             builder.Entity<SurveySubmissionLog>().HasQueryFilter(sl =>
@@ -1681,15 +1686,22 @@ namespace Sentinel.Data
             var year = DateTime.UtcNow.Year;
             var prefix = $"P-{year}-";
 
-            // CRITICAL FIX: Use UPDLOCK to prevent race conditions
-            // Query just the FriendlyId string to avoid entity materialization issues
-            var lastFriendlyId = await Database.SqlQueryRaw<string>(
-                @"SELECT TOP 1 FriendlyId AS Value 
-                  FROM Patients WITH (UPDLOCK, ROWLOCK) 
-                  WHERE FriendlyId LIKE {0} 
-                  ORDER BY FriendlyId DESC", 
-                prefix + "%")
-                .FirstOrDefaultAsync();
+            // SQL Server uses update locks so concurrent production writers
+            // cannot allocate the same identifier. Non-relational providers
+            // are used only by isolated tests and cannot execute SQL Server's
+            // TOP/UPDLOCK syntax, so use their in-memory query equivalent.
+            var lastFriendlyId = Database.IsRelational()
+                ? await Database.SqlQueryRaw<string>(
+                    @"SELECT TOP 1 FriendlyId AS Value 
+                      FROM Patients WITH (UPDLOCK, ROWLOCK) 
+                      WHERE FriendlyId LIKE {0} 
+                      ORDER BY FriendlyId DESC",
+                    prefix + "%").FirstOrDefaultAsync()
+                : await Patients.IgnoreQueryFilters()
+                    .Where(patient => patient.FriendlyId.StartsWith(prefix))
+                    .OrderByDescending(patient => patient.FriendlyId)
+                    .Select(patient => patient.FriendlyId)
+                    .FirstOrDefaultAsync();
 
             int nextSequence = 1;
             if (!string.IsNullOrEmpty(lastFriendlyId))
@@ -1730,14 +1742,18 @@ namespace Sentinel.Data
             var year = DateTime.UtcNow.Year;
             var prefix = $"P-{year}-";
 
-            // CRITICAL FIX: Use UPDLOCK to prevent race conditions
-            var lastFriendlyId = Database.SqlQueryRaw<string>(
-                @"SELECT TOP 1 FriendlyId AS Value 
-                  FROM Patients WITH (UPDLOCK, ROWLOCK) 
-                  WHERE FriendlyId LIKE {0} 
-                  ORDER BY FriendlyId DESC", 
-                prefix + "%")
-                .FirstOrDefault();
+            var lastFriendlyId = Database.IsRelational()
+                ? Database.SqlQueryRaw<string>(
+                    @"SELECT TOP 1 FriendlyId AS Value 
+                      FROM Patients WITH (UPDLOCK, ROWLOCK) 
+                      WHERE FriendlyId LIKE {0} 
+                      ORDER BY FriendlyId DESC",
+                    prefix + "%").FirstOrDefault()
+                : Patients.IgnoreQueryFilters()
+                    .Where(patient => patient.FriendlyId.StartsWith(prefix))
+                    .OrderByDescending(patient => patient.FriendlyId)
+                    .Select(patient => patient.FriendlyId)
+                    .FirstOrDefault();
 
             int nextSequence = 1;
             if (!string.IsNullOrEmpty(lastFriendlyId))
@@ -1777,14 +1793,18 @@ namespace Sentinel.Data
             var year = DateTime.UtcNow.Year;
             var prefix = $"C-{year}-";
 
-            // CRITICAL FIX: Use UPDLOCK to prevent race conditions
-            var lastFriendlyId = await Database.SqlQueryRaw<string>(
-                @"SELECT TOP 1 FriendlyId AS Value 
-                  FROM Cases WITH (UPDLOCK, ROWLOCK) 
-                  WHERE FriendlyId LIKE {0} 
-                  ORDER BY FriendlyId DESC", 
-                prefix + "%")
-                .FirstOrDefaultAsync();
+            var lastFriendlyId = Database.IsRelational()
+                ? await Database.SqlQueryRaw<string>(
+                    @"SELECT TOP 1 FriendlyId AS Value 
+                      FROM Cases WITH (UPDLOCK, ROWLOCK) 
+                      WHERE FriendlyId LIKE {0} 
+                      ORDER BY FriendlyId DESC",
+                    prefix + "%").FirstOrDefaultAsync()
+                : await Cases.IgnoreQueryFilters()
+                    .Where(caseEntity => caseEntity.FriendlyId.StartsWith(prefix))
+                    .OrderByDescending(caseEntity => caseEntity.FriendlyId)
+                    .Select(caseEntity => caseEntity.FriendlyId)
+                    .FirstOrDefaultAsync();
 
             int nextSequence = 1;
             if (!string.IsNullOrEmpty(lastFriendlyId))
@@ -1825,14 +1845,18 @@ namespace Sentinel.Data
             var year = DateTime.UtcNow.Year;
             var prefix = $"C-{year}-";
 
-            // CRITICAL FIX: Use UPDLOCK to prevent race conditions
-            var lastFriendlyId = Database.SqlQueryRaw<string>(
-                @"SELECT TOP 1 FriendlyId AS Value 
-                  FROM Cases WITH (UPDLOCK, ROWLOCK) 
-                  WHERE FriendlyId LIKE {0} 
-                  ORDER BY FriendlyId DESC", 
-                prefix + "%")
-                .FirstOrDefault();
+            var lastFriendlyId = Database.IsRelational()
+                ? Database.SqlQueryRaw<string>(
+                    @"SELECT TOP 1 FriendlyId AS Value 
+                      FROM Cases WITH (UPDLOCK, ROWLOCK) 
+                      WHERE FriendlyId LIKE {0} 
+                      ORDER BY FriendlyId DESC",
+                    prefix + "%").FirstOrDefault()
+                : Cases.IgnoreQueryFilters()
+                    .Where(caseEntity => caseEntity.FriendlyId.StartsWith(prefix))
+                    .OrderByDescending(caseEntity => caseEntity.FriendlyId)
+                    .Select(caseEntity => caseEntity.FriendlyId)
+                    .FirstOrDefault();
 
             int nextSequence = 1;
             if (!string.IsNullOrEmpty(lastFriendlyId))
@@ -1872,15 +1896,20 @@ namespace Sentinel.Data
             var year = DateTime.UtcNow.Year;
             var prefix = $"LAB-{year}-";
 
-            // CRITICAL FIX: Use UPDLOCK to prevent race conditions
-            // Multiple concurrent transactions will queue here instead of reading the same value
-            var lastFriendlyId = await Database.SqlQueryRaw<string>(
-                @"SELECT TOP 1 FriendlyId AS Value 
-                  FROM LabResults WITH (UPDLOCK, ROWLOCK) 
-                  WHERE FriendlyId LIKE {0} 
-                  ORDER BY FriendlyId DESC", 
-                prefix + "%")
-                .FirstOrDefaultAsync();
+            // SQL Server retains its update-lock allocation path in production.
+            // The non-relational branch is for isolated test providers only.
+            var lastFriendlyId = Database.IsRelational()
+                ? await Database.SqlQueryRaw<string>(
+                    @"SELECT TOP 1 FriendlyId AS Value 
+                      FROM LabResults WITH (UPDLOCK, ROWLOCK) 
+                      WHERE FriendlyId LIKE {0} 
+                      ORDER BY FriendlyId DESC",
+                    prefix + "%").FirstOrDefaultAsync()
+                : await LabResults.IgnoreQueryFilters()
+                    .Where(labResult => labResult.FriendlyId.StartsWith(prefix))
+                    .OrderByDescending(labResult => labResult.FriendlyId)
+                    .Select(labResult => labResult.FriendlyId)
+                    .FirstOrDefaultAsync();
 
             int nextSequence = 1;
             if (!string.IsNullOrEmpty(lastFriendlyId))
@@ -1938,14 +1967,18 @@ namespace Sentinel.Data
             var year = DateTime.UtcNow.Year;
             var prefix = $"LAB-{year}-";
 
-            // CRITICAL FIX: Use UPDLOCK to prevent race conditions
-            var lastFriendlyId = Database.SqlQueryRaw<string>(
-                @"SELECT TOP 1 FriendlyId AS Value 
-                  FROM LabResults WITH (UPDLOCK, ROWLOCK) 
-                  WHERE FriendlyId LIKE {0} 
-                  ORDER BY FriendlyId DESC", 
-                prefix + "%")
-                .FirstOrDefault();
+            var lastFriendlyId = Database.IsRelational()
+                ? Database.SqlQueryRaw<string>(
+                    @"SELECT TOP 1 FriendlyId AS Value 
+                      FROM LabResults WITH (UPDLOCK, ROWLOCK) 
+                      WHERE FriendlyId LIKE {0} 
+                      ORDER BY FriendlyId DESC",
+                    prefix + "%").FirstOrDefault()
+                : LabResults.IgnoreQueryFilters()
+                    .Where(labResult => labResult.FriendlyId.StartsWith(prefix))
+                    .OrderByDescending(labResult => labResult.FriendlyId)
+                    .Select(labResult => labResult.FriendlyId)
+                    .FirstOrDefault();
 
             int nextSequence = 1;
             if (!string.IsNullOrEmpty(lastFriendlyId))
@@ -2040,14 +2073,18 @@ namespace Sentinel.Data
             var year = DateTime.UtcNow.Year;
             var prefix = $"O-{year}-";
 
-            // CRITICAL FIX: Use UPDLOCK to prevent race conditions
-            var lastFriendlyId = await Database.SqlQueryRaw<string>(
-                @"SELECT TOP 1 FriendlyId AS Value 
-                  FROM Organizations WITH (UPDLOCK, ROWLOCK) 
-                  WHERE FriendlyId LIKE {0} 
-                  ORDER BY FriendlyId DESC", 
-                prefix + "%")
-                .FirstOrDefaultAsync();
+            var lastFriendlyId = Database.IsRelational()
+                ? await Database.SqlQueryRaw<string>(
+                    @"SELECT TOP 1 FriendlyId AS Value 
+                      FROM Organizations WITH (UPDLOCK, ROWLOCK) 
+                      WHERE FriendlyId LIKE {0} 
+                      ORDER BY FriendlyId DESC",
+                    prefix + "%").FirstOrDefaultAsync()
+                : await Organizations.IgnoreQueryFilters()
+                    .Where(organization => organization.FriendlyId.StartsWith(prefix))
+                    .OrderByDescending(organization => organization.FriendlyId)
+                    .Select(organization => organization.FriendlyId)
+                    .FirstOrDefaultAsync();
 
             int nextSequence = 1;
             if (!string.IsNullOrEmpty(lastFriendlyId))
@@ -2067,14 +2104,18 @@ namespace Sentinel.Data
             var year = DateTime.UtcNow.Year;
             var prefix = $"O-{year}-";
 
-            // CRITICAL FIX: Use UPDLOCK to prevent race conditions
-            var lastFriendlyId = Database.SqlQueryRaw<string>(
-                @"SELECT TOP 1 FriendlyId AS Value 
-                  FROM Organizations WITH (UPDLOCK, ROWLOCK) 
-                  WHERE FriendlyId LIKE {0} 
-                  ORDER BY FriendlyId DESC", 
-                prefix + "%")
-                .FirstOrDefault();
+            var lastFriendlyId = Database.IsRelational()
+                ? Database.SqlQueryRaw<string>(
+                    @"SELECT TOP 1 FriendlyId AS Value 
+                      FROM Organizations WITH (UPDLOCK, ROWLOCK) 
+                      WHERE FriendlyId LIKE {0} 
+                      ORDER BY FriendlyId DESC",
+                    prefix + "%").FirstOrDefault()
+                : Organizations.IgnoreQueryFilters()
+                    .Where(organization => organization.FriendlyId.StartsWith(prefix))
+                    .OrderByDescending(organization => organization.FriendlyId)
+                    .Select(organization => organization.FriendlyId)
+                    .FirstOrDefault();
 
             int nextSequence = 1;
             if (!string.IsNullOrEmpty(lastFriendlyId))
@@ -2525,7 +2566,13 @@ namespace Sentinel.Data
                 return (IQueryable<T>)GetDeletedExposureEventsQuery();
             }
 
-            return Set<T>().IgnoreQueryFilters();
+            // A generic fallback here would silently bypass every global filter for
+            // a newly added entity type. Keep this list explicit so a developer has
+            // to decide how soft-deleted records remain subject to object-level and
+            // disease-hierarchy visibility before exposing them.
+            throw new NotSupportedException(
+                $"IncludeDeleted is not configured for entity type '{typeof(T).Name}'. " +
+                "Add an explicit, access-controlled query implementation first.");
         }
 
         public IQueryable<T> OnlyDeleted<T>() where T : class, ISoftDeletable

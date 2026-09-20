@@ -1,8 +1,6 @@
 // Report Builder Notifications System
 // Provides toast notifications and modal confirmations without blocking alert/confirm dialogs
 
-console.log('[report-builder-notifications.js] Loading...');
-
 function escapeNotificationHtml(value) {
     const element = document.createElement('div');
     element.textContent = value ?? '';
@@ -244,4 +242,3 @@ style.textContent = `
 `;
 document.head.appendChild(style);
 
-console.log('[report-builder-notifications.js] Loaded successfully');

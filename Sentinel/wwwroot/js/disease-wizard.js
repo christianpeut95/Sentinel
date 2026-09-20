@@ -1,6 +1,6 @@
 // Disease Creation Wizard JavaScript
 let currentStep = 1;
-const totalSteps = 5;
+const totalSteps = 6;
 
 document.addEventListener('DOMContentLoaded', function () {
     // Show initial step
@@ -155,8 +155,8 @@ function populateReview() {
     document.getElementById('review-category').textContent = 
         categorySelect.options[categorySelect.selectedIndex]?.text || 'None';
     
-    const notifiable = document.querySelector('[name="Disease.IsNotifiable"]').checked;
-    document.getElementById('review-notifiable').textContent = notifiable ? 'Yes' : 'No';
+    const notifiableInput = document.querySelector('[name="Disease.IsNotifiable"]');
+    document.getElementById('review-notifiable').textContent = notifiableInput?.checked ? 'Yes' : 'No';
 
     // Child diseases
     const createChildren = document.getElementById('createChildrenToggle').checked;
@@ -168,11 +168,10 @@ function populateReview() {
         const lines = childText.split('\n').filter(l => l.trim());
         
         if (lines.length > 0) {
-            const list = '<ul class="mb-0">' + 
-                lines.map(l => '<li>' + l.split('|')[0] + '</li>').join('') + 
-                '</ul>';
-            document.getElementById('review-children-list').innerHTML = 
-                '<strong>' + lines.length + ' child disease(s):</strong>' + list;
+            renderReviewList(
+                document.getElementById('review-children-list'),
+                `${lines.length} child disease(s):`,
+                lines.map(l => l.split('|')[0]));
         } else {
             document.getElementById('review-children-list').textContent = 'None specified';
         }
@@ -192,11 +191,10 @@ function populateReview() {
     const symptomsCard = document.getElementById('review-symptoms-card');
     if (selectedSymptoms.length > 0) {
         symptomsCard.style.display = 'block';
-        const list = '<ul class="mb-0">' + 
-            selectedSymptoms.map(s => '<li>' + s + '</li>').join('') + 
-            '</ul>';
-        document.getElementById('review-symptoms-list').innerHTML = 
-            '<strong>' + selectedSymptoms.length + ' symptom(s):</strong>' + list;
+        renderReviewList(
+            document.getElementById('review-symptoms-list'),
+            `${selectedSymptoms.length} symptom(s):`,
+            selectedSymptoms);
     } else {
         symptomsCard.style.display = 'none';
     }
@@ -211,12 +209,29 @@ function populateReview() {
     const fieldsCard = document.getElementById('review-fields-card');
     if (selectedFields.length > 0) {
         fieldsCard.style.display = 'block';
-        const list = '<ul class="mb-0">' + 
-            selectedFields.map(f => '<li>' + f + '</li>').join('') + 
-            '</ul>';
-        document.getElementById('review-fields-list').innerHTML = 
-            '<strong>' + selectedFields.length + ' custom field(s):</strong>' + list;
+        renderReviewList(
+            document.getElementById('review-fields-list'),
+            `${selectedFields.length} custom field(s):`,
+            selectedFields);
     } else {
         fieldsCard.style.display = 'none';
     }
+}
+
+function renderReviewList(container, heading, items) {
+    container.replaceChildren();
+
+    const title = document.createElement('strong');
+    title.textContent = heading;
+    container.appendChild(title);
+
+    const list = document.createElement('ul');
+    list.className = 'mb-0';
+    items.forEach(item => {
+        const listItem = document.createElement('li');
+        listItem.textContent = item;
+        list.appendChild(listItem);
+    });
+
+    container.appendChild(list);
 }

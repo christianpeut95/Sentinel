@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Sentinel.Data;
 using Sentinel.Models.Reporting;
+using Sentinel.Services.Reporting;
 using System.Security.Claims;
 
 namespace Sentinel.Controllers.Api;
@@ -15,29 +16,12 @@ namespace Sentinel.Controllers.Api;
 public class ReportsApiController : ControllerBase
 {
     private readonly ApplicationDbContext _context;
+    private readonly IReportFolderService _folderService;
 
-    public ReportsApiController(ApplicationDbContext context)
+    public ReportsApiController(ApplicationDbContext context, IReportFolderService folderService)
     {
         _context = context;
-    }
-
-    [HttpDelete("{id}")]
-    public async Task<IActionResult> DeleteReport(int id)
-    {
-        var userId = User.Identity?.Name;
-        if (string.IsNullOrEmpty(userId))
-            return Unauthorized();
-
-        var report = await _context.ReportDefinitions
-            .FirstOrDefaultAsync(r => r.Id == id && r.CreatedByUserId == userId);
-
-        if (report == null)
-            return NotFound();
-
-        _context.ReportDefinitions.Remove(report);
-        await _context.SaveChangesAsync();
-
-        return NoContent();
+        _folderService = folderService;
     }
 
     [HttpPost("{id}/duplicate")]
@@ -138,6 +122,13 @@ public class ReportsApiController : ControllerBase
 
         if (report == null)
             return NotFound();
+
+        if (request.FolderId.HasValue &&
+            !await _folderService.CanEditFolderAsync(request.FolderId.Value, userId))
+        {
+            // Do not reveal whether a target folder exists or is private.
+            return NotFound();
+        }
 
         report.FolderId = request.FolderId;
         report.ModifiedAt = DateTime.UtcNow;

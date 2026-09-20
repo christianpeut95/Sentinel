@@ -66,6 +66,16 @@
         color: var(--signal-dk);
     }
 
+    .contacts-secondary-action:hover {
+        background: var(--signal-lt) !important;
+        border-color: var(--signal-dk) !important;
+    }
+
+    .contacts-primary-action:hover,
+    .contacts-apply-filter:hover {
+        background: var(--forest) !important;
+    }
+
     /* Utility Classes */
     .apple-table {
         width: 100%;
@@ -424,11 +434,11 @@
         <p style="font-size: 13px; color: #718096; font-weight: 400; margin-top: 0.15rem;">Contacts under monitoring and follow-up</p>
     </div>
     <div class="d-flex gap-2 flex-wrap">
-        <a asp-page="/Cases/Search" asp-route-type="Contact" class="btn" style="background: white; color: var(--signal-dk); font-weight: 600; border: 1px solid var(--hairline); padding: 0.5rem 1rem; border-radius: var(--radius-sm); transition: all 0.2s; text-decoration: none; display: inline-flex; align-items: center; gap: 6px; font-size: 14px;" onmouseover="this.style.background='var(--signal-lt)'; this.style.borderColor='var(--signal-dk)';" onmouseout="this.style.background='white'; this.style.borderColor='var(--hairline)';">
+        <a asp-page="/Cases/Search" asp-route-type="Contact" class="btn contacts-secondary-action" style="background: white; color: var(--signal-dk); font-weight: 600; border: 1px solid var(--hairline); padding: 0.5rem 1rem; border-radius: var(--radius-sm); transition: all 0.2s; text-decoration: none; display: inline-flex; align-items: center; gap: 6px; font-size: 14px;">
             <i class="bi bi-search"></i>
             Advanced Search
         </a>
-        <a asp-page="./CreateNewContact" class="btn" style="background: var(--signal-dk); color: white; font-weight: 600; border: none; padding: 0.5rem 1rem; border-radius: var(--radius-sm); transition: all 0.2s; text-decoration: none; display: inline-flex; align-items: center; gap: 6px; font-size: 14px;" onmouseover="this.style.background='var(--forest)';" onmouseout="this.style.background='var(--signal-dk)';">
+        <a asp-page="./CreateNewContact" class="btn contacts-primary-action" style="background: var(--signal-dk); color: white; font-weight: 600; border: none; padding: 0.5rem 1rem; border-radius: var(--radius-sm); transition: all 0.2s; text-decoration: none; display: inline-flex; align-items: center; gap: 6px; font-size: 14px;">
             <i class="bi bi-plus-circle"></i>
             Add New Contact
         </a>
@@ -465,7 +475,7 @@
                 </select>
             </div>
             <div class="col-md-2">
-                <button type="submit" class="btn btn-sm w-100" style="background: var(--signal-dk); color: white; border: none;" onmouseover="this.style.background='var(--forest)';" onmouseout="this.style.background='var(--signal-dk)';">Apply</button>
+                <button type="submit" class="btn btn-sm w-100 contacts-apply-filter" style="background: var(--signal-dk); color: white; border: none;">Apply</button>
             </div>
         </form>
     </div>
@@ -497,7 +507,7 @@
         <i class="bi bi-people"></i>
         <h3>No Contacts Yet</h3>
         <p>Add contacts to track and monitor exposure events.</p>
-        <a asp-page="./CreateNewContact" class="btn" style="background: var(--signal-dk); color: white; font-weight: 600; border: none; padding: 0.5rem 1rem; border-radius: var(--radius-sm); text-decoration: none; display: inline-flex; align-items: center; gap: 6px; font-size: 14px;" onmouseover="this.style.background='var(--forest)';" onmouseout="this.style.background='var(--signal-dk)';">
+        <a asp-page="./CreateNewContact" class="btn contacts-primary-action" style="background: var(--signal-dk); color: white; font-weight: 600; border: none; padding: 0.5rem 1rem; border-radius: var(--radius-sm); text-decoration: none; display: inline-flex; align-items: center; gap: 6px; font-size: 14px;">
             <i class="bi bi-plus-circle"></i>
             Add First Contact
         </a>
@@ -559,12 +569,12 @@ else
                         // Get exposures where this contact IS the RelatedCaseId
                         var exposures = Model.ContactExposures.ContainsKey(item.Id) ? Model.ContactExposures[item.Id] : new List<ExposureEvent>();
 
-                        <tr onclick="window.location.href='@Url.Page("./Details", new { id = item.Id })'">
+                        <tr class="contact-row" data-details-url="@Url.Page("./Details", new { id = item.Id })" tabindex="0">
                             <td>
                                 <span class="friendly-id">@item.FriendlyId</span>
                             </td>
                             <td>
-                                <a asp-page="/Patients/Details" asp-route-id="@item.PatientId" class="patient-link" onclick="event.stopPropagation()">
+                                <a asp-page="/Patients/Details" asp-route-id="@item.PatientId" class="patient-link">
                                     @item.Patient?.FamilyName, @item.Patient?.GivenName
                                 </a>
                             </td>
@@ -610,7 +620,7 @@ else
                                     <span style="color: #94a3b8; font-style: italic;">Not specified</span>
                                 }
                             </td>
-                            <td onclick="event.stopPropagation()">
+                            <td>
                                 @if (exposures.Any())
                                 {
                                     <div class="exposure-details">
@@ -671,7 +681,7 @@ else
                                 }
                                 <span class="case-badge @badgeClass">@statusName</span>
                             </td>
-                            <td style="text-align: center;" onclick="event.stopPropagation()">
+                            <td style="text-align: center;">
                                 <a asp-page="./Details" asp-route-id="@item.Id" class="btn-icon" title="View Details">
                                     <i class="bi bi-eye"></i>
                                 </a>
@@ -723,4 +733,34 @@ else
             </div>
         }
     </div>
+}
+
+@section Scripts {
+    <script>
+        document.querySelectorAll('.contact-row[data-details-url]').forEach((row) => {
+            const navigateToDetails = () => {
+                const destination = new URL(row.dataset.detailsUrl, window.location.origin);
+                if (destination.origin === window.location.origin) {
+                    window.location.assign(destination.pathname + destination.search + destination.hash);
+                }
+            };
+
+            row.addEventListener('click', (event) => {
+                if (event.target.closest('a, button, input, select, textarea, label')) {
+                    return;
+                }
+
+                navigateToDetails();
+            });
+
+            row.addEventListener('keydown', (event) => {
+                if (event.target !== row || (event.key !== 'Enter' && event.key !== ' ')) {
+                    return;
+                }
+
+                event.preventDefault();
+                navigateToDetails();
+            });
+        });
+    </script>
 }

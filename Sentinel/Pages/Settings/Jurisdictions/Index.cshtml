@@ -60,7 +60,7 @@
             <form method="get" class="row g-3 align-items-end">
                 <div class="col-md-4">
                     <label for="filterType" class="form-label">Filter by Jurisdiction Type</label>
-                    <select asp-for="FilterTypeId" class="form-select" id="filterType" onchange="this.form.submit()">
+                    <select asp-for="FilterTypeId" class="form-select js-auto-submit-filter" id="filterType">
                         <option value="">All Types</option>
                         @foreach (var type in Model.JurisdictionTypes)
                         {

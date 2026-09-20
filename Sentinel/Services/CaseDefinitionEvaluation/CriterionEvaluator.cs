@@ -68,7 +68,7 @@ namespace Sentinel.Services.CaseDefinitionEvaluation
             {
                 _logger.LogError(ex, "       ❌ Exception during evaluation");
                 result.IsMatch = false;
-                result.ErrorMessage = $"Evaluation error: {ex.Message}";
+                result.ErrorMessage = "The criterion could not be evaluated. Review the application logs for technical details.";
             }
 
             return result;

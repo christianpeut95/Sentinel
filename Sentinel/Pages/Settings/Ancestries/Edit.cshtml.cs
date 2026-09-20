@@ -48,7 +48,14 @@ namespace Sentinel.Pages.Settings.Ancestries
                 return Page();
             }
 
-            _context.Attach(Ancestry).State = EntityState.Modified;
+            var ancestryToUpdate = await _context.Ancestries.FindAsync(Ancestry.Id);
+            if (ancestryToUpdate == null)
+            {
+                return NotFound();
+            }
+
+            ancestryToUpdate.Name = Ancestry.Name;
+            ancestryToUpdate.IsActive = Ancestry.IsActive;
 
             try
             {

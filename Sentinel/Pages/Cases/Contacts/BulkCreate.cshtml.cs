@@ -17,6 +17,8 @@ namespace Sentinel.Pages.Cases.Contacts;
 [Authorize(Policy = "Permission.Case.Create")]
 [Authorize(Policy = "Permission.Case.Edit")]
 [Authorize(Policy = "Permission.Contact.Import")]
+[RequestSizeLimit(5 * 1024 * 1024)]
+[RequestFormLimits(MultipartBodyLengthLimit = 5 * 1024 * 1024)]
 public class BulkCreateModel : PageModel
 {
     private const long MaximumCsvBytes = 5 * 1024 * 1024;
@@ -26,19 +28,25 @@ public class BulkCreateModel : PageModel
     private readonly IPatientIdGeneratorService _patientIdGenerator;
     private readonly ICaseIdGeneratorService _caseIdGenerator;
     private readonly IOutbreakService _outbreakService;
+    private readonly IOutbreakAccessService _outbreakAccessService;
+    private readonly IAuthorizationService _authorizationService;
 
     public BulkCreateModel(
         ApplicationDbContext context,
         IDuplicateDetectionService duplicateDetectionService,
         IPatientIdGeneratorService patientIdGenerator,
         ICaseIdGeneratorService caseIdGenerator,
-        IOutbreakService outbreakService)
+        IOutbreakService outbreakService,
+        IOutbreakAccessService outbreakAccessService,
+        IAuthorizationService authorizationService)
     {
         _context = context;
         _duplicateDetectionService = duplicateDetectionService;
         _patientIdGenerator = patientIdGenerator;
         _caseIdGenerator = caseIdGenerator;
         _outbreakService = outbreakService;
+        _outbreakAccessService = outbreakAccessService;
+        _authorizationService = authorizationService;
     }
 
     // Route parameters
@@ -86,6 +94,11 @@ public class BulkCreateModel : PageModel
 
     public async Task<IActionResult> OnGetAsync()
     {
+        if (!await CanUseSelectedReferencesAsync())
+        {
+            return NotFound();
+        }
+
         await LoadPageDataAsync();
 
         if (SourceCase == null)
@@ -130,6 +143,11 @@ public class BulkCreateModel : PageModel
 
     public async Task<IActionResult> OnPostUploadCsvAsync(IFormFile csvFile)
     {
+        if (!await CanUseSelectedReferencesAsync())
+        {
+            return NotFound();
+        }
+
         if (csvFile == null || csvFile.Length == 0)
         {
             ErrorMessage = "Please select a CSV file to upload.";
@@ -244,11 +262,33 @@ public class BulkCreateModel : PageModel
 
     public async Task<IActionResult> OnPostConfirmAsync()
     {
+        if (!await CanUseSelectedReferencesAsync())
+        {
+            return NotFound();
+        }
+
         // Load page data first (needed for SourceCase)
         await LoadPageDataAsync();
 
         if (SourceCase == null)
             return NotFound();
+
+        if (OutbreakId.HasValue)
+        {
+            var canEditOutbreaks = (await _authorizationService
+                .AuthorizeAsync(User, "Permission.Outbreak.Edit"))
+                .Succeeded;
+
+            if (!canEditOutbreaks)
+            {
+                return Forbid();
+            }
+
+            if (!await _outbreakAccessService.CanAccessOutbreakAsync(OutbreakId.Value))
+            {
+                return NotFound();
+            }
+        }
 
         if (!ContactList.Any())
         {
@@ -281,7 +321,10 @@ public class BulkCreateModel : PageModel
                 // Check if user wants to link to existing patient
                 if (contactDto.LinkToExistingPatientId.HasValue)
                 {
-                    patient = await _context.Patients.FindAsync(contactDto.LinkToExistingPatientId.Value);
+                    // Only attach a patient that is available through the same
+                    // patient/case visibility boundary as the import workflow.
+                    patient = await _context.Patients
+                        .FirstOrDefaultAsync(p => p.Id == contactDto.LinkToExistingPatientId.Value);
                     if (patient == null)
                         continue;
                     linkedCount++;
@@ -391,8 +434,43 @@ public class BulkCreateModel : PageModel
             "Name");
     }
 
+    private async Task<bool> CanUseSelectedReferencesAsync()
+    {
+        if (LocationId.HasValue)
+        {
+            if (!(await _authorizationService.AuthorizeAsync(User, "Permission.Location.View")).Succeeded ||
+                !await _context.Locations.AnyAsync(location =>
+                    location.Id == LocationId.Value && location.IsActive))
+            {
+                return false;
+            }
+        }
+
+        if (EventId.HasValue)
+        {
+            if (!(await _authorizationService.AuthorizeAsync(User, "Permission.Event.View")).Succeeded ||
+                !await _context.Events.AnyAsync(@event =>
+                    @event.Id == EventId.Value && @event.IsActive))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
     private async Task LoadOutbreaksAsync()
     {
+        var canEditOutbreaks = (await _authorizationService
+            .AuthorizeAsync(User, "Permission.Outbreak.Edit"))
+            .Succeeded;
+
+        if (!canEditOutbreaks)
+        {
+            OutbreaksList = new SelectList(Array.Empty<Outbreak>(), "Id", "Name");
+            return;
+        }
+
         var activeOutbreaks = await _outbreakService.GetActiveOutbreaksAsync();
         OutbreaksList = new SelectList(activeOutbreaks, "Id", "Name", OutbreakId);
     }

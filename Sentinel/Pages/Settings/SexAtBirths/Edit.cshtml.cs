@@ -43,12 +43,21 @@ namespace Sentinel.Pages.Settings.SexAtBirths
                 return Page();
             }
 
-            _context.Attach(SexAtBirth).State = EntityState.Modified;
+            var sexAtBirthToUpdate = await _context.SexAtBirths.FindAsync(SexAtBirth.Id);
+            if (sexAtBirthToUpdate == null)
+            {
+                return NotFound();
+            }
+
+            sexAtBirthToUpdate.Name = SexAtBirth.Name;
+            sexAtBirthToUpdate.Description = SexAtBirth.Description;
+            sexAtBirthToUpdate.DisplayOrder = SexAtBirth.DisplayOrder;
+            sexAtBirthToUpdate.IsActive = SexAtBirth.IsActive;
 
             try
             {
                 await _context.SaveChangesAsync();
-                TempData["SuccessMessage"] = $"Sex at Birth '{SexAtBirth.Name}' has been updated successfully.";
+                TempData["SuccessMessage"] = $"Sex at Birth '{sexAtBirthToUpdate.Name}' has been updated successfully.";
             }
             catch (DbUpdateConcurrencyException)
             {

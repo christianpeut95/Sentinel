@@ -20,10 +20,14 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>@ViewData["Title"] - Sentinel</title>
-    <link href="https://cdn.webdatarocks.com/latest/webdatarocks.css" rel="stylesheet" />
+    <link href="https://cdn.webdatarocks.com/1.4.23/webdatarocks.css" rel="stylesheet" />
     <link href="~/css/report-builder-compact.css" rel="stylesheet" />
 </head>
 <body>
+
+<form id="reportBuilderAntiforgeryToken" class="d-none" aria-hidden="true">
+    @Html.AntiForgeryToken()
+</form>
 
 <!-- Loading Overlay -->
 <div id="report-loading-overlay" class="rb-loading-overlay hidden">
@@ -339,6 +343,9 @@
         <div class="rb-status-item" style="margin-left: auto;">
             <span id="autoSaveStatus" style="opacity: 0.6; font-size: 0.85em;">Auto-save enabled</span>
         </div>
+        <div class="rb-status-item">
+            <a href="https://www.webdatarocks.com/" target="_blank" rel="noopener noreferrer">Powered by WebDataRocks</a>
+        </div>
     </div>
 </div>
 
@@ -360,21 +367,17 @@
 </div>
 
 <!-- Scripts -->
-<script src="https://cdn.webdatarocks.com/latest/webdatarocks.js"></script>
+<script src="https://cdn.webdatarocks.com/1.4.23/webdatarocks.js"></script>
 <script src="~/js/webdatarocks-helper.js?v=@DateTime.UtcNow.Ticks"></script>
-<script src="~/js/webdatarocks-debug.js?v=@DateTime.UtcNow.Ticks"></script>
 <script src="~/js/report-builder-notifications.js?v=@DateTime.UtcNow.Ticks"></script>
 <script src="~/js/report-builder.js?v=@DateTime.UtcNow.Ticks"></script>
 <script src="~/js/report-builder-collections.js?v=@DateTime.UtcNow.Ticks"></script>
 <script src="~/js/report-builder-actions.js?v=@DateTime.UtcNow.Ticks"></script>
 <script nonce="@GetCspNonce()">
     document.addEventListener('DOMContentLoaded', function() {
-        console.log('🚀 Initializing Report Builder...');
-
         // Initialize WebDataRocks modal positioning fix
         if (window.webDataRocksHelper && typeof window.webDataRocksHelper.fixModalPositioning === 'function') {
             window.webDataRocksHelper.fixModalPositioning();
-            console.log('✅ WebDataRocks modal positioning fix initialized');
         }
 
         // Initialize with saved report data
@@ -390,21 +393,17 @@
             previewConfiguration: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.PreviewConfigurationJson))
         };
 
-        console.log('📦 Saved report data:', savedReport);
-
         // Initialize the report builder
         if (typeof ReportBuilder !== 'undefined') {
             ReportBuilder.init(savedReport);
-            console.log('✅ ReportBuilder initialized');
         } else {
-            console.error('❌ ReportBuilder not found!');
+            console.error('Report Builder could not be initialised.');
         }
 
         // Tab switching
         document.querySelectorAll('.rb-tab').forEach(tab => {
             tab.addEventListener('click', function() {
                 const targetTab = this.getAttribute('data-tab');
-                console.log('🔄 Switching to tab:', targetTab);
 
                 // Update active states
                 document.querySelectorAll('.rb-tab').forEach(t => t.classList.remove('active'));
@@ -433,7 +432,6 @@
 
         if (btnAddFields && fieldBrowserModal) {
             btnAddFields.addEventListener('click', () => {
-                console.log('🔍 Opening field browser modal');
                 fieldBrowserModal.classList.remove('hidden');
             });
         }
@@ -453,12 +451,10 @@
         const pivotTab = document.querySelector('[data-tab="pivot"]');
         if (pivotTab) {
             pivotTab.addEventListener('click', function() {
-                console.log('📊 Pivot tab clicked');
                 const hasFields = ReportBuilder && ReportBuilder.state && ReportBuilder.state.fields.length > 0;
                 if (hasFields) {
                     setTimeout(() => {
                         if (typeof ReportBuilder.loadPivot === 'function') {
-                            console.log('🔄 Auto-loading pivot...');
                             ReportBuilder.loadPivot();
                         }
                     }, 100);
@@ -470,7 +466,6 @@
         const btnRefreshPreview = document.getElementById('btnRefreshPreview');
         if (btnRefreshPreview) {
             btnRefreshPreview.addEventListener('click', () => {
-                console.log('🔄 Manual preview refresh (Configure tab)');
                 if (typeof ReportBuilder.preview === 'function') {
                     ReportBuilder.preview();
                 }
@@ -481,7 +476,6 @@
         const btnRefreshPivot = document.getElementById('btnRefreshPivot');
         if (btnRefreshPivot) {
             btnRefreshPivot.addEventListener('click', () => {
-                console.log('🔄 Manual pivot refresh');
                 if (typeof ReportBuilder.loadPivot === 'function') {
                     ReportBuilder.loadPivot();
                 }
@@ -492,7 +486,6 @@
         const btnExportPivot = document.getElementById('btnExportPivot');
         if (btnExportPivot) {
             btnExportPivot.addEventListener('click', () => {
-                console.log('📤 Exporting pivot');
                 if (window.pivotGridInstance) {
                     window.pivotGridInstance.exportTo('excel');
                 }
@@ -512,8 +505,6 @@
                 });
             }
         });
-
-        console.log('✅ DOM event listeners attached');
     });
 </script>
 

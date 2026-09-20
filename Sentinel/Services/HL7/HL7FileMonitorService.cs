@@ -288,9 +288,8 @@ namespace Sentinel.Services.HL7
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Unhandled exception processing HL7 file: {FilePath} → Exception Type: {ExceptionType} → Message: {Message} → StackTrace: {StackTrace}", 
-                    filePath, ex.GetType().Name, ex.Message, ex.StackTrace);
-                result.Errors.Add($"Processing failed: {ex.Message}");
+                _logger.LogError(ex, "Unhandled exception processing HL7 file: {FilePath}", filePath);
+                result.Errors.Add("Processing failed. Check the application logs using the message control ID or file name.");
                 result.Success = false;
 
                 try
@@ -299,7 +298,7 @@ namespace Sentinel.Services.HL7
                     if (File.Exists(filePath))
                     {
                         _logger.LogInformation("File still exists after exception, moving to error folder: {FilePath}", filePath);
-                        await MoveFileToErrorAsync(filePath, result, ex.Message);
+                        await MoveFileToErrorAsync(filePath, result, "Unexpected processing failure. See application logs for details.");
                     }
                     else
                     {
@@ -495,8 +494,8 @@ namespace Sentinel.Services.HL7
                             ProcessedAt = DateTime.UtcNow,
                             Success = false
                         };
-                        errorResult.Errors.Add($"Unhandled exception: {ex.Message}");
-                        await MoveFileToErrorAsync(filePath, errorResult, $"Event handler exception: {ex.Message}");
+                        errorResult.Errors.Add("Unexpected processing failure. Check the application logs using the file name.");
+                        await MoveFileToErrorAsync(filePath, errorResult, "Unexpected event-handler failure. See application logs for details.");
                     }
                 }
                 catch (Exception moveEx)
@@ -530,7 +529,7 @@ namespace Sentinel.Services.HL7
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Failed to move file to processed folder: {FilePath}", sourceFile);
-                result.Warnings.Add($"Could not move file to processed folder: {ex.Message}");
+                result.Warnings.Add("Could not move the file to the processed folder. Check the application logs for details.");
             }
         }
 
@@ -560,7 +559,7 @@ namespace Sentinel.Services.HL7
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Failed to move file to error folder: {FilePath}", sourceFile);
-                result.Warnings.Add($"Could not move file to error folder: {ex.Message}");
+                result.Warnings.Add("Could not move the file to the error folder. Check the application logs for details.");
             }
         }
 
@@ -590,7 +589,7 @@ namespace Sentinel.Services.HL7
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Failed to move file to review folder: {FilePath}", sourceFile);
-                result.Warnings.Add($"Could not move file to review folder: {ex.Message}");
+                result.Warnings.Add("Could not move the file to the review folder. Check the application logs for details.");
             }
         }
 

@@ -8,6 +8,7 @@ using Sentinel.Models;
 namespace Sentinel.Pages.Cases
 {
     [Authorize(Policy = "Permission.Laboratory.View")]
+    [Authorize(Policy = "Permission.Case.View")]
     public class ViewLabResultModel : PageModel
     {
         private readonly ApplicationDbContext _context;
@@ -19,7 +20,7 @@ namespace Sentinel.Pages.Cases
 
         public LabResult LabResult { get; set; }
 
-        public async Task<IActionResult> OnGetAsync(Guid labResultId)
+        public async Task<IActionResult> OnGetAsync(Guid labResultId, Guid caseId)
         {
             LabResult = await _context.LabResults
                 .Include(lr => lr.Laboratory)
@@ -29,7 +30,7 @@ namespace Sentinel.Pages.Cases
                 .Include(lr => lr.TestedDisease)
                 .Include(lr => lr.Markers).ThenInclude(m => m.Pathogen)
                 .Include(lr => lr.Markers).ThenInclude(m => m.TestMethod)
-                .FirstOrDefaultAsync(lr => lr.Id == labResultId);
+                .FirstOrDefaultAsync(lr => lr.Id == labResultId && lr.CaseId == caseId);
 
             if (LabResult == null)
             {

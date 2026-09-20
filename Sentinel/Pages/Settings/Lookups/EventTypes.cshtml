@@ -120,7 +120,7 @@
                                 </a>
                                 @if (!item.IsActive || !Model.EventCounts.ContainsKey(item.Id) || Model.EventCounts[item.Id] == 0)
                                 {
-                                    <button type="button" class="btn btn-outline-danger" onclick="confirmDelete(@item.Id, '@item.Name')" title="Delete">
+                                    <button type="button" class="btn btn-outline-danger" data-browser-action="confirm-lookup-delete" data-item-id="@item.Id" data-item-name="@item.Name" title="Delete">
                                         <i class="bi bi-trash"></i>
                                     </button>
                                 }

@@ -107,7 +107,9 @@ namespace Sentinel.Pages.Cases
         {
             CaseId = caseId;
 
-            Case = await _context.Cases.FindAsync(Guid.Parse(caseId));
+            // Resolve through the normal query filter so a posted identifier cannot
+            // create a task against a case outside the caller's disease scope.
+            Case = await _context.Cases.FirstOrDefaultAsync(c => c.Id == Guid.Parse(caseId));
             if (Case == null)
             {
                 return NotFound();

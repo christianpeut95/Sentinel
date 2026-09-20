@@ -18,10 +18,12 @@ namespace Sentinel.Pages.Cases
     public class IndexModel : PageModel
     {
         private readonly ApplicationDbContext _context;
+        private readonly IPermissionService _permissionService;
 
-        public IndexModel(ApplicationDbContext context)
+        public IndexModel(ApplicationDbContext context, IPermissionService permissionService)
         {
             _context = context;
+            _permissionService = permissionService;
         }
 
         public IList<Case> Cases { get; set; } = default!;
@@ -32,6 +34,7 @@ namespace Sentinel.Pages.Cases
         public int TotalPages { get; set; }
         public int PageSize { get; set; } = 20;
         public int TotalCount { get; set; }
+        public bool CanEditCases { get; private set; }
         
         // Sorting properties
         [BindProperty(SupportsGet = true)]
@@ -48,6 +51,10 @@ namespace Sentinel.Pages.Cases
 
         public async Task OnGetAsync()
         {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            CanEditCases = !string.IsNullOrWhiteSpace(userId) &&
+                await _permissionService.HasPermissionAsync(userId, PermissionModule.Case, PermissionAction.Edit);
+
             // Note: Disease access filtering now handled by global query filter in DbContext
             // No need to manually filter by accessibleDiseaseIds
 

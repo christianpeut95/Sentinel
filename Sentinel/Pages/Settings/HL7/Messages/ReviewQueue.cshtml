@@ -11,6 +11,24 @@
 
 @section Scripts {
     <script src="~/js/review-queue.js"></script>
+    <script>
+        document.addEventListener('click', (event) => {
+            const pageButton = event.target.closest('.js-review-page');
+            if (!pageButton || pageButton.disabled) {
+                return;
+            }
+
+            const page = Number(pageButton.dataset.reviewPage);
+            if (!Number.isSafeInteger(page) || page < 1) {
+                return;
+            }
+
+            const filters = new FormData(document.querySelector('.review-filter-panel form'));
+            const parameters = new URLSearchParams(filters);
+            parameters.set('CurrentPage', String(page));
+            window.location.assign(`${window.location.pathname}?${parameters.toString()}`);
+        });
+    </script>
 }
 
 <div class="review-queue-header">
@@ -141,14 +159,14 @@ else
                         @if (!string.IsNullOrEmpty(message.ErrorMessage))
                         {
                             <div class="review-error-alert">
-                                <strong>Error:</strong> @message.ErrorMessage
+                                <strong>Processing error:</strong> Technical details are available in the application logs using this message ID.
                             </div>
                         }
 
                         @if (!string.IsNullOrEmpty(message.ProcessingNotes))
                         {
                             <div class="review-notes">
-                                <strong>Notes:</strong> @message.ProcessingNotes
+                                <strong>Processing information:</strong> Technical details are available in the application logs using this message ID.
                             </div>
                         }
 
@@ -273,16 +291,16 @@ else
     @if (Model.TotalPages > 1)
     {
         <div class="review-pagination">
-            <button class="review-page-btn" @(Model.CurrentPage == 1 ? "disabled" : "") onclick="window.location.href='?CurrentPage=@(Model.CurrentPage - 1)&FacilityFilter=@Model.FacilityFilter&DateFromFilter=@Model.DateFromFilter&DateToFilter=@Model.DateToFilter'">
+            <button type="button" class="review-page-btn js-review-page" @(Model.CurrentPage == 1 ? "disabled" : "") data-review-page="@(Model.CurrentPage - 1)">
                 ← Previous
             </button>
             @for (int i = 1; i <= Model.TotalPages; i++)
             {
-                <button class="review-page-btn @(i == Model.CurrentPage ? "active" : "")" onclick="window.location.href='?CurrentPage=@i&FacilityFilter=@Model.FacilityFilter&DateFromFilter=@Model.DateFromFilter&DateToFilter=@Model.DateToFilter'">
+                <button type="button" class="review-page-btn js-review-page @(i == Model.CurrentPage ? "active" : "")" data-review-page="@i">
                     @i
                 </button>
             }
-            <button class="review-page-btn" @(Model.CurrentPage == Model.TotalPages ? "disabled" : "") onclick="window.location.href='?CurrentPage=@(Model.CurrentPage + 1)&FacilityFilter=@Model.FacilityFilter&DateFromFilter=@Model.DateFromFilter&DateToFilter=@Model.DateToFilter'">
+            <button type="button" class="review-page-btn js-review-page" @(Model.CurrentPage == Model.TotalPages ? "disabled" : "") data-review-page="@(Model.CurrentPage + 1)">
                 Next →
             </button>
         </div>

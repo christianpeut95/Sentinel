@@ -16,11 +16,16 @@ namespace Sentinel.Pages.Cases.Exposures
     {
         private readonly ApplicationDbContext _context;
         private readonly IExposureRequirementService _exposureRequirementService;
+        private readonly IAuthorizationService _authorizationService;
 
-        public CreateModel(ApplicationDbContext context, IExposureRequirementService exposureRequirementService)
+        public CreateModel(
+            ApplicationDbContext context,
+            IExposureRequirementService exposureRequirementService,
+            IAuthorizationService authorizationService)
         {
             _context = context;
             _exposureRequirementService = exposureRequirementService;
+            _authorizationService = authorizationService;
         }
 
         [BindProperty(SupportsGet = true)]
@@ -134,10 +139,31 @@ namespace Sentinel.Pages.Cases.Exposures
 
         public async Task<IActionResult> OnPostAsync()
         {
+            // Never trust the case ID carried by the form.  Resolving it through the
+            // normal query filter both confirms that it exists and applies the
+            // caller's hierarchy-aware disease access.
+            var caseEntity = await _context.Cases.FirstOrDefaultAsync(c => c.Id == CaseId);
+            if (caseEntity == null)
+            {
+                return NotFound();
+            }
+
+            Exposure.ExposedCaseId = caseEntity.Id;
+
+            if (Exposure.SourceCaseId.HasValue &&
+                !await _context.Cases.AnyAsync(c => c.Id == Exposure.SourceCaseId.Value))
+            {
+                ModelState.AddModelError(nameof(Exposure.SourceCaseId), "The selected source case is not available.");
+            }
+
+            if (!await CanUseReferencesAsync(Exposure))
+            {
+                return NotFound();
+            }
+
             if (!ModelState.IsValid)
             {
                 await LoadSelectLists();
-                var caseEntity = await _context.Cases.FindAsync(CaseId);
                 CaseFriendlyId = caseEntity?.FriendlyId ?? "";
                 TempData["ErrorMessage"] = "Please correct the errors and try again.";
                 return Page();
@@ -147,7 +173,6 @@ namespace Sentinel.Pages.Cases.Exposures
             if (!ValidateExposureTypeFields())
             {
                 await LoadSelectLists();
-                var caseEntity = await _context.Cases.FindAsync(CaseId);
                 CaseFriendlyId = caseEntity?.FriendlyId ?? "";
                 return Page();
             }
@@ -157,7 +182,6 @@ namespace Sentinel.Pages.Cases.Exposures
             {
                 ModelState.AddModelError("Exposure.ExposureEndDate", "End date/time must be after start date/time.");
                 await LoadSelectLists();
-                var caseEntity = await _context.Cases.FindAsync(CaseId);
                 CaseFriendlyId = caseEntity?.FriendlyId ?? "";
                 return Page();
             }
@@ -199,34 +223,7 @@ namespace Sentinel.Pages.Cases.Exposures
 
             try
             {
-                // DIAGNOSTIC LOGGING
-                Console.WriteLine("=== ADD EXPOSURE DIAGNOSTIC ===");
-                Console.WriteLine($"Exposed Case ID: {Exposure.ExposedCaseId}");
-                Console.WriteLine($"Exposure ID: {Exposure.Id}");
-                Console.WriteLine($"Exposure Type: {Exposure.ExposureType}");
-                Console.WriteLine($"Start Date: {Exposure.ExposureStartDate}");
-                Console.WriteLine($"Database: {_context.Database.GetConnectionString()}");
-                Console.WriteLine($"DbContext Hash: {_context.GetHashCode()}");
-
-                Console.WriteLine("About to add Exposure to context...");
                 _context.ExposureEvents.Add(Exposure);
-                
-                Console.WriteLine("About to call SaveChangesAsync...");
-                var changeCount = await _context.SaveChangesAsync();
-                Console.WriteLine($"SaveChanges completed. Changes saved: {changeCount}");
-                Console.WriteLine($"Exposure ID after save: {Exposure.Id}");
-                
-                // Verify it was actually saved
-                var verifyResult = await _context.ExposureEvents
-                    .Where(e => e.Id == Exposure.Id)
-                    .FirstOrDefaultAsync();
-                Console.WriteLine($"Verification query result: {(verifyResult != null ? "FOUND" : "NOT FOUND")}");
-                
-                if (verifyResult == null)
-                {
-                    Console.WriteLine("ERROR: Exposure not found in database after save!");
-                }
-                Console.WriteLine("=== END DIAGNOSTIC ===");
                 await _context.SaveChangesAsync();
 
                 // Check if in iframe (for CreateNew workflow)
@@ -302,7 +299,6 @@ namespace Sentinel.Pages.Cases.Exposures
             {
                 TempData["ErrorMessage"] = Sentinel.Services.UserFacingError.Create(HttpContext, ex);
                 await LoadSelectLists();
-                var caseEntity = await _context.Cases.FindAsync(CaseId);
                 CaseFriendlyId = caseEntity?.FriendlyId ?? "";
                 return Page();
             }
@@ -351,30 +347,67 @@ namespace Sentinel.Pages.Cases.Exposures
             return isValid;
         }
 
+        private async Task<bool> CanUseReferencesAsync(ExposureEvent exposure)
+        {
+            if (exposure.LocationId.HasValue)
+            {
+                if (!(await _authorizationService.AuthorizeAsync(User, "Permission.Location.View")).Succeeded ||
+                    !await _context.Locations.AnyAsync(location =>
+                        location.Id == exposure.LocationId.Value && location.IsActive))
+                {
+                    return false;
+                }
+            }
+
+            if (exposure.EventId.HasValue)
+            {
+                if (!(await _authorizationService.AuthorizeAsync(User, "Permission.Event.View")).Succeeded ||
+                    !await _context.Events.AnyAsync(@event =>
+                        @event.Id == exposure.EventId.Value && @event.IsActive))
+                {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
         private async Task LoadSelectLists()
         {
-            // Load events with locations and dates
-            var events = await _context.Events
-                .Include(e => e.Location)
-                .Where(e => e.IsActive)
-                .OrderByDescending(e => e.StartDateTime)
-                .Select(e => new
-                {
-                    e.Id,
-                    DisplayText = e.Name + " - " + e.StartDateTime.ToString("dd MMM yyyy") + 
-                                  (e.Location != null ? " at " + e.Location.Name : "")
-                })
-                .ToListAsync();
+            if ((await _authorizationService.AuthorizeAsync(User, "Permission.Event.View")).Succeeded)
+            {
+                var events = await _context.Events
+                    .Include(e => e.Location)
+                    .Where(e => e.IsActive)
+                    .OrderByDescending(e => e.StartDateTime)
+                    .Select(e => new
+                    {
+                        e.Id,
+                        DisplayText = e.Name + " - " + e.StartDateTime.ToString("dd MMM yyyy") +
+                                      (e.Location != null ? " at " + e.Location.Name : "")
+                    })
+                    .ToListAsync();
 
-            EventsList = new SelectList(events, "Id", "DisplayText");
+                EventsList = new SelectList(events, "Id", "DisplayText");
+            }
+            else
+            {
+                EventsList = new SelectList(Array.Empty<object>());
+            }
 
-            // Load locations
-            LocationsList = new SelectList(
-                await _context.Locations
-                    .Where(l => l.IsActive)
-                    .OrderBy(l => l.Name)
-                    .ToListAsync(),
-                "Id", "Name");
+            if ((await _authorizationService.AuthorizeAsync(User, "Permission.Location.View")).Succeeded)
+            {
+                LocationsList = new SelectList(
+                    await _context.Locations
+                        .Where(l => l.IsActive)
+                        .OrderBy(l => l.Name)
+                        .ToListAsync(),
+                    "Id", "Name");
+            }
+            else
+            {
+                LocationsList = new SelectList(Array.Empty<object>());
+            }
 
             // Load other cases (excluding current case) - Filter to Contacts with same disease
             var cases = await _context.Cases

@@ -1,22 +1,25 @@
 // Report Builder - Data Collection & Actions Module (Part 3)
 // This is a continuation of report-builder.js
 
-console.log('[report-builder-actions.js] Loading...');
-
 // Add these functions to the ReportBuilder object
+
+ReportBuilder.getAntiforgeryHeaders = function() {
+    const token = document.querySelector('#reportBuilderAntiforgeryToken input[name="__RequestVerificationToken"]')?.value;
+    if (!token) {
+        throw new Error('The report builder anti-forgery token is unavailable.');
+    }
+
+    return { RequestVerificationToken: token };
+};
 
 ReportBuilder.getFilters = function() {
     const filterElements = document.querySelectorAll('#filters .rb-list-item');
     const filters = [];
 
-    console.log('[getFilters] Found', filterElements.length, 'filter elements');
-
     filterElements.forEach((el, i) => {
         const fieldSelect = el.querySelector('.rb-filter-field');
         const field = fieldSelect?.value;
         let operator = el.querySelector('.rb-filter-operator')?.value;
-
-        console.log(`[getFilters] Filter ${i}:`, { field, operator });
 
         if (field && operator) {
             const selectedOption = fieldSelect.options[fieldSelect.selectedIndex];
@@ -34,8 +37,6 @@ ReportBuilder.getFilters = function() {
 
             if (dataType.includes('Date') && combinedDateSelect) {
                 const combinedValue = combinedDateSelect.value;
-                console.log(`[getFilters] Date filter combined value:`, combinedValue);
-
                 if (combinedValue && combinedValue !== '') {
                     if (combinedValue === 'static') {
                         // User selected "Pick a specific date..." - read from date input
@@ -117,17 +118,6 @@ ReportBuilder.getFilters = function() {
                 value = el.querySelector('.rb-filter-value')?.value || '';
             }
 
-            console.log(`[getFilters] Adding filter:`, { 
-                field, 
-                operator, 
-                value, 
-                dataType, 
-                isDynamicDate, 
-                dynamicDateType, 
-                dynamicDateOffset, 
-                dynamicDateOffsetUnit 
-            });
-
             filters.push({
                 fieldPath: field,
                 operator: operator,
@@ -147,7 +137,6 @@ ReportBuilder.getFilters = function() {
         }
     });
 
-    console.log('[getFilters] Returning', filters.length, 'filters:', filters);
     return filters;
 };
 ReportBuilder.getCollectionQueries = function() {
@@ -178,13 +167,6 @@ ReportBuilder.getCollectionQueries = function() {
             columnName: columnName,
             subFilters: []
         };
-
-        console.log('[getCollectionQueries] Serializing query:', {
-            queryId,
-            collectionName,
-            subCollectionName,
-            isNested: !!subCollectionName
-        });
 
         if (!displayAsColumn && ['Count', 'Sum', 'Average', 'Min', 'Max'].includes(operation)) {
             query.comparator = document.getElementById(`comparator-${queryId}`)?.value || 'GreaterThan';
@@ -305,8 +287,6 @@ ReportBuilder.getCollectionQueries = function() {
     return queries;
 };
 ReportBuilder.preview = async function() {
-    console.log('[preview] Starting preview...');
-
     if (this.selectedFields.length === 0) {
         alert('Please select at least one field');
         return;
@@ -329,12 +309,12 @@ ReportBuilder.preview = async function() {
 
     try {
         const filters = this.getFilters();
-        console.log('[preview] Selected fields:', this.selectedFields.length);
-        console.log('[preview] Filters:', filters.length);
-
         const response = await fetch('/api/reports/preview', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: {
+                'Content-Type': 'application/json',
+                ...this.getAntiforgeryHeaders()
+            },
             body: JSON.stringify({
                 entityType: document.getElementById('entityTypeSelector').value,
                 fields: this.selectedFields.map((f, i) => ({
@@ -350,16 +330,12 @@ ReportBuilder.preview = async function() {
             })
         });
 
-        console.log('[preview] Response status:', response.status);
-
         if (!response.ok) {
-            const errorText = await response.text();
-            console.error('[preview] Server error:', errorText);
+            console.error('Report preview request failed.');
             throw new Error(`Server error: ${response.status}`);
         }
 
         const result = await response.json();
-        console.log('[preview] Result:', result.success ? `${result.data?.length || 0} rows` : 'failed');
 
         if (result.success) {
             this.renderPreview(result.data, filters);
@@ -368,17 +344,17 @@ ReportBuilder.preview = async function() {
                 <div class="rb-empty-state">
                     <div class="rb-empty-state-icon">⚠️</div>
                     <div class="rb-empty-state-title">Preview Failed</div>
-                    <div class="rb-empty-state-text">${result.error || 'Unknown error'}</div>
+                    <div class="rb-empty-state-text">The preview could not be generated. Please review the report configuration and try again.</div>
                 </div>
             `;
         }
     } catch (error) {
-        console.error('[preview] Error:', error);
+        console.error('[preview] Request failed.');
         container.innerHTML = `
             <div class="rb-empty-state">
                 <div class="rb-empty-state-icon">❌</div>
                 <div class="rb-empty-state-title">Error Loading Preview</div>
-                <div class="rb-empty-state-text">${error.message}</div>
+                <div class="rb-empty-state-text">The preview could not be generated. Please try again.</div>
             </div>
         `;
     }
@@ -411,7 +387,7 @@ ReportBuilder.renderPreview = function(data, filters) {
         try {
             window.previewPivotInstance.dispose();
         } catch (e) {
-            console.warn('[renderPreview] Error disposing previous instance:', e);
+            console.warn('The previous report preview could not be disposed.');
         }
         window.previewPivotInstance = null;
     }
@@ -426,13 +402,11 @@ ReportBuilder.renderPreview = function(data, filters) {
         try {
             reportConfig = JSON.parse(savedPreviewConfig);
             reportConfig.dataSource = { data: data };
-            console.log('[renderPreview] Using saved preview configuration');
         } catch (e) {
-            console.warn('[renderPreview] Failed to parse saved config, using default:', e);
+            console.warn('Saved report preview configuration could not be restored.');
             reportConfig = this.getDefaultPivotConfig(data);
         }
     } else {
-        console.log('[renderPreview] No saved configuration, using default');
         reportConfig = this.getDefaultPivotConfig(data);
     }
 
@@ -458,14 +432,12 @@ ReportBuilder.renderPreview = function(data, filters) {
             }
         },
         reportcomplete: function() {
-            console.log('[WebDataRocks Preview] Report rendered');
             // Capture the configuration whenever the report is updated
             try {
                 const currentReport = window.previewPivotInstance.getReport();
                 ReportBuilder.savedPreviewConfiguration = JSON.stringify(currentReport);
-                console.log('[WebDataRocks Preview] Configuration captured');
             } catch (e) {
-                console.warn('[WebDataRocks Preview] Failed to capture configuration:', e);
+                console.warn('Report preview configuration could not be saved.');
             }
         }
     });
@@ -521,10 +493,7 @@ ReportBuilder.getDefaultPivotConfig = function(data) {
     };
 };
 ReportBuilder.save = async function() {
-    console.log('[save] Starting save process...');
-
     const name = document.getElementById('reportName').value;
-    console.log('[save] Report name:', name);
 
     if (!name) {
         ReportBuilderNotifications.showToast('Please enter a report name', 'warning');
@@ -543,7 +512,7 @@ ReportBuilder.save = async function() {
                 const report = window.pivotGridInstance.getReport();
                 pivotConfig = JSON.stringify(report);
             } catch (e) {
-                console.error('Failed to get pivot configuration', e);
+                console.error('Pivot configuration could not be read.');
             }
         }
 
@@ -553,7 +522,7 @@ ReportBuilder.save = async function() {
                 const report = window.previewPivotInstance.getReport();
                 previewConfig = JSON.stringify(report);
             } catch (e) {
-                console.error('Failed to get preview configuration', e);
+                console.error('Report preview configuration could not be read.');
             }
         }
 
@@ -578,20 +547,16 @@ ReportBuilder.save = async function() {
             collectionQueries: this.getCollectionQueries()
         };
 
-        console.log('[save] Payload:', payload);
-        console.log('[save] Sending to /api/reports/save...');
-
         const response = await fetch('/api/reports/save', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: {
+                'Content-Type': 'application/json',
+                ...this.getAntiforgeryHeaders()
+            },
             body: JSON.stringify(payload)
         });
 
-        console.log('[save] Response status:', response.status);
-
         const result = await response.json();
-        console.log('[save] Result:', result);
-
         if (result.success) {
             // Clear auto-saved draft since we explicitly saved
             ReportBuilder.clearAutoSavedDraft();
@@ -600,19 +565,18 @@ ReportBuilder.save = async function() {
                 window.location.href = '/Reports/Index';
             }, 2000);
         } else {
-            ReportBuilderNotifications.showToast('Error saving report: ' + result.error, 'error', 5000);
+            console.error('[save] Server rejected the report save request.');
+            ReportBuilderNotifications.showToast('The report could not be saved. Please review the configuration and try again.', 'error', 5000);
         }
     } catch (error) {
-        console.error('[save] Exception:', error);
-        ReportBuilderNotifications.showToast('Failed to save report: ' + error.message, 'error', 5000);
+        console.error('[save] Report save request failed.');
+        ReportBuilderNotifications.showToast('The report could not be saved. Please try again.', 'error', 5000);
     }
 };
 
 // ==================== PIVOT FUNCTIONS ====================
 
 ReportBuilder.loadPivot = async function() {
-    console.log('[loadPivot] Starting pivot load...');
-
     if (this.selectedFields.length === 0) {
         ReportBuilderNotifications.showToast('Please select at least one field', 'warning');
         return;
@@ -641,12 +605,12 @@ ReportBuilder.loadPivot = async function() {
 
     try {
         const filters = this.getFilters();
-        console.log('[loadPivot] Selected fields:', this.selectedFields.length);
-        console.log('[loadPivot] Filters:', filters.length);
-
         const response = await fetch('/api/reports/preview', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: {
+                'Content-Type': 'application/json',
+                ...this.getAntiforgeryHeaders()
+            },
             body: JSON.stringify({
                 entityType: document.getElementById('entityTypeSelector').value,
                 fields: this.selectedFields.map((f, i) => ({
@@ -662,16 +626,12 @@ ReportBuilder.loadPivot = async function() {
             })
         });
 
-        console.log('[loadPivot] Response status:', response.status);
-
         if (!response.ok) {
-            const errorText = await response.text();
-            console.error('[loadPivot] Server error:', errorText);
+            console.error('Report pivot request failed.');
             throw new Error(`Server error: ${response.status}`);
         }
 
         const result = await response.json();
-        console.log('[loadPivot] Result:', result.success ? `${result.data?.length || 0} rows` : 'failed');
 
         if (result.success) {
             this.renderPivot(result.data, filters);
@@ -680,17 +640,17 @@ ReportBuilder.loadPivot = async function() {
                 <div class="rb-empty-state">
                     <div class="rb-empty-state-icon">⚠️</div>
                     <div class="rb-empty-state-title">Pivot Failed</div>
-                    <div class="rb-empty-state-text">${result.error || 'Unknown error'}</div>
+                    <div class="rb-empty-state-text">The pivot could not be generated. Please review the report configuration and try again.</div>
                 </div>
             `;
         }
     } catch (error) {
-        console.error('[loadPivot] Error:', error);
+        console.error('[loadPivot] Request failed.');
         container.innerHTML = `
             <div class="rb-empty-state">
                 <div class="rb-empty-state-icon">❌</div>
                 <div class="rb-empty-state-title">Error Loading Pivot</div>
-                <div class="rb-empty-state-text">${error.message}</div>
+                <div class="rb-empty-state-text">The pivot could not be generated. Please try again.</div>
             </div>
         `;
     }
@@ -727,7 +687,7 @@ ReportBuilder.renderPivot = function(data, filters) {
         try {
             window.pivotGridInstance.dispose();
         } catch (e) {
-            console.warn('[renderPivot] Error disposing previous instance:', e);
+            console.warn('The previous report pivot could not be disposed.');
         }
         window.pivotGridInstance = null;
     }
@@ -770,24 +730,16 @@ ReportBuilder.renderPivot = function(data, filters) {
                 cell.text = data.value.split('T')[0];
             }
         },
-        beforetoolbarcreated: function(toolbar) {
-            // Ensure toolbar is properly initialized
-            console.log('[WebDataRocks] Toolbar created');
-        },
         reportcomplete: function() {
-            console.log('[WebDataRocks] Report rendered');
             // Capture the configuration whenever the report is updated
             try {
                 const currentReport = window.pivotGridInstance.getReport();
                 ReportBuilder.savedPivotConfiguration = JSON.stringify(currentReport);
-                console.log('[WebDataRocks] Configuration captured');
             } catch (e) {
-                console.warn('[WebDataRocks] Failed to capture configuration:', e);
+                console.warn('Report pivot configuration could not be saved.');
             }
         }
     });
-
-    console.log('[renderPivot] Pivot rendered with', data.length, 'rows at height', pivotHeight);
 };
 
 ReportBuilder.getPivotConfig = function(data) {

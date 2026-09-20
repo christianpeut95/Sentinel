@@ -2,12 +2,12 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using Sentinel.Data;
 using Sentinel.Models;
 using Sentinel.Services;
 using System;
 using System.Linq;
-using System.Security.Claims;
 using System.Threading.Tasks;
 
 namespace Sentinel.Controllers
@@ -19,12 +19,12 @@ namespace Sentinel.Controllers
     public class CasesController : ControllerBase
     {
         private readonly ApplicationDbContext _context;
-        private readonly IDiseaseAccessService _diseaseAccessService;
+        private readonly ILogger<CasesController> _logger;
 
-        public CasesController(ApplicationDbContext context, IDiseaseAccessService diseaseAccessService)
+        public CasesController(ApplicationDbContext context, ILogger<CasesController> logger)
         {
             _context = context;
-            _diseaseAccessService = diseaseAccessService;
+            _logger = logger;
         }
 
         [HttpGet("search")]
@@ -48,35 +48,15 @@ namespace Sentinel.Controllers
 
                 var queryLower = searchTerm.ToLower();
 
-                // Get accessible diseases for the current user
-                var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-                List<Guid> accessibleDiseaseIds = new List<Guid>();
-                
-                if (!string.IsNullOrEmpty(userId))
-                {
-                    try
-                    {
-                        accessibleDiseaseIds = await _diseaseAccessService.GetAccessibleDiseaseIdsAsync(userId);
-                    }
-                    catch (Exception)
-                    {
-                        // If disease access check fails, allow all diseases (fallback to no filtering)
-                        accessibleDiseaseIds = new List<Guid>();
-                    }
-                }
-
-                // Build the base query
+                // Build the base query. The global Case query filter is the
+                // single hierarchy-aware authority for disease visibility;
+                // never fall back to an unfiltered search when access lookup
+                // encounters an error.
                 var casesQuery = _context.Cases
                     .Include(c => c.Patient)
                     .Include(c => c.Disease)
                     .Include(c => c.ConfirmationStatus)
                     .AsQueryable();
-
-                // Apply disease access filter only if there are specific diseases to filter
-                if (accessibleDiseaseIds != null && accessibleDiseaseIds.Any())
-                {
-                    casesQuery = casesQuery.Where(c => c.DiseaseId == null || accessibleDiseaseIds.Contains(c.DiseaseId.Value));
-                }
 
                 // Exclude specific case (when searching for related cases)
                 if (excludeCaseId.HasValue)
@@ -139,8 +119,7 @@ namespace Sentinel.Controllers
             }
             catch (Exception ex)
             {
-                // Log the error
-                Console.WriteLine($"Error in case search: {ex.Message}");
+                _logger.LogError(ex, "Case search failed");
                 
                 // Return empty result instead of 500 error to avoid breaking UI
                 return Ok(new object[] { });
