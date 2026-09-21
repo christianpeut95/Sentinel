@@ -6,6 +6,7 @@ WORKDIR /src
 # place so the published image can also carry the repository-level licence and
 # third-party notices.
 COPY ["Sentinel/Sentinel.csproj", "Sentinel/"]
+COPY ["Sentinel.HL7Generator/Sentinel.HL7Generator.csproj", "Sentinel.HL7Generator/"]
 RUN dotnet restore "Sentinel/Sentinel.csproj"
 
 # Copy everything else and publish directly

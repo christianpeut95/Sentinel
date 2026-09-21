@@ -31,7 +31,6 @@ Sentinel/wwwroot/lib/survey-creator-knockout/
 
 # Source and documents not required for the application image
 Sentinel.Tests/
-Sentinel.HL7Generator/
 Scripts/
 docs/
 Migrations/
