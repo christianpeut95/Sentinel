@@ -8,6 +8,9 @@ services:
       # private Docker network over HTTP.
       - ASPNETCORE_URLS=http://+:8080
       - ReverseProxy__UseForwardedHeaders=true
+      # Keep a local Docker installation separate from a development instance
+      # that may also be using localhost on another port.
+      - Security__CookieNameSuffix=${SECURITY_COOKIE_NAME_SUFFIX:-}
       # Sentinel uses a database-scoped application login. The SQL Server `sa`
       # account is reserved for the one-time/idempotent database bootstrap job.
       - ConnectionStrings__DefaultConnection=Server=sentinel-db,1433;Database=SentinelDb;User Id=sentinel_app;Password=${SQL_APP_PASSWORD:?Set SQL_APP_PASSWORD in .env};Encrypt=True;TrustServerCertificate=True;

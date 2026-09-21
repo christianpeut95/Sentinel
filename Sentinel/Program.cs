@@ -223,9 +223,20 @@ builder.Services.AddScoped<IPasswordValidator<ApplicationUser>, CommonPasswordVa
 // All Sentinel-owned cookies use the __Host- prefix. This requires HTTPS, a
 // host-only cookie, and Path=/, which prevents another application on the
 // same host from overriding an authentication-related cookie.
+var cookieNameSuffix = builder.Configuration["Security:CookieNameSuffix"]?.Trim();
+if (!string.IsNullOrEmpty(cookieNameSuffix) &&
+    cookieNameSuffix.Any(character => !(char.IsAsciiLetterOrDigit(character) || character is '-' or '_')))
+{
+    throw new InvalidOperationException("Security:CookieNameSuffix may contain only letters, digits, hyphens, and underscores.");
+}
+
+string GetSecureCookieName(string name) => string.IsNullOrEmpty(cookieNameSuffix)
+    ? name
+    : $"{name}.{cookieNameSuffix}";
+
 void ConfigureSecureHostCookie(CookieBuilder cookie, string name)
 {
-    cookie.Name = name;
+    cookie.Name = GetSecureCookieName(name);
     cookie.HttpOnly = true;
     cookie.SecurePolicy = CookieSecurePolicy.Always;
     cookie.SameSite = SameSiteMode.Lax;
