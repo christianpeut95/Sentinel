@@ -9,7 +9,7 @@
 **/bin_temp/
 **/bin_verify/
 **/TestResults/
-**/[Tt]est[Rr]esult*/
+**/[Tt]est[Rr]esults/
 **/*.trx
 **/*.coverage
 **/*.coveragexml
