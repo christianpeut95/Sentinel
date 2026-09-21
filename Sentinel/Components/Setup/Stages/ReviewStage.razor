@@ -9,6 +9,7 @@
 @inject UserManager<ApplicationUser> UserManager
 @inject RoleManager<IdentityRole> RoleManager
 @inject ISystemSettingsService SystemSettingsService
+@inject ISetupWizardState SetupWizardState
 @inject IWebDataRocksLicenseService WebDataRocksLicense
 @inject IConfiguration Configuration
 @inject IWebHostEnvironment Environment
@@ -214,7 +215,6 @@
 @code {
     [Parameter] public EventCallback OnComplete { get; set; }
     [Parameter] public EventCallback OnPrevious { get; set; }
-    [Parameter] public string? SetupToken { get; set; }
     [Parameter] public InitialSetupWizard.AdminAccountData AdminData { get; set; } = new();
     [Parameter] public InitialSetupWizard.HttpsConfigData HttpsData { get; set; } = new();
     [Parameter] public InitialSetupWizard.OrganizationData OrgData { get; set; } = new();
@@ -247,8 +247,10 @@
             // Revalidate immediately before privileged setup work. The service
             // repeats this check when setup is committed to prevent bypassing
             // expiry or reusing a token after it has been consumed.
-            if (string.IsNullOrWhiteSpace(SetupToken)
-                || !await SystemSettingsService.ValidateTokenAsync(SetupToken))
+            var validatedSetupToken = SetupWizardState.ValidatedToken;
+            if (!SetupWizardState.HasValidatedToken
+                || string.IsNullOrWhiteSpace(validatedSetupToken)
+                || !await SystemSettingsService.ValidateTokenAsync(validatedSetupToken))
             {
                 _error = "The setup token is invalid or has expired. Restart the setup process using a current token.";
                 _isCompleting = false;
@@ -405,7 +407,8 @@
                 }
 
                 // Mark setup as complete
-                await SystemSettingsService.CompleteSetupAsync(adminUser.Id, SetupToken);
+                await SystemSettingsService.CompleteSetupAsync(adminUser.Id, validatedSetupToken);
+                SetupWizardState.Clear();
                 Logger.LogInformation("Setup completed successfully");
             }
 

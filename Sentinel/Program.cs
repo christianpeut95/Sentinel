@@ -495,6 +495,7 @@ builder.Services.AddSingleton<Sentinel.Services.IEncryptionService, Sentinel.Ser
 // System settings service
 builder.Services.AddScoped<Sentinel.Services.ISystemSettingsService, Sentinel.Services.SystemSettingsService>();
 builder.Services.AddSingleton<Sentinel.Services.ISetupTokenFileService, Sentinel.Services.SetupTokenFileService>();
+builder.Services.AddScoped<Sentinel.Services.ISetupWizardState, Sentinel.Services.SetupWizardState>();
 builder.Services.AddScoped<Sentinel.Services.IWebDataRocksLicenseService, Sentinel.Services.WebDataRocksLicenseService>();
 builder.Services.AddSingleton<Sentinel.Services.IApplicationVersionProvider, Sentinel.Services.ApplicationVersionProvider>();
 

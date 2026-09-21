@@ -1,6 +1,7 @@
 @using Sentinel.Components.Setup.Stages
 @using Sentinel.Services
 @inject ISystemSettingsService SystemSettingsService
+@inject ISetupWizardState SetupWizardState
 @inject NavigationManager Navigation
 @inject ILogger<InitialSetupWizard> Logger
 
@@ -75,7 +76,6 @@
                             AdminData="_adminData"
                             HttpsData="_httpsData"
                             OrgData="_orgData"
-                            SetupToken="_validatedSetupToken"
                             EnableFeedback="_enableFeedback"
                             EnableUsageMonitoring="_enableUsageMonitoring"
                             TimeZoneId="_timeZoneId"
@@ -92,7 +92,6 @@
 
 @code {
     private bool _tokenValidated = false;
-    private string? _validatedSetupToken;
     private WizardStage _currentStage = WizardStage.DatabaseConnection;
     private int _totalStages = 10; // Excluding token validation
     private double _progress => ((int)_currentStage / (double)_totalStages) * 100;
@@ -116,7 +115,7 @@
 
     private void HandleTokenValidated(string setupToken)
     {
-        _validatedSetupToken = setupToken;
+        SetupWizardState.SetValidatedToken(setupToken);
         _tokenValidated = true;
         StateHasChanged();
     }
