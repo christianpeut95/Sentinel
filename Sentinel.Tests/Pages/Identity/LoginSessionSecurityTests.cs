@@ -44,6 +44,33 @@ public sealed class LoginSessionSecurityTests : IClassFixture<IdentityCookieWebA
     }
 
     [Fact]
+    public async Task Login_WithAnEnabledAuthenticator_RedirectsToTheTwoFactorChallenge()
+    {
+        using var client = CreateClient();
+        var email = $"two-factor-{Guid.NewGuid():N}@example.test";
+        const string password = "two-factor-test-passphrase-2026";
+        await CreateUserAsync(email, password);
+
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+            var user = Assert.IsType<ApplicationUser>(await userManager.FindByEmailAsync(email));
+            Assert.True((await userManager.ResetAuthenticatorKeyAsync(user)).Succeeded);
+            Assert.True((await userManager.SetTwoFactorEnabledAsync(user, true)).Succeeded);
+        }
+
+        using var login = await LogInAsync(client, email, password);
+
+        Assert.Equal(HttpStatusCode.Redirect, login.Response.StatusCode);
+        var redirect = Assert.IsType<Uri>(login.Response.Headers.Location);
+        Assert.StartsWith(
+            "/Identity/Account/LoginWith2fa",
+            redirect.IsAbsoluteUri ? redirect.AbsolutePath : redirect.OriginalString,
+            StringComparison.Ordinal);
+        Assert.Null(login.AuthenticationCookie);
+    }
+
+    [Fact]
     public async Task Reauthentication_InSeparateBrowserSessions_InvalidatesOnlyThePriorCookie()
     {
         // Two clients deliberately have independent HTTP state.  This mirrors

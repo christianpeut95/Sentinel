@@ -203,6 +203,11 @@
                                     <i class="bi bi-key me-2"></i>Change Password
                                 </a>
                             </li>
+                            <li>
+                                <a class="dropdown-item" asp-area="Identity" asp-page="/Account/Manage/TwoFactorAuthentication" style="padding: var(--spacing-2) var(--spacing-4); color: var(--forest); font-size: 14px; transition: background var(--transition-normal);">
+                                    <i class="bi bi-shield-lock me-2"></i>Two-Factor Authentication
+                                </a>
+                            </li>
                             <li><hr class="dropdown-divider" style="border-color: var(--hairline); margin: var(--spacing-2) 0;"></li>
                             <li>
                                 <form method="post" action="/Identity/Account/Logout" style="margin: 0;">

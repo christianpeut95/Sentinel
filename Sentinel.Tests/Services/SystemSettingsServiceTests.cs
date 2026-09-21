@@ -11,6 +11,7 @@ public sealed class SystemSettingsServiceTests : IDisposable
 {
     private readonly ApplicationDbContext _context;
     private readonly Mock<IEncryptionService> _encryptionService = new();
+    private readonly Mock<ISetupTokenFileService> _setupTokenFileService = new();
 
     public SystemSettingsServiceTests()
     {
@@ -65,6 +66,31 @@ public sealed class SystemSettingsServiceTests : IDisposable
         Assert.Null(completed.SetupToken);
         Assert.NotNull(completed.SetupCompletedAt);
         _encryptionService.Verify(service => service.VerifyHash("plain-token", "stored-hash"), Times.Once);
+        _setupTokenFileService.Verify(service => service.DeleteTokenAsync(It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task CompleteSetupAsync_TokenFileCleanupFails_SetupRemainsCompletedAndTokenIsConsumed()
+    {
+        var settings = new SystemSettings
+        {
+            Id = Guid.NewGuid(),
+            SetupToken = "stored-hash",
+            SetupTokenExpiresAt = DateTime.UtcNow.AddMinutes(5),
+            IsSetupCompleted = false
+        };
+        _context.SystemSettings.Add(settings);
+        await _context.SaveChangesAsync();
+        _encryptionService.Setup(service => service.VerifyHash("plain-token", "stored-hash")).Returns(true);
+        _setupTokenFileService
+            .Setup(service => service.DeleteTokenAsync(It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new IOException("Simulated cleanup failure"));
+
+        var completed = await CreateService().CompleteSetupAsync("admin-id", "plain-token");
+
+        Assert.True(completed.IsSetupCompleted);
+        Assert.Null(completed.SetupToken);
+        Assert.NotNull(completed.SetupCompletedAt);
     }
 
     [Fact]
@@ -87,6 +113,7 @@ public sealed class SystemSettingsServiceTests : IDisposable
     private SystemSettingsService CreateService() => new(
         _context,
         _encryptionService.Object,
+        _setupTokenFileService.Object,
         NullLogger<SystemSettingsService>.Instance);
 
     public void Dispose() => _context.Dispose();

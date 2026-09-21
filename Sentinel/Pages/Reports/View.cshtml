@@ -16,8 +16,11 @@
 }
 
 @section Styles {
-    <!-- WebDataRocks CSS -->
-    <link href="https://cdn.webdatarocks.com/1.4.23/webdatarocks.css" rel="stylesheet" />
+    @if (Model.CanUseWebDataRocks)
+    {
+        <!-- WebDataRocks CSS is only loaded after organisation and user acceptance. -->
+        <link href="https://cdn.webdatarocks.com/1.4.23/webdatarocks.css" rel="stylesheet" />
+    }
     <!-- Full-width styling for Reports -->
     <link href="~/css/sentinel-design-system.css" rel="stylesheet" />
     <link href="~/css/reports-fullwidth.css" rel="stylesheet" />
@@ -59,16 +62,19 @@
                         </div>
                     </div>
                     <div>
-                        <button type="button" class="btn btn-outline-secondary me-2 js-report-view-action" data-report-view-action="toggle-view">
-                            <i class="bi bi-layout-split me-1"></i>
-                            <span id="viewToggleText">Split View</span>
-                        </button>
-                        <a href="/Reports/Builder?reportId=@Model.ReportDefinition.Id" class="btn btn-outline-primary me-2">
-                            <i class="bi bi-pencil me-1"></i> Edit
-                        </a>
-                        <button type="button" class="btn btn-success js-report-view-action" data-report-view-action="export">
-                            <i class="bi bi-file-earmark-excel me-1"></i> Export
-                        </button>
+                        @if (Model.CanUseWebDataRocks)
+                        {
+                            <button type="button" class="btn btn-outline-secondary me-2 js-report-view-action" data-report-view-action="toggle-view">
+                                <i class="bi bi-layout-split me-1"></i>
+                                <span id="viewToggleText">Split View</span>
+                            </button>
+                            <a href="/Reports/Builder?reportId=@Model.ReportDefinition.Id" class="btn btn-outline-primary me-2">
+                                <i class="bi bi-pencil me-1"></i> Edit
+                            </a>
+                            <button type="button" class="btn btn-success js-report-view-action" data-report-view-action="export">
+                                <i class="bi bi-file-earmark-excel me-1"></i> Export
+                            </button>
+                        }
                     </div>
                 </div>
             </div>
@@ -78,41 +84,50 @@
         <div class="row mb-3">
             <div class="col-12">
                 <ul class="nav nav-tabs" id="viewTabs" role="tablist">
+                    @if (Model.CanUseWebDataRocks)
+                    {
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active" id="pivot-tab" data-bs-toggle="tab"
+                                    data-bs-target="#pivot-view" type="button">
+                                <i class="bi bi-grid-3x3-gap me-1"></i> Pivot View
+                            </button>
+                        </li>
+                    }
                     <li class="nav-item" role="presentation">
-                        <button class="nav-link active" id="pivot-tab" data-bs-toggle="tab" 
-                                data-bs-target="#pivot-view" type="button">
-                            <i class="bi bi-grid-3x3-gap me-1"></i> Pivot View
-                        </button>
-                    </li>
-                    <li class="nav-item" role="presentation">
-                        <button class="nav-link" id="table-tab" data-bs-toggle="tab" 
+                        <button class="nav-link @(Model.CanUseWebDataRocks ? "" : "active")" id="table-tab" data-bs-toggle="tab"
                                 data-bs-target="#table-view" type="button">
                             <i class="bi bi-table me-1"></i> Table View
                         </button>
                     </li>
-                    <li class="nav-item" role="presentation">
-                        <button class="nav-link" id="split-tab" data-bs-toggle="tab" 
-                                data-bs-target="#split-view" type="button">
-                            <i class="bi bi-layout-split me-1"></i> Split View
-                        </button>
-                    </li>
+                    @if (Model.CanUseWebDataRocks)
+                    {
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="split-tab" data-bs-toggle="tab"
+                                    data-bs-target="#split-view" type="button">
+                                <i class="bi bi-layout-split me-1"></i> Split View
+                            </button>
+                        </li>
+                    }
                 </ul>
             </div>
         </div>
 
         <!-- Tab Content -->
         <div class="tab-content" id="viewTabContent">
-            <!-- Pivot View -->
-            <div class="tab-pane fade show active" id="pivot-view">
-                <div class="card shadow-sm">
-                    <div class="card-body p-0">
-                        <div id="pivotContainer" style="height: 700px;"></div>
+            @if (Model.CanUseWebDataRocks)
+            {
+                <!-- Pivot View -->
+                <div class="tab-pane fade show active" id="pivot-view">
+                    <div class="card shadow-sm">
+                        <div class="card-body p-0">
+                            <div id="pivotContainer" style="height: 700px;"></div>
+                        </div>
                     </div>
                 </div>
-            </div>
+            }
 
             <!-- Table View -->
-            <div class="tab-pane fade" id="table-view">
+            <div class="tab-pane fade @(Model.CanUseWebDataRocks ? "" : "show active")" id="table-view">
                 <div class="card shadow-sm">
                     <div class="card-body">
                         <div class="table-responsive">
@@ -148,8 +163,10 @@
                 </div>
             </div>
 
-            <!-- Split View -->
-            <div class="tab-pane fade" id="split-view">
+            @if (Model.CanUseWebDataRocks)
+            {
+                <!-- Split View -->
+                <div class="tab-pane fade" id="split-view">
                 <div class="row">
                     <!-- Pivot (left) -->
                     <div class="col-lg-6 mb-3">
@@ -203,8 +220,24 @@
                         </div>
                     </div>
                 </div>
-            </div>
+                </div>
+            }
         </div>
+
+        @if (!Model.CanUseWebDataRocks)
+        {
+            <div class="alert alert-info mt-3">
+                <i class="bi bi-info-circle me-1"></i>
+                @if (Model.IsWebDataRocksEnabledForOrganization)
+                {
+                    <span>Interactive pivot controls are available after you <a asp-page="/Reports/WebDataRocksTerms" asp-route-returnUrl="@($"{HttpContext.Request.Path}{HttpContext.Request.QueryString}")">accept the current WebDataRocks Licence Agreement</a>.</span>
+                }
+                else
+                {
+                    <span>Interactive pivot controls are not enabled for this organisation. The standard table view remains available.</span>
+                }
+            </div>
+        }
 
         <!-- Report Info -->
         <div class="row mt-4">
@@ -352,12 +385,17 @@
     }
 </div>
 
-<p class="text-center text-muted small mb-4">
-    Pivot analysis powered by <a href="https://www.webdatarocks.com/" target="_blank" rel="noopener noreferrer">WebDataRocks</a>.
-</p>
+@if (Model.CanUseWebDataRocks)
+{
+    <p class="text-center text-muted small mb-4">
+        Pivot analysis powered by <a href="https://www.webdatarocks.com/" target="_blank" rel="noopener noreferrer">WebDataRocks</a>.
+    </p>
+}
 
 @section Scripts {
-    <!-- WebDataRocks -->
+    @if (Model.CanUseWebDataRocks)
+    {
+        <!-- WebDataRocks is only loaded after organisation and user acceptance. -->
 <script src="https://cdn.webdatarocks.com/1.4.23/webdatarocks.js"></script>
 <script src="https://cdn.webdatarocks.com/1.4.23/webdatarocks.toolbar.js"></script>
     
@@ -440,4 +478,5 @@
             z-index: 10;
         }
     </style>
+    }
 }

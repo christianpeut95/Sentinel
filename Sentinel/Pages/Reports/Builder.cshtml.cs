@@ -5,7 +5,9 @@ using Microsoft.EntityFrameworkCore;
 using Sentinel.Data;
 using Sentinel.DTOs;
 using Sentinel.Models.Reporting;
+using Sentinel.Services;
 using Sentinel.Services.Reporting;
+using System.Security.Claims;
 using System.Text.Json;
 
 namespace Sentinel.Pages.Reports;
@@ -17,6 +19,7 @@ public class BuilderModel : PageModel
     private readonly IReportDataService _reportDataService;
     private readonly IReportDataAccessService _reportDataAccessService;
     private readonly ApplicationDbContext _context;
+    private readonly IWebDataRocksLicenseService _webDataRocksLicenseService;
     private readonly ILogger<BuilderModel> _logger;
 
     public BuilderModel(
@@ -24,12 +27,14 @@ public class BuilderModel : PageModel
         IReportDataService reportDataService,
         IReportDataAccessService reportDataAccessService,
         ApplicationDbContext context,
+        IWebDataRocksLicenseService webDataRocksLicenseService,
         ILogger<BuilderModel> logger)
     {
         _fieldMetadataService = fieldMetadataService;
         _reportDataService = reportDataService;
         _reportDataAccessService = reportDataAccessService;
         _context = context;
+        _webDataRocksLicenseService = webDataRocksLicenseService;
         _logger = logger;
     }
 
@@ -56,6 +61,15 @@ public class BuilderModel : PageModel
         Response.Headers.Append("Cache-Control", "no-cache, no-store, must-revalidate");
         Response.Headers.Append("Pragma", "no-cache");
         Response.Headers.Append("Expires", "0");
+
+        var licenseStatus = await GetWebDataRocksLicenseStatusAsync();
+        if (!licenseStatus.CanUse)
+        {
+            return RedirectToPage("/Reports/WebDataRocksTerms", new
+            {
+                returnUrl = $"{Request.PathBase}{Request.Path}{Request.QueryString}"
+            });
+        }
         
         // Load existing report if editing
         if (ReportId.HasValue)
@@ -141,6 +155,11 @@ public class BuilderModel : PageModel
 
     public async Task<IActionResult> OnPostSaveReportAsync([FromBody] SaveReportRequest request)
     {
+        if (!(await GetWebDataRocksLicenseStatusAsync()).CanUse)
+        {
+            return InteractiveReportsConsentRequired();
+        }
+
         try
         {
             ReportDefinition reportDef;
@@ -292,6 +311,11 @@ public class BuilderModel : PageModel
 
     public async Task<IActionResult> OnPostPreviewReportAsync([FromBody] PreviewReportRequest request)
     {
+        if (!(await GetWebDataRocksLicenseStatusAsync()).CanUse)
+        {
+            return InteractiveReportsConsentRequired();
+        }
+
         try
         {
             // Validate request
@@ -398,6 +422,19 @@ public class BuilderModel : PageModel
             });
         }
     }
+
+    private Task<WebDataRocksLicenseStatus> GetWebDataRocksLicenseStatusAsync() =>
+        _webDataRocksLicenseService.GetStatusAsync(User.FindFirstValue(ClaimTypes.NameIdentifier));
+
+    private JsonResult InteractiveReportsConsentRequired() =>
+        new(new
+        {
+            success = false,
+            error = "Interactive pivot reports require the organisation and current user to accept the WebDataRocks Licence Agreement."
+        })
+        {
+            StatusCode = StatusCodes.Status403Forbidden
+        };
 
 }
 

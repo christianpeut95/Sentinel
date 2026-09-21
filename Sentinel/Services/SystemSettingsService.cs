@@ -26,15 +26,18 @@ namespace Sentinel.Services
     {
         private readonly ApplicationDbContext _context;
         private readonly IEncryptionService _encryptionService;
+        private readonly ISetupTokenFileService _setupTokenFileService;
         private readonly ILogger<SystemSettingsService> _logger;
 
         public SystemSettingsService(
             ApplicationDbContext context,
             IEncryptionService encryptionService,
+            ISetupTokenFileService setupTokenFileService,
             ILogger<SystemSettingsService> logger)
         {
             _context = context;
             _encryptionService = encryptionService;
+            _setupTokenFileService = setupTokenFileService;
             _logger = logger;
         }
 
@@ -117,6 +120,18 @@ namespace Sentinel.Services
 
             await _context.SaveChangesAsync();
 
+            try
+            {
+                await _setupTokenFileService.DeleteTokenAsync();
+            }
+            catch (Exception ex)
+            {
+                // The database token has already been consumed, so a failed
+                // cleanup cannot reopen setup. Keep the successful setup and
+                // leave an actionable server-side record for the operator.
+                _logger.LogWarning(ex, "Setup completed but the consumed setup token file could not be deleted");
+            }
+
             _logger.LogInformation("Setup completed by user {UserId} at {CompletedAt}", userId, settings.SetupCompletedAt);
 
             return settings;
@@ -174,8 +189,9 @@ namespace Sentinel.Services
         public async Task<bool> GetFeedbackWidgetEnabledAsync()
         {
             var settings = await GetSettingsAsync();
-            // Default to true if settings don't exist yet or if property is not set
-            return settings?.EnableFeedbackWidget ?? true;
+            // Remote feedback is opt-in. Do not show it until a setting can be
+            // positively confirmed.
+            return settings?.EnableFeedbackWidget ?? false;
         }
 
         public async Task UpdateFeedbackWidgetSettingAsync(bool enabled)
@@ -220,8 +236,9 @@ namespace Sentinel.Services
         public async Task<bool> GetUsageMonitoringEnabledAsync()
         {
             var settings = await GetSettingsAsync();
-            // Default to true (opt-out approach)
-            return settings?.EnableUsageMonitoring ?? true;
+            // Usage and automatic error reporting are opt-in. Do not submit a
+            // report until a setting can be positively confirmed.
+            return settings?.EnableUsageMonitoring ?? false;
         }
 
         public async Task UpdateUsageMonitoringSettingAsync(bool enabled)

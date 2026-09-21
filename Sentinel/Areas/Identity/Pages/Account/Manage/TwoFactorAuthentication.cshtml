@@ -1,0 +1,72 @@
+@page
+@model Sentinel.Areas.Identity.Pages.Account.Manage.TwoFactorAuthenticationModel
+@{
+    ViewData["Title"] = "Two-factor authentication";
+}
+
+<link rel="stylesheet" href="~/css/identity-security.css" asp-append-version="true" />
+
+<div class="container py-4 identity-security-page">
+    <div class="identity-security-hero">
+        <div class="identity-security-icon"><i class="bi bi-shield-check"></i></div>
+        <div>
+            <h1 class="h3 mb-1">Two-factor authentication</h1>
+            <p class="text-muted mb-0">Add an authenticator app as an extra layer of protection for your account.</p>
+        </div>
+    </div>
+
+    @if (!string.IsNullOrWhiteSpace(Model.StatusMessage))
+    {
+        <div class="alert alert-success" role="status">@Model.StatusMessage</div>
+    }
+
+    <div class="card identity-security-card">
+        <div class="card-body p-4">
+            @if (!Model.IsTwoFactorEnabled)
+            {
+                <div class="alert alert-light border mb-4">
+                    <i class="bi bi-info-circle me-1"></i>
+                    Two-factor authentication is currently <strong>not enabled</strong> for this account.
+                </div>
+                <a asp-page="./EnableAuthenticator" class="btn btn-primary"><i class="bi bi-qr-code me-1"></i>Set up an authenticator app</a>
+            }
+            else
+            {
+                <div class="alert alert-success mb-4">
+                    <i class="bi bi-check-circle-fill me-1"></i>
+                    Two-factor authentication is enabled for this account.
+                </div>
+
+                <dl class="row mb-4">
+                    <dt class="col-sm-4">Authenticator app</dt>
+                    <dd class="col-sm-8">@(Model.HasAuthenticator ? "Configured" : "Not configured")</dd>
+                    <dt class="col-sm-4">Recovery codes remaining</dt>
+                    <dd class="col-sm-8">@Model.RecoveryCodesLeft</dd>
+                </dl>
+
+                @if (Model.RecoveryCodesLeft == 0)
+                {
+                    <div class="alert alert-warning" role="alert">
+                        <strong>No recovery codes remain.</strong> Generate a new set and store them somewhere safe.
+                    </div>
+                }
+
+                <div class="d-flex flex-wrap gap-2 mb-4">
+                    <a asp-page="./GenerateRecoveryCodes" class="btn btn-outline-primary"><i class="bi bi-file-earmark-lock me-1"></i>Generate recovery codes</a>
+                    <a asp-page="./ResetAuthenticator" class="btn btn-outline-secondary"><i class="bi bi-arrow-repeat me-1"></i>Reset authenticator app</a>
+                </div>
+
+                @if (Model.IsMachineRemembered)
+                {
+                    <form method="post" asp-page-handler="ForgetBrowser" class="mb-3">
+                        <button type="submit" class="btn btn-link px-0">Require a code on this browser next time</button>
+                    </form>
+                }
+
+                <form method="post" asp-page-handler="Disable2fa">
+                    <button type="submit" class="btn btn-outline-danger"><i class="bi bi-shield-x me-1"></i>Disable two-factor authentication</button>
+                </form>
+            }
+        </div>
+    </div>
+</div>

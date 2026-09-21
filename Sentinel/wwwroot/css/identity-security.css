@@ -1,0 +1,75 @@
+/* Sentinel account-security pages. These styles intentionally rely on the
+   design-system tokens loaded by _LayoutSentinel. */
+.identity-security-page {
+    max-width: 760px;
+    margin: 0 auto;
+}
+
+.identity-security-hero {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--spacing-3, 1rem);
+    margin-bottom: var(--spacing-5, 1.5rem);
+}
+
+.identity-security-icon {
+    display: inline-flex;
+    width: 3rem;
+    height: 3rem;
+    flex: 0 0 auto;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    background: var(--signal-lt, #d9f2e5);
+    color: var(--forest, #0c2a20);
+    font-size: 1.4rem;
+}
+
+.identity-security-card {
+    border: 1px solid var(--hairline, #d9dfdc);
+    border-radius: var(--radius-md, 0.5rem);
+    box-shadow: var(--shadow-sm, 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075));
+}
+
+.identity-security-qr {
+    display: block;
+    width: min(100%, 240px);
+    height: auto;
+    margin: 0 auto;
+    padding: 0.75rem;
+    border: 1px solid var(--hairline, #d9dfdc);
+    border-radius: var(--radius-sm, 0.25rem);
+    background: #fff;
+}
+
+.identity-security-key {
+    overflow-wrap: anywhere;
+    font-family: var(--f-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+    letter-spacing: 0.08em;
+}
+
+.identity-security-step {
+    display: flex;
+    gap: 0.75rem;
+    align-items: flex-start;
+}
+
+.identity-security-step-number {
+    display: inline-flex;
+    width: 1.6rem;
+    height: 1.6rem;
+    flex: 0 0 auto;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    background: var(--forest, #0c2a20);
+    color: #fff;
+    font-size: 0.8rem;
+    font-weight: 700;
+}
+
+@media (max-width: 575.98px) {
+    .identity-security-hero {
+        align-items: center;
+    }
+}

@@ -1,7 +1,7 @@
 <div class="stage-card">
     <div class="stage-header">
-        <h2><i class="bi bi-chat-dots"></i> User Feedback</h2>
-        <p>Help us improve Sentinel by sharing your feedback, reporting bugs, and suggesting features.</p>
+        <h2><i class="bi bi-chat-dots"></i> Optional Feedback & Diagnostics</h2>
+        <p>Choose whether this installation should enable feedback or send privacy-safe diagnostic reports. Both are disabled by default.</p>
     </div>
 
     <div class="stage-body">
@@ -17,7 +17,7 @@
                 </p>
                 <ul class="feature-list">
                     <li><i class="bi bi-check-circle text-success"></i> <strong>Patient privacy protected:</strong> Diagnostic data never includes patient information</li>
-                    <li><i class="bi bi-check-circle text-success"></i> <strong>Opt-out anytime:</strong> Disable the widget in Settings whenever you want</li>
+                    <li><i class="bi bi-check-circle text-success"></i> <strong>Opt in anytime:</strong> Enable or disable either option later in Settings</li>
                     <li><i class="bi bi-check-circle text-success"></i> <strong>Installation ID:</strong> Feedback is linked to your installation, not individual users</li>
                     <li><i class="bi bi-check-circle text-success"></i> <strong>Optional diagnostics:</strong> Choose whether to include technical information with each submission</li>
                 </ul>
@@ -74,7 +74,17 @@
                     <strong>Enable the feedback widget</strong>
                 </label>
             </div>
-            <span class="form-text">You can change this setting anytime from the Settings page</span>
+            <span class="form-text">Disabled by default. You can change this setting anytime from Settings.</span>
+        </div>
+
+        <div class="form-group">
+            <div class="form-check">
+                <InputCheckbox @bind-Value="EnableUsageMonitoring" class="form-check-input" id="enableUsageMonitoringCheck" />
+                <label class="form-check-label" for="enableUsageMonitoringCheck">
+                    <strong>Share anonymous usage statistics and automatic error reports</strong>
+                </label>
+            </div>
+            <span class="form-text">Disabled by default. When enabled, Sentinel sends hourly aggregate usage counts and coarse error fingerprints to help identify widespread problems. It never sends patient data, laboratory data, survey answers, exception messages, stack traces, routes with IDs, credentials, or request payloads.</span>
         </div>
 
         <div class="stage-actions">
@@ -93,12 +103,15 @@
 @code {
     [Parameter] public EventCallback OnNext { get; set; }
     [Parameter] public EventCallback OnPrevious { get; set; }
-    [Parameter] public bool EnableFeedback { get; set; } = true;
+    [Parameter] public bool EnableFeedback { get; set; }
     [Parameter] public EventCallback<bool> EnableFeedbackChanged { get; set; }
+    [Parameter] public bool EnableUsageMonitoring { get; set; }
+    [Parameter] public EventCallback<bool> EnableUsageMonitoringChanged { get; set; }
 
     private async Task HandleNext()
     {
         await EnableFeedbackChanged.InvokeAsync(EnableFeedback);
+        await EnableUsageMonitoringChanged.InvokeAsync(EnableUsageMonitoring);
         await OnNext.InvokeAsync();
     }
 

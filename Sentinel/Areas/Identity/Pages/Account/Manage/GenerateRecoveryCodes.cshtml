@@ -1,0 +1,30 @@
+@page
+@model Sentinel.Areas.Identity.Pages.Account.Manage.GenerateRecoveryCodesModel
+@{
+    ViewData["Title"] = "Generate recovery codes";
+}
+
+<link rel="stylesheet" href="~/css/identity-security.css" asp-append-version="true" />
+
+<div class="container py-4 identity-security-page">
+    <div class="identity-security-hero">
+        <div class="identity-security-icon"><i class="bi bi-file-earmark-lock"></i></div>
+        <div>
+            <h1 class="h3 mb-1">Generate recovery codes</h1>
+            <p class="text-muted mb-0">Recovery codes let you sign in if you lose access to your authenticator app.</p>
+        </div>
+    </div>
+
+    <div class="card identity-security-card">
+        <div class="card-body p-4">
+            <div class="alert alert-warning" role="alert">
+                <strong>Existing recovery codes will stop working.</strong> You currently have @Model.RecoveryCodesLeft remaining.
+            </div>
+            <p>Store the new codes in a password manager or another secure location. Each code can be used once.</p>
+            <form method="post" class="d-flex gap-2">
+                <button type="submit" class="btn btn-primary"><i class="bi bi-arrow-repeat me-1"></i>Generate new recovery codes</button>
+                <a asp-page="./TwoFactorAuthentication" class="btn btn-outline-secondary">Cancel</a>
+            </form>
+        </div>
+    </div>
+</div>

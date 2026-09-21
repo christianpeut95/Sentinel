@@ -1,0 +1,85 @@
+@page
+@model Sentinel.Pages.Settings.InteractiveReportsModel
+@using Sentinel.Services
+
+@{
+    ViewData["Title"] = "Interactive Reports";
+    ViewData["Subtitle"] = "Control the optional WebDataRocks pivot component";
+    Layout = "~/Pages/Shared/_LayoutSentinel.cshtml";
+}
+
+<nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a asp-page="/Index">Home</a></li>
+        <li class="breadcrumb-item"><a asp-page="/Settings/Index">Settings</a></li>
+        <li class="breadcrumb-item active" aria-current="page">Interactive Reports</li>
+    </ol>
+</nav>
+
+<div class="row">
+    <div class="col-lg-8">
+        @if (TempData["SuccessMessage"] is string successMessage)
+        {
+            <div class="alert alert-success alert-dismissible fade show" role="alert">
+                <i class="bi bi-check-circle me-2"></i>@successMessage
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        }
+
+        <div class="card shadow-sm">
+            <div class="card-header bg-white">
+                <h4 class="mb-1"><i class="bi bi-table me-2"></i>Interactive Pivot Reports</h4>
+                <p class="text-muted mb-0">Enable or disable the optional WebDataRocks component used by Sentinel’s pivot report views.</p>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-info">
+                    <p class="mb-1"><strong>Separately licensed component.</strong> WebDataRocks is not covered by Sentinel’s GPL licence.</p>
+                    <p class="mb-0">If enabled, the component is loaded from the WebDataRocks CDN. Each user must accept the current vendor terms before their browser loads it.</p>
+                </div>
+
+                <form method="post">
+                    <div class="form-check form-switch mb-3">
+                        <input asp-for="EnableWebDataRocks" class="form-check-input" role="switch" style="width: 3em; height: 1.5em;" />
+                        <label asp-for="EnableWebDataRocks" class="form-check-label ms-2 fw-semibold">Enable interactive pivot reports</label>
+                    </div>
+
+                    @if (!Model.LicenseStatus.OrganizationAccepted)
+                    {
+                        <div class="border rounded p-3 mb-3 bg-light">
+                            <div class="form-check">
+                                <input asp-for="AcceptLicenseTerms" class="form-check-input" />
+                                <label asp-for="AcceptLicenseTerms" class="form-check-label">
+                                    I have read and accept the <a href="@WebDataRocksLicenseService.LicenseUrl" target="_blank" rel="noopener noreferrer">WebDataRocks Licence Agreement</a> (revision @WebDataRocksLicenseService.CurrentLicenseVersion) on behalf of this organisation.
+                                </label>
+                            </div>
+                            <span asp-validation-for="AcceptLicenseTerms" class="text-danger d-block mt-2"></span>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="alert alert-success">
+                            <i class="bi bi-check-circle me-1"></i>
+                            Organisation acceptance for revision @WebDataRocksLicenseService.CurrentLicenseVersion is recorded. Disabling this feature removes that organisation-level acceptance and requires a new confirmation before it can be enabled again.
+                        </div>
+                    }
+
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-save me-1"></i>Save Interactive Reporting Settings
+                    </button>
+                    <a asp-page="/Settings/Index" class="btn btn-outline-secondary ms-2">Back to Settings</a>
+                </form>
+            </div>
+        </div>
+
+        <div class="card shadow-sm mt-3">
+            <div class="card-header bg-white"><h5 class="mb-0">How this works</h5></div>
+            <div class="card-body">
+                <ol class="mb-0">
+                    <li>Authorised organisation administrators accept the vendor agreement here or during initial setup.</li>
+                    <li>Before a user opens the interactive report builder or pivot controls, Sentinel presents the same agreement for that user to accept.</li>
+                    <li>When disabled, standard report tables remain available and no WebDataRocks CDN scripts are requested.</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>

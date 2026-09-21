@@ -15,11 +15,11 @@ for the 0.9.0-beta GPL release preparation. It is not legal advice.
 | Compatible | ClosedXML 0.105.1 | Occupation-reference-data Excel import | MIT-licensed replacement for EPPlus. Preserve its and its dependency notices. |
 | Compatible | SurveyJS Form Library 1.9.131 | Rendering completed surveys | MIT-licensed. Its licence text is retained in `Sentinel/wwwroot/licenses/surveyjs-license.txt`. |
 | Optional / operator-managed | SurveyJS Creator 1.9.131 | Demo visual survey-designer override | The standard Sentinel source archive and image do not contain Creator assets. A deployment operator may mount separately obtained assets for a demo deployment and is responsible for the vendor's terms and any required licence. |
-| Conditional | WebDataRocks 1.4.23 | Report builder and report pivot views, loaded from the vendor CDN | The vendor requires attribution and distributes it under a separate EULA. Sentinel displays an attribution link. Verify that the EULA permits the intended public distribution and deployment model, or replace the pivot UI. |
+| Optional / separately licensed | WebDataRocks 1.4.23 | Interactive report builder and pivot views, loaded from the vendor CDN only after acceptance | The vendor requires attribution and distributes it under a separate EULA. Sentinel keeps the component disabled by default; setup/settings records organisation acceptance and each user accepts the current agreement before its CDN files load. |
 
-Do **not** describe the complete Sentinel distribution as “GPL-only” while a
-conditional component remains. The Sentinel-owned code is GPL-3.0-or-later;
-the components above retain their own terms.
+Do **not** describe the complete Sentinel distribution as “GPL-only”. The
+Sentinel-owned code is GPL-3.0-or-later; the components above retain their own
+terms.
 
 ## Direct NuGet dependencies
 
@@ -44,6 +44,7 @@ the version referenced by `Sentinel/Sentinel.csproj`.
 | NetTopologySuite.IO.GeoJSON | 4.0.0 | BSD-3-Clause |
 | NetTopologySuite.IO.ShapeFile | 2.1.0 | LGPL-2.1-or-later |
 | nhapi | 3.2.0 | MPL-2.0 |
+| QRCoder | 1.8.0 | MIT |
 | Serilog.AspNetCore | 10.0.0 | Apache-2.0 |
 | Serilog.Enrichers.Environment | 3.0.1 | Apache-2.0 |
 | Serilog.Enrichers.Thread | 4.0.0 | Apache-2.0 |
@@ -65,7 +66,9 @@ licences must continue to accompany their corresponding package material.
   separate Survey Creator files.
 - WebDataRocks is loaded from `cdn.webdatarocks.com`, rather than copied into
   the repository. Its required on-screen attribution is retained on Sentinel's
-  report-builder and report-view pages.
+  active report-builder and report-view pages. The scripts are not loaded until
+  an organisation administrator and the signed-in user have accepted the
+  current vendor agreement; see [the integration record](docs/licensing-webdatarocks.md).
 
 ## Maintainer release gate
 
@@ -78,5 +81,5 @@ Before publishing a source archive, container, installer, or binary release:
    obligations for both direct and transitive dependencies.
 4. Verify that no SurveyJS Creator assets have entered the source archive or
    standard image. If an operator-managed override is distributed, obtain the
-   vendor permissions required for that distribution. Resolve the WebDataRocks
-   condition above before claiming whole-product GPL compliance.
+   vendor permissions required for that distribution. Verify the WebDataRocks
+   acceptance gate and attribution described above before publishing.

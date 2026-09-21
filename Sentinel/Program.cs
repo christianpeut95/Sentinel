@@ -494,6 +494,8 @@ builder.Services.AddSingleton<Sentinel.Services.IEncryptionService, Sentinel.Ser
 
 // System settings service
 builder.Services.AddScoped<Sentinel.Services.ISystemSettingsService, Sentinel.Services.SystemSettingsService>();
+builder.Services.AddSingleton<Sentinel.Services.ISetupTokenFileService, Sentinel.Services.SetupTokenFileService>();
+builder.Services.AddScoped<Sentinel.Services.IWebDataRocksLicenseService, Sentinel.Services.WebDataRocksLicenseService>();
 builder.Services.AddSingleton<Sentinel.Services.IApplicationVersionProvider, Sentinel.Services.ApplicationVersionProvider>();
 
 // Telemetry service for privacy-safe logging and metrics
@@ -1218,12 +1220,30 @@ if (!app.Environment.IsEnvironment("Testing"))
     using var scope = app.Services.CreateScope();
     var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
     var encryptionService = scope.ServiceProvider.GetRequiredService<Sentinel.Services.IEncryptionService>();
+    var setupTokenFileService = scope.ServiceProvider.GetRequiredService<Sentinel.Services.ISetupTokenFileService>();
     var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
 
     try
     {
         // Check if SystemSettings table exists and has data
         var settings = await context.SystemSettings.FirstOrDefaultAsync();
+
+        // Versions prior to 0.9.0-beta stored the plaintext token beside the
+        // application binaries. It is invalid once this version rotates the
+        // hash, but remove it during upgrade so it does not remain on disk.
+        var legacyTokenFilePath = Path.Combine(AppContext.BaseDirectory, "setup-token.txt");
+        if (File.Exists(legacyTokenFilePath))
+        {
+            try
+            {
+                File.Delete(legacyTokenFilePath);
+                logger.LogInformation("Deleted legacy setup token file during startup");
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(ex, "Could not remove the legacy setup token file; its token will not be accepted after rotation");
+            }
+        }
 
         if (settings == null)
         {
@@ -1254,50 +1274,68 @@ if (!app.Environment.IsEnvironment("Testing"))
                 HL7ProcessingEnabled = false,
                 SurveillanceStartupCompleted = false,
                 SurveillanceStartupProgressPercentage = 0,
+                EnableFeedbackWidget = false,
+                EnableUsageMonitoring = false,
+                TelemetryEnabled = false,
                 CreatedAt = DateTime.UtcNow
             };
 
-            context.SystemSettings.Add(settings);
-            await context.SaveChangesAsync();
+            // The plaintext token must never be sent to logs, the database,
+            // or any web-served location. Store it in the protected operator
+            // file before making its hash usable in the database.
+            await setupTokenFileService.WriteTokenAsync(plainToken);
+            try
+            {
+                context.SystemSettings.Add(settings);
+                await context.SaveChangesAsync();
+            }
+            catch
+            {
+                await setupTokenFileService.DeleteTokenAsync();
+                throw;
+            }
 
-            // Save plain token to file
-            var tokenFilePath = Path.Combine(AppContext.BaseDirectory, "setup-token.txt");
-            await File.WriteAllTextAsync(tokenFilePath, plainToken);
-
-            // Log token to console with ASCII art box
-            logger.LogCritical("");
-            logger.LogCritical("╔════════════════════════════════════════════════════════════════════╗");
-            logger.LogCritical("║                    🛡️  SENTINEL SETUP TOKEN  🛡️                    ║");
-            logger.LogCritical("╠════════════════════════════════════════════════════════════════════╣");
-            logger.LogCritical("║                                                                    ║");
-            logger.LogCritical("║   ⚠️  IMPORTANT: Save this token immediately!                      ║");
-            logger.LogCritical("║                                                                    ║");
-            logger.LogCritical("║   📋 Setup Token:                                                  ║");
-            logger.LogCritical("║   {0}   ║", plainToken);
-            logger.LogCritical("║                                                                    ║");
-            logger.LogCritical("║   📁 Also saved to: {0,-44} ║", tokenFilePath.Length > 44 ? "..." + tokenFilePath.Substring(tokenFilePath.Length - 44) : tokenFilePath);
-            logger.LogCritical("║                                                                    ║");
-            logger.LogCritical("║   ⏰ Expires: {0:yyyy-MM-dd HH:mm} UTC                            ║", settings.SetupTokenExpiresAt);
-            logger.LogCritical("║                                                                    ║");
-            logger.LogCritical("║   🌐 Navigate to: /Setup to begin configuration                   ║");
-            logger.LogCritical("║                                                                    ║");
-            logger.LogCritical("║   ℹ️  This token is required to access the setup wizard           ║");
-            logger.LogCritical("║                                                                    ║");
-            logger.LogCritical("╚════════════════════════════════════════════════════════════════════╝");
-            logger.LogCritical("");
+            logger.LogCritical(
+                "Initial Sentinel setup is pending. Retrieve the one-time setup token from the protected server file {TokenFilePath}. The token expires at {Expiry} UTC and is deleted after setup completes.",
+                setupTokenFileService.TokenFilePath,
+                settings.SetupTokenExpiresAt);
         }
         else if (!settings.IsSetupCompleted && settings.SetupToken != null)
         {
-            // Setup in progress - remind about token location
-            var tokenFilePath = Path.Combine(AppContext.BaseDirectory, "setup-token.txt");
-            if (File.Exists(tokenFilePath))
+            // A token that is expired, or whose protected file was lost before
+            // setup, cannot be used. Replace it automatically rather than
+            // asking an operator to alter database state during commissioning.
+            var tokenExpired = !settings.SetupTokenExpiresAt.HasValue ||
+                settings.SetupTokenExpiresAt.Value <= DateTime.UtcNow;
+            if (tokenExpired || !setupTokenFileService.TokenFileExists)
             {
-                logger.LogWarning("Setup not completed. Token available at: {Path}", tokenFilePath);
-                logger.LogWarning("Setup expires: {Expiry}", settings.SetupTokenExpiresAt);
+                var replacementToken = Convert.ToBase64String(System.Security.Cryptography.RandomNumberGenerator.GetBytes(48));
+                settings.SetupToken = encryptionService.Hash(replacementToken);
+                settings.SetupTokenGeneratedAt = DateTime.UtcNow;
+                settings.SetupTokenExpiresAt = DateTime.UtcNow.AddHours(48);
+
+                await setupTokenFileService.WriteTokenAsync(replacementToken);
+                try
+                {
+                    await context.SaveChangesAsync();
+                }
+                catch
+                {
+                    await setupTokenFileService.DeleteTokenAsync();
+                    throw;
+                }
+
+                logger.LogCritical(
+                    "Initial Sentinel setup remains incomplete. A replacement one-time setup token was created in the protected server file {TokenFilePath}; it expires at {Expiry} UTC.",
+                    setupTokenFileService.TokenFilePath,
+                    settings.SetupTokenExpiresAt);
             }
             else
             {
-                logger.LogWarning("Setup not completed but token file is missing. You may need to regenerate the token by deleting the SystemSettings record.");
+                // Setup in progress - remind the server operator where to obtain
+                // the token without ever writing it into application logs.
+                logger.LogWarning("Setup not completed. The one-time token remains in the protected server file {TokenFilePath}", setupTokenFileService.TokenFilePath);
+                logger.LogWarning("Setup expires: {Expiry}", settings.SetupTokenExpiresAt);
             }
         }
         else if (settings.IsSetupCompleted)

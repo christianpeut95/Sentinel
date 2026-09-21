@@ -61,8 +61,17 @@ public sealed class AuthorizationSurfaceInventoryTests
         [
             "Sentinel/Areas/Identity/Pages/Account/Logout.cshtml.cs",
             "Sentinel/Areas/Identity/Pages/Account/Manage/ChangePassword.cshtml.cs",
+            "Sentinel/Areas/Identity/Pages/Account/Manage/EnableAuthenticator.cshtml.cs",
+            "Sentinel/Areas/Identity/Pages/Account/Manage/GenerateRecoveryCodes.cshtml.cs",
+            "Sentinel/Areas/Identity/Pages/Account/Manage/ResetAuthenticator.cshtml.cs",
+            "Sentinel/Areas/Identity/Pages/Account/Manage/ShowRecoveryCodes.cshtml.cs",
+            "Sentinel/Areas/Identity/Pages/Account/Manage/TwoFactorAuthentication.cshtml.cs",
             "Sentinel/Pages/Dashboard.cshtml.cs",
-            "Sentinel/Pages/Help/CollectionMapping.cshtml.cs"
+            "Sentinel/Pages/Help/CollectionMapping.cshtml.cs",
+            // This page only records a signed-in user's acceptance before a
+            // separately authorised report page loads WebDataRocks. It does
+            // not expose report data or configuration itself.
+            "Sentinel/Pages/Reports/WebDataRocksTerms.cshtml.cs"
         ], plainAuthenticatedPages);
     }
 

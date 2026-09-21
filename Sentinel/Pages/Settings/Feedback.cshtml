@@ -37,15 +37,15 @@
 
                         <hr class="my-4" />
 
-                        <h5 class="mb-3"><i class="bi bi-graph-up"></i> Anonymous Usage Statistics</h5>
+                        <h5 class="mb-3"><i class="bi bi-graph-up"></i> Optional Remote Usage & Error Reporting</h5>
                         <div class="mb-4">
                             <div class="form-check form-switch">
                                 <input asp-for="EnableUsageMonitoring" class="form-check-input" type="checkbox" role="switch" id="enableUsageMonitoringSwitch" style="width: 3em; height: 1.5em;">
                                 <label class="form-check-label ms-2" for="enableUsageMonitoringSwitch" style="font-size: 1.1rem; font-weight: 500;">
-                                    Enable Anonymous Usage Statistics
+                                    Share Anonymous Usage Statistics & Automatic Error Reports
                                 </label>
                             </div>
-                            <small class="text-muted ms-5 ps-1">When enabled, anonymous usage statistics are submitted hourly to help improve Sentinel</small>
+                            <small class="text-muted ms-5 ps-1">Disabled by default. When enabled, Sentinel submits aggregate usage statistics hourly and sends privacy-safe automatic error reports to help identify widespread problems.</small>
                         </div>
 
                         <div class="info-panel p-3 mb-4" style="background: #E8F5E9; border: 1px solid #A5D6A7; border-radius: 8px;">
@@ -69,14 +69,14 @@
                                 </li>
                                 <li class="mb-1">
                                     <i class="bi bi-check-circle text-success"></i>
-                                    HL7 file processing activity
+                                    HL7 file processing activity and coarse error fingerprints
                                 </li>
                             </ul>
                         </div>
 
                         <div class="alert alert-info" role="alert">
                             <i class="bi bi-shield-lock"></i>
-                            <strong>Privacy Guarantee:</strong> No patient data, no personal information, only aggregate counts. All data is anonymized and linked only to your installation ID.
+                            <strong>Privacy Guarantee:</strong> No patient data, personal information, exception messages, stack traces, request content, or credentials are sent. Reports contain only approved aggregate counts and are linked only to your installation ID.
                         </div>
 
                         <hr class="my-4" />

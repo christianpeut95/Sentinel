@@ -20,12 +20,18 @@ The project uses MIT, Apache-2.0, BSD-3-Clause, LGPL-2.1-or-later, and MPL-2.0
 NuGet dependencies. Their notices and conditions must be retained. The
 Spreadsheet import uses ClosedXML (MIT); Sentinel does not use EPPlus.
 
-One browser-side component requires an explicit pre-release decision:
+**WebDataRocks** powers Sentinel's optional interactive pivot reports. It is
+loaded from the vendor CDN and is governed by its own EULA, including
+attribution and component-specific use restrictions. It is not relicensed by
+the Sentinel GPL.
 
-1. **WebDataRocks** powers report pivots and is loaded from the vendor CDN. It
-   has a separate EULA and requires attribution. Sentinel includes attribution,
-   but a maintainer must still confirm that the EULA fits the intended release
-   and deployment model, or replace the component.
+The standard release keeps this component disabled by default. An authorised
+organisation administrator may enable it only after accepting the current
+vendor agreement in initial setup or **Settings → Interactive Reports**. Each
+user must then accept that same agreement before Sentinel loads WebDataRocks
+in their browser. When the feature is disabled or the user has not accepted,
+the standard report table remains available and no WebDataRocks CDN script is
+requested. See [WebDataRocks integration and acceptance](licensing-webdatarocks.md).
 
 SurveyJS Creator is not part of the standard Sentinel source archive or Docker
 image. The project provides an operator-managed demo override that
@@ -34,7 +40,7 @@ grant a vendor licence: the operator enabling it is responsible for the terms
 that apply to their use and any distribution of those assets. See
 [optional SurveyJS Creator deployment](deployment/survey-designer.md).
 
-Neither condition can be solved merely by adding a copyright notice.
+Neither condition is solved merely by adding a copyright notice.
 
 ## Contribution rule
 
@@ -52,4 +58,5 @@ distribute them under terms compatible with Sentinel's intended distribution.
 4. Keep required notices in the source archive and copy `LICENSE.md` and
    `THIRD_PARTY_NOTICES.md` into release artifacts.
 5. Check that the release notes accurately state which third-party conditions
-   still apply.
+   still apply, including the optional WebDataRocks feature and its separate
+   end-user acceptance flow.

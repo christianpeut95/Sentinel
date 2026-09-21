@@ -8,6 +8,8 @@ When an exception reaches a user-facing endpoint, log the full exception server-
 
 ## Optional remote telemetry
 
+Remote usage/error reporting is disabled by default. A Sentinel administrator must explicitly enable the single **Anonymous Usage Statistics & Automatic Error Reports** setting; the choice can be withdrawn at any time. The feedback widget is separately disabled by default.
+
 When enabled, remote usage/error reporting is one configuration choice. It is limited to operationally useful, non-identifying data:
 
 - installation/report identifiers;

@@ -1,0 +1,29 @@
+@page
+@model Sentinel.Areas.Identity.Pages.Account.Manage.ResetAuthenticatorModel
+@{
+    ViewData["Title"] = "Reset authenticator app";
+}
+
+<link rel="stylesheet" href="~/css/identity-security.css" asp-append-version="true" />
+
+<div class="container py-4 identity-security-page">
+    <div class="identity-security-hero">
+        <div class="identity-security-icon"><i class="bi bi-arrow-repeat"></i></div>
+        <div>
+            <h1 class="h3 mb-1">Reset authenticator app</h1>
+            <p class="text-muted mb-0">Use this if you have replaced or lost access to your authenticator app.</p>
+        </div>
+    </div>
+
+    <div class="card identity-security-card">
+        <div class="card-body p-4">
+            <div class="alert alert-warning" role="alert">
+                <strong>This will disable two-factor authentication temporarily.</strong> You will need to scan a new QR code and confirm a new authenticator code before re-enabling it.
+            </div>
+            <form method="post" class="d-flex gap-2">
+                <button type="submit" class="btn btn-danger"><i class="bi bi-arrow-repeat me-1"></i>Reset authenticator app</button>
+                <a asp-page="./TwoFactorAuthentication" class="btn btn-outline-secondary">Cancel</a>
+            </form>
+        </div>
+    </div>
+</div>

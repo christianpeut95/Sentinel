@@ -9,6 +9,7 @@
 @inject UserManager<ApplicationUser> UserManager
 @inject RoleManager<IdentityRole> RoleManager
 @inject ISystemSettingsService SystemSettingsService
+@inject IWebDataRocksLicenseService WebDataRocksLicense
 @inject IConfiguration Configuration
 @inject IWebHostEnvironment Environment
 @inject ILogger<ReviewStage> Logger
@@ -137,13 +138,43 @@
             </div>
         }
 
-        <!-- User Feedback -->
+        <!-- Optional feedback and remote diagnostics -->
         <div class="review-section">
-            <h3><i class="bi bi-chat-square-text"></i> User Feedback</h3>
+            <h3><i class="bi bi-chat-square-text"></i> Optional Feedback & Diagnostics</h3>
             <div class="review-item">
                 <span class="review-label">Feedback Widget</span>
                 <span class="review-value">@(EnableFeedback ? "Enabled" : "Disabled")</span>
             </div>
+            <div class="review-item">
+                <span class="review-label">Anonymous Usage & Automatic Error Reporting</span>
+                <span class="review-value">@(EnableUsageMonitoring ? "Enabled" : "Disabled")</span>
+            </div>
+        </div>
+
+        <!-- Optional interactive pivot reporting -->
+        <div class="review-section">
+            <h3><i class="bi bi-table"></i> Optional Interactive Pivot Reports</h3>
+            <p class="text-muted mb-3">
+                Sentinel can use WebDataRocks for interactive pivot reports. It is an optional component provided under its own vendor licence, not the Sentinel GPL licence.
+            </p>
+            <div class="form-check form-switch mb-3">
+                <input @bind="_enableWebDataRocks" class="form-check-input" type="checkbox" role="switch" id="enableWebDataRocks" style="width: 3em; height: 1.5em;" />
+                <label class="form-check-label ms-2 fw-semibold" for="enableWebDataRocks">
+                    Enable interactive pivot reports
+                </label>
+            </div>
+            @if (_enableWebDataRocks)
+            {
+                <div class="alert alert-warning mb-0">
+                    <div class="form-check">
+                        <input @bind="_acceptWebDataRocksLicense" class="form-check-input" type="checkbox" id="acceptWebDataRocksLicense" />
+                        <label class="form-check-label" for="acceptWebDataRocksLicense">
+                            I have read and accept the <a href="@WebDataRocksLicenseService.LicenseUrl" target="_blank" rel="noopener noreferrer">WebDataRocks Licence Agreement</a> (revision @WebDataRocksLicenseService.CurrentLicenseVersion) for this organisation.
+                        </label>
+                    </div>
+                    <small class="d-block mt-2">Each Sentinel user will also be asked to accept these terms before their browser loads the pivot component. Vendor attribution and the component’s applicable limits remain in place.</small>
+                </div>
+            }
         </div>
 
         <!-- Backup -->
@@ -187,7 +218,8 @@
     [Parameter] public InitialSetupWizard.AdminAccountData AdminData { get; set; } = new();
     [Parameter] public InitialSetupWizard.HttpsConfigData HttpsData { get; set; } = new();
     [Parameter] public InitialSetupWizard.OrganizationData OrgData { get; set; } = new();
-    [Parameter] public bool EnableFeedback { get; set; } = true;
+    [Parameter] public bool EnableFeedback { get; set; }
+    [Parameter] public bool EnableUsageMonitoring { get; set; }
     [Parameter] public string TimeZoneId { get; set; } = "UTC";
     [Parameter] public InitialSetupWizard.GeocodingData GeoData { get; set; } = new();
     [Parameter] public InitialSetupWizard.BackupData BackupData { get; set; } = new();
@@ -195,9 +227,17 @@
     private bool _isCompleting = false;
     private string _error = "";
     private string _currentStep = "";
+    private bool _enableWebDataRocks;
+    private bool _acceptWebDataRocksLicense;
 
     private async Task CompleteSetup()
     {
+        if (_enableWebDataRocks && !_acceptWebDataRocksLicense)
+        {
+            _error = "Accept the WebDataRocks Licence Agreement or leave interactive pivot reports disabled.";
+            return;
+        }
+
         _isCompleting = true;
         _error = "";
         StateHasChanged();
@@ -289,8 +329,21 @@
             {
                 settings.ApplicationUrl = HttpsData.ApplicationUrl;
                 settings.EnforceHttps = HttpsData.EnforceHttps;
-                // Save feedback widget setting
+                // Remote feedback and diagnostic reporting are both explicit
+                // setup choices and are disabled unless selected by the admin.
                 await SystemSettingsService.UpdateFeedbackWidgetSettingAsync(EnableFeedback);
+                await SystemSettingsService.UpdateUsageMonitoringSettingAsync(EnableUsageMonitoring);
+                await WebDataRocksLicense.SetOrganizationAcceptanceAsync(
+                    _enableWebDataRocks,
+                    adminUser.Id);
+
+                if (_enableWebDataRocks)
+                {
+                    // The setup administrator has explicitly accepted the
+                    // terms for the organisation and personally, so avoid a
+                    // redundant first-use prompt after their initial sign-in.
+                    await WebDataRocksLicense.AcceptForUserAsync(adminUser.Id);
+                }
 
                 // Save organization data and timezone to appsettings.json
                 try

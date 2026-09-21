@@ -6,6 +6,7 @@
 # Sentinel Setup Token - NEVER commit this file!
 setup-token.txt
 **/setup-token.txt
+App_Data/SentinelSetup/
 
 # Copilot-generated documentation/debugging files
 **/[A-Z_]*_[A-Z_]*.md
@@ -465,6 +466,12 @@ wwwroot/dist/
 # Project-specific folders to ignore
 Docs/
 Docker/
+
+# The Compose database bootstrap script is deployment source, not a generated
+# Docker artefact.
+!docker/
+!docker/sql/
+!docker/sql/init-sentinel-app-login.sql
 Mockups/
 User-Documentation/
 Migrations_ARCHIVED_DO_NOT_USE/

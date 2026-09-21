@@ -181,6 +181,11 @@ namespace Sentinel.Areas.Identity.Pages.Account
                 return LocalRedirect(returnUrl);
             }
 
+            if (result.RequiresTwoFactor)
+            {
+                return RedirectToPage("./LoginWith2fa", new { ReturnUrl = returnUrl, RememberMe = false });
+            }
+
             if (result.IsLockedOut)
             {
                 _logger.LogWarning("Demo login attempt rejected because user {UserId} is locked out", user.Id);
@@ -225,8 +230,20 @@ namespace Sentinel.Areas.Identity.Pages.Account
                 return Microsoft.AspNetCore.Identity.SignInResult.Failed;
             }
 
-            await _signInManager.SignInAsync(user, isPersistent);
-            return Microsoft.AspNetCore.Identity.SignInResult.Success;
+            // Use Identity's public password-sign-in flow for its normal
+            // remembered-browser and two-factor decision. Calling SignInAsync
+            // directly here would issue an application cookie after a valid
+            // password and bypass the configured second factor entirely.
+            //
+            // The password has already been verified above, so this second
+            // check does not participate in lockout counting. It is necessary
+            // because Identity keeps the two-factor decision behind its public
+            // PasswordSignInAsync API.
+            return await _signInManager.PasswordSignInAsync(
+                user,
+                password,
+                isPersistent,
+                lockoutOnFailure: false);
         }
 
         private async Task<bool> EnsureLockoutEnabledAsync(ApplicationUser user)

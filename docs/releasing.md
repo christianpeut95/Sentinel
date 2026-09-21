@@ -29,10 +29,10 @@ does not replace each organisation's deployment validation.
 6. Verify that the GPL terms in [LICENSE.md](../LICENSE.md) and the inventory
    in [THIRD_PARTY_NOTICES.md](../THIRD_PARTY_NOTICES.md) are current. Confirm
    that separately licensed SurveyJS Creator assets have not entered the
-   public source archive or standard image. Resolve any remaining
-   component-specific commercial or redistribution rights before publishing a
-   bundled public artefact. Follow the decision record in
-   [licensing guidance](licensing.md), particularly for WebDataRocks.
+   public source archive or standard image. Verify the optional WebDataRocks
+   acceptance gate, attribution, and disabled-state behaviour described in
+   [licensing guidance](licensing.md) before publishing a bundled public
+   artefact.
 
 ## Publishing
 

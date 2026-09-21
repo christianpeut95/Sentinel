@@ -114,16 +114,37 @@ namespace Sentinel.Models
         public string? InstallationId { get; set; }
 
         /// <summary>
-        /// Enable or disable the feedback widget (opt-out approach, enabled by default)
+        /// Enable or disable the optional feedback widget. New installations
+        /// must explicitly opt in before it is shown.
         /// </summary>
         [Display(Name = "Enable Feedback Widget")]
-        public bool EnableFeedbackWidget { get; set; } = true;
+        public bool EnableFeedbackWidget { get; set; } = false;
 
         /// <summary>
-        /// Enable or disable anonymous usage statistics collection and hourly reporting
+        /// Enable or disable optional remote usage statistics and automatic
+        /// error reporting. New installations must explicitly opt in.
         /// </summary>
         [Display(Name = "Enable Anonymous Usage Statistics")]
-        public bool EnableUsageMonitoring { get; set; } = true;
+        public bool EnableUsageMonitoring { get; set; } = false;
+
+        // ── Optional interactive reporting component ───────────────────────
+        // WebDataRocks is a separately licensed third-party browser component.
+        // It is disabled by default until an authorised organisation
+        // representative accepts the current vendor terms during setup or from
+        // the reporting settings page.
+        [Display(Name = "Enable Interactive Pivot Reports")]
+        public bool EnableWebDataRocks { get; set; } = false;
+
+        [Display(Name = "WebDataRocks Licence Version")]
+        [StringLength(40)]
+        public string? WebDataRocksLicenseVersion { get; set; }
+
+        [Display(Name = "WebDataRocks Licence Accepted At")]
+        public DateTime? WebDataRocksLicenseAcceptedAt { get; set; }
+
+        [Display(Name = "WebDataRocks Licence Accepted By User")]
+        [StringLength(450)]
+        public string? WebDataRocksLicenseAcceptedByUserId { get; set; }
 
         // -- Access Control ----------------------------------------------------------
         /// <summary>
@@ -135,7 +156,7 @@ namespace Sentinel.Models
 
         // -- Telemetry & Logging ----------------------------------------------------
         [Display(Name = "Enable Telemetry")]
-        public bool TelemetryEnabled { get; set; } = true;
+        public bool TelemetryEnabled { get; set; } = false;
 
         [Display(Name = "Enable Local Logging")]
         public bool LocalLoggingEnabled { get; set; } = true;

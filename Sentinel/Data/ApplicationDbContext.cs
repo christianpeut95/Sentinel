@@ -177,6 +177,22 @@ namespace Sentinel.Data
         {
             base.OnModelCreating(builder);
 
+            // Preserve the widths used by Sentinel's existing Identity schema.
+            // ASP.NET Core Identity 10 otherwise changes these composite-key
+            // columns to 450 characters when a new migration is scaffolded.
+            builder.Entity<Microsoft.AspNetCore.Identity.IdentityUserLogin<string>>()
+                .Property(login => login.LoginProvider)
+                .HasMaxLength(128);
+            builder.Entity<Microsoft.AspNetCore.Identity.IdentityUserLogin<string>>()
+                .Property(login => login.ProviderKey)
+                .HasMaxLength(128);
+            builder.Entity<Microsoft.AspNetCore.Identity.IdentityUserToken<string>>()
+                .Property(token => token.LoginProvider)
+                .HasMaxLength(128);
+            builder.Entity<Microsoft.AspNetCore.Identity.IdentityUserToken<string>>()
+                .Property(token => token.Name)
+                .HasMaxLength(128);
+
             builder.Entity<UserGroup>().HasKey(ug => new { ug.UserId, ug.GroupId });
 
             builder.Entity<UserGroup>()

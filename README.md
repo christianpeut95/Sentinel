@@ -10,7 +10,7 @@
 
   <br />
 
-  **[Visit Homepage ?](https://sentinelsurveillance.app)**
+  **[Visit Homepage](https://sentinelsurveillance.app)**
 </div>
 
 ---
@@ -39,7 +39,7 @@ organisation-led deployment validation.
 
 ---
 
-## Core Capabilities
+## At a Glance
 
 ### 01 · Lab Integration
 
@@ -77,15 +77,31 @@ organisation-led deployment validation.
 
 ### 04 · Outbreaks
 
-**Outbreaks & contact tracing** — Hierarchical outbreak structures (outbreak ? sub-outbreak), interview queues with assignment and status tracking, supervisor dashboards for workload monitoring, bulk contact import from CSV, contact-to-case conversion, and interactive mind-map visualization of case-to-case and case-to-contact relationships.
+**Outbreaks & contact tracing** — Hierarchical outbreak structures (outbreak to sub-outbreak), interview queues with assignment and status tracking, supervisor dashboards for workload monitoring, bulk contact import from CSV, contact-to-case conversion, and interactive mind-map visualization of case-to-case and case-to-contact relationships.
 
 - Hierarchical outbreak linking (parent-child relationships)
 - Interview queue management with assignment rules
 - Contact relationship mapping (household, workplace, social)
 - Bulk operations: CSV import, mass assign, batch convert
-- Generation tracking (index ? generation 1 ? generation 2)
+- Generation tracking (index to generation 1 to generation 2)
 - Exposure windows and infectious period calculations
 - Network graph visualization of transmission chains
+
+---
+
+## Design Principles
+
+### Epidemiologist-first configuration
+
+Surveillance teams configure diseases, case definitions, surveys, geography,
+demographics and reports through the application. Routine surveillance changes
+should not require source-code or database-schema changes.
+
+### Operational simplicity
+
+Sentinel is designed for time-critical public-health operations. Interfaces and
+workflows aim to keep data entry, investigation and reassignment understandable
+when teams scale quickly or processes change.
 
 ---
 
@@ -136,7 +152,17 @@ organisation-led deployment validation.
 
 ---
 
-## Key Features
+## User Interface Design
+
+Sentinel uses a data-forward interface designed for high-density information and
+rapid decision-making. The design system uses Geist Sans and Geist Mono, a 4 px
+spacing scale, and defined status colours for outbreak, watch, clear and
+informational states. The detailed reference is available at
+[UI Guidelines](Sentinel/wwwroot/design/UI%20Guidelines.html).
+
+---
+
+## Current Beta Features
 
 ### Core Surveillance
 
@@ -170,22 +196,23 @@ organisation-led deployment validation.
 ### Reporting & Analytics
 
 - **No-Code Report Builder** — Create line listings with custom columns, filters, and sorting without writing SQL; save and share report definitions
-- **Pivot Table Analytics** — Interactive data slicing with drill-down using WebDataRocks component
+- **Optional Pivot Table Analytics** — Interactive data slicing with drill-down using WebDataRocks after organisation and user acceptance of its separate vendor licence
 - **Custom Dashboards** — Role-specific views with KPIs, case counts, and filtered lists
-- **Scheduled Reports** — (Planned) Automated report generation and email distribution
+- **Scheduled Reports** — Planned: automated report generation and email distribution
 
 ### Security & Governance
 
 - **Role-Based Access Control** — Granular permissions for case creation, editing, viewing, deletion, and exporting; configure at role level
 - **Disease-Based Restrictions** — Restrict users to specific diseases or disease groups (e.g., STI officers only see STI cases)
 - **Field-Level Permissions** — Control visibility and editability of sensitive fields per role (e.g., hide patient name from contact tracers)
+- **Optional Two-Factor Authentication** — Users can enrol a TOTP-compatible authenticator app with a locally generated QR code and one-time recovery codes; see [authentication-abuse controls](docs/security/authentication-abuse-controls.md) for setup and recovery guidance
 - **Audit Logging** — Track all changes to cases, patients, outbreaks, and system configuration with timestamp, user, old/new values
 
 ### Geographic Features
 
 - **Address Geocoding** — Automatic latitude/longitude lookup using Nominatim (free, rate-limited) or Google Maps API (paid, accurate)
 - **Jurisdiction Assignment** — Automatically assign cases to health units based on address geocoding and jurisdiction boundaries
-- **Map Visualisations** — (Planned) Plot cases and outbreaks spatially with heat maps and cluster detection
+- **Map Visualisations** — Planned: plot cases and outbreaks spatially with heat maps and cluster detection
 
 ### Workflow Automation
 
@@ -198,7 +225,7 @@ organisation-led deployment validation.
 - **HL7 Lab Feeds** — Ingest HL7 v2.x messages (ORM, ORU, ADT) from file drops, auto-match to patients using configurable strategies (exact, fuzzy, probabilistic), parse with LOINC and SNOMED
 - **Bulk Contact Import** — CSV upload for mass contact creation during outbreak response with field mapping and validation
 - **Manual Data Entry** — Full UI for case and patient creation when automation isn't available
-- **API Integration** — (Planned) RESTful API for third-party system integration
+- **Public API Integration** — Planned: documented REST API for third-party system integration
 
 ---
 
@@ -231,7 +258,8 @@ dotnet run
 
 **First Run:**
 - Database auto-seeds with lookup data and default permissions
-- Open `/Setup` and use the setup token generated at startup to create the initial administrator
+- Sentinel creates a one-time setup token in the protected path configured by `Setup:TokenFilePath` (by default `App_Data/SentinelSetup/setup-token.txt`). It is never printed in application logs.
+- Open `/Setup` and use that token to create the initial administrator. The token expires after 48 hours and is deleted after setup completes.
 - Create later accounts from **Settings → Users** with an authorised administrator account
 
 ---
@@ -255,25 +283,39 @@ cp .env.example .env
 # Set DOCKERHUB_USERNAME, SENTINEL_HOSTNAME and ACME_EMAIL in .env.
 # The hostname must already resolve to this server and ports 80 and 443 must
 # be reachable from the internet for the TLS certificate to be issued.
-# Then generate and save a SQL Server password.
-SQL_PASSWORD="$(openssl rand -base64 24 | tr -d '\n')Aa1!"
-sed -i "s|^SQL_PASSWORD=.*|SQL_PASSWORD=$SQL_PASSWORD|" .env
+# Then generate separate SQL Server administrator and application passwords.
+# Keep the generated values to letters, digits and ! for safe use in both
+# connection strings and SQL bootstrap scripts.
+SQL_SA_PASSWORD="$(openssl rand -hex 32)Aa1!"
+SQL_APP_PASSWORD="$(openssl rand -hex 32)Bb2!"
+sed -i "s|^SQL_SA_PASSWORD=.*|SQL_SA_PASSWORD=$SQL_SA_PASSWORD|" .env
+sed -i "s|^SQL_APP_PASSWORD=.*|SQL_APP_PASSWORD=$SQL_APP_PASSWORD|" .env
 chmod 600 .env
 
 # Start stack
 docker compose up -d
 
+# Retrieve the one-time setup token. It is not written to Docker logs.
+docker compose exec sentinel-web cat /var/lib/sentinel/setup/setup-token.txt
+
 # Access at https://<SENTINEL_HOSTNAME>
 ```
+
+Open `https://<SENTINEL_HOSTNAME>/Setup` and enter the displayed token to create
+the initial administrator. Sentinel deletes the token file once setup succeeds.
+If setup is still incomplete and the token expires or its protected file is
+lost, restart `sentinel-web`; Sentinel creates a replacement token and writes
+only it to the protected setup volume.
 
 **Stack Components:**
 - `sentinel-proxy` — Caddy reverse proxy, automatic HTTPS certificate and HTTP-to-HTTPS redirect
 - `sentinel-app` — ASP.NET Core application, private to the Docker network
 - `sentinel-db` — SQL Server 2022
+- `sentinel-db-init` — short-lived database/login bootstrap job
 
 Migrations run automatically on first startup.
 
-The application and bundled database are available only on the Docker network. The proxy is the sole public service and publishes ports 80 and 443. Named volumes retain database data, protected files, Caddy certificates and ASP.NET Core Data Protection keys across restarts.
+The application and bundled database are available only on the Docker network. The proxy is the sole public service and publishes ports 80 and 443. A short-lived bootstrap container creates the `SentinelDb` database and its database-scoped `sentinel_app` login; Sentinel does not connect as SQL Server `sa`. Named volumes retain database data, protected files, Caddy certificates and ASP.NET Core Data Protection keys across restarts.
 
 ### Pre-built Docker Image
 
@@ -285,7 +327,8 @@ docker pull christianpeut/sentinel:latest
 
 | Variable | Description | Default |
 |---|---|---|
-| `SQL_PASSWORD` | Required SQL Server password for the bundled database | None |
+| `SQL_SA_PASSWORD` | Required SQL Server administrator password, used only for SQL Server and the bootstrap job | None |
+| `SQL_APP_PASSWORD` | Required password for Sentinel's database-scoped `sentinel_app` login | None |
 | `SENTINEL_HOSTNAME` | Public DNS hostname for the Sentinel site | None |
 | `ACME_EMAIL` | Email address used by Caddy for certificate notices | None |
 | `ASPNETCORE_ENVIRONMENT` | Environment name | `Production` |
@@ -298,6 +341,24 @@ docker pull christianpeut/sentinel:latest
 ## Security documentation
 
 Security controls, production deployment checks and release procedures are maintained in [docs/security](docs/security/README.md). These documents include an [OWASP ASVS 5.0 Level 1 self-assessment](docs/security/owasp-asvs-l1-assessment.md), input-validation rules, account-abuse controls, authorization/data access, safe file handling, logging/telemetry, dependency remediation and Docker HTTPS deployment.
+
+### Voluntary two-factor authentication
+
+Sentinel does not currently impose two-factor authentication organisation-wide.
+Instead, a user can choose **User menu → Two-Factor Authentication**, scan the
+locally generated authenticator-app QR code (or enter its setup key), verify a
+six-digit TOTP code, and securely store the one-time recovery codes shown at
+the end of enrolment. The setup key and QR code never leave Sentinel for an
+external QR service. See the [authentication controls](docs/security/authentication-abuse-controls.md)
+for recovery, reset and operational guidance.
+
+---
+
+## Optional feedback and remote diagnostics
+
+Sentinel does **not** send feedback, usage information, or automatic error reports by default. During setup, an administrator may independently enable the feedback widget and the single **Anonymous Usage Statistics & Automatic Error Reports** option. Either choice can be withdrawn later in **Settings → Feedback & Bug Reports**.
+
+When remote diagnostics are enabled, Sentinel sends only approved aggregate counts, semantic page identifiers, safe runtime characteristics, and coarse error fingerprints linked to the installation ID. It never sends patient data, laboratory results, survey answers, exception messages, stack traces, request content, credentials, or raw HL7 payloads. See the [logging and telemetry policy](docs/security/logging-and-telemetry.md) for the complete data boundary.
 
 ---
 
@@ -424,11 +485,13 @@ Demo__ShowDemoBanner=true
 ### Stable
 - Patient and case management
 - Duplicate detection and merging
+- HL7 laboratory ingestion, matching and review workflows
+- Configurable case definitions and automatic case evaluation
 - Survey system with field mapping and versioning
 - Task management and interview workflows
 - Outbreak investigation and contact tracing
 - Report builder (line listing, pivot tables)
-- Disease-based access control
+- Role-based and disease-hierarchy access control
 - Bulk contact operations
 
 ### Known Limitations
@@ -443,7 +506,6 @@ Demo__ShowDemoBanner=true
 ## Roadmap
 
 ### Near-Term
-- HL7 support for lab result import
 - Vaccination module with immunisation tracking
 - Enhanced charting and visualizations
 - LDAP/Active Directory integration
@@ -498,7 +560,8 @@ with both Sentinel's GPL terms and the applicable third-party terms.
 | SurveyJS Form Library | MIT | Runtime form-rendering component |
 | SurveyJS Creator | Commercial / operator-managed | Not included in the standard source or image. A demo override can mount separately obtained assets; see [deployment guidance](docs/deployment/survey-designer.md). |
 | ClosedXML 0.105.1 | MIT | Used for occupation-reference-data Excel import |
-| WebDataRocks | Separate vendor EULA | Attribution is displayed; review its current terms before distribution |
+| QRCoder 1.8.0 | MIT | Generates authenticator-enrolment QR codes locally; no QR data is sent to an external service. |
+| WebDataRocks | Separate vendor EULA | Optional component: disabled by default; organisation and user acceptance are recorded before its CDN files load. See [integration guidance](docs/licensing-webdatarocks.md). |
 | ASP.NET Core / EF Core | MIT | Free |
 | Bootstrap / Bootstrap Icons | MIT | Free |
 
@@ -506,7 +569,7 @@ with both Sentinel's GPL terms and the applicable third-party terms.
 
 ## Acknowledgements
 
-Built with: ASP.NET Core, Entity Framework Core, SurveyJS, AG Grid, WebDataRocks, Bootstrap.
+Built with: ASP.NET Core, Entity Framework Core, SurveyJS, AG Grid, Bootstrap, and optionally WebDataRocks for accepted interactive pivot reporting.
 
 Design system typefaces: [Geist Sans](https://vercel.com/font) and Geist Mono by Vercel.
 

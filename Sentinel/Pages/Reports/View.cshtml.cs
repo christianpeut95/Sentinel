@@ -3,8 +3,10 @@ using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using Sentinel.Data;
+using Sentinel.Services;
 using Sentinel.Models.Reporting;
 using Sentinel.Services.Reporting;
+using System.Security.Claims;
 
 namespace Sentinel.Pages.Reports;
 
@@ -14,21 +16,26 @@ public class ViewModel : PageModel
     private readonly ApplicationDbContext _context;
     private readonly IReportDataService _reportDataService;
     private readonly IReportDataAccessService _reportDataAccessService;
+    private readonly IWebDataRocksLicenseService _webDataRocksLicenseService;
 
     public ViewModel(
         ApplicationDbContext context,
         IReportDataService reportDataService,
-        IReportDataAccessService reportDataAccessService)
+        IReportDataAccessService reportDataAccessService,
+        IWebDataRocksLicenseService webDataRocksLicenseService)
     {
         _context = context;
         _reportDataService = reportDataService;
         _reportDataAccessService = reportDataAccessService;
+        _webDataRocksLicenseService = webDataRocksLicenseService;
     }
 
     public ReportDefinition? ReportDefinition { get; set; }
     public List<Dictionary<string, object?>>? ReportData { get; set; }
     public int TotalRows { get; set; }
     public string? ErrorMessage { get; set; }
+    public bool CanUseWebDataRocks { get; private set; }
+    public bool IsWebDataRocksEnabledForOrganization { get; private set; }
 
     public async Task<IActionResult> OnGetAsync(int id)
     {
@@ -36,6 +43,11 @@ public class ViewModel : PageModel
         Response.Headers.Append("Cache-Control", "no-cache, no-store, must-revalidate");
         Response.Headers.Append("Pragma", "no-cache");
         Response.Headers.Append("Expires", "0");
+
+        var licenseStatus = await _webDataRocksLicenseService.GetStatusAsync(
+            User.FindFirstValue(ClaimTypes.NameIdentifier));
+        CanUseWebDataRocks = licenseStatus.CanUse;
+        IsWebDataRocksEnabledForOrganization = licenseStatus.OrganizationAccepted;
         
         // Load report definition
         ReportDefinition = await _context.ReportDefinitions

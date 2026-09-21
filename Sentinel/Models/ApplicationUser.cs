@@ -13,6 +13,17 @@ namespace Sentinel.Models
         [Display(Name = "Account Enabled")]
         public bool IsEnabled { get; set; } = true;
 
+        /// <summary>
+        /// Records acceptance of the current WebDataRocks vendor terms before
+        /// the user's browser is permitted to load the interactive pivot
+        /// component. This is separate from the organisation-level decision in
+        /// <see cref="SystemSettings"/> to enable the optional feature.
+        /// </summary>
+        [StringLength(40)]
+        public string? WebDataRocksLicenseVersion { get; set; }
+
+        public DateTime? WebDataRocksLicenseAcceptedAt { get; set; }
+
         public List<UserGroup> UserGroups { get; set; } = new();
         public List<UserPermission> UserPermissions { get; set; } = new();
         public List<UserDiseaseAccess> UserDiseaseAccess { get; set; } = new();

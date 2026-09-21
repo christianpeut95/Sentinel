@@ -23,7 +23,7 @@
             <div class="token-input-group">
                 <label class="form-label required">Setup Token</label>
                 <InputText @bind-Value="_token" class="form-control token-input" placeholder="Enter setup token" disabled="@_isValidating" />
-                <span class="form-text">Check the setup-token.txt file in your server directory or console logs.</span>
+                <span class="form-text">Retrieve the one-time token from the protected location provided by your deployment administrator. Sentinel never displays it in application logs.</span>
             </div>
 
             <button type="submit" class="btn btn-primary" style="width: 100%;" disabled="@_isValidating">
@@ -70,7 +70,7 @@
             }
             else
             {
-                _error = "Invalid or expired setup token. Please check your setup-token.txt file or server logs.";
+                _error = "Invalid or expired setup token. Retrieve the current token from the protected location provided by your deployment administrator.";
             }
         }
         catch (Exception)
