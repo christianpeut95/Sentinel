@@ -1,4 +1,5 @@
 @using Microsoft.AspNetCore.Identity
+@using Sentinel.Components.Setup
 @using Sentinel.Data
 @using Sentinel.Models
 @using System.ComponentModel.DataAnnotations
@@ -40,7 +41,7 @@
                 <label class="form-label required">Password</label>
                 <InputText @bind-Value="AdminData.Password" class="form-control" type="password" />
                 <ValidationMessage For="@(() => AdminData.Password)" class="validation-message" />
-                <span class="form-text">Minimum 8 characters, at least one uppercase, one lowercase, one number, and one special character.</span>
+                <span class="form-text">Use a unique password of at least 12 characters. A long passphrase is welcome.</span>
             </div>
 
             <div class="form-group">
@@ -124,27 +125,37 @@
     {
         _error = "";
 
-        // Validate passwords match
-        if (AdminData.Password != AdminData.ConfirmPassword)
+        var validationErrors = SetupWizardValidation.ValidateAdministratorDetails(AdminData);
+        if (validationErrors.Count > 0)
         {
-            _error = "Passwords do not match.";
+            _error = string.Join(" ", validationErrors);
             return;
         }
 
-        // Validate backup admin if needed
+        var primaryUser = new ApplicationUser
+        {
+            UserName = AdminData.Email.Trim(),
+            Email = AdminData.Email.Trim()
+        };
+
+        var passwordErrors = await ValidatePasswordAsync(primaryUser, AdminData.Password);
+        if (passwordErrors.Count > 0)
+        {
+            _error = string.Join(" ", passwordErrors);
+            return;
+        }
+
         if (AdminData.CreateBackupAdmin)
         {
-            if (string.IsNullOrWhiteSpace(AdminData.BackupEmail) ||
-                string.IsNullOrWhiteSpace(AdminData.BackupFullName) ||
-                string.IsNullOrWhiteSpace(AdminData.BackupPassword))
+            var backupUser = new ApplicationUser
             {
-                _error = "Please complete all backup administrator fields.";
-                return;
-            }
-
-            if (AdminData.BackupEmail.Equals(AdminData.Email, StringComparison.OrdinalIgnoreCase))
+                UserName = AdminData.BackupEmail!.Trim(),
+                Email = AdminData.BackupEmail.Trim()
+            };
+            var backupPasswordErrors = await ValidatePasswordAsync(backupUser, AdminData.BackupPassword!);
+            if (backupPasswordErrors.Count > 0)
             {
-                _error = "Backup administrator email must be different from primary administrator.";
+                _error = string.Join(" ", backupPasswordErrors);
                 return;
             }
         }
@@ -182,5 +193,20 @@
     private async Task HandlePrevious()
     {
         await OnPrevious.InvokeAsync();
+    }
+
+    private async Task<IReadOnlyList<string>> ValidatePasswordAsync(ApplicationUser user, string password)
+    {
+        var errors = new List<string>();
+        foreach (var validator in UserManager.PasswordValidators)
+        {
+            var result = await validator.ValidateAsync(UserManager, user, password);
+            if (!result.Succeeded)
+            {
+                errors.AddRange(result.Errors.Select(error => error.Description));
+            }
+        }
+
+        return errors.Distinct(StringComparer.Ordinal).ToArray();
     }
 }

@@ -1,5 +1,6 @@
 using Sentinel.Models.Lookups;
 using System.ComponentModel.DataAnnotations;
+using Sentinel.ModelBinding;
 
 namespace Sentinel.Models
 {
@@ -23,9 +24,11 @@ namespace Sentinel.Models
 
         [Required]
         [Display(Name = "Start Date/Time")]
+        [OrganizationLocalDateTime]
         public DateTime StartDateTime { get; set; }
 
         [Display(Name = "End Date/Time")]
+        [OrganizationLocalDateTime]
         public DateTime? EndDateTime { get; set; }
 
         [Display(Name = "Estimated Attendees")]

@@ -30,6 +30,7 @@ public class BulkCreateModel : PageModel
     private readonly IOutbreakService _outbreakService;
     private readonly IOutbreakAccessService _outbreakAccessService;
     private readonly IAuthorizationService _authorizationService;
+    private readonly IApplicationTimeZoneService _applicationTimeZone;
 
     public BulkCreateModel(
         ApplicationDbContext context,
@@ -38,7 +39,8 @@ public class BulkCreateModel : PageModel
         ICaseIdGeneratorService caseIdGenerator,
         IOutbreakService outbreakService,
         IOutbreakAccessService outbreakAccessService,
-        IAuthorizationService authorizationService)
+        IAuthorizationService authorizationService,
+        IApplicationTimeZoneService applicationTimeZone)
     {
         _context = context;
         _duplicateDetectionService = duplicateDetectionService;
@@ -47,6 +49,7 @@ public class BulkCreateModel : PageModel
         _outbreakService = outbreakService;
         _outbreakAccessService = outbreakAccessService;
         _authorizationService = authorizationService;
+        _applicationTimeZone = applicationTimeZone;
     }
 
     // Route parameters
@@ -219,7 +222,7 @@ public class BulkCreateModel : PageModel
                         Email = record.Email,
                         ParentGuardianName = record.ParentGuardianName,
                         ParentGuardianPhone = record.ParentGuardianPhone,
-                        ExposureStartDate = ExposureStartDate ?? DateTime.Today,
+                        ExposureStartDate = ExposureStartDate ?? _applicationTimeZone.Now.Date,
                         ExposureEndDate = ExposureEndDate,
                         ExposureStatus = record.ExposureStatus ?? "ConfirmedExposure",
                         ConfidenceLevel = record.ConfidenceLevel,
@@ -357,7 +360,7 @@ public class BulkCreateModel : PageModel
                     PatientId = patient.Id,
                     Type = CaseType.Contact,
                     DiseaseId = SourceCase.DiseaseId,
-                    DateOfNotification = DateTime.Today
+                    DateOfNotification = _applicationTimeZone.Now.Date
                 };
 
                 _context.Cases.Add(contact);

@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.EntityFrameworkCore;
 using Sentinel.Data;
 using Sentinel.Models;
+using Sentinel.Services;
 using System.ComponentModel.DataAnnotations;
 using System.Security.Claims;
 
@@ -13,10 +14,12 @@ namespace Sentinel.Pages.Outbreaks;
 public class CreateFromExposureModel : PageModel
 {
     private readonly ApplicationDbContext _context;
+    private readonly IApplicationTimeZoneService _applicationTimeZone;
 
-    public CreateFromExposureModel(ApplicationDbContext context)
+    public CreateFromExposureModel(ApplicationDbContext context, IApplicationTimeZoneService applicationTimeZone)
     {
         _context = context;
+        _applicationTimeZone = applicationTimeZone;
     }
 
     // Route parameters
@@ -57,11 +60,12 @@ public class CreateFromExposureModel : PageModel
         [StringLength(1000)]
         public string? Description { get; set; }
 
-        public DateTime StartDate { get; set; } = DateTime.Today;
+        public DateTime StartDate { get; set; }
     }
 
     public async Task<IActionResult> OnGetAsync()
     {
+        Input.StartDate = _applicationTimeZone.Now.Date;
         // Load source case
         SourceCase = await _context.Cases
             .Include(c => c.Patient)
@@ -140,7 +144,7 @@ public class CreateFromExposureModel : PageModel
                 .CountAsync();
         }
 
-        Input.StartDate = SourceCase.DateOfNotification ?? DateTime.Today;
+        Input.StartDate = SourceCase.DateOfNotification ?? _applicationTimeZone.Now.Date;
         Input.Description = LocationId.HasValue || EventId.HasValue
             ? $"Contact tracing event for {SourceCase.Disease?.Name} case {SourceCase.FriendlyId} at specific location/event"
             : $"General contact tracing event for {SourceCase.Disease?.Name} case {SourceCase.FriendlyId}";

@@ -512,7 +512,7 @@
                                 }
                             </div>
                             <div class="d-flex align-items-center">
-                                <small style="color: var(--graphite); margin-right: var(--spacing-2);">@note.CreatedAt.ToLocalTime().ToString("dd MMM yyyy HH:mm")</small>
+                                <small style="color: var(--graphite); margin-right: var(--spacing-2);">@ApplicationTimeZone.Format(note.CreatedAt, "dd MMM yyyy HH:mm")</small>
                                 @if (Model.CanDeletePatient)
                                 {
                                     <form method="post" asp-page-handler="DeleteNote" asp-route-id="@Model.Patient.Id" asp-route-noteId="@note.Id" class="d-inline">
@@ -603,7 +603,7 @@
                                 }
                             </div>
                             <div class="d-flex align-items-center">
-                                <small style="color: var(--graphite); margin-right: var(--spacing-2);">@note.CreatedAt.ToLocalTime().ToString("dd MMM yyyy HH:mm")</small>
+                                <small style="color: var(--graphite); margin-right: var(--spacing-2);">@ApplicationTimeZone.Format(note.CreatedAt, "dd MMM yyyy HH:mm")</small>
                                 @if (Model.CanDeleteCases)
                                 {
                                     <form method="post" asp-page-handler="DeleteCaseNote" asp-route-id="@Model.Patient.Id" asp-route-noteId="@note.Id" class="d-inline">

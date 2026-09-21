@@ -21,17 +21,20 @@ public class InterviewQueueController : ControllerBase
     private readonly ApplicationDbContext _context;
     private readonly IPermissionService _permissionService;
     private readonly ILogger<InterviewQueueController> _logger;
+    private readonly IApplicationTimeZoneService _applicationTimeZone;
 
     public InterviewQueueController(
         ITaskAssignmentService assignmentService,
         ApplicationDbContext context,
         IPermissionService permissionService,
-        ILogger<InterviewQueueController> logger)
+        ILogger<InterviewQueueController> logger,
+        IApplicationTimeZoneService applicationTimeZone)
     {
         _assignmentService = assignmentService;
         _context = context;
         _permissionService = permissionService;
         _logger = logger;
+        _applicationTimeZone = applicationTimeZone;
     }
 
     [HttpGet("my-tasks")]
@@ -84,6 +87,22 @@ public class InterviewQueueController : ControllerBase
 
         try
         {
+            DateTime? nextCallbackScheduledUtc = null;
+            if (request.NextCallbackScheduled.HasValue)
+            {
+                if (!_applicationTimeZone.TryAppTimeToUtc(
+                        request.NextCallbackScheduled.Value,
+                        out var convertedNextCallback))
+                {
+                    return BadRequest(new
+                    {
+                        error = "The selected callback time is invalid or ambiguous because of the daylight-saving time change. Select another time."
+                    });
+                }
+
+                nextCallbackScheduledUtc = convertedNextCallback;
+            }
+
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
             var attempt = await _assignmentService.LogCallAttemptAsync(
                 request.TaskId,
@@ -91,7 +110,7 @@ public class InterviewQueueController : ControllerBase
                 request.Outcome,
                 request.Notes,
                 request.DurationSeconds,
-                request.NextCallbackScheduled);
+                nextCallbackScheduledUtc);
 
             return Ok(ToCallAttemptResponse(attempt));
         }

@@ -200,7 +200,6 @@ namespace Sentinel.Pages.Cases
         private async Task<string> GenerateLabResultIdAsync()
         {
             var prefix = "LR";
-            var today = DateTime.Today;
 
             var lastResult = await _context.LabResults
                 .Where(lr => lr.FriendlyId.StartsWith(prefix))

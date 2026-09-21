@@ -192,8 +192,9 @@
                 <div class="header-patient-details">
                     @if (Model.Task.Case.Patient?.DateOfBirth != null)
                     {
-                        var age = DateTime.Today.Year - Model.Task.Case.Patient.DateOfBirth.Value.Year;
-                        if (Model.Task.Case.Patient.DateOfBirth.Value > DateTime.Today.AddYears(-age)) age--;
+                        var today = ApplicationTimeZone.Now.Date;
+                        var age = today.Year - Model.Task.Case.Patient.DateOfBirth.Value.Year;
+                        if (Model.Task.Case.Patient.DateOfBirth.Value > today.AddYears(-age)) age--;
                         <span>@Model.Task.Case.Patient.DateOfBirth.Value.ToString("dd/MM/yyyy") (@age yrs)</span>
                     }
                     @if (Model.Task.Case.Patient?.SexAtBirth != null)
@@ -399,14 +400,7 @@
 
                         // Format dates if it looks like a date (YYYY-MM-DD or ISO format)
                         if (typeof value === 'string' && value.match(/^\d{4}-\d{2}-\d{2}/)) {
-                            const date = new Date(value);
-                            if (!isNaN(date.getTime())) {
-                                return date.toLocaleDateString('en-AU', { 
-                                    day: '2-digit', 
-                                    month: '2-digit', 
-                                    year: 'numeric' 
-                                });
-                            }
+                            return window.SentinelRegionalFormatting.formatDateOnly(value);
                         }
 
                         // Format boolean values

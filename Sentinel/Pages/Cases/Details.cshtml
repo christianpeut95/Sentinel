@@ -863,7 +863,7 @@
                     <div class="info-value">
                         @if (Model.Case.Patient.DateOfBirth.HasValue)
                         {
-                            var age = DateTime.Now.Year - Model.Case.Patient.DateOfBirth.Value.Year;
+                            var age = ApplicationTimeZone.Now.Year - Model.Case.Patient.DateOfBirth.Value.Year;
                             <span>@Model.Case.Patient.DateOfBirth.Value.ToString("dd MMM yyyy") <small class="text-muted">(@age yrs)</small></span>
                         }
                         else
@@ -2528,7 +2528,7 @@
                             <label class="form-label">
                                 Start Date <span class="text-danger">*</span>
                             </label>
-                            <input name="ExposureStartDate" type="datetime-local" class="form-control" value="@DateTime.Now.ToString("yyyy-MM-ddTHH:mm")" required />
+                            <input name="ExposureStartDate" type="datetime-local" class="form-control" value="@ApplicationTimeZone.Now.ToString("yyyy-MM-ddTHH:mm")" required />
                         </div>
 
                         <div class="col-md-6">

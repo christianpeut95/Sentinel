@@ -9,10 +9,12 @@ namespace Sentinel.Services;
 public class LineListService : ILineListService
 {
     private readonly ApplicationDbContext _context;
+    private readonly IApplicationTimeZoneService? _applicationTimeZone;
     
-    public LineListService(ApplicationDbContext context)
+    public LineListService(ApplicationDbContext context, IApplicationTimeZoneService? applicationTimeZone = null)
     {
         _context = context;
+        _applicationTimeZone = applicationTimeZone;
     }
     
     public async Task<List<LineListField>> GetAvailableFieldsAsync(int outbreakId)
@@ -258,7 +260,7 @@ public class LineListService : ILineListService
                         "FamilyName" => patient.FamilyName,
                         "DateOfBirth" => patient.DateOfBirth?.ToString("yyyy-MM-dd"),
                         "Age" => patient.DateOfBirth.HasValue ? 
-                            (DateTime.Now.Year - patient.DateOfBirth.Value.Year) : (int?)null,
+                            ((_applicationTimeZone?.Now ?? DateTime.UtcNow).Year - patient.DateOfBirth.Value.Year) : (int?)null,
                         "AddressLine" => patient.AddressLine,
                         "City" => patient.City,
                         "State" => patient.State,

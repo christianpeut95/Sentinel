@@ -248,7 +248,7 @@
                         {
                             var (badgeCss, icon, label) = GetOutcomeDisplay(log.Outcome);
                             var summaryText = GetFieldSummary(log);
-                            var localTime = TimeZoneInfo.ConvertTimeFromUtc(log.SubmittedAt, TimeZoneInfo.Local);
+                            var localTime = ApplicationTimeZone.UtcToAppTime(log.SubmittedAt);
                             <tr>
                                 <td class="small text-nowrap">
                                     <div>@localTime.ToString("d MMM yyyy")</div>
@@ -379,7 +379,7 @@
                         <div class="mb-3">
                             <h6 class="text-muted mb-1">Survey Submission</h6>
                             <div><strong>@log.PatientName</strong> — @log.DiseaseName</div>
-                            <div class="small text-muted">@log.SurveyName, submitted @log.SubmittedAt.ToLocalTime().ToString("d MMM yyyy h:mm tt")</div>
+                            <div class="small text-muted">@log.SurveyName, submitted @ApplicationTimeZone.Format(log.SubmittedAt, "d MMM yyyy h:mm tt")</div>
                         </div>
 
                         @if (log.ReviewQueueItemId.HasValue)
@@ -409,7 +409,7 @@
                                     var priorOutcome = GetOutcomeDisplay(prior.Outcome);
                                     <div class="ms-3 mt-1">
                                         <span class="badge @priorOutcome.badgeCss">@priorOutcome.label</span>
-                                        @prior.SubmittedAt.ToLocalTime().ToString("d MMM yyyy h:mm tt")
+                                        @ApplicationTimeZone.Format(prior.SubmittedAt, "d MMM yyyy h:mm tt")
                                         by @(prior.SubmittedByName ?? "unknown")
                                     </div>
                                 }

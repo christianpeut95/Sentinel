@@ -104,7 +104,7 @@ else
                                         {
                                             <tr>
                                                 <td><strong>@roleGrant.RoleName</strong></td>
-                                                <td>@roleGrant.GrantedAt.ToLocalTime().ToString("MMM dd, yyyy")</td>
+                                                <td>@ApplicationTimeZone.Format(roleGrant.GrantedAt, "MMM dd, yyyy")</td>
                                                 <td><small>@roleGrant.GrantedBy</small></td>
                                             </tr>
                                         }
@@ -157,7 +157,7 @@ else
                                                 <td>
                                                     @if (userGrant.ExpiresAt.HasValue)
                                                     {
-                                                        @userGrant.ExpiresAt.Value.ToLocalTime().ToString("MMM dd, yyyy")
+                                                        @ApplicationTimeZone.Format(userGrant.ExpiresAt, "MMM dd, yyyy")
                                                     }
                                                     else
                                                     {

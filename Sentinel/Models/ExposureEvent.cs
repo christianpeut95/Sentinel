@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using Sentinel.ModelBinding;
 
 namespace Sentinel.Models
 {
@@ -17,9 +18,11 @@ namespace Sentinel.Models
 
         [Required]
         [Display(Name = "Exposure Start Date/Time")]
+        [OrganizationLocalDateTime]
         public DateTime ExposureStartDate { get; set; }
 
         [Display(Name = "Exposure End Date/Time")]
+        [OrganizationLocalDateTime]
         public DateTime? ExposureEndDate { get; set; }
 
         // For Event-based exposures

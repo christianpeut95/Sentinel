@@ -460,7 +460,7 @@
                                         <td>
                                             @if (task.LastCallAttempt.HasValue)
                                             {
-                                                <small>@task.LastCallAttempt.Value.ToLocalTime().ToString("g")</small>
+                                                <small>@ApplicationTimeZone.Format(task.LastCallAttempt)</small>
                                             }
                                             else
                                             {
@@ -632,7 +632,7 @@
                                         <td>@task.Case?.Patient?.GivenName @task.Case?.Patient?.FamilyName</td>
                                         <td>@task.Title</td>
                                         <td>@task.CurrentAttemptCount / @task.MaxCallAttempts</td>
-                                        <td>@(task.LastCallAttempt?.ToLocalTime().ToString("g") ?? "Never")</td>
+                                        <td>@(task.LastCallAttempt.HasValue ? ApplicationTimeZone.Format(task.LastCallAttempt) : "Never")</td>
                                         <td>
                                             <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#assignModal" data-task-id="@task.Id" style="border-radius: 8px;">
                                                 <i class="bi bi-person-plus me-1"></i>Assign
@@ -773,7 +773,7 @@
                                             }
                                         </td>
                                         <td>
-                                            <small>@task.CreatedAt.ToLocalTime().ToString("g")</small>
+                                            <small>@ApplicationTimeZone.Format(task.CreatedAt)</small>
                                         </td>
                                         <td>
                                             <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#assignModal" data-task-id="@task.Id" style="border-radius: 8px;">

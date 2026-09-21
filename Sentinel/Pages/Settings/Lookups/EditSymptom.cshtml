@@ -74,7 +74,7 @@
                         {
                             <div class="alert alert-warning">
                                 <i class="bi bi-exclamation-triangle"></i> This symptom is currently deleted.
-                                <strong>Deleted:</strong> @Model.Symptom.DeletedAt?.ToLocalTime().ToString("g")
+                                <strong>Deleted:</strong> @ApplicationTimeZone.Format(Model.Symptom.DeletedAt)
                             </div>
                         }
 
@@ -107,18 +107,18 @@
                     <div class="card-body">
                         <dl class="row mb-0">
                             <dt class="col-sm-3">Created:</dt>
-                            <dd class="col-sm-9">@Model.Symptom.CreatedAt.ToLocalTime().ToString("g")</dd>
+                            <dd class="col-sm-9">@ApplicationTimeZone.Format(Model.Symptom.CreatedAt)</dd>
 
                             @if (Model.Symptom.UpdatedAt.HasValue)
                             {
                                 <dt class="col-sm-3">Last Updated:</dt>
-                                <dd class="col-sm-9">@Model.Symptom.UpdatedAt.Value.ToLocalTime().ToString("g")</dd>
+                                <dd class="col-sm-9">@ApplicationTimeZone.Format(Model.Symptom.UpdatedAt)</dd>
                             }
 
                             @if (Model.Symptom.IsDeleted)
                             {
                                 <dt class="col-sm-3">Deleted:</dt>
-                                <dd class="col-sm-9">@Model.Symptom.DeletedAt?.ToLocalTime().ToString("g")</dd>
+                                <dd class="col-sm-9">@ApplicationTimeZone.Format(Model.Symptom.DeletedAt)</dd>
                             }
                         </dl>
                     </div>

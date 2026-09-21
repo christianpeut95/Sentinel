@@ -9,6 +9,7 @@ using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
 using Sentinel.Data;
+using Sentinel.ModelBinding;
 using Sentinel.Models;
 using Sentinel.Models.Lookups;
 using Sentinel.Services;
@@ -932,8 +933,8 @@ namespace Sentinel.Pages.Cases
             string ExposureDirection,
             ExposureType ExposureType,
             ExposureStatus ExposureStatus,
-            DateTime ExposureStartDate,
-            DateTime? ExposureEndDate,
+            [OrganizationLocalDateTime] DateTime ExposureStartDate,
+            [OrganizationLocalDateTime] DateTime? ExposureEndDate,
             Guid? EventId,
             Guid? LocationId,
             Guid? SourceCaseId,

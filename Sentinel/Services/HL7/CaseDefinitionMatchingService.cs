@@ -707,7 +707,7 @@ public class CaseDefinitionMatchingService : ICaseDefinitionMatchingService
         CancellationToken cancellationToken = default)
     {
         _logger.LogWarning("ZZTEST123 Method entry checkpoint");
-        _logger.LogInformation("Method entry at {Time}", DateTime.Now);
+        _logger.LogInformation("Method entry at {Time}", DateTime.UtcNow);
 
         var results = new List<CaseDefinitionMatchResult>();
 

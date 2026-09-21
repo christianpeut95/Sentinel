@@ -16,11 +16,16 @@ public class CreateModel : PageModel
 {
     private readonly ApplicationDbContext _context;
     private readonly IOutbreakService _outbreakService;
+    private readonly IApplicationTimeZoneService _applicationTimeZone;
 
-    public CreateModel(ApplicationDbContext context, IOutbreakService outbreakService)
+    public CreateModel(
+        ApplicationDbContext context,
+        IOutbreakService outbreakService,
+        IApplicationTimeZoneService applicationTimeZone)
     {
         _context = context;
         _outbreakService = outbreakService;
+        _applicationTimeZone = applicationTimeZone;
     }
 
     [BindProperty]
@@ -34,7 +39,7 @@ public class CreateModel : PageModel
     public async Task OnGetAsync()
     {
         await LoadSelectListsAsync();
-        Outbreak.StartDate = DateTime.Today;
+        Outbreak.StartDate = _applicationTimeZone.Now.Date;
     }
 
     public async Task<IActionResult> OnPostAsync()

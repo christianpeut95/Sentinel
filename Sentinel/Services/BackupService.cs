@@ -75,12 +75,12 @@ namespace Sentinel.Services
             var result = new BackupResult
             {
                 BackupType = backupType,
-                StartTime = DateTime.Now
+                StartTime = DateTime.UtcNow
             };
 
             try
             {
-                var timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
+                var timestamp = DateTime.UtcNow.ToString("yyyyMMdd_HHmmss");
                 var backupFileName = $"SurveillanceMVP_{backupType}_{timestamp}.bak";
                 var fullPath = GetOwnedBackupPath(backupFileName);
 
@@ -100,7 +100,7 @@ namespace Sentinel.Services
                 result.Success = true;
                 result.BackupFileName = backupFileName;
                 result.BackupFilePath = fullPath;
-                result.EndTime = DateTime.Now;
+                result.EndTime = DateTime.UtcNow;
                 result.SizeInBytes = new FileInfo(fullPath).Length;
 
                 _logger.LogInformation("Backup created successfully: {BackupType} - {FileName} - {SizeMB} MB",
@@ -115,7 +115,7 @@ namespace Sentinel.Services
                 // BackupResult is rendered by the settings UI and written to backup
                 // history. Keep provider, path and connection details in the log only.
                 result.ErrorMessage = "Backup failed. Check the application logs for details.";
-                result.EndTime = DateTime.Now;
+                result.EndTime = DateTime.UtcNow;
 
                 _logger.LogError(ex, "Backup failed: {BackupType}", backupType);
             }
@@ -356,7 +356,7 @@ namespace Sentinel.Services
                 command.Parameters.AddWithValue("@Success", result.Success);
                 command.Parameters.AddWithValue("@ErrorMessage", (object?)result.ErrorMessage ?? DBNull.Value);
                 command.Parameters.AddWithValue("@CreatedBy", "System"); // TODO: Get from user context
-                command.Parameters.AddWithValue("@CreatedAt", DateTime.Now);
+                command.Parameters.AddWithValue("@CreatedAt", DateTime.UtcNow);
 
                 await command.ExecuteNonQueryAsync();
             }

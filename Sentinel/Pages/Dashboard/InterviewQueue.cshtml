@@ -259,7 +259,7 @@
                         @if (Model.CurrentTask.LastCallAttempt.HasValue)
                         {
                             <div class="alert alert-light">
-                                <small><i class="bi bi-clock-history me-1"></i> Last attempt: @Model.CurrentTask.LastCallAttempt.Value.ToLocalTime().ToString("g")</small>
+                                <small><i class="bi bi-clock-history me-1"></i> Last attempt: @ApplicationTimeZone.Format(Model.CurrentTask.LastCallAttempt)</small>
                             </div>
                         }
                     </div>
@@ -341,7 +341,7 @@
                                 @foreach (var attempt in Model.CurrentTaskCallAttempts.Take(5))
                                 {
                                     <tr>
-                                        <td><small>@attempt.AttemptedAt.ToLocalTime().ToString("g")</small></td>
+                                        <td><small>@ApplicationTimeZone.Format(attempt.AttemptedAt)</small></td>
                                         <td><span class="badge bg-secondary">@attempt.Outcome</span></td>
                                         <td><small>@attempt.Notes</small></td>
                                     </tr>

@@ -682,7 +682,7 @@
                                             <strong>Type:</strong> @item.EntityType (@item.ChangeType)
                                         </div>
                                         <div class="col-md-6">
-                                            <strong>Created:</strong> @item.CreatedDate.ToLocalTime().ToString("g")
+                                            <strong>Created:</strong> @ApplicationTimeZone.Format(item.CreatedDate)
                                         </div>
                                         @if (!string.IsNullOrEmpty(item.TriggerField))
                                         {
@@ -1298,6 +1298,6 @@ string GetChangeSummary(ReviewQueueItem item)
         if (diff.TotalDays < 7)
             return $"{(int)diff.TotalDays}d ago";
         
-        return dateTime.ToLocalTime().ToString("MMM d");
+        return ApplicationTimeZone.Format(dateTime, "MMM d");
     }
 }

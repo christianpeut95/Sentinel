@@ -73,12 +73,12 @@
                     </dd>
 
                     <dt class="col-sm-3">Start Date/Time</dt>
-                    <dd class="col-sm-9">@Model.Event.StartDateTime.ToLocalTime().ToString("g")</dd>
+                    <dd class="col-sm-9">@ApplicationTimeZone.Format(Model.Event.StartDateTime)</dd>
 
                     @if (Model.Event.EndDateTime.HasValue)
                     {
                         <dt class="col-sm-3">End Date/Time</dt>
-                        <dd class="col-sm-9">@Model.Event.EndDateTime.Value.ToLocalTime().ToString("g")</dd>
+                        <dd class="col-sm-9">@ApplicationTimeZone.Format(Model.Event.EndDateTime)</dd>
                     }
 
                     <dt class="col-sm-3">Duration</dt>
@@ -122,12 +122,12 @@
                     }
 
                     <dt class="col-sm-3">Created</dt>
-                    <dd class="col-sm-9">@Model.Event.CreatedDate.ToLocalTime().ToString("g")</dd>
+                    <dd class="col-sm-9">@ApplicationTimeZone.Format(Model.Event.CreatedDate)</dd>
 
                     @if (Model.Event.LastModified.HasValue)
                     {
                         <dt class="col-sm-3">Last Modified</dt>
-                        <dd class="col-sm-9">@Model.Event.LastModified.Value.ToLocalTime().ToString("g")</dd>
+                        <dd class="col-sm-9">@ApplicationTimeZone.Format(Model.Event.LastModified)</dd>
                     }
                 </dl>
             </div>
@@ -178,7 +178,7 @@
                                                 <text>@exposure.ExposedCase.Disease.Name</text>
                                             }
                                         </td>
-                                        <td>@exposure.ExposureStartDate.ToLocalTime().ToString("d")</td>
+                                        <td>@ApplicationTimeZone.Format(exposure.ExposureStartDate, "d")</td>
                                         <td>
                                             @switch (exposure.ExposureStatus)
                                             {

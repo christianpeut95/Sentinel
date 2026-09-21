@@ -11,7 +11,7 @@ public interface IDynamicDateResolver
     /// <param name="dynamicDateType">Type of dynamic date (Today, Yesterday, Tomorrow, etc.)</param>
     /// <param name="offset">Optional offset value (e.g., -7 for "Past 7 Days")</param>
     /// <param name="offsetUnit">Unit for offset (Days, Weeks, Months, Years)</param>
-    /// <param name="referenceDate">Reference date to calculate from (defaults to DateTime.Now)</param>
+    /// <param name="referenceDate">Reference date to calculate from (defaults to the organisation's current date)</param>
     /// <returns>Resolved DateTime value</returns>
     DateTime ResolveDate(string dynamicDateType, int? offset = null, string? offsetUnit = null, DateTime? referenceDate = null);
 

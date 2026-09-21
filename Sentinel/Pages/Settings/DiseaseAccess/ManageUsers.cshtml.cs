@@ -7,6 +7,7 @@ using Sentinel.Data;
 using Sentinel.Models;
 using Sentinel.Models.Lookups;
 using Sentinel.Services;
+using Sentinel.ModelBinding;
 using System.Security.Claims;
 
 namespace Sentinel.Pages.Settings.DiseaseAccess
@@ -17,15 +18,18 @@ namespace Sentinel.Pages.Settings.DiseaseAccess
         private readonly ApplicationDbContext _context;
         private readonly IDiseaseAccessService _diseaseAccessService;
         private readonly UserManager<ApplicationUser> _userManager;
+        private readonly IApplicationTimeZoneService _applicationTimeZone;
 
         public ManageUsersModel(
             ApplicationDbContext context,
             IDiseaseAccessService diseaseAccessService,
-            UserManager<ApplicationUser> userManager)
+            UserManager<ApplicationUser> userManager,
+            IApplicationTimeZoneService applicationTimeZone)
         {
             _context = context;
             _diseaseAccessService = diseaseAccessService;
             _userManager = userManager;
+            _applicationTimeZone = applicationTimeZone;
         }
 
         [BindProperty]
@@ -35,6 +39,7 @@ namespace Sentinel.Pages.Settings.DiseaseAccess
         public string? SelectedUserId { get; set; }
 
         [BindProperty]
+        [OrganizationLocalDateTime]
         public DateTime? ExpiresAt { get; set; }
 
         [BindProperty]
@@ -125,8 +130,8 @@ namespace Sentinel.Pages.Settings.DiseaseAccess
                     Reason);
                 await _userManager.UpdateSecurityStampAsync(user);
 
-                var expirationInfo = ExpiresAt.HasValue 
-                    ? $" (expires {ExpiresAt.Value.ToLocalTime():MMM dd, yyyy})" 
+                var expirationInfo = ExpiresAt.HasValue
+                    ? $" (expires {_applicationTimeZone.Format(ExpiresAt.Value, "d MMM yyyy")})"
                     : " (permanent)";
                 TempData["SuccessMessage"] = $"Access to '{disease.Name}' granted to '{user.Email}'{expirationInfo}.";
             }

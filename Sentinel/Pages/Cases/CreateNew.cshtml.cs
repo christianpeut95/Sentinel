@@ -24,6 +24,7 @@ namespace Sentinel.Pages.Cases
         private readonly ITaskService _taskService;
         private readonly IPatientAddressService _patientAddressService;
         private readonly ILogger<CreateNewModel> _logger;
+        private readonly IApplicationTimeZoneService _applicationTimeZone;
 
         public CreateNewModel(
             ApplicationDbContext context,
@@ -32,7 +33,8 @@ namespace Sentinel.Pages.Cases
             IDiseaseAccessService diseaseAccessService,
             ITaskService taskService,
             IPatientAddressService patientAddressService,
-            ILogger<CreateNewModel> logger)
+            ILogger<CreateNewModel> logger,
+            IApplicationTimeZoneService applicationTimeZone)
         {
             _context = context;
             _caseIdGenerator = caseIdGenerator;
@@ -41,6 +43,7 @@ namespace Sentinel.Pages.Cases
             _taskService = taskService;
             _patientAddressService = patientAddressService;
             _logger = logger;
+            _applicationTimeZone = applicationTimeZone;
         }
 
         public List<DiseaseDto> Diseases { get; set; } = new();
@@ -164,7 +167,7 @@ namespace Sentinel.Pages.Cases
                     DiseaseId = request.DiseaseId.Value,
                     ConfirmationStatusId = request.ConfirmationStatusId,
                     DateOfOnset = request.DateOfOnset,
-                    DateOfNotification = request.DateOfNotification ?? DateTime.Today
+                    DateOfNotification = request.DateOfNotification ?? _applicationTimeZone.Now.Date
                 };
 
                 _context.Cases.Add(newCase);
@@ -262,7 +265,7 @@ namespace Sentinel.Pages.Cases
                     DiseaseId = diseaseId.Value,
                     ConfirmationStatusId = confirmationStatusId,
                     DateOfOnset = dateOfOnset,
-                    DateOfNotification = dateOfNotification ?? DateTime.Today
+                    DateOfNotification = dateOfNotification ?? _applicationTimeZone.Now.Date
                 };
 
                 _context.Cases.Add(newCase);

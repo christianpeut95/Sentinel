@@ -72,7 +72,7 @@
                             </span>
                             @if (Model.Location.LastGeocoded.HasValue)
                             {
-                                <br/><small class="text-muted">Geocoded: @Model.Location.LastGeocoded.Value.ToLocalTime().ToString("g")</small>
+                                <br/><small class="text-muted">Geocoded: @ApplicationTimeZone.Format(Model.Location.LastGeocoded)</small>
                             }
                         </dd>
                     }
@@ -105,12 +105,12 @@
                     }
 
                     <dt class="col-sm-3">Created</dt>
-                    <dd class="col-sm-9">@Model.Location.CreatedDate.ToLocalTime().ToString("g")</dd>
+                    <dd class="col-sm-9">@ApplicationTimeZone.Format(Model.Location.CreatedDate)</dd>
 
                     @if (Model.Location.LastModified.HasValue)
                     {
                         <dt class="col-sm-3">Last Modified</dt>
-                        <dd class="col-sm-9">@Model.Location.LastModified.Value.ToLocalTime().ToString("g")</dd>
+                        <dd class="col-sm-9">@ApplicationTimeZone.Format(Model.Location.LastModified)</dd>
                     }
                 </dl>
             </div>
@@ -147,7 +147,7 @@
                                                 <span class="badge bg-info">@evt.EventType.Name</span>
                                             }
                                         </td>
-                                        <td>@evt.StartDateTime.ToLocalTime().ToString("d")</td>
+                                        <td>@ApplicationTimeZone.Format(evt.StartDateTime, "d")</td>
                                         <td>@(evt.EstimatedAttendees?.ToString() ?? "-")</td>
                                         <td>
                                             @if (Model.EventExposureCounts.ContainsKey(evt.Id))

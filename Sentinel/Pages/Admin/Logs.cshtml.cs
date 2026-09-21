@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.AspNetCore.Mvc.Rendering;
+using Sentinel.ModelBinding;
 
 namespace Sentinel.Pages.Admin
 {
@@ -12,9 +13,11 @@ namespace Sentinel.Pages.Admin
         public string? LevelFilter { get; set; }
 
         [BindProperty(SupportsGet = true)]
+        [OrganizationLocalDateTime]
         public DateTime? FromDate { get; set; }
 
         [BindProperty(SupportsGet = true)]
+        [OrganizationLocalDateTime]
         public DateTime? ToDate { get; set; }
 
         public List<SelectListItem> LogLevels { get; set; } = new()

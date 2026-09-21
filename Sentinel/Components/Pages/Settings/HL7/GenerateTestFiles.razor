@@ -492,7 +492,7 @@
                                     <div class="flex-grow-1" style="cursor: pointer;" @onclick="() => ToggleHistoryDetails(history.Id)">
                                         <strong class="d-block">@(history.TestComment ?? "No comment")</strong>
                                         <small class="text-muted">
-                                            @history.GeneratedAt.ToLocalTime().ToString("MMM dd, HH:mm:ss")
+                                            @ApplicationTimeZone.Format(history.GeneratedAt, "MMM dd, HH:mm:ss")
                                         </small>
                                     </div>
                                     <span class="badge @GetStatusBadgeClass(history.ProcessingStatus)">
@@ -695,7 +695,7 @@
     private string patientSearchTerm = "";
     private List<PatientSelectionItem> availablePatients = new();
     private PatientSelectionItem? selectedPatient = null;
-    private DateTime patientDobInput = DateTime.Now.AddYears(-30);
+    private DateTime patientDobInput;
 
     // Provider selection
     private string providerSearchTerm = "";
@@ -703,10 +703,12 @@
     private Guid selectedProviderId = Guid.Empty;
 
     // Date inputs
-    private DateTime collectionDateTimeInput = DateTime.Now.AddHours(-24);
+    private DateTime collectionDateTimeInput;
 
     protected override async Task OnInitializedAsync()
     {
+        patientDobInput = ApplicationTimeZone.Now.AddYears(-30);
+        collectionDateTimeInput = ApplicationTimeZone.Now.AddHours(-24);
         InitializeRequest();
         await LoadConfigurations();
         await LoadHistory();
@@ -717,8 +719,8 @@
         request = new HL7MessageRequest
         {
             LabTemplate = LabTemplateType.Generic,
-            MessageDateTime = DateTime.Now,
-            CollectionDateTime = DateTime.Now.AddHours(-24),
+            MessageDateTime = ApplicationTimeZone.Now,
+            CollectionDateTime = ApplicationTimeZone.Now.AddHours(-24),
             Patient = TestMessageService.GenerateRandomPatient(),
             OrderingProvider = TestMessageService.GenerateRandomProvider(),
             AccessionNumber = TestMessageService.GenerateAccessionNumber()
@@ -1150,7 +1152,7 @@
                 : ProviderMode.Existing;
 
             // Update datetime inputs
-            patientDobInput = request.Patient?.DateOfBirth ?? DateTime.Now.AddYears(-30);
+            patientDobInput = request.Patient?.DateOfBirth ?? ApplicationTimeZone.Now.AddYears(-30);
             collectionDateTimeInput = request.CollectionDateTime;
         }
 

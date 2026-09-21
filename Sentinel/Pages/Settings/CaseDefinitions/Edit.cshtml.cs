@@ -44,7 +44,7 @@ namespace Sentinel.Pages.Settings.CaseDefinitions
             [Required]
             [Display(Name = "Active From")]
             [DataType(DataType.Date)]
-            public DateTime DateActiveFrom { get; set; } = DateTime.Today;
+            public DateTime DateActiveFrom { get; set; }
 
             [Display(Name = "Active Until")]
             [DataType(DataType.Date)]

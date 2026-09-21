@@ -24,6 +24,7 @@ namespace Sentinel.Pages.Contacts
         private readonly IPermissionService _permissionService;
         private readonly ITaskService _taskService;
         private readonly ILogger<CreateNewContactModel> _logger;
+        private readonly IApplicationTimeZoneService _applicationTimeZone;
 
         public CreateNewContactModel(
             ApplicationDbContext context,
@@ -32,7 +33,8 @@ namespace Sentinel.Pages.Contacts
             IDiseaseAccessService diseaseAccessService,
             IPermissionService permissionService,
             ITaskService taskService,
-            ILogger<CreateNewContactModel> logger)
+            ILogger<CreateNewContactModel> logger,
+            IApplicationTimeZoneService applicationTimeZone)
         {
             _context = context;
             _caseIdGenerator = caseIdGenerator;
@@ -41,6 +43,7 @@ namespace Sentinel.Pages.Contacts
             _permissionService = permissionService;
             _taskService = taskService;
             _logger = logger;
+            _applicationTimeZone = applicationTimeZone;
         }
 
         public List<DiseaseDto> Diseases { get; set; } = new();
@@ -171,7 +174,7 @@ namespace Sentinel.Pages.Contacts
                     DiseaseId = request.DiseaseId.Value,
                     ConfirmationStatusId = request.ConfirmationStatusId,
                     DateOfOnset = request.DateOfOnset,
-                    DateOfNotification = request.DateOfNotification ?? DateTime.Today
+                    DateOfNotification = request.DateOfNotification ?? _applicationTimeZone.Now.Date
                 };
 
                 _context.Cases.Add(newContact);
@@ -260,7 +263,7 @@ namespace Sentinel.Pages.Contacts
                     ExposedCaseId = request.ContactCaseId,
                     ExposureType = ExposureType.Contact,
                     ContactClassificationId = request.ContactClassificationId,
-                    ExposureStartDate = request.ExposureStartDate ?? DateTime.Today,
+                    ExposureStartDate = request.ExposureStartDate ?? _applicationTimeZone.Now.Date,
                     ExposureEndDate = request.ExposureEndDate,
                     Description = request.Description,
                     ExposureStatus = ExposureStatus.ConfirmedExposure

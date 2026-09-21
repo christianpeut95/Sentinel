@@ -1,9 +1,9 @@
-@using System.ComponentModel.DataAnnotations
+@using Sentinel.Services
 
 <div class="stage-card">
     <div class="stage-header">
-        <h2><i class="bi bi-clock"></i> Time Zone Configuration</h2>
-        <p>Select your organization's time zone for accurate timestamps and scheduling.</p>
+        <h2><i class="bi bi-clock"></i> Regional Settings</h2>
+        <p>Select the organisation time zone and display format used throughout Sentinel.</p>
     </div>
 
     <div class="stage-body">
@@ -17,7 +17,19 @@
                         <option value="@tz.Id">@tz.DisplayName</option>
                     }
                 </InputSelect>
-                <span class="form-text">All timestamps will be displayed in this time zone.</span>
+                <span class="form-text">Timestamps are stored in UTC and displayed in this zone.</span>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label required">Date, Number and Language Format</label>
+                <InputSelect @bind-Value="Locale" class="form-control">
+                    <option value="">-- Select Format --</option>
+                    @foreach (var locale in _locales)
+                    {
+                        <option value="@locale.Name">@locale.DisplayName</option>
+                    }
+                </InputSelect>
+                <span class="form-text">Controls date and number formatting; it does not change patient language records.</span>
             </div>
 
             <div class="alert alert-info">
@@ -32,7 +44,7 @@
                     <i class="bi bi-arrow-left"></i>
                     <span>Previous</span>
                 </button>
-                <button type="submit" class="btn btn-primary" disabled="@string.IsNullOrEmpty(TimeZoneId)">
+                <button type="submit" class="btn btn-primary" disabled="@(string.IsNullOrEmpty(TimeZoneId) || string.IsNullOrEmpty(Locale))">
                     <span>Next</span>
                     <i class="bi bi-arrow-right"></i>
                 </button>
@@ -44,18 +56,19 @@
 @code {
     [Parameter] public EventCallback OnNext { get; set; }
     [Parameter] public EventCallback OnPrevious { get; set; }
-    [Parameter] public string TimeZoneId { get; set; } = "UTC";
+    [Parameter] public string TimeZoneId { get; set; } = OrganizationRegionalSettings.DefaultTimeZoneId;
     [Parameter] public EventCallback<string> TimeZoneIdChanged { get; set; }
+    [Parameter] public string Locale { get; set; } = OrganizationRegionalSettings.DefaultLocale;
+    [Parameter] public EventCallback<string> LocaleChanged { get; set; }
 
-    private List<TimeZoneInfo> _timeZones = new();
+    private IReadOnlyList<OrganizationRegionalSettings.TimeZoneOption> _timeZones = Array.Empty<OrganizationRegionalSettings.TimeZoneOption>();
+    private IReadOnlyList<OrganizationRegionalSettings.LocaleOption> _locales = Array.Empty<OrganizationRegionalSettings.LocaleOption>();
     private TimeZoneInfo? _selectedTimeZone;
 
     protected override void OnInitialized()
     {
-        _timeZones = TimeZoneInfo.GetSystemTimeZones()
-            .OrderBy(tz => tz.BaseUtcOffset)
-            .ThenBy(tz => tz.DisplayName)
-            .ToList();
+        _timeZones = OrganizationRegionalSettings.GetTimeZoneOptions();
+        _locales = OrganizationRegionalSettings.GetLocaleOptions();
 
         UpdateSelectedTimeZone();
     }
@@ -67,15 +80,25 @@
 
     private void UpdateSelectedTimeZone()
     {
-        if (!string.IsNullOrEmpty(TimeZoneId))
+        _selectedTimeZone = null;
+
+        if (!string.IsNullOrWhiteSpace(TimeZoneId)
+            && OrganizationRegionalSettings.TryResolveTimeZone(TimeZoneId, out var selectedTimeZone))
         {
-            _selectedTimeZone = TimeZoneInfo.FindSystemTimeZoneById(TimeZoneId);
+            _selectedTimeZone = selectedTimeZone;
         }
     }
 
     private async Task HandleNext()
     {
-        await TimeZoneIdChanged.InvokeAsync(TimeZoneId);
+        if (!OrganizationRegionalSettings.TryResolveTimeZone(TimeZoneId, out var timeZone)
+            || !OrganizationRegionalSettings.TryGetCulture(Locale, out var culture))
+        {
+            return;
+        }
+
+        await TimeZoneIdChanged.InvokeAsync(OrganizationRegionalSettings.GetCanonicalTimeZoneId(timeZone));
+        await LocaleChanged.InvokeAsync(culture.Name);
         await OnNext.InvokeAsync();
     }
 

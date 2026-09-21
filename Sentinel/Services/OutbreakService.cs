@@ -8,11 +8,16 @@ public class OutbreakService : IOutbreakService
 {
     private readonly ApplicationDbContext _context;
     private readonly ITaskService _taskService;
+    private readonly IApplicationTimeZoneService? _applicationTimeZone;
 
-    public OutbreakService(ApplicationDbContext context, ITaskService taskService)
+    public OutbreakService(
+        ApplicationDbContext context,
+        ITaskService taskService,
+        IApplicationTimeZoneService? applicationTimeZone = null)
     {
         _context = context;
         _taskService = taskService;
+        _applicationTimeZone = applicationTimeZone;
     }
 
     public async Task<Outbreak?> GetByIdAsync(int id)
@@ -295,7 +300,7 @@ public class OutbreakService : IOutbreakService
         if (patients.Any())
         {
             var ages = patients.Where(p => p.DateOfBirth.HasValue)
-                .Select(p => (DateTime.Today - p.DateOfBirth.Value).Days / 365.25)
+                .Select(p => (((_applicationTimeZone?.Now ?? DateTime.UtcNow).Date - p.DateOfBirth.Value).Days / 365.25))
                 .ToList();
 
             if (ages.Any())

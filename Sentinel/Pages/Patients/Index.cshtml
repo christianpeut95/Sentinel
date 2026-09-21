@@ -417,8 +417,8 @@ else
                     @foreach (var patient in Model.Patients)
                     {
                         var age = patient.DateOfBirth.HasValue ? 
-                            (DateTime.Today.Year - patient.DateOfBirth.Value.Year - 
-                            (DateTime.Today < patient.DateOfBirth.Value.AddYears(DateTime.Today.Year - patient.DateOfBirth.Value.Year) ? 1 : 0)) 
+                            (ApplicationTimeZone.Now.Year - patient.DateOfBirth.Value.Year -
+                            (ApplicationTimeZone.Now.Date < patient.DateOfBirth.Value.AddYears(ApplicationTimeZone.Now.Year - patient.DateOfBirth.Value.Year) ? 1 : 0))
                             : (int?)null;
 
                         <tr class="js-patient-row" data-details-url="@Url.Page("./Details", new { id = patient.Id })" tabindex="0">

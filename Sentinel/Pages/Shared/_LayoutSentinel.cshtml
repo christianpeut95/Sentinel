@@ -4,12 +4,15 @@
 @inject UserManager<ApplicationUser> UserManager
 @inject Microsoft.Extensions.Configuration.IConfiguration Configuration
 @inject ISystemSettingsService SystemSettingsService
+@inject IApplicationTimeZoneService ApplicationTimeZone
 @*
   Sentinel Design System Layout v0.2
   Watchful. Modern. Quiet.
 *@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="@ApplicationTimeZone.AppCulture.Name"
+      data-sentinel-locale="@ApplicationTimeZone.AppCulture.Name"
+      data-sentinel-time-zone="@ApplicationTimeZone.TimeZoneId">
 
 <head>
     <meta charset="utf-8" />
@@ -28,6 +31,7 @@
     <!-- Sentinel Design System -->
     <link rel="stylesheet" href="~/css/sentinel-design-system.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+    <script src="~/js/regional-formatting.js" asp-append-version="true"></script>
 
     <!-- Feedback Widget -->
     <link rel="stylesheet" href="~/css/feedback-widget.css" asp-append-version="true" />

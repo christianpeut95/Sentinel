@@ -483,7 +483,7 @@
                 <div class="col-md-6">
                     <div class="form-group">
                         <label class="form-label">Date Contact Identified</label>
-                        <input type="date" name="DateOfNotification" class="form-control-modern" value="@DateTime.Today.ToString("yyyy-MM-dd")">
+                        <input type="date" name="DateOfNotification" class="form-control-modern" value="@ApplicationTimeZone.Now.ToString("yyyy-MM-dd")">
                         <div class="form-hint">When was this contact identified?</div>
                     </div>
                 </div>
@@ -577,7 +577,7 @@
                             <div class="col-md-6">
                                 <div class="form-group">
                                     <label class="form-label">Exposure Start Date</label>
-                                    <input type="date" id="exposureStartDate" class="form-control-modern" value="@DateTime.Today.ToString("yyyy-MM-dd")">
+                                    <input type="date" id="exposureStartDate" class="form-control-modern" value="@ApplicationTimeZone.Now.ToString("yyyy-MM-dd")">
                                     <div class="form-hint">When did the exposure begin?</div>
                                 </div>
                             </div>
@@ -947,8 +947,8 @@
                 <h5 style="color: #7c3aed; margin-bottom: 1rem;"><i class="bi bi-file-medical me-2"></i>Contact Details</h5>
                 <p><strong>Disease:</strong> ${escapeHtml(disease)}</p>
                 <p><strong>Status:</strong> ${escapeHtml(status || 'Not specified')}</p>
-                <p><strong>Date of First Exposure:</strong> ${dateOfOnset ? new Date(dateOfOnset).toLocaleDateString() : 'Not specified'}</p>
-                <p><strong>Date Identified:</strong> ${dateOfNotification ? new Date(dateOfNotification).toLocaleDateString() : 'Not specified'}</p>
+                <p><strong>Date of First Exposure:</strong> ${dateOfOnset ? window.SentinelRegionalFormatting.formatDateOnly(dateOfOnset) : 'Not specified'}</p>
+                <p><strong>Date Identified:</strong> ${dateOfNotification ? window.SentinelRegionalFormatting.formatDateOnly(dateOfNotification) : 'Not specified'}</p>
             </div>
         `;
         
@@ -965,8 +965,8 @@
                     <p><strong>Source Case:</strong> ${escapeHtml(selectedSourceCase.friendlyId)} - ${escapeHtml(selectedSourceCase.patientName)}</p>
                     <p><strong>Source Disease:</strong> ${escapeHtml(selectedSourceCase.diseaseName)}</p>
                     <p><strong>Contact Classification:</strong> ${escapeHtml(classification || 'Not specified')}</p>
-                    <p><strong>Exposure Period:</strong> ${exposureStart ? new Date(exposureStart).toLocaleDateString() : 'Not specified'} 
-                       ${exposureEnd ? ' to ' + new Date(exposureEnd).toLocaleDateString() : ''}</p>
+                    <p><strong>Exposure Period:</strong> ${exposureStart ? window.SentinelRegionalFormatting.formatDateOnly(exposureStart) : 'Not specified'}
+                       ${exposureEnd ? ' to ' + window.SentinelRegionalFormatting.formatDateOnly(exposureEnd) : ''}</p>
                     ${exposureDesc ? '<p><strong>Description:</strong> ' + escapeHtml(exposureDesc) + '</p>' : ''}
                 </div>
             `;

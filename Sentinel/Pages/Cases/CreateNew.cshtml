@@ -399,7 +399,7 @@
                 <div class="col-md-6">
                     <div class="form-group">
                         <label class="form-label">Date of Notification</label>
-                        <input type="date" name="DateOfNotification" class="form-control-modern" value="@DateTime.Today.ToString("yyyy-MM-dd")">
+                        <input type="date" name="DateOfNotification" class="form-control-modern" value="@ApplicationTimeZone.Now.ToString("yyyy-MM-dd")">
                         <div class="form-hint">When was this case reported?</div>
                     </div>
                 </div>
@@ -895,7 +895,7 @@
         function displayPatientDetails(patient) {
             // Basic Information
             $('#patientNameDisplay').text(patient.givenName + ' ' + patient.familyName);
-            $('#patientDOBDisplay').text(patient.dateOfBirth ? new Date(patient.dateOfBirth).toLocaleDateString('en-AU') : 'Not provided');
+            $('#patientDOBDisplay').text(patient.dateOfBirth ? window.SentinelRegionalFormatting.formatDateOnly(patient.dateOfBirth) : 'Not provided');
             $('#patientGenderDisplay').text(patient.genderName || 'Not provided');
             $('#patientSexAtBirthDisplay').text(patient.sexAtBirthName || 'Not provided');
             
@@ -1277,7 +1277,7 @@
                             <div>
                                 <h6 class="mb-1">${escapeHtml(result.testTypeName || 'Lab Test')}</h6>
                                 <p class="mb-1"><strong>Result:</strong> ${escapeHtml(result.testResultName || 'N/A')}</p>
-                                <small class="text-muted">Collected: ${result.specimenCollectionDate ? new Date(result.specimenCollectionDate).toLocaleDateString() : 'N/A'}</small>
+                                <small class="text-muted">Collected: ${result.specimenCollectionDate ? window.SentinelRegionalFormatting.formatDateOnly(result.specimenCollectionDate) : 'N/A'}</small>
                             </div>
                             <button type="button" class="btn btn-sm btn-outline-danger js-delete-lab-result" data-result-id="${escapeHtml(result.id)}">
                                 <i class="bi bi-trash"></i>
@@ -1458,8 +1458,8 @@
             
             let html = '<div class="list-group mt-3">';
             exposures.forEach(exposure => {
-                const startDate = exposure.exposureStartDate ? new Date(exposure.exposureStartDate).toLocaleDateString() : 'N/A';
-                const endDate = exposure.exposureEndDate ? new Date(exposure.exposureEndDate).toLocaleDateString() : 'N/A';
+                const startDate = exposure.exposureStartDate ? window.SentinelRegionalFormatting.formatDateOnly(exposure.exposureStartDate) : 'N/A';
+                const endDate = exposure.exposureEndDate ? window.SentinelRegionalFormatting.formatDateOnly(exposure.exposureEndDate) : 'N/A';
                 const location = exposure.locationName || exposure.eventName || 'Unknown location';
                 
                 html += `

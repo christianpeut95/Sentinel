@@ -5,6 +5,20 @@ namespace Sentinel.Services.Reporting;
 /// </summary>
 public class DynamicDateResolver : IDynamicDateResolver
 {
+    private readonly IApplicationTimeZoneService? _applicationTimeZone;
+
+    // Retained for older callers and isolated tests. The application resolves the
+    // service-aware constructor through DI.
+    public DynamicDateResolver()
+        : this(null)
+    {
+    }
+
+    public DynamicDateResolver(IApplicationTimeZoneService? applicationTimeZone)
+    {
+        _applicationTimeZone = applicationTimeZone;
+    }
+
     private static readonly string[] SupportedDateTypes = new[]
     {
         "Today",
@@ -43,7 +57,11 @@ public class DynamicDateResolver : IDynamicDateResolver
     /// <inheritdoc />
     public DateTime ResolveDate(string dynamicDateType, int? offset = null, string? offsetUnit = null, DateTime? referenceDate = null)
     {
-        var baseDate = referenceDate ?? DateTime.Now;
+        // Dynamic reporting periods are calendar concepts ("today", "this
+        // month"), so they must use the organisation's day rather than the web
+        // server's local clock. An explicit reference date remains deterministic
+        // for callers and tests.
+        var baseDate = referenceDate ?? _applicationTimeZone?.Now ?? DateTime.UtcNow;
         var date = baseDate.Date; // Start with date component only (midnight)
 
         switch (dynamicDateType)

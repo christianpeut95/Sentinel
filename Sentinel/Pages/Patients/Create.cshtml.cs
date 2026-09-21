@@ -33,6 +33,7 @@ namespace Sentinel.Pages.Patients
         private readonly IPermissionService _permissionService;
         private readonly IDiseaseAccessService _diseaseAccessService;
         private readonly ILogger<CreateModel> _logger;
+        private readonly IApplicationTimeZoneService _applicationTimeZone;
 
         public CreateModel(
             ApplicationDbContext context, 
@@ -47,7 +48,8 @@ namespace Sentinel.Pages.Patients
             Sentinel.Services.Telemetry.ActivityTracker activityTracker,
             IPermissionService permissionService,
             IDiseaseAccessService diseaseAccessService,
-            ILogger<CreateModel> logger)
+            ILogger<CreateModel> logger,
+            IApplicationTimeZoneService applicationTimeZone)
         {
             _context = context;
             _geocoder = geocoder;
@@ -62,6 +64,7 @@ namespace Sentinel.Pages.Patients
             _permissionService = permissionService;
             _diseaseAccessService = diseaseAccessService;
             _logger = logger;
+            _applicationTimeZone = applicationTimeZone;
         }
 
         public List<PotentialDuplicate> PotentialDuplicates { get; set; } = new();
@@ -284,7 +287,7 @@ namespace Sentinel.Pages.Patients
                         PatientId = Patient.Id,
                         Type = CaseType.Contact,
                         DiseaseId = DiseaseId.Value,
-                        DateOfNotification = DateTime.Today,
+                        DateOfNotification = _applicationTimeZone.Now.Date,
                         FriendlyId = await _caseIdGenerator.GenerateNextCaseIdAsync()
                     };
 
@@ -406,7 +409,7 @@ namespace Sentinel.Pages.Patients
                 PatientId = patientId,
                 Type = CaseType.Contact,
                 DiseaseId = diseaseId,
-                DateOfNotification = DateTime.Today,
+                DateOfNotification = _applicationTimeZone.Now.Date,
                 FriendlyId = await _caseIdGenerator.GenerateNextCaseIdAsync()
             };
 

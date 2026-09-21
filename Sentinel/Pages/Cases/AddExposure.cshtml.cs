@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
 using Sentinel.Data;
 using Sentinel.Models;
+using Sentinel.Services;
 using System.Text.Json;
 
 namespace Sentinel.Pages.Cases
@@ -15,11 +16,16 @@ namespace Sentinel.Pages.Cases
     {
         private readonly ApplicationDbContext _context;
         private readonly IAuthorizationService _authorizationService;
+        private readonly IApplicationTimeZoneService _applicationTimeZone;
 
-        public AddExposureModel(ApplicationDbContext context, IAuthorizationService authorizationService)
+        public AddExposureModel(
+            ApplicationDbContext context,
+            IAuthorizationService authorizationService,
+            IApplicationTimeZoneService applicationTimeZone)
         {
             _context = context;
             _authorizationService = authorizationService;
+            _applicationTimeZone = applicationTimeZone;
         }
 
         [BindProperty(SupportsGet = true)]
@@ -30,8 +36,7 @@ namespace Sentinel.Pages.Cases
         [BindProperty]
         public ExposureEvent Exposure { get; set; } = new ExposureEvent
         {
-            ExposureStatus = ExposureStatus.PotentialExposure,
-            ExposureStartDate = DateTime.Now
+            ExposureStatus = ExposureStatus.PotentialExposure
         };
 
         [BindProperty]
@@ -56,6 +61,7 @@ namespace Sentinel.Pages.Cases
 
             // Default: Current case is the one who got exposed (Acquisition)
             Exposure.ExposedCaseId = CaseId;
+            Exposure.ExposureStartDate = _applicationTimeZone.AppTimeToUtc(_applicationTimeZone.Now);
             return Page();
         }
 

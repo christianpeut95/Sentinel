@@ -121,7 +121,7 @@
                             <div class="col">
                                 <div class="d-flex justify-content-between">
                                     <strong>${escapeHtml(log.Level || 'Unknown')}</strong>
-                                    <small class="text-muted">${new Date(log.TimeStamp).toLocaleString()}</small>
+                                    <small class="text-muted">${window.SentinelRegionalFormatting.formatDateTime(log.TimeStamp)}</small>
                                 </div>
                                 <div class="mt-1">${escapeHtml(log.Message)}</div>
                                 ${log.Exception ? `<pre class="mt-2 p-2 bg-white border">${escapeHtml(log.Exception)}</pre>` : ''}

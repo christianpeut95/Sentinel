@@ -482,7 +482,7 @@
                         <div style="color: var(--forest);">
                             @if (Model.Case.Patient.DateOfBirth.HasValue)
                             {
-                                var age = DateTime.Now.Year - Model.Case.Patient.DateOfBirth.Value.Year;
+                                var age = ApplicationTimeZone.Now.Year - Model.Case.Patient.DateOfBirth.Value.Year;
                                 <span>@Model.Case.Patient.DateOfBirth.Value.ToString("dd MMM yyyy") <small style="color: var(--graphite);">(@age yrs)</small></span>
                             }
                             else

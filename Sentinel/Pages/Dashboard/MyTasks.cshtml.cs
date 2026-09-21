@@ -15,15 +15,18 @@ namespace Sentinel.Pages.Dashboard
         private readonly ApplicationDbContext _context;
         private readonly ITaskService _taskService;
         private readonly IPermissionService _permissionService;
+        private readonly IApplicationTimeZoneService _applicationTimeZone;
 
         public MyTasksModel(
             ApplicationDbContext context,
             ITaskService taskService,
-            IPermissionService permissionService)
+            IPermissionService permissionService,
+            IApplicationTimeZoneService applicationTimeZone)
         {
             _context = context;
             _taskService = taskService;
             _permissionService = permissionService;
+            _applicationTimeZone = applicationTimeZone;
         }
 
         public List<CaseTask> AllTasks { get; set; } = new();
@@ -88,8 +91,8 @@ namespace Sentinel.Pages.Dashboard
 
         private void CalculateStatistics()
         {
-            var today = DateTime.Today;
-            var soon = DateTime.Today.AddDays(3);
+            var today = _applicationTimeZone.Now.Date;
+            var soon = today.AddDays(3);
 
             TotalTasks = AllTasks.Count;
             PendingTasks = AllTasks.Count(t => t.Status == CaseTaskStatus.Pending);
@@ -140,7 +143,7 @@ namespace Sentinel.Pages.Dashboard
             // Due date filter
             if (!string.IsNullOrEmpty(DueDateFilter))
             {
-                var today = DateTime.Today;
+                var today = _applicationTimeZone.Now.Date;
                 filtered = DueDateFilter switch
                 {
                     "Overdue" => filtered.Where(t => t.DueDate.HasValue && 

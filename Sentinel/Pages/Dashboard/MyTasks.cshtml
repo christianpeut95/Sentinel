@@ -156,8 +156,9 @@
                                 <tbody>
                                     @foreach (var task in Model.FilteredTasks)
                                     {
-                                        var isOverdue = task.DueDate.HasValue && task.DueDate.Value.Date < DateTime.Today && task.Status != CaseTaskStatus.Completed;
-                                        var isDueToday = task.DueDate.HasValue && task.DueDate.Value.Date == DateTime.Today;
+                                        var today = ApplicationTimeZone.Now.Date;
+                                        var isOverdue = task.DueDate.HasValue && task.DueDate.Value.Date < today && task.Status != CaseTaskStatus.Completed;
+                                        var isDueToday = task.DueDate.HasValue && task.DueDate.Value.Date == today;
                                         
                                         <tr class="@(isOverdue ? "table-danger" : (isDueToday ? "table-warning" : ""))">
                                             <td>
@@ -220,7 +221,7 @@
                                                     {
                                                         <br/><span class="badge bg-warning text-dark"><i class="bi bi-clock"></i> Due Today</span>
                                                     }
-                                                    else if (task.DueDate.Value.Date < DateTime.Today.AddDays(3))
+                                                    else if (task.DueDate.Value.Date < today.AddDays(3))
                                                     {
                                                         <br/><span class="badge bg-info"><i class="bi bi-clock"></i> Due Soon</span>
                                                     }
@@ -590,16 +591,10 @@
                                     <span class="badge bg-${outcomeClass}">${outcomeText}</span>
                                     ${userName}
                                 </h6>
-                                <small>${attemptDate.toLocaleString('en-AU', { 
-                                    day: '2-digit', 
-                                    month: 'short', 
-                                    year: 'numeric',
-                                    hour: '2-digit',
-                                    minute: '2-digit'
-                                })}</small>
+                                <small>${window.SentinelRegionalFormatting.formatDateTime(attemptDate)}</small>
                             </div>
                             ${attempt.notes ? `<p class="mb-1">${escapeHtml(attempt.notes)}</p>` : '<p class="mb-1 text-muted">No notes recorded</p>'}
-                            ${attempt.nextCallbackScheduled ? `<small class="text-info"><i class="bi bi-calendar-check"></i> Next call: ${new Date(attempt.nextCallbackScheduled).toLocaleString('en-AU')}</small>` : ''}
+                            ${attempt.nextCallbackScheduled ? `<small class="text-info"><i class="bi bi-calendar-check"></i> Next call: ${window.SentinelRegionalFormatting.formatDateTime(attempt.nextCallbackScheduled)}</small>` : ''}
                         </div>
                     `;
                 });

@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
 using Sentinel.Data;
 using Sentinel.Models.CaseDefinitions;
+using Sentinel.Services;
 using System.ComponentModel.DataAnnotations;
 
 namespace Sentinel.Pages.Settings.CaseDefinitions
@@ -13,10 +14,12 @@ namespace Sentinel.Pages.Settings.CaseDefinitions
     public class CreateModel : PageModel
     {
         private readonly ApplicationDbContext _context;
+        private readonly IApplicationTimeZoneService _applicationTimeZone;
 
-        public CreateModel(ApplicationDbContext context)
+        public CreateModel(ApplicationDbContext context, IApplicationTimeZoneService applicationTimeZone)
         {
             _context = context;
+            _applicationTimeZone = applicationTimeZone;
         }
 
         [BindProperty]
@@ -43,7 +46,7 @@ namespace Sentinel.Pages.Settings.CaseDefinitions
             [Required]
             [Display(Name = "Active From")]
             [DataType(DataType.Date)]
-            public DateTime DateActiveFrom { get; set; } = DateTime.Today;
+            public DateTime DateActiveFrom { get; set; }
 
             [Display(Name = "Active Until")]
             [DataType(DataType.Date)]
@@ -59,6 +62,7 @@ namespace Sentinel.Pages.Settings.CaseDefinitions
 
         public async Task OnGetAsync(int? duplicateFrom)
         {
+            Input.DateActiveFrom = _applicationTimeZone.Now.Date;
             await LoadSelectListsAsync();
 
             // If duplicating, load source definition
@@ -74,7 +78,7 @@ namespace Sentinel.Pages.Settings.CaseDefinitions
                     Input.Name = $"{source.Name} (Copy)";
                     Input.DiseaseId = source.DiseaseId;
                     Input.ConfirmationStatusId = source.ConfirmationStatusId;
-                    Input.DateActiveFrom = DateTime.Today;
+                    Input.DateActiveFrom = _applicationTimeZone.Now.Date;
                     Input.ApplyToChildDiseases = source.ApplyToChildDiseases;
 
                     // Set classification mode based on flags

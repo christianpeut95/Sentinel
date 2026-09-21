@@ -1172,7 +1172,7 @@
             
             const epiData = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.Statistics.EpiCurveData));
             
-            const dates = epiData.map(d => new Date(d.Date));
+            const dates = epiData.map(d => d.Date);
             const confirmedData = epiData.map(d => d.ConfirmedCount);
             const probableData = epiData.map(d => d.ProbableCount);
             const suspectData = epiData.map(d => d.SuspectCount);
@@ -1181,7 +1181,7 @@
             new Chart(ctx, {
                 type: 'bar',
                 data: {
-                    labels: dates.map(d => d.toLocaleDateString()),
+                    labels: dates.map(d => window.SentinelRegionalFormatting.formatDateOnly(d)),
                     datasets: [
                         {
                             label: 'Confirmed',
@@ -1360,7 +1360,7 @@
                     <div class="mb-3">
                         <label class="form-label">Event Date & Time <span class="text-danger">*</span></label>
                         <input type="datetime-local" name="eventDate" class="form-control" required 
-                               value="@DateTime.Now.ToString("yyyy-MM-ddTHH:mm")" />
+                               value="@ApplicationTimeZone.Now.ToString("yyyy-MM-ddTHH:mm")" />
                     </div>
                     <div class="mb-3">
                         <label class="form-label">Event Type</label>

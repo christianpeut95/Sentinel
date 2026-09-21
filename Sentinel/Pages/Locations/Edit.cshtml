@@ -79,7 +79,7 @@
                                 <strong>Current Coordinates:</strong> @Model.Location.Latitude, @Model.Location.Longitude
                                 @if (Model.Location.LastGeocoded.HasValue)
                                 {
-                                    <span class="ms-2 text-muted">(Last geocoded: @Model.Location.LastGeocoded.Value.ToLocalTime().ToString("g"))</span>
+                                    <span class="ms-2 text-muted">(Last geocoded: @ApplicationTimeZone.Format(Model.Location.LastGeocoded))</span>
                                 }
                             </div>
                         </div>

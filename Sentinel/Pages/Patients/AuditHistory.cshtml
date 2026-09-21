@@ -135,7 +135,7 @@ else
                                         }
                                     </div>
                                     <small style="font-family: var(--f-mono); font-size: 11px; color: var(--graphite); white-space: nowrap;">
-                                        @log.ChangedAt.ToLocalTime().ToString("HH:mm:ss")
+                                        @ApplicationTimeZone.Format(log.ChangedAt, "HH:mm:ss")
                                     </small>
                                 </div>
 

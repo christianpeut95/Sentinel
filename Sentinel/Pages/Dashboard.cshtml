@@ -3,7 +3,7 @@
 @using Sentinel.Models.Dashboard
 @{
     ViewData["Title"] = "Dashboard";
-    ViewData["Subtitle"] = DateTime.Now.ToString("dddd, MMMM d, yyyy");
+    ViewData["Subtitle"] = ApplicationTimeZone.Now.ToString("dddd, MMMM d, yyyy", ApplicationTimeZone.AppCulture);
 }
 
 <style>
@@ -405,7 +405,7 @@
 
 <div class="dashboard-greeting">
     <h2>
-        Good @(DateTime.Now.Hour < 12 ? "morning" : DateTime.Now.Hour < 18 ? "afternoon" : "evening")@(!string.IsNullOrWhiteSpace(Model.UserDisplayName) ? ", " + Model.UserDisplayName : "").
+        Good @(ApplicationTimeZone.Now.Hour < 12 ? "morning" : ApplicationTimeZone.Now.Hour < 18 ? "afternoon" : "evening")@(!string.IsNullOrWhiteSpace(Model.UserDisplayName) ? ", " + Model.UserDisplayName : "").
     </h2>
     <div class="dashboard-actions">
         @if (Model.HasPermission("Case.View"))

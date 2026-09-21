@@ -18,6 +18,17 @@
       "environmentVariables": {
         "ASPNETCORE_ENVIRONMENT": "Development"
       }
+    },
+    "Setup Preview": {
+      "commandName": "Project",
+      "dotnetRunMessages": true,
+      "launchBrowser": true,
+      "applicationUrl": "https://localhost:7220;http://localhost:5262",
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development",
+        "ConnectionStrings__DefaultConnection": "Server=(localdb)\\mssqllocaldb;Database=SentinelSetupPreviewWizard;Trusted_Connection=True;MultipleActiveResultSets=true",
+        "Setup__TokenFilePath": "App_Data/SentinelSetupPreview/setup-token.txt"
+      }
     }
   }
 }

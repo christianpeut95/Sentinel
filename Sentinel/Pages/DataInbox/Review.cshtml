@@ -465,7 +465,7 @@
                                                                         <strong>DOB:</strong> @(match.Patient.DateOfBirth?.ToString("MMM dd, yyyy") ?? "N/A")
                                                                         @if (match.Patient.DateOfBirth.HasValue)
                                                                         {
-                                                                            <span class="text-muted ms-1">(Age @((DateTime.Today.Year - match.Patient.DateOfBirth.Value.Year)))</span>
+                                                                            <span class="text-muted ms-1">(Age @((ApplicationTimeZone.Now.Year - match.Patient.DateOfBirth.Value.Year)))</span>
                                                                         }
                                                                     </div>
                                                                 </div>
@@ -898,7 +898,7 @@
                                 {
                                     @Model.ReviewDetail.Patient.DateOfBirth.Value.ToString("MMM dd, yyyy")
                                     <small class="text-muted ms-2">
-                                        (Age @((DateTime.Today.Year - Model.ReviewDetail.Patient.DateOfBirth.Value.Year)))
+                                        (Age @((ApplicationTimeZone.Now.Year - Model.ReviewDetail.Patient.DateOfBirth.Value.Year)))
                                     </small>
                                 }
                                 else
@@ -1059,7 +1059,7 @@
                     </div>
                     <div class="d-flex justify-content-between">
                         <span class="text-muted">Created:</span>
-                        <span>@Model.ReviewDetail.ReviewItem.CreatedDate.ToLocalTime().ToString("g")</span>
+                        <span>@ApplicationTimeZone.Format(Model.ReviewDetail.ReviewItem.CreatedDate)</span>
                     </div>
                 </div>
 
@@ -1488,7 +1488,7 @@
         if (diff.TotalDays < 7)
             return $"{(int)diff.TotalDays} days ago";
         
-        return dateTime.ToLocalTime().ToString("MMM d, yyyy 'at' h:mm tt");
+        return ApplicationTimeZone.Format(dateTime, "MMM d, yyyy 'at' h:mm tt");
     }
 
     // Parse meaningful changes from the ChangeSnapshot dictionary

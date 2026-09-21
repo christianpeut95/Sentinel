@@ -259,7 +259,7 @@ const ReportBuilder = {
                 const self = this;
 
                 ReportBuilderNotifications.confirm(
-                    `Found an auto-saved draft from ${timeAgo} (${draftDate.toLocaleString()}).\n\nWould you like to restore this draft?`,
+                    `Found an auto-saved draft from ${timeAgo} (${window.SentinelRegionalFormatting.formatDateTime(draftDate)}).\n\nWould you like to restore this draft?`,
                     () => {
                         const draft = self.loadAutoSavedDraft();
                         if (draft) {

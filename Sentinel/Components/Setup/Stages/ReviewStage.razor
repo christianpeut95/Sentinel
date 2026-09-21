@@ -1,5 +1,6 @@
 @using Microsoft.AspNetCore.Identity
 @using Microsoft.EntityFrameworkCore
+@using Sentinel.Components.Setup
 @using Sentinel.Data
 @using Sentinel.Models
 @using Sentinel.Services
@@ -111,12 +112,16 @@
             }
         </div>
 
-        <!-- Time Zone -->
+        <!-- Regional settings -->
         <div class="review-section">
-            <h3><i class="bi bi-clock"></i> Time Zone</h3>
+            <h3><i class="bi bi-globe2"></i> Regional Settings</h3>
             <div class="review-item">
                 <span class="review-label">Selected Time Zone</span>
-                <span class="review-value">@TimeZoneId</span>
+                <span class="review-value">@TimeZoneDisplayName</span>
+            </div>
+            <div class="review-item">
+                <span class="review-label">Date, Number and Language Format</span>
+                <span class="review-value">@LocaleDisplayName</span>
             </div>
         </div>
 
@@ -155,25 +160,23 @@
         <!-- Optional interactive pivot reporting -->
         <div class="review-section">
             <h3><i class="bi bi-table"></i> Optional Interactive Pivot Reports</h3>
-            <p class="text-muted mb-3">
+            <p class="review-description">
                 Sentinel can use WebDataRocks for interactive pivot reports. It is an optional component provided under its own vendor licence, not the Sentinel GPL licence.
             </p>
-            <div class="form-check form-switch mb-3">
-                <input @bind="_enableWebDataRocks" class="form-check-input" type="checkbox" role="switch" id="enableWebDataRocks" style="width: 3em; height: 1.5em;" />
-                <label class="form-check-label ms-2 fw-semibold" for="enableWebDataRocks">
-                    Enable interactive pivot reports
-                </label>
-            </div>
+            <label class="review-license-toggle" for="enableWebDataRocks">
+                <input @bind="_enableWebDataRocks" type="checkbox" role="switch" id="enableWebDataRocks" />
+                <span>Enable interactive pivot reports</span>
+            </label>
             @if (_enableWebDataRocks)
             {
-                <div class="alert alert-warning mb-0">
-                    <div class="form-check">
-                        <input @bind="_acceptWebDataRocksLicense" class="form-check-input" type="checkbox" id="acceptWebDataRocksLicense" />
-                        <label class="form-check-label" for="acceptWebDataRocksLicense">
+                <div class="review-license-acceptance">
+                    <label class="review-license-check" for="acceptWebDataRocksLicense">
+                        <input @bind="_acceptWebDataRocksLicense" type="checkbox" id="acceptWebDataRocksLicense" />
+                        <span>
                             I have read and accept the <a href="@WebDataRocksLicenseService.LicenseUrl" target="_blank" rel="noopener noreferrer">WebDataRocks Licence Agreement</a> (revision @WebDataRocksLicenseService.CurrentLicenseVersion) for this organisation.
-                        </label>
-                    </div>
-                    <small class="d-block mt-2">Each Sentinel user will also be asked to accept these terms before their browser loads the pivot component. Vendor attribution and the component’s applicable limits remain in place.</small>
+                        </span>
+                    </label>
+                    <p>Each Sentinel user will also be asked to accept these terms before their browser loads the pivot component. Vendor attribution and the component’s applicable limits remain in place.</p>
                 </div>
             }
         </div>
@@ -220,7 +223,8 @@
     [Parameter] public InitialSetupWizard.OrganizationData OrgData { get; set; } = new();
     [Parameter] public bool EnableFeedback { get; set; }
     [Parameter] public bool EnableUsageMonitoring { get; set; }
-    [Parameter] public string TimeZoneId { get; set; } = "UTC";
+    [Parameter] public string TimeZoneId { get; set; } = OrganizationRegionalSettings.DefaultTimeZoneId;
+    [Parameter] public string Locale { get; set; } = OrganizationRegionalSettings.DefaultLocale;
     [Parameter] public InitialSetupWizard.GeocodingData GeoData { get; set; } = new();
     [Parameter] public InitialSetupWizard.BackupData BackupData { get; set; } = new();
 
@@ -230,8 +234,46 @@
     private bool _enableWebDataRocks;
     private bool _acceptWebDataRocksLicense;
 
+    private string TimeZoneDisplayName
+    {
+        get
+        {
+            if (string.IsNullOrWhiteSpace(TimeZoneId))
+            {
+                return "Not selected";
+            }
+
+            if (OrganizationRegionalSettings.TryResolveTimeZone(TimeZoneId, out var timeZone))
+            {
+                return timeZone.DisplayName;
+            }
+
+            return TimeZoneId;
+        }
+    }
+
+    private string LocaleDisplayName
+    {
+        get
+        {
+            if (OrganizationRegionalSettings.TryGetCulture(Locale, out var culture))
+            {
+                return $"{culture.EnglishName} ({culture.Name})";
+            }
+
+            return Locale;
+        }
+    }
+
     private async Task CompleteSetup()
     {
+        var setupValidationErrors = await ValidateSetupDataAsync();
+        if (setupValidationErrors.Count > 0)
+        {
+            _error = string.Join(" ", setupValidationErrors);
+            return;
+        }
+
         if (_enableWebDataRocks && !_acceptWebDataRocksLicense)
         {
             _error = "Accept the WebDataRocks Licence Agreement or leave interactive pivot reports disabled.";
@@ -369,7 +411,15 @@
                         jsonDoc["Organization"]!["City"] = JsonValue.Create(OrgData.City);
                         jsonDoc["Organization"]!["PostalCode"] = JsonValue.Create(OrgData.PostalCode);
                         jsonDoc["Organization"]!["CountryCode"] = JsonValue.Create(OrgData.CountryCode?.ToUpperInvariant());
-                        jsonDoc["Organization"]!["TimeZoneId"] = JsonValue.Create(TimeZoneId);
+                        if (!OrganizationRegionalSettings.TryResolveTimeZone(TimeZoneId, out var configuredTimeZone)
+                            || !OrganizationRegionalSettings.TryGetCulture(Locale, out var configuredCulture))
+                        {
+                            throw new InvalidOperationException("Validated regional settings could not be resolved during setup.");
+                        }
+
+                        jsonDoc["Organization"]!["TimeZoneId"] = JsonValue.Create(OrganizationRegionalSettings.GetCanonicalTimeZoneId(configuredTimeZone));
+                        jsonDoc["Organization"]!["Locale"] = JsonValue.Create(configuredCulture.Name);
+                        (jsonDoc["Organization"] as JsonObject)?.Remove("Timezone");
 
                         // Ensure Geocoding section exists and save geocoding settings
                         if (jsonDoc["Geocoding"] == null)
@@ -431,5 +481,66 @@
     private async Task HandlePrevious()
     {
         await OnPrevious.InvokeAsync();
+    }
+
+    private async Task<IReadOnlyList<string>> ValidateSetupDataAsync()
+    {
+        var errors = SetupWizardValidation.ValidateRequiredConfiguration(
+            AdminData,
+            HttpsData,
+            OrgData,
+            BackupData,
+            TimeZoneId,
+            Locale).ToList();
+        errors.AddRange(SetupWizardValidation.ValidateAdministratorDetails(AdminData));
+
+        if (errors.Count > 0)
+        {
+            return errors;
+        }
+
+        if (await UserManager.FindByEmailAsync(AdminData.Email.Trim()) is not null)
+        {
+            errors.Add("An administrator account with that email address already exists.");
+        }
+
+        var adminCandidate = new ApplicationUser
+        {
+            UserName = AdminData.Email.Trim(),
+            Email = AdminData.Email.Trim()
+        };
+        errors.AddRange(await ValidatePasswordAsync(adminCandidate, AdminData.Password));
+
+        if (AdminData.CreateBackupAdmin)
+        {
+            if (await UserManager.FindByEmailAsync(AdminData.BackupEmail!.Trim()) is not null)
+            {
+                errors.Add("A backup administrator account with that email address already exists.");
+            }
+
+            var backupCandidate = new ApplicationUser
+            {
+                UserName = AdminData.BackupEmail.Trim(),
+                Email = AdminData.BackupEmail.Trim()
+            };
+            errors.AddRange(await ValidatePasswordAsync(backupCandidate, AdminData.BackupPassword!));
+        }
+
+        return errors.Distinct(StringComparer.Ordinal).ToArray();
+    }
+
+    private async Task<IReadOnlyList<string>> ValidatePasswordAsync(ApplicationUser user, string password)
+    {
+        var errors = new List<string>();
+        foreach (var validator in UserManager.PasswordValidators)
+        {
+            var result = await validator.ValidateAsync(UserManager, user, password);
+            if (!result.Succeeded)
+            {
+                errors.AddRange(result.Errors.Select(error => error.Description));
+            }
+        }
+
+        return errors.Distinct(StringComparer.Ordinal).ToArray();
     }
 }

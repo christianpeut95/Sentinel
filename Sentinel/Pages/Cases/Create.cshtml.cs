@@ -28,6 +28,7 @@ namespace Sentinel.Pages.Cases
         private readonly IJurisdictionService _jurisdictionService;
         private readonly IPatientAddressService _patientAddressService;
         private readonly ILogger<CreateModel> _logger;
+        private readonly IApplicationTimeZoneService _applicationTimeZone;
 
         public CreateModel(
             ApplicationDbContext context, 
@@ -38,7 +39,8 @@ namespace Sentinel.Pages.Cases
             ITaskService taskService,
             IJurisdictionService jurisdictionService,
             IPatientAddressService patientAddressService,
-            ILogger<CreateModel> logger)
+            ILogger<CreateModel> logger,
+            IApplicationTimeZoneService applicationTimeZone)
         {
             _context = context;
             _caseIdGenerator = caseIdGenerator;
@@ -49,6 +51,7 @@ namespace Sentinel.Pages.Cases
             _jurisdictionService = jurisdictionService;
             _patientAddressService = patientAddressService;
             _logger = logger;
+            _applicationTimeZone = applicationTimeZone;
         }
 
         public Disease? DiseaseRequirements { get; set; }
@@ -110,7 +113,7 @@ namespace Sentinel.Pages.Cases
             Case = new Case 
             { 
                 Type = CaseType.Case,
-                DateOfNotification = DateTime.Today
+                DateOfNotification = _applicationTimeZone.Now.Date
             };
 
             if (patientId.HasValue)
@@ -206,7 +209,7 @@ namespace Sentinel.Pages.Cases
                     FriendlyId = await _caseIdGenerator.GenerateNextCaseIdAsync(),
                     PatientId = Case.PatientId,
                     DiseaseId = Case.DiseaseId,
-                    DateOfOnset = Case.DateOfOnset ?? DateTime.Today,
+                    DateOfOnset = Case.DateOfOnset ?? _applicationTimeZone.Now.Date,
                     DateOfNotification = Case.DateOfNotification,
                     ClinicalNotificationDate = Case.ClinicalNotificationDate,
                     ClinicalNotifierOrganisation = Case.ClinicalNotifierOrganisation,
@@ -281,7 +284,7 @@ namespace Sentinel.Pages.Cases
                                 Id = Guid.NewGuid(),
                                 ExposedCaseId = Case.Id,
                                 ExposureType = ExposureType.Location,
-                                ExposureStartDate = Case.DateOfOnset ?? DateTime.Today,
+                                ExposureStartDate = Case.DateOfOnset ?? _applicationTimeZone.Now.Date,
                                 ExposureStatus = ExposureStatus.PotentialExposure,
                                 
                                 // Structured address fields

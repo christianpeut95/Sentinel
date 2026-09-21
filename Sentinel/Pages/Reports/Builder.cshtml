@@ -495,14 +495,8 @@
         document.querySelectorAll('.js-local-time').forEach(timeElement => {
             const value = new Date(timeElement.dateTime);
             if (!Number.isNaN(value.getTime())) {
-                timeElement.textContent = value.toLocaleString([], {
-                    dateStyle: 'medium',
-                    timeStyle: 'short'
-                });
-                timeElement.title = value.toLocaleString([], {
-                    dateStyle: 'full',
-                    timeStyle: 'long'
-                });
+                timeElement.textContent = window.SentinelRegionalFormatting.formatDateTime(value);
+                timeElement.title = window.SentinelRegionalFormatting.formatDateTimeLong(value);
             }
         });
     });

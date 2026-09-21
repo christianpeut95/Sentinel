@@ -460,7 +460,8 @@ Demo__ShowDemoBanner=true
   "Organization": {
     "Name": "Your Organization",
     "CountryCode": "AU",
-    "Timezone": "UTC"
+    "TimeZoneId": "Australia/Adelaide",
+    "Locale": "en-AU"
   },
   "Geocoding": {
     "Provider": "Nominatim",

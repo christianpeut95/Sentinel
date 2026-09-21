@@ -366,7 +366,8 @@ public sealed class FileImportValidationTests
             Mock.Of<ICaseIdGeneratorService>(),
             Mock.Of<IOutbreakService>(),
             Mock.Of<IOutbreakAccessService>(),
-            Mock.Of<IAuthorizationService>());
+            Mock.Of<IAuthorizationService>(),
+            Mock.Of<IApplicationTimeZoneService>(service => service.Now == new DateTime(2026, 9, 21)));
         ConfigurePageModel(model);
         return model;
     }

@@ -1,5 +1,6 @@
 @using Sentinel.Components.Setup.Stages
 @using Sentinel.Services
+@using System.ComponentModel.DataAnnotations
 @inject ISystemSettingsService SystemSettingsService
 @inject ISetupWizardState SetupWizardState
 @inject NavigationManager Navigation
@@ -10,6 +11,31 @@
     {
         <TokenValidationStage OnTokenValidated="HandleTokenValidated" />
     }
+    else if (_showWelcome)
+    {
+        <div class="wizard-container">
+            <section class="setup-welcome" aria-labelledby="setup-welcome-heading">
+                <div class="wizard-logo welcome-brand" aria-label="Sentinel">
+                    <div class="logo-icon">
+                        <img src="/Icons/sentinel-icon.svg" alt="" />
+                    </div>
+                    <div class="logo-text">
+                        <p class="welcome-product-name">Sentinel</p>
+                        <p class="logo-subtitle">Initial setup</p>
+                    </div>
+                </div>
+
+                <div class="welcome-grid">
+                    <div class="welcome-copy">
+                        <p class="welcome-kicker">Initial setup</p>
+                        <h1 id="setup-welcome-heading">Welcome to Sentinel.</h1>
+                        <p>Configure this installation before inviting other users.</p>
+                        <button type="button" class="btn btn-primary" @onclick="BeginSetup">Begin setup</button>
+                    </div>
+                </div>
+            </section>
+        </div>
+    }
     else
     {
         <div class="wizard-container">
@@ -19,8 +45,8 @@
                         <img src="/Icons/sentinel-icon.svg" alt="Sentinel" />
                     </div>
                     <div class="logo-text">
-                        <h1>Sentinel Setup</h1>
-                        <p class="logo-subtitle">Disease Surveillance System</p>
+                        <h1>Sentinel</h1>
+                        <p class="logo-subtitle">Initial setup</p>
                     </div>
                 </div>
                 <div class="wizard-progress">
@@ -34,57 +60,77 @@
                 </div>
             </div>
 
-            <div class="wizard-stages">
-                @switch (_currentStage)
-                {
-                    case WizardStage.DatabaseConnection:
-                        <DatabaseConnectionStage OnNext="HandleNext" OnPrevious="HandlePrevious" />
-                        break;
-                    case WizardStage.AdminAccount:
-                        <AdminAccountStage OnNext="HandleNext" OnPrevious="HandlePrevious" @bind-AdminData="_adminData" />
-                        break;
-                    case WizardStage.HttpsConfig:
-                        <HttpsConfigStage OnNext="HandleNext" OnPrevious="HandlePrevious" @bind-HttpsData="_httpsData" />
-                        break;
-                    case WizardStage.Organization:
-                        <OrganizationStage OnNext="HandleNext" OnPrevious="HandlePrevious" @bind-OrgData="_orgData" />
-                        break;
-                    case WizardStage.Registration:
-                        <RegistrationStage OnNext="HandleNext"
+            <div class="wizard-content-grid">
+                <aside class="setup-checklist" aria-labelledby="setup-checklist-heading">
+                    <h2 id="setup-checklist-heading">Setup checklist</h2>
+                    <ol>
+                        @foreach (var item in _checklist)
+                        {
+                            var itemClass = GetChecklistItemClass(item.Stage);
+                            <li class="@itemClass" aria-current="@(item.Stage == _currentStage ? "step" : null)">
+                                <span class="checklist-marker" aria-hidden="true">@(item.Stage < _currentStage ? "✓" : ((int)item.Stage).ToString())</span>
+                                <span>@item.Label</span>
+                            </li>
+                        }
+                    </ol>
+                </aside>
+
+                <div class="wizard-stages">
+                    @switch (_currentStage)
+                    {
+                        case WizardStage.DatabaseConnection:
+                            <DatabaseConnectionStage OnNext="HandleNext" OnPrevious="HandlePrevious" />
+                            break;
+                        case WizardStage.AdminAccount:
+                            <AdminAccountStage OnNext="HandleNext" OnPrevious="HandlePrevious" @bind-AdminData="_adminData" />
+                            break;
+                        case WizardStage.HttpsConfig:
+                            <HttpsConfigStage OnNext="HandleNext" OnPrevious="HandlePrevious" @bind-HttpsData="_httpsData" />
+                            break;
+                        case WizardStage.Organization:
+                            <OrganizationStage OnNext="HandleNext" OnPrevious="HandlePrevious" @bind-OrgData="_orgData" />
+                            break;
+                        case WizardStage.Registration:
+                            <RegistrationStage OnNext="HandleNext"
+                                               OnPrevious="HandlePrevious"
+                                               AdminData="_adminData"
+                                               OrgData="_orgData"
+                                               @bind-RegistrationData="_registrationData" />
+                            break;
+                        case WizardStage.Feedback:
+                            <FeedbackStage OnNext="HandleNext"
                                            OnPrevious="HandlePrevious"
-                                           AdminData="_adminData"
-                                           OrgData="_orgData"
-                                           @bind-RegistrationData="_registrationData" />
-                        break;
-                    case WizardStage.Feedback:
-                        <FeedbackStage OnNext="HandleNext"
-                                       OnPrevious="HandlePrevious"
-                                       @bind-EnableFeedback="_enableFeedback"
-                                       @bind-EnableUsageMonitoring="_enableUsageMonitoring" />
-                        break;
-                    case WizardStage.TimeZone:
-                        <TimeZoneStage OnNext="HandleNext" OnPrevious="HandlePrevious" @bind-TimeZoneId="_timeZoneId" />
-                        break;
-                    case WizardStage.Geocoding:
-                        <GeocodingStage OnNext="HandleNext" OnPrevious="HandlePrevious" OnSkip="HandleSkip" @bind-GeoData="_geoData" />
-                        break;
-                    case WizardStage.Backup:
-                        <BackupStage OnNext="HandleNext" OnPrevious="HandlePrevious" @bind-BackupData="_backupData" />
-                        break;
-                    case WizardStage.Review:
-                        <ReviewStage 
-                            AdminData="_adminData"
-                            HttpsData="_httpsData"
-                            OrgData="_orgData"
-                            EnableFeedback="_enableFeedback"
-                            EnableUsageMonitoring="_enableUsageMonitoring"
-                            TimeZoneId="_timeZoneId"
-                            GeoData="_geoData"
-                            BackupData="_backupData"
-                            OnComplete="HandleComplete"
-                            OnPrevious="HandlePrevious" />
-                        break;
-                }
+                                           @bind-EnableFeedback="_enableFeedback"
+                                           @bind-EnableUsageMonitoring="_enableUsageMonitoring" />
+                            break;
+                        case WizardStage.TimeZone:
+                            <TimeZoneStage OnNext="HandleNext"
+                                           OnPrevious="HandlePrevious"
+                                           @bind-TimeZoneId="_timeZoneId"
+                                           @bind-Locale="_locale" />
+                            break;
+                        case WizardStage.Geocoding:
+                            <GeocodingStage OnNext="HandleNext" OnPrevious="HandlePrevious" OnSkip="HandleSkip" @bind-GeoData="_geoData" />
+                            break;
+                        case WizardStage.Backup:
+                            <BackupStage OnNext="HandleNext" OnPrevious="HandlePrevious" @bind-BackupData="_backupData" />
+                            break;
+                        case WizardStage.Review:
+                            <ReviewStage
+                                AdminData="_adminData"
+                                HttpsData="_httpsData"
+                                OrgData="_orgData"
+                                EnableFeedback="_enableFeedback"
+                                EnableUsageMonitoring="_enableUsageMonitoring"
+                                TimeZoneId="_timeZoneId"
+                                Locale="_locale"
+                                GeoData="_geoData"
+                                BackupData="_backupData"
+                                OnComplete="HandleComplete"
+                                OnPrevious="HandlePrevious" />
+                            break;
+                    }
+                </div>
             </div>
         </div>
     }
@@ -92,6 +138,7 @@
 
 @code {
     private bool _tokenValidated = false;
+    private bool _showWelcome;
     private WizardStage _currentStage = WizardStage.DatabaseConnection;
     private int _totalStages = 10; // Excluding token validation
     private double _progress => ((int)_currentStage / (double)_totalStages) * 100;
@@ -103,9 +150,23 @@
     private RegistrationData _registrationData = new();
     private bool _enableFeedback;
     private bool _enableUsageMonitoring;
-    private string _timeZoneId = "UTC";
+    private string _timeZoneId = OrganizationRegionalSettings.DefaultTimeZoneId;
+    private string _locale = OrganizationRegionalSettings.DefaultLocale;
     private GeocodingData _geoData = new();
     private BackupData _backupData = new();
+    private static readonly IReadOnlyList<SetupChecklistItem> _checklist = new[]
+    {
+        new SetupChecklistItem(WizardStage.DatabaseConnection, "Database connection"),
+        new SetupChecklistItem(WizardStage.AdminAccount, "Administrator account"),
+        new SetupChecklistItem(WizardStage.HttpsConfig, "HTTPS"),
+        new SetupChecklistItem(WizardStage.Organization, "Organisation"),
+        new SetupChecklistItem(WizardStage.Registration, "Registration"),
+        new SetupChecklistItem(WizardStage.Feedback, "Usage reporting"),
+        new SetupChecklistItem(WizardStage.TimeZone, "Time zone"),
+        new SetupChecklistItem(WizardStage.Geocoding, "Geocoding"),
+        new SetupChecklistItem(WizardStage.Backup, "Backups"),
+        new SetupChecklistItem(WizardStage.Review, "Review")
+    };
 
     protected override async Task OnInitializedAsync()
     {
@@ -117,8 +178,19 @@
     {
         SetupWizardState.SetValidatedToken(setupToken);
         _tokenValidated = true;
+        _showWelcome = true;
         StateHasChanged();
     }
+
+    private void BeginSetup()
+    {
+        _showWelcome = false;
+    }
+
+    private string GetChecklistItemClass(WizardStage stage) =>
+        stage < _currentStage ? "is-complete" :
+        stage == _currentStage ? "is-current" :
+        "is-upcoming";
 
     private void HandleNext()
     {
@@ -163,13 +235,29 @@
         Review = 10
     }
 
+    private sealed record SetupChecklistItem(WizardStage Stage, string Label);
+
     // Data models
     public class AdminAccountData
     {
+        [Required(ErrorMessage = "Administrator email address is required.")]
+        [EmailAddress(ErrorMessage = "Enter a valid administrator email address.")]
+        [MaxLength(256, ErrorMessage = "Administrator email address cannot exceed 256 characters.")]
         public string Email { get; set; } = "";
+
+        [Required(ErrorMessage = "Administrator password is required.")]
         public string Password { get; set; } = "";
+
+        [Required(ErrorMessage = "Confirm the administrator password.")]
+        [Compare(nameof(Password), ErrorMessage = "Passwords do not match.")]
         public string ConfirmPassword { get; set; } = "";
+
+        [Required(ErrorMessage = "Administrator full name is required.")]
+        [MaxLength(200, ErrorMessage = "Administrator full name cannot exceed 200 characters.")]
         public string FullName { get; set; } = "";
+
+        [EmailAddress(ErrorMessage = "Enter a valid recovery email address.")]
+        [MaxLength(256, ErrorMessage = "Recovery email address cannot exceed 256 characters.")]
         public string? RecoveryEmail { get; set; }
         public bool CreateBackupAdmin { get; set; }
         public string? BackupEmail { get; set; }
@@ -179,6 +267,8 @@
 
     public class HttpsConfigData
     {
+        [Required(ErrorMessage = "Application URL is required.")]
+        [Url(ErrorMessage = "Enter a valid application URL.")]
         public string ApplicationUrl { get; set; } = "";
         public bool EnforceHttps { get; set; } = true;
         public string? DomainName { get; set; }
@@ -187,12 +277,17 @@
 
     public class OrganizationData
     {
+        [Required(ErrorMessage = "Organization name is required.")]
+        [MaxLength(200, ErrorMessage = "Organization name cannot exceed 200 characters.")]
         public string Name { get; set; } = "";
-        public string Country { get; set; } = "";
+
+        public string Country { get; set; } = "Australia";
         public string? State { get; set; }
         public string? City { get; set; }
         public string? PostalCode { get; set; }
-        public string? CountryCode { get; set; }
+        [Required(ErrorMessage = "Country/region is required.")]
+        [RegularExpression("^[A-Za-z]{2}$", ErrorMessage = "Country code must contain exactly two letters.")]
+        public string? CountryCode { get; set; } = "AU";
     }
 
     public class RegistrationData
@@ -215,7 +310,10 @@
 
     public class BackupData
     {
+        [Required(ErrorMessage = "Backup directory path is required.")]
         public string BackupPath { get; set; } = "";
+
+        [Range(1, 365, ErrorMessage = "Backup retention must be between 1 and 365 days.")]
         public int RetentionDays { get; set; } = 30;
     }
 

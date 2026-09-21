@@ -89,7 +89,7 @@
             <div class="kpi-value" style="font-size:24px;font-family:var(--f-mono)">
                 @if (Model.MonitoringStatus.LastFileProcessedAt != null)
                 {
-                    @Model.MonitoringStatus.LastFileProcessedAt.Value.ToLocalTime().ToString("HH:mm:ss")
+                    @ApplicationTimeZone.Format(Model.MonitoringStatus.LastFileProcessedAt, "HH:mm:ss")
                 }
                 else
                 {
@@ -156,7 +156,7 @@
                     {
                         <tr>
                             <td style="font-family:var(--f-mono);font-size:12px">
-                                @msg.ReceivedAt.ToLocalTime().ToString("MM/dd HH:mm")
+                                @ApplicationTimeZone.Format(msg.ReceivedAt, "MM/dd HH:mm")
                             </td>
                             <td style="font-family:var(--f-mono);font-size:11px">
                                 @msg.MessageControlId
@@ -295,7 +295,7 @@
                                     }
                                     else
                                     {
-                                        @lastMessage.ReceivedAt.ToLocalTime().ToString("MM/dd")
+                                        @ApplicationTimeZone.Format(lastMessage.ReceivedAt, "MM/dd")
                                     }
                                 }
                                 else

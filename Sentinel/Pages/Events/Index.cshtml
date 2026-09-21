@@ -395,10 +395,10 @@
                         </td>
                         <td>
                             <small>
-                                @evt.StartDateTime.ToLocalTime().ToString("g")
+                                @ApplicationTimeZone.Format(evt.StartDateTime)
                                 @if (evt.EndDateTime.HasValue)
                                 {
-                                    <text><br/>to @evt.EndDateTime.Value.ToLocalTime().ToString("g")</text>
+                                    <text><br/>to @ApplicationTimeZone.Format(evt.EndDateTime)</text>
                                 }
                             </small>
                         </td>

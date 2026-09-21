@@ -10,6 +10,7 @@ using System.Text.Json;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.DataProtection;
+using Microsoft.Data.SqlClient;
 using System.Threading.RateLimiting;
 using Serilog;
 using Serilog.Events;
@@ -140,14 +141,26 @@ var applicationLoggerConfiguration = new LoggerConfiguration()
 
 if (!builder.Environment.IsEnvironment("Testing"))
 {
-    applicationLoggerConfiguration.WriteTo.MSSqlServer(
-        connectionString: connectionString,
-        sinkOptions: new MSSqlServerSinkOptions
-        {
-            TableName = "SentinelLogs",
-            SchemaName = "dbo",
-            AutoCreateSqlTable = true
-        });
+    try
+    {
+        await using var loggingConnection = new SqlConnection(connectionString);
+        await loggingConnection.OpenAsync();
+
+        applicationLoggerConfiguration.WriteTo.MSSqlServer(
+            connectionString: connectionString,
+            sinkOptions: new MSSqlServerSinkOptions
+            {
+                TableName = "SentinelLogs",
+                SchemaName = "dbo",
+                AutoCreateSqlTable = true
+            });
+    }
+    catch (SqlException ex)
+    {
+        // A new LocalDB database is created by EF migrations later in startup.
+        // Do not let a database-backed log sink prevent that first-run path.
+        Log.Warning(ex, "SQL logging is unavailable during startup; using console and file logging until the database is available");
+    }
 }
 
 Log.Logger = applicationLoggerConfiguration.CreateLogger();
@@ -730,6 +743,10 @@ app.Use(async (context, next) =>
 app.UseStaticFiles();
 
 app.UseRouting();
+
+// Apply the validated organisation culture before model binding and Razor
+// rendering. It never trusts an Accept-Language request header for this.
+app.UseMiddleware<Sentinel.Middleware.OrganizationCultureMiddleware>();
 
 app.UseSession(); // Add session middleware (must be before authentication)
 

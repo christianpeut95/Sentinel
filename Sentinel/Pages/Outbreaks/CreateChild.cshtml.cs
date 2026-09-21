@@ -17,15 +17,18 @@ public class CreateChildModel : PageModel
     private readonly ApplicationDbContext _context;
     private readonly IOutbreakService _outbreakService;
     private readonly IOutbreakAccessService _outbreakAccessService;
+    private readonly IApplicationTimeZoneService _applicationTimeZone;
 
     public CreateChildModel(
         ApplicationDbContext context,
         IOutbreakService outbreakService,
-        IOutbreakAccessService outbreakAccessService)
+        IOutbreakAccessService outbreakAccessService,
+        IApplicationTimeZoneService applicationTimeZone)
     {
         _context = context;
         _outbreakService = outbreakService;
         _outbreakAccessService = outbreakAccessService;
+        _applicationTimeZone = applicationTimeZone;
     }
 
     [BindProperty(SupportsGet = true)]
@@ -58,7 +61,7 @@ public class CreateChildModel : PageModel
 
         [Required]
         [Display(Name = "Start Date")]
-        public DateTime StartDate { get; set; } = DateTime.Today;
+        public DateTime StartDate { get; set; }
 
         [Display(Name = "Lead Investigator")]
         public string? LeadInvestigatorId { get; set; }
@@ -72,6 +75,7 @@ public class CreateChildModel : PageModel
 
     public async Task<IActionResult> OnGetAsync()
     {
+        Input.StartDate = _applicationTimeZone.Now.Date;
         if (!await _outbreakAccessService.CanAccessOutbreakAsync(ParentId))
         {
             return NotFound();

@@ -12,17 +12,20 @@ namespace Sentinel.Services
         private readonly ILogger<SurveyService> _logger;
         private readonly ISurveyMappingService _mappingService;
         private readonly IHttpContextAccessor _httpContextAccessor;
+        private readonly IApplicationTimeZoneService? _applicationTimeZone;
 
         public SurveyService(
             ApplicationDbContext context, 
             ILogger<SurveyService> logger,
             ISurveyMappingService mappingService,
-            IHttpContextAccessor httpContextAccessor)
+            IHttpContextAccessor httpContextAccessor,
+            IApplicationTimeZoneService? applicationTimeZone = null)
         {
             _context = context;
             _logger = logger;
             _mappingService = mappingService;
             _httpContextAccessor = httpContextAccessor;
+            _applicationTimeZone = applicationTimeZone;
         }
 
         private SurveySubmissionLog BuildSubmissionLog(
@@ -860,8 +863,9 @@ namespace Sentinel.Services
                     // Calculate age if DOB exists
                     if (p.DateOfBirth.HasValue)
                     {
-                        var age = DateTime.Today.Year - p.DateOfBirth.Value.Year;
-                        if (p.DateOfBirth.Value.Date > DateTime.Today.AddYears(-age))
+                        var today = (_applicationTimeZone?.Now ?? DateTime.UtcNow).Date;
+                        var age = today.Year - p.DateOfBirth.Value.Year;
+                        if (p.DateOfBirth.Value.Date > today.AddYears(-age))
                             age--;
                         AddIfNotNull(data, "patient_age", age);
                     }

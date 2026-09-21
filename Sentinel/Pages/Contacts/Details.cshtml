@@ -745,7 +745,7 @@
                     <div class="info-value">
                         @if (Model.Contact.Patient.DateOfBirth.HasValue)
                         {
-                            var age = DateTime.Now.Year - Model.Contact.Patient.DateOfBirth.Value.Year;
+                            var age = ApplicationTimeZone.Now.Year - Model.Contact.Patient.DateOfBirth.Value.Year;
                             <span>@Model.Contact.Patient.DateOfBirth.Value.ToString("dd MMM yyyy") <small class="text-muted">(@age yrs)</small></span>
                         }
                         else
@@ -1511,7 +1511,7 @@
                             <div class="note-meta">
                                 <i class="bi bi-person me-1"></i>@(note.CreatedBy ?? "Unknown")
                                 <span class="mx-1">�</span>
-                                @note.CreatedAt.ToLocalTime().ToString("dd MMM yyyy HH:mm")
+                                @ApplicationTimeZone.Format(note.CreatedAt, "dd MMM yyyy HH:mm")
                             </div>
                         </div>
                     }
@@ -2633,8 +2633,7 @@
 
         // Helper Functions
         function formatDate(date) {
-            var options = { year: 'numeric', month: 'short', day: 'numeric' };
-            return date.toLocaleDateString('en-GB', options);
+            return window.SentinelRegionalFormatting.formatDate(date);
         }
 
         function monthDiff(d1, d2) {
@@ -3149,16 +3148,10 @@
                                         <span class="badge bg-${outcomeClass}">${outcomeText}</span>
                                         ${userName}
                                     </h6>
-                                    <small>${attemptDate.toLocaleString('en-AU', { 
-                                        day: '2-digit', 
-                                        month: 'short', 
-                                        year: 'numeric',
-                                        hour: '2-digit',
-                                        minute: '2-digit'
-                                    })}</small>
+                                    <small>${window.SentinelRegionalFormatting.formatDateTime(attemptDate)}</small>
                                 </div>
                                 ${attempt.notes ? `<p class="mb-1">${escapeHtml(attempt.notes)}</p>` : '<p class="mb-1 text-muted">No notes recorded</p>'}
-                                ${attempt.nextCallbackScheduled ? `<small class="text-info"><i class="bi bi-calendar-check"></i> Next call: ${new Date(attempt.nextCallbackScheduled).toLocaleString('en-AU')}</small>` : ''}
+                                ${attempt.nextCallbackScheduled ? `<small class="text-info"><i class="bi bi-calendar-check"></i> Next call: ${window.SentinelRegionalFormatting.formatDateTime(attempt.nextCallbackScheduled)}</small>` : ''}
                             </div>
                         `;
                     });

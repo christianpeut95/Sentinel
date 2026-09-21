@@ -287,7 +287,7 @@
         <div style="font-size: 13px; color: var(--graphite); font-weight: 500;">Total Cases</div>
     </div>
     <div style="background: white; border-radius: var(--radius-lg); padding: var(--spacing-4); border-left: 3px solid var(--signal); box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08); border-top: 1px solid var(--hairline); border-right: 1px solid var(--hairline); border-bottom: 1px solid var(--hairline);">
-        <div style="font-size: 28px; font-weight: 700; color: var(--signal-dk); margin-bottom: 4px; line-height: 1;">@Model.Cases.Count(c => c.DateOfOnset.HasValue && c.DateOfOnset.Value >= DateTime.Today.AddDays(-7))</div>
+        <div style="font-size: 28px; font-weight: 700; color: var(--signal-dk); margin-bottom: 4px; line-height: 1;">@Model.Cases.Count(c => c.DateOfOnset.HasValue && c.DateOfOnset.Value >= ApplicationTimeZone.Now.Date.AddDays(-7))</div>
         <div style="font-size: 13px; color: var(--graphite); font-weight: 500;">This Week</div>
     </div>
     <div style="background: white; border-radius: var(--radius-lg); padding: var(--spacing-4); border-left: 3px solid var(--signal); box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08); border-top: 1px solid var(--hairline); border-right: 1px solid var(--hairline); border-bottom: 1px solid var(--hairline);">
@@ -399,8 +399,8 @@ else
                             <td>
                                 @if (item.Patient?.DateOfBirth.HasValue == true)
                                 {
-                                    var age = DateTime.Now.Year - item.Patient.DateOfBirth.Value.Year;
-                                    if (DateTime.Now < item.Patient.DateOfBirth.Value.AddYears(age)) age--;
+                                    var age = ApplicationTimeZone.Now.Year - item.Patient.DateOfBirth.Value.Year;
+                                    if (ApplicationTimeZone.Now.Date < item.Patient.DateOfBirth.Value.AddYears(age)) age--;
                                     @age
                                 }
                                 else

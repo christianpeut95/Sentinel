@@ -10,7 +10,7 @@
 
     protected override async Task OnInitializedAsync()
     {
-        var today = DateTime.Today;
+        var today = ApplicationTimeZone.Now.Date;
         var thisWeek = today.AddDays(-7);
         
         var reviewQueue = await DbContext.ReviewQueue.ToListAsync();

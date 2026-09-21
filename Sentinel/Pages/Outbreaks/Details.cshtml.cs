@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.EntityFrameworkCore;
 using Sentinel.Data;
+using Sentinel.ModelBinding;
 using Sentinel.Services;
 using Sentinel.Models;
 using System.Security.Claims;
@@ -238,7 +239,12 @@ public class DetailsModel : PageModel
         return RedirectToPage(new { id });
     }
 
-    public async Task<IActionResult> OnPostAddTimelineEventAsync(int id, string title, string? description, DateTime eventDate, TimelineEventType eventType)
+    public async Task<IActionResult> OnPostAddTimelineEventAsync(
+        int id,
+        string title,
+        string? description,
+        [OrganizationLocalDateTime] DateTime eventDate,
+        TimelineEventType eventType)
     {
         if (!await UserHasPermissionAsync(PermissionAction.Edit))
         {

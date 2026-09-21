@@ -453,7 +453,7 @@
 
         function displayPatientDetails(patient) {
             $('#patientNameDisplay').text(patient.givenName + ' ' + patient.familyName);
-            $('#patientDOBDisplay').text(patient.dateOfBirth ? new Date(patient.dateOfBirth).toLocaleDateString('en-AU') : 'Not provided');
+            $('#patientDOBDisplay').text(patient.dateOfBirth ? window.SentinelRegionalFormatting.formatDateOnly(patient.dateOfBirth) : 'Not provided');
             $('#patientEmailDisplay').text(patient.emailAddress || 'Not provided');
             $('#patientMobileDisplay').text(patient.mobilePhone || 'Not provided');
             

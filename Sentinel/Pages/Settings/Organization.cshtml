@@ -46,12 +46,18 @@
                 </div>
 
                 <div class="col-md-6 mb-3">
-                    <label asp-for="Country" class="form-label">
+                    <label asp-for="CountryCode" class="form-label">
                         <i class="bi bi-globe me-1"></i>Country
                     </label>
-                    <input asp-for="Country" class="form-control" placeholder="e.g., Australia" />
-                    <span asp-validation-for="Country" class="text-danger"></span>
-                    <small class="form-text text-muted">Primary country of operation</small>
+                    <select asp-for="CountryCode" class="form-select" required>
+                        <option value="">-- Select country/region --</option>
+                        @foreach (var region in Model.RegionOptions)
+                        {
+                            <option value="@region.Code">@region.DisplayName</option>
+                        }
+                    </select>
+                    <span asp-validation-for="CountryCode" class="text-danger"></span>
+                    <small class="form-text text-muted">Used as Sentinel's organisation region and geocoding country bias.</small>
                 </div>
             </div>
 
@@ -86,33 +92,39 @@
 
             <div class="row">
                 <div class="col-md-6 mb-3">
-                    <label asp-for="CountryCode" class="form-label">
-                        <i class="bi bi-flag me-1"></i>Country Code (ISO 3166-1 alpha-2)
-                    </label>
-                    <input asp-for="CountryCode" class="form-control" placeholder="e.g., AU" maxlength="2" style="text-transform: uppercase;" />
-                    <span asp-validation-for="CountryCode" class="text-danger"></span>
-                    <small class="form-text text-muted">
-                        Two-letter country code for geocoding bias (e.g., AU, US, GB, NZ).
-                        <a href="https://en.wikipedia.org/wiki/ISO_3166-1_alpha-2" target="_blank">View country codes</a>
-                    </small>
-                </div>
-
-                <div class="col-md-6 mb-3">
                     <label asp-for="TimeZoneId" class="form-label">
                         <i class="bi bi-clock me-1"></i>Application Timezone
                         <span class="text-danger">*</span>
                     </label>
                     <select asp-for="TimeZoneId" class="form-select" required>
                         <option value="">-- Select Timezone --</option>
-                        @foreach (var tz in TimeZoneInfo.GetSystemTimeZones().OrderBy(t => t.BaseUtcOffset).ThenBy(t => t.DisplayName))
+                        @foreach (var timeZone in Model.TimeZoneOptions)
                         {
-                            <option value="@tz.Id">@tz.DisplayName</option>
+                            <option value="@timeZone.Id">@timeZone.DisplayName</option>
                         }
                     </select>
                     <span asp-validation-for="TimeZoneId" class="text-danger"></span>
                     <small class="form-text text-muted">
-                        All dates and times will be displayed in this timezone. HL7 files will be organized by dates in this timezone.
+                        Sentinel stores timestamps in UTC and presents them in this organisation time zone.
                     </small>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label asp-for="Locale" class="form-label">
+                        <i class="bi bi-translate me-1"></i>Date, Number and Language Format
+                        <span class="text-danger">*</span>
+                    </label>
+                    <select asp-for="Locale" class="form-select" required>
+                        <option value="">-- Select format --</option>
+                        @foreach (var locale in Model.LocaleOptions)
+                        {
+                            <option value="@locale.Name">@locale.DisplayName</option>
+                        }
+                    </select>
+                    <span asp-validation-for="Locale" class="text-danger"></span>
+                    <small class="form-text text-muted">Controls date and number formatting. It does not change patient or user language records.</small>
                 </div>
             </div>
 
@@ -131,10 +143,4 @@
 
 @section Scripts {
     <partial name="_ValidationScriptsPartial" />
-    <script>
-        // Auto-uppercase country code input
-        document.querySelector('input[name="CountryCode"]')?.addEventListener('input', function(e) {
-            e.target.value = e.target.value.toUpperCase();
-        });
-    </script>
 }

@@ -488,7 +488,7 @@
         <div style="font-size: 12px; color: #64748b; font-weight: 500; text-transform: uppercase; letter-spacing: 0.02em;">Total Contacts</div>
     </div>
     <div style="background: white; border-radius: var(--radius-sm); padding: 0.75rem 1rem; border-left: 3px solid var(--signal-dk); box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08); border-top: 1px solid rgba(0, 0, 0, 0.06); border-right: 1px solid rgba(0, 0, 0, 0.06); border-bottom: 1px solid rgba(0, 0, 0, 0.06);">
-        <div style="font-size: 22px; font-weight: 700; color: var(--signal-dk); margin-bottom: 2px; font-variant-numeric: tabular-nums;">@Model.Contacts.Count(c => c.DateOfOnset.HasValue && c.DateOfOnset.Value >= DateTime.Today.AddDays(-14))</div>
+        <div style="font-size: 22px; font-weight: 700; color: var(--signal-dk); margin-bottom: 2px; font-variant-numeric: tabular-nums;">@Model.Contacts.Count(c => c.DateOfOnset.HasValue && c.DateOfOnset.Value >= ApplicationTimeZone.Now.Date.AddDays(-14))</div>
         <div style="font-size: 12px; color: #64748b; font-weight: 500; text-transform: uppercase; letter-spacing: 0.02em;">Last 14 Days</div>
     </div>
     <div style="background: white; border-radius: var(--radius-sm); padding: 0.75rem 1rem; border-left: 3px solid var(--signal-dk); box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08); border-top: 1px solid rgba(0, 0, 0, 0.06); border-right: 1px solid rgba(0, 0, 0, 0.06); border-bottom: 1px solid rgba(0, 0, 0, 0.06);">
@@ -591,8 +591,8 @@ else
                             <td>
                                 @if (item.Patient?.DateOfBirth.HasValue == true)
                                 {
-                                    var age = DateTime.Now.Year - item.Patient.DateOfBirth.Value.Year;
-                                    if (DateTime.Now < item.Patient.DateOfBirth.Value.AddYears(age)) age--;
+                                    var age = ApplicationTimeZone.Now.Year - item.Patient.DateOfBirth.Value.Year;
+                                    if (ApplicationTimeZone.Now.Date < item.Patient.DateOfBirth.Value.AddYears(age)) age--;
                                     @age
                                 }
                                 else

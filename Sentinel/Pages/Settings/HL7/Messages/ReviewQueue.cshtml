@@ -142,7 +142,7 @@ else
                             <span class="review-status-badge status-review">REVIEW</span>
                         }
                         <div class="review-timestamp">
-                            @message.ReceivedAt.ToLocalTime().ToString("MMM d, h:mm tt")
+                            @ApplicationTimeZone.Format(message.ReceivedAt, "MMM d, h:mm tt")
                         </div>
                     </div>
 

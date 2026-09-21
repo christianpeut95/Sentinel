@@ -14,16 +14,19 @@ public class HL7TestMessageService : IHL7TestMessageService
     private readonly HL7GeneratorService _generator;
     private readonly ILogger<HL7TestMessageService> _logger;
     private readonly IHttpContextAccessor _httpContextAccessor;
+    private readonly IApplicationTimeZoneService _applicationTimeZone;
 
     public HL7TestMessageService(
         ApplicationDbContext context,
         ILogger<HL7TestMessageService> logger,
-        IHttpContextAccessor httpContextAccessor)
+        IHttpContextAccessor httpContextAccessor,
+        IApplicationTimeZoneService applicationTimeZone)
     {
         _context = context;
         _generator = new HL7GeneratorService();
         _logger = logger;
         _httpContextAccessor = httpContextAccessor;
+        _applicationTimeZone = applicationTimeZone;
     }
 
     public async Task<GenerateMessageResult> GenerateAndSaveMessageAsync(
@@ -50,7 +53,7 @@ public class HL7TestMessageService : IHL7TestMessageService
             string filePath;
             if (Directory.Exists(outputPath))
             {
-                var fileName = $"TEST_{request.AccessionNumber}_{DateTime.Now:yyyyMMddHHmmss}.hl7";
+                var fileName = $"TEST_{request.AccessionNumber}_{_applicationTimeZone.Now:yyyyMMddHHmmss}.hl7";
                 filePath = Path.Combine(outputPath, fileName);
             }
             else
@@ -141,7 +144,7 @@ public class HL7TestMessageService : IHL7TestMessageService
                 var accession = obrLine?.Split('|')[3] ?? $"ACC{i:D5}";
                 var mrn = pidLine?.Split('|')[3]?.Split('^')[0] ?? $"MRN{i:D8}";
 
-                var fileName = $"TEST_{accession}_{DateTime.Now:yyyyMMddHHmmss}_{i:D3}.hl7";
+                var fileName = $"TEST_{accession}_{_applicationTimeZone.Now:yyyyMMddHHmmss}_{i:D3}.hl7";
                 var filePath = Path.Combine(outputPath, fileName);
 
                 await File.WriteAllTextAsync(filePath, rawHL7, cancellationToken);
@@ -381,8 +384,8 @@ public class HL7TestMessageService : IHL7TestMessageService
         request.Patient = _generator.GenerateRandomPatient();
         request.AccessionNumber = _generator.GenerateAccessionNumber();
         request.MessageControlId = _generator.GenerateMessageControlId();
-        request.MessageDateTime = DateTime.Now;
-        request.CollectionDateTime = DateTime.Now.AddHours(-Random.Shared.Next(1, 48));
+        request.MessageDateTime = _applicationTimeZone.Now;
+        request.CollectionDateTime = _applicationTimeZone.Now.AddHours(-Random.Shared.Next(1, 48));
 
         return await GenerateAndSaveMessageAsync(
             request,
@@ -421,7 +424,7 @@ public class HL7TestMessageService : IHL7TestMessageService
         string filePath;
         if (Directory.Exists(outputPath))
         {
-            var fileName = $"TEST_CLONE_{history.AccessionNumber}_{DateTime.Now:yyyyMMddHHmmss}.hl7";
+            var fileName = $"TEST_CLONE_{history.AccessionNumber}_{_applicationTimeZone.Now:yyyyMMddHHmmss}.hl7";
             filePath = Path.Combine(outputPath, fileName);
         }
         else

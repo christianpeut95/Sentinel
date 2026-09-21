@@ -9,6 +9,7 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.Extensions.Configuration;
+using Sentinel.Services;
 
 namespace Sentinel.Pages.Settings
 {
@@ -26,72 +27,89 @@ namespace Sentinel.Pages.Settings
 
         [BindProperty]
         [Display(Name = "Organization Name")]
+        [StringLength(200)]
         public string OrganizationName { get; set; } = string.Empty;
 
         [BindProperty]
-        [Display(Name = "Country")]
-        public string Country { get; set; } = string.Empty;
-
-        [BindProperty]
         [Display(Name = "State/Province")]
+        [StringLength(100)]
         public string? State { get; set; }
 
         [BindProperty]
         [Display(Name = "City/Region")]
+        [StringLength(100)]
         public string? City { get; set; }
 
         [BindProperty]
         [Display(Name = "Postal Code")]
+        [StringLength(20)]
         public string? PostalCode { get; set; }
 
         [BindProperty]
-        [Display(Name = "Country Code")]
-        [StringLength(2, MinimumLength = 2, ErrorMessage = "Country code must be exactly 2 characters")]
-        [RegularExpression(@"^[A-Z]{2}$", ErrorMessage = "Country code must be 2 uppercase letters")]
-        public string? CountryCode { get; set; }
-
-        [BindProperty]
-        [Display(Name = "Timezone (Legacy)")]
-        public string? Timezone { get; set; }
+        [Required(ErrorMessage = "Country/region is required")]
+        [Display(Name = "Country/Region")]
+        public string CountryCode { get; set; } = "AU";
 
         [BindProperty]
         [Required(ErrorMessage = "Application timezone is required")]
         [Display(Name = "Application Timezone")]
-        public string TimeZoneId { get; set; } = "UTC";
+        public string TimeZoneId { get; set; } = OrganizationRegionalSettings.DefaultTimeZoneId;
+
+        [BindProperty]
+        [Required(ErrorMessage = "Date, number and language format is required")]
+        [Display(Name = "Date, Number and Language Format")]
+        public string Locale { get; set; } = OrganizationRegionalSettings.DefaultLocale;
+
+        public IReadOnlyList<OrganizationRegionalSettings.TimeZoneOption> TimeZoneOptions { get; private set; } = Array.Empty<OrganizationRegionalSettings.TimeZoneOption>();
+        public IReadOnlyList<OrganizationRegionalSettings.LocaleOption> LocaleOptions { get; private set; } = Array.Empty<OrganizationRegionalSettings.LocaleOption>();
+        public IReadOnlyList<OrganizationRegionalSettings.RegionOption> RegionOptions { get; private set; } = Array.Empty<OrganizationRegionalSettings.RegionOption>();
 
         [TempData]
         public string StatusMessage { get; set; } = string.Empty;
 
         public void OnGet()
         {
+            LoadOptions();
             OrganizationName = _config["Organization:Name"] ?? string.Empty;
-            Country = _config["Organization:Country"] ?? string.Empty;
             State = _config["Organization:State"];
             City = _config["Organization:City"];
             PostalCode = _config["Organization:PostalCode"];
-            CountryCode = _config["Organization:CountryCode"];
-            Timezone = _config["Organization:Timezone"];
-            TimeZoneId = _config["Organization:TimeZoneId"] ?? "UTC";
+            CountryCode = ResolveCountryCode(_config["Organization:CountryCode"], _config["Organization:Country"]);
+            TimeZoneId = NormalizeTimeZone(_config["Organization:TimeZoneId"]);
+            Locale = NormalizeLocale(_config["Organization:Locale"]);
         }
 
         public async Task<IActionResult> OnPostAsync()
         {
+            LoadOptions();
             if (!ModelState.IsValid)
             {
                 return Page();
             }
 
-            // Validate timezone ID
-            try
+            if (!OrganizationRegionalSettings.TryResolveTimeZone(TimeZoneId, out var timeZone))
             {
-                TimeZoneInfo.FindSystemTimeZoneById(TimeZoneId);
+                ModelState.AddModelError(nameof(TimeZoneId), "Select a valid time zone.");
             }
-            catch (TimeZoneNotFoundException)
+
+            if (!OrganizationRegionalSettings.TryGetCulture(Locale, out var culture))
             {
-                ModelState.AddModelError(nameof(TimeZoneId), "Invalid timezone identifier. Please select a valid timezone from the list.");
+                ModelState.AddModelError(nameof(Locale), "Select a valid date, number and language format.");
+            }
+
+            if (!OrganizationRegionalSettings.TryGetRegion(CountryCode, out var region) || region is null)
+            {
+                ModelState.AddModelError(nameof(CountryCode), "Select a valid country or region.");
+            }
+
+            if (!ModelState.IsValid)
+            {
                 return Page();
             }
 
+            TimeZoneId = OrganizationRegionalSettings.GetCanonicalTimeZoneId(timeZone);
+            Locale = culture.Name;
+            CountryCode = region.TwoLetterISORegionName;
             var appsettingsPath = Path.Combine(_env.ContentRootPath, "appsettings.json");
 
             try
@@ -100,48 +118,42 @@ namespace Sentinel.Pages.Settings
                 var node = JsonNode.Parse(txt) ?? new JsonObject();
 
                 // Ensure Organization section exists
-                if (node["Organization"] == null)
+                if (node["Organization"] is not JsonObject organization)
                 {
-                    node["Organization"] = new JsonObject();
+                    organization = new JsonObject();
+                    node["Organization"] = organization;
                 }
 
                 // Update organization settings
-                node["Organization"]!["Name"] = string.IsNullOrWhiteSpace(OrganizationName) 
+                organization["Name"] = string.IsNullOrWhiteSpace(OrganizationName)
                     ? JsonValue.Create((string?)null) 
                     : JsonValue.Create(OrganizationName);
 
-                node["Organization"]!["Country"] = string.IsNullOrWhiteSpace(Country) 
-                    ? JsonValue.Create((string?)null) 
-                    : JsonValue.Create(Country);
+                organization["Country"] = JsonValue.Create(region.EnglishName);
 
-                node["Organization"]!["State"] = string.IsNullOrWhiteSpace(State) 
+                organization["State"] = string.IsNullOrWhiteSpace(State)
                     ? JsonValue.Create((string?)null) 
                     : JsonValue.Create(State);
 
-                node["Organization"]!["City"] = string.IsNullOrWhiteSpace(City) 
+                organization["City"] = string.IsNullOrWhiteSpace(City)
                     ? JsonValue.Create((string?)null) 
                     : JsonValue.Create(City);
 
-                node["Organization"]!["PostalCode"] = string.IsNullOrWhiteSpace(PostalCode) 
+                organization["PostalCode"] = string.IsNullOrWhiteSpace(PostalCode)
                     ? JsonValue.Create((string?)null) 
                     : JsonValue.Create(PostalCode);
 
-                node["Organization"]!["CountryCode"] = string.IsNullOrWhiteSpace(CountryCode) 
-                    ? JsonValue.Create((string?)null) 
-                    : JsonValue.Create(CountryCode?.ToUpperInvariant());
-
-                node["Organization"]!["Timezone"] = string.IsNullOrWhiteSpace(Timezone) 
-                    ? JsonValue.Create((string?)null) 
-                    : JsonValue.Create(Timezone);
-
-                // Save the new TimeZoneId field
-                node["Organization"]!["TimeZoneId"] = JsonValue.Create(TimeZoneId);
+                organization["CountryCode"] = JsonValue.Create(CountryCode);
+                organization["TimeZoneId"] = JsonValue.Create(TimeZoneId);
+                organization["Locale"] = JsonValue.Create(Locale);
+                // Retire the historic duplicate setting as part of every valid save.
+                organization.Remove("Timezone");
 
                 var opts = new JsonSerializerOptions { WriteIndented = true };
                 var outTxt = node.ToJsonString(opts);
                 await System.IO.File.WriteAllTextAsync(appsettingsPath, outTxt);
 
-                StatusMessage = $"Organization settings saved successfully. Application timezone set to {TimeZoneId}. Restart the application for timezone changes to take full effect.";
+                StatusMessage = "Organization settings saved successfully. The date, time and number format updates are now active.";
             }
             catch (Exception ex)
             {
@@ -149,6 +161,35 @@ namespace Sentinel.Pages.Settings
             }
 
             return RedirectToPage();
+        }
+
+        private void LoadOptions()
+        {
+            TimeZoneOptions = OrganizationRegionalSettings.GetTimeZoneOptions();
+            LocaleOptions = OrganizationRegionalSettings.GetLocaleOptions();
+            RegionOptions = OrganizationRegionalSettings.GetRegionOptions();
+        }
+
+        private static string NormalizeTimeZone(string? configuredTimeZoneId) =>
+            OrganizationRegionalSettings.TryResolveTimeZone(configuredTimeZoneId, out var timeZone)
+                ? OrganizationRegionalSettings.GetCanonicalTimeZoneId(timeZone)
+                : OrganizationRegionalSettings.DefaultTimeZoneId;
+
+        private static string NormalizeLocale(string? configuredLocale) =>
+            OrganizationRegionalSettings.TryGetCulture(configuredLocale, out var culture)
+                ? culture.Name
+                : OrganizationRegionalSettings.DefaultLocale;
+
+        private static string ResolveCountryCode(string? configuredCode, string? configuredCountry)
+        {
+            if (OrganizationRegionalSettings.TryGetRegion(configuredCode, out var region) && region is not null)
+            {
+                return region.TwoLetterISORegionName;
+            }
+
+            var option = OrganizationRegionalSettings.GetRegionOptions().FirstOrDefault(candidate =>
+                string.Equals(candidate.DisplayName, configuredCountry, StringComparison.OrdinalIgnoreCase));
+            return option?.Code ?? "AU";
         }
     }
 }

@@ -17,15 +17,18 @@ namespace Sentinel.Pages.Cases.Exposures
         private readonly ApplicationDbContext _context;
         private readonly IExposureRequirementService _exposureRequirementService;
         private readonly IAuthorizationService _authorizationService;
+        private readonly IApplicationTimeZoneService _regionalSettings;
 
         public CreateModel(
             ApplicationDbContext context,
             IExposureRequirementService exposureRequirementService,
-            IAuthorizationService authorizationService)
+            IAuthorizationService authorizationService,
+            IApplicationTimeZoneService regionalSettings)
         {
             _context = context;
             _exposureRequirementService = exposureRequirementService;
             _authorizationService = authorizationService;
+            _regionalSettings = regionalSettings;
         }
 
         [BindProperty(SupportsGet = true)]
@@ -74,7 +77,10 @@ namespace Sentinel.Pages.Cases.Exposures
             var earliestDate = CalculateEarliestRelevantDate(caseEntity);
             if (earliestDate.HasValue)
             {
-                Exposure.ExposureStartDate = earliestDate.Value;
+                // Case onset and laboratory dates are date-only values. Treat
+                // midnight on that organisation date as local civil time before
+                // persisting the timestamp as UTC.
+                Exposure.ExposureStartDate = _regionalSettings.AppTimeToUtc(earliestDate.Value.Date);
             }
 
             // Auto-check "Primary Reporting Exposure" if this is the first exposure
