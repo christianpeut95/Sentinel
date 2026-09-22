@@ -175,12 +175,12 @@
                 </h5>
                 <div style="font-size:13px;line-height:1.8;color:var(--graphite)">
                     <strong>Created:</strong><br>
-                    @ApplicationTimeZone.Format(Model.Mapping.CreatedAt, "MMM d, yyyy h:mm tt")<br><br>
+                    @ApplicationTimeZone.Format(Model.Mapping.CreatedAt)<br><br>
 
                     @if (Model.Mapping.ModifiedAt.HasValue)
                     {
                         <strong>Last Modified:</strong><br>
-                        @ApplicationTimeZone.Format(Model.Mapping.ModifiedAt, "MMM d, yyyy h:mm tt")<br><br>
+                        @ApplicationTimeZone.Format(Model.Mapping.ModifiedAt)<br><br>
                     }
 
                     <hr style="margin:12px 0;border-color:var(--hairline)">

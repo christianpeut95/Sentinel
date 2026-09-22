@@ -96,7 +96,7 @@
                         <div id="selectedEventInfo" class="alert alert-info mt-2">
                             <strong>Selected Event:</strong> <span id="selectedEventDisplay">@Model.Exposure.Event.Name</span><br/>
                             <small>
-                                <strong>Date:</strong> <span id="selectedEventDate">@Model.Exposure.Event.StartDateTime.ToString("dd MMM yyyy")</span> | 
+                                <strong>Date:</strong> <span id="selectedEventDate">@ApplicationTimeZone.Format(Model.Exposure.Event.StartDateTime, "d")</span> |
                                 <strong>Location:</strong> <span id="selectedEventLocation">@(Model.Exposure.Event.Location?.Name ?? "Not specified")</span>
                             </small>
                         </div>
@@ -237,7 +237,7 @@
                             <strong>Geocoded:</strong> @Model.Exposure.GeocodingAccuracy
                             @if (Model.Exposure.GeocodedDate.HasValue)
                             {
-                                <span class="text-muted"> on @Model.Exposure.GeocodedDate.Value.ToString("dd MMM yyyy")</span>
+                                <span class="text-muted"> on @ApplicationTimeZone.Format(Model.Exposure.GeocodedDate, "d")</span>
                             }
                         </div>
                     </div>
@@ -277,7 +277,7 @@
                         <div id="selectedCaseInfo" class="alert alert-info mt-2">
                             <strong>Selected Case:</strong> <span id="selectedCaseDisplay">@Model.Exposure.SourceCase.FriendlyId - @(Model.Exposure.SourceCase.Patient != null ? Model.Exposure.SourceCase.Patient.GivenName + " " + Model.Exposure.SourceCase.Patient.FamilyName : "Unknown")</span><br/>
                             <small>
-                                <strong>Notification Date:</strong> <span id="selectedCaseNotification">@(Model.Exposure.SourceCase.DateOfNotification?.ToString("dd MMM yyyy") ?? "Not set")</span> | 
+                                <strong>Notification Date:</strong> <span id="selectedCaseNotification">@(Model.Exposure.SourceCase.DateOfNotification.HasValue ? ApplicationTimeZone.FormatDate(Model.Exposure.SourceCase.DateOfNotification) : "Not set")</span> |
                                 <strong>Disease:</strong> <span id="selectedCaseDisease">@(Model.Exposure.SourceCase.Disease?.Name ?? "Not specified")</span>
                             </small>
                         </div>

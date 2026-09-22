@@ -122,10 +122,10 @@
                             <!-- Active Dates -->
                             <div class="text-muted" style="font-size: 0.875rem;">
                                 <i class="bi bi-calendar-check"></i>
-                                Active: @definition.DateActiveFrom.ToString("yyyy-MM-dd")
+                                Active: @ApplicationTimeZone.FormatDate(definition.DateActiveFrom)
                                 @if (definition.DateActiveTo.HasValue)
                                 {
-                                    <span> to @definition.DateActiveTo.Value.ToString("yyyy-MM-dd")</span>
+                                    <span> to @ApplicationTimeZone.FormatDate(definition.DateActiveTo)</span>
                                 }
                                 else
                                 {

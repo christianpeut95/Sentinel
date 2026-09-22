@@ -140,7 +140,7 @@
                                     <div class="version-meta">
                                         <span class="version-meta-item">
                                             <i class="bi bi-calendar-plus me-1"></i>
-                                            Created @version.CreatedAt.ToString("MMM dd, yyyy")
+                                            Created @ApplicationTimeZone.Format(version.CreatedAt, "d")
                                             @if (!string.IsNullOrEmpty(version.CreatedBy))
                                             {
                                                 <span class="text-muted">by @version.CreatedBy</span>
@@ -151,7 +151,7 @@
                                         {
                                             <span class="version-meta-item">
                                                 <i class="bi bi-rocket-takeoff me-1"></i>
-                                                Published @version.PublishedAt.Value.ToString("MMM dd, yyyy")
+                                                Published @ApplicationTimeZone.Format(version.PublishedAt, "d")
                                             </span>
                                         }
                                     </div>
@@ -405,7 +405,7 @@
                 <div class="survey-info-section">
                     <label class="survey-info-label">Created</label>
                     <p class="survey-info-text small mb-0">
-                        @Model.SurveyTemplate.CreatedAt.ToString("MMM dd, yyyy HH:mm")
+                        @ApplicationTimeZone.Format(Model.SurveyTemplate.CreatedAt)
                         @if (!string.IsNullOrEmpty(Model.SurveyTemplate.CreatedBy))
                         {
                             <br /><span class="text-muted">by @Model.SurveyTemplate.CreatedBy</span>
@@ -418,7 +418,7 @@
                     <div class="survey-info-section">
                         <label class="survey-info-label">Last Modified</label>
                         <p class="survey-info-text small mb-0">
-                            @Model.SurveyTemplate.ModifiedAt.Value.ToString("MMM dd, yyyy HH:mm")
+                            @ApplicationTimeZone.Format(Model.SurveyTemplate.ModifiedAt)
                             @if (!string.IsNullOrEmpty(Model.SurveyTemplate.ModifiedBy))
                             {
                                 <br /><span class="text-muted">by @Model.SurveyTemplate.ModifiedBy</span>

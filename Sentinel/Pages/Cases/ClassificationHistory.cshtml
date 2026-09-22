@@ -129,11 +129,11 @@
                             <div style="text-align: right; min-width: 160px;">
                                 <div style="font-size: 0.875rem; color: var(--graphite); margin-bottom: 0.25rem;">
                                     <i class="bi bi-calendar-event"></i>
-                                    @history.EvaluationDate.ToString("dd MMM yyyy")
+                                    @ApplicationTimeZone.Format(history.EvaluationDate, "D")
                                 </div>
                                 <div style="font-size: 0.875rem; color: var(--graphite);">
                                     <i class="bi bi-clock"></i>
-                                    @history.EvaluationDate.ToString("HH:mm:ss")
+                                    @ApplicationTimeZone.Format(history.EvaluationDate, "T")
                                 </div>
                             </div>
                         </div>
@@ -180,7 +180,7 @@
                                     {
                                         <div style="font-size: 0.875rem; color: var(--forest-2);">
                                             <i class="bi bi-calendar-check me-1"></i>
-                                            Applied on: <strong>@history.ClassifiedDate.Value.ToString("dd MMM yyyy HH:mm:ss")</strong>
+                                            Applied on: <strong>@ApplicationTimeZone.Format(history.ClassifiedDate)</strong>
                                         </div>
                                     }
                                 </div>

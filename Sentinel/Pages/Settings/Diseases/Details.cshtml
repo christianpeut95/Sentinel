@@ -65,12 +65,12 @@
             </dd>
 
             <dt class="col-sm-3">Created</dt>
-            <dd class="col-sm-9">@Model.Disease.CreatedAt.ToString("g")</dd>
+            <dd class="col-sm-9">@ApplicationTimeZone.Format(Model.Disease.CreatedAt)</dd>
 
             @if (Model.Disease.ModifiedAt.HasValue)
             {
                 <dt class="col-sm-3">Last Modified</dt>
-                <dd class="col-sm-9">@Model.Disease.ModifiedAt.Value.ToString("g")</dd>
+                <dd class="col-sm-9">@ApplicationTimeZone.Format(Model.Disease.ModifiedAt)</dd>
             }
         </dl>
 

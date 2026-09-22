@@ -32,6 +32,15 @@ namespace Sentinel.Services
         /// <summary>Formats a UTC timestamp in the organisation time zone and culture.</summary>
         string Format(DateTime? utcDateTime, string format = "g");
 
+        /// <summary>Formats an offset-aware timestamp in the organisation time zone and culture.</summary>
+        string Format(DateTimeOffset? timestamp, string format = "g");
+
+        /// <summary>
+        /// Formats a date-only value using the organisation culture without applying a time-zone conversion.
+        /// Date-only clinical and business fields do not represent an instant in time.
+        /// </summary>
+        string FormatDate(DateTime? date, string format = "d");
+
         /// <summary>Formats a UTC value for an HTML datetime-local input.</summary>
         string ToDateTimeLocalValue(DateTime utcDateTime);
 

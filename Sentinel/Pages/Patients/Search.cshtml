@@ -195,13 +195,13 @@
                             @foreach (var patient in Model.SearchResults)
                             {
                                 var age = patient.DateOfBirth.HasValue
-                                    ? (int)Math.Floor((DateTime.UtcNow - patient.DateOfBirth.Value).TotalDays / 365.2425)
+                                    ? (int)Math.Floor((ApplicationTimeZone.Now.Date - patient.DateOfBirth.Value.Date).TotalDays / 365.2425)
                                     : (int?)null;
                                 <tr>
                                     <td>
                                         <strong>@patient.GivenName @patient.FamilyName</strong>
                                     </td>
-                                    <td>@(patient.DateOfBirth?.ToString("dd MMM yyyy") ?? "-")</td>
+                                    <td>@(patient.DateOfBirth.HasValue ? ApplicationTimeZone.FormatDate(patient.DateOfBirth) : "-")</td>
                                     <td>@(age?.ToString() ?? "-")</td>
                                     <td>@(patient.SexAtBirth?.Name ?? "-")</td>
                                     <td>
@@ -230,7 +230,7 @@
                                     </td>
                                     <td>@(patient.City ?? "-")</td>
                                     <td>@(patient.State?.Code ?? "-")</td>
-                                    <td><small class="text-muted">@patient.CreatedAt.ToString("dd MMM yyyy")</small></td>
+                                    <td><small class="text-muted">@ApplicationTimeZone.Format(patient.CreatedAt, "d")</small></td>
                                     <td class="text-end">
                                         <div class="btn-group btn-group-sm" role="group">
                                             @if (Model.CanViewPatients)

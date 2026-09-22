@@ -2,7 +2,7 @@
 
 ## Current position
 
-This is Sentinel's internal self-assessment for the `0.9.0-beta` source tree,
+This is Sentinel's internal self-assessment for the `1.0.0-beta.1` source tree,
 reviewed on 20 September 2026. It is a source, configuration and regression-
 test assessment. It is **not** an independent certification, penetration test,
 or assurance that a particular organisation's deployment is secure.

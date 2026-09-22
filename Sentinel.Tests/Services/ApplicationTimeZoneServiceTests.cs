@@ -50,6 +50,22 @@ public sealed class ApplicationTimeZoneServiceTests
     }
 
     [Fact]
+    public void Service_FormatsTimestampsInOrganisationZoneButPreservesDateOnlyValues()
+    {
+        using var service = CreateService();
+
+        // This instant is still 31 May in UTC but 1 June in Adelaide.
+        var utcTimestamp = new DateTime(2026, 5, 31, 15, 0, 0, DateTimeKind.Utc);
+        Assert.Equal("1/6/2026", service.Format(utcTimestamp, "d"));
+        Assert.Equal("1/6/2026", service.Format(new DateTimeOffset(utcTimestamp), "d"));
+
+        // Clinical date-only values are calendar days, not UTC instants. They
+        // must not move backwards when displayed in a non-UTC organisation.
+        var dateOfOnset = new DateTime(2026, 5, 31);
+        Assert.Equal("31/5/2026", service.FormatDate(dateOfOnset));
+    }
+
+    [Fact]
     public void DynamicDateResolver_UsesOrganisationDayWhenNoReferenceIsProvided()
     {
         var regionalSettings = Mock.Of<IApplicationTimeZoneService>(service =>

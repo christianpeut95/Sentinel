@@ -389,7 +389,7 @@
                                                 </tr>
                                                 <tr>
                                                     <th>DOB</th>
-                                                    <td>@(duplicateData.NewPatient.DateOfBirth?.ToString("MMM dd, yyyy") ?? "(not provided)")</td>
+                                                    <td>@(duplicateData.NewPatient.DateOfBirth.HasValue ? ApplicationTimeZone.FormatDate(duplicateData.NewPatient.DateOfBirth) : "(not provided)")</td>
                                                 </tr>
                                                 <tr>
                                                     <th>Phone</th>
@@ -462,7 +462,7 @@
                                                             <div class="row g-2 small">
                                                                 <div class="col-6">
                                                                     <div class="@GetDifferenceClass(duplicateData.NewPatient?.DateOfBirth, match.Patient.DateOfBirth) p-1 rounded">
-                                                                        <strong>DOB:</strong> @(match.Patient.DateOfBirth?.ToString("MMM dd, yyyy") ?? "N/A")
+                                                                        <strong>DOB:</strong> @(match.Patient.DateOfBirth.HasValue ? ApplicationTimeZone.FormatDate(match.Patient.DateOfBirth) : "N/A")
                                                                         @if (match.Patient.DateOfBirth.HasValue)
                                                                         {
                                                                             <span class="text-muted ms-1">(Age @((ApplicationTimeZone.Now.Year - match.Patient.DateOfBirth.Value.Year)))</span>
@@ -596,7 +596,7 @@
                                     {
                                         <tr>
                                             <th>Date of Birth</th>
-                                            <td>@proposedPatientData.DateOfBirth.Value.ToString("MMM dd, yyyy")</td>
+                                            <td>@ApplicationTimeZone.FormatDate(proposedPatientData.DateOfBirth)</td>
                                         </tr>
                                     }
                                     @if (!string.IsNullOrEmpty(proposedPatientData.MobilePhone))
@@ -720,7 +720,7 @@
                                             {
                                                 <tr>
                                                     <th>Error Occurred</th>
-                                                    <td>@DateTime.Parse(errorData["ErrorTimestamp"].ToString()!).ToString("MMM dd, yyyy HH:mm:ss")</td>
+                                                    <td>@ApplicationTimeZone.Format(DateTime.Parse(errorData["ErrorTimestamp"].ToString()!))</td>
                                                 </tr>
                                             }
                                         </tbody>
@@ -896,7 +896,7 @@
                             <div class="h6 mb-0">
                                 @if (Model.ReviewDetail.Patient.DateOfBirth.HasValue)
                                 {
-                                    @Model.ReviewDetail.Patient.DateOfBirth.Value.ToString("MMM dd, yyyy")
+                                    @ApplicationTimeZone.FormatDate(Model.ReviewDetail.Patient.DateOfBirth)
                                     <small class="text-muted ms-2">
                                         (Age @((ApplicationTimeZone.Now.Year - Model.ReviewDetail.Patient.DateOfBirth.Value.Year)))
                                     </small>
@@ -989,13 +989,13 @@
                         <div class="col-md-6">
                             <div class="p-2 bg-light rounded">
                                 <small class="text-muted"><i class="bi bi-thermometer-half me-1"></i>Symptom Onset</small>
-                                <div>@(Model.ReviewDetail.Case.DateOfOnset?.ToString("MMM dd, yyyy") ?? "Not recorded")</div>
+                                <div>@(Model.ReviewDetail.Case.DateOfOnset.HasValue ? ApplicationTimeZone.FormatDate(Model.ReviewDetail.Case.DateOfOnset) : "Not recorded")</div>
                             </div>
                         </div>
                         <div class="col-md-6">
                             <div class="p-2 bg-light rounded">
                                 <small class="text-muted"><i class="bi bi-calendar-event me-1"></i>Notification Date</small>
-                                <div>@(Model.ReviewDetail.Case.DateOfNotification?.ToString("MMM dd, yyyy") ?? "Not recorded")</div>
+                                <div>@(Model.ReviewDetail.Case.DateOfNotification.HasValue ? ApplicationTimeZone.FormatDate(Model.ReviewDetail.Case.DateOfNotification) : "Not recorded")</div>
                             </div>
                         </div>
                     </div>
@@ -1026,7 +1026,7 @@
                                         <span class="badge bg-secondary">@item.Type</span>
                                         @item.Description
                                     </h6>
-                                    <small class="text-muted">@item.Date.ToString("g")</small>
+                                    <small class="text-muted">@ApplicationTimeZone.Format(item.Date)</small>
                                 </div>
                             </div>
                         }
@@ -1488,7 +1488,7 @@
         if (diff.TotalDays < 7)
             return $"{(int)diff.TotalDays} days ago";
         
-        return ApplicationTimeZone.Format(dateTime, "MMM d, yyyy 'at' h:mm tt");
+        return ApplicationTimeZone.Format(dateTime);
     }
 
     // Parse meaningful changes from the ChangeSnapshot dictionary

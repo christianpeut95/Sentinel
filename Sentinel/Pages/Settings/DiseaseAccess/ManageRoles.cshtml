@@ -163,7 +163,7 @@
                                     {
                                         <tr class="@(grant.IsInherited ? "table-info" : "")">
                                             <td><strong>@grant.RoleName</strong></td>
-                                            <td>@ApplicationTimeZone.Format(grant.GrantedAt, "MMM dd, yyyy hh:mm tt")</td>
+                                            <td>@ApplicationTimeZone.Format(grant.GrantedAt)</td>
                                             <td>@grant.GrantedByUserName</td>
                                             <td>
                                                 @if (grant.IsInherited)

@@ -426,13 +426,13 @@
                 <div class="sn-card-body">
                     <div class="sn-field-group">
                         <label class="sn-field-label">Created</label>
-                        <div class="sn-field-value">@Model.Organization.CreatedAt.ToString("dd MMM yyyy HH:mm")</div>
+                        <div class="sn-field-value">@ApplicationTimeZone.Format(Model.Organization.CreatedAt)</div>
                     </div>
                     @if (Model.Organization.ModifiedAt.HasValue)
                     {
                         <div class="sn-field-group">
                             <label class="sn-field-label">Last Modified</label>
-                            <div class="sn-field-value">@Model.Organization.ModifiedAt.Value.ToString("dd MMM yyyy HH:mm")</div>
+                            <div class="sn-field-value">@ApplicationTimeZone.Format(Model.Organization.ModifiedAt)</div>
                         </div>
                     }
                 </div>

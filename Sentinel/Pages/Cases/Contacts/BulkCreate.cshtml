@@ -48,7 +48,7 @@
                 {
                     <div class="col-md-4">
                         <strong><i class="bi bi-calendar-event me-2"></i>Event:</strong>
-                        <div>@Model.Event.Name (@Model.Event.StartDateTime.ToString("dd MMM yyyy"))</div>
+                        <div>@Model.Event.Name (@ApplicationTimeZone.Format(Model.Event.StartDateTime, "d"))</div>
                     </div>
                 }
 
@@ -334,7 +334,7 @@
                                             }
                                         </td>
                                         <td>
-                                            <small>@contact.DateOfBirth?.ToString("dd/MM/yyyy")</small>
+                                            <small>@ApplicationTimeZone.FormatDate(contact.DateOfBirth)</small>
                                         </td>
                                         <td>
                                             @if (!string.IsNullOrEmpty(contact.ContactPhone))
@@ -436,7 +436,7 @@
                                 <div class="card mb-3">
                                     <div class="card-body">
                                         <p><strong>Name:</strong> @contact.FirstName @contact.LastName</p>
-                                        <p><strong>DOB:</strong> @contact.DateOfBirth?.ToString("dd MMM yyyy")</p>
+                                        <p><strong>DOB:</strong> @ApplicationTimeZone.FormatDate(contact.DateOfBirth)</p>
                                         <p><strong>Phone:</strong> @contact.ContactPhone</p>
                                         <p><strong>Email:</strong> @contact.Email</p>
                                     </div>
@@ -451,7 +451,7 @@
                                             <div class="card-body">
                                                 <p><strong>Patient ID:</strong> @match.FriendlyId</p>
                                                 <p><strong>Name:</strong> @match.GivenName @match.FamilyName</p>
-                                                <p><strong>DOB:</strong> @match.DateOfBirth?.ToString("dd MMM yyyy")</p>
+                                                <p><strong>DOB:</strong> @ApplicationTimeZone.FormatDate(match.DateOfBirth)</p>
                                                 <p><strong>Phone:</strong> @match.MobilePhone @match.HomePhone</p>
                                                 <p><strong>Email:</strong> @match.EmailAddress</p>
                                                 <button type="button" class="btn btn-sm js-link-contact-to-existing bulk-contact-primary-action" style="background: var(--signal-dk); color: white; border: none;" data-contact-index="@i" data-patient-id="@match.Id">

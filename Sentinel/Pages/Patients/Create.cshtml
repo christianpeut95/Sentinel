@@ -44,7 +44,7 @@
                 @foreach (var duplicate in Model.PotentialDuplicates)
                 {
                     var age = duplicate.Patient.DateOfBirth.HasValue 
-                        ? (int)Math.Floor((DateTime.UtcNow - duplicate.Patient.DateOfBirth.Value).TotalDays / 365.2425) 
+                        ? (int)Math.Floor((ApplicationTimeZone.Now.Date - duplicate.Patient.DateOfBirth.Value.Date).TotalDays / 365.2425)
                         : (int?)null;
                     <div class="sentinel-card" style="border: 1px solid var(--hairline);">
                         <div class="sentinel-card-body">
@@ -60,7 +60,7 @@
                                         }
                                     </div>
                                     <div style="color: var(--graphite); margin-bottom: var(--spacing-2); font-size: 14px;">
-                                        <strong>DOB:</strong> @(duplicate.Patient.DateOfBirth?.ToString("dd MMM yyyy") ?? "-")
+                                        <strong>DOB:</strong> @(duplicate.Patient.DateOfBirth.HasValue ? ApplicationTimeZone.FormatDate(duplicate.Patient.DateOfBirth) : "-")
                                         | <strong>Sex:</strong> @(duplicate.Patient.SexAtBirth?.Name ?? "-")
                                     </div>
                                     @if (!string.IsNullOrWhiteSpace(duplicate.Patient.AddressLine) || !string.IsNullOrWhiteSpace(duplicate.Patient.City))

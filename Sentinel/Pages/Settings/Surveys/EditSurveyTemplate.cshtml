@@ -333,7 +333,7 @@
                                             }
                                         </div>
                                         <small class="text-muted d-block">
-                                            @version.CreatedAt.ToString("MMM dd, yyyy")
+                                            @ApplicationTimeZone.Format(version.CreatedAt, "d")
                                         </small>
                                         @if (!string.IsNullOrEmpty(version.VersionNotes))
                                         {

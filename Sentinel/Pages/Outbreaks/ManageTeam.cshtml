@@ -95,7 +95,7 @@
                                             }
                                         </td>
                                         <td>
-                                            <small>@member.AssignedDate.ToString("MMM d, yyyy")</small>
+                                            <small>@ApplicationTimeZone.Format(member.AssignedDate, "d")</small>
                                         </td>
                                         <td>
                                             <small class="text-muted">

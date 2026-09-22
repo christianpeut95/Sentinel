@@ -515,7 +515,7 @@
                                                 }
                                                 @if (item.PatientDateOfBirth.HasValue)
                                                 {
-                                                    <text> (@item.PatientDateOfBirth.Value.ToString("dd/MM/yyyy"))</text>
+                                                    <text> (@ApplicationTimeZone.FormatDate(item.PatientDateOfBirth))</text>
                                                 }
                                             </span>
                                         }
@@ -1298,6 +1298,6 @@ string GetChangeSummary(ReviewQueueItem item)
         if (diff.TotalDays < 7)
             return $"{(int)diff.TotalDays}d ago";
         
-        return ApplicationTimeZone.Format(dateTime, "MMM d");
+        return ApplicationTimeZone.Format(dateTime, "d");
     }
 }

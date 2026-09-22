@@ -251,8 +251,8 @@
                             var localTime = ApplicationTimeZone.UtcToAppTime(log.SubmittedAt);
                             <tr>
                                 <td class="small text-nowrap">
-                                    <div>@localTime.ToString("d MMM yyyy")</div>
-                                    <div class="text-muted">@localTime.ToString("h:mm tt")</div>
+                                    <div>@localTime.ToString("d", ApplicationTimeZone.AppCulture)</div>
+                                    <div class="text-muted">@localTime.ToString("t", ApplicationTimeZone.AppCulture)</div>
                                 </td>
                                 <td>
                                     @if (!string.IsNullOrEmpty(log.PatientName))
@@ -379,7 +379,7 @@
                         <div class="mb-3">
                             <h6 class="text-muted mb-1">Survey Submission</h6>
                             <div><strong>@log.PatientName</strong> — @log.DiseaseName</div>
-                            <div class="small text-muted">@log.SurveyName, submitted @ApplicationTimeZone.Format(log.SubmittedAt, "d MMM yyyy h:mm tt")</div>
+                            <div class="small text-muted">@log.SurveyName, submitted @ApplicationTimeZone.Format(log.SubmittedAt)</div>
                         </div>
 
                         @if (log.ReviewQueueItemId.HasValue)
@@ -409,7 +409,7 @@
                                     var priorOutcome = GetOutcomeDisplay(prior.Outcome);
                                     <div class="ms-3 mt-1">
                                         <span class="badge @priorOutcome.badgeCss">@priorOutcome.label</span>
-                                        @ApplicationTimeZone.Format(prior.SubmittedAt, "d MMM yyyy h:mm tt")
+                                        @ApplicationTimeZone.Format(prior.SubmittedAt)
                                         by @(prior.SubmittedByName ?? "unknown")
                                     </div>
                                 }

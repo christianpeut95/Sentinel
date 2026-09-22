@@ -221,10 +221,10 @@
             <div class="summary-row">
                 <span class="summary-label">Active Period</span>
                 <span class="summary-value">
-                    @Model.Definition.DateActiveFrom.ToString("yyyy-MM-dd")
+                    @ApplicationTimeZone.FormatDate(Model.Definition.DateActiveFrom)
                     @if (Model.Definition.DateActiveTo.HasValue)
                     {
-                        <span> to @Model.Definition.DateActiveTo.Value.ToString("yyyy-MM-dd")</span>
+                        <span> to @ApplicationTimeZone.FormatDate(Model.Definition.DateActiveTo)</span>
                     }
                     else
                     {

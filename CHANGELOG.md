@@ -3,7 +3,7 @@
 All notable user-facing changes are recorded here. Sentinel follows
 [Semantic Versioning](https://semver.org/).
 
-## [0.9.0-beta] - Unreleased
+## [1.0.0-beta.1] - Unreleased
 
 Initial public-beta release preparation.
 

@@ -102,8 +102,8 @@
                             </td>
                             <td style="padding: 14px;">
                                 <div class="text-meta">
-                                    <div>@backup.StartTime.ToString("MMM dd, yyyy")</div>
-                                    <div style="color: var(--graphite);">@backup.StartTime.ToString("h:mm tt")</div>
+                                    <div>@ApplicationTimeZone.Format(backup.StartTime, "d")</div>
+                                    <div style="color: var(--graphite);">@ApplicationTimeZone.Format(backup.StartTime, "t")</div>
                                 </div>
                             </td>
                             <td style="padding: 14px;">

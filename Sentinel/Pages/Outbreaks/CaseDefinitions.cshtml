@@ -91,7 +91,7 @@
                                         <div>
                                             <small><strong>v@def.Version:</strong> @def.DefinitionName</small>
                                             <br>
-                                            <small class="text-muted">Effective: @def.EffectiveDate.ToString("MMM d, yyyy")</small>
+                                            <small class="text-muted">Effective: @ApplicationTimeZone.FormatDate(def.EffectiveDate)</small>
                                         </div>
                                         <form method="post" asp-page-handler="ActivateDefinition" asp-route-id="@Model.Outbreak.Id" asp-route-definitionId="@def.Id" class="d-inline">
                                             <button type="submit" class="btn btn-sm btn-outline-success" title="Reactivate">
@@ -153,7 +153,7 @@
                                         <div>
                                             <small><strong>v@def.Version:</strong> @def.DefinitionName</small>
                                             <br>
-                                            <small class="text-muted">Effective: @def.EffectiveDate.ToString("MMM d, yyyy")</small>
+                                            <small class="text-muted">Effective: @ApplicationTimeZone.FormatDate(def.EffectiveDate)</small>
                                         </div>
                                         <form method="post" asp-page-handler="ActivateDefinition" asp-route-id="@Model.Outbreak.Id" asp-route-definitionId="@def.Id" class="d-inline">
                                             <button type="submit" class="btn btn-sm btn-outline-success" title="Reactivate">
@@ -215,7 +215,7 @@
                                         <div>
                                             <small><strong>v@def.Version:</strong> @def.DefinitionName</small>
                                             <br>
-                                            <small class="text-muted">Effective: @def.EffectiveDate.ToString("MMM d, yyyy")</small>
+                                            <small class="text-muted">Effective: @ApplicationTimeZone.FormatDate(def.EffectiveDate)</small>
                                         </div>
                                         <form method="post" asp-page-handler="ActivateDefinition" asp-route-id="@Model.Outbreak.Id" asp-route-definitionId="@def.Id" class="d-inline">
                                             <button type="submit" class="btn btn-sm btn-outline-success" title="Reactivate">
@@ -277,7 +277,7 @@
                                         <div>
                                             <small><strong>v@def.Version:</strong> @def.DefinitionName</small>
                                             <br>
-                                            <small class="text-muted">Effective: @def.EffectiveDate.ToString("MMM d, yyyy")</small>
+                                            <small class="text-muted">Effective: @ApplicationTimeZone.FormatDate(def.EffectiveDate)</small>
                                         </div>
                                         <form method="post" asp-page-handler="ActivateDefinition" asp-route-id="@Model.Outbreak.Id" asp-route-definitionId="@def.Id" class="d-inline">
                                             <button type="submit" class="btn btn-sm btn-outline-success" title="Reactivate">

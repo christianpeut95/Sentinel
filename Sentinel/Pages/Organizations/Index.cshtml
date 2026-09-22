@@ -367,7 +367,7 @@
                                 <span class="badge bg-secondary">Inactive</span>
                             }
                         </td>
-                        <td><small class="text-muted">@item.CreatedAt.ToString("dd MMM yyyy")</small></td>
+                        <td><small class="text-muted">@ApplicationTimeZone.Format(item.CreatedAt, "d")</small></td>
                         <td class="text-end">
                             <div class="btn-group btn-group-sm" role="group">
                                 <a asp-page="./Details" asp-route-id="@item.Id" class="btn btn-outline-primary" title="View details">

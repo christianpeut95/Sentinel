@@ -89,7 +89,7 @@
             <div class="row">
                 <div class="col-md-4">
                     <div class="text-label" style="margin-bottom: 6px;">Collection Date</div>
-                    <div style="font-size: 14px;">@(labResult.SpecimenCollectionDate?.ToString("dd MMM yyyy") ?? "-")</div>
+                    <div style="font-size: 14px;">@(labResult.SpecimenCollectionDate.HasValue ? ApplicationTimeZone.FormatDate(labResult.SpecimenCollectionDate) : "-")</div>
                 </div>
                 <div class="col-md-4">
                     <div class="text-label" style="margin-bottom: 6px;">Specimen Type</div>
@@ -105,7 +105,7 @@
     <div class="row">
         <div class="col-md-6">
                             <div class="text-label" style="margin-bottom: 6px;">Result Date</div>
-                            <div style="font-size: 14px;">@(labResult.ResultDate?.ToString("dd MMM yyyy") ?? "-")</div>
+                            <div style="font-size: 14px;">@(labResult.ResultDate.HasValue ? ApplicationTimeZone.FormatDate(labResult.ResultDate) : "-")</div>
                         </div>
                     </div>
                 </div>
@@ -267,7 +267,7 @@
         <div class="row">
             <div class="col-md-6">
                 <div class="field-label">Created</div>
-                <div class="field-value">@labResult.CreatedAt.ToString("dd MMM yy HH:mm")</div>
+                <div class="field-value">@ApplicationTimeZone.Format(labResult.CreatedAt)</div>
                             <div class="col-md-6">
                                 <div class="text-label" style="margin-bottom: 6px;">Lab Interpretation</div>
                                 <div style="font-size: 14px;">@(labResult.LabInterpretation ?? "-")</div>
@@ -281,7 +281,7 @@
                         {
                             <div style="margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--hairline);">
                                 <div class="text-label" style="margin-bottom: 6px;">Last Modified</div>
-                                <div style="font-size: 14px;">@labResult.ModifiedAt.Value.ToString("dd MMM yyyy HH:mm")</div>
+                                <div style="font-size: 14px;">@ApplicationTimeZone.Format(labResult.ModifiedAt)</div>
                             </div>
                         }
                     </div>

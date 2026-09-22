@@ -111,10 +111,10 @@
                 }
             }
             
-            <span class="text-muted">Started @Model.Outbreak.StartDate.ToString("MMMM d, yyyy")</span>
+            <span class="text-muted">Started @ApplicationTimeZone.FormatDate(Model.Outbreak.StartDate)</span>
             @if (Model.Outbreak.EndDate.HasValue)
             {
-                <span class="text-muted">• Ended @Model.Outbreak.EndDate.Value.ToString("MMMM d, yyyy")</span>
+                <span class="text-muted">• Ended @ApplicationTimeZone.FormatDate(Model.Outbreak.EndDate)</span>
             }
         </div>
         @if (!string.IsNullOrEmpty(Model.Outbreak.Description))
@@ -361,7 +361,7 @@
                                 </div>
                                 <div>
                                     <small class="text-muted">Started:</small>
-                                    <div>@child.StartDate.ToString("MMM dd, yyyy")</div>
+                                    <div>@ApplicationTimeZone.FormatDate(child.StartDate)</div>
                                 </div>
                             </div>
                             <div class="card-footer">
@@ -649,7 +649,7 @@
                                             <span class="badge bg-primary">@member.Role.ToString().Replace("_", " ")</span>
                                         </td>
                                         <td>
-                                            <small class="text-muted">@member.AssignedDate.ToString("MMM d, yyyy")</small>
+                                            <small class="text-muted">@ApplicationTimeZone.Format(member.AssignedDate, "d")</small>
                                         </td>
                                         <td class="text-end">
                                             <form method="post" asp-page-handler="RemoveTeamMember" asp-route-memberId="@member.Id" class="d-inline" 
@@ -770,11 +770,11 @@
                                         <td>
                                             @if (outbreakCase.Case.DateOfOnset.HasValue)
                                             {
-                                                @outbreakCase.Case.DateOfOnset.Value.ToString("MMM d, yyyy")
+                                                @ApplicationTimeZone.FormatDate(outbreakCase.Case.DateOfOnset)
                                             }
                                         </td>
                                         <td>
-                                            <small>@outbreakCase.LinkedDate.ToString("MMM d, yyyy")</small>
+                                            <small>@ApplicationTimeZone.Format(outbreakCase.LinkedDate, "d")</small>
                                         </td>
                                         <td>
                                             <small class="text-muted">@outbreakCase.LinkMethod.ToString().Replace("_", " ")</small>
@@ -874,11 +874,11 @@
                                         <td>
                                             @if (outbreakCase.Case.DateOfNotification.HasValue)
                                             {
-                                                @outbreakCase.Case.DateOfNotification.Value.ToString("MMM d, yyyy")
+                                                @ApplicationTimeZone.FormatDate(outbreakCase.Case.DateOfNotification)
                                             }
                                         </td>
                                         <td>
-                                            <small>@outbreakCase.LinkedDate.ToString("MMM d, yyyy")</small>
+                                            <small>@ApplicationTimeZone.Format(outbreakCase.LinkedDate, "d")</small>
                                         </td>
                                         <td>
                                             <small class="text-muted">@outbreakCase.LinkMethod.ToString().Replace("_", " ")</small>
@@ -963,7 +963,7 @@
                                                     <p class="text-muted mb-0">@item.Description</p>
                                                 }
                                             </div>
-                                            <small class="text-muted">@item.EventDate.ToString("MMM d, yyyy h:mm tt")</small>
+                                            <small class="text-muted">@ApplicationTimeZone.Format(item.EventDate)</small>
                                         </div>
                                     </div>
                                 </div>

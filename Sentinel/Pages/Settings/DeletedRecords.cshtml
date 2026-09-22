@@ -101,8 +101,8 @@
                                 <tr>
                                     <td>@patient.FriendlyId</td>
                                     <td>@patient.GivenName @patient.FamilyName</td>
-                                    <td>@(patient.DateOfBirth?.ToString("dd MMM yyyy") ?? "N/A")</td>
-                                    <td>@(patient.DeletedAt?.ToString("dd MMM yyyy HH:mm") ?? "N/A")</td>
+                                    <td>@(patient.DateOfBirth.HasValue ? ApplicationTimeZone.FormatDate(patient.DateOfBirth) : "N/A")</td>
+                                    <td>@(patient.DeletedAt.HasValue ? ApplicationTimeZone.Format(patient.DeletedAt) : "N/A")</td>
                                     <td>@(patient.DeletedByUserId ?? "System")</td>
                                     <td class="text-end">
                                         <form method="post" asp-page-handler="RestorePatient" asp-route-id="@patient.Id" class="d-inline">
@@ -163,7 +163,7 @@
                                     <td>@(caseEntity.Patient?.GivenName) @(caseEntity.Patient?.FamilyName)</td>
                                     <td>@(caseEntity.Disease?.Name ?? "N/A")</td>
                                     <td>@caseEntity.Type</td>
-                                    <td>@(caseEntity.DeletedAt?.ToString("dd MMM yyyy HH:mm") ?? "N/A")</td>
+                                    <td>@(caseEntity.DeletedAt.HasValue ? ApplicationTimeZone.Format(caseEntity.DeletedAt) : "N/A")</td>
                                     <td>@(caseEntity.DeletedByUserId ?? "System")</td>
                                     <td class="text-end">
                                         <form method="post" asp-page-handler="RestoreCase" asp-route-id="@caseEntity.Id" class="d-inline">
@@ -224,7 +224,7 @@
                                     <td>@(labResult.Case?.FriendlyId ?? "N/A")</td>
                                     <td>@(labResult.Case?.Patient?.GivenName) @(labResult.Case?.Patient?.FamilyName)</td>
                                     <td>@(labResult.AccessionNumber ?? "N/A")</td>
-                                    <td>@(labResult.DeletedAt?.ToString("dd MMM yyyy HH:mm") ?? "N/A")</td>
+                                    <td>@(labResult.DeletedAt.HasValue ? ApplicationTimeZone.Format(labResult.DeletedAt) : "N/A")</td>
                                     <td>@(labResult.DeletedByUserId ?? "System")</td>
                                     <td class="text-end">
                                         <form method="post" asp-page-handler="RestoreLabResult" asp-route-id="@labResult.Id" class="d-inline">
@@ -294,7 +294,7 @@
                                         }
                                     </td>
                                     <td>@(note.Content.Length > 50 ? note.Content.Substring(0, 50) + "..." : note.Content)</td>
-                                    <td>@(note.DeletedAt?.ToString("dd MMM yyyy HH:mm") ?? "N/A")</td>
+                                    <td>@(note.DeletedAt.HasValue ? ApplicationTimeZone.Format(note.DeletedAt) : "N/A")</td>
                                     <td>@(note.DeletedByUserId ?? "System")</td>
                                     <td class="text-end">
                                         <form method="post" asp-page-handler="RestoreNote" asp-route-id="@note.Id" class="d-inline">
@@ -367,7 +367,7 @@
                                         }
                                     </td>
                                     <td>@exposure.ExposureType</td>
-                                    <td>@exposure.ExposureStartDate.ToString("dd MMM yyyy")</td>
+                                    <td>@ApplicationTimeZone.Format(exposure.ExposureStartDate, "d")</td>
                                     <td>
                                         @if (exposure.Event != null)
                                         {
@@ -390,7 +390,7 @@
                                             <span class="text-muted">N/A</span>
                                         }
                                     </td>
-                                    <td>@(exposure.DeletedAt?.ToString("dd MMM yyyy HH:mm") ?? "N/A")</td>
+                                    <td>@(exposure.DeletedAt.HasValue ? ApplicationTimeZone.Format(exposure.DeletedAt) : "N/A")</td>
                                     <td>@(exposure.DeletedByUserId ?? "System")</td>
                                     <td class="text-end">
                                         <form method="post" asp-page-handler="RestoreExposure" asp-route-id="@exposure.Id" class="d-inline">

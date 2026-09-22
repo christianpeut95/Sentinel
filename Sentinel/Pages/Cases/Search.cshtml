@@ -285,8 +285,8 @@
                                             <span style="color: var(--graphite);">-</span>
                                         }
                                     </td>
-                                    <td>@(caseItem.DateOfOnset?.ToString("dd MMM") ?? "-")</td>
-                                    <td>@(caseItem.DateOfNotification?.ToString("dd MMM") ?? "-")</td>
+                                    <td>@(caseItem.DateOfOnset.HasValue ? ApplicationTimeZone.FormatDate(caseItem.DateOfOnset) : "-")</td>
+                                    <td>@(caseItem.DateOfNotification.HasValue ? ApplicationTimeZone.FormatDate(caseItem.DateOfNotification) : "-")</td>
                                     <td>
                                         @if (caseItem.ConfirmationStatus != null)
                                         {

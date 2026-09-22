@@ -65,7 +65,7 @@
                         <dd class="col-sm-9">
                             @if (Model.User?.LockoutEnd.HasValue == true && Model.User.LockoutEnd.Value > DateTimeOffset.UtcNow)
                             {
-                                <span class="badge bg-danger">Locked until @Model.User.LockoutEnd.Value.ToString("dd MMM yyyy HH:mm")</span>
+                                <span class="badge bg-danger">Locked until @ApplicationTimeZone.Format(Model.User.LockoutEnd)</span>
                             }
                             else if (Model.User?.EmailConfirmed == true)
                             {

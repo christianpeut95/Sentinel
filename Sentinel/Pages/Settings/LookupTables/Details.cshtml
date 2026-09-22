@@ -69,7 +69,7 @@
                         </dd>
 
                         <dt class="col-sm-3">Created:</dt>
-                        <dd class="col-sm-9">@Model.LookupTable.CreatedAt.ToString("dd MMM yyyy HH:mm")</dd>
+                        <dd class="col-sm-9">@ApplicationTimeZone.Format(Model.LookupTable.CreatedAt)</dd>
 
                         <dt class="col-sm-3">Total Values:</dt>
                         <dd class="col-sm-9">

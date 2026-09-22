@@ -89,7 +89,7 @@
             <div class="kpi-value" style="font-size:24px;font-family:var(--f-mono)">
                 @if (Model.MonitoringStatus.LastFileProcessedAt != null)
                 {
-                    @ApplicationTimeZone.Format(Model.MonitoringStatus.LastFileProcessedAt, "HH:mm:ss")
+                    @ApplicationTimeZone.Format(Model.MonitoringStatus.LastFileProcessedAt, "T")
                 }
                 else
                 {
@@ -156,7 +156,7 @@
                     {
                         <tr>
                             <td style="font-family:var(--f-mono);font-size:12px">
-                                @ApplicationTimeZone.Format(msg.ReceivedAt, "MM/dd HH:mm")
+                                @ApplicationTimeZone.Format(msg.ReceivedAt)
                             </td>
                             <td style="font-family:var(--f-mono);font-size:11px">
                                 @msg.MessageControlId
@@ -295,7 +295,7 @@
                                     }
                                     else
                                     {
-                                        @ApplicationTimeZone.Format(lastMessage.ReceivedAt, "MM/dd")
+                                        @ApplicationTimeZone.Format(lastMessage.ReceivedAt, "d")
                                     }
                                 }
                                 else

@@ -886,14 +886,14 @@
             {
                 var itemsByDay = Model.ReviewQueue.Items
                     .Where(i => Model.Status == "Pending" ? i.ReviewStatus == "Pending" : true)
-                    .GroupBy(i => i.CreatedDate.Date)
+                    .GroupBy(i => ApplicationTimeZone.UtcToAppTime(i.CreatedDate).Date)
                     .OrderByDescending(g => g.Key);
 
                 foreach (var dayGroup in itemsByDay)
                 {
-                    var dayLabel = dayGroup.Key == DateTime.UtcNow.Date ? "Today" :
-                                 dayGroup.Key == DateTime.UtcNow.Date.AddDays(-1) ? "Yesterday" :
-                                 dayGroup.Key.ToString("dd MMM");
+                    var dayLabel = dayGroup.Key == ApplicationTimeZone.Now.Date ? "Today" :
+                                 dayGroup.Key == ApplicationTimeZone.Now.Date.AddDays(-1) ? "Yesterday" :
+                                 ApplicationTimeZone.FormatDate(dayGroup.Key);
 
                     <div class="day-group-header-v2">
                         @dayLabel · @dayGroup.Count()
@@ -1000,7 +1000,7 @@
                     }
                     @if (item.PatientDateOfBirth.HasValue)
                     {
-                        <text>DOB @item.PatientDateOfBirth.Value.ToString("dd MMM yyyy")</text>
+                        <text>DOB @ApplicationTimeZone.FormatDate(item.PatientDateOfBirth)</text>
                     }
                     @if (!string.IsNullOrEmpty(item.PatientPhone))
                     {
@@ -1129,7 +1129,7 @@
                         </div>
                         <div class="ctxcell-v2">
                             <div class="ctxkey-v2">Reported</div>
-                            <div class="ctxval-v2">@item.CreatedDate.ToString("dd MMM yyyy")</div>
+                            <div class="ctxval-v2">@ApplicationTimeZone.Format(item.CreatedDate, "d")</div>
                         </div>
                         <div class="ctxcell-v2">
                             <div class="ctxkey-v2">Priority</div>
@@ -1159,11 +1159,11 @@
                                     <div class="lab-date-v2">
                                         @if (lab.ResultDate.HasValue)
                                         {
-                                            <text>@lab.ResultDate.Value.ToString("dd MMM yyyy")</text>
+                                            <text>@ApplicationTimeZone.FormatDate(lab.ResultDate)</text>
                                         }
                                         else if (lab.SpecimenCollectionDate.HasValue)
                                         {
-                                            <text>Collected @lab.SpecimenCollectionDate.Value.ToString("dd MMM yyyy")</text>
+                                            <text>Collected @ApplicationTimeZone.FormatDate(lab.SpecimenCollectionDate)</text>
                                         }
                                     </div>
                                 </div>
@@ -1489,7 +1489,7 @@
             return $"{(int)span.TotalHours}h";
         if (span.TotalDays < 7)
             return $"{(int)span.TotalDays}d";
-        return date.ToString("dd MMM");
+        return ApplicationTimeZone.Format(date, "d");
     }
 
     private string GetEntityChipClass(string? entityType, string? changeType = null)

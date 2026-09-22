@@ -43,8 +43,20 @@ public sealed class ApplicationVersionProvider : IApplicationVersionProvider
 
     public string ProductName { get; }
     public string Version { get; }
-    public string DisplayVersion => _isDemoMode ? $"{Version} (Demo)" : Version;
-    public string FullVersion => $"v{DisplayVersion}";
+    public string DisplayVersion => _isDemoMode
+        ? $"{FormatProductVersion(Version)} (Demo)"
+        : FormatProductVersion(Version);
+    public string FullVersion => DisplayVersion;
     public string InformationalVersion { get; }
     public string? CommitHash { get; }
+
+    private static string FormatProductVersion(string version)
+    {
+        const string betaMarker = "-beta.";
+        var betaIndex = version.IndexOf(betaMarker, StringComparison.OrdinalIgnoreCase);
+
+        return betaIndex >= 0 && betaIndex + betaMarker.Length < version.Length
+            ? $"v{version[..betaIndex]} beta {version[(betaIndex + betaMarker.Length)..]}"
+            : $"v{version}";
+    }
 }

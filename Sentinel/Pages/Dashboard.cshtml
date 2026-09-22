@@ -3,7 +3,7 @@
 @using Sentinel.Models.Dashboard
 @{
     ViewData["Title"] = "Dashboard";
-    ViewData["Subtitle"] = ApplicationTimeZone.Now.ToString("dddd, MMMM d, yyyy", ApplicationTimeZone.AppCulture);
+    ViewData["Subtitle"] = ApplicationTimeZone.Now.ToString("D", ApplicationTimeZone.AppCulture);
 }
 
 <style>

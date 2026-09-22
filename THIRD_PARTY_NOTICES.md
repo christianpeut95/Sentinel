@@ -6,7 +6,7 @@ that carries its own copyright notice. Distributors must preserve the relevant
 notices and comply with every applicable term.
 
 This inventory records the direct dependencies and browser components inspected
-for the 0.9.0-beta GPL release preparation. It is not legal advice.
+for the v1.0.0 beta 1 GPL release preparation. It is not legal advice.
 
 ## Release status
 

@@ -369,7 +369,7 @@
                             Automatic case definition evaluation is currently blocked for this case because the confirmation status was manually changed
                             @if (Model.Case.ConfirmationStatusManualOverrideDate.HasValue)
                             {
-                                <text>on <strong>@Model.Case.ConfirmationStatusManualOverrideDate.Value.ToString("d MMM yyyy")</strong></text>
+                                <text>on <strong>@ApplicationTimeZone.Format(Model.Case.ConfirmationStatusManualOverrideDate, "d")</strong></text>
                             }
                             @if (!string.IsNullOrEmpty(Model.ManualOverrideByUserName))
                             {
@@ -561,7 +561,7 @@
                     @if (Model.Case.DateOfOnset.HasValue)
                     {
                         <i class="bi bi-calendar-event me-1" style="color: var(--signal-dk);"></i>
-                        @Model.Case.DateOfOnset.Value.ToString("dd MMM yyyy")
+                        @ApplicationTimeZone.FormatDate(Model.Case.DateOfOnset)
                     }
                     else
                     {
@@ -575,7 +575,7 @@
                     @if (Model.Case.DateOfNotification.HasValue)
                     {
                         <i class="bi bi-calendar-check me-1" style="color: var(--signal-dk);"></i>
-                        @Model.Case.DateOfNotification.Value.ToString("dd MMM yyyy")
+                        @ApplicationTimeZone.FormatDate(Model.Case.DateOfNotification)
                     }
                     else
                     {
@@ -591,7 +591,7 @@
                         @if (Model.Case.ClinicalNotificationDate.HasValue)
                         {
                             <i class="bi bi-calendar-plus me-1" style="color: var(--status-info);"></i>
-                            @Model.Case.ClinicalNotificationDate.Value.ToString("dd MMM yyyy")
+                            @ApplicationTimeZone.FormatDate(Model.Case.ClinicalNotificationDate)
                         }
                         else
                         {
@@ -662,7 +662,7 @@
                         <div class="info-label">Date of Admission</div>
                         <div class="info-value">
                             <i class="bi bi-calendar-plus me-1" style="color: var(--status-outbreak);"></i>
-                            @Model.Case.DateOfAdmission.Value.ToString("dd MMM yyyy")
+                            @ApplicationTimeZone.FormatDate(Model.Case.DateOfAdmission)
                         </div>
                     </div>
                 }
@@ -672,7 +672,7 @@
                         <div class="info-label">Date of Discharge</div>
                         <div class="info-value">
                             <i class="bi bi-calendar-minus me-1" style="color: var(--signal-dk);"></i>
-                            @Model.Case.DateOfDischarge.Value.ToString("dd MMM yyyy")
+                            @ApplicationTimeZone.FormatDate(Model.Case.DateOfDischarge)
                         </div>
                     </div>
                 }
@@ -772,7 +772,7 @@
                                                     if (fieldValue != null && DateTime.TryParse(fieldValue.ToString(), out var dateVal))
                                                     {
                                                         <i class="bi bi-calendar me-1"></i>
-                                                        <text>@dateVal.ToString("dd MMM yyyy")</text>
+                                                        <text>@ApplicationTimeZone.FormatDate(dateVal)</text>
                                                     }
                                                     else
                                                     {
@@ -864,7 +864,7 @@
                         @if (Model.Case.Patient.DateOfBirth.HasValue)
                         {
                             var age = ApplicationTimeZone.Now.Year - Model.Case.Patient.DateOfBirth.Value.Year;
-                            <span>@Model.Case.Patient.DateOfBirth.Value.ToString("dd MMM yyyy") <small class="text-muted">(@age yrs)</small></span>
+                            <span>@ApplicationTimeZone.FormatDate(Model.Case.Patient.DateOfBirth) <small class="text-muted">(@age yrs)</small></span>
                         }
                         else
                         {
@@ -966,7 +966,7 @@
                             {
                                 <br />
 
-                                <small class="text-muted">@Model.Case.Patient.DateOfDeath.Value.ToString("dd MMM yyyy")</small>
+                                <small class="text-muted">@ApplicationTimeZone.FormatDate(Model.Case.Patient.DateOfDeath)</small>
                             }
                         }
                         else
@@ -1021,7 +1021,7 @@
                                 <td>
                                     @if (symptom.OnsetDate.HasValue)
                                     {
-                                        <span>@symptom.OnsetDate.Value.ToString("dd MMM")</span>
+                                        <span>@ApplicationTimeZone.FormatDate(symptom.OnsetDate)</span>
                                     }
                                     else
                                     {
@@ -1056,7 +1056,7 @@
                     var earliestOnset = Model.CaseSymptoms.Where(cs => cs.OnsetDate.HasValue).Min(cs => cs.OnsetDate!.Value);
                     <div style="margin-top: var(--spacing-3); padding: var(--spacing-2) var(--spacing-3); background: var(--signal-lt); border-left: 3px solid var(--status-info); border-radius: 6px; font-size: 0.75rem;">
                         <i class="bi bi-info-circle me-1" style="color: var(--status-info);"></i>
-                        <strong>Earliest onset:</strong> @earliestOnset.ToString("dd MMM yyyy")
+                        <strong>Earliest onset:</strong> @ApplicationTimeZone.FormatDate(earliestOnset)
                     </div>
                 }
             }
@@ -1178,7 +1178,7 @@
                                 <td style="padding: 8px 12px;">
                                     @if (labResult.SpecimenCollectionDate.HasValue)
                                     {
-                                        <span>@labResult.SpecimenCollectionDate.Value.ToString("dd MMM yyyy")</span>
+                                        <span>@ApplicationTimeZone.FormatDate(labResult.SpecimenCollectionDate)</span>
                                         @if (labResult.SpecimenType != null)
                                         {
                                             <div class="text-meta" style="font-size: 11px; margin-top: 2px;">@labResult.SpecimenType.Name</div>
@@ -1192,7 +1192,7 @@
                                 <td style="padding: 8px 12px;">
                                     @if (labResult.ResultDate.HasValue)
                                     {
-                                        <span>@labResult.ResultDate.Value.ToString("dd MMM yyyy")</span>
+                                        <span>@ApplicationTimeZone.FormatDate(labResult.ResultDate)</span>
                                     }
                                     else
                                     {
@@ -1503,7 +1503,7 @@
                                         }
                                     </small>
                                 </td>
-                                <td><small>@exposure.ExposureStartDate.ToString("dd MMM")</small></td>
+                                <td><small>@ApplicationTimeZone.Format(exposure.ExposureStartDate, "d")</small></td>
                                 <td>
                                     @switch (exposure.ExposureStatus)
                                     {
@@ -1727,7 +1727,7 @@
                                         }
                                     </small>
                                 </td>
-                                <td><small>@exposure.ExposureStartDate.ToString("dd MMM")</small></td>
+                                <td><small>@ApplicationTimeZone.Format(exposure.ExposureStartDate, "d")</small></td>
                                 <td>
                                     @switch (exposure.ExposureStatus)
                                     {
@@ -1913,7 +1913,7 @@
                                 <td>
                                     @if (task.DueDate.HasValue)
                                     {
-                                        <small>@task.DueDate.Value.ToString("dd MMM")</small>
+                                        <small>@ApplicationTimeZone.FormatDate(task.DueDate)</small>
                                         @if (task.Status == CaseTaskStatus.Overdue)
                                         {
                                             <br />
@@ -2034,7 +2034,7 @@
                         <div class="note-header">
                             <strong>@note.Subject</strong>
                             <div class="note-meta">
-                                @note.CreatedAt.ToString("dd MMM yyyy HH:mm") by @note.CreatedBy
+                                @ApplicationTimeZone.Format(note.CreatedAt) by @note.CreatedBy
                             </div>
                         </div>
                         @if (!string.IsNullOrEmpty(note.Content))
@@ -2233,7 +2233,7 @@
                                         <td>
                                             @if (labResult.SpecimenCollectionDate.HasValue)
                                             {
-                                                <span>@labResult.SpecimenCollectionDate.Value.ToString("dd MMM yyyy")</span>
+                                                <span>@ApplicationTimeZone.FormatDate(labResult.SpecimenCollectionDate)</span>
                                                 @if (labResult.SpecimenType != null)
                                                 {
                                                     <div class="text-meta" style="font-size: 11px; margin-top: 2px;">@labResult.SpecimenType.Name</div>
@@ -2247,7 +2247,7 @@
                                         <td>
                                             @if (labResult.ResultDate.HasValue)
                                             {
-                                                <span>@labResult.ResultDate.Value.ToString("dd MMM yyyy")</span>
+                                                <span>@ApplicationTimeZone.FormatDate(labResult.ResultDate)</span>
                                             }
                                             else
                                             {
@@ -2362,7 +2362,7 @@
                                     <td>
                                         @if (task.DueDate.HasValue)
                                         {
-                                            @task.DueDate.Value.ToString("dd MMM yyyy")
+                                            @ApplicationTimeZone.FormatDate(task.DueDate)
                                             @if (task.Status == CaseTaskStatus.Overdue)
                                             {
                                                 <br />
@@ -2736,7 +2736,7 @@
                                             <span class="text-muted">-</span>
                                         }
                                     </td>
-                                    <td>@exposure.ExposureStartDate.ToString("dd MMM yyyy")</td>
+                                    <td>@ApplicationTimeZone.Format(exposure.ExposureStartDate, "d")</td>
                                     <td>
                                         @switch (exposure.ExposureStatus)
                                         {

@@ -91,7 +91,7 @@
                 <div class="kpi-value" style="font-size:16px;font-family:var(--f-mono)">
                     @if (Model.MonitoringStatus.LastFileProcessedAt != null)
                     {
-                        @ApplicationTimeZone.Format(Model.MonitoringStatus.LastFileProcessedAt, "HH:mm")
+                        @ApplicationTimeZone.Format(Model.MonitoringStatus.LastFileProcessedAt, "t")
                     }
                     else
                     {

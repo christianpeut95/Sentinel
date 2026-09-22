@@ -643,7 +643,7 @@ else
                                             {
                                                 <div class="exposure-item" style="padding-left: 15px; font-size: 11px; color: #9ca3af;">
                                                     <i class="bi bi-calendar3"></i>
-                                                    @exposure.ExposureStartDate.ToString("dd MMM yyyy")
+                                                    @ApplicationTimeZone.Format(exposure.ExposureStartDate, "d")
                                                 </div>
                                             }
                                         }
@@ -666,7 +666,7 @@ else
                             <td>
                                 @if (item.DateOfOnset.HasValue)
                                 {
-                                    @item.DateOfOnset.Value.ToString("dd MMM yyyy")
+                                    @ApplicationTimeZone.FormatDate(item.DateOfOnset)
                                 }
                                 else
                                 {

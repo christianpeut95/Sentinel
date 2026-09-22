@@ -38,10 +38,10 @@
                             <p><strong>Reports:</strong> @Model.Folder.Reports.Count</p>
                         </div>
                         <div class="col-md-6">
-                            <p><strong>Created:</strong> @Model.Folder.CreatedAt.ToString("MMM dd, yyyy")</p>
+                            <p><strong>Created:</strong> @ApplicationTimeZone.Format(Model.Folder.CreatedAt, "d")</p>
                             @if (Model.Folder.ModifiedAt.HasValue)
                             {
-                                <p><strong>Modified:</strong> @Model.Folder.ModifiedAt.Value.ToString("MMM dd, yyyy")</p>
+                                <p><strong>Modified:</strong> @ApplicationTimeZone.Format(Model.Folder.ModifiedAt, "d")</p>
                             }
                         </div>
                     </div>
@@ -90,7 +90,7 @@
                                             <td>
                                                 <span class="badge bg-secondary">@share.PermissionLevel</span>
                                             </td>
-                                            <td>@share.SharedAt.ToString("MMM dd, yyyy")</td>
+                                            <td>@ApplicationTimeZone.Format(share.SharedAt, "d")</td>
                                             <td>
                                                 <form method="post" asp-page-handler="RemoveShare" class="d-inline">
                                                     <input type="hidden" name="shareId" value="@share.Id" />

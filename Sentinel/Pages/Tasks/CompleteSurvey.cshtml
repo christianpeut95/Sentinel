@@ -195,7 +195,7 @@
                         var today = ApplicationTimeZone.Now.Date;
                         var age = today.Year - Model.Task.Case.Patient.DateOfBirth.Value.Year;
                         if (Model.Task.Case.Patient.DateOfBirth.Value > today.AddYears(-age)) age--;
-                        <span>@Model.Task.Case.Patient.DateOfBirth.Value.ToString("dd/MM/yyyy") (@age yrs)</span>
+                        <span>@ApplicationTimeZone.FormatDate(Model.Task.Case.Patient.DateOfBirth) (@age yrs)</span>
                     }
                     @if (Model.Task.Case.Patient?.SexAtBirth != null)
                     {
@@ -252,7 +252,7 @@
                     }
                     @if (Model.Task.Case.DateOfNotification != null)
                     {
-                        <span>&nbsp;•&nbsp;Notified: @Model.Task.Case.DateOfNotification.Value.ToString("dd/MM/yyyy")</span>
+                        <span>&nbsp;•&nbsp;Notified: @ApplicationTimeZone.FormatDate(Model.Task.Case.DateOfNotification)</span>
                     }
                     @if (!string.IsNullOrEmpty(Model.SurveyName))
                     {

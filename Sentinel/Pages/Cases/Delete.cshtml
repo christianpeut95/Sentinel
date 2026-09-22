@@ -49,10 +49,10 @@
             </dd>
 
             <dt class="col-sm-4">Date of Onset</dt>
-            <dd class="col-sm-8">@(Model.Case.DateOfOnset?.ToString("dd MMMM yyyy") ?? "-")</dd>
+            <dd class="col-sm-8">@(Model.Case.DateOfOnset.HasValue ? ApplicationTimeZone.FormatDate(Model.Case.DateOfOnset) : "-")</dd>
 
             <dt class="col-sm-4">Date of Notification</dt>
-            <dd class="col-sm-8">@(Model.Case.DateOfNotification?.ToString("dd MMMM yyyy") ?? "-")</dd>
+            <dd class="col-sm-8">@(Model.Case.DateOfNotification.HasValue ? ApplicationTimeZone.FormatDate(Model.Case.DateOfNotification) : "-")</dd>
 
             <dt class="col-sm-4">Confirmation Status</dt>
             <dd class="col-sm-8">@(Model.Case.ConfirmationStatus?.Name ?? "-")</dd>

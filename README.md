@@ -29,7 +29,7 @@ A publicly hosted demo is available at **https://demo.sentinelsurveillance.app**
 
 **Technology:** ASP.NET Core (.NET 10), Entity Framework Core 9, SQL Server 2019+, Blazor
 
-**Status:** 0.9.0-beta — beta release preparation, suitable for evaluation and
+**Status:** v1.0.0 beta 1 — suitable for evaluation and
 organisation-led deployment validation.
 
 > **Note:** Sentinel uses SurveyJS Form Library (MIT) to render surveys and
@@ -481,7 +481,7 @@ Demo__ShowDemoBanner=true
 
 ## Status
 
-**0.9.0-beta — Beta Release Preparation**
+**v1.0.0 beta 1 — First Public Beta**
 
 ### Stable
 - Patient and case management

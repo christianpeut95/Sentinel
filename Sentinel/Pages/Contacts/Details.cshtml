@@ -691,7 +691,7 @@
                     @if (Model.Contact.DateOfOnset.HasValue)
                     {
                         <i class="bi bi-calendar-event me-1 text-primary"></i>
-                        @Model.Contact.DateOfOnset.Value.ToString("dd MMM yyyy")
+                        @ApplicationTimeZone.FormatDate(Model.Contact.DateOfOnset)
                     }
                     else
                     {
@@ -705,7 +705,7 @@
                     @if (Model.Contact.DateOfNotification.HasValue)
                     {
                         <i class="bi bi-calendar-check me-1 text-success"></i>
-                        @Model.Contact.DateOfNotification.Value.ToString("dd MMM yyyy")
+                        @ApplicationTimeZone.FormatDate(Model.Contact.DateOfNotification)
                     }
                     else
                     {
@@ -746,7 +746,7 @@
                         @if (Model.Contact.Patient.DateOfBirth.HasValue)
                         {
                             var age = ApplicationTimeZone.Now.Year - Model.Contact.Patient.DateOfBirth.Value.Year;
-                            <span>@Model.Contact.Patient.DateOfBirth.Value.ToString("dd MMM yyyy") <small class="text-muted">(@age yrs)</small></span>
+                            <span>@ApplicationTimeZone.FormatDate(Model.Contact.Patient.DateOfBirth) <small class="text-muted">(@age yrs)</small></span>
                         }
                         else
                         {
@@ -829,7 +829,7 @@
                                 <td>
                                     @if (symptom.OnsetDate.HasValue)
                                     {
-                                        <span>@symptom.OnsetDate.Value.ToString("dd MMM")</span>
+                                        <span>@ApplicationTimeZone.FormatDate(symptom.OnsetDate)</span>
                                     }
                                     else
                                     {
@@ -863,7 +863,7 @@
                     var earliestOnset = Model.CaseSymptoms.Where(cs => cs.OnsetDate.HasValue).Min(cs => cs.OnsetDate!.Value);
                     <div class="alert alert-info mt-3 mb-0" style="padding: 0.5rem 0.75rem; font-size: 0.75rem;">
                         <i class="bi bi-info-circle me-1"></i>
-                        <strong>Earliest onset:</strong> @earliestOnset.ToString("dd MMM yyyy")
+                        <strong>Earliest onset:</strong> @ApplicationTimeZone.FormatDate(earliestOnset)
                     </div>
                 }
             }
@@ -984,7 +984,7 @@
                                 <td>
                                     @if (labResult.SpecimenCollectionDate.HasValue)
                                     {
-                                        <small>@labResult.SpecimenCollectionDate.Value.ToString("dd MMM yyyy")</small>
+                                        <small>@ApplicationTimeZone.FormatDate(labResult.SpecimenCollectionDate)</small>
                                     }
                                     else
                                     {
@@ -994,7 +994,7 @@
                                 <td>
                                     @if (labResult.ResultDate.HasValue)
                                     {
-                                        <small>@labResult.ResultDate.Value.ToString("dd MMM yyyy")</small>
+                                        <small>@ApplicationTimeZone.FormatDate(labResult.ResultDate)</small>
                                     }
                                     else
                                     {
@@ -1113,7 +1113,7 @@
                                         }
                                     </small>
                                 </td>
-                                <td><small>@exposure.ExposureStartDate.ToString("dd MMM")</small></td>
+                                <td><small>@ApplicationTimeZone.Format(exposure.ExposureStartDate, "d")</small></td>
                                 <td>
                                     @switch (exposure.ExposureStatus)
                                     {
@@ -1226,7 +1226,7 @@
                                     }
                                 </td>
                                 <td>
-                                    <small>@exposure.ExposureStartDate.ToString("dd MMM yyyy")</small>
+                                    <small>@ApplicationTimeZone.Format(exposure.ExposureStartDate, "d")</small>
                                 </td>
                                 <td>
                                     @if (exposure.ContactClassification != null)
@@ -1362,7 +1362,7 @@
                                 <td>
                                     @if (task.DueDate.HasValue)
                                     {
-                                        <small>@task.DueDate.Value.ToString("dd MMM")</small>
+                                        <small>@ApplicationTimeZone.FormatDate(task.DueDate)</small>
                                         @if (task.Status == CaseTaskStatus.Overdue)
                                         {
                                             <br/><span class="badge bg-danger" style="font-size: 0.65rem;">Overdue</span>
@@ -1511,7 +1511,7 @@
                             <div class="note-meta">
                                 <i class="bi bi-person me-1"></i>@(note.CreatedBy ?? "Unknown")
                                 <span class="mx-1">�</span>
-                                @ApplicationTimeZone.Format(note.CreatedAt, "dd MMM yyyy HH:mm")
+                                @ApplicationTimeZone.Format(note.CreatedAt)
                             </div>
                         </div>
                     }
@@ -1597,7 +1597,7 @@
                             <tbody>
                                 @foreach (var exposure in Model.Acquisitions.OrderByDescending(e => e.ExposureStartDate))
                                 {
-                                    <tr data-type="@exposure.ExposureType" data-status="@exposure.ExposureStatus" data-date="@exposure.ExposureStartDate.ToString("yyyy-MM-dd")">
+                                    <tr data-type="@exposure.ExposureType" data-status="@exposure.ExposureStatus" data-date="@ApplicationTimeZone.UtcToAppTime(exposure.ExposureStartDate).ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture)">
                                         <td>
                                             @switch (exposure.ExposureType)
                                             {
@@ -1675,12 +1675,12 @@
                                             }
                                         </td>
                                         <td>
-                                            <strong>@exposure.ExposureStartDate.ToString("dd MMM yyyy")</strong>
+                                            <strong>@ApplicationTimeZone.Format(exposure.ExposureStartDate, "d")</strong>
                                         </td>
                                         <td>
                                             @if (exposure.ExposureEndDate.HasValue)
                                             {
-                                                <text>@exposure.ExposureEndDate.Value.ToString("dd MMM yyyy")</text>
+                                                <text>@ApplicationTimeZone.Format(exposure.ExposureEndDate, "d")</text>
                                             }
                                             else
                                             {
@@ -1833,7 +1833,7 @@
                             </div>
                             <div class="col-md-4">
                                 <small class="text-muted d-block">Date of Birth</small>
-                                <strong>@(Model.Contact.Patient?.DateOfBirth?.ToString("dd MMM yyyy") ?? "Unknown")</strong>
+                                <strong>@(Model.Contact.Patient?.DateOfBirth.HasValue == true ? ApplicationTimeZone.FormatDate(Model.Contact.Patient.DateOfBirth) : "Unknown")</strong>
                             </div>
                             <div class="col-md-4">
                                 <small class="text-muted d-block">Case Disease</small>

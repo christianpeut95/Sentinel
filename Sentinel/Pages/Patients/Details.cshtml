@@ -11,7 +11,7 @@
     int? age = null;
     if (Model.Patient.DateOfBirth.HasValue)
     {
-        var today = DateTime.UtcNow;
+        var today = ApplicationTimeZone.Now.Date;
         age = today.Year - Model.Patient.DateOfBirth.Value.Year;
         if (Model.Patient.DateOfBirth.Value.Date > today.AddYears(-age.Value)) age--;
     }
@@ -151,7 +151,7 @@
                             <div class="row mb-3">
                                 <div class="col-sm-5 text-mono" style="color: var(--graphite); font-size: 12px;">Date of Birth</div>
                                 <div class="col-sm-7" style="font-weight: 500;">
-                                    @(Model.Patient.DateOfBirth?.ToString("dd MMM yyyy") ?? "—")
+                                    @(Model.Patient.DateOfBirth.HasValue ? ApplicationTimeZone.FormatDate(Model.Patient.DateOfBirth) : "—")
                                 </div>
                             </div>
 
@@ -220,7 +220,7 @@
                                 </span>
                                 @if (Model.Patient.DateOfDeath.HasValue)
                                 {
-                                    <br /><small style="color: var(--graphite); font-size: 11px;">@Model.Patient.DateOfDeath.Value.ToString("dd MMM yyyy")</small>
+                                    <br /><small style="color: var(--graphite); font-size: 11px;">@ApplicationTimeZone.FormatDate(Model.Patient.DateOfDeath)</small>
                                 }
                             }
                             else
@@ -456,7 +456,7 @@
                                             }
                                             else if (field.FieldType == CustomFieldType.Date && hasValue && DateTime.TryParse(displayValue, out var dateValue))
                                             {
-                                                @dateValue.ToString("dd MMM yyyy")
+                                                @ApplicationTimeZone.FormatDate(dateValue)
                                             }
                                             else
                                             {
@@ -512,7 +512,7 @@
                                 }
                             </div>
                             <div class="d-flex align-items-center">
-                                <small style="color: var(--graphite); margin-right: var(--spacing-2);">@ApplicationTimeZone.Format(note.CreatedAt, "dd MMM yyyy HH:mm")</small>
+                                <small style="color: var(--graphite); margin-right: var(--spacing-2);">@ApplicationTimeZone.Format(note.CreatedAt)</small>
                                 @if (Model.CanDeletePatient)
                                 {
                                     <form method="post" asp-page-handler="DeleteNote" asp-route-id="@Model.Patient.Id" asp-route-noteId="@note.Id" class="d-inline">
@@ -603,7 +603,7 @@
                                 }
                             </div>
                             <div class="d-flex align-items-center">
-                                <small style="color: var(--graphite); margin-right: var(--spacing-2);">@ApplicationTimeZone.Format(note.CreatedAt, "dd MMM yyyy HH:mm")</small>
+                                <small style="color: var(--graphite); margin-right: var(--spacing-2);">@ApplicationTimeZone.Format(note.CreatedAt)</small>
                                 @if (Model.CanDeleteCases)
                                 {
                                     <form method="post" asp-page-handler="DeleteCaseNote" asp-route-id="@Model.Patient.Id" asp-route-noteId="@note.Id" class="d-inline">
@@ -691,8 +691,8 @@
                                         }
                                     </td>
                                     <td>@(caseItem.Disease?.Name ?? "-")</td>
-                                    <td>@(caseItem.DateOfOnset?.ToString("dd MMM yyyy") ?? "-")</td>
-                                    <td>@(caseItem.DateOfNotification?.ToString("dd MMM yyyy") ?? "-")</td>
+                                    <td>@(caseItem.DateOfOnset.HasValue ? ApplicationTimeZone.FormatDate(caseItem.DateOfOnset) : "-")</td>
+                                    <td>@(caseItem.DateOfNotification.HasValue ? ApplicationTimeZone.FormatDate(caseItem.DateOfNotification) : "-")</td>
                                     <td>@(caseItem.ConfirmationStatus?.Name ?? "-")</td>
                                     <td>
                                         <a asp-page="/Cases/Details" asp-route-id="@caseItem.Id" class="btn-sentinel-secondary" style="padding: 4px 10px; font-size: 12px;">
@@ -740,7 +740,7 @@
             <div class="row">
                 <div class="col-md-6 mb-2">
                     <small class="text-mono" style="color: var(--graphite); font-size: 11px;">Created:</small>
-                    <div style="font-weight: 500;">@Model.Patient.CreatedAt.ToString("dd MMM yyyy HH:mm")</div>
+                    <div style="font-weight: 500;">@ApplicationTimeZone.Format(Model.Patient.CreatedAt)</div>
                 </div>
                 <div class="col-md-6 mb-2">
                     <small class="text-mono" style="color: var(--graphite); font-size: 11px;">Created By:</small>

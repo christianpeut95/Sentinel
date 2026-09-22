@@ -129,11 +129,11 @@
                                         <td>
                                             @if (oc.Case.DateOfOnset.HasValue)
                                             {
-                                                @oc.Case.DateOfOnset.Value.ToString("MMM d, yyyy")
+                                                @ApplicationTimeZone.FormatDate(oc.Case.DateOfOnset)
                                             }
                                         </td>
                                         <td>
-                                            <small class="text-muted">@oc.LinkedDate.ToString("MMM d")</small>
+                                            <small class="text-muted">@ApplicationTimeZone.Format(oc.LinkedDate, "d")</small>
                                         </td>
                                         <td>
                                             <button type="button" class="btn btn-sm btn-primary js-show-classify-modal"
@@ -222,14 +222,14 @@
                                         <td>
                                             @if (oc.Case.DateOfOnset.HasValue)
                                             {
-                                                @oc.Case.DateOfOnset.Value.ToString("MMM d, yyyy")
+                                                @ApplicationTimeZone.FormatDate(oc.Case.DateOfOnset)
                                             }
                                         </td>
                                         <td>
                                             <small class="text-muted">
                                                 @if (oc.ClassificationDate.HasValue)
                                                 {
-                                                    @oc.ClassificationDate.Value.ToString("MMM d, yyyy")
+                                                    @ApplicationTimeZone.FormatDate(oc.ClassificationDate)
                                                 }
                                             </small>
                                         </td>

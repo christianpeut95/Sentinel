@@ -48,7 +48,7 @@
                     <div class="col-md-4">
                         <strong><i class="bi bi-calendar-event me-2"></i>Event:</strong>
                         <div>@Model.Event.Name</div>
-                        <small class="text-muted">@Model.Event.StartDateTime.ToString("dd MMM yyyy")</small>
+                        <small class="text-muted">@ApplicationTimeZone.Format(Model.Event.StartDateTime, "d")</small>
                     </div>
                 }
                 else

@@ -173,8 +173,8 @@
                 {
                     <tr>
                         <td style="font-family:var(--f-mono);font-size:12px">
-                            <div>@ApplicationTimeZone.Format(msg.ReceivedAt, "MM/dd/yyyy")</div>
-                            <div style="color:var(--graphite)">@ApplicationTimeZone.Format(msg.ReceivedAt, "HH:mm:ss")</div>
+                            <div>@ApplicationTimeZone.Format(msg.ReceivedAt, "d")</div>
+                            <div style="color:var(--graphite)">@ApplicationTimeZone.Format(msg.ReceivedAt, "T")</div>
                         </td>
                         <td style="font-family:var(--f-mono);font-size:11px">@msg.MessageControlId</td>
                         <td>

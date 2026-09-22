@@ -43,7 +43,7 @@
             <dd class="col-sm-9" style="font-weight: 500; color: var(--forest);">@Model.Patient.FamilyName</dd>
 
             <dt class="col-sm-3 text-mono" style="color: var(--graphite); font-size: 12px;">@Html.DisplayNameFor(model => model.Patient.DateOfBirth)</dt>
-            <dd class="col-sm-9" style="font-weight: 500;">@(Model.Patient.DateOfBirth?.ToString("dd MMM yyyy") ?? "—")</dd>
+            <dd class="col-sm-9" style="font-weight: 500;">@(Model.Patient.DateOfBirth.HasValue ? ApplicationTimeZone.FormatDate(Model.Patient.DateOfBirth) : "—")</dd>
 
             <dt class="col-sm-3 text-mono" style="color: var(--graphite); font-size: 12px;">@Html.DisplayNameFor(model => model.Patient.SexAtBirthId)</dt>
             <dd class="col-sm-9" style="font-weight: 500;">@(Model.Patient.SexAtBirth?.Name ?? "—")</dd>
@@ -85,7 +85,7 @@
             </dd>
 
             <dt class="col-sm-3 text-mono" style="color: var(--graphite); font-size: 12px;">@Html.DisplayNameFor(model => model.Patient.CreatedAt)</dt>
-            <dd class="col-sm-9 text-mono" style="font-weight: 500; font-size: 12px;">@Model.Patient.CreatedAt.ToString("dd MMM yyyy HH:mm")</dd>
+            <dd class="col-sm-9 text-mono" style="font-weight: 500; font-size: 12px;">@ApplicationTimeZone.Format(Model.Patient.CreatedAt)</dd>
         </dl>
     </div>
 </div>

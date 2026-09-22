@@ -246,11 +246,11 @@
                                             <td>
                                                 @if (caseItem.DateOfOnset.HasValue)
                                                 {
-                                                    <small>Onset: @caseItem.DateOfOnset.Value.ToString("MMM d, yyyy")</small>
+                                                    <small>Onset: @ApplicationTimeZone.FormatDate(caseItem.DateOfOnset)</small>
                                                 }
                                                 else if (caseItem.DateOfNotification.HasValue)
                                                 {
-                                                    <small>Notified: @caseItem.DateOfNotification.Value.ToString("MMM d, yyyy")</small>
+                                                    <small>Notified: @ApplicationTimeZone.FormatDate(caseItem.DateOfNotification)</small>
                                                 }
                                             </td>
                                         </tr>

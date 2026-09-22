@@ -4,7 +4,7 @@
 
 | Version | Security updates |
 |---|---|
-| 0.9.x beta | Current public-beta release line |
+| 1.0.x beta | Current public-beta release line |
 | Earlier versions | Not supported |
 
 ## Reporting a vulnerability

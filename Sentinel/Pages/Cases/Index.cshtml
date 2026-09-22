@@ -431,7 +431,7 @@ else
                             <td>
                                 @if (item.DateOfOnset.HasValue)
                                 {
-                                    @item.DateOfOnset.Value.ToString("dd MMM yyyy")
+                                    @ApplicationTimeZone.FormatDate(item.DateOfOnset)
                                 }
                                 else
                                 {
@@ -441,7 +441,7 @@ else
                             <td>
                                 @if (item.DateOfNotification.HasValue)
                                 {
-                                    @item.DateOfNotification.Value.ToString("dd MMM yyyy")
+                                    @ApplicationTimeZone.FormatDate(item.DateOfNotification)
                                 }
                                 else
                                 {

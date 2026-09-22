@@ -15,13 +15,16 @@
     }
 }
 <!DOCTYPE html>
-<html lang="en">
+<html lang="@ApplicationTimeZone.AppCulture.Name"
+      data-sentinel-locale="@ApplicationTimeZone.AppCulture.Name"
+      data-sentinel-time-zone="@ApplicationTimeZone.TimeZoneId">
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>@ViewData["Title"] - Sentinel</title>
     <link href="https://cdn.webdatarocks.com/1.4.23/webdatarocks.css" rel="stylesheet" />
     <link href="~/css/report-builder-compact.css" rel="stylesheet" />
+    <script src="~/js/regional-formatting.js" asp-append-version="true"></script>
 </head>
 <body>
 
@@ -118,7 +121,7 @@
                         {
                             <time class="rb-audit-value js-local-time"
                                   datetime="@Model.ReportDefinition.CreatedAt.ToString("O")">
-                                @Model.ReportDefinition.CreatedAt.ToString("dd MMM yyyy, HH:mm") UTC
+                                @ApplicationTimeZone.Format(Model.ReportDefinition.CreatedAt)
                             </time>
                         }
                         else
@@ -137,7 +140,7 @@
                             var lastChangedAt = Model.ReportDefinition.ModifiedAt ?? Model.ReportDefinition.CreatedAt;
                             <time class="rb-audit-value js-local-time"
                                   datetime="@lastChangedAt.ToString("O")">
-                                @lastChangedAt.ToString("dd MMM yyyy, HH:mm") UTC
+                                @ApplicationTimeZone.Format(lastChangedAt)
                             </time>
                         }
                         else
@@ -151,7 +154,7 @@
                         {
                             <time class="rb-audit-value js-local-time"
                                   datetime="@Model.ReportDefinition.LastRunDate.Value.ToString("O")">
-                                @Model.ReportDefinition.LastRunDate.Value.ToString("dd MMM yyyy, HH:mm") UTC
+                                @ApplicationTimeZone.Format(Model.ReportDefinition.LastRunDate)
                             </time>
                         }
                         else

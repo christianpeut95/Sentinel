@@ -135,6 +135,16 @@ namespace Sentinel.Services
                 ? UtcToAppTime(utcDateTime.Value).ToString(format, AppCulture)
                 : string.Empty;
 
+        public string Format(DateTimeOffset? timestamp, string format = "g") =>
+            timestamp.HasValue
+                ? UtcToAppTime(timestamp.Value.UtcDateTime).ToString(format, AppCulture)
+                : string.Empty;
+
+        public string FormatDate(DateTime? date, string format = "d") =>
+            date.HasValue
+                ? date.Value.ToString(format, AppCulture)
+                : string.Empty;
+
         public string ToDateTimeLocalValue(DateTime utcDateTime) =>
             UtcToAppTime(utcDateTime).ToString("yyyy-MM-ddTHH:mm", CultureInfo.InvariantCulture);
 

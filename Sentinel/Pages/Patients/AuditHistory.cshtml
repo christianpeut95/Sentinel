@@ -86,7 +86,7 @@ else
                             <div class="timeline-date">
                                 <div style="font-family: var(--f-mono); font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--graphite); display: flex; align-items: center; gap: var(--spacing-2);">
                                     <i class="bi bi-calendar3"></i>
-                                    @log.ChangedAt.ToString("dddd, dd MMMM yyyy")
+                                    @ApplicationTimeZone.Format(log.ChangedAt, "D")
                                 </div>
                             </div>
                             lastDate = currentDate;
@@ -135,7 +135,7 @@ else
                                         }
                                     </div>
                                     <small style="font-family: var(--f-mono); font-size: 11px; color: var(--graphite); white-space: nowrap;">
-                                        @ApplicationTimeZone.Format(log.ChangedAt, "HH:mm:ss")
+                                        @ApplicationTimeZone.Format(log.ChangedAt, "T")
                                     </small>
                                 </div>
 

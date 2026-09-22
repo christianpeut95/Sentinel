@@ -279,7 +279,7 @@
                 <span class="meta-value">
                     @if (Model.Task.CompletedAt.HasValue)
                     {
-                        @Model.Task.CompletedAt.Value.ToString("MMM dd, yyyy h:mm tt")
+                        @ApplicationTimeZone.Format(Model.Task.CompletedAt)
                     }
                     else
                     {

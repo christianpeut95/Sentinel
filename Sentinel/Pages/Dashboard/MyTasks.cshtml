@@ -178,7 +178,7 @@
                                                     <small class="text-info mt-1">
                                                         <i class="bi bi-telephone"></i> 
                                                         <strong>@task.CallAttempts.Count</strong> attempt(s)
-                                                        â€¢ Last: @lastAttempt.AttemptedAt.ToString("dd MMM HH:mm")
+                                                        â€¢ Last: @ApplicationTimeZone.Format(lastAttempt.AttemptedAt)
                                                     </small>
                                                     <button type="button" class="btn btn-sm btn-link p-0 ms-1 js-show-call-history"
                                                             data-task-id="@task.Id"
@@ -212,7 +212,7 @@
                                             <td>
                                                 @if (task.DueDate.HasValue)
                                                 {
-                                                    <span>@task.DueDate.Value.ToString("dd MMM yyyy")</span>
+                                                    <span>@ApplicationTimeZone.FormatDate(task.DueDate)</span>
                                                     @if (isOverdue)
                                                     {
                                                         <br/><span class="badge bg-danger"><i class="bi bi-exclamation-triangle"></i> Overdue</span>
@@ -247,7 +247,7 @@
                                                 <span class="badge @statusClass">@task.Status</span>
                                                 @if (task.CompletedAt.HasValue)
                                                 {
-                                                    <br/><small class="text-muted">@task.CompletedAt.Value.ToString("dd MMM yyyy")</small>
+                                                    <br/><small class="text-muted">@ApplicationTimeZone.Format(task.CompletedAt, "d")</small>
                                                 }
                                             </td>
                                             <td>

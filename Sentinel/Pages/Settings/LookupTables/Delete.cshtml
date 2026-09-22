@@ -87,7 +87,7 @@
                             </dd>
 
                             <dt class="col-sm-4">Created:</dt>
-                            <dd class="col-sm-8">@Model.LookupTable.CreatedAt.ToString("dd MMM yyyy HH:mm")</dd>
+                            <dd class="col-sm-8">@ApplicationTimeZone.Format(Model.LookupTable.CreatedAt)</dd>
                         </dl>
 
                         @if (Model.ValuesCount > 0)

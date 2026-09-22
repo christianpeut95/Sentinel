@@ -83,7 +83,7 @@
                             <strong>Started:</strong>
                             @if (Model.MonitoringStatus.MonitoringStartedAt.HasValue)
                             {
-                                <span>@Model.MonitoringStatus.MonitoringStartedAt.Value.ToString("g")</span>
+                                <span>@ApplicationTimeZone.Format(Model.MonitoringStatus.MonitoringStartedAt)</span>
                             }
                             else
                             {
@@ -194,8 +194,8 @@
                                                 break;
                                         }
                                     </td>
-                                    <td><small>@message.ReceivedAt.ToString("g")</small></td>
-                                    <td><small>@(message.ProcessedAt?.ToString("g") ?? "-")</small></td>
+                                    <td><small>@ApplicationTimeZone.Format(message.ReceivedAt)</small></td>
+                                    <td><small>@(message.ProcessedAt.HasValue ? ApplicationTimeZone.Format(message.ProcessedAt) : "-")</small></td>
                                     <td>
                                         @if (message.PatientId.HasValue)
                                         {

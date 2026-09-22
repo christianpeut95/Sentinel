@@ -298,7 +298,7 @@
                                                 }
                                             </td>
                                             <td>@report.EntityType</td>
-                                            <td>@((report.ModifiedAt ?? report.CreatedAt).ToString("MMM dd, yyyy"))</td>
+                                            <td>@ApplicationTimeZone.Format(report.ModifiedAt ?? report.CreatedAt, "d")</td>
                                             <td>
                                                 <a href="/Reports/View/@report.Id?t=@DateTime.UtcNow.Ticks" class="btn btn-sm btn-primary">
                                                     <i class="bi bi-play-circle"></i> Run

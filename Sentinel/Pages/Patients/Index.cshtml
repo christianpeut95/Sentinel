@@ -430,7 +430,7 @@ else
                                     @patient.FamilyName, @patient.GivenName
                                 </a>
                             </td>
-                            <td>@(patient.DateOfBirth?.ToString("dd MMM yyyy") ?? "-")</td>
+                            <td>@(patient.DateOfBirth.HasValue ? ApplicationTimeZone.FormatDate(patient.DateOfBirth) : "-")</td>
                             <td>@(age?.ToString() ?? "-")</td>
                             <td>
                                 @if (patient.Gender != null)

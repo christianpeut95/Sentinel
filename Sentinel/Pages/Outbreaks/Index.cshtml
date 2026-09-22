@@ -642,7 +642,7 @@ else
                                     <span class="text-muted">—</span>
                                 }
                             </td>
-                            <td>@outbreak.StartDate.ToString("dd MMM yyyy")</td>
+                            <td>@ApplicationTimeZone.FormatDate(outbreak.StartDate)</td>
                             <td>
                                 @{
                                     var caseCount = Model.CaseCounts.ContainsKey(outbreak.Id) ? Model.CaseCounts[outbreak.Id] : 0;
