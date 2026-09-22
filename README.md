@@ -535,7 +535,9 @@ Contributions are welcome.
 
 ## Documentation
 
-Full documentation: [Sentinel Notion](https://www.notion.so/Sentinel-31b00376e60880bd9f11f04959729498)
+The maintained in-repository documentation is indexed in
+[docs/README.md](docs/README.md). Product guidance is also available in
+[Sentinel Notion](https://www.notion.so/Sentinel-31b00376e60880bd9f11f04959729498).
 
 Maintainer release checks: [docs/releasing.md](docs/releasing.md)
 

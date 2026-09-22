@@ -45,7 +45,7 @@ This stylesheet overrides the default SurveyJS `defaultV2.css` theme to match th
 <link href="~/css/sentinel-survey-theme.css" rel="stylesheet" />
 
 <!-- The optional SurveyJS Creator designer CSS is loaded only by the
-     operator-managed demo override. See docs/deployment/survey-designer.md. -->
+     operator-managed demo override. See ../../../docs/deployment/survey-designer.md. -->
 ```
 
 **⚠️ Order matters!** The Sentinel theme overrides SurveyJS defaults, so it must load **after** `defaultV2.min.css`.
@@ -65,19 +65,12 @@ This stylesheet overrides the default SurveyJS `defaultV2.css` theme to match th
 <link href="~/css/sentinel-survey-theme.css" rel="stylesheet" />
 
 <div id="surveyContainer"></div>
-
-<script>
-    var survey = new Survey.Model(@Html.Raw(Model.SurveyJson));
-
-    // Optional: Add custom CSS class for additional styling
-    survey.css = {
-        ...survey.css,
-        root: "sv-root-modern sn-survey"
-    };
-
-    $("#surveyContainer").Survey({ model: survey });
-</script>
 ```
+
+Create the `Survey.Model` with the application's approved survey-definition
+serialisation path. Do not interpolate user-controlled JSON or text directly
+into a `<script>` block with `Html.Raw`; encode or serialise it through the
+server-side helper used by the survey page.
 
 #### Optional Survey Creator (Designer Mode)
 ```html
@@ -211,14 +204,6 @@ This stylesheet overrides the default SurveyJS `defaultV2.css` theme to match th
 
 ---
 
-## 🔄 Version History
-
-| Version | Date | Changes |
-|---------|------|---------|
-| **1.0** | 2026-04-27 | Initial release matching Sentinel UI Guidelines v0.2 |
-
----
-
 ## 📚 Related Documentation
 
 - **Design System**: `/wwwroot/design/UI Guidelines.html`
@@ -238,5 +223,5 @@ When updating this theme:
 
 ---
 
-**Maintained by**: Sentinel Development Team  
-**Contact**: For questions about design tokens or theming, refer to the Design System documentation.
+For questions about design tokens or theming, refer to the Design System
+documentation.
