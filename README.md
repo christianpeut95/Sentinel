@@ -323,6 +323,23 @@ The application and bundled database are available only on the Docker network. T
 docker pull christianpeut/sentinel:latest
 ```
 
+### Optional visual survey designer
+
+The standard image includes survey rendering and completion, but leaves the
+separately licensed SurveyJS Creator visual designer disabled. For a Windows
+Docker Desktop trial, an opt-in helper can download the matching Creator assets
+directly from their public package source, create a private local folder, and
+set `SURVEYJS_CREATOR_ASSETS_DIR` in `.env`:
+
+```powershell
+.\Scripts\Enable-SurveyDesigner.ps1 -AcceptSurveyJsCreatorTerms
+```
+
+Review the [SurveyJS Creator licensing information](https://surveyjs.io/survey-creator/documentation/overview)
+before using the helper. It does not add Creator assets to the Sentinel image or
+repository. See [optional SurveyJS Creator deployment](docs/deployment/survey-designer.md)
+for the Docker override command and non-Windows deployment instructions.
+
 ### Environment Variables
 
 | Variable | Description | Default |

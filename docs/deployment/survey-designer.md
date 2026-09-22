@@ -32,6 +32,30 @@ Sentinel repository: both asset folders are ignored by Git and excluded from
 the standard Docker build context. Do not copy them into a public Sentinel
 source release or image.
 
+### Windows convenience script
+
+For a Windows Docker Desktop trial, Sentinel includes a convenience script that
+creates a private asset folder, downloads the three required files directly
+from pinned public package versions, and updates the deployment `.env` file.
+It does **not** put Creator assets into the Sentinel image or repository.
+
+Before running it, review the [SurveyJS Creator licensing information](https://surveyjs.io/survey-creator/documentation/overview).
+The script requires explicit acknowledgement because obtaining and using the
+assets remains the deployment operator's responsibility.
+
+From the `Sentinel` deployment directory, run:
+
+```powershell
+.\Scripts\Enable-SurveyDesigner.ps1 -AcceptSurveyJsCreatorTerms
+```
+
+By default, it uses `C:\Users\<your-user>\Sentinel\surveyjs-creator-assets`.
+Use `-AssetsDirectory` to choose another location, `-ComposeDirectory` when
+the deployment files are elsewhere, and `-Force` to replace assets previously
+downloaded by the helper. If `.env` does not yet exist, it is copied from
+`.env.example`; complete its database password and hostname values before
+starting Docker.
+
 ## Enable the demo override
 
 From the `Sentinel` directory, set the host path in `.env`:
