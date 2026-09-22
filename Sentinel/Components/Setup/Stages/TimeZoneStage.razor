@@ -10,7 +10,7 @@
         <EditForm Model="@this" OnValidSubmit="HandleNext">
             <div class="form-group">
                 <label class="form-label required">Time Zone</label>
-                <InputSelect @bind-Value="TimeZoneId" class="form-control">
+                <InputSelect @bind-Value="TimeZoneId" @bind-Value:after="TimeZoneSelectionChangedAsync" class="form-control">
                     <option value="">-- Select Time Zone --</option>
                     @foreach (var tz in _timeZones)
                     {
@@ -22,7 +22,7 @@
 
             <div class="form-group">
                 <label class="form-label required">Date, Number and Language Format</label>
-                <InputSelect @bind-Value="Locale" class="form-control">
+                <InputSelect @bind-Value="Locale" @bind-Value:after="LocaleSelectionChangedAsync" class="form-control">
                     <option value="">-- Select Format --</option>
                     @foreach (var locale in _locales)
                     {
@@ -97,9 +97,25 @@
             return;
         }
 
-        await TimeZoneIdChanged.InvokeAsync(OrganizationRegionalSettings.GetCanonicalTimeZoneId(timeZone));
-        await LocaleChanged.InvokeAsync(culture.Name);
         await OnNext.InvokeAsync();
+    }
+
+    private async Task TimeZoneSelectionChangedAsync()
+    {
+        UpdateSelectedTimeZone();
+
+        if (OrganizationRegionalSettings.TryResolveTimeZone(TimeZoneId, out var timeZone))
+        {
+            await TimeZoneIdChanged.InvokeAsync(OrganizationRegionalSettings.GetCanonicalTimeZoneId(timeZone));
+        }
+    }
+
+    private async Task LocaleSelectionChangedAsync()
+    {
+        if (OrganizationRegionalSettings.TryGetCulture(Locale, out var culture))
+        {
+            await LocaleChanged.InvokeAsync(culture.Name);
+        }
     }
 
     private async Task HandlePrevious()
