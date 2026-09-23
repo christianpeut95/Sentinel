@@ -42,7 +42,18 @@ namespace Sentinel.Services.Telemetry
             return Task.CompletedTask;
         }
 
-        private async Task SubmitUsageReportAsync()
+        /// <summary>
+        /// Submits the minimal, one-time installation report after an
+        /// administrator has completed setup and explicitly opted in to remote
+        /// usage telemetry. This does not include runtime details, activity,
+        /// configuration, organisation, user, or patient information.
+        /// </summary>
+        public Task SubmitInstallationReportAsync()
+        {
+            return SubmitUsageReportAsync(isInstallationReport: true);
+        }
+
+        private async Task SubmitUsageReportAsync(bool isInstallationReport = false)
         {
             try
             {
@@ -58,9 +69,9 @@ namespace Sentinel.Services.Telemetry
                     return;
                 }
 
-                if (!settings.EnableUsageMonitoring)
+                if (!settings.IsSetupCompleted || !settings.EnableUsageMonitoring)
                 {
-                    _logger.LogDebug("Usage monitoring is disabled, skipping report submission");
+                    _logger.LogDebug("Usage monitoring is not enabled for a completed setup, skipping report submission");
                     return;
                 }
 
@@ -73,21 +84,33 @@ namespace Sentinel.Services.Telemetry
                     return;
                 }
 
-                _logger.LogInformation("Building and submitting hourly usage report");
+                _logger.LogInformation(
+                    "Building and submitting {ReportKind} usage report",
+                    isInstallationReport ? "initial installation" : "hourly");
 
-                // Get activity report and reset counters
                 var periodEnd = DateTime.UtcNow;
-                var periodStart = _activityTracker.GetPeriodStart();
-                var activityReport = _activityTracker.GetActivityReportAndReset();
+                var periodStart = isInstallationReport
+                    ? periodEnd
+                    : _activityTracker.GetPeriodStart();
+                var activityReport = isInstallationReport
+                    ? new ActivityReport()
+                    : _activityTracker.GetActivityReportAndReset();
 
-                // Build snapshot of current system state
-                var snapshotBuilder = scope.ServiceProvider.GetRequiredService<UsageSnapshotBuilder>();
-                var snapshot = await snapshotBuilder.BuildSnapshotAsync();
+                // The setup report intentionally contains empty aggregate
+                // sections required by the existing usage-report schema. It
+                // does not query or transmit database counts or runtime data.
+                var snapshot = new SnapshotReport();
+                UsageRuntime? runtime = null;
+                if (!isInstallationReport)
+                {
+                    var snapshotBuilder = scope.ServiceProvider.GetRequiredService<UsageSnapshotBuilder>();
+                    snapshot = await snapshotBuilder.BuildSnapshotAsync();
 
-                // Add non-identifying runtime information accepted by the usage API.
-                var systemInfoProvider = scope.ServiceProvider.GetRequiredService<SystemInfoProvider>();
-                var dbContext = scope.ServiceProvider.GetRequiredService<Sentinel.Data.ApplicationDbContext>();
-                var runtime = await systemInfoProvider.BuildUsageRuntimeAsync(dbContext);
+                    // Add non-identifying runtime information accepted by the usage API.
+                    var systemInfoProvider = scope.ServiceProvider.GetRequiredService<SystemInfoProvider>();
+                    var dbContext = scope.ServiceProvider.GetRequiredService<Sentinel.Data.ApplicationDbContext>();
+                    runtime = await systemInfoProvider.BuildUsageRuntimeAsync(dbContext);
+                }
 
                 // Build complete usage report
                 var usageReport = new UsageReport
@@ -110,15 +133,22 @@ namespace Sentinel.Services.Telemetry
 
                 // Submit report to API
                 var client = scope.ServiceProvider.GetRequiredService<UsageReportClient>();
-                var success = await client.SubmitUsageReportAsync(usageReport);
+                using var timeout = isInstallationReport
+                    ? new CancellationTokenSource(TimeSpan.FromSeconds(10))
+                    : null;
+                var success = await client.SubmitUsageReportAsync(usageReport, timeout?.Token ?? CancellationToken.None);
 
                 if (success)
                 {
-                    _logger.LogInformation("Hourly usage report submitted successfully");
+                    _logger.LogInformation(
+                        "{ReportKind} usage report submitted successfully",
+                        isInstallationReport ? "Initial installation" : "Hourly");
                 }
                 else
                 {
-                    _logger.LogWarning("Failed to submit hourly usage report");
+                    _logger.LogWarning(
+                        "Failed to submit {ReportKind} usage report",
+                        isInstallationReport ? "initial installation" : "hourly");
                 }
             }
             catch (Exception ex)

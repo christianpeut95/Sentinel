@@ -11,6 +11,9 @@ namespace Sentinel.Services
 {
     public interface IBackupService
     {
+        bool IsBackupConfigured { get; }
+        string? BackupConfigurationIssue { get; }
+        bool IsRestoreConfigured { get; }
         Task<BackupResult> CreateBackupAsync(BackupType backupType);
         Task<List<BackupInfo>> GetBackupHistoryAsync();
         Task<bool> RestoreBackupAsync(int backupId);
@@ -19,11 +22,18 @@ namespace Sentinel.Services
 
     public class BackupService : IBackupService
     {
-        private readonly string _connectionString;
+        private readonly string _applicationConnectionString;
+        private readonly string? _backupConnectionString;
+        private readonly string? _restoreConnectionString;
         private readonly string _backupPath;
         private readonly string _backupRoot;
+        private readonly string _sqlServerBackupRoot;
         private readonly ILogger<BackupService> _logger;
         private readonly IConfiguration _configuration;
+
+        public bool IsBackupConfigured { get; }
+        public string? BackupConfigurationIssue { get; }
+        public bool IsRestoreConfigured { get; }
 
         public BackupService(
             IConfiguration configuration,
@@ -31,8 +41,10 @@ namespace Sentinel.Services
         {
             _configuration = configuration;
             _logger = logger;
-            _connectionString = configuration.GetConnectionString("DefaultConnection")
+            _applicationConnectionString = configuration.GetConnectionString("DefaultConnection")
                 ?? throw new InvalidOperationException("Connection string not found");
+            _backupConnectionString = configuration.GetConnectionString("BackupConnection");
+            _restoreConnectionString = configuration.GetConnectionString("BackupRestoreConnection");
 
             // Get backup path from configuration or use default, handling both null and empty values
             var configuredPath = configuration["Backup:Path"];
@@ -40,12 +52,48 @@ namespace Sentinel.Services
                 ? @"C:\DatabaseBackups\SurveillanceMVP" 
                 : configuredPath;
             _backupRoot = Path.GetFullPath(_backupPath);
+            var configuredSqlServerPath = configuration["Backup:SqlServerPath"];
+            _sqlServerBackupRoot = (string.IsNullOrWhiteSpace(configuredSqlServerPath)
+                ? _backupPath
+                : configuredSqlServerPath).Trim();
 
             // Ensure backup directory exists
             if (!Directory.Exists(_backupRoot))
             {
                 Directory.CreateDirectory(_backupRoot);
             }
+
+            if (string.IsNullOrWhiteSpace(_backupConnectionString))
+            {
+                BackupConfigurationIssue = "A dedicated database backup connection has not been configured.";
+                return;
+            }
+
+            if (_sqlServerBackupRoot.IndexOfAny(new[] { '\r', '\n', '\'' }) >= 0)
+            {
+                BackupConfigurationIssue = "The SQL Server backup path is invalid.";
+                return;
+            }
+
+            try
+            {
+                var applicationDatabase = new SqlConnectionStringBuilder(_applicationConnectionString).InitialCatalog;
+                var backupDatabase = new SqlConnectionStringBuilder(_backupConnectionString).InitialCatalog;
+                if (!string.Equals(applicationDatabase, backupDatabase, StringComparison.OrdinalIgnoreCase))
+                {
+                    BackupConfigurationIssue = "The dedicated backup connection must target the Sentinel application database.";
+                    return;
+                }
+            }
+            catch (ArgumentException)
+            {
+                BackupConfigurationIssue = "The dedicated database backup connection is invalid.";
+                return;
+            }
+
+            IsBackupConfigured = true;
+            IsRestoreConfigured = configuration.GetValue<bool>("Backup:RestoreEnabled")
+                && !string.IsNullOrWhiteSpace(_restoreConnectionString);
         }
 
         private async Task<bool> SupportsCompressionAsync(SqlConnection connection)
@@ -80,18 +128,28 @@ namespace Sentinel.Services
 
             try
             {
+                if (!IsBackupConfigured || _backupConnectionString is null)
+                {
+                    result.Success = false;
+                    result.ErrorMessage = "Backups require administrator configuration.";
+                    result.EndTime = DateTime.UtcNow;
+                    _logger.LogWarning("Backup was requested but is not configured: {Reason}", BackupConfigurationIssue);
+                    return result;
+                }
+
                 var timestamp = DateTime.UtcNow.ToString("yyyyMMdd_HHmmss");
                 var backupFileName = $"SurveillanceMVP_{backupType}_{timestamp}.bak";
                 var fullPath = GetOwnedBackupPath(backupFileName);
+                var sqlServerPath = GetOwnedSqlServerBackupPath(backupFileName);
 
-                using var connection = new SqlConnection(_connectionString);
+                using var connection = new SqlConnection(_backupConnectionString);
                 await connection.OpenAsync();
 
                 // Check if compression is supported
                 bool supportsCompression = await SupportsCompressionAsync(connection);
                 _logger.LogInformation("SQL Server compression support: {Supported}", supportsCompression);
 
-                string backupScript = GetFullBackupScript(fullPath, supportsCompression);
+                string backupScript = GetFullBackupScript(sqlServerPath, supportsCompression);
 
                 using var command = new SqlCommand(backupScript, connection);
                 command.CommandTimeout = 600; // 10 minutes
@@ -125,7 +183,7 @@ namespace Sentinel.Services
 
         private string GetFullBackupScript(string backupPath, bool useCompression)
         {
-            var dbName = new SqlConnectionStringBuilder(_connectionString).InitialCatalog;
+            var dbName = new SqlConnectionStringBuilder(_applicationConnectionString).InitialCatalog;
             var compressionOption = useCompression ? "COMPRESSION," : "";
             
             return $@"
@@ -147,7 +205,7 @@ namespace Sentinel.Services
             var backups = new List<BackupInfo>();
 
             // Get from database log
-            using var connection = new SqlConnection(_connectionString);
+            using var connection = new SqlConnection(_applicationConnectionString);
             await connection.OpenAsync();
 
             var query = @"
@@ -208,9 +266,16 @@ namespace Sentinel.Services
                     return false;
                 }
 
-                var dbName = new SqlConnectionStringBuilder(_connectionString).InitialCatalog;
+                if (!IsRestoreConfigured || _restoreConnectionString is null)
+                {
+                    _logger.LogWarning("Restore requested but no dedicated restore connection is configured.");
+                    return false;
+                }
 
-                using var connection = new SqlConnection(_connectionString);
+                var dbName = new SqlConnectionStringBuilder(_applicationConnectionString).InitialCatalog;
+                var sqlServerPath = GetOwnedSqlServerBackupPath(backupFileName);
+
+                using var connection = new SqlConnection(_restoreConnectionString);
                 await connection.OpenAsync();
 
                 // Set database to single user mode
@@ -224,7 +289,7 @@ namespace Sentinel.Services
                 // Restore backup
                 var restoreScript = $@"
                     RESTORE DATABASE [{dbName}]
-                    FROM DISK = N'{fullPath}'
+                    FROM DISK = N'{sqlServerPath}'
                     WITH REPLACE,
                          RECOVERY,
                          STATS = 10;
@@ -269,7 +334,7 @@ namespace Sentinel.Services
                 }
 
                 // Delete from database log
-                using var connection = new SqlConnection(_connectionString);
+                using var connection = new SqlConnection(_applicationConnectionString);
                 await connection.OpenAsync();
 
                 var query = "DELETE FROM BackupHistory WHERE Id = @BackupId";
@@ -289,7 +354,7 @@ namespace Sentinel.Services
 
         private async Task<string?> GetRecordedBackupFileNameAsync(int backupId)
         {
-            using var connection = new SqlConnection(_connectionString);
+            using var connection = new SqlConnection(_applicationConnectionString);
             await connection.OpenAsync();
 
             const string query = @"
@@ -330,11 +395,27 @@ namespace Sentinel.Services
             return fullPath.StartsWith(rootWithSeparator, StringComparison.OrdinalIgnoreCase);
         }
 
+        private string GetOwnedSqlServerBackupPath(string backupFileName)
+        {
+            if (string.IsNullOrWhiteSpace(backupFileName) ||
+                !string.Equals(backupFileName, Path.GetFileName(backupFileName), StringComparison.Ordinal) ||
+                !backupFileName.EndsWith(".bak", StringComparison.OrdinalIgnoreCase))
+            {
+                throw new InvalidOperationException("The backup filename is invalid.");
+            }
+
+            // This path is evaluated by SQL Server, which can run on a different
+            // operating system from Sentinel. Do not use Path.GetFullPath here:
+            // it would reinterpret a Windows SQL Server path on a Linux app host.
+            var separator = _sqlServerBackupRoot.Contains('\\') ? '\\' : '/';
+            return _sqlServerBackupRoot.TrimEnd('\\', '/') + separator + backupFileName;
+        }
+
         private async Task LogBackupAsync(BackupResult result)
         {
             try
             {
-                using var connection = new SqlConnection(_connectionString);
+                using var connection = new SqlConnection(_applicationConnectionString);
                 await connection.OpenAsync();
 
                 var query = @"

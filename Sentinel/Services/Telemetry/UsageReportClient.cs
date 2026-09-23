@@ -25,7 +25,9 @@ namespace Sentinel.Services.Telemetry
         /// <summary>
         /// Submit a usage report to the Sentinel Feedback API
         /// </summary>
-        public async Task<bool> SubmitUsageReportAsync(UsageReport report)
+        public async Task<bool> SubmitUsageReportAsync(
+            UsageReport report,
+            CancellationToken cancellationToken = default)
         {
             try
             {
@@ -42,7 +44,7 @@ namespace Sentinel.Services.Telemetry
                     report.ReportId, Encoding.UTF8.GetByteCount(json));
 
                 var content = new StringContent(json, Encoding.UTF8, "application/json");
-                var response = await _httpClient.PostAsync(UsageEndpoint, content);
+                var response = await _httpClient.PostAsync(UsageEndpoint, content, cancellationToken);
 
                 if (response.IsSuccessStatusCode)
                 {
@@ -72,6 +74,11 @@ namespace Sentinel.Services.Telemetry
 
                 _logger.LogError("Usage report {ReportId} failed with status {StatusCode}", 
                     report.ReportId, response.StatusCode);
+                return false;
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                _logger.LogWarning("Usage report {ReportId} submission timed out or was cancelled", report.ReportId);
                 return false;
             }
             catch (HttpRequestException ex)

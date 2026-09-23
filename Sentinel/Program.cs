@@ -233,25 +233,42 @@ builder.Services.AddDefaultIdentity<ApplicationUser>(options =>
 builder.Services.AddSingleton<ICommonPasswordDenyList, CommonPasswordDenyList>();
 builder.Services.AddScoped<IPasswordValidator<ApplicationUser>, CommonPasswordValidator>();
 
-// All Sentinel-owned cookies use the __Host- prefix. This requires HTTPS, a
-// host-only cookie, and Path=/, which prevents another application on the
-// same host from overriding an authentication-related cookie.
+// All standard Sentinel deployments use the __Host- prefix. This requires
+// HTTPS, a host-only cookie, and Path=/, which prevents another application
+// on the same host from overriding an authentication-related cookie.
+//
+// The installer has one deliberately narrow exception: its local-evaluation
+// Compose file binds Sentinel to 127.0.0.1 only and opts into this setting.
+// A browser cannot set a __Host- cookie over HTTP, so that mode uses ordinary
+// host-only cookie names and SameAsRequest. It must never be enabled for a
+// network-accessible or production deployment.
 var cookieNameSuffix = builder.Configuration["Security:CookieNameSuffix"]?.Trim();
+var localEvaluationMode = builder.Configuration.GetValue<bool>("Security:LocalEvaluationMode");
 if (!string.IsNullOrEmpty(cookieNameSuffix) &&
     cookieNameSuffix.Any(character => !(char.IsAsciiLetterOrDigit(character) || character is '-' or '_')))
 {
     throw new InvalidOperationException("Security:CookieNameSuffix may contain only letters, digits, hyphens, and underscores.");
 }
 
-string GetSecureCookieName(string name) => string.IsNullOrEmpty(cookieNameSuffix)
-    ? name
-    : $"{name}.{cookieNameSuffix}";
-
-void ConfigureSecureHostCookie(CookieBuilder cookie, string name)
+string GetSentinelCookieName(string name)
 {
-    cookie.Name = GetSecureCookieName(name);
+    if (localEvaluationMode && name.StartsWith("__Host-", StringComparison.Ordinal))
+    {
+        name = name["__Host-".Length..];
+    }
+
+    return string.IsNullOrEmpty(cookieNameSuffix)
+        ? name
+        : $"{name}.{cookieNameSuffix}";
+}
+
+void ConfigureSentinelCookie(CookieBuilder cookie, string name)
+{
+    cookie.Name = GetSentinelCookieName(name);
     cookie.HttpOnly = true;
-    cookie.SecurePolicy = CookieSecurePolicy.Always;
+    cookie.SecurePolicy = localEvaluationMode
+        ? CookieSecurePolicy.SameAsRequest
+        : CookieSecurePolicy.Always;
     cookie.SameSite = SameSiteMode.Lax;
     cookie.Path = "/";
 }
@@ -259,7 +276,7 @@ void ConfigureSecureHostCookie(CookieBuilder cookie, string name)
 // Configure authentication paths
 builder.Services.ConfigureApplicationCookie(options =>
 {
-    ConfigureSecureHostCookie(options.Cookie, "__Host-Sentinel.Auth");
+    ConfigureSentinelCookie(options.Cookie, "__Host-Sentinel.Auth");
     options.LoginPath = "/Identity/Account/Login";
     options.LogoutPath = "/Identity/Account/Logout";
     options.AccessDeniedPath = "/Identity/Account/AccessDenied";
@@ -297,13 +314,13 @@ builder.Services.ConfigureApplicationCookie(options =>
 // application cookie, so apply the same transport and naming requirements.
 builder.Services.Configure<Microsoft.AspNetCore.Authentication.Cookies.CookieAuthenticationOptions>(
     IdentityConstants.ExternalScheme,
-    options => ConfigureSecureHostCookie(options.Cookie, "__Host-Sentinel.External"));
+    options => ConfigureSentinelCookie(options.Cookie, "__Host-Sentinel.External"));
 builder.Services.Configure<Microsoft.AspNetCore.Authentication.Cookies.CookieAuthenticationOptions>(
     IdentityConstants.TwoFactorRememberMeScheme,
-    options => ConfigureSecureHostCookie(options.Cookie, "__Host-Sentinel.TwoFactorRememberMe"));
+    options => ConfigureSentinelCookie(options.Cookie, "__Host-Sentinel.TwoFactorRememberMe"));
 builder.Services.Configure<Microsoft.AspNetCore.Authentication.Cookies.CookieAuthenticationOptions>(
     IdentityConstants.TwoFactorUserIdScheme,
-    options => ConfigureSecureHostCookie(options.Cookie, "__Host-Sentinel.TwoFactorUserId"));
+    options => ConfigureSentinelCookie(options.Cookie, "__Host-Sentinel.TwoFactorUserId"));
 
 // Revalidate the Identity security stamp on every authenticated request. Account
 // lock/disable and access changes update the stamp so existing cookies are rejected
@@ -457,7 +474,7 @@ builder.Services.AddDistributedMemoryCache();
 builder.Services.AddSession(options =>
 {
     options.IdleTimeout = TimeSpan.FromMinutes(30);
-    ConfigureSecureHostCookie(options.Cookie, "__Host-Sentinel.Session");
+    ConfigureSentinelCookie(options.Cookie, "__Host-Sentinel.Session");
     options.Cookie.IsEssential = true;
 });
 
@@ -465,7 +482,7 @@ builder.Services.AddSession(options =>
 // HttpOnly. Giving it its own host-only, HTTPS-only name avoids cookie shadowing.
 builder.Services.AddAntiforgery(options =>
 {
-    ConfigureSecureHostCookie(options.Cookie, "__Host-Sentinel.AntiForgery");
+    ConfigureSentinelCookie(options.Cookie, "__Host-Sentinel.AntiForgery");
 });
 
 builder.Services.AddHsts(options =>
@@ -530,7 +547,8 @@ builder.Services.AddSingleton<Sentinel.Services.Telemetry.ITelemetryService, Sen
 builder.Services.AddSingleton<Sentinel.Services.Telemetry.ActivityTracker>();
 builder.Services.AddScoped<Sentinel.Services.Telemetry.UsageSnapshotBuilder>();
 builder.Services.AddHttpClient<Sentinel.Services.Telemetry.UsageReportClient>();
-builder.Services.AddHostedService<Sentinel.Services.Telemetry.UsageMonitoringHostedService>();
+builder.Services.AddSingleton<Sentinel.Services.Telemetry.UsageMonitoringHostedService>();
+builder.Services.AddHostedService(provider => provider.GetRequiredService<Sentinel.Services.Telemetry.UsageMonitoringHostedService>());
 
 // Error reporting services
 builder.Services.AddSingleton<Sentinel.Services.Telemetry.BreadcrumbTracker>();

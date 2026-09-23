@@ -21,7 +21,7 @@
                 </p>
             </div>
             <div>
-                <button class="btn-sentinel-primary" @onclick="CreateBackup" disabled="@isCreatingBackup">
+                <button class="btn-sentinel-primary" @onclick="CreateBackup" disabled="@(!BackupService.IsBackupConfigured || isCreatingBackup)">
                     @if (isCreatingBackup)
                     {
                         <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
@@ -36,6 +36,19 @@
             </div>
         </div>
     </div>
+
+    @if (!BackupService.IsBackupConfigured)
+    {
+        <div class="sentinel-card mb-4" style="border-left: 4px solid var(--status-outbreak);">
+            <div class="d-flex align-items-center gap-3">
+                <i class="bi bi-exclamation-triangle-fill text-danger fs-4"></i>
+                <div>
+                    <strong>Backups need administrator configuration.</strong>
+                    <div class="text-meta">@(BackupService.BackupConfigurationIssue ?? "Configure a dedicated database backup account before creating backups.")</div>
+                </div>
+            </div>
+        </div>
+    }
 
     <!-- Backup Configuration Section -->
     <div class="sentinel-card mb-4">
@@ -206,8 +219,8 @@
                                         {
                                             <button class="btn btn-outline-primary btn-sm" 
                                                     @onclick="() => ShowRestoreConfirmation(backup)"
-                                                    disabled="@isProcessing"
-                                                    title="Restore from this backup">
+                                                    disabled="@(!BackupService.IsRestoreConfigured || isProcessing)"
+                                                    title="@(BackupService.IsRestoreConfigured ? "Restore from this backup" : "Restore requires a separately configured administrator connection")">
                                                 <i class="bi bi-arrow-counterclockwise"></i>
                                             </button>
                                         }

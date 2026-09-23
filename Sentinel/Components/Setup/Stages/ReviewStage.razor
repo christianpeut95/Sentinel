@@ -4,6 +4,7 @@
 @using Sentinel.Data
 @using Sentinel.Models
 @using Sentinel.Services
+@using Sentinel.Services.Telemetry
 @using System.Text.Json
 @using System.Text.Json.Nodes
 @inject ApplicationDbContext DbContext
@@ -15,6 +16,7 @@
 @inject IConfiguration Configuration
 @inject IWebHostEnvironment Environment
 @inject ILogger<ReviewStage> Logger
+@inject UsageMonitoringHostedService UsageMonitoringService
 
 <div class="stage-card">
     <div class="stage-header">
@@ -460,6 +462,17 @@
                 await SystemSettingsService.CompleteSetupAsync(adminUser.Id, validatedSetupToken);
                 SetupWizardState.Clear();
                 Logger.LogInformation("Setup completed successfully");
+
+                // A setup event is sent only after the completed-setup state is
+                // committed and only when the administrator has opted in. The
+                // service catches failures, so remote telemetry cannot undo
+                // local setup.
+                if (EnableUsageMonitoring)
+                {
+                    _currentStep = "Sending optional installation report...";
+                    StateHasChanged();
+                    await UsageMonitoringService.SubmitInstallationReportAsync();
+                }
             }
 
             // Step 6: Complete

@@ -283,13 +283,15 @@ cp .env.example .env
 # Set DOCKERHUB_USERNAME, SENTINEL_HOSTNAME and ACME_EMAIL in .env.
 # The hostname must already resolve to this server and ports 80 and 443 must
 # be reachable from the internet for the TLS certificate to be issued.
-# Then generate separate SQL Server administrator and application passwords.
+# Then generate separate SQL Server administrator, application and backup passwords.
 # Keep the generated values to letters, digits and ! for safe use in both
 # connection strings and SQL bootstrap scripts.
 SQL_SA_PASSWORD="$(openssl rand -hex 32)Aa1!"
 SQL_APP_PASSWORD="$(openssl rand -hex 32)Bb2!"
+SQL_BACKUP_PASSWORD="$(openssl rand -hex 32)Cc2!"
 sed -i "s|^SQL_SA_PASSWORD=.*|SQL_SA_PASSWORD=$SQL_SA_PASSWORD|" .env
 sed -i "s|^SQL_APP_PASSWORD=.*|SQL_APP_PASSWORD=$SQL_APP_PASSWORD|" .env
+sed -i "s|^SQL_BACKUP_PASSWORD=.*|SQL_BACKUP_PASSWORD=$SQL_BACKUP_PASSWORD|" .env
 chmod 600 .env
 
 # Start stack
@@ -315,7 +317,7 @@ only it to the protected setup volume.
 
 Migrations run automatically on first startup.
 
-The application and bundled database are available only on the Docker network. The proxy is the sole public service and publishes ports 80 and 443. A short-lived bootstrap container creates the `SentinelDb` database and its database-scoped `sentinel_app` login; Sentinel does not connect as SQL Server `sa`. Named volumes retain database data, protected files, Caddy certificates and ASP.NET Core Data Protection keys across restarts.
+The application and bundled database are available only on the Docker network. The proxy is the sole public service and publishes ports 80 and 443. A short-lived bootstrap container creates the `SentinelDb` database, its database-scoped `sentinel_app` login, and the separate `sentinel_backup` login. Sentinel does not connect as SQL Server `sa`. The backup login is limited to creating backups of `SentinelDb`; it is not used for routine application requests. Named volumes retain database data, protected files, backup files, Caddy certificates and ASP.NET Core Data Protection keys across restarts.
 
 ### Pre-built Docker Image
 
@@ -346,12 +348,29 @@ for the Docker override command and non-Windows deployment instructions.
 |---|---|---|
 | `SQL_SA_PASSWORD` | Required SQL Server administrator password, used only for SQL Server and the bootstrap job | None |
 | `SQL_APP_PASSWORD` | Required password for Sentinel's database-scoped `sentinel_app` login | None |
+| `SQL_BACKUP_PASSWORD` | Required password for the dedicated `sentinel_backup` login, used only to create database backups | None |
 | `SENTINEL_HOSTNAME` | Public DNS hostname for the Sentinel site | None |
 | `ACME_EMAIL` | Email address used by Caddy for certificate notices | None |
 | `ASPNETCORE_ENVIRONMENT` | Environment name | `Production` |
 | `Demo__EnableDemoUsers` | Seed demo accounts | `false` |
 | `Demo__EnableDemoMode` | Enable demo mode (test data generator) | `false` |
 | `Demo__ShowDemoBanner` | Show demo banner in UI | `false` |
+
+### Database backups
+
+The Docker deployment automatically configures a separate `sentinel_backup`
+database login and a private shared backup volume. Sentinel writes backup files
+through `/var/lib/sentinel/backups`; SQL Server writes the same files through
+its own `/var/opt/mssql/backups` mount. Do not grant backup privileges to
+`sentinel_app` or use the SQL Server `sa` credential in Sentinel.
+
+For an external or managed SQL Server, configure `ConnectionStrings:BackupConnection`
+with a dedicated login that is scoped to the Sentinel database and has the SQL
+Server `db_backupoperator` role. Configure `Backup:Path` for the Sentinel host
+and `Backup:SqlServerPath` for the path visible to SQL Server. If that cannot be
+provided, leave Sentinel's in-app backup feature unconfigured and use the
+organisation's managed database backup service instead. Database restore is a
+DBA operation and is disabled by default.
 
 ---
 

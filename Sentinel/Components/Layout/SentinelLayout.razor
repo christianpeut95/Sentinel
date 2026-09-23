@@ -4,58 +4,72 @@
 
 <PageTitle>@Title</PageTitle>
 
-<div class="page-wrapper">
-    <!-- Top Navigation Bar -->
-    <header class="navbar-sentinel">
-        <div class="navbar-content">
-            <div class="navbar-brand">
-                <a href="/" class="brand-link">
-                    <i class="bi bi-shield-check"></i>
-                    <span class="brand-text">Sentinel</span>
-                </a>
+<div class="sentinel-layout">
+    <button type="button" class="sidebar-toggle" @onclick="ToggleSidebar" aria-label="Toggle navigation">
+        <i class="bi bi-list"></i>
+    </button>
+
+    <aside class="sentinel-sidebar @(_sidebarOpen ? "open" : null)" aria-label="Primary navigation">
+        <div class="brand">
+            <div class="brand-icon" aria-hidden="true">
+                <svg viewBox="0 0 80 80" focusable="false">
+                    <rect width="80" height="80" rx="10" fill="#0C2A20" />
+                    <g fill="none" stroke="#3DD598" stroke-width="1.5">
+                        <circle cx="40" cy="40" r="12" />
+                        <circle cx="40" cy="40" r="20" opacity="0.55" />
+                        <circle cx="40" cy="40" r="28" opacity="0.25" />
+                    </g>
+                    <circle cx="40" cy="40" r="5" fill="#3DD598" />
+                </svg>
             </div>
+            <span class="brand-name">Sentinel</span>
+        </div>
 
-            <nav class="navbar-menu">
-                <a href="/Dashboard" class="nav-link">
-                    <i class="bi bi-speedometer2"></i> Dashboard
-                </a>
-                <a href="/Patients" class="nav-link">
-                    <i class="bi bi-people"></i> Patients
-                </a>
-                <a href="/Cases" class="nav-link">
-                    <i class="bi bi-folder2-open"></i> Cases
-                </a>
-                <a href="/Tasks" class="nav-link">
-                    <i class="bi bi-check2-square"></i> Tasks
-                </a>
-                <a href="/Settings" class="nav-link active">
-                    <i class="bi bi-gear"></i> Settings
-                </a>
-            </nav>
+        <div class="nav-section">
+            <div class="nav-section-title">Workbench</div>
+            <NavLink href="/Dashboard" class="nav-link" Match="NavLinkMatch.All">Dashboard</NavLink>
+            <NavLink href="/Dashboard/MyTasks" class="nav-link">My Tasks</NavLink>
+            <NavLink href="/Cases" class="nav-link">Cases</NavLink>
+            <NavLink href="/Patients" class="nav-link">Patients</NavLink>
+            <NavLink href="/Contacts" class="nav-link">Contacts</NavLink>
+        </div>
 
-            <div class="navbar-user">
-                <AuthorizeView>
-                    <Authorized>
-                        <span class="user-name">@context.User.Identity?.Name</span>
-                        <a href="/Identity/Account/Logout" class="btn-logout">
-                            <i class="bi bi-box-arrow-right"></i>
-                        </a>
-                    </Authorized>
-                </AuthorizeView>
+        <div class="nav-section">
+            <div class="nav-section-title">Data</div>
+            <NavLink href="/Reports" class="nav-link">Reports</NavLink>
+            <NavLink href="/DataInbox/Index" class="nav-link">Data Inbox</NavLink>
+        </div>
+
+        <div class="nav-section">
+            <div class="nav-section-title">System</div>
+            <NavLink href="/Settings/Index" class="nav-link" Match="NavLinkMatch.Prefix">Settings</NavLink>
+        </div>
+    </aside>
+
+    <main class="sentinel-main">
+        <header class="sentinel-header mb-4">
+            <div>
+                <h1 class="page-title">@(Title ?? "Settings")</h1>
             </div>
-        </div>
-    </header>
+            <div class="header-spacer"></div>
+            <AuthorizeView>
+                <Authorized>
+                    <a class="btn-sentinel-secondary" href="/Identity/Account/Manage/Index">
+                        <i class="bi bi-person-circle me-2"></i>@context.User.Identity?.Name
+                    </a>
+                </Authorized>
+            </AuthorizeView>
+        </header>
 
-    <!-- Main Content Area -->
-    <main class="page-content">
-        <div class="container-fluid">
-            @Body
-        </div>
+        @Body
     </main>
-
 </div>
 
 @code {
     [Parameter]
     public string? Title { get; set; }
+
+    private bool _sidebarOpen;
+
+    private void ToggleSidebar() => _sidebarOpen = !_sidebarOpen;
 }

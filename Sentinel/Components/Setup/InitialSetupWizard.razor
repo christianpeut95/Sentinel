@@ -4,6 +4,7 @@
 @inject ISystemSettingsService SystemSettingsService
 @inject ISetupWizardState SetupWizardState
 @inject NavigationManager Navigation
+@inject IConfiguration Configuration
 @inject ILogger<InitialSetupWizard> Logger
 
 <div class="setup-wizard">
@@ -122,8 +123,8 @@
                                 OrgData="_orgData"
                                 EnableFeedback="_enableFeedback"
                                 EnableUsageMonitoring="_enableUsageMonitoring"
-                                TimeZoneId="_timeZoneId"
-                                Locale="_locale"
+                                TimeZoneId="@_timeZoneId"
+                                Locale="@_locale"
                                 GeoData="_geoData"
                                 BackupData="_backupData"
                                 OnComplete="HandleComplete"
@@ -168,10 +169,18 @@
         new SetupChecklistItem(WizardStage.Review, "Review")
     };
 
-    protected override async Task OnInitializedAsync()
+    protected override void OnInitialized()
     {
-        // No need to check setup completion here - SetupRedirectMiddleware handles this
-        // If we reach this component, we're authorized to be here
+        // The evaluation Compose profile is deliberately loopback-only HTTP.
+        // Prefill settings that are valid for that isolated, non-production
+        // environment so the wizard does not require an invented HTTPS URL or
+        // an arbitrary container path before it can be completed.
+        if (Configuration.GetValue<bool>("Security:LocalEvaluationMode"))
+        {
+            _httpsData.ApplicationUrl = Navigation.BaseUri.TrimEnd('/');
+            _httpsData.EnforceHttps = false;
+            _backupData.BackupPath = "/var/lib/sentinel/backups";
+        }
     }
 
     private void HandleTokenValidated(string setupToken)

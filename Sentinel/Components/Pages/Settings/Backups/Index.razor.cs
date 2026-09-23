@@ -92,7 +92,7 @@ public partial class Index : ComponentBase
             }
             else
             {
-                ShowError("Backup failed. Check the application logs for details.");
+                ShowError(result.ErrorMessage ?? "Backup failed. Check the application logs for details.");
                 Logger.LogError("Backup creation failed: {Error}", result.ErrorMessage);
             }
         }

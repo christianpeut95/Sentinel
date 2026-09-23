@@ -97,6 +97,13 @@
             return;
         }
 
+        // Persist both values to the parent immediately before changing
+        // stages. The change callbacks normally run when a selection changes,
+        // but defaults and browser-restored form values do not necessarily
+        // raise a change event. Without this explicit hand-off, Review can
+        // receive empty values even though this stage displayed valid choices.
+        await TimeZoneIdChanged.InvokeAsync(OrganizationRegionalSettings.GetCanonicalTimeZoneId(timeZone));
+        await LocaleChanged.InvokeAsync(culture.Name);
         await OnNext.InvokeAsync();
     }
 

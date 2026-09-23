@@ -14,6 +14,13 @@ services:
       # Sentinel uses a database-scoped application login. The SQL Server `sa`
       # account is reserved for the one-time/idempotent database bootstrap job.
       - ConnectionStrings__DefaultConnection=Server=sentinel-db,1433;Database=SentinelDb;User Id=sentinel_app;Password=${SQL_APP_PASSWORD:?Set SQL_APP_PASSWORD in .env};Encrypt=True;TrustServerCertificate=True;
+      # Backups use a separate least-privilege database login. SQL Server writes
+      # to its own path on a shared volume; Sentinel reads the same files via its
+      # application-container path.
+      - ConnectionStrings__BackupConnection=Server=sentinel-db,1433;Database=SentinelDb;User Id=sentinel_backup;Password=${SQL_BACKUP_PASSWORD:?Set SQL_BACKUP_PASSWORD in .env};Encrypt=True;TrustServerCertificate=True;
+      - Backup__Path=/var/lib/sentinel/backups
+      - Backup__SqlServerPath=/var/opt/mssql/backups
+      - Backup__RestoreEnabled=false
       # Geocoding configuration
       - Geocoding__Provider=${GEOCODING_PROVIDER:-google}
       - Geocoding__ApiKey=${GEOCODING_API_KEY}
@@ -32,6 +39,7 @@ services:
       - sentinel-file-data:/var/lib/sentinel/files
       - sentinel-setup-data:/var/lib/sentinel/setup
       - sentinel-data-protection-keys:/var/lib/sentinel/keys
+      - sentinel-backup-data:/var/lib/sentinel/backups
     restart: unless-stopped
     depends_on:
       sentinel-db-init:
@@ -75,6 +83,7 @@ services:
       - MSSQL_PID=Developer
     volumes:
       - sentinel-db-data:/var/opt/mssql
+      - sentinel-backup-data:/var/opt/mssql/backups
     restart: unless-stopped
     networks:
       - sentinel-network
@@ -95,13 +104,14 @@ services:
     environment:
       - SQL_SA_PASSWORD=${SQL_SA_PASSWORD:?Set SQL_SA_PASSWORD in .env}
       - SQL_APP_PASSWORD=${SQL_APP_PASSWORD:?Set SQL_APP_PASSWORD in .env}
+      - SQL_BACKUP_PASSWORD=${SQL_BACKUP_PASSWORD:?Set SQL_BACKUP_PASSWORD in .env}
     volumes:
       - ./docker/sql/init-sentinel-app-login.sql:/scripts/init-sentinel-app-login.sql:ro
     entrypoint: ["/bin/sh", "-ec"]
     command:
       - >-
         /opt/mssql-tools18/bin/sqlcmd -C -b -S sentinel-db,1433 -U sa -P "$$SQL_SA_PASSWORD"
-        -v SQL_APP_PASSWORD="$$SQL_APP_PASSWORD"
+        -v SQL_APP_PASSWORD="$$SQL_APP_PASSWORD" SQL_BACKUP_PASSWORD="$$SQL_BACKUP_PASSWORD"
         -i /scripts/init-sentinel-app-login.sql
     restart: "no"
     depends_on:
@@ -118,6 +128,8 @@ volumes:
   sentinel-setup-data:
     driver: local
   sentinel-data-protection-keys:
+    driver: local
+  sentinel-backup-data:
     driver: local
   sentinel-caddy-data:
     driver: local
