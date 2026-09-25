@@ -62,22 +62,10 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Folder Include="Events\Handlers\" />
-    <Folder Include="Pages\ReviewQueue\" />
-    <Folder Include="Sentinel\Pages\Admin\" />
-    <Folder Include="Sentinel\Pages\Cases\Exposures\" />
-    <Folder Include="Tests\Services\HL7\" />
-  </ItemGroup>
-
-  <ItemGroup>
     <None Include="Scripts\**\*.sql" CopyToOutputDirectory="PreserveNewest" />
     <None Update="Security\common-passwords.txt" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <None Update="Security\common-passwords.manifest.json" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <None Remove="migration.sql" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <None Include="Sentinel.slnx" />
   </ItemGroup>
 
   <ItemGroup>
