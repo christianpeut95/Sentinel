@@ -1203,21 +1203,33 @@
             }
         }
 
-        // Separate function to handle lab result saved message
-        function handleLabResultSaved(event) {            if (event.data === 'labResultSaved') {                // Hide modal
-                if (window.currentLabResultModal) {
-                    window.currentLabResultModal.hide();
-                }
-                
-                // Clear the iframe to prevent layout issues on next open
-                setTimeout(function() {
-                    $('#labResultFrame').attr('src', 'about:blank');
-                }, 300);
-                
-                // Refresh the list
+        // Handle messages only from the wizard's own embedded lab-result form.
+        function handleLabResultSaved(event) {
+            const frame = document.getElementById('labResultFrame');
+            if (event.origin !== window.location.origin ||
+                !frame ||
+                event.source !== frame.contentWindow ||
+                !event.data ||
+                typeof event.data !== 'object') {
+                return;
+            }
+
+            if (event.data.type !== 'sentinel.lab-result-saved' &&
+                event.data.type !== 'sentinel.lab-result-cancelled') {
+                return;
+            }
+
+            if (window.currentLabResultModal) {
+                window.currentLabResultModal.hide();
+            }
+
+            // Clear the iframe to prevent layout issues on the next open.
+            setTimeout(function() {
+                $('#labResultFrame').attr('src', 'about:blank');
+            }, 300);
+
+            if (event.data.type === 'sentinel.lab-result-saved') {
                 loadLabResults();
-                
-                // Show success toast
                 showToast('Lab result added successfully!', 'success');
             }
         }
@@ -1271,12 +1283,24 @@
             
             let html = '<div class="list-group mt-3">';
             labResults.forEach(result => {
+                const markers = Array.isArray(result.markers) ? result.markers : [];
+                const markerSummary = markers.length > 0
+                    ? markers.map(marker => {
+                        const name = escapeHtml(marker.pathogenName || 'Marker');
+                        const value = marker.qualitativeResult ||
+                            (marker.quantitativeValue != null
+                                ? `${marker.quantitativeValue}${marker.quantitativeUnit ? ` ${escapeHtml(marker.quantitativeUnit)}` : ''}`
+                                : 'Result recorded');
+                        return `${name}: ${escapeHtml(value)}`;
+                    }).join('<br>')
+                    : 'No marker details recorded';
+
                 html += `
                     <div class="list-group-item">
                         <div class="d-flex justify-content-between align-items-start">
                             <div>
-                                <h6 class="mb-1">${escapeHtml(result.testTypeName || 'Lab Test')}</h6>
-                                <p class="mb-1"><strong>Result:</strong> ${escapeHtml(result.testResultName || 'N/A')}</p>
+                                <h6 class="mb-1">${escapeHtml(result.friendlyId || result.testedDiseaseName || 'Lab Test')}</h6>
+                                <p class="mb-1"><strong>Result:</strong><br>${markerSummary}</p>
                                 <small class="text-muted">Collected: ${result.specimenCollectionDate ? window.SentinelRegionalFormatting.formatDateOnly(result.specimenCollectionDate) : 'N/A'}</small>
                             </div>
                             <button type="button" class="btn btn-sm btn-outline-danger js-delete-lab-result" data-result-id="${escapeHtml(result.id)}">

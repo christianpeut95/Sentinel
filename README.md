@@ -1,6 +1,6 @@
 <div align="center">
   <a href="https://sentinelsurveillance.app">
-    <img src="https://raw.githubusercontent.com/christianpeut95/Sentinel/master/Sentinel/wwwroot/design/sentinel-hz-w300-1024px%20(1).png" alt="Sentinel" width="480" />
+    <img src="https://raw.githubusercontent.com/christianpeut95/Sentinel/master/docs/design/sentinel-wordmark.png" alt="Sentinel" width="480" />
   </a>
   <br /><br />
 
@@ -27,7 +27,7 @@ A publicly hosted demo is available at **https://demo.sentinelsurveillance.app**
 
 **Sentinel** is an infectious disease surveillance platform for epidemiologists and public health units. It provides a configurable system for case management, outbreak investigation, and contact tracing without requiring code changes for most surveillance requirements.
 
-**Technology:** ASP.NET Core (.NET 10), Entity Framework Core 9, SQL Server 2019+, Blazor
+**Technology:** ASP.NET Core 10 (.NET 10), Entity Framework Core 10, SQL Server 2019+ (SQL Server 2022 in the bundled Docker deployment), Blazor
 
 **Status:** v1.0.0 beta 1 — suitable for evaluation and
 organisation-led deployment validation.
@@ -158,7 +158,7 @@ Sentinel uses a data-forward interface designed for high-density information and
 rapid decision-making. The design system uses Geist Sans and Geist Mono, a 4 px
 spacing scale, and defined status colours for outbreak, watch, clear and
 informational states. The detailed reference is available at
-[UI Guidelines](Sentinel/wwwroot/design/UI%20Guidelines.html).
+[UI Guidelines](docs/design/ui-guidelines.html).
 
 ---
 

@@ -743,6 +743,10 @@ namespace Sentinel.Data
                 .HasForeignKey(ee => ee.ContactClassificationId)
                 .OnDelete(DeleteBehavior.Restrict);
 
+            builder.Entity<ContactClassification>()
+                .HasIndex(cc => cc.Name)
+                .IsUnique();
+
             builder.Entity<ExposureEvent>()
                 .HasIndex(ee => ee.ExposedCaseId);
 

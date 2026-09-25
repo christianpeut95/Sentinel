@@ -18,6 +18,7 @@ public class ReviewModel : PageModel
     private readonly ApplicationDbContext _context;
     private readonly ICollectionMappingService _collectionMappingService;
     private readonly ISurveyMappingService _surveyMappingService;
+    private readonly ICaseAccessService _caseAccessService;
     private readonly IPermissionService _permissionService;
     private readonly ILogger<ReviewModel> _logger;
 
@@ -26,6 +27,7 @@ public class ReviewModel : PageModel
         ApplicationDbContext context,
         ICollectionMappingService collectionMappingService,
         ISurveyMappingService surveyMappingService,
+        ICaseAccessService caseAccessService,
         IPermissionService permissionService,
         ILogger<ReviewModel> logger)
     {
@@ -33,6 +35,7 @@ public class ReviewModel : PageModel
         _context = context;
         _collectionMappingService = collectionMappingService;
         _surveyMappingService = surveyMappingService;
+        _caseAccessService = caseAccessService;
         _permissionService = permissionService;
         _logger = logger;
     }
@@ -119,6 +122,121 @@ public class ReviewModel : PageModel
         }
 
         TempData["ErrorMessage"] = "Failed to dismiss review.";
+        return RedirectToPage(new { id });
+    }
+
+    /// <summary>
+    /// Re-runs automatic mappings for a survey that was saved successfully but
+    /// produced a <c>SurveyMappingError</c> review item. The stored response is
+    /// deliberately used server-side: a browser must not retrieve, resend, or
+    /// alter a submitted survey in order to retry its mapping.
+    /// </summary>
+    public async Task<IActionResult> OnPostReprocessSurveyAsync(int id)
+    {
+        _logger.LogInformation("Survey mapping retry requested for review {ReviewId}", id);
+
+        if (!await CanResolveReviewsAsync())
+        {
+            _logger.LogWarning("Survey mapping retry was denied because the caller cannot resolve review {ReviewId}", id);
+            return Forbid();
+        }
+
+        // Query through the normal filters first, then explicitly enforce case
+        // access. A review ID must never be a way to retry data for a case the
+        // caller cannot access.
+        var review = await _context.ReviewQueue
+            .FirstOrDefaultAsync(r => r.Id == id && r.ReviewStatus == ReviewStatuses.Pending);
+
+        if (review is null ||
+            !string.Equals(review.EntityType, "SurveyResponse", StringComparison.Ordinal) ||
+            !string.Equals(review.ChangeType, "SurveyMappingError", StringComparison.Ordinal) ||
+            !review.CaseId.HasValue ||
+            !review.TaskId.HasValue ||
+            !await _caseAccessService.CanAccessCaseAsync(review.CaseId.Value))
+        {
+            _logger.LogWarning("Survey mapping retry could not access eligible review {ReviewId}", id);
+            return NotFound();
+        }
+
+        var task = await _context.CaseTasks
+            .Include(t => t.Case)
+            .Include(t => t.TaskTemplate)
+            .FirstOrDefaultAsync(t => t.Id == review.TaskId.Value && t.CaseId == review.CaseId.Value);
+
+        if (task is null || string.IsNullOrWhiteSpace(task.SurveyResponseJson))
+        {
+            _logger.LogWarning(
+                "Survey mapping retry could not load a saved response for review {ReviewId} and task {TaskId}",
+                id,
+                review.TaskId);
+            return SurveyRetryFailed(id);
+        }
+
+        try
+        {
+            var responses = JsonSerializer.Deserialize<Dictionary<string, object>>(task.SurveyResponseJson);
+            if (responses is null || responses.Count == 0)
+            {
+                _logger.LogWarning("Survey mapping retry found an empty response for review {ReviewId}", id);
+                return SurveyRetryFailed(id);
+            }
+
+            var mappings = await _surveyMappingService.GetActiveMappingsAsync(
+                task.TaskTemplate?.SurveyTemplateId,
+                task.TaskTemplateId,
+                task.Case?.DiseaseId);
+
+            if (mappings.Count == 0)
+            {
+                _logger.LogWarning("Survey mapping retry found no active mappings for review {ReviewId}", id);
+                return SurveyRetryFailed(id);
+            }
+
+            var result = await _surveyMappingService.ExecuteMappingsAsync(task.Id, responses, mappings);
+            if (!result.Success || result.ErrorCount > 0)
+            {
+                _logger.LogWarning(
+                    "Survey mapping retry for review {ReviewId} completed with {ErrorCount} errors",
+                    id,
+                    result.ErrorCount);
+                return SurveyRetryFailed(id);
+            }
+
+            if (!await _reviewService.ConfirmReviewAsync(
+                    id,
+                    "Automatic survey mapping reprocessed successfully."))
+            {
+                _logger.LogWarning("Survey mapping retry could not resolve review {ReviewId} after successful processing", id);
+                return SurveyRetryFailed(id);
+            }
+
+            _logger.LogInformation(
+                "Survey mapping retry succeeded for review {ReviewId}, task {TaskId}; {CollectionReviews} collection items require review",
+                id,
+                task.Id,
+                result.CollectionItemsForReview);
+
+            TempData["SuccessMessage"] = "Survey mapping reprocessed successfully. The review item has been resolved.";
+            return RedirectToPage("./Index");
+        }
+        catch (JsonException ex)
+        {
+            _logger.LogWarning(ex, "Survey mapping retry found malformed saved JSON for review {ReviewId}", id);
+            return SurveyRetryFailed(id);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Survey mapping retry failed for review {ReviewId}", id);
+            return SurveyRetryFailed(id);
+        }
+    }
+
+    private IActionResult SurveyRetryFailed(int id)
+    {
+        // Mapping failures can contain submitted answers and should never be
+        // returned to the browser. The structured log entries above provide
+        // the diagnostic trail for authorised support staff.
+        TempData["ErrorMessage"] = "The survey could not be reprocessed. Please try again. If the problem persists, contact an administrator.";
         return RedirectToPage(new { id });
     }
 

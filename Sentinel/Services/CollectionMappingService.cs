@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
@@ -6,6 +7,8 @@ using Sentinel.Data;
 using Sentinel.Models;
 using Sentinel.Models.Reporting;
 using Sentinel.Services.Reporting;
+using System.Globalization;
+using System.Linq.Expressions;
 using System.Reflection;
 using System.Text;
 
@@ -18,11 +21,45 @@ namespace Sentinel.Services;
 /// </summary>
 public class CollectionMappingService : ICollectionMappingService
 {
+    private const int MaximumDuplicateCandidates = 250;
+    private const int MaximumDuplicateMatches = 25;
     private readonly ApplicationDbContext _context;
     private readonly IReportFieldMetadataService _fieldMetadataService;
     private readonly ILogger<CollectionMappingService> _logger;
     private readonly IPatientIdGeneratorService _patientIdGenerator;
     private readonly ICaseIdGeneratorService _caseIdGenerator;
+
+    private sealed record DuplicateCandidateField(
+        string ConfiguredFieldPath,
+        string PropertyName,
+        Type PropertyType,
+        object Value);
+
+    // Related entities are created from an administrator-controlled collection-mapping
+    // configuration. These fields are deliberately not supplied by the reporting
+    // metadata service: that service hides foreign keys from report and mapper UIs.
+    // Keep server-managed/security fields out of this narrow write path while allowing
+    // real relationship keys such as Case.DiseaseId and ExposureEvent.SourceCaseId.
+    private static readonly HashSet<string> RelatedEntitySystemManagedPropertyNames = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "Id",
+        "FriendlyId",
+        "CreatedDate",
+        "CreatedByUserId",
+        "LastModified",
+        "LastModifiedByUserId",
+        "IsDeleted",
+        "DeletedAt",
+        "DeletedByUserId",
+        "RowVersion",
+        "PasswordHash",
+        "SecurityStamp",
+        "ConcurrencyStamp",
+        "AccessFailedCount",
+        "LockoutEnd",
+        "LockoutEnabled",
+        "TwoFactorEnabled"
+    };
     
     public CollectionMappingService(
         ApplicationDbContext context,
@@ -89,6 +126,12 @@ public class CollectionMappingService : ICollectionMappingService
         );
     }
 
+    public Task<List<ReportFieldMetadata>> GetRelatedEntityTargetFieldsAsync(string entityType)
+    {
+        var persistenceEntityType = GetPersistenceEntityType(entityType);
+        return Task.FromResult(GetRelatedEntityWritableFields(persistenceEntityType));
+    }
+
     // "Contact" is the user-facing name for a contact Case. Contacts are persisted
     // in the Cases table with Type = Contact, rather than in a separate table.
     private static bool IsContactCaseAlias(string entityType) =>
@@ -96,6 +139,67 @@ public class CollectionMappingService : ICollectionMappingService
 
     private static string GetPersistenceEntityType(string entityType) =>
         IsContactCaseAlias(entityType) ? nameof(Case) : entityType;
+
+    private static string NormalizeEntityFieldPath(
+        string fieldPath,
+        string configuredEntityType,
+        string persistenceEntityType)
+    {
+        foreach (var entityType in new[] { configuredEntityType, persistenceEntityType }
+                     .Distinct(StringComparer.OrdinalIgnoreCase))
+        {
+            var prefix = $"{entityType}.";
+            if (fieldPath.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+            {
+                return fieldPath[prefix.Length..];
+            }
+        }
+
+        return fieldPath;
+    }
+
+    /// <summary>
+    /// Gets direct, writable EF scalar properties for a related entity. This is kept
+    /// separate from report field discovery so required relationship keys can be
+    /// mapped without exposing those keys in reporting or configuration pickers.
+    /// </summary>
+    private List<ReportFieldMetadata> GetRelatedEntityWritableFields(string persistenceEntityType)
+    {
+        var entityMetadata = _context.Model.GetEntityTypes()
+            .FirstOrDefault(entity => !entity.IsOwned() &&
+                                      entity.ClrType.Name.Equals(persistenceEntityType, StringComparison.OrdinalIgnoreCase));
+
+        if (entityMetadata == null)
+        {
+            return new List<ReportFieldMetadata>();
+        }
+
+        return entityMetadata.GetProperties()
+            .Where(property =>
+                !property.IsShadowProperty() &&
+                !property.IsPrimaryKey() &&
+                !IsSystemManagedRelatedEntityProperty(property.Name))
+            .Select(property => new ReportFieldMetadata
+            {
+                EntityType = persistenceEntityType,
+                FieldPath = property.Name,
+                DisplayName = property.Name,
+                DataType = (Nullable.GetUnderlyingType(property.ClrType) ?? property.ClrType).Name,
+                IsNullable = property.IsNullable,
+                IsForeignKey = property.IsForeignKey(),
+                IsPrimaryKey = false,
+                IsNavigationProperty = false,
+                IsCollection = false,
+                IsCustomField = false,
+                IsEnum = (Nullable.GetUnderlyingType(property.ClrType) ?? property.ClrType).IsEnum
+            })
+            .ToList();
+    }
+
+    private static bool IsSystemManagedRelatedEntityProperty(string propertyName) =>
+        RelatedEntitySystemManagedPropertyNames.Contains(propertyName) ||
+        propertyName.EndsWith("ByUserId", StringComparison.OrdinalIgnoreCase) ||
+        propertyName.EndsWith("ModifiedBy", StringComparison.OrdinalIgnoreCase);
 
     private static bool EntityTypesReferToSameCaseRow(string requestedEntityType, string createdEntityType) =>
         requestedEntityType.Equals(createdEntityType, StringComparison.OrdinalIgnoreCase) ||
@@ -188,16 +292,19 @@ public class CollectionMappingService : ICollectionMappingService
         // ? CRITICAL FIX: Validate RelatedEntity mappings (prevent "Id" as target)
         foreach (var relatedEntity in config.RelatedEntities)
         {
-            var relatedFields = await GetEntityFieldsAsync(relatedEntity.EntityType);
+            // "Contact" is a logical label in collection mappings. It is persisted
+            // as a Case row, so validate its fields against the actual persistence
+            // entity just as CreateRelatedEntityAsync does below.
+            var persistenceEntityType = GetPersistenceEntityType(relatedEntity.EntityType);
+            var relatedFields = GetRelatedEntityWritableFields(persistenceEntityType);
             
             foreach (var mapping in relatedEntity.Mappings)
             {
                 // Normalize field path
-                var normalizedFieldPath = mapping.TargetFieldPath;
-                if (normalizedFieldPath.StartsWith($"{relatedEntity.EntityType}.", StringComparison.OrdinalIgnoreCase))
-                {
-                    normalizedFieldPath = normalizedFieldPath.Substring(relatedEntity.EntityType.Length + 1);
-                }
+                var normalizedFieldPath = NormalizeEntityFieldPath(
+                    mapping.TargetFieldPath,
+                    relatedEntity.EntityType,
+                    persistenceEntityType);
                 
                 // ? CRITICAL: Reject "Id" as target field path (primary keys are auto-generated)
                 if (normalizedFieldPath.Equals("Id", StringComparison.OrdinalIgnoreCase))
@@ -881,7 +988,7 @@ public class CollectionMappingService : ICollectionMappingService
         // Resolve logical Contact mappings to the persisted Case entity while retaining
         // the logical name in CreatedEntityInfo for related-entity references.
         var persistenceEntityType = GetPersistenceEntityType(config.EntityType);
-        var fields = await GetEntityFieldsAsync(persistenceEntityType);
+        var fields = GetRelatedEntityWritableFields(persistenceEntityType);
         var entityData = new Dictionary<string, object>();
         
         // Process mappings
@@ -898,7 +1005,11 @@ public class CollectionMappingService : ICollectionMappingService
             
             if (value != null)
             {
-                entityData[mapping.TargetFieldPath] = value;
+                var normalizedFieldPath = NormalizeEntityFieldPath(
+                    mapping.TargetFieldPath,
+                    config.EntityType,
+                    persistenceEntityType);
+                entityData[normalizedFieldPath] = value;
             }
             else if (mapping.Required)
             {
@@ -1488,53 +1599,355 @@ public class CollectionMappingService : ICollectionMappingService
         Dictionary<string, object> searchData,
         MatchingConfig matchingConfig)
     {
+        var persistenceEntityType = GetPersistenceEntityType(entityType);
+        var entityMetadata = _context.Model.GetEntityTypes()
+            .FirstOrDefault(e => !e.IsOwned() &&
+                                 e.ClrType.Name.Equals(persistenceEntityType, StringComparison.OrdinalIgnoreCase));
+
+        if (entityMetadata == null)
+        {
+            _logger.LogWarning("Skipping collection duplicate check for unknown entity type {EntityType}", entityType);
+            return new List<EntityMatch>();
+        }
+
+        // A mapping configuration is administrator-supplied data, not executable
+        // query text. Resolve it strictly to direct scalar EF properties before
+        // using it to construct an expression tree. This prevents navigation
+        // traversal and dynamic-query injection, while preserving EF Core query
+        // parameterisation for every submitted value.
+        var candidateFields = BuildDuplicateCandidateFields(entityMetadata, entityType, searchData, matchingConfig);
+        if (candidateFields.Count == 0)
+        {
+            _logger.LogWarning(
+                "Skipping collection duplicate check for {EntityType}: no configured direct scalar field had a usable value",
+                entityType);
+            return new List<EntityMatch>();
+        }
+
+        var candidates = await GetDuplicateCandidatesAsync(entityMetadata.ClrType, candidateFields);
         var matches = new List<EntityMatch>();
-        
-        // Get entity CLR type
-        var clrType = _context.Model.GetEntityTypes()
-            .FirstOrDefault(e => e.ClrType.Name == entityType)
-            ?.ClrType;
-        
-        if (clrType == null)
-            return matches;
-        
-        // Get DbSet for entity type
-        var dbSetProperty = _context.GetType().GetProperties()
-            .FirstOrDefault(p => p.PropertyType.IsGenericType &&
-                                p.PropertyType.GetGenericTypeDefinition() == typeof(DbSet<>) &&
-                                p.PropertyType.GetGenericArguments()[0] == clrType);
-        
-        if (dbSetProperty == null)
-            return matches;
-        
-        var dbSet = dbSetProperty.GetValue(_context) as IQueryable<object>;
-        if (dbSet == null)
-            return matches;
-        
-        // TODO: Implement proper LINQ dynamic querying
-        // For now, load all and filter in memory (not scalable - Phase 3 improvement)
-        var allEntities = await dbSet.ToListAsync();
-        
-        foreach (var entity in allEntities)
+
+        foreach (var entity in candidates)
         {
             var score = CalculateMatchScore(entity, searchData, matchingConfig);
             
             if (score >= matchingConfig.ConfidenceThreshold)
             {
-                var idProperty = clrType.GetProperty("Id");
-                var entityId = idProperty?.GetValue(entity) as Guid? ?? Guid.Empty;
+                var idProperty = entityMetadata.ClrType.GetProperty("Id");
+                var entityId = idProperty?.GetValue(entity) is Guid id ? id : Guid.Empty;
                 
                 matches.Add(new EntityMatch
                 {
                     ExistingEntityId = entityId,
                     EntityType = entityType,
                     ConfidenceScore = score,
-                    MatchedFields = ExtractMatchedFields(entity, matchingConfig.MatchOnFields)
+                    MatchedFields = ExtractMatchedFields(entity, matchingConfig.MatchOnFields, entityType)
                 });
             }
         }
         
-        return matches.OrderByDescending(m => m.ConfidenceScore).ToList();
+        if (matches.Count > MaximumDuplicateMatches)
+        {
+            _logger.LogWarning(
+                "Collection duplicate check for {EntityType} produced more than {MatchLimit} matches. Returning the highest-confidence matches only.",
+                entityType,
+                MaximumDuplicateMatches);
+        }
+
+        return matches
+            .OrderByDescending(m => m.ConfidenceScore)
+            .ThenBy(m => m.ExistingEntityId)
+            .Take(MaximumDuplicateMatches)
+            .ToList();
+    }
+
+    private List<DuplicateCandidateField> BuildDuplicateCandidateFields(
+        Microsoft.EntityFrameworkCore.Metadata.IEntityType entityMetadata,
+        string entityType,
+        IReadOnlyDictionary<string, object> searchData,
+        MatchingConfig matchingConfig)
+    {
+        var fields = new List<DuplicateCandidateField>();
+
+        foreach (var configuredFieldPath in matchingConfig.MatchOnFields.Distinct(StringComparer.OrdinalIgnoreCase))
+        {
+            if (!TryGetDirectScalarProperty(entityMetadata, entityType, configuredFieldPath, out var propertyName, out var propertyType))
+            {
+                _logger.LogWarning(
+                    "Ignoring unsafe or unsupported collection duplicate field {FieldPath} for {EntityType}. Only direct mapped scalar properties are supported.",
+                    configuredFieldPath,
+                    entityType);
+                continue;
+            }
+
+            if (!TryGetSearchValue(searchData, entityType, configuredFieldPath, out var searchValue) ||
+                !TryConvertCandidateValue(searchValue, propertyType, out var typedValue))
+            {
+                continue;
+            }
+
+            fields.Add(new DuplicateCandidateField(configuredFieldPath, propertyName, propertyType, typedValue));
+        }
+
+        return fields;
+    }
+
+    private async Task<List<object>> GetDuplicateCandidatesAsync(
+        Type clrType,
+        IReadOnlyList<DuplicateCandidateField> candidateFields)
+    {
+        var genericMethod = typeof(CollectionMappingService)
+            .GetMethod(nameof(GetDuplicateCandidatesForEntityAsync), BindingFlags.Instance | BindingFlags.NonPublic)
+            ?.MakeGenericMethod(clrType)
+            ?? throw new InvalidOperationException("Unable to build the collection duplicate candidate query.");
+
+        var task = (Task<List<object>>)genericMethod.Invoke(this, new object[] { candidateFields })!;
+        return await task;
+    }
+
+    private async Task<List<object>> GetDuplicateCandidatesForEntityAsync<TEntity>(
+        IReadOnlyList<DuplicateCandidateField> candidateFields)
+        where TEntity : class
+    {
+        var predicate = BuildDuplicateCandidatePredicate<TEntity>(candidateFields);
+        IQueryable<TEntity> query = _context.Set<TEntity>()
+            .AsNoTracking()
+            .Where(predicate);
+
+        var idProperty = typeof(TEntity).GetProperty("Id", BindingFlags.Instance | BindingFlags.Public);
+        if (idProperty != null && IsSupportedDuplicatePropertyType(idProperty.PropertyType))
+        {
+            query = OrderByProperty(query, idProperty);
+        }
+
+        var candidates = await query
+            .Take(MaximumDuplicateCandidates + 1)
+            .ToListAsync();
+
+        if (candidates.Count > MaximumDuplicateCandidates)
+        {
+            _logger.LogWarning(
+                "Collection duplicate candidate search reached the {CandidateLimit} record limit for entity {EntityType}. Only bounded candidates were scored.",
+                MaximumDuplicateCandidates,
+                typeof(TEntity).Name);
+            candidates.RemoveAt(candidates.Count - 1);
+        }
+
+        return candidates.Cast<object>().ToList();
+    }
+
+    private static IQueryable<TEntity> OrderByProperty<TEntity>(IQueryable<TEntity> query, PropertyInfo property)
+    {
+        var parameter = Expression.Parameter(typeof(TEntity), "entity");
+        var propertyAccess = Expression.Property(parameter, property);
+        var keySelector = Expression.Lambda(propertyAccess, parameter);
+        var orderBy = typeof(Queryable).GetMethods(BindingFlags.Public | BindingFlags.Static)
+            .Single(method => method.Name == nameof(Queryable.OrderBy) && method.GetParameters().Length == 2)
+            .MakeGenericMethod(typeof(TEntity), property.PropertyType);
+
+        return (IQueryable<TEntity>)orderBy.Invoke(null, new object[] { query, keySelector })!;
+    }
+
+    private static Expression<Func<TEntity, bool>> BuildDuplicateCandidatePredicate<TEntity>(
+        IReadOnlyList<DuplicateCandidateField> candidateFields)
+    {
+        var parameter = Expression.Parameter(typeof(TEntity), "entity");
+        Expression? combined = null;
+
+        foreach (var field in candidateFields)
+        {
+            var property = Expression.Property(parameter, field.PropertyName);
+            var fieldPredicate = BuildCandidateFieldPredicate(property, field);
+            combined = combined == null ? fieldPredicate : Expression.OrElse(combined, fieldPredicate);
+        }
+
+        return Expression.Lambda<Func<TEntity, bool>>(combined ?? Expression.Constant(false), parameter);
+    }
+
+    private static Expression BuildCandidateFieldPredicate(Expression property, DuplicateCandidateField field)
+    {
+        var underlyingType = Nullable.GetUnderlyingType(field.PropertyType) ?? field.PropertyType;
+
+        if (underlyingType == typeof(string))
+        {
+            var value = (string)field.Value;
+            var prefix = value[..Math.Min(value.Length, 3)];
+            var isNotNull = Expression.NotEqual(property, Expression.Constant(null, property.Type));
+            var startsWith = Expression.Call(
+                property,
+                nameof(string.StartsWith),
+                Type.EmptyTypes,
+                Expression.Constant(prefix));
+            return Expression.AndAlso(isNotNull, startsWith);
+        }
+
+        Expression valueExpression = Expression.Constant(field.Value, underlyingType);
+        if (Nullable.GetUnderlyingType(field.PropertyType) != null)
+        {
+            valueExpression = Expression.Convert(valueExpression, field.PropertyType);
+        }
+
+        return Expression.Equal(property, valueExpression);
+    }
+
+    private static bool TryGetDirectScalarProperty(
+        Microsoft.EntityFrameworkCore.Metadata.IEntityType entityMetadata,
+        string entityType,
+        string configuredFieldPath,
+        out string propertyName,
+        out Type propertyType)
+    {
+        propertyName = string.Empty;
+        propertyType = typeof(object);
+
+        if (!TryGetDirectPropertyName(entityType, configuredFieldPath, out var candidatePropertyName))
+        {
+            return false;
+        }
+
+        var property = entityMetadata.FindProperty(candidatePropertyName);
+        if (property?.PropertyInfo == null || property.IsPrimaryKey() || !IsSupportedDuplicatePropertyType(property.ClrType))
+        {
+            return false;
+        }
+
+        propertyName = property.Name;
+        propertyType = property.ClrType;
+        return true;
+    }
+
+    private static bool TryGetDirectPropertyName(string entityType, string configuredFieldPath, out string propertyName)
+    {
+        propertyName = string.Empty;
+        if (string.IsNullOrWhiteSpace(configuredFieldPath))
+        {
+            return false;
+        }
+
+        var parts = configuredFieldPath.Split('.', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        if (parts.Length == 1)
+        {
+            propertyName = parts[0];
+            return true;
+        }
+
+        if (parts.Length == 2 && parts[0].Equals(entityType, StringComparison.OrdinalIgnoreCase))
+        {
+            propertyName = parts[1];
+            return true;
+        }
+
+        return false;
+    }
+
+    private static bool IsSupportedDuplicatePropertyType(Type type)
+    {
+        var underlyingType = Nullable.GetUnderlyingType(type) ?? type;
+        return underlyingType == typeof(string) ||
+               underlyingType == typeof(Guid) ||
+               underlyingType == typeof(DateTime) ||
+               underlyingType == typeof(DateTimeOffset) ||
+               underlyingType == typeof(DateOnly) ||
+               underlyingType == typeof(TimeOnly) ||
+               underlyingType == typeof(decimal) ||
+               underlyingType.IsEnum ||
+               underlyingType.IsPrimitive;
+    }
+
+    private static bool TryGetSearchValue(
+        IReadOnlyDictionary<string, object> searchData,
+        string entityType,
+        string configuredFieldPath,
+        out object searchValue)
+    {
+        if (searchData.TryGetValue(configuredFieldPath, out searchValue!))
+        {
+            return true;
+        }
+
+        if (TryGetDirectPropertyName(entityType, configuredFieldPath, out var propertyName) &&
+            searchData.TryGetValue(propertyName, out searchValue!))
+        {
+            return true;
+        }
+
+        searchValue = null!;
+        return false;
+    }
+
+    private static bool TryConvertCandidateValue(object value, Type propertyType, out object typedValue)
+    {
+        typedValue = null!;
+        value = value is JValue jValue ? jValue.Value! : value;
+        if (value == null)
+        {
+            return false;
+        }
+
+        var targetType = Nullable.GetUnderlyingType(propertyType) ?? propertyType;
+        var text = Convert.ToString(value, CultureInfo.InvariantCulture)?.Trim();
+        if (targetType == typeof(string))
+        {
+            if (string.IsNullOrEmpty(text))
+            {
+                return false;
+            }
+
+            typedValue = text;
+            return true;
+        }
+
+        try
+        {
+            if (targetType == typeof(Guid))
+            {
+                if (!Guid.TryParse(text, out var parsedGuid)) return false;
+                typedValue = parsedGuid;
+            }
+            else if (targetType == typeof(DateTime))
+            {
+                if (!DateTime.TryParse(text, CultureInfo.InvariantCulture, DateTimeStyles.AllowWhiteSpaces, out var parsedDate)) return false;
+                typedValue = parsedDate;
+            }
+            else if (targetType == typeof(DateTimeOffset))
+            {
+                if (!DateTimeOffset.TryParse(text, CultureInfo.InvariantCulture, DateTimeStyles.AllowWhiteSpaces, out var parsedDateTimeOffset)) return false;
+                typedValue = parsedDateTimeOffset;
+            }
+            else if (targetType == typeof(DateOnly))
+            {
+                if (!DateOnly.TryParse(text, CultureInfo.InvariantCulture, DateTimeStyles.AllowWhiteSpaces, out var parsedDateOnly)) return false;
+                typedValue = parsedDateOnly;
+            }
+            else if (targetType == typeof(TimeOnly))
+            {
+                if (!TimeOnly.TryParse(text, CultureInfo.InvariantCulture, DateTimeStyles.AllowWhiteSpaces, out var parsedTimeOnly)) return false;
+                typedValue = parsedTimeOnly;
+            }
+            else if (targetType.IsEnum)
+            {
+                if (!Enum.TryParse(targetType, text, true, out var parsedEnum)) return false;
+                typedValue = parsedEnum;
+            }
+            else
+            {
+                typedValue = Convert.ChangeType(value, targetType, CultureInfo.InvariantCulture);
+            }
+
+            return true;
+        }
+        catch (FormatException)
+        {
+            return false;
+        }
+        catch (InvalidCastException)
+        {
+            return false;
+        }
+        catch (OverflowException)
+        {
+            return false;
+        }
     }
     
     private double CalculateMatchScore(
@@ -1546,47 +1959,26 @@ public class CollectionMappingService : ICollectionMappingService
             return 0.0;
         
         int matchCount = 0;
-        int totalFields = config.MatchOnFields.Count;
+        int totalFields = 0;
         
         foreach (var fieldPath in config.MatchOnFields)
         {
-            // ? CRITICAL FIX: Normalize field path for dictionary lookup
-            // searchData keys might be "GivenName" (without prefix)
-            // but MatchOnFields might be "Patient.GivenName" (with prefix)
-            var normalizedFieldPath = fieldPath;
-            if (normalizedFieldPath.StartsWith($"{config.EntityType}.", StringComparison.OrdinalIgnoreCase))
-            {
-                normalizedFieldPath = normalizedFieldPath.Substring(config.EntityType.Length + 1);
-            }
-            
-            // Try both with and without prefix
-            object? searchValue = null;
-            if (searchData.ContainsKey(fieldPath))
-            {
-                searchValue = searchData[fieldPath];
-            }
-            else if (searchData.ContainsKey(normalizedFieldPath))
-            {
-                searchValue = searchData[normalizedFieldPath];
-            }
-            else
+            if (!TryGetDirectPropertyName(config.EntityType, fieldPath, out var propertyName) ||
+                !TryGetSearchValue(searchData, config.EntityType, fieldPath, out var searchValue))
             {
                 _logger.LogDebug(
-                    "Field '{FieldPath}' (normalized: '{Normalized}') not found in searchData. Available keys: {Keys}",
+                    "Collection duplicate field '{FieldPath}' is not a direct configured value. Available keys: {Keys}",
                     fieldPath,
-                    normalizedFieldPath,
                     string.Join(", ", searchData.Keys)
                 );
                 continue;
             }
-            
-            var parts = fieldPath.Split('.');
-            var propertyName = parts.Length > 1 ? parts[1] : parts[0];
-            
+
             var property = entity.GetType().GetProperty(propertyName);
-            if (property == null)
+            if (property == null || !IsSupportedDuplicatePropertyType(property.PropertyType))
                 continue;
-            
+
+            totalFields++;
             var entityValue = property.GetValue(entity);
             
             if (ValuesMatch(entityValue, searchValue, config.Strategy))
@@ -1610,6 +2002,11 @@ public class CollectionMappingService : ICollectionMappingService
             }
         }
         
+        if (totalFields == 0)
+        {
+            return 0.0;
+        }
+
         var score = (double)matchCount / totalFields;
         
         _logger.LogInformation(
@@ -1626,28 +2023,80 @@ public class CollectionMappingService : ICollectionMappingService
     private bool ValuesMatch(object? entityValue, object searchValue, MatchingStrategy strategy)
     {
         if (entityValue == null || searchValue == null)
-            return false;
-        
-        if (strategy == MatchingStrategy.Exact)
         {
-            return entityValue.ToString()?.Equals(searchValue.ToString(), StringComparison.OrdinalIgnoreCase) ?? false;
+            return false;
         }
-        
-        // TODO: Implement fuzzy matching in Phase 3
-        return entityValue.ToString()?.Equals(searchValue.ToString(), StringComparison.OrdinalIgnoreCase) ?? false;
+
+        // SurveyJS serialises date-only answers as ISO strings (for example,
+        // "1990-01-01"), while EF materialises Patient.DateOfBirth as a
+        // DateTime. Comparing their ToString() representations makes an exact
+        // date match fail merely because the display formats differ.
+        if (TryGetCalendarDate(entityValue, out var entityDate) &&
+            TryGetCalendarDate(searchValue, out var submittedDate))
+        {
+            return entityDate == submittedDate;
+        }
+
+        // Exact text matching should be insensitive to harmless input
+        // formatting differences such as leading/trailing or repeated spaces.
+        // It does not do fuzzy matching or substring matching.
+        if (entityValue is string entityText && searchValue is string submittedText)
+        {
+            return string.Equals(
+                NormalizeMatchText(entityText),
+                NormalizeMatchText(submittedText),
+                StringComparison.OrdinalIgnoreCase);
+        }
+
+        // TODO: Implement a separately-configured fuzzy strategy. Until then,
+        // non-text scalar fields retain strict equality semantics.
+        return entityValue.Equals(searchValue) ||
+               string.Equals(
+                   Convert.ToString(entityValue, CultureInfo.InvariantCulture),
+                   Convert.ToString(searchValue, CultureInfo.InvariantCulture),
+                   StringComparison.OrdinalIgnoreCase);
     }
+
+    private static bool TryGetCalendarDate(object value, out DateOnly date)
+    {
+        switch (value)
+        {
+            case DateOnly dateOnly:
+                date = dateOnly;
+                return true;
+            case DateTime dateTime:
+                date = DateOnly.FromDateTime(dateTime);
+                return true;
+            case DateTimeOffset dateTimeOffset:
+                date = DateOnly.FromDateTime(dateTimeOffset.DateTime);
+                return true;
+            case JValue jValue:
+                return TryGetCalendarDate(jValue.Value!, out date);
+            default:
+                return DateOnly.TryParse(
+                    Convert.ToString(value, CultureInfo.InvariantCulture),
+                    CultureInfo.InvariantCulture,
+                    DateTimeStyles.AllowWhiteSpaces,
+                    out date);
+        }
+    }
+
+    private static string NormalizeMatchText(string value) =>
+        string.Join(' ', value.Trim().Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries));
     
-    private Dictionary<string, object> ExtractMatchedFields(object entity, List<string> fieldPaths)
+    private Dictionary<string, object> ExtractMatchedFields(object entity, List<string> fieldPaths, string entityType)
     {
         var result = new Dictionary<string, object>();
         
         foreach (var fieldPath in fieldPaths)
         {
-            var parts = fieldPath.Split('.');
-            var propertyName = parts.Length > 1 ? parts[1] : parts[0];
-            
+            if (!TryGetDirectPropertyName(entityType, fieldPath, out var propertyName))
+            {
+                continue;
+            }
+
             var property = entity.GetType().GetProperty(propertyName);
-            if (property != null)
+            if (property != null && IsSupportedDuplicatePropertyType(property.PropertyType))
             {
                 var value = property.GetValue(entity);
                 if (value != null)

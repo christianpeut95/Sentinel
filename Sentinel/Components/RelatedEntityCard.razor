@@ -124,7 +124,10 @@
         try
         {
             Logger.LogCritical("?? LoadEntityFields CALLED for EntityType: '{EntityType}'", Entity.EntityType);
-            entityFields = await CollectionMappingService.GetEntityFieldsAsync(Entity.EntityType);
+            // Related-entity mappings need a deliberately narrow set of relationship
+            // keys (for example Case.DiseaseId and ExposureEvent.ExposedCaseId).
+            // Those keys remain hidden from reporting and primary-entity field pickers.
+            entityFields = await CollectionMappingService.GetRelatedEntityTargetFieldsAsync(Entity.EntityType);
             Logger.LogCritical("?? LoadEntityFields COMPLETE: Received {Count} fields", entityFields?.Count ?? 0);
             
             // ?? CRITICAL FIX: Force Blazor to re-render with the loaded fields

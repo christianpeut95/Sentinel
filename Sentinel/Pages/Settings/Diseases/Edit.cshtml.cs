@@ -8,6 +8,7 @@ using Sentinel.Models;
 using Sentinel.Models.Lookups;
 using System;
 using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations;
 using System.Linq;
 using System.Security.Claims;
 using System.Threading.Tasks;
@@ -26,6 +27,62 @@ namespace Sentinel.Pages.Settings.Diseases
 
         [BindProperty]
         public Disease Disease { get; set; } = default!;
+
+        [BindProperty]
+        public ExposureTrackingInputModel ExposureTracking { get; set; } = new();
+
+        public class ExposureTrackingInputModel
+        {
+            [EnumDataType(typeof(ExposureTrackingMode))]
+            [Display(Name = "Exposure Tracking Mode")]
+            public ExposureTrackingMode ExposureTrackingMode { get; set; } = ExposureTrackingMode.Optional;
+
+            [Display(Name = "Default to Residential Address")]
+            public bool DefaultToResidentialAddress { get; set; }
+
+            [Display(Name = "Always Prompt for Location")]
+            public bool AlwaysPromptForLocation { get; set; }
+
+            [Display(Name = "Sync with Patient Address Updates")]
+            public bool SyncWithPatientAddressUpdates { get; set; }
+
+            [StringLength(1000)]
+            [Display(Name = "Exposure Guidance Text")]
+            public string? ExposureGuidanceText { get; set; }
+
+            [Display(Name = "Require Geographic Coordinates")]
+            public bool RequireGeographicCoordinates { get; set; }
+
+            [Display(Name = "Allow Domestic Acquisition")]
+            public bool AllowDomesticAcquisition { get; set; }
+
+            [Range(0, 365)]
+            [Display(Name = "Exposure Data Grace Period (Days)")]
+            public int? ExposureDataGracePeriodDays { get; set; }
+
+            [StringLength(500)]
+            [Display(Name = "Required Location Type IDs")]
+            public string? RequiredLocationTypeIds { get; set; }
+
+            [Display(Name = "Inherit Address Settings from Parent Disease")]
+            public bool InheritAddressSettingsFromParent { get; set; }
+
+            [Range(0, 365)]
+            [Display(Name = "Address Review Window Before Onset (Days)")]
+            public int? AddressReviewWindowBeforeDays { get; set; }
+
+            [Range(0, 365)]
+            [Display(Name = "Address Review Window After Onset (Days)")]
+            public int? AddressReviewWindowAfterDays { get; set; }
+
+            [Display(Name = "Check Jurisdiction Crossing on Address Change")]
+            public bool CheckJurisdictionCrossing { get; set; }
+
+            [StringLength(50)]
+            [RegularExpression(@"^[1-5](\s*,\s*[1-5])*$", ErrorMessage = "Use comma-separated jurisdiction levels from 1 to 5.")]
+            [Display(Name = "Jurisdiction Fields to Check (comma-separated: 1,2,3,4,5)")]
+            public string? JurisdictionFieldsToCheck { get; set; }
+        }
 
         public SelectList ParentDiseases { get; set; } = default!;
         public List<CustomFieldDefinition> AvailableCustomFields { get; set; } = new();
@@ -50,6 +107,7 @@ namespace Sentinel.Pages.Settings.Diseases
                 return NotFound();
             }
             Disease = disease;
+            ExposureTracking = CreateExposureTrackingInput(disease);
             await LoadParentDiseases(id.Value);
             await LoadCategories();
             await LoadCustomFields();
@@ -473,64 +531,129 @@ namespace Sentinel.Pages.Settings.Diseases
             return childIds;
         }
 
-        public async Task<IActionResult> OnPostSaveExposureTrackingAsync()
+        public async Task<IActionResult> OnPostSaveExposureTrackingAsync(Guid id)
         {
-            // Remove validation for properties we're not editing
-            ModelState.Remove(nameof(Disease.Name));
-            ModelState.Remove(nameof(Disease.Code));
-            ModelState.Remove(nameof(Disease.ExportCode));
-            ModelState.Remove(nameof(Disease.PathIds));
-            ModelState.Remove(nameof(Disease.DiseaseCategoryId));
-            ModelState.Remove(nameof(Disease.ParentDiseaseId));
-            
-            if (!ModelState.IsValid)
-            {
-                // Log model state errors for debugging
-                var errors = ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage).ToList();
-                TempData["ErrorMessage"] = $"Validation failed: {string.Join(", ", errors)}";
-                
-                await LoadParentDiseases(Disease.Id);
-                await LoadCategories();
-                await LoadCustomFields();
-                await LoadSymptoms();
-                await LoadChildDiseases(Disease.Id);
-                return Page();
-            }
-
             try
             {
-                var existingDisease = await _context.Diseases.FindAsync(Disease.Id);
+                // Other tabs bind the full Disease entity. This handler accepts only
+                // ExposureTracking, so exclude the unrelated entity from validation.
+                foreach (var key in ModelState.Keys
+                    .Where(key => key == nameof(Disease) || key.StartsWith($"{nameof(Disease)}.", StringComparison.Ordinal))
+                    .ToList())
+                {
+                    ModelState.Remove(key);
+                }
+
+                if (id == Guid.Empty)
+                {
+                    return NotFound();
+                }
+
+                var existingDisease = await _context.Diseases.FindAsync(id);
                 if (existingDisease == null)
                 {
                     return NotFound();
                 }
 
-                existingDisease.ExposureTrackingMode = Disease.ExposureTrackingMode;
-                existingDisease.DefaultToResidentialAddress = Disease.DefaultToResidentialAddress;
-                existingDisease.AlwaysPromptForLocation = Disease.AlwaysPromptForLocation;
-                existingDisease.SyncWithPatientAddressUpdates = Disease.SyncWithPatientAddressUpdates;
-                existingDisease.ExposureGuidanceText = Disease.ExposureGuidanceText;
-                existingDisease.RequireGeographicCoordinates = Disease.RequireGeographicCoordinates;
-                existingDisease.AllowDomesticAcquisition = Disease.AllowDomesticAcquisition;
-                existingDisease.ExposureDataGracePeriodDays = Disease.ExposureDataGracePeriodDays;
-                existingDisease.RequiredLocationTypeIds = Disease.RequiredLocationTypeIds;
+                // This page has independently bound models for each tab. Only validation
+                // errors from the submitted exposure form are relevant to this handler.
+                var exposureTrackingIsValid = ModelState
+                    .Where(entry => entry.Key == nameof(ExposureTracking) ||
+                                    entry.Key.StartsWith($"{nameof(ExposureTracking)}.", StringComparison.Ordinal))
+                    .SelectMany(entry => entry.Value.Errors)
+                    .Any() == false;
+
+                if (!exposureTrackingIsValid)
+                {
+                    TempData["ErrorMessage"] = "Please correct the exposure tracking settings and try again.";
+                    await LoadExposureTrackingPageAsync(existingDisease.Id);
+                    return Page();
+                }
+
+                existingDisease.ExposureTrackingMode = ExposureTracking.ExposureTrackingMode;
+                existingDisease.DefaultToResidentialAddress = ExposureTracking.DefaultToResidentialAddress;
+                existingDisease.AlwaysPromptForLocation = ExposureTracking.AlwaysPromptForLocation;
+                existingDisease.SyncWithPatientAddressUpdates = ExposureTracking.SyncWithPatientAddressUpdates;
+                existingDisease.ExposureGuidanceText = string.IsNullOrWhiteSpace(ExposureTracking.ExposureGuidanceText)
+                    ? null
+                    : ExposureTracking.ExposureGuidanceText.Trim();
+                existingDisease.RequireGeographicCoordinates = ExposureTracking.RequireGeographicCoordinates;
+                existingDisease.AllowDomesticAcquisition = ExposureTracking.AllowDomesticAcquisition;
+                existingDisease.ExposureDataGracePeriodDays = ExposureTracking.ExposureDataGracePeriodDays;
+                existingDisease.RequiredLocationTypeIds = string.IsNullOrWhiteSpace(ExposureTracking.RequiredLocationTypeIds)
+                    ? null
+                    : ExposureTracking.RequiredLocationTypeIds.Trim();
+                existingDisease.AddressReviewWindowBeforeDays = ExposureTracking.AddressReviewWindowBeforeDays;
+                existingDisease.AddressReviewWindowAfterDays = ExposureTracking.AddressReviewWindowAfterDays;
+                existingDisease.CheckJurisdictionCrossing = ExposureTracking.CheckJurisdictionCrossing;
+                existingDisease.JurisdictionFieldsToCheck = string.IsNullOrWhiteSpace(ExposureTracking.JurisdictionFieldsToCheck)
+                    ? null
+                    : ExposureTracking.JurisdictionFieldsToCheck.Trim();
+
+                if (existingDisease.ParentDiseaseId.HasValue)
+                {
+                    existingDisease.InheritAddressSettingsFromParent = ExposureTracking.InheritAddressSettingsFromParent;
+                }
+
                 existingDisease.ModifiedAt = DateTime.UtcNow;
 
                 await _context.SaveChangesAsync();
 
                 TempData["SuccessMessage"] = "Exposure tracking settings have been updated successfully.";
-                return RedirectToPage(new { id = Disease.Id });
+                return RedirectToPage("/Settings/Diseases/Edit", new { id = existingDisease.Id });
             }
             catch (Exception ex)
             {
                 TempData["ErrorMessage"] = Sentinel.Services.UserFacingError.Create(HttpContext, ex);
-                await LoadParentDiseases(Disease.Id);
-                await LoadCategories();
-                await LoadCustomFields();
-                await LoadSymptoms();
-                await LoadChildDiseases(Disease.Id);
+                if (id != Guid.Empty)
+                {
+                    await LoadExposureTrackingPageAsync(id);
+                }
                 return Page();
             }
+        }
+
+        private static ExposureTrackingInputModel CreateExposureTrackingInput(Disease disease)
+        {
+            return new ExposureTrackingInputModel
+            {
+                ExposureTrackingMode = disease.ExposureTrackingMode,
+                DefaultToResidentialAddress = disease.DefaultToResidentialAddress,
+                AlwaysPromptForLocation = disease.AlwaysPromptForLocation,
+                SyncWithPatientAddressUpdates = disease.SyncWithPatientAddressUpdates,
+                ExposureGuidanceText = disease.ExposureGuidanceText,
+                RequireGeographicCoordinates = disease.RequireGeographicCoordinates,
+                AllowDomesticAcquisition = disease.AllowDomesticAcquisition,
+                ExposureDataGracePeriodDays = disease.ExposureDataGracePeriodDays,
+                RequiredLocationTypeIds = disease.RequiredLocationTypeIds,
+                InheritAddressSettingsFromParent = disease.InheritAddressSettingsFromParent,
+                AddressReviewWindowBeforeDays = disease.AddressReviewWindowBeforeDays,
+                AddressReviewWindowAfterDays = disease.AddressReviewWindowAfterDays,
+                CheckJurisdictionCrossing = disease.CheckJurisdictionCrossing,
+                JurisdictionFieldsToCheck = disease.JurisdictionFieldsToCheck
+            };
+        }
+
+        private async Task LoadExposureTrackingPageAsync(Guid diseaseId)
+        {
+            var disease = await _context.Diseases
+                .AsNoTracking()
+                .FirstOrDefaultAsync(d => d.Id == diseaseId);
+
+            if (disease == null)
+            {
+                return;
+            }
+
+            Disease = disease;
+            ExposureTracking = CreateExposureTrackingInput(disease);
+            await LoadParentDiseases(diseaseId);
+            await LoadCategories();
+            await LoadCustomFields();
+            await LoadSymptoms();
+            await LoadChildDiseases(diseaseId);
+            await LoadDiseaseTaskTemplates(diseaseId);
+            await LoadAllTaskTemplates();
         }
 
         public async Task<IActionResult> OnPostSaveReviewSettingsAsync()

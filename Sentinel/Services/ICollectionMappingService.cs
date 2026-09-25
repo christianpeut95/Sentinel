@@ -75,6 +75,14 @@ public interface ICollectionMappingService
     /// <param name="entityType">Entity type name</param>
     /// <returns>List of field metadata</returns>
     Task<List<ReportFieldMetadata>> GetEntityFieldsAsync(string entityType);
+
+    /// <summary>
+    /// Gets the safe scalar fields that can be mapped when creating a related
+    /// collection entity. This intentionally includes relationship keys needed
+    /// to link entities created in the same submission, without making those
+    /// fields available to reporting or primary-entity mapping pickers.
+    /// </summary>
+    Task<List<ReportFieldMetadata>> GetRelatedEntityTargetFieldsAsync(string entityType);
     
     /// <summary>
     /// Validate a collection mapping configuration

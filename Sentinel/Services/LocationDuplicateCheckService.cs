@@ -6,11 +6,16 @@ namespace Sentinel.Services
 {
     public class LocationDuplicateCheckService : ILocationDuplicateCheckService
     {
+        private const int MaximumCandidateLocations = 250;
         private readonly ApplicationDbContext _context;
+        private readonly ILogger<LocationDuplicateCheckService> _logger;
 
-        public LocationDuplicateCheckService(ApplicationDbContext context)
+        public LocationDuplicateCheckService(
+            ApplicationDbContext context,
+            ILogger<LocationDuplicateCheckService> logger)
         {
             _context = context;
+            _logger = logger;
         }
 
         public async Task<List<LocationDuplicate>> FindPotentialDuplicatesAsync(Location location)
@@ -22,12 +27,7 @@ namespace Sentinel.Services
                 return duplicates;
             }
 
-            // Get all active locations for comparison
-            var existingLocations = await _context.Locations
-                .Include(l => l.LocationType)
-                .Include(l => l.Organization)
-                .Where(l => l.IsActive)
-                .ToListAsync();
+            var existingLocations = await GetCandidateLocationsAsync(location);
 
             foreach (var existing in existingLocations)
             {
@@ -119,7 +119,72 @@ namespace Sentinel.Services
             }
 
             // Return sorted by match score (highest first)
-            return duplicates.OrderByDescending(d => d.MatchScore).ToList();
+            return duplicates
+                .OrderByDescending(d => d.MatchScore)
+                .ThenBy(d => d.Location.Id)
+                .ToList();
+        }
+
+        private async Task<List<Location>> GetCandidateLocationsAsync(Location location)
+        {
+            var namePrefix = GetCandidatePrefix(location.Name);
+            var addressPrefix = GetCandidatePrefix(location.Address);
+            var hasLocationId = location.Id != Guid.Empty;
+            var hasCoordinates = location.Latitude.HasValue && location.Longitude.HasValue;
+
+            // A small geographic bounding box is used only to select candidates.
+            // The existing Haversine calculation remains the authority for the
+            // final duplicate score.
+            const decimal coordinateCandidateRange = 0.02m;
+            var minimumLatitude = hasCoordinates ? location.Latitude!.Value - coordinateCandidateRange : default;
+            var maximumLatitude = hasCoordinates ? location.Latitude!.Value + coordinateCandidateRange : default;
+            var minimumLongitude = hasCoordinates ? location.Longitude!.Value - coordinateCandidateRange : default;
+            var maximumLongitude = hasCoordinates ? location.Longitude!.Value + coordinateCandidateRange : default;
+
+            // Keep duplicate checks bounded. Query predicates are compiled by
+            // EF Core and use only typed application values; no SQL is built
+            // from a location name or address.
+            var candidates = await _context.Locations
+                .AsNoTracking()
+                .Where(existing =>
+                    existing.IsActive &&
+                    (!hasLocationId || existing.Id != location.Id) &&
+                    (
+                        (!string.IsNullOrEmpty(namePrefix) &&
+                            existing.Name != null && existing.Name.StartsWith(namePrefix)) ||
+                        (!string.IsNullOrEmpty(addressPrefix) &&
+                            existing.Address != null && existing.Address.StartsWith(addressPrefix)) ||
+                        (location.OrganizationId.HasValue && existing.OrganizationId == location.OrganizationId) ||
+                        (hasCoordinates && existing.Latitude >= minimumLatitude && existing.Latitude <= maximumLatitude &&
+                            existing.Longitude >= minimumLongitude && existing.Longitude <= maximumLongitude)
+                    ))
+                .OrderBy(existing => existing.Id)
+                .Take(MaximumCandidateLocations + 1)
+                .ToListAsync();
+
+            if (candidates.Count > MaximumCandidateLocations)
+            {
+                _logger.LogWarning(
+                    "Location duplicate candidate search reached the {CandidateLimit} record limit for location {LocationId}. " +
+                    "Only bounded candidates were scored.",
+                    MaximumCandidateLocations,
+                    location.Id == Guid.Empty ? "(new)" : location.Id);
+
+                candidates.RemoveAt(candidates.Count - 1);
+            }
+
+            return candidates;
+        }
+
+        private static string? GetCandidatePrefix(string? value)
+        {
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                return null;
+            }
+
+            var normalized = value.Trim();
+            return normalized[..Math.Min(normalized.Length, 3)];
         }
 
         /// <summary>

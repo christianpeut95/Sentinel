@@ -10,26 +10,25 @@ namespace Sentinel.Services
 {
     public class PatientDuplicateCheckService : IPatientDuplicateCheckService
     {
+        private const int MaximumCandidatePatients = 250;
         private readonly ApplicationDbContext _context;
+        private readonly ILogger<PatientDuplicateCheckService> _logger;
 
-        public PatientDuplicateCheckService(ApplicationDbContext context)
+        public PatientDuplicateCheckService(
+            ApplicationDbContext context,
+            ILogger<PatientDuplicateCheckService> logger)
         {
             _context = context;
+            _logger = logger;
         }
 
         public async Task<List<PotentialDuplicate>> FindPotentialDuplicatesAsync(Patient patient)
         {
             var potentialDuplicates = new List<PotentialDuplicate>();
 
-            // Get all patients for comparison (in production, add better filtering)
-            var existingPatients = await _context.Patients
-                .Include(p => p.CountryOfBirth)
-                .Include(p => p.Ancestry)
-                .Include(p => p.LanguageSpokenAtHome)
-                .AsNoTracking()
-                .ToListAsync();
+            var candidates = await GetCandidatePatientsAsync(patient);
 
-            foreach (var existing in existingPatients)
+            foreach (var existing in candidates)
             {
                 var matchReasons = new List<string>();
                 var score = 0;
@@ -58,6 +57,16 @@ namespace Sentinel.Services
                     score += addressMatch.score;
                 }
 
+                // Contact details are strong duplicate indicators and also act as
+                // candidate anchors. Score them here so a duplicate found solely
+                // through an exact email address or telephone number is returned.
+                var contactMatch = CheckContactMatch(patient, existing);
+                if (contactMatch.isMatch)
+                {
+                    matchReasons.Add(contactMatch.reason);
+                    score += contactMatch.score;
+                }
+
                 // Check sex at birth match
                 if (patient.SexAtBirthId.HasValue && existing.SexAtBirthId.HasValue &&
                     patient.SexAtBirthId == existing.SexAtBirthId)
@@ -81,8 +90,105 @@ namespace Sentinel.Services
             // Return top matches sorted by score
             return potentialDuplicates
                 .OrderByDescending(d => d.MatchScore)
+                .ThenBy(d => d.Patient.Id)
                 .Take(5)
                 .ToList();
+        }
+
+        private async Task<List<Patient>> GetCandidatePatientsAsync(Patient patient)
+        {
+            var familyNamePrefix = GetCandidatePrefix(patient.FamilyName);
+            var givenNamePrefix = GetCandidatePrefix(patient.GivenName);
+            var addressPrefix = GetCandidatePrefix(patient.AddressLine);
+            var mobilePhone = NormalizeContactValue(patient.MobilePhone);
+            var homePhone = NormalizeContactValue(patient.HomePhone);
+            var email = NormalizeContactValue(patient.EmailAddress);
+
+            var hasDateOfBirth = patient.DateOfBirth.HasValue;
+            var dateOfBirthStart = hasDateOfBirth ? patient.DateOfBirth!.Value.Date : default;
+            var dateOfBirthEnd = hasDateOfBirth ? dateOfBirthStart.AddDays(1) : default;
+            var hasPatientId = patient.Id != Guid.Empty;
+
+            // Candidate selection is intentionally performed by EF Core, not with
+            // dynamically composed SQL. It bounds request work before the
+            // application applies its more expensive fuzzy scoring.
+            var query = _context.Patients
+                .AsNoTracking()
+                .Where(existing =>
+                    (!hasPatientId || existing.Id != patient.Id) &&
+                    (
+                        (hasDateOfBirth && existing.DateOfBirth >= dateOfBirthStart && existing.DateOfBirth < dateOfBirthEnd) ||
+                        (!string.IsNullOrEmpty(mobilePhone) &&
+                            (existing.MobilePhone == mobilePhone || existing.HomePhone == mobilePhone)) ||
+                        (!string.IsNullOrEmpty(homePhone) &&
+                            (existing.MobilePhone == homePhone || existing.HomePhone == homePhone)) ||
+                        (!string.IsNullOrEmpty(email) && existing.EmailAddress == email) ||
+                        (!string.IsNullOrEmpty(familyNamePrefix) &&
+                            existing.FamilyName != null && existing.FamilyName.StartsWith(familyNamePrefix)) ||
+                        (!string.IsNullOrEmpty(givenNamePrefix) &&
+                            existing.GivenName != null && existing.GivenName.StartsWith(givenNamePrefix)) ||
+                        (!string.IsNullOrEmpty(addressPrefix) &&
+                            existing.AddressLine != null && existing.AddressLine.StartsWith(addressPrefix))
+                    ))
+                .OrderBy(existing => existing.Id)
+                .Take(MaximumCandidatePatients + 1);
+
+            var candidates = await query.ToListAsync();
+            if (candidates.Count > MaximumCandidatePatients)
+            {
+                _logger.LogWarning(
+                    "Patient duplicate candidate search reached the {CandidateLimit} record limit for patient {PatientId}. " +
+                    "Only bounded candidates were fuzzy-scored.",
+                    MaximumCandidatePatients,
+                    patient.Id == Guid.Empty ? "(new)" : patient.Id);
+
+                candidates.RemoveAt(candidates.Count - 1);
+            }
+
+            return candidates;
+        }
+
+        private static string? GetCandidatePrefix(string? value)
+        {
+            var normalized = NormalizeContactValue(value);
+            if (string.IsNullOrEmpty(normalized))
+            {
+                return null;
+            }
+
+            return normalized[..Math.Min(normalized.Length, 3)];
+        }
+
+        private static string? NormalizeContactValue(string? value) =>
+            string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+
+        private (bool isMatch, string reason, int score) CheckContactMatch(Patient patient, Patient existing)
+        {
+            var patientPhoneNumbers = new[]
+            {
+                NormalizeContactValue(patient.MobilePhone),
+                NormalizeContactValue(patient.HomePhone)
+            }.Where(phone => !string.IsNullOrEmpty(phone)).ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+            var existingPhoneNumbers = new[]
+            {
+                NormalizeContactValue(existing.MobilePhone),
+                NormalizeContactValue(existing.HomePhone)
+            }.Where(phone => !string.IsNullOrEmpty(phone));
+
+            if (existingPhoneNumbers.Any(patientPhoneNumbers.Contains))
+            {
+                return (true, "Same telephone number", 35);
+            }
+
+            var email = NormalizeContactValue(patient.EmailAddress);
+            if (!string.IsNullOrEmpty(email) &&
+                string.Equals(email, NormalizeContactValue(existing.EmailAddress), StringComparison.OrdinalIgnoreCase))
+            {
+                return (true, "Same email address", 35);
+            }
+
+            return (false, string.Empty, 0);
         }
 
         private (bool isMatch, string reason, int score) CheckNameMatch(Patient patient, Patient existing)

@@ -40,8 +40,17 @@ namespace Sentinel.Pages.Cases
         public string CaseId { get; set; }
         public Case Case { get; set; }
 
-        public async Task<IActionResult> OnGetAsync(string caseId)
+        /// <summary>
+        /// Indicates that this page is hosted by the Create New Case wizard. In this
+        /// mode a successful save notifies the parent window instead of navigating
+        /// the embedded page away from the wizard.
+        /// </summary>
+        public bool IsEmbedded { get; set; }
+
+        public async Task<IActionResult> OnGetAsync(string caseId, bool iframe = false)
         {
+            IsEmbedded = iframe;
+
             if (string.IsNullOrWhiteSpace(caseId))
             {
                 return BadRequest($"Case ID is required. Received: '{caseId ?? "null"}'");
@@ -72,8 +81,10 @@ namespace Sentinel.Pages.Cases
             return Page();
         }
 
-        public async Task<IActionResult> OnPostAsync(string caseId)
+        public async Task<IActionResult> OnPostAsync(string caseId, bool iframe = false)
         {
+            IsEmbedded = iframe;
+
             if (string.IsNullOrWhiteSpace(caseId))
             {
                 return BadRequest($"Case ID is required. Received: '{caseId ?? "null"}'");
@@ -194,7 +205,49 @@ namespace Sentinel.Pages.Cases
             await _context.SaveChangesAsync();
 
             TempData["SuccessMessage"] = $"Lab result {labResultToCreate.FriendlyId} added successfully with {markers.Count} marker(s).";
+
+            if (IsEmbedded)
+            {
+                return CreateEmbeddedSuccessResult(labResultToCreate.Id);
+            }
+
             return RedirectToPage("/Cases/Details", new { id = Case.Id });
+        }
+
+        private ContentResult CreateEmbeddedSuccessResult(Guid labResultId)
+        {
+            // Serialize the message rather than interpolating values into JavaScript.
+            // The default JSON encoder safely escapes characters that could change the
+            // document or script structure.
+            var message = JsonSerializer.Serialize(new
+            {
+                type = "sentinel.lab-result-saved",
+                labResultId
+            });
+
+            var content = """
+                <!DOCTYPE html>
+                <html lang="en">
+                <head>
+                    <meta charset="utf-8" />
+                    <title>Lab result saved</title>
+                </head>
+                <body>
+                    <p id="status">Lab result saved. Returning to the case wizard…</p>
+                    <script>
+                    (() => {
+                        const message = __SENTINEL_MESSAGE__;
+                        const target = window.parent !== window ? window.parent : window.opener;
+                        if (target) {
+                            target.postMessage(message, window.location.origin);
+                        }
+                    })();
+                    </script>
+                </body>
+                </html>
+                """.Replace("__SENTINEL_MESSAGE__", message, StringComparison.Ordinal);
+
+            return Content(content, "text/html; charset=utf-8");
         }
 
         private async Task<string> GenerateLabResultIdAsync()

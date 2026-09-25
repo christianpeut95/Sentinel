@@ -1,3 +1,6 @@
 @{
-    Layout = "_LayoutSentinel";
+    // Use the application's layout explicitly. Relative layout resolution for
+    // pages supplied by the Identity UI RCL can otherwise fall back to the
+    // framework layout, which expects the framework's _LoginPartial.
+    Layout = "/Pages/Shared/_LayoutSentinel.cshtml";
 }

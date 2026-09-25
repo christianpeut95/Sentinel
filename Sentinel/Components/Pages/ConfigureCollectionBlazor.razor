@@ -7,7 +7,7 @@
 @using Microsoft.AspNetCore.Components.Web
 @using Microsoft.AspNetCore.Authorization
 @inject ICollectionMappingService CollectionMappingService
-@inject ApplicationDbContext Context
+@inject IDbContextFactory<ApplicationDbContext> DbContextFactory
 @inject ILogger<ConfigureCollectionBlazor> Logger
 @inject NavigationManager Navigation
 
@@ -199,10 +199,11 @@ public string? ReturnUrl { get; set; }
         try
         {
             isLoading = true;
+            await using var context = await DbContextFactory.CreateDbContextAsync();
 
             if (MappingId.HasValue)
             {
-                mapping = await Context.SurveyFieldMappings
+                mapping = await context.SurveyFieldMappings
                     .FirstOrDefaultAsync(m => m.Id == MappingId.Value);
 
                 if (mapping == null)
@@ -217,7 +218,7 @@ public string? ReturnUrl { get; set; }
                     Logger.LogInformation("Loading SurveyTemplate with ID: {SurveyTemplateId} for mapping {MappingId}", 
                         mapping.ConfigurationId, mapping.Id);
                     
-                    surveyTemplate = await ResolveActiveSurveyTemplateAsync(mapping.ConfigurationId);
+                    surveyTemplate = await ResolveActiveSurveyTemplateAsync(context, mapping.ConfigurationId);
                     
                     if (surveyTemplate == null)
                     {
@@ -237,7 +238,7 @@ public string? ReturnUrl { get; set; }
                         {
                             Logger.LogWarning("?? Survey template has NULL JSON - searching for latest published version...");
                             
-                            var latestPublished = await Context.SurveyTemplates
+                            var latestPublished = await context.SurveyTemplates
                                 .Where(st => st.Name == surveyTemplate.Name 
                                           && st.SurveyDefinitionJson != null 
                                           && st.SurveyDefinitionJson.Length > 100
@@ -255,7 +256,7 @@ public string? ReturnUrl { get; set; }
                                 // Update mapping to point to correct survey
                                 mapping.ConfigurationId = latestPublished.Id;
                                 mapping.LastModified = DateTime.UtcNow;
-                                await Context.SaveChangesAsync();
+                                await context.SaveChangesAsync();
                                 
                                 // Use the correct survey template
                                 surveyTemplate = latestPublished;
@@ -272,6 +273,30 @@ public string? ReturnUrl { get; set; }
                                 errorMessage = $"?? Survey '{surveyTemplate.Name}' has no published version with definition. Please publish the survey first.";
                             }
                         }
+                    }
+                }
+
+                else if (mapping.ConfigurationType == MappingConfigurationType.DiseaseTaskTemplate)
+                {
+                    // A disease-task-template mapping is scoped to an assignment, not directly
+                    // to a survey. Resolve its task template's survey so the editor works when
+                    // opened from the disease configuration page as well as from a direct URL.
+                    var assignment = await context.DiseaseTaskTemplates
+                        .AsNoTracking()
+                        .Include(x => x.TaskTemplate)
+                        .FirstOrDefaultAsync(x => x.Id == mapping.ConfigurationId);
+
+                    if (assignment?.TaskTemplate?.SurveyTemplateId is Guid surveyTemplateId)
+                    {
+                        surveyTemplate = await ResolveActiveSurveyTemplateAsync(context, surveyTemplateId);
+                    }
+                    else
+                    {
+                        errorMessage = "This task assignment does not have a survey configured.";
+                        Logger.LogWarning(
+                            "Disease task template {DiseaseTaskTemplateId} for collection mapping {MappingId} has no survey template.",
+                            mapping.ConfigurationId,
+                            mapping.Id);
                     }
                 }
 
@@ -306,7 +331,7 @@ public string? ReturnUrl { get; set; }
             // If survey template ID provided directly (for new mappings), resolve to active version
             if (SurveyTemplateId.HasValue && surveyTemplate == null)
             {
-                surveyTemplate = await ResolveActiveSurveyTemplateAsync(SurveyTemplateId.Value);
+                surveyTemplate = await ResolveActiveSurveyTemplateAsync(context, SurveyTemplateId.Value);
             }
 
             // Initialize empty config if null
@@ -333,7 +358,7 @@ public string? ReturnUrl { get; set; }
                 
                 // Enable fix option and load available surveys
                 canFixSurveyLink = true;
-                availableSurveys = await Context.SurveyTemplates
+                availableSurveys = await context.SurveyTemplates
                     .Where(st => st.IsActive && 
                                  st.SurveyDefinitionJson != null && 
                                  st.SurveyDefinitionJson.Length > 100)
@@ -367,9 +392,11 @@ public string? ReturnUrl { get; set; }
         }
     }
 
-    private async Task<SurveyTemplate?> ResolveActiveSurveyTemplateAsync(Guid surveyTemplateId)
+    private async Task<SurveyTemplate?> ResolveActiveSurveyTemplateAsync(
+        ApplicationDbContext context,
+        Guid surveyTemplateId)
     {
-        var original = await Context.SurveyTemplates
+        var original = await context.SurveyTemplates
             .AsNoTracking()
             .FirstOrDefaultAsync(st => st.Id == surveyTemplateId);
 
@@ -378,7 +405,7 @@ public string? ReturnUrl { get; set; }
         var rootParentId = original.ParentSurveyTemplateId ?? original.Id;
 
         // Find the active version in this family - BUT require non-null JSON
-        var active = await Context.SurveyTemplates
+        var active = await context.SurveyTemplates
             .AsNoTracking()
             .Where(st => (st.Id == rootParentId || st.ParentSurveyTemplateId == rootParentId))
             .Where(st => st.VersionStatus == SurveyVersionStatus.Active 
@@ -390,7 +417,7 @@ public string? ReturnUrl { get; set; }
         if (active == null || string.IsNullOrEmpty(active.SurveyDefinitionJson))
         {
             Logger.LogWarning("No active version with valid JSON found, searching for latest published...");
-            active = await Context.SurveyTemplates
+            active = await context.SurveyTemplates
                 .AsNoTracking()
                 .Where(st => (st.Id == rootParentId || st.ParentSurveyTemplateId == rootParentId))
                 .Where(st => st.PublishedAt != null 
@@ -608,15 +635,26 @@ public string? ReturnUrl { get; set; }
                 return;
             }
 
+            await using var context = await DbContextFactory.CreateDbContextAsync();
+            var persistedMapping = await context.SurveyFieldMappings
+                .FirstOrDefaultAsync(m => m.Id == mapping.Id);
+
+            if (persistedMapping == null)
+            {
+                errorMessage = "Mapping not found.";
+                return;
+            }
+
             // Keep the mapping's response key in sync with the configured collection source.
-            mapping.SurveyQuestionName = config!.SourceQuestionName;
-            mapping.Complexity = MappingComplexity.Collection;
+            persistedMapping.SurveyQuestionName = config!.SourceQuestionName;
+            persistedMapping.Complexity = MappingComplexity.Collection;
 
-            // Serialize config
-            mapping.CollectionConfigJson = System.Text.Json.JsonSerializer.Serialize(config);
-            mapping.LastModified = DateTime.UtcNow;
+            // Serialize config.
+            persistedMapping.CollectionConfigJson = System.Text.Json.JsonSerializer.Serialize(config);
+            persistedMapping.LastModified = DateTime.UtcNow;
 
-            await Context.SaveChangesAsync();
+            await context.SaveChangesAsync();
+            mapping = persistedMapping;
 
             successMessage = "Configuration saved successfully!";
             
@@ -640,7 +678,9 @@ public string? ReturnUrl { get; set; }
         if (!string.IsNullOrEmpty(ReturnUrl))
             Navigation.NavigateTo(ReturnUrl);
         else
-            Navigation.NavigateTo("/Settings/Mappings");
+            // There is no mappings index page. Do not send the user to a 404
+            // after successfully saving a collection configuration.
+            Navigation.NavigateTo("/Settings/Index");
     }
 
     private async Task FixSurveyLink()
@@ -658,11 +698,22 @@ public string? ReturnUrl { get; set; }
             Logger.LogInformation("Fixing mapping {MappingId}: Changing ConfigurationId from {OldSurveyId} to {NewSurveyId}",
                 mapping.Id, mapping.ConfigurationId, newSurveyId);
 
-            // Update mapping to point to new survey
-            mapping.ConfigurationId = newSurveyId;
-            mapping.LastModified = DateTime.UtcNow;
+            await using var context = await DbContextFactory.CreateDbContextAsync();
+            var persistedMapping = await context.SurveyFieldMappings
+                .FirstOrDefaultAsync(m => m.Id == mapping.Id);
+
+            if (persistedMapping == null)
+            {
+                errorMessage = "Mapping not found.";
+                return;
+            }
+
+            // Update mapping to point to new survey.
+            persistedMapping.ConfigurationId = newSurveyId;
+            persistedMapping.LastModified = DateTime.UtcNow;
             
-            await Context.SaveChangesAsync();
+            await context.SaveChangesAsync();
+            mapping = persistedMapping;
 
             successMessage = $"? Mapping successfully updated to use selected survey!";
             canFixSurveyLink = false;

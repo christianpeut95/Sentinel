@@ -79,7 +79,7 @@ public sealed class ReviewedDomSinkRegressionTests
         {
             ["Pages/Admin/Logs.cshtml"] = ["escapeHtml(log.Message)", "return levelMap[level] ||"],
             ["Pages/Cases/Create.cshtml"] = ["$('#exposureMessage').html('<strong>This disease requires exposure data."],
-            ["Pages/Cases/CreateNew.cshtml"] = ["${escapeHtml(result.testTypeName || 'Lab Test')}", "${escapeHtml(selectedPatient.name)}"],
+            ["Pages/Cases/CreateNew.cshtml"] = ["const name = escapeHtml(marker.pathogenName || 'Marker');", "return `${name}: ${escapeHtml(value)}`;", "${escapeHtml(selectedPatient.name)}"],
             ["Pages/Cases/Details.cshtml"] = ["return response.text();", "encodeURIComponent(taskId)"],
             ["Pages/Cases/Edit.cshtml"] = ["$dropdown.html('<div class=\"autocomplete-item disabled\">No results found</div>')"],
             ["Pages/Cases/EditExposure.cshtml"] = [".html('').append(option).trigger('change')"],
@@ -250,7 +250,8 @@ public sealed class ReviewedDomSinkRegressionTests
         var contactSource = ReadSentinelFile("Pages/Contacts/CreateNewContact.cshtml");
         var contactDetailsSource = ReadSentinelFile("Pages/Contacts/Details.cshtml");
 
-        Assert.Contains("${escapeHtml(result.testTypeName || 'Lab Test')}", caseSource, StringComparison.Ordinal);
+        Assert.Contains("const name = escapeHtml(marker.pathogenName || 'Marker');", caseSource, StringComparison.Ordinal);
+        Assert.Contains("return `${name}: ${escapeHtml(value)}`;", caseSource, StringComparison.Ordinal);
         Assert.Contains("data-result-id=\"${escapeHtml(result.id)}\"", caseSource, StringComparison.Ordinal);
         Assert.Contains("${escapeHtml(location)}", caseSource, StringComparison.Ordinal);
         Assert.Contains("${escapeHtml(selectedPatient.name)}", caseSource, StringComparison.Ordinal);

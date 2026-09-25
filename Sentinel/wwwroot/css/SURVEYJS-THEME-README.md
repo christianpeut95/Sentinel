@@ -1,6 +1,6 @@
 # Sentinel SurveyJS Theme
 
-This stylesheet overrides the default SurveyJS `defaultV2.css` theme to match the **Sentinel Design System**. All colors, typography, spacing, and component styles align with the brand guidelines defined in `/wwwroot/design/UI Guidelines.html`.
+This stylesheet overrides the default SurveyJS `defaultV2.css` theme to match the **Sentinel Design System**. All colors, typography, spacing, and component styles align with the brand guidelines defined in [`docs/design/ui-guidelines.html`](../../../docs/design/ui-guidelines.html).
 
 ---
 
@@ -206,7 +206,7 @@ server-side helper used by the survey page.
 
 ## 📚 Related Documentation
 
-- **Design System**: `/wwwroot/design/UI Guidelines.html`
+- **Design System**: [`docs/design/ui-guidelines.html`](../../../docs/design/ui-guidelines.html)
 - **SurveyJS Docs**: https://surveyjs.io/form-library/documentation
 - **Theme Customization**: https://surveyjs.io/form-library/documentation/manage-default-themes-and-styles
 

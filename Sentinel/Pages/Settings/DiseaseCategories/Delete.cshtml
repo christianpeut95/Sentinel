@@ -1,0 +1,42 @@
+@page "{id:guid}"
+@model Sentinel.Pages.Settings.DiseaseCategories.DeleteModel
+@{
+    ViewData["Title"] = "Delete Disease Category";
+}
+
+<nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a asp-page="/Index">Home</a></li>
+        <li class="breadcrumb-item"><a asp-page="/Settings/Index">Settings</a></li>
+        <li class="breadcrumb-item"><a asp-page="./Index">Disease Categories</a></li>
+        <li class="breadcrumb-item active" aria-current="page">Delete</li>
+    </ol>
+</nav>
+
+<div class="row">
+    <div class="col-md-8 col-lg-6">
+        <div class="card border-danger shadow-sm">
+            <div class="card-header bg-danger-subtle">
+                <h2 class="h4 mb-0"><i class="bi bi-exclamation-triangle me-2"></i>Delete Disease Category</h2>
+            </div>
+            <div class="card-body">
+                <p>Delete <strong>@Model.Category.Name</strong> (<code>@Model.Category.ReportingId</code>)?</p>
+
+                @if (Model.DiseaseCount > 0)
+                {
+                    <div class="alert alert-warning mb-0">
+                        This category is assigned to @Model.DiseaseCount disease(s) and cannot be deleted. Reassign the diseases or mark this category inactive instead.
+                    </div>
+                }
+                else
+                {
+                    <p class="text-muted">This action cannot be undone.</p>
+                    <form method="post" asp-route-id="@Model.Category.Id">
+                        <button type="submit" class="btn btn-danger"><i class="bi bi-trash me-1"></i>Delete category</button>
+                        <a asp-page="./Details" asp-route-id="@Model.Category.Id" class="btn btn-outline-secondary ms-2">Cancel</a>
+                    </form>
+                }
+            </div>
+        </div>
+    </div>
+</div>

@@ -38,9 +38,18 @@
         </p>
     </div>
     <div>
-        <a asp-page="/Cases/Details" asp-route-id="@Model.CaseId" class="sn-btn sn-btn--ghost">
-            <i class="bi bi-x-lg"></i> Cancel
-        </a>
+        @if (Model.IsEmbedded)
+        {
+            <button type="button" id="cancelEmbeddedLabResult" class="sn-btn sn-btn--ghost">
+                <i class="bi bi-x-lg"></i> Cancel
+            </button>
+        }
+        else
+        {
+            <a asp-page="/Cases/Details" asp-route-id="@Model.CaseId" class="sn-btn sn-btn--ghost">
+                <i class="bi bi-x-lg"></i> Cancel
+            </a>
+        }
     </div>
 </div>
 
@@ -65,6 +74,7 @@
 }
 
 <form method="post" enctype="multipart/form-data" id="labResultForm">
+    <input type="hidden" name="iframe" value="@(Model.IsEmbedded ? "true" : "false")" />
     <input type="hidden" asp-for="LabResult.CaseId" />
     <input type="hidden" asp-for="LabResult.TestedDiseaseId" />
     <input type="hidden" asp-for="MarkersJson" id="markersJsonInput" />
@@ -364,6 +374,13 @@
         initializeLaboratorySearch();
         initializeProviderSearch();
         setupEventHandlers();
+
+        $('#cancelEmbeddedLabResult').on('click', function() {
+            const target = window.parent !== window ? window.parent : window.opener;
+            if (target) {
+                target.postMessage({ type: 'sentinel.lab-result-cancelled' }, window.location.origin);
+            }
+        });
     });
 
     function escapeHtml(value) {

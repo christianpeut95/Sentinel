@@ -1,0 +1,164 @@
+@page
+@model Sentinel.Pages.Settings.Lookups.ContactClassificationsModel
+@{
+    ViewData["Title"] = "Contact Classifications";
+    ViewData["Subtitle"] = "Configure classifications used for contact tracing and exposure records";
+    Layout = "~/Pages/Shared/_LayoutSentinel.cshtml";
+}
+
+<nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a asp-page="/Index">Home</a></li>
+        <li class="breadcrumb-item"><a asp-page="/Settings/Index">Settings</a></li>
+        <li class="breadcrumb-item active" aria-current="page">Contact Classifications</li>
+    </ol>
+</nav>
+
+<div class="container-fluid">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+        <div>
+            <h2 class="mb-1">Contact Classifications</h2>
+            <p class="text-muted mb-0">Define the classifications available when recording contact exposure.</p>
+        </div>
+        @if (Model.IsEditing)
+        {
+            <a asp-page="./ContactClassifications" class="btn btn-outline-secondary">
+                <i class="bi bi-plus-lg"></i> Add classification
+            </a>
+        }
+    </div>
+
+    @if (TempData["SuccessMessage"] is string successMessage)
+    {
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            @successMessage
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    }
+
+    @if (TempData["ErrorMessage"] is string errorMessage)
+    {
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            @errorMessage
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    }
+
+    <div class="row g-4">
+        <div class="col-xl-8">
+            <div class="card shadow-sm h-100">
+                <div class="card-body p-0">
+                    @if (Model.ContactClassifications.Any())
+                    {
+                        <div class="table-responsive">
+                            <table class="table table-hover align-middle mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Name</th>
+                                        <th>Description</th>
+                                        <th class="text-center">Order</th>
+                                        <th>Status</th>
+                                        <th class="text-end">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var classification in Model.ContactClassifications)
+                                    {
+                                        <tr>
+                                            <td><strong>@classification.Name</strong></td>
+                                            <td class="text-muted">@classification.Description</td>
+                                            <td class="text-center">@classification.DisplayOrder</td>
+                                            <td>
+                                                @if (classification.IsActive)
+                                                {
+                                                    <span class="badge text-bg-success">Active</span>
+                                                }
+                                                else
+                                                {
+                                                    <span class="badge text-bg-secondary">Inactive</span>
+                                                }
+                                            </td>
+                                            <td class="text-end text-nowrap">
+                                                <a asp-page="./ContactClassifications" asp-route-editId="@classification.Id" class="btn btn-sm btn-outline-primary" title="Edit @classification.Name">
+                                                    <i class="bi bi-pencil"></i><span class="visually-hidden"> Edit</span>
+                                                </a>
+                                                <form method="post" asp-page-handler="ToggleActive" asp-route-id="@classification.Id" class="d-inline">
+                                                    <button type="submit" class="btn btn-sm btn-outline-secondary" title="@(classification.IsActive ? "Deactivate" : "Activate") @classification.Name">
+                                                        <i class="bi @(classification.IsActive ? "bi-pause" : "bi-play")"></i><span class="visually-hidden"> @(classification.IsActive ? "Deactivate" : "Activate")</span>
+                                                    </button>
+                                                </form>
+                                                <form method="post" asp-page-handler="Delete" asp-route-id="@classification.Id" class="d-inline" onsubmit="return confirm('Delete this contact classification? This cannot be undone.');">
+                                                    <button type="submit" class="btn btn-sm btn-outline-danger" title="Delete @classification.Name">
+                                                        <i class="bi bi-trash"></i><span class="visually-hidden"> Delete</span>
+                                                    </button>
+                                                </form>
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="text-center text-muted p-5">
+                            <i class="bi bi-diagram-3 fs-1 d-block mb-3"></i>
+                            <p class="mb-0">No contact classifications have been created.</p>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-4">
+            <div class="card shadow-sm">
+                <div class="card-header bg-white">
+                    <h3 class="h5 mb-0">@(Model.IsEditing ? "Edit classification" : "Add classification")</h3>
+                </div>
+                <div class="card-body">
+                    <form method="post" asp-page-handler="Save">
+                        <input asp-for="Input.Id" type="hidden" />
+                        <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
+
+                        <div class="mb-3">
+                            <label asp-for="Input.Name" class="form-label"></label>
+                            <input asp-for="Input.Name" class="form-control" autocomplete="off" />
+                            <span asp-validation-for="Input.Name" class="text-danger small"></span>
+                        </div>
+
+                        <div class="mb-3">
+                            <label asp-for="Input.Description" class="form-label"></label>
+                            <textarea asp-for="Input.Description" class="form-control" rows="3"></textarea>
+                            <span asp-validation-for="Input.Description" class="text-danger small"></span>
+                        </div>
+
+                        <div class="mb-3">
+                            <label asp-for="Input.DisplayOrder" class="form-label"></label>
+                            <input asp-for="Input.DisplayOrder" class="form-control" min="0" />
+                            <span asp-validation-for="Input.DisplayOrder" class="text-danger small"></span>
+                        </div>
+
+                        <div class="form-check mb-4">
+                            <input asp-for="Input.IsActive" class="form-check-input" />
+                            <label asp-for="Input.IsActive" class="form-check-label"></label>
+                        </div>
+
+                        <div class="d-flex gap-2">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-check-lg"></i> @(Model.IsEditing ? "Save changes" : "Add classification")
+                            </button>
+                            @if (Model.IsEditing)
+                            {
+                                <a asp-page="./ContactClassifications" class="btn btn-outline-secondary">Cancel</a>
+                            }
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

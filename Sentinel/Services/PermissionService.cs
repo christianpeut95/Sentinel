@@ -1,19 +1,20 @@
 using Microsoft.EntityFrameworkCore;
 using Sentinel.Data;
 using Sentinel.Models;
-using Microsoft.AspNetCore.Identity;
 
 namespace Sentinel.Services
 {
     public class PermissionService : IPermissionService
     {
         private readonly ApplicationDbContext _context;
-        private readonly UserManager<ApplicationUser> _userManager;
+        private readonly IDbContextFactory<ApplicationDbContext> _dbContextFactory;
 
-        public PermissionService(ApplicationDbContext context, UserManager<ApplicationUser> userManager)
+        public PermissionService(
+            ApplicationDbContext context,
+            IDbContextFactory<ApplicationDbContext> dbContextFactory)
         {
             _context = context;
-            _userManager = userManager;
+            _dbContextFactory = dbContextFactory;
         }
 
         public async Task<bool> HasPermissionAsync(string userId, PermissionModule module, PermissionAction action)
@@ -24,76 +25,80 @@ namespace Sentinel.Services
 
         public async Task<bool> HasPermissionAsync(string userId, string permissionKey)
         {
-            var user = await _userManager.FindByIdAsync(userId);
-            if (user == null) return false;
+            // Permission checks can run concurrently in an interactive Blazor circuit.
+            // A scoped DbContext is not thread-safe, so authorization always uses a
+            // fresh, short-lived read context rather than the request/circuit context.
+            await using var context = await _dbContextFactory.CreateDbContextAsync();
 
-            var permission = await _context.Permissions
-                .FirstOrDefaultAsync(p => p.Name == permissionKey);
+            var permissionId = await context.Permissions
+                .AsNoTracking()
+                .Where(p => p.Name == permissionKey)
+                .Select(p => (int?)p.Id)
+                .SingleOrDefaultAsync();
 
-            if (permission == null) return false;
+            if (permissionId is null) return false;
 
             // Check user-specific permission (overrides role permissions)
-            var userPermission = await _context.UserPermissions
-                .FirstOrDefaultAsync(up => up.UserId == userId && up.PermissionId == permission.Id);
+            var userPermission = await context.UserPermissions
+                .AsNoTracking()
+                .Where(up => up.UserId == userId && up.PermissionId == permissionId.Value)
+                .Select(up => (bool?)up.IsGranted)
+                .SingleOrDefaultAsync();
 
-            if (userPermission != null)
+            if (userPermission.HasValue)
             {
-                return userPermission.IsGranted;
+                return userPermission.Value;
             }
 
-            // Check role-based permissions
-            var userRoles = await _userManager.GetRolesAsync(user);
-            
-            foreach (var roleName in userRoles)
-            {
-                var role = await _context.Roles.FirstOrDefaultAsync(r => r.Name == roleName);
-                if (role == null) continue;
-
-                var rolePermission = await _context.RolePermissions
-                    .FirstOrDefaultAsync(rp => rp.RoleId == role.Id && rp.PermissionId == permission.Id);
-
-                if (rolePermission != null && rolePermission.IsGranted)
-                {
-                    return true;
-                }
-            }
-
-            return false;
+            // Check role-based permissions in one no-tracking query.
+            return await (
+                from userRole in context.UserRoles.AsNoTracking()
+                join rolePermission in context.RolePermissions.AsNoTracking()
+                    on userRole.RoleId equals rolePermission.RoleId
+                where userRole.UserId == userId
+                    && rolePermission.PermissionId == permissionId.Value
+                    && rolePermission.IsGranted
+                select rolePermission.PermissionId)
+                .AnyAsync();
         }
 
         public async Task<List<Permission>> GetUserPermissionsAsync(string userId)
         {
-            var user = await _userManager.FindByIdAsync(userId);
-            if (user == null) return new List<Permission>();
+            // Claims transformation can also be invoked while an interactive circuit
+            // performs another query. Use an independent context for these reads.
+            await using var context = await _dbContextFactory.CreateDbContextAsync();
 
-            var permissions = new List<Permission>();
-
-            // Get direct user permissions
-            var userPermissions = await _context.UserPermissions
+            var directPermissions = await context.UserPermissions
+                .AsNoTracking()
                 .Include(up => up.Permission)
-                .Where(up => up.UserId == userId && up.IsGranted)
-                .Select(up => up.Permission!)
+                .Where(up => up.UserId == userId)
                 .ToListAsync();
 
-            permissions.AddRange(userPermissions);
+            var directByPermissionId = directPermissions
+                .GroupBy(up => up.PermissionId)
+                .ToDictionary(group => group.Key, group => group.First().IsGranted);
 
-            // Get role-based permissions
-            var userRoles = await _userManager.GetRolesAsync(user);
-            foreach (var roleName in userRoles)
-            {
-                var role = await _context.Roles.FirstOrDefaultAsync(r => r.Name == roleName);
-                if (role == null) continue;
-
-                var rolePermissions = await _context.RolePermissions
+            var rolePermissions = await (
+                from userRole in context.UserRoles.AsNoTracking()
+                join rolePermission in context.RolePermissions
+                    .AsNoTracking()
                     .Include(rp => rp.Permission)
-                    .Where(rp => rp.RoleId == role.Id && rp.IsGranted)
-                    .Select(rp => rp.Permission!)
-                    .ToListAsync();
+                    on userRole.RoleId equals rolePermission.RoleId
+                where userRole.UserId == userId && rolePermission.IsGranted
+                select rolePermission)
+                .ToListAsync();
 
-                permissions.AddRange(rolePermissions);
-            }
+            var effectivePermissions = rolePermissions
+                .Where(rp => !directByPermissionId.ContainsKey(rp.PermissionId))
+                .Select(rp => rp.Permission!)
+                .Concat(directPermissions
+                    .Where(up => up.IsGranted)
+                    .Select(up => up.Permission!))
+                .GroupBy(permission => permission.Id)
+                .Select(group => group.First())
+                .ToList();
 
-            return permissions.Distinct().ToList();
+            return effectivePermissions;
         }
 
         public async Task<List<Permission>> GetRolePermissionsAsync(string roleId)

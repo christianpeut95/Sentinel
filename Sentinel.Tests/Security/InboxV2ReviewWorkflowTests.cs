@@ -49,6 +49,30 @@ public sealed class InboxV2ReviewWorkflowTests
         Assert.Contains("r.ChangeType == \"PendingCreation\"", indexSource, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void SurveyMappingRetry_IsServerBoundAndDoesNotExposeStoredResponsesToTheBrowser()
+    {
+        var detailSource = ReadSentinelFile("Pages/DataInbox/Review.cshtml.cs");
+        var viewSource = ReadSentinelFile("Pages/DataInbox/Review.cshtml");
+
+        Assert.Contains("OnPostReprocessSurveyAsync", detailSource, StringComparison.Ordinal);
+        Assert.Contains("CanResolveReviewsAsync()", detailSource, StringComparison.Ordinal);
+        Assert.Contains("r.Id == id && r.ReviewStatus == ReviewStatuses.Pending", detailSource, StringComparison.Ordinal);
+        Assert.Contains("SurveyMappingError", detailSource, StringComparison.Ordinal);
+        Assert.Contains("CanAccessCaseAsync(review.CaseId.Value)", detailSource, StringComparison.Ordinal);
+        Assert.Contains("task.SurveyResponseJson", detailSource, StringComparison.Ordinal);
+
+        Assert.Contains("asp-page-handler=\"ReprocessSurvey\"", viewSource, StringComparison.Ordinal);
+        Assert.Contains("js-reprocess-survey-form", viewSource, StringComparison.Ordinal);
+        Assert.Contains("TempData[\"ErrorMessage\"]", viewSource, StringComparison.Ordinal);
+        Assert.DoesNotContain("function reprocessSurvey", viewSource, StringComparison.Ordinal);
+        Assert.DoesNotContain("/api/tasks/${taskId}", viewSource, StringComparison.Ordinal);
+        Assert.DoesNotContain("/Tasks/CompleteSurvey/${taskId}", viewSource, StringComparison.Ordinal);
+
+        Assert.Contains("SurveyRetryFailed", detailSource, StringComparison.Ordinal);
+        Assert.Contains("RedirectToPage(\"./Index\")", detailSource, StringComparison.Ordinal);
+    }
+
     private static int Count(string source, string value) =>
         source.Split(value, StringSplitOptions.None).Length - 1;
 

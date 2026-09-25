@@ -15,7 +15,6 @@ This directory records Sentinel's security controls, operating assumptions and r
 | [Dependency management](dependency-management.md) | Vulnerability monitoring, remediation timeframes and exceptions | Every release and dependency update |
 | [OWASP ASVS Level 1 self-assessment](owasp-asvs-l1-assessment.md) | Current self-assessment position, supporting evidence and deployment checks | Every release and material security change |
 | [V14.2.1 and V15.3.1 evidence](ASVS-V14.2.1-and-V15.3.1-evidence.md) | API-key URL handling and response/export contract evidence | Google integration, API or export change |
-| [Permission remediation record](permission-remediation.md) | Historical permission-audit remediation notes | Reference only; update the model document for current rules |
 
 ## Release security review
 

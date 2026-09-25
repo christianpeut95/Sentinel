@@ -235,6 +235,22 @@
     return;
 }
 
+@if (TempData["SuccessMessage"] is string successMessage)
+{
+    <div class="alert alert-success alert-dismissible fade show" role="alert">
+        <i class="bi bi-check-circle me-2"></i>@successMessage
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+}
+
+@if (TempData["ErrorMessage"] is string errorMessage)
+{
+    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+        <i class="bi bi-exclamation-triangle me-2"></i>@errorMessage
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+}
+
 <!-- Hero Section with Key Context -->
 <div class="review-hero">
     <div class="d-flex justify-content-between align-items-start">
@@ -749,9 +765,11 @@
                                         <a href="/Tasks/CompleteSurvey/@errorData["TaskId"]" class="btn btn-primary">
                                             <i class="bi bi-pencil"></i> Re-edit Survey
                                         </a>
-                                        <button type="button" class="btn btn-warning js-reprocess-survey" data-task-id="@errorData["TaskId"]">
-                                            <i class="bi bi-arrow-repeat"></i> Retry Automatic Processing
-                                        </button>
+                                        <form method="post" asp-page-handler="ReprocessSurvey" asp-route-id="@Model.ReviewDetail.ReviewItem.Id" class="d-inline js-reprocess-survey-form">
+                                            <button type="submit" class="btn btn-warning">
+                                                <i class="bi bi-arrow-repeat"></i> Retry Automatic Processing
+                                            </button>
+                                        </form>
                                     }
                                     <button type="button" class="btn btn-secondary js-print-review">
                                         <i class="bi bi-printer"></i> Print for Manual Entry
@@ -2186,14 +2204,6 @@
 @section Scripts {
 <script>
     document.addEventListener('click', function (event) {
-        const reprocessButton = event.target.closest('.js-reprocess-survey');
-        if (reprocessButton) {
-            if (window.confirm('Attempt to reprocess this survey? This will retry the automatic mapping.')) {
-                reprocessSurvey(reprocessButton.dataset.taskId, reprocessButton);
-            }
-            return;
-        }
-
         if (event.target.closest('.js-print-review')) {
             window.print();
         }
@@ -2203,68 +2213,13 @@
         const confirmationButton = event.target.querySelector('.js-confirm-review');
         if (confirmationButton && !window.confirm(confirmationButton.dataset.confirmationMessage)) {
             event.preventDefault();
+            return;
+        }
+
+        if (event.target.matches('.js-reprocess-survey-form') &&
+            !window.confirm('Attempt to reprocess this survey? This will retry the automatic mapping.')) {
+            event.preventDefault();
         }
     });
-
-    // Function to reprocess a failed survey
-    async function reprocessSurvey(taskId, button) {
-        try {
-            const btn = button;
-            btn.disabled = true;
-            btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Reprocessing...';
-            
-            const token = document.querySelector('input[name="__RequestVerificationToken"]')?.value;
-            if (!token) {
-                throw new Error('Anti-forgery token not found');
-            }
-            
-            // Get the task to retrieve survey responses
-            const taskResponse = await fetch(`/api/tasks/${taskId}`, {
-                headers: {
-                    'RequestVerificationToken': token
-                }
-            });
-            
-            if (!taskResponse.ok) {
-                throw new Error('Failed to retrieve task data');
-            }
-            
-            const taskData = await taskResponse.json();
-            const surveyResponses = JSON.parse(taskData.surveyResponseJson);
-            
-            // Retry the survey submission
-            const response = await fetch(`/Tasks/CompleteSurvey/${taskId}`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'RequestVerificationToken': token
-                },
-                body: JSON.stringify(surveyResponses)
-            });
-            
-            if (!response.ok) {
-                throw new Error(`Server returned ${response.status}`);
-            }
-            
-            const result = await response.json();
-            
-            if (result.success) {
-                alert('Survey reprocessed successfully! The review item will be marked as resolved.');
-                window.location.reload();
-            } else {
-                throw new Error('Reprocessing failed');
-            }
-        } catch (error) {
-            // Survey-processing errors can contain case, patient, or submitted
-            // answer data. Keep the diagnostic server-side and leave only a
-            // generic client-side failure marker.
-            console.error('Failed to reprocess survey.');
-            alert('The survey could not be reprocessed. Please try again. If the problem persists, contact an administrator.');
-            
-            const btn = button;
-            btn.disabled = false;
-            btn.innerHTML = '<i class="bi bi-arrow-repeat"></i> Retry Automatic Processing';
-        }
-    }
 </script>
 }
