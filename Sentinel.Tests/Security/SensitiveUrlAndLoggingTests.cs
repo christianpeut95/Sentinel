@@ -18,9 +18,9 @@ public sealed class SensitiveUrlAndLoggingTests
     {
         var generatorCallSites = Directory
             .EnumerateFiles(Path.Combine(RepositoryRoot, "Sentinel"), "*.cs", SearchOption.AllDirectories)
-            .Where(path => !path.Contains("\\bin\\", StringComparison.OrdinalIgnoreCase) &&
-                           !path.Contains("\\obj\\", StringComparison.OrdinalIgnoreCase) &&
-                           !path.Contains("\\Migrations\\", StringComparison.OrdinalIgnoreCase))
+            .Where(path => !NormalizePath(path).Contains("/bin/", StringComparison.OrdinalIgnoreCase) &&
+                           !NormalizePath(path).Contains("/obj/", StringComparison.OrdinalIgnoreCase) &&
+                           !NormalizePath(path).Contains("/Migrations/", StringComparison.OrdinalIgnoreCase))
             .Where(path => File.ReadAllText(path).Contains("GeneratePasswordResetTokenAsync", StringComparison.Ordinal))
             .OrderBy(path => path, StringComparer.Ordinal)
             .ToArray();
@@ -28,7 +28,7 @@ public sealed class SensitiveUrlAndLoggingTests
         Assert.Equal(3, generatorCallSites.Length);
 
         var resetLinkGenerators = generatorCallSites
-            .Where(path => !path.EndsWith("Settings\\Users\\Edit.cshtml.cs", StringComparison.OrdinalIgnoreCase))
+            .Where(path => !NormalizePath(path).EndsWith("/Settings/Users/Edit.cshtml.cs", StringComparison.OrdinalIgnoreCase))
             .ToArray();
         Assert.Equal(2, resetLinkGenerators.Length);
 
@@ -41,7 +41,7 @@ public sealed class SensitiveUrlAndLoggingTests
         }
 
         var administratorResetSource = File.ReadAllText(generatorCallSites.Single(path =>
-            path.EndsWith("Settings\\Users\\Edit.cshtml.cs", StringComparison.OrdinalIgnoreCase)));
+            NormalizePath(path).EndsWith("/Settings/Users/Edit.cshtml.cs", StringComparison.OrdinalIgnoreCase)));
         Assert.Contains("ResetPasswordAsync(user, token, Input.NewPassword)", administratorResetSource, StringComparison.Ordinal);
         Assert.DoesNotContain("Url.Page(", administratorResetSource, StringComparison.Ordinal);
         Assert.DoesNotContain("SendPasswordResetEmailAsync", administratorResetSource, StringComparison.Ordinal);
@@ -153,6 +153,8 @@ public sealed class SensitiveUrlAndLoggingTests
 
         throw new DirectoryNotFoundException("Could not locate the Sentinel repository root.");
     }
+
+    private static string NormalizePath(string path) => path.Replace('\\', '/');
 
     private sealed class RecordingLoggerProvider(ConcurrentQueue<string> messages) : ILoggerProvider
     {

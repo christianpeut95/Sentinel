@@ -14,8 +14,9 @@ public sealed class CsrfSurfaceInventoryTests
     public void RazorPagesAndControllers_UseGlobalAntiforgeryWithOnlyTheErrorPageOptingOut()
     {
         var program = File.ReadAllText(Path.Combine(RepositoryRoot, "Sentinel", "Program.cs"));
+        var pipeline = File.ReadAllText(Path.Combine(RepositoryRoot, "Sentinel", "Extensions", "SentinelApplicationPipelineExtensions.cs"));
         Assert.Contains("AutoValidateAntiforgeryTokenAttribute", program, StringComparison.Ordinal);
-        Assert.Contains("app.UseAntiforgery();", program, StringComparison.Ordinal);
+        Assert.Contains("app.UseAntiforgery();", pipeline, StringComparison.Ordinal);
 
         var optOuts = Directory
             .EnumerateFiles(Path.Combine(RepositoryRoot, "Sentinel"), "*.cs", SearchOption.AllDirectories)
@@ -32,8 +33,8 @@ public sealed class CsrfSurfaceInventoryTests
     [Fact]
     public void EveryUnsafeMinimalApiRoute_RequiresAnAntiforgeryToken()
     {
-        var program = File.ReadAllText(Path.Combine(RepositoryRoot, "Sentinel", "Program.cs"));
-        var maps = Regex.Matches(program, "app\\.Map(?<method>Post|Put|Patch|Delete)\\(\\s*\\\"(?<route>[^\\\"]+)\\\"")
+        var minimalApis = File.ReadAllText(Path.Combine(RepositoryRoot, "Sentinel", "Extensions", "SentinelMinimalApiExtensions.cs"));
+        var maps = Regex.Matches(minimalApis, "app\\.Map(?<method>Post|Put|Patch|Delete)\\(\\s*\\\"(?<route>[^\\\"]+)\\\"")
             .Cast<Match>()
             .ToList();
 
@@ -43,8 +44,8 @@ public sealed class CsrfSurfaceInventoryTests
 
         for (var index = 0; index < maps.Count; index++)
         {
-            var end = index + 1 < maps.Count ? maps[index + 1].Index : program.Length;
-            var endpointBlock = program[maps[index].Index..end];
+            var end = index + 1 < maps.Count ? maps[index + 1].Index : minimalApis.Length;
+            var endpointBlock = minimalApis[maps[index].Index..end];
             Assert.Contains("WithMetadata(new RequireAntiforgeryTokenAttribute(true))", endpointBlock, StringComparison.Ordinal);
         }
     }

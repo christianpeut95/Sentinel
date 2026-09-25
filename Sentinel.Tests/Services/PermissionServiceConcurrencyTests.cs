@@ -1,6 +1,5 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Infrastructure;
 using Sentinel.Data;
 using Sentinel.Models;
 using Sentinel.Services;
@@ -12,7 +11,7 @@ public class PermissionServiceConcurrencyTests
     [Fact]
     public async Task HasPermissionAsync_uses_independent_contexts_for_concurrent_checks()
     {
-        var (service, _) = await CreateServiceAsync(
+        var (service, factory, scopedContext) = await CreateServiceAsync(
             new Permission { Id = 1, Module = PermissionModule.Case, Action = PermissionAction.View, Name = "Case.View" },
             new Permission { Id = 2, Module = PermissionModule.Patient, Action = PermissionAction.View, Name = "Patient.View" },
             rolePermissions:
@@ -20,23 +19,26 @@ public class PermissionServiceConcurrencyTests
                 new RolePermission { RoleId = "investigator", PermissionId = 1, IsGranted = true },
                 new RolePermission { RoleId = "investigator", PermissionId = 2, IsGranted = true }
             ]);
+        await using var contextDisposal = scopedContext;
 
         var checks = await Task.WhenAll(
             service.HasPermissionAsync("user-1", "Case.View"),
             service.HasPermissionAsync("user-1", "Patient.View"));
 
         Assert.All(checks, Assert.True);
+        Assert.Equal(2, factory.CreatedContextCount);
     }
 
     [Fact]
     public async Task HasPermissionAsync_direct_denial_overrides_a_role_grant()
     {
-        var (service, _) = await CreateServiceAsync(
+        var (service, _, scopedContext) = await CreateServiceAsync(
             new Permission { Id = 1, Module = PermissionModule.Case, Action = PermissionAction.View, Name = "Case.View" },
             rolePermissions:
             [new RolePermission { RoleId = "investigator", PermissionId = 1, IsGranted = true }],
             userPermissions:
             [new UserPermission { UserId = "user-1", PermissionId = 1, IsGranted = false }]);
+        await using var contextDisposal = scopedContext;
 
         var result = await service.HasPermissionAsync("user-1", "Case.View");
 
@@ -46,7 +48,7 @@ public class PermissionServiceConcurrencyTests
     [Fact]
     public async Task GetUserPermissionsAsync_applies_direct_overrides_to_role_permissions()
     {
-        var (service, _) = await CreateServiceAsync(
+        var (service, _, scopedContext) = await CreateServiceAsync(
             new Permission { Id = 1, Module = PermissionModule.Case, Action = PermissionAction.View, Name = "Case.View" },
             new Permission { Id = 2, Module = PermissionModule.Patient, Action = PermissionAction.View, Name = "Patient.View" },
             new Permission { Id = 3, Module = PermissionModule.Task, Action = PermissionAction.View, Name = "Task.View" },
@@ -60,13 +62,14 @@ public class PermissionServiceConcurrencyTests
                 new UserPermission { UserId = "user-1", PermissionId = 1, IsGranted = false },
                 new UserPermission { UserId = "user-1", PermissionId = 3, IsGranted = true }
             ]);
+        await using var contextDisposal = scopedContext;
 
         var permissions = await service.GetUserPermissionsAsync("user-1");
 
         Assert.Equal(["Patient.View", "Task.View"], permissions.Select(permission => permission.Name).OrderBy(name => name));
     }
 
-    private static async Task<(PermissionService Service, PooledDbContextFactory<ApplicationDbContext> Factory)> CreateServiceAsync(
+    private static async Task<(PermissionService Service, TestDbContextFactory Factory, ApplicationDbContext ScopedContext)> CreateServiceAsync(
         Permission firstPermission,
         Permission? secondPermission = null,
         Permission? thirdPermission = null,
@@ -94,8 +97,25 @@ public class PermissionServiceConcurrencyTests
             await setupContext.SaveChangesAsync();
         }
 
-        var factory = new PooledDbContextFactory<ApplicationDbContext>(options);
+        var factory = new TestDbContextFactory(options);
         var scopedContext = new ApplicationDbContext(options);
-        return (new PermissionService(scopedContext, factory), factory);
+        return (new PermissionService(scopedContext, factory), factory, scopedContext);
+    }
+
+    private sealed class TestDbContextFactory(DbContextOptions<ApplicationDbContext> options)
+        : IDbContextFactory<ApplicationDbContext>
+    {
+        private int _createdContextCount;
+
+        public int CreatedContextCount => Volatile.Read(ref _createdContextCount);
+
+        public ApplicationDbContext CreateDbContext()
+        {
+            Interlocked.Increment(ref _createdContextCount);
+            return new ApplicationDbContext(options);
+        }
+
+        public Task<ApplicationDbContext> CreateDbContextAsync(CancellationToken cancellationToken = default) =>
+            Task.FromResult(CreateDbContext());
     }
 }

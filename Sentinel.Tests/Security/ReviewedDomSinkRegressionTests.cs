@@ -24,7 +24,6 @@ public sealed class ReviewedDomSinkRegressionTests
             new DomSinkCounts("Pages/Dashboard/MyTasks.cshtml", 0, 0, 0, 4),
             new DomSinkCounts("Pages/Dashboard/SuperviseInterviews.cshtml", 1, 0, 0, 0),
             new DomSinkCounts("Pages/DataInbox/Index.cshtml", 6, 0, 0, 0),
-            new DomSinkCounts("Pages/DataInbox/Review.cshtml", 2, 0, 0, 0),
             new DomSinkCounts("Pages/Locations/Create.cshtml", 4, 0, 0, 0),
             new DomSinkCounts("Pages/Outbreaks/CaseDefinitions.cshtml", 9, 0, 0, 0),
             new DomSinkCounts("Pages/Outbreaks/LineList.cshtml", 9, 0, 0, 0),
@@ -89,7 +88,6 @@ public sealed class ReviewedDomSinkRegressionTests
             ["Pages/Dashboard/MyTasks.cshtml"] = ["${escapeHtml(attempt.notes)}"],
             ["Pages/Dashboard/SuperviseInterviews.cshtml"] = ["button.textContent = label"],
             ["Pages/DataInbox/Index.cshtml"] = ["toast.appendChild(document.createTextNode(message))"],
-            ["Pages/DataInbox/Review.cshtml"] = ["btn.innerHTML = '<span class=\"spinner-border spinner-border-sm me-2\"></span>Reprocessing...'"],
             ["Pages/Locations/Create.cshtml"] = ["+ escapeHtml(placeName) +", "text.innerText = pred.description || ''"],
             ["Pages/Outbreaks/CaseDefinitions.cshtml"] = ["${escapeHtml(criterion.input)}", "option.textContent = `${field.label} (${field.fieldType})`"],
             ["Pages/Outbreaks/LineList.cshtml"] = ["${escapeHtml(f.fieldPath)}", "Number.isSafeInteger(configId)"],
@@ -121,7 +119,19 @@ public sealed class ReviewedDomSinkRegressionTests
             }
         }
 
-        Assert.Equal(33, reviewedContracts.Count);
+        Assert.Equal(32, reviewedContracts.Count);
+    }
+
+    [Fact]
+    public void InboxReview_ReprocessingUsesAnAntiforgeryFormWithoutDynamicHtml()
+    {
+        var source = ReadSentinelFile("Pages/DataInbox/Review.cshtml");
+
+        Assert.Contains("<form method=\"post\" asp-page-handler=\"ReprocessSurvey\"", source, StringComparison.Ordinal);
+        Assert.DoesNotContain("innerHTML", source, StringComparison.Ordinal);
+        Assert.DoesNotContain("outerHTML", source, StringComparison.Ordinal);
+        Assert.DoesNotContain("insertAdjacentHTML", source, StringComparison.Ordinal);
+        Assert.DoesNotContain(".html(", source, StringComparison.Ordinal);
     }
 
     [Fact]

@@ -11,10 +11,10 @@ public sealed class BrowserStorageSecurityTests
             .EnumerateFiles(Path.Combine(RepositoryRoot, "Sentinel"), "*.*", SearchOption.AllDirectories)
             .Where(path => path.EndsWith(".cshtml", StringComparison.OrdinalIgnoreCase) ||
                            path.EndsWith(".js", StringComparison.OrdinalIgnoreCase))
-            .Where(path => !path.Contains("\\wwwroot\\lib\\", StringComparison.OrdinalIgnoreCase) &&
-                           !path.Contains("\\bin\\", StringComparison.OrdinalIgnoreCase) &&
-                           !path.Contains("\\obj\\", StringComparison.OrdinalIgnoreCase))
-            .Select(path => new { Path = path, Text = File.ReadAllText(path) })
+            .Where(path => !NormalizePath(path).Contains("/wwwroot/lib/", StringComparison.OrdinalIgnoreCase) &&
+                           !NormalizePath(path).Contains("/bin/", StringComparison.OrdinalIgnoreCase) &&
+                           !NormalizePath(path).Contains("/obj/", StringComparison.OrdinalIgnoreCase))
+            .Select(path => new { Path = NormalizePath(path), Text = File.ReadAllText(path) })
             .Where(entry => entry.Text.Contains("localStorage", StringComparison.Ordinal) ||
                             entry.Text.Contains("sessionStorage", StringComparison.Ordinal))
             .ToList();
@@ -22,8 +22,8 @@ public sealed class BrowserStorageSecurityTests
         Assert.Equal(4, storageCallSites.Count);
         Assert.Contains(storageCallSites, entry => entry.Path.EndsWith("_Layout.cshtml", StringComparison.OrdinalIgnoreCase));
         Assert.Contains(storageCallSites, entry => entry.Path.EndsWith("report-builder.js", StringComparison.OrdinalIgnoreCase));
-        Assert.Contains(storageCallSites, entry => entry.Path.EndsWith("Settings\\Diseases\\Edit.cshtml", StringComparison.OrdinalIgnoreCase));
-        Assert.Contains(storageCallSites, entry => entry.Path.EndsWith("Account\\Login.cshtml", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(storageCallSites, entry => entry.Path.EndsWith("/Settings/Diseases/Edit.cshtml", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(storageCallSites, entry => entry.Path.EndsWith("/Account/Login.cshtml", StringComparison.OrdinalIgnoreCase));
     }
 
     [Fact]
@@ -54,4 +54,6 @@ public sealed class BrowserStorageSecurityTests
 
         throw new DirectoryNotFoundException("Could not locate the Sentinel repository root.");
     }
+
+    private static string NormalizePath(string path) => path.Replace('\\', '/');
 }

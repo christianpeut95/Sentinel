@@ -29,7 +29,10 @@ public sealed class RazorHttpMethodSecurityTests
         var razorHandlers = Directory.GetFiles(Path.Combine(root, "Sentinel", "Pages"), "*.cshtml.cs", SearchOption.AllDirectories)
             .SelectMany(GetGetHandlerBodies)
             .ToList();
-        var minimalApiHandlers = GetMinimalApiGetHandlerBodies(File.ReadAllText(Path.Combine(root, "Sentinel", "Program.cs"))).ToList();
+        var minimalApiSource = string.Join(Environment.NewLine,
+            File.ReadAllText(Path.Combine(root, "Sentinel", "Extensions", "SentinelMinimalApiExtensions.cs")),
+            File.ReadAllText(Path.Combine(root, "Sentinel", "Extensions", "SentinelStartupExtensions.cs")));
+        var minimalApiHandlers = GetMinimalApiGetHandlerBodies(minimalApiSource).ToList();
         var handlerBodies = razorHandlers.Concat(minimalApiHandlers).ToList();
 
         Assert.True(razorHandlers.Count >= 200, "The Razor GET-handler inventory unexpectedly shrank; review the source-discovery test.");
@@ -64,10 +67,10 @@ public sealed class RazorHttpMethodSecurityTests
     {
         var root = GetRepositoryRoot();
         var mappingDeletionSource = File.ReadAllText(Path.Combine(root, "Sentinel", "Pages", "Settings", "Mappings", "DeleteMapping.cshtml.cs"));
-        var programSource = File.ReadAllText(Path.Combine(root, "Sentinel", "Program.cs"));
+        var pipelineSource = File.ReadAllText(Path.Combine(root, "Sentinel", "Extensions", "SentinelApplicationPipelineExtensions.cs"));
 
         Assert.DoesNotContain("IgnoreAntiforgeryToken", mappingDeletionSource, StringComparison.Ordinal);
-        Assert.Contains("app.UseAntiforgery();", programSource, StringComparison.Ordinal);
+        Assert.Contains("app.UseAntiforgery();", pipelineSource, StringComparison.Ordinal);
     }
 
     private static IEnumerable<GetHandler> GetGetHandlerBodies(string path)
@@ -136,7 +139,7 @@ public sealed class RazorHttpMethodSecurityTests
             }
 
             var lineNumber = source[..match.Index].Count(character => character == '\n') + 1;
-            yield return new GetHandler("Sentinel/Program.cs", lineNumber, "MapGet", source[openingBrace..(closingBrace + 1)]);
+            yield return new GetHandler("Sentinel/Extensions/SentinelMinimalApiExtensions.cs", lineNumber, "MapGet", source[openingBrace..(closingBrace + 1)]);
         }
     }
 

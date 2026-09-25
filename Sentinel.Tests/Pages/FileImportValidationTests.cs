@@ -36,10 +36,10 @@ public sealed class FileImportValidationTests
         AssertUploadRequestLimit(typeof(EditModel), 100_000_000);
         AssertUploadRequestLimit(typeof(BulkImportModel), 100_000_000);
 
-        var programSource = File.ReadAllText(Path.Combine(GetRepositoryRoot(), "Sentinel", "Program.cs"));
-        Assert.Contains("FileStorage:MaxUploadBytes", programSource, StringComparison.Ordinal);
-        Assert.Contains("options.Limits.MaxRequestBodySize = defaultMultipartRequestLimit;", programSource, StringComparison.Ordinal);
-        Assert.Contains("options.MultipartBodyLengthLimit = defaultMultipartRequestLimit;", programSource, StringComparison.Ordinal);
+        var configurationSource = File.ReadAllText(Path.Combine(GetRepositoryRoot(), "Sentinel", "Extensions", "SentinelConfigurationExtensions.cs"));
+        Assert.Contains("FileStorage:MaxUploadBytes", configurationSource, StringComparison.Ordinal);
+        Assert.Contains("options.Limits.MaxRequestBodySize = defaultMultipartRequestLimit;", configurationSource, StringComparison.Ordinal);
+        Assert.Contains("options.MultipartBodyLengthLimit = defaultMultipartRequestLimit;", configurationSource, StringComparison.Ordinal);
     }
 
     [Fact]

@@ -15,7 +15,10 @@ public sealed class TrustedInputBoundarySourceTests
         {
             Path.Combine(root, "Sentinel", "Program.cs"),
             Path.Combine(root, "Sentinel", "Controllers"),
-            Path.Combine(root, "Sentinel", "Pages")
+            Path.Combine(root, "Sentinel", "Pages"),
+            // Minimal APIs and pipeline middleware are now composed through
+            // startup extensions rather than living only in Program.cs.
+            Path.Combine(root, "Sentinel", "Extensions")
         };
 
         var sources = endpointRoots.SelectMany(path =>

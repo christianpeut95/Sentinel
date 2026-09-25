@@ -18,7 +18,7 @@ public sealed class AuthorizationSurfaceInventoryTests
 
         var pageModels = Directory
             .EnumerateFiles(Path.Combine(RepositoryRoot, "Sentinel"), "*.cshtml.cs", SearchOption.AllDirectories)
-            .Where(path => path.Contains("\\Pages\\", StringComparison.OrdinalIgnoreCase))
+            .Where(path => NormalizePath(path).Contains("/Pages/", StringComparison.OrdinalIgnoreCase))
             .Where(path => File.ReadAllText(path).Contains("class ", StringComparison.Ordinal))
             .ToList();
 
@@ -121,8 +121,10 @@ public sealed class AuthorizationSurfaceInventoryTests
     [Fact]
     public void MinimalApis_AllApiRoutesRequireAuthorization_AndOnlyHealthIsAnonymous()
     {
-        var program = File.ReadAllText(Path.Combine(RepositoryRoot, "Sentinel", "Program.cs"));
-        var maps = Regex.Matches(program, "app\\.Map(?:Get|Post|Put|Patch|Delete)\\(\\s*\\\"(?<route>[^\\\"]+)\\\"")
+        var endpointSources = string.Join(Environment.NewLine,
+            File.ReadAllText(Path.Combine(RepositoryRoot, "Sentinel", "Extensions", "SentinelMinimalApiExtensions.cs")),
+            File.ReadAllText(Path.Combine(RepositoryRoot, "Sentinel", "Extensions", "SentinelStartupExtensions.cs")));
+        var maps = Regex.Matches(endpointSources, "app\\.Map(?:Get|Post|Put|Patch|Delete)\\(\\s*\\\"(?<route>[^\\\"]+)\\\"")
             .Cast<Match>()
             .ToList();
 
@@ -133,8 +135,8 @@ public sealed class AuthorizationSurfaceInventoryTests
         for (var index = 0; index < maps.Count; index++)
         {
             var route = maps[index].Groups["route"].Value;
-            var end = index + 1 < maps.Count ? maps[index + 1].Index : program.Length;
-            var endpointBlock = program[maps[index].Index..end];
+            var end = index + 1 < maps.Count ? maps[index + 1].Index : endpointSources.Length;
+            var endpointBlock = endpointSources[maps[index].Index..end];
 
             if (route == "/health")
             {
@@ -149,7 +151,9 @@ public sealed class AuthorizationSurfaceInventoryTests
     }
 
     private static string RelativePath(string path) =>
-        Path.GetRelativePath(RepositoryRoot, path).Replace('\\', '/');
+        NormalizePath(Path.GetRelativePath(RepositoryRoot, path));
+
+    private static string NormalizePath(string path) => path.Replace('\\', '/');
 
     private static string FindRepositoryRoot()
     {
