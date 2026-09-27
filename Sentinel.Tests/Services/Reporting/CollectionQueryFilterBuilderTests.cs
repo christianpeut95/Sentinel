@@ -28,7 +28,8 @@ public sealed class CollectionQueryFilterBuilderTests : IDisposable
         _builder = new CollectionQueryFilterBuilder(
             _context,
             new DynamicDateResolver(),
-            _fieldMetadata.Object);
+            _fieldMetadata.Object,
+            new CollectionMetadataService());
     }
 
     [Fact]
@@ -69,6 +70,63 @@ public sealed class CollectionQueryFilterBuilderTests : IDisposable
         };
 
         await Assert.ThrowsAsync<ArgumentException>(() => _builder.BuildCollectionFilterClauseAsync(query, "Case"));
+    }
+
+    [Fact]
+    public async Task BuildCollectionFilterClauseAsync_UsesTheCanonicalCollectionCatalogueWhenReportMetadataOmitsACollection()
+    {
+        var reportMetadata = new Mock<IReportFieldMetadataService>();
+        reportMetadata
+            .Setup(service => service.GetFieldsForEntityAsync("Case", false, FieldUsageContext.General))
+            .ReturnsAsync([]);
+        var builder = new CollectionQueryFilterBuilder(
+            _context,
+            new DynamicDateResolver(),
+            reportMetadata.Object,
+            new CollectionMetadataService());
+        var query = new CollectionQueryDto
+        {
+            CollectionName = "LabResults",
+            Operation = "HasAny",
+            SubFilters =
+            [
+                new CollectionSubFilter
+                {
+                    Field = "SpecimenType.Name",
+                    Operator = "Contains",
+                    Value = "stool"
+                }
+            ]
+        };
+
+        var clause = await builder.BuildCollectionFilterClauseAsync(query, "Case");
+
+        Assert.NotNull(clause);
+        Assert.Contains("SpecimenType", clause, StringComparison.Ordinal);
+        Assert.Equal("String", query.SubFilters[0].DataType);
+    }
+
+    [Fact]
+    public async Task BuildCollectionFilterClauseAsync_HasAllIsHandledByTypedPostProcessing()
+    {
+        var query = new CollectionQueryDto
+        {
+            CollectionName = "LabResults",
+            Operation = "HasAll",
+            SubFilters =
+            [
+                new CollectionSubFilter
+                {
+                    Field = "QualitativeResultText",
+                    Operator = "Contains",
+                    Value = "Salmonella"
+                }
+            ]
+        };
+
+        var clause = await _builder.BuildCollectionFilterClauseAsync(query, "Case");
+
+        Assert.Null(clause);
     }
 
     [Fact]

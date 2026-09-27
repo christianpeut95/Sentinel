@@ -662,7 +662,7 @@
         } else {
         }
 
-        // Define Google Places Autocomplete function (called by API callback)
+        // Bind the supported Google Places (New) address picker when enabled.
         window.initAddressAutocomplete = function() {
             var input = document.getElementById('editAddress');
             if (!input) {
@@ -670,14 +670,8 @@
             }
             
             var defaultCountry = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Configuration["Geocoding:DefaultCountry"] ?? "AU"));
-            var autocomplete = new google.maps.places.Autocomplete(input, {
-                types: ['address'],
-                componentRestrictions: { country: defaultCountry.toLowerCase() }
-            });
-
-            autocomplete.addListener('place_changed', function() {
-                var place = autocomplete.getPlace();
-                if (!place.address_components) {
+            SentinelGeocoding.attachPlaceAutocomplete(input, { country: defaultCountry }, function(place) {
+                if (!place.addressComponents) {
                     return;
                 }
 
@@ -688,22 +682,22 @@
                 var state = '';
                 var postcode = '';
 
-                place.address_components.forEach(function(component) {
+                place.addressComponents.forEach(function(component) {
                     var types = component.types;
                     if (types.indexOf('street_number') > -1) {
-                        streetNumber = component.long_name;
+                        streetNumber = component.longName;
                     }
                     if (types.indexOf('route') > -1) {
-                        streetName = component.long_name;
+                        streetName = component.longName;
                     }
                     if (types.indexOf('locality') > -1) {
-                        city = component.long_name;
+                        city = component.longName;
                     }
                     if (types.indexOf('administrative_area_level_1') > -1) {
-                        state = component.short_name;
+                        state = component.shortName;
                     }
                     if (types.indexOf('postal_code') > -1) {
-                        postcode = component.long_name;
+                        postcode = component.longName;
                     }
                 });
                 

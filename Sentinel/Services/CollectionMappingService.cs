@@ -44,8 +44,11 @@ public class CollectionMappingService : ICollectionMappingService
     {
         "Id",
         "FriendlyId",
+        "CreatedAt",
         "CreatedDate",
         "CreatedByUserId",
+        "UpdatedAt",
+        "ModifiedAt",
         "LastModified",
         "LastModifiedByUserId",
         "IsDeleted",
@@ -252,6 +255,12 @@ public class CollectionMappingService : ICollectionMappingService
             }
         }
         
+        ValidateRequiredPersistedFields(
+            result,
+            config.TargetEntityType,
+            GetPersistenceEntityType(config.TargetEntityType),
+            config.RowMappings.Select(mapping => (mapping.TargetFieldPath, mapping.Required, mapping.DefaultValue)));
+
         // Validate matching configuration
         if (config.MatchingConfig != null)
         {
@@ -328,10 +337,90 @@ public class CollectionMappingService : ICollectionMappingService
                     );
                 }
             }
+
+            var implicitFields = IsContactCaseAlias(relatedEntity.EntityType)
+                ? new[] { nameof(Case.PatientId), nameof(Case.Type) }
+                : Array.Empty<string>();
+
+            ValidateRequiredPersistedFields(
+                result,
+                relatedEntity.EntityType,
+                persistenceEntityType,
+                relatedEntity.Mappings.Select(mapping => (mapping.TargetFieldPath, mapping.Required, mapping.DefaultValue)),
+                implicitFields);
         }
         
         return result;
     }
+
+    /// <summary>
+    /// Validates required persisted scalar properties from EF metadata. This makes
+    /// incomplete collection mappings fail while being configured rather than later
+    /// as a database constraint exception during a survey submission.
+    /// </summary>
+    private void ValidateRequiredPersistedFields(
+        ValidationResult result,
+        string configuredEntityType,
+        string persistenceEntityType,
+        IEnumerable<(string TargetFieldPath, bool Required, string? DefaultValue)> mappings,
+        IEnumerable<string>? implicitFields = null)
+    {
+        var entityMetadata = _context.Model.GetEntityTypes()
+            .FirstOrDefault(entity => !entity.IsOwned() &&
+                                      entity.ClrType.Name.Equals(persistenceEntityType, StringComparison.OrdinalIgnoreCase));
+        if (entityMetadata == null)
+        {
+            return;
+        }
+
+        var configuredFields = mappings
+            .Select(mapping => new
+            {
+                FieldPath = NormalizeEntityFieldPath(
+                    mapping.TargetFieldPath,
+                    configuredEntityType,
+                    persistenceEntityType),
+                mapping.Required,
+                HasDefault = !string.IsNullOrWhiteSpace(mapping.DefaultValue)
+            })
+            .ToList();
+
+        var implicitFieldSet = new HashSet<string>(
+            implicitFields ?? Array.Empty<string>(),
+            StringComparer.OrdinalIgnoreCase);
+
+        foreach (var property in entityMetadata.GetProperties().Where(property =>
+                     !property.IsShadowProperty() &&
+                     !property.IsPrimaryKey() &&
+                     property.ClrType == typeof(string) &&
+                     !property.IsNullable &&
+                     property.ValueGenerated == ValueGenerated.Never &&
+                     !IsSystemManagedRelatedEntityProperty(property.Name) &&
+                     !implicitFieldSet.Contains(property.Name)))
+        {
+            var fieldMapping = configuredFields.FirstOrDefault(mapping =>
+                mapping.FieldPath.Equals(property.Name, StringComparison.OrdinalIgnoreCase));
+
+            if (fieldMapping == null)
+            {
+                result.IsValid = false;
+                result.Errors.Add(
+                    $"Required database field '{configuredEntityType}.{property.Name}' must be mapped before this collection can be saved.");
+                continue;
+            }
+
+            if (!fieldMapping.Required && !fieldMapping.HasDefault)
+            {
+                result.IsValid = false;
+                result.Errors.Add(
+                    $"Required database field '{configuredEntityType}.{property.Name}' must be marked required or supplied with a default value.");
+            }
+        }
+    }
+
+    private static bool HasMeaningfulValue(object? value) =>
+        value is not null &&
+        (value is not string text || !string.IsNullOrWhiteSpace(text));
     
     public async Task<CollectionMappingResult> ProcessCollectionAsync(
         Guid surveyResponseId,
@@ -551,7 +640,7 @@ public class CollectionMappingService : ICollectionMappingService
                 normalizedFieldPath = normalizedFieldPath.Substring(config.TargetEntityType.Length + 1);
             }
             
-            if (sourceValue != null)
+            if (HasMeaningfulValue(sourceValue))
             {
                 var fieldMetadata = targetFields.FirstOrDefault(f => f.FieldPath == normalizedFieldPath);
                 if (fieldMetadata != null)
@@ -1027,12 +1116,9 @@ public class CollectionMappingService : ICollectionMappingService
             entityData.TryAdd(nameof(Case.Type), CaseType.Contact);
         }
 
-        if (persistenceEntityType == nameof(ExposureEvent) &&
-            (!entityData.TryGetValue(nameof(ExposureEvent.ExposedCaseId), out var exposedCaseId) ||
-             exposedCaseId is not Guid caseId || caseId == Guid.Empty))
+        if (persistenceEntityType == nameof(ExposureEvent))
         {
-            throw new InvalidOperationException(
-                "ExposureEvent.ExposedCaseId must resolve to the newly created contact Case before an exposure can be created.");
+            ApplySurveyCaseExposureRelationships(entityData, context.CaseId);
         }
         
         // Create the entity
@@ -1048,6 +1134,42 @@ public class CollectionMappingService : ICollectionMappingService
         relatedEntity.EntityType = config.EntityType;
         relatedEntity.PrimaryEntityId = primaryEntityId;
         return relatedEntity;
+    }
+
+    /// <summary>
+    /// Applies the relationships which are intrinsic to an exposure created by a
+    /// case survey. The survey's case is always the source; the configured mapping
+    /// supplies the newly-created contact as the exposed case. Keeping this rule in
+    /// the service avoids a silent, incomplete exposure when an administrator omits
+    /// a redundant source-case mapping from a collection configuration.
+    /// </summary>
+    private static void ApplySurveyCaseExposureRelationships(
+        IDictionary<string, object> entityData,
+        Guid surveyCaseId)
+    {
+        if (surveyCaseId == Guid.Empty)
+        {
+            throw new InvalidOperationException(
+                "An exposure created from a survey requires the case that owns the survey.");
+        }
+
+        // Do not allow an administrator-controlled mapping to redirect a case-survey
+        // exposure to an unrelated source case. This is a server-enforced relationship,
+        // not survey input.
+        entityData[nameof(ExposureEvent.SourceCaseId)] = surveyCaseId;
+
+        if (!entityData.TryGetValue(nameof(ExposureEvent.ExposedCaseId), out var exposedCaseId) ||
+            exposedCaseId is not Guid exposedCaseGuid || exposedCaseGuid == Guid.Empty)
+        {
+            throw new InvalidOperationException(
+                "ExposureEvent.ExposedCaseId must resolve to the newly created contact Case before an exposure can be created.");
+        }
+
+        if (exposedCaseGuid == surveyCaseId)
+        {
+            throw new InvalidOperationException(
+                "An exposure created from a survey cannot link a case to itself.");
+        }
     }
     
     /// <summary>
@@ -1259,7 +1381,7 @@ public class CollectionMappingService : ICollectionMappingService
                 normalizedFieldPath = normalizedFieldPath.Substring(config.TargetEntityType.Length + 1);
             }
             
-            if (sourceValue != null)
+            if (HasMeaningfulValue(sourceValue))
             {
                 // ? Get field metadata to know the correct data type
                 var fieldMetadata = targetFields.FirstOrDefault(

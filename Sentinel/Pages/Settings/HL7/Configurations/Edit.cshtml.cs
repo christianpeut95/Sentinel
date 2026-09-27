@@ -60,6 +60,18 @@ namespace Sentinel.Pages.Settings.HL7.Configurations
                 return NotFound();
             }
 
+            if (!_fileMonitorService.TryNormalizeFileDropPath(
+                    Configuration.FileDropPath,
+                    out var normalizedFileDropPath,
+                    out var pathValidationError))
+            {
+                ModelState.AddModelError("Configuration.FileDropPath", pathValidationError);
+                await LoadSelectListsAsync();
+                return Page();
+            }
+
+            Configuration.FileDropPath = normalizedFileDropPath;
+
             // Update properties
             existingConfig.ConfigurationName = Configuration.ConfigurationName;
             existingConfig.SendingFacility = Configuration.SendingFacility;

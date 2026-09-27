@@ -551,9 +551,9 @@ $(document).ready(function() {
     }
         
     SentinelGeocoding.loadGoogleMaps(function() {
-        var service = new google.maps.places.AutocompleteService();
-        var detailsService = new google.maps.places.PlacesService(document.createElement('div'));
-        var sessionToken = new google.maps.places.AutocompleteSessionToken();
+        var service = SentinelGeocoding.createAutocompleteDataClient();
+        var detailsService = SentinelGeocoding.createPlaceDetailsClient();
+        var sessionToken = SentinelGeocoding.createAutocompleteSession();
         var items = [];
         var focused = -1;
         var lastPlaceResults = [];
@@ -614,11 +614,11 @@ $(document).ready(function() {
                 
                 try {
                     detailsService.getDetails({ 
-                        placeId: pred.place_id, 
-                        fields: ['name', 'formatted_address', 'address_components', 'geometry'], 
+                        placeId: pred.placeId,
+                        prediction: pred.prediction,
                         sessionToken: sessionToken 
                     }, function (result, status) {
-                        if (status !== google.maps.places.PlacesServiceStatus.OK || !result) {
+                        if (status !== SentinelGeocoding.placesStatus.OK || !result) {
                             console.error('Place details could not be loaded.');
                             
                             // Fallback: At least fill the address field with the prediction description
@@ -633,9 +633,9 @@ $(document).ready(function() {
                             return;
                         }
                         var comps = {};
-                        (result.address_components || []).forEach(function (c) {
+                        (result.addressComponents || []).forEach(function (c) {
                             (c.types || []).forEach(function (t) {
-                                if (!comps[t]) comps[t] = c.long_name;
+                                if (!comps[t]) comps[t] = c.longName;
                             });
                         });
                         var street = [comps['street_number'], comps['route']].filter(Boolean).join(' ');
@@ -644,7 +644,7 @@ $(document).ready(function() {
                         var postal = comps['postal_code'] || '';
                         // Fill all address fields
                         var addressInput = document.getElementById('addressInput');
-                        if (addressInput) addressInput.value = street || result.formatted_address || pred.description || '';
+                        if (addressInput) addressInput.value = street || result.formattedAddress || pred.description || '';
                         var cityEl = document.getElementById('Patient_City');
                         var stateEl = document.getElementById('Patient_State');
                         var postalEl = document.getElementById('Patient_PostalCode');
@@ -666,7 +666,7 @@ $(document).ready(function() {
                             
                         // Show success message
                         showSuccessMessage(result.name || 'Address');
-                        sessionToken = new google.maps.places.AutocompleteSessionToken();
+                        sessionToken = SentinelGeocoding.createAutocompleteSession();
                     });
                 } catch (error) {
                     console.error('Place details could not be loaded.');
@@ -766,8 +766,8 @@ $(document).ready(function() {
                     request.componentRestrictions = { country: config.defaultCountry };
                 }
                     
-                service.getPlacePredictions(request, function (predictions, status) {
-                    if (status !== google.maps.places.PlacesServiceStatus.OK || !predictions) {
+                service.getPredictions(request, function (predictions, status) {
+                    if (status !== SentinelGeocoding.placesStatus.OK || !predictions) {
                         clearDropdown();
                         return;
                     }

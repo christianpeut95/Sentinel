@@ -126,9 +126,43 @@ public sealed class CollectionMappingDuplicateDetectionTests : IDisposable
     }
 
     [Fact]
+    public async Task ValidateMappingConfigAsync_RejectsMissingRequiredPatientDatabaseFieldBeforeSubmission()
+    {
+        var result = await _service.ValidateMappingConfigAsync(new CollectionMappingConfig
+        {
+            SourceQuestionName = "household_contact_matrix",
+            TargetEntityType = nameof(Patient),
+            RowMappings =
+            [
+                new()
+                {
+                    SourceColumn = "firstName",
+                    TargetFieldPath = "Patient.GivenName",
+                    Required = true
+                }
+            ]
+        });
+
+        Assert.False(result.IsValid);
+        Assert.Contains(
+            result.Errors,
+            error => error.Contains("Patient.FamilyName", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public async Task ValidateMappingConfigAsync_ValidatesLogicalContactFieldsAgainstCasePersistenceFields()
     {
         var metadata = new Mock<IReportFieldMetadataService>();
+        metadata
+            .Setup(service => service.GetFieldsForEntityAsync(
+                nameof(Patient),
+                It.IsAny<bool>(),
+                It.IsAny<FieldUsageContext>()))
+            .ReturnsAsync(new List<ReportFieldMetadata>
+            {
+                new() { FieldPath = nameof(Patient.GivenName), DataType = "String" },
+                new() { FieldPath = nameof(Patient.FamilyName), DataType = "String" }
+            });
 
         var service = new CollectionMappingService(
             _context,
@@ -141,6 +175,11 @@ public sealed class CollectionMappingDuplicateDetectionTests : IDisposable
         {
             SourceQuestionName = "household_contact_matrix",
             TargetEntityType = nameof(Patient),
+            RowMappings =
+            [
+                new() { SourceColumn = "firstName", TargetFieldPath = "Patient.GivenName", Required = true },
+                new() { SourceColumn = "lastName", TargetFieldPath = "Patient.FamilyName", Required = true }
+            ],
             RelatedEntities =
             [
                 new RelatedEntityConfig
@@ -304,13 +343,6 @@ public sealed class CollectionMappingDuplicateDetectionTests : IDisposable
                         CreationOrder = 2,
                         Mappings =
                         [
-                            new()
-                            {
-                                SourceType = "Context",
-                                Source = "{{Context.CaseId}}",
-                                TargetFieldPath = "ExposureEvent.SourceCaseId",
-                                Required = true
-                            },
                             new()
                             {
                                 SourceType = "RelatedEntity",

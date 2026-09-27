@@ -1,12 +1,12 @@
 namespace Sentinel.Services.HL7
 {
     /// <summary>
-    /// Service for monitoring file system locations for incoming HL7 messages
+    /// Service for safely polling configured file-drop locations for incoming HL7 messages.
     /// </summary>
     public interface IHL7FileMonitorService
     {
         /// <summary>
-        /// Starts monitoring configured file drop locations
+        /// Loads configured file-drop locations for polling.
         /// </summary>
         Task StartMonitoringAsync(CancellationToken cancellationToken = default);
 
@@ -19,6 +19,18 @@ namespace Sentinel.Services.HL7
         /// Reloads configurations from database and restarts monitoring
         /// </summary>
         Task ReloadConfigurationsAsync(CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Scans each configured file-drop location once. This is invoked by the hosted
+        /// polling service and is exposed for deterministic operational testing.
+        /// </summary>
+        Task ScanConfiguredDirectoriesAsync(CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Validates and canonicalizes a file-drop location against the configured
+        /// deployment boundary before it is persisted or used.
+        /// </summary>
+        bool TryNormalizeFileDropPath(string? fileDropPath, out string normalizedPath, out string validationError);
 
         /// <summary>
         /// Processes a single HL7 file manually
@@ -90,7 +102,7 @@ namespace Sentinel.Services.HL7
     public class MonitoringStatus
     {
         public bool IsMonitoring { get; set; }
-        public int ActiveWatchers { get; set; }
+        public int ActivePollingLocations { get; set; }
         public List<string> MonitoredPaths { get; set; } = new();
         public DateTime? MonitoringStartedAt { get; set; }
         public int FilesProcessedToday { get; set; }

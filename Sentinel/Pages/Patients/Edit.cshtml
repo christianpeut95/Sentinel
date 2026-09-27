@@ -466,9 +466,9 @@
         }
 
         SentinelGeocoding.loadGoogleMaps(function() {
-            var service = new google.maps.places.AutocompleteService();
-            var detailsService = new google.maps.places.PlacesService(document.createElement('div'));
-            var sessionToken = new google.maps.places.AutocompleteSessionToken();
+            var service = SentinelGeocoding.createAutocompleteDataClient();
+            var detailsService = SentinelGeocoding.createPlaceDetailsClient();
+            var sessionToken = SentinelGeocoding.createAutocompleteSession();
             var items = [];
             var focused = -1;
             var lastPlaceResults = [];
@@ -524,19 +524,19 @@
                 var pred = lastPlaceResults[idx];
                 if (!pred) return;
                 detailsService.getDetails({
-                    placeId: pred.place_id,
-                    fields: ['name', 'formatted_address', 'address_components', 'geometry'],
+                    placeId: pred.placeId,
+                    prediction: pred.prediction,
                     sessionToken: sessionToken
                 }, function (result, status) {
-                    if (status !== google.maps.places.PlacesServiceStatus.OK || !result) { return; }
+                    if (status !== SentinelGeocoding.placesStatus.OK || !result) { return; }
 
                     if (window.markAddressFromAutocomplete) {
                         window.markAddressFromAutocomplete();
                     }
 
                     var comps = {};
-                    (result.address_components || []).forEach(function (c) {
-                        (c.types || []).forEach(function (t) { if (!comps[t]) comps[t] = c.long_name; });
+                    (result.addressComponents || []).forEach(function (c) {
+                        (c.types || []).forEach(function (t) { if (!comps[t]) comps[t] = c.longName; });
                     });
                     var street = [comps['street_number'], comps['route']].filter(Boolean).join(' ');
                     var city = comps['locality'] || comps['postal_town'] || comps['sublocality'] || comps['administrative_area_level_2'] || '';
@@ -544,7 +544,7 @@
                     var postal = comps['postal_code'] || '';
 
                     var addressInput = document.getElementById('addressInput');
-                    if (addressInput) addressInput.value = street || result.formatted_address || pred.description || '';
+                    if (addressInput) addressInput.value = street || result.formattedAddress || pred.description || '';
                     var cityEl = document.getElementById('Patient_City');
                     var stateEl = document.getElementById('Patient_StateId');
                     var postalEl = document.getElementById('Patient_PostalCode');
@@ -616,7 +616,7 @@
                         successDiv.style.opacity = '0'; successDiv.style.transition = 'opacity 0.5s';
                         setTimeout(function() { if (successDiv.parentElement) successDiv.remove(); }, 500);
                     }, 3000);
-                    sessionToken = new google.maps.places.AutocompleteSessionToken();
+                    sessionToken = SentinelGeocoding.createAutocompleteSession();
                 });
             }
 
@@ -626,8 +626,8 @@
                 if (config && config.defaultCountry) {
                     request.componentRestrictions = { country: config.defaultCountry };
                 }
-                service.getPlacePredictions(request, function (predictions, status) {
-                    if (status !== google.maps.places.PlacesServiceStatus.OK || !predictions) { clearDropdown(); return; }
+                service.getPredictions(request, function (predictions, status) {
+                    if (status !== SentinelGeocoding.placesStatus.OK || !predictions) { clearDropdown(); return; }
                     renderResults(predictions.slice(0, 8));
                 });
             }

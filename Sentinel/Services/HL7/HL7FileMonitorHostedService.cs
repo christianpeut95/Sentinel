@@ -1,52 +1,64 @@
-namespace Sentinel.Services.HL7
+using Microsoft.Extensions.Options;
+
+namespace Sentinel.Services.HL7;
+
+/// <summary>
+/// Runs the single, bounded HL7 file-drop polling loop for the application.
+/// </summary>
+public sealed class HL7FileMonitorHostedService : BackgroundService
 {
-    /// <summary>
-    /// Background service that keeps the HL7 file monitor running
-    /// </summary>
-    public class HL7FileMonitorHostedService : IHostedService
+    private readonly IHL7FileMonitorService _fileMonitorService;
+    private readonly ILogger<HL7FileMonitorHostedService> _logger;
+    private readonly TimeSpan _pollingInterval;
+
+    public HL7FileMonitorHostedService(
+        IHL7FileMonitorService fileMonitorService,
+        IOptions<HL7FileMonitorOptions> options,
+        ILogger<HL7FileMonitorHostedService> logger)
     {
-        private readonly IHL7FileMonitorService _fileMonitorService;
-        private readonly ILogger<HL7FileMonitorHostedService> _logger;
+        _fileMonitorService = fileMonitorService;
+        _logger = logger;
+        _pollingInterval = TimeSpan.FromSeconds(Math.Clamp(options.Value.PollingIntervalSeconds, 1, 60));
+    }
 
-        public HL7FileMonitorHostedService(
-            IHL7FileMonitorService fileMonitorService,
-            ILogger<HL7FileMonitorHostedService> logger)
+    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+    {
+        _logger.LogInformation("HL7 file-drop polling service is starting with a {PollingInterval} second interval", _pollingInterval.TotalSeconds);
+
+        try
         {
-            _fileMonitorService = fileMonitorService;
-            _logger = logger;
+            await _fileMonitorService.StartMonitoringAsync(stoppingToken);
+
+            using var timer = new PeriodicTimer(_pollingInterval);
+            do
+            {
+                try
+                {
+                    await _fileMonitorService.ScanConfiguredDirectoriesAsync(stoppingToken);
+                }
+                catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
+                {
+                    break;
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Unhandled error during an HL7 file-drop polling cycle");
+                }
+            }
+            while (await timer.WaitForNextTickAsync(stoppingToken));
         }
-
-        public async Task StartAsync(CancellationToken cancellationToken)
+        catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
         {
-            _logger.LogInformation("HL7 File Monitor Hosted Service is starting");
-
-            try
-            {
-                // Start monitoring
-                await _fileMonitorService.StartMonitoringAsync(cancellationToken);
-
-                _logger.LogInformation("HL7 File Monitor Hosted Service started successfully");
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Failed to start HL7 File Monitor Hosted Service");
-            }
+            // Normal host shutdown.
         }
-
-        public async Task StopAsync(CancellationToken cancellationToken)
+        catch (Exception ex)
         {
-            _logger.LogInformation("HL7 File Monitor Hosted Service is stopping");
-
-            try
-            {
-                await _fileMonitorService.StopMonitoringAsync();
-
-                _logger.LogInformation("HL7 File Monitor Hosted Service stopped");
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error stopping HL7 File Monitor Hosted Service");
-            }
+            _logger.LogError(ex, "Failed to start the HL7 file-drop polling service");
+        }
+        finally
+        {
+            await _fileMonitorService.StopMonitoringAsync();
+            _logger.LogInformation("HL7 file-drop polling service stopped");
         }
     }
 }

@@ -460,6 +460,10 @@ Sentinel/User-Documentation/
 Sentinel/Migrations_ARCHIVED_DO_NOT_USE/
 /Sentinel/wwwroot/data
 
+# Visual Studio may create a nested solution while opening the application
+# project directly. The repository solution files live at the repository root.
+/Sentinel/Sentinel.sln
+
 # Generated local verification caches. These can contain development data and
 # must never become release artefacts or be committed.
 /Sentinel/bin_temp/

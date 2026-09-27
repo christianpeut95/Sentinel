@@ -19,7 +19,7 @@
         <!-- Source (Smart Input) -->
         <div class="col-md-4">
             <label class="form-label small">Source</label>
-            <SourceInput 
+            <SourceInput @key="Mapping.TargetFieldPath"
                 SourceType="@Mapping.SourceType"
                 SourceValue="@Mapping.Source"
                 MatrixColumns="@MatrixColumns"
@@ -134,10 +134,14 @@ private Task OnSourceTypeChanged(ChangeEventArgs e)
         return OnMappingChanged.InvokeAsync();
     }
 
-    private Task OnTargetFieldChanged(ChangeEventArgs e)
+    private async Task OnTargetFieldChanged(ChangeEventArgs e)
     {
         Mapping.TargetFieldPath = e.Value?.ToString() ?? "";
-        return OnMappingChanged.InvokeAsync();
+        await OnMappingChanged.InvokeAsync();
+
+        // Recreate SourceInput after the target changes. An enum target needs an
+        // enum selector even when the source type was selected beforehand.
+        await InvokeAsync(StateHasChanged);
     }
 
     private Task OnRequiredChanged(ChangeEventArgs e)

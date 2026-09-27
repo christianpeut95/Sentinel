@@ -80,7 +80,10 @@
                         </div>
                         <div class="col-md-4">
                             <label asp-for="Configuration.FilePattern" class="sn-label"></label>
-                            <input asp-for="Configuration.FilePattern" class="sn-input" style="font-family:var(--f-mono)" />
+                            <select asp-for="Configuration.FilePattern" class="sn-input">
+                                <option value="*.hl7">.hl7 files</option>
+                                <option value="*.txt">.txt files</option>
+                            </select>
                             <span asp-validation-for="Configuration.FilePattern" class="text-danger"></span>
                         </div>
                         <div class="col-md-4">

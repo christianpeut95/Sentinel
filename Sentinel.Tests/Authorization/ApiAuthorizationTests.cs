@@ -368,7 +368,8 @@ public class TestPermissionHandler : IAuthorizationHandler
     {
         var permissions = (context.Resource as HttpContext)?
             .Request.Headers[PermissionsHeaderName]
-            .SelectMany(value => value.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+            .Where(value => !string.IsNullOrWhiteSpace(value))
+            .SelectMany(value => value!.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
             .Select(permission => permission.StartsWith("Permission.", StringComparison.Ordinal)
                 ? permission["Permission.".Length..]
                 : permission)

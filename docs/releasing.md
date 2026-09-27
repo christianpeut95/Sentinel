@@ -33,6 +33,10 @@ does not replace each organisation's deployment validation.
    acceptance gate, attribution, and disabled-state behaviour described in
    [licensing guidance](licensing.md) before publishing a bundled public
    artefact.
+7. When distributing the Windows evaluation installer, rebuild it from the
+   local Inno Setup project, use the canonical versioned filename, record its
+   SHA-256 hash, and Authenticode-sign and timestamp it when a publisher
+   certificate is available. Do not modify the executable after signing.
 
 ## Publishing
 

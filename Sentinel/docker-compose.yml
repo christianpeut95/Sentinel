@@ -35,11 +35,17 @@ services:
       # Persist ASP.NET Core Data Protection keys so restarts do not invalidate
       # authentication cookies or encrypted Sentinel settings.
       - DataProtection__KeyRingPath=/var/lib/sentinel/keys
+      # HL7 file drops are polled, rather than relying on host file-system events.
+      # Restrict configured folders to this dedicated bind mount.
+      - HL7__FileMonitor__AllowedRootPath=/data/hl7
     volumes:
       - sentinel-file-data:/var/lib/sentinel/files
       - sentinel-setup-data:/var/lib/sentinel/setup
       - sentinel-data-protection-keys:/var/lib/sentinel/keys
       - sentinel-backup-data:/var/lib/sentinel/backups
+      - type: bind
+        source: ${HL7_DROP_PATH:?Set HL7_DROP_PATH in .env}
+        target: /data/hl7
     restart: unless-stopped
     depends_on:
       sentinel-db-init:

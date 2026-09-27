@@ -3,7 +3,7 @@
 ## Current position
 
 This is Sentinel's internal self-assessment for the `1.0.0-beta.1` source tree,
-reviewed on 20 September 2026. It is a source, configuration and regression-
+ reviewed on 27 September 2026. It is a source, configuration and regression-
 test assessment. It is **not** an independent certification, penetration test,
 or assurance that a particular organisation's deployment is secure.
 
@@ -25,8 +25,8 @@ uploads/downloads, Docker configuration, dependencies and first-party browser
 code.
 
 Evidence includes source review, configuration review, focused security
-regression tests and the complete automated test suite. The 20 September 2026
-run passed **512 tests with 0 failures**.
+regression tests and the complete automated test suite. The 27 September 2026
+release-candidate run passed **570 tests with 0 failures**.
 
 Supporting records:
 

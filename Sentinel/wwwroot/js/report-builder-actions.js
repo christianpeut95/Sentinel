@@ -299,6 +299,11 @@ ReportBuilder.preview = async function() {
         return;
     }
 
+    // WebDataRocks owns nodes inside the current preview container. Dispose it
+    // before replacing that container's markup; otherwise its own cleanup tries
+    // to remove a child that this function has already detached.
+    this.disposePreviewPivot();
+
     container.innerHTML = `
         <div class="rb-empty-state">
             <div class="rb-empty-state-icon">⏳</div>
@@ -382,16 +387,6 @@ ReportBuilder.renderPreview = function(data, filters) {
         recordCountSpan.textContent = `(${data.length} rows${filterText})`;
     }
 
-    // Dispose preview-specific pivot instance
-    if (window.previewPivotInstance) {
-        try {
-            window.previewPivotInstance.dispose();
-        } catch (e) {
-            console.warn('The previous report preview could not be disposed.');
-        }
-        window.previewPivotInstance = null;
-    }
-
     container.innerHTML = '<div id="wdr-preview-pivot"></div>';
 
     // Use the saved preview configuration, not the pivot configuration
@@ -441,6 +436,28 @@ ReportBuilder.renderPreview = function(data, filters) {
             }
         }
     });
+};
+
+ReportBuilder.disposePreviewPivot = function() {
+    const previous = window.previewPivotInstance;
+    window.previewPivotInstance = null;
+
+    if (!previous) {
+        return;
+    }
+
+    try {
+        // WebDataRocks exposes dispose in the current distribution. The fallback
+        // keeps upgrades compatible without treating a missing legacy API as an
+        // application error.
+        if (typeof previous.dispose === 'function') {
+            previous.dispose();
+        } else if (typeof previous.destroy === 'function') {
+            previous.destroy();
+        }
+    } catch (error) {
+        console.warn('The previous report preview could not be disposed.', error);
+    }
 };
 
 

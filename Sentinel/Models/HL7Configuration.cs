@@ -29,7 +29,8 @@ namespace Sentinel.Models
 
         [Display(Name = "File Pattern")]
         [StringLength(100)]
-        public string FilePattern { get; set; } = "*.hl7"; // e.g., *.hl7, *.oru, *.txt
+        [RegularExpression(@"^\*\.(hl7|txt)$", ErrorMessage = "Select either .hl7 or .txt files.")]
+        public string FilePattern { get; set; } = "*.hl7";
 
         [Display(Name = "Is Active")]
         public bool IsActive { get; set; } = true;

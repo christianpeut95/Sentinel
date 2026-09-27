@@ -107,6 +107,8 @@ public static class SentinelDomainServiceExtensions
         services.AddScoped<Sentinel.Services.HL7.HL7DiagnosticService>();
         services.AddScoped<Sentinel.Services.HL7.HL7ReviewService>();
         services.AddScoped<Sentinel.Services.HL7.IHL7TestMessageService, Sentinel.Services.HL7.HL7TestMessageService>();
+        services.Configure<Sentinel.Services.HL7.HL7FileMonitorOptions>(
+            configuration.GetSection(Sentinel.Services.HL7.HL7FileMonitorOptions.SectionName));
         services.AddSingleton<Sentinel.Services.HL7.IHL7FileMonitorService, Sentinel.Services.HL7.HL7FileMonitorService>();
         services.AddHostedService<Sentinel.Services.HL7.HL7FileMonitorHostedService>();
 

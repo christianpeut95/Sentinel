@@ -1421,8 +1421,9 @@
                                 </td>
                                 <td>
                                     <small>
-                                        @* For Contact exposures, show the SOURCE person *@
-                                        @if (exposure.ExposureType == Sentinel.Models.ExposureType.Contact && exposure.SourceCase != null)
+                                        @* A source case is the authoritative relationship for an acquisition.
+                                           Do not make its display depend on the optional exposure-type label. *@
+                                        @if (exposure.SourceCase != null)
                                         {
                                             <div>
                                                 <strong>
@@ -1648,8 +1649,9 @@
                                 </td>
                                 <td>
                                     <small>
-                                        @* For Contact exposures, show the EXPOSED person *@
-                                        @if (exposure.ExposureType == Sentinel.Models.ExposureType.Contact && exposure.ExposedCase != null)
+                                        @* An exposed case is the authoritative relationship for a transmission.
+                                           Do not make its display depend on the optional exposure-type label. *@
+                                        @if (exposure.ExposedCase != null)
                                         {
                                             <div>
                                                 <strong>
@@ -2660,7 +2662,7 @@
                                         }
                                     </td>
                                     <td>
-                                        @if (exposure.ExposureType == Sentinel.Models.ExposureType.Contact && exposure.ExposedCase != null)
+                                        @if (exposure.ExposedCase != null)
                                         {
                                             <div>
                                                 <strong>

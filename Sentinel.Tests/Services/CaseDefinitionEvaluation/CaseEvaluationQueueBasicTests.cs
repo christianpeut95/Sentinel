@@ -48,6 +48,9 @@ namespace Sentinel.Tests.Services.CaseDefinitionEvaluation
             var job3 = await queue.DequeueAsync(default);
 
             // Assert
+            Assert.NotNull(job1);
+            Assert.NotNull(job2);
+            Assert.NotNull(job3);
             Assert.Equal(caseId1, job1.CaseId);
             Assert.Equal(caseId2, job2.CaseId);
             Assert.Equal(caseId3, job3.CaseId);

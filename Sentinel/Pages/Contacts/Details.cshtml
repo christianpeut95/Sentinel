@@ -1078,7 +1078,9 @@
                                 </td>
                                 <td>
                                     <small>
-                                        @if (exposure.ExposureType == Sentinel.Models.ExposureType.Contact && exposure.SourceCase != null)
+                                        @* SourceCaseId is the authoritative upstream relationship. The exposure
+                                           type is optional metadata and must not hide an otherwise visible source. *@
+                                        @if (exposure.SourceCase != null)
                                         {
                                             <div>
                                                 <strong><i class="bi bi-person"></i> 

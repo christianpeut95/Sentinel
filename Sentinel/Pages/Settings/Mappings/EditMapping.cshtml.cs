@@ -229,10 +229,32 @@ namespace Sentinel.Pages.Settings.Mappings
             }
         }
 
-        private string? GetSafeReturnUrl() =>
-            !string.IsNullOrWhiteSpace(ReturnUrl) && Url.IsLocalUrl(ReturnUrl)
-                ? ReturnUrl
-                : null;
+        private string? GetSafeReturnUrl()
+        {
+            if (string.IsNullOrWhiteSpace(ReturnUrl))
+            {
+                return null;
+            }
+
+            if (Url.IsLocalUrl(ReturnUrl))
+            {
+                return ReturnUrl;
+            }
+
+            // Mapping links can be opened from a modal with an absolute return URL.
+            // Never redirect to that URL itself: reduce an http(s) URI to its local
+            // path, then apply ASP.NET Core's local-URL rule (which rejects //host
+            // and backslash variants). This avoids relying on an attacker-controlled
+            // Host header to establish whether an absolute URL is safe.
+            if (Uri.TryCreate(ReturnUrl, UriKind.Absolute, out var returnUri) &&
+                (returnUri.Scheme == Uri.UriSchemeHttp || returnUri.Scheme == Uri.UriSchemeHttps))
+            {
+                var localPath = returnUri.PathAndQuery + returnUri.Fragment;
+                return Url.IsLocalUrl(localPath) ? localPath : null;
+            }
+
+            return null;
+        }
 
         private string GetReturnPage()
         {

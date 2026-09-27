@@ -10,6 +10,14 @@ Use **Settings → HL7** to create a laboratory configuration, select its file
 drop location and manage its mappings. The field-mapping workflow begins at
 `/Settings/HL7/FieldMappings/SelectLab` and requires `HL7.Configure`.
 
+File drops are polled every five seconds. In Docker deployments, set
+`HL7_DROP_PATH` in `.env` to a dedicated host folder and create one subfolder
+per laboratory. That folder is available to Sentinel as `/data/hl7`, so a
+laboratory configuration should use a path such as `/data/hl7/laboratory-a`.
+Only top-level `.hl7` and `.txt` files are considered; files must be unchanged
+for two seconds before processing. `Processed`, `Error`, and `Review` are
+operational subfolders and are never scanned as inbound files.
+
 Mappings are configuration-driven and can be used when a laboratory places a
 supported value in a non-default HL7 field. Sentinel retains parser fallbacks
 for supported standard layouts, but a fallback is not proof that a new lab

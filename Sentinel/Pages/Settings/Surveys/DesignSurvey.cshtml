@@ -598,8 +598,10 @@ else
                     showJSONEditorTab: true,
                     showTestSurveyTab: true,
                     showEmbeddedSurveyTab: false,
-                    showPropertyGrid: "right",
-                    showToolbox: "left",
+                    // SurveyJS Creator v2 uses boolean visibility flags. The prior
+                    // v1 position values produced runtime warnings on every load.
+                    showSidebar: true,
+                    showToolbox: true,
                     // HTML elements render arbitrary markup. Standard question types provide
                     // the required interview and matrix functionality without that surface.
                     questionTypes: [
@@ -1347,6 +1349,11 @@ else
                 url: '/api/SurveyVersion/SaveAsNewVersion',
                 method: 'POST',
                 contentType: 'application/json',
+                headers: {
+                    // This standalone page has no shared layout to add the token
+                    // automatically. Keep the controller's CSRF protection active.
+                    'RequestVerificationToken': document.querySelector('#surveyAntiforgeryForm input[name="__RequestVerificationToken"]')?.value || ''
+                },
                 data: JSON.stringify({
                     parentSurveyId: surveyId,
                     versionNumber: versionNumber,
@@ -1369,6 +1376,9 @@ else
                 },
                 error: function(xhr, status, error) {
                     console.error('The survey version could not be created.');
+                    // Error details can contain validation or infrastructure context.
+                    // Keep them in the server-side logs and give the user an actionable,
+                    // non-sensitive message instead.
                     alert('The survey version could not be created. Please check the configuration and try again.');
                     
                     // Re-enable button

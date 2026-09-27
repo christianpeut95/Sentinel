@@ -22,6 +22,7 @@ ReportBuilder.addCollectionQuery = async function() {
 
     this.addCollectionQueryCard(queryId, collections);
     this.collectionQueries.push({ id: queryId, subFilters: [], displayAsColumn: false });
+    this.updateStatusBar();
     this.scheduleAutoSave();
 };
 
@@ -58,6 +59,7 @@ ReportBuilder.addCollectionQueryCard = function(queryId, collections) {
                     <select class="rb-collection-select js-collection-operation" id="operation-${queryId}">
                         <option value="">Select operation...</option>
                         <option value="HasAny">Has Any</option>
+                        <option value="HasAll">Has All</option>
                         <option value="Count">Count</option>
                         <option value="Sum">Sum</option>
                         <option value="Average">Average</option>
@@ -102,7 +104,6 @@ ReportBuilder.addCollectionQueryCard = function(queryId, collections) {
     queryCard.querySelector('.js-collection-display-mode').addEventListener('change', () => this.toggleDisplayMode(queryId));
     queryCard.querySelector('.js-add-collection-subfilter').addEventListener('click', () => this.addCollectionSubFilter(queryId));
 
-    this.updateStatusBar();
 };
 
 /**
@@ -304,6 +305,7 @@ ReportBuilder.updateCollectionFields = async function(queryId) {
                 })
                 .filter(Boolean);
             query.collectionEntityType = query.subCollectionName || query.collectionName;
+            this.updateCollectionOperationOptions(queryId);
 
         } else if (query) {
             console.error('Collection metadata was not returned.');
@@ -324,6 +326,44 @@ ReportBuilder.updateCollectionFields = async function(queryId) {
     } catch (error) {
         console.error('Collection metadata could not be loaded.');
         ReportBuilderNotifications.showToast('Failed to load collection metadata. Please try again.', 'error', 5000);
+    }
+};
+
+/**
+ * Restrict choices to operations published by the canonical collection metadata.
+ * This prevents the editor from offering calculations that the selected
+ * collection cannot perform.
+ */
+ReportBuilder.updateCollectionOperationOptions = function(queryId) {
+    const operationSelect = document.getElementById('operation-' + queryId);
+    const query = this.collectionQueries.find(q => q.id === queryId);
+    const allowedOperations = query?.collectionMetadata?.allowedOperations ||
+        query?.collectionMetadata?.AllowedOperations;
+
+    if (!operationSelect || !Array.isArray(allowedOperations) || allowedOperations.length === 0) {
+        return;
+    }
+
+    const labels = {
+        HasAny: 'Has Any',
+        HasAll: 'Has All',
+        Count: 'Count',
+        Sum: 'Sum',
+        Average: 'Average',
+        Min: 'Minimum',
+        Max: 'Maximum'
+    };
+    const selectedValue = operationSelect.value;
+    operationSelect.replaceChildren(new Option('Select operation...', ''));
+
+    for (const operation of allowedOperations) {
+        operationSelect.add(new Option(labels[operation] || operation, operation));
+    }
+
+    if (allowedOperations.includes(selectedValue)) {
+        operationSelect.value = selectedValue;
+    } else if (query) {
+        query.operation = '';
     }
 };
 

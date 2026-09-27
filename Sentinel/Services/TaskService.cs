@@ -323,12 +323,12 @@ namespace Sentinel.Services
             // Get all applicable templates (including inherited)
             var applicableTemplates = await GetApplicableTaskTemplates(caseEntity.DiseaseId.Value);
 
-            // Filter by trigger and case type
+            // Disease-assignment flags are the source of truth for automatic
+            // creation. TaskTemplate.TriggerType is retained only for legacy UI.
             var templatesToCreate = applicableTemplates
-                .Where(t => t.Template.TriggerType == trigger
-                         && (t.Template.ApplicableToType == null
-                             || t.Template.ApplicableToType == caseEntity.Type))
-                .Where(t => ShouldAutoCreate(t, caseEntity.Type))
+                .Where(t => t.Template.ApplicableToType == null
+                         || t.Template.ApplicableToType == caseEntity.Type)
+                .Where(t => ShouldAutoCreate(t, trigger, caseEntity.Type))
                 .ToList();
 
             var createdTasks = new List<CaseTask>();
@@ -773,22 +773,23 @@ namespace Sentinel.Services
             return task;
         }
 
-        private bool ShouldAutoCreate(TaskTemplateWithSource templateWithSource, CaseType caseType)
+        private bool ShouldAutoCreate(
+            TaskTemplateWithSource templateWithSource,
+            TaskTrigger trigger,
+            CaseType caseType)
         {
             var assignment = templateWithSource.Assignment;
 
-            if (caseType == CaseType.Case)
+            return trigger switch
             {
-                return assignment.OverrideAutoCreate
-                    ?? assignment.AutoCreateOnCaseCreation;
-            }
-            else if (caseType == CaseType.Contact)
-            {
-                return assignment.OverrideAutoCreate
-                    ?? assignment.AutoCreateOnContactCreation;
-            }
-
-            return false;
+                TaskTrigger.OnCaseCreation when caseType == CaseType.Case =>
+                    assignment.OverrideAutoCreate ?? assignment.AutoCreateOnCaseCreation,
+                TaskTrigger.OnContactCreation when caseType == CaseType.Contact =>
+                    assignment.OverrideAutoCreate ?? assignment.AutoCreateOnContactCreation,
+                TaskTrigger.OnLabConfirmation =>
+                    assignment.OverrideAutoCreate ?? assignment.AutoCreateOnLabConfirmation,
+                _ => false
+            };
         }
 
         private DateTime? CalculateDueDate(

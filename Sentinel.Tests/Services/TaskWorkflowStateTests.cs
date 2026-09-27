@@ -101,6 +101,61 @@ public sealed class TaskWorkflowStateTests : IDisposable
         Assert.True(TaskWorkflowPolicy.CanChangeStatus(current, requested));
     }
 
+    [Fact]
+    public async Task CreateTasksForCase_UsesDiseaseAssignmentFlag_WhenTemplateHasLegacyManualTrigger()
+    {
+        var disease = new Disease
+        {
+            Id = Guid.NewGuid(),
+            Name = "Auto-task regression disease",
+            Code = $"AUTO-{Guid.NewGuid():N}"[..18],
+            ExportCode = $"EXPORT-{Guid.NewGuid():N}"[..20]
+        };
+        var patient = new Patient
+        {
+            Id = Guid.NewGuid(),
+            GivenName = "Auto",
+            FamilyName = "Task",
+            FriendlyId = $"PT-{Guid.NewGuid():N}"[..18]
+        };
+        var caseRecord = new Case
+        {
+            Id = Guid.NewGuid(),
+            DiseaseId = disease.Id,
+            PatientId = patient.Id,
+            FriendlyId = $"CASE-{Guid.NewGuid():N}"[..20],
+            Type = CaseType.Case
+        };
+        var taskType = new TaskType { Id = Guid.NewGuid(), Name = "Regression task type" };
+        var template = new TaskTemplate
+        {
+            Id = Guid.NewGuid(),
+            Name = "Auto-created regression task",
+            TaskTypeId = taskType.Id,
+            TriggerType = TaskTrigger.Manual,
+            ApplicableToType = CaseType.Case,
+            IsActive = true
+        };
+        var assignment = new DiseaseTaskTemplate
+        {
+            Id = Guid.NewGuid(),
+            DiseaseId = disease.Id,
+            TaskTemplateId = template.Id,
+            AutoCreateOnCaseCreation = true,
+            IsActive = true
+        };
+
+        _context.AddRange(disease, patient, caseRecord, taskType, template, assignment);
+        await _context.SaveChangesAsync();
+
+        var created = await new TaskService(_context)
+            .CreateTasksForCase(caseRecord.Id, TaskTrigger.OnCaseCreation);
+
+        var task = Assert.Single(created);
+        Assert.Equal(template.Id, task.TaskTemplateId);
+        Assert.Equal(caseRecord.Id, task.CaseId);
+    }
+
     private async Task<CaseTask> AddTaskAsync(CaseTaskStatus status)
     {
         var disease = new Disease

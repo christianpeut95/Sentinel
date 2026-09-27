@@ -322,8 +322,12 @@ The application and bundled database are available only on the Docker network. T
 ### Pre-built Docker Image
 
 ```bash
-docker pull christianpeut/sentinel:latest
+docker pull christianpeut/sentinel:1.0.0-beta.1
 ```
+
+`latest` tracks the current beta build. For a reproducible deployment, retain
+the versioned `VERSION_TAG` supplied in `.env.example` and upgrade deliberately
+after reviewing the release notes.
 
 ### Optional visual survey designer
 

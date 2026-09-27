@@ -38,7 +38,6 @@ public sealed class ReviewedDomSinkRegressionTests
             new DomSinkCounts("wwwroot/js/autocomplete.js", 2, 0, 0, 0),
             new DomSinkCounts("wwwroot/js/collection-filter-helper.js", 1, 0, 1, 0),
             new DomSinkCounts("wwwroot/js/feedback-widget.js", 2, 0, 0, 0),
-            new DomSinkCounts("wwwroot/js/geocoding.js", 2, 0, 0, 0),
             new DomSinkCounts("wwwroot/js/report-builder-actions.js", 10, 0, 0, 0),
             new DomSinkCounts("wwwroot/js/report-builder-collections.js", 15, 0, 2, 0),
             new DomSinkCounts("wwwroot/js/report-builder-notifications.js", 2, 0, 0, 0),
@@ -102,7 +101,6 @@ public sealed class ReviewedDomSinkRegressionTests
             ["wwwroot/js/autocomplete.js"] = ["innerHTML = '<div class=\"autocomplete-item no-results\">No results found</div>'"],
             ["wwwroot/js/collection-filter-helper.js"] = ["element.textContent = value == null ? '' : String(value)", "escapeAttribute(JSON.stringify(collectionSubFields || []))"],
             ["wwwroot/js/feedback-widget.js"] = ["alert.textContent = message", "modal.innerHTML = `"],
-            ["wwwroot/js/geocoding.js"] = ["Address autocomplete disabled (using Nominatim).", "Requires Google Maps"],
             ["wwwroot/js/report-builder-actions.js"] = ["container.innerHTML = '<div id=\"wdr-preview-pivot\"></div>'", "recordCountSpan.textContent"],
             ["wwwroot/js/report-builder-collections.js"] = ["${this.escapeHtml(c.value)}", "option.textContent = fieldInfo.label || fieldInfo.Label || fieldName"],
             ["wwwroot/js/report-builder-notifications.js"] = ["${escapeNotificationHtml(message)}", "element.textContent = value ?? ''"],
@@ -119,7 +117,7 @@ public sealed class ReviewedDomSinkRegressionTests
             }
         }
 
-        Assert.Equal(32, reviewedContracts.Count);
+        Assert.Equal(31, reviewedContracts.Count);
     }
 
     [Fact]

@@ -18,15 +18,18 @@ public class CollectionQueryFilterBuilder
     private readonly ApplicationDbContext _context;
     private readonly IDynamicDateResolver _dynamicDateResolver;
     private readonly IReportFieldMetadataService _fieldMetadataService;
+    private readonly ICollectionMetadataService _collectionMetadataService;
 
     public CollectionQueryFilterBuilder(
         ApplicationDbContext context,
         IDynamicDateResolver dynamicDateResolver,
-        IReportFieldMetadataService fieldMetadataService)
+        IReportFieldMetadataService fieldMetadataService,
+        ICollectionMetadataService collectionMetadataService)
     {
         _context = context;
         _dynamicDateResolver = dynamicDateResolver;
         _fieldMetadataService = fieldMetadataService;
+        _collectionMetadataService = collectionMetadataService;
     }
 
     /// <summary>
@@ -50,6 +53,34 @@ public class CollectionQueryFilterBuilder
         var fields = await _fieldMetadataService.GetFieldsForEntityAsync(entityType);
         var collection = fields.FirstOrDefault(field =>
             field.FieldPath == query.CollectionName && field.IsCollection && field.IsFilterable);
+
+        // The builder UI is driven by ICollectionMetadataService, while some
+        // report field views intentionally omit collection navigations. Fall back
+        // to that same canonical metadata so a selectable collection cannot fail
+        // merely because the two discovery paths have diverged.
+        if (collection == null)
+        {
+            var metadata = _collectionMetadataService.GetCollectionMetadata(entityType, query.CollectionName);
+            if (metadata != null)
+            {
+                collection = new ReportFieldMetadata
+                {
+                    EntityType = entityType,
+                    FieldPath = query.CollectionName,
+                    DisplayName = metadata.Label,
+                    IsCollection = true,
+                    IsFilterable = true,
+                    CollectionSubFieldsMetadata = metadata.FilterableFields
+                        .Select(field => new CollectionSubFieldMetadata
+                        {
+                            FieldPath = field.Name,
+                            Name = field.Label,
+                            DataType = field.DataType
+                        })
+                        .ToList()
+                };
+            }
+        }
 
         if (collection == null)
         {
@@ -97,6 +128,9 @@ public class CollectionQueryFilterBuilder
         return query.Operation switch
         {
             "HasAny" => BuildExistsClause(query, entityType),
+            // HasAll is evaluated through the typed collection calculation path.
+            // There is no safe Dynamic LINQ equivalent for every supported shape.
+            "HasAll" => null,
             "Count" => BuildCountClause(query, entityType),
             "Sum" => BuildAggregateClause(query, entityType, "Sum"),
             "Average" => BuildAggregateClause(query, entityType, "Average"),
@@ -108,7 +142,7 @@ public class CollectionQueryFilterBuilder
 
     private void ValidateCollectionQuery(CollectionQueryDto query, ReportFieldMetadata collection)
     {
-        if (query.Operation is not ("HasAny" or "Count" or "Sum" or "Average" or "Min" or "Max"))
+        if (query.Operation is not ("HasAny" or "HasAll" or "Count" or "Sum" or "Average" or "Min" or "Max"))
         {
             throw new ArgumentException($"Collection operation '{query.Operation}' is not supported.");
         }

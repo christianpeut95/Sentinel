@@ -18,6 +18,7 @@ namespace Sentinel.Tests.Services.HL7
     public class HL7DataExtractionServiceTests : IDisposable
     {
         private readonly ApplicationDbContext _context;
+        private readonly HttpContextAccessor _httpContextAccessor;
         private readonly Mock<IDuplicateDetectionService> _mockDuplicateService;
         private readonly Mock<ICaseMatchingService> _mockCaseMatchingService;
         private readonly Mock<ILogger<HL7DataExtractionService>> _mockLogger;
@@ -31,9 +32,8 @@ namespace Sentinel.Tests.Services.HL7
                 .UseInMemoryDatabase(databaseName: $"TestDb_{Guid.NewGuid()}")
                 .Options;
 
-            _context = new ApplicationDbContext(
-                options,
-                new HttpContextAccessor { HttpContext = new DefaultHttpContext() });
+            _httpContextAccessor = new HttpContextAccessor { HttpContext = new DefaultHttpContext() };
+            _context = new ApplicationDbContext(options, _httpContextAccessor);
             _mockDuplicateService = new Mock<IDuplicateDetectionService>();
             _mockCaseMatchingService = new Mock<ICaseMatchingService>();
             _mockLogger = new Mock<ILogger<HL7DataExtractionService>>();
@@ -138,6 +138,36 @@ namespace Sentinel.Tests.Services.HL7
             Assert.False(result.IsNewPatient);
             Assert.False(result.RequiresManualReview);
             Assert.Equal("IdentifierOnly", result.MatchMethod);
+        }
+
+        [Fact]
+        public async Task FindOrCreatePatientAsync_WithNoHttpContext_MatchesExistingPatient()
+        {
+            // HL7 file polling runs as a background service, where no HTTP request context exists.
+            // The patient visibility filter must remain safe and allow the worker to de-duplicate
+            // against active patients rather than throwing during query evaluation.
+            var existingPatient = new Patient
+            {
+                Id = Guid.NewGuid(),
+                FriendlyId = "P-BACKGROUND-0001",
+                GivenName = "Background",
+                FamilyName = "Worker",
+                DateOfBirth = new DateTime(1985, 4, 12)
+            };
+            _context.Patients.Add(existingPatient);
+            await _context.SaveChangesAsync();
+            _httpContextAccessor.HttpContext = null;
+
+            var message = await CreateTestHL7Message(
+                "P-BACKGROUND-0001", "Background", "Worker", new DateTime(1985, 4, 12));
+
+            var result = await _service.FindOrCreatePatientAsync(
+                message,
+                PatientMatchingStrategy.IdentifierOnly,
+                autoCreate: true);
+
+            Assert.Equal(existingPatient.Id, result.Patient?.Id);
+            Assert.False(result.IsNewPatient);
         }
 
         [Fact]

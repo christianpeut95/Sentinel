@@ -83,11 +83,13 @@ public class ReportDataService : IReportDataService
 
         // Check if we have any collection query filters
         // SQL-level filters: queries with SubFilters (e.g., HasAny with conditions)
-        // Post-processing filters: queries with Comparator (e.g., Count > 5)
+        // Post-processing filters: numeric comparators and boolean collection
+        // operations (HasAny/HasAll).
         var hasSqlCollectionFilters = collectionQueries?.Any(q => 
             !q.DisplayAsColumn && q.SubFilters?.Any() == true) == true;
-        var hasPostProcessingFilters = collectionQueries?.Any(q => 
-            !q.DisplayAsColumn && !string.IsNullOrEmpty(q.Comparator)) == true;
+        var hasPostProcessingFilters = collectionQueries?.Any(q =>
+            !q.DisplayAsColumn &&
+            (!string.IsNullOrEmpty(q.Comparator) || q.Operation is "HasAny" or "HasAll")) == true;
         var hasCollectionFilters = hasSqlCollectionFilters || hasPostProcessingFilters;
 
         // When collection filters are present, we MUST fetch all rows first,
@@ -306,13 +308,18 @@ public class ReportDataService : IReportDataService
             }
         }
 
-        // STEP 5: Apply row limit if specified
+        // STEP 5: Make previews and exports deterministic before any row limit.
+        // Use strongly typed ordering rather than Dynamic LINQ over IQueryable<object>;
+        // the latter produces an invocation EF cannot translate in some providers.
+        baseQuery = ApplyStableOrdering(baseQuery, reportDefinition.EntityType);
+
+        // STEP 6: Apply row limit if specified
         if (options.MaxRows.HasValue)
         {
             baseQuery = baseQuery.Take(options.MaxRows.Value);
         }
 
-        // STEP 6: Execute query based on entity type
+        // STEP 7: Execute query based on entity type
         var result = new List<Dictionary<string, object?>>();
 
         switch (reportDefinition.EntityType)
@@ -420,6 +427,41 @@ public class ReportDataService : IReportDataService
             _ => throw new NotSupportedException($"Entity type '{entityType}' is not supported")
         };
     }
+
+    private static IQueryable<object> ApplyStableOrdering(
+        IQueryable<object> query,
+        string entityType) =>
+        entityType switch
+        {
+            "Case" or "Contact" => query.Cast<Case>().OrderBy(entity => entity.Id).Cast<object>(),
+            "Outbreak" => query.Cast<Outbreak>().OrderBy(entity => entity.Id).Cast<object>(),
+            "Patient" => query.Cast<Patient>().OrderBy(entity => entity.Id).Cast<object>(),
+            "Task" => query.Cast<CaseTask>().OrderBy(entity => entity.Id).Cast<object>(),
+            "Location" => query.Cast<Location>().OrderBy(entity => entity.Id).Cast<object>(),
+            "Event" => query.Cast<Event>().OrderBy(entity => entity.Id).Cast<object>(),
+            "CaseContactTasksFlattened" => query.Cast<Models.Views.CaseContactTaskFlattened>()
+                .OrderBy(entity => entity.CaseGuid)
+                .Cast<object>(),
+            "OutbreakTasksFlattened" => query.Cast<Models.Views.OutbreakTaskFlattened>()
+                .OrderBy(entity => entity.OutbreakId)
+                .ThenBy(entity => entity.CaseGuid)
+                .ThenBy(entity => entity.TaskId)
+                .Cast<object>(),
+            "CaseTimelineAll" => query.Cast<Models.Views.CaseTimelineEvent>()
+                .OrderBy(entity => entity.CaseId)
+                .ThenBy(entity => entity.SortDate)
+                .Cast<object>(),
+            "ContactTracingMindMapNodes" => query.Cast<Models.Views.ContactTracingMindMapNode>()
+                .OrderBy(entity => entity.NodeId)
+                .Cast<object>(),
+            "ContactTracingMindMapEdges" => query.Cast<Models.Views.ContactTracingMindMapEdge>()
+                .OrderBy(entity => entity.EdgeId)
+                .Cast<object>(),
+            "ContactsListSimple" => query.Cast<Models.Views.ContactListSimple>()
+                .OrderBy(entity => entity.ContactId)
+                .Cast<object>(),
+            _ => query
+        };
 
     private IQueryable<object> ApplyFiltersAsync(
         IQueryable<object> query,
@@ -2493,13 +2535,15 @@ public class ReportDataService : IReportDataService
 
         // Get queries that need column values computed:
         // 1. Display queries (DisplayAsColumn = true) - will be shown in final output
-        // 2. Filter queries (DisplayAsColumn = false with Comparator) - need temp columns for filtering
+        // 2. Filter queries (DisplayAsColumn = false) - need temporary columns for filtering.
         var displayQueries = collectionQueries
             .Where(q => q.DisplayAsColumn)
             .ToList();
 
         var filterQueries = collectionQueries
-            .Where(q => !q.DisplayAsColumn && !string.IsNullOrEmpty(q.Comparator))
+            .Where(q => !q.DisplayAsColumn &&
+                        (!string.IsNullOrEmpty(q.Comparator) ||
+                         q.Operation is "HasAny" or "HasAll"))
             .ToList();
 
         // Combine both types - we need to calculate values for both
@@ -2544,7 +2588,9 @@ public class ReportDataService : IReportDataService
     {
         // Get filter queries (not displayed as columns)
         var filterQueries = collectionQueries
-            .Where(q => !q.DisplayAsColumn && !string.IsNullOrEmpty(q.Comparator))
+            .Where(q => !q.DisplayAsColumn &&
+                        (!string.IsNullOrEmpty(q.Comparator) ||
+                         q.Operation is "HasAny" or "HasAll"))
             .ToList();
 
         if (!filterQueries.Any())
@@ -2570,7 +2616,9 @@ public class ReportDataService : IReportDataService
                 }
 
                 var value = row[columnName];
-                var passes = EvaluateComparison(value, query.Comparator, query.Value);
+                var passes = string.IsNullOrEmpty(query.Comparator)
+                    ? IsTruthyCollectionResult(value)
+                    : EvaluateComparison(value, query.Comparator, query.Value);
 
 
                 if (!passes)
@@ -2595,6 +2643,15 @@ public class ReportDataService : IReportDataService
 
         return filteredRows;
     }
+
+    private static bool IsTruthyCollectionResult(object? value) =>
+        value switch
+        {
+            bool boolean => boolean,
+            string text => text.Equals("Yes", StringComparison.OrdinalIgnoreCase) ||
+                           text.Equals("True", StringComparison.OrdinalIgnoreCase),
+            _ => false
+        };
 
     /// <summary>
     /// Evaluates a comparison between a value and a target
@@ -3365,12 +3422,30 @@ public class ReportDataService : IReportDataService
 
     private async Task<bool> HasAllAsync(object entityId, CollectionQueryDto query, string entityType)
     {
-        // HasAll means: if there are any items, ALL of them match the filters
-        // This is equivalent to: Count(all items) == Count(filtered items)
-        
-        // For now, return false - can implement if needed
-        return false;
+        // "Has all" is true only when the collection contains at least one item
+        // and every item satisfies the configured sub-filters. CountAsync already
+        // applies the same allow-listed collection and sub-filter logic used by
+        // HasAny and aggregate operations, so comparing an unfiltered count with
+        // a filtered count avoids a separate dynamic-query implementation.
+        var unfilteredQuery = new CollectionQueryDto
+        {
+            CollectionName = query.CollectionName,
+            SubCollectionName = query.SubCollectionName,
+            SubFilters = []
+        };
+
+        var total = await CountAsync(entityId, unfilteredQuery, entityType);
+        if (total == 0)
+        {
+            return false;
+        }
+
+        var matching = await CountAsync(entityId, query, entityType);
+        return AllCollectionItemsMatch(total, matching);
     }
+
+    internal static bool AllCollectionItemsMatch(int total, int matching) =>
+        total > 0 && matching == total;
 
     private async Task<int> CountAsync(object entityId, CollectionQueryDto query, string entityType)
     {

@@ -28,6 +28,17 @@ Initial public-beta release preparation.
 - Excluded separately licensed SurveyJS Creator assets from the standard source
   archive and Docker image. A documented, operator-managed demo Compose override can
   mount operator-supplied assets when explicitly enabled.
+- Docker's example environment now pins this beta version for reproducible
+  deployments; `latest` remains available for deliberate beta-channel tracking.
+
+### Fixed
+
+- Data Review grouping now honours each disease's configured grouping window
+  for matching events on the same case.
+- Clarified that child diseases hold their own Data Review settings rather than
+  inheriting them implicitly.
+- Hardened HL7 file-drop polling so configured paths are constrained to the
+  deployment's permitted root and only settled, bounded-size files are read.
 
 ### Security
 

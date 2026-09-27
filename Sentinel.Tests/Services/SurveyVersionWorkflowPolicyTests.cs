@@ -59,6 +59,23 @@ public sealed class SurveyVersionWorkflowPolicyTests
             result.MemberNames.Contains(nameof(SaveAsVersionRequest.VersionNumber)));
     }
 
+    [Fact]
+    public void SaveAsVersionRequest_IncludesTheExistingAntiForgeryToken()
+    {
+        var root = FindRepositoryRoot();
+        var source = File.ReadAllText(Path.Combine(
+            root,
+            "Sentinel",
+            "Pages",
+            "Settings",
+            "Surveys",
+            "DesignSurvey.cshtml"));
+
+        Assert.Contains("url: '/api/SurveyVersion/SaveAsNewVersion'", source, StringComparison.Ordinal);
+        Assert.Contains("'RequestVerificationToken'", source, StringComparison.Ordinal);
+        Assert.Contains("#surveyAntiforgeryForm input[name=\"__RequestVerificationToken\"]", source, StringComparison.Ordinal);
+    }
+
     private static string FindRepositoryRoot()
     {
         foreach (var candidate in new[]

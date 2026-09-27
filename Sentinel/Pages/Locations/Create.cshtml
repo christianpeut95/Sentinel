@@ -271,9 +271,9 @@
         }
             
         SentinelGeocoding.loadGoogleMaps(function() {
-            var service = new google.maps.places.AutocompleteService();
-            var detailsService = new google.maps.places.PlacesService(document.createElement('div'));
-            var sessionToken = new google.maps.places.AutocompleteSessionToken();
+            var service = SentinelGeocoding.createAutocompleteDataClient();
+            var detailsService = SentinelGeocoding.createPlaceDetailsClient();
+            var sessionToken = SentinelGeocoding.createAutocompleteSession();
             var items = [];
             var focused = -1;
             var lastPlaceResults = [];
@@ -335,11 +335,11 @@
                     // Request more detailed fields for businesses
                     try {
                         detailsService.getDetails({ 
-                            placeId: pred.place_id, 
-                            fields: ['name', 'formatted_address', 'address_components', 'geometry', 'types', 'business_status'], 
+                            placeId: pred.placeId,
+                            prediction: pred.prediction,
                             sessionToken: sessionToken 
                         }, function (result, status) {
-                            if (status !== google.maps.places.PlacesServiceStatus.OK || !result) {
+                            if (status !== SentinelGeocoding.placesStatus.OK || !result) {
                                 console.error('Place details could not be loaded.');
                                 
                                 // Fallback: At least fill the name and address with the prediction description
@@ -364,8 +364,8 @@
 
                             // Fill ADDRESS field with formatted address
                             var addressInput = document.getElementById('locationAddressInput');
-                            if (addressInput && result.formatted_address) {
-                                addressInput.value = result.formatted_address;
+                            if (addressInput && result.formattedAddress) {
+                                addressInput.value = result.formattedAddress;
                             }
 
                             // Fill coordinates
@@ -382,7 +382,7 @@
                             // Show success message
                             showSuccessMessage(result.name || 'Place');
                             // Rotate session token for billing per session
-                            sessionToken = new google.maps.places.AutocompleteSessionToken();
+                            sessionToken = SentinelGeocoding.createAutocompleteSession();
                         });
                     } catch (error) {
                         console.error('Place details could not be loaded.');
@@ -448,8 +448,8 @@
                     // Don't restrict types - allow both establishments and addresses
                     // This allows "Coles Welland" (business) and "123 Main St" (address) to work
                     
-                    service.getPlacePredictions(request, function (predictions, status) {
-                        if (status !== google.maps.places.PlacesServiceStatus.OK || !predictions) {
+                    service.getPredictions(request, function (predictions, status) {
+                        if (status !== SentinelGeocoding.placesStatus.OK || !predictions) {
                             clearDropdown();
                             return;
                         }

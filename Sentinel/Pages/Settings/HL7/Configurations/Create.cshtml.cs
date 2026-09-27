@@ -67,6 +67,18 @@ namespace Sentinel.Pages.Settings.HL7.Configurations
                 return Page();
             }
 
+            if (!_fileMonitorService.TryNormalizeFileDropPath(
+                    Configuration.FileDropPath,
+                    out var normalizedFileDropPath,
+                    out var pathValidationError))
+            {
+                ModelState.AddModelError("Configuration.FileDropPath", pathValidationError);
+                await LoadSelectListsAsync();
+                return Page();
+            }
+
+            Configuration.FileDropPath = normalizedFileDropPath;
+
             // Check for duplicate SendingFacility
             var existingConfig = await _context.HL7Configurations
                 .AnyAsync(c => c.SendingFacility == Configuration.SendingFacility 

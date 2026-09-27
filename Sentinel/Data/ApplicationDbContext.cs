@@ -1167,10 +1167,7 @@ namespace Sentinel.Data
             // Global Query Filters for Soft Delete
             builder.Entity<Patient>().HasQueryFilter(p =>
                 !p.IsDeleted &&
-                (_httpContextAccessor == null ||
-                 _httpContextAccessor.HttpContext == null ||
-                 _httpContextAccessor.HttpContext.Items["CaseScopedPatientAccess"] == null ||
-                 !((bool)_httpContextAccessor.HttpContext.Items["CaseScopedPatientAccess"]!) ||
+                (!IsCaseScopedPatientAccess ||
                  // The Case global query filter is intentionally applied here, making
                  // patient visibility follow the same hierarchy-aware disease access rule.
                  p.Cases.Any()));
@@ -1230,23 +1227,19 @@ namespace Sentinel.Data
             builder.Entity<Case>().HasQueryFilter(c => 
                 !c.IsDeleted && 
                 (c.DiseaseId == null || 
-                 _httpContextAccessor == null ||
-                 _httpContextAccessor.HttpContext == null ||
-                 (_httpContextAccessor.HttpContext.Items["AccessibleDiseaseIds"] == null
+                 !HasHttpContext ||
+                 (AccessibleDiseaseIds == null
                     ? c.Disease!.AccessLevel == DiseaseAccessLevel.Public
-                    : ((List<Guid>)_httpContextAccessor.HttpContext.Items["AccessibleDiseaseIds"])
-                        .Contains(c.DiseaseId.Value))));
+                    : AccessibleDiseaseIds.Contains(c.DiseaseId.Value))));
 
             // Global Query Filter for Disease - uses the same effective, hierarchy-aware
             // visibility list as cases. This keeps dropdowns, searches, APIs and case-scoped
             // child entities aligned with direct page authorisation.
             builder.Entity<Disease>().HasQueryFilter(d => 
-                _httpContextAccessor == null ||
-                _httpContextAccessor.HttpContext == null ||
-                (_httpContextAccessor.HttpContext.Items["AccessibleDiseaseIds"] == null
+                !HasHttpContext ||
+                (AccessibleDiseaseIds == null
                     ? d.AccessLevel == DiseaseAccessLevel.Public
-                    : ((List<Guid>)_httpContextAccessor.HttpContext.Items["AccessibleDiseaseIds"])
-                        .Contains(d.Id)));
+                    : AccessibleDiseaseIds.Contains(d.Id)));
 
             // An outbreak inherits the visibility boundary of its primary disease.
             // This makes all ordinary outbreak queries hierarchy-aware and prevents a
@@ -2709,7 +2702,32 @@ namespace Sentinel.Data
 
         private List<Guid>? GetAccessibleDiseaseIds()
         {
-            return _httpContextAccessor?.HttpContext?.Items["AccessibleDiseaseIds"] as List<Guid>;
+            return AccessibleDiseaseIds;
+        }
+
+        private bool HasHttpContext => _httpContextAccessor?.HttpContext is not null;
+
+        private List<Guid>? AccessibleDiseaseIds
+        {
+            get
+            {
+                var httpContext = _httpContextAccessor?.HttpContext;
+                return httpContext is not null &&
+                       httpContext.Items.TryGetValue("AccessibleDiseaseIds", out var diseaseIds)
+                    ? diseaseIds as List<Guid>
+                    : null;
+            }
+        }
+
+        private bool IsCaseScopedPatientAccess
+        {
+            get
+            {
+                var httpContext = _httpContextAccessor?.HttpContext;
+                return httpContext is not null &&
+                       httpContext.Items.TryGetValue("CaseScopedPatientAccess", out var setting) &&
+                       setting is true;
+            }
         }
 
         // Review Queue Detection Methods
@@ -3184,7 +3202,7 @@ namespace Sentinel.Data
             };
         }
 
-        private string GenerateReviewGroupKey(string entityType, string? triggerField, string? changeSnapshot, Guid? diseaseId, Guid? caseId = null)
+        internal static string GenerateReviewGroupKey(string entityType, string? triggerField, string? changeSnapshot, Guid? diseaseId, Guid? caseId = null)
         {
             // CRITICAL FIX: Group by SPECIFIC field changes, not just case-level activity
             // This ensures that changing Disease then ConfirmationStatus creates TWO review items
@@ -3226,10 +3244,9 @@ namespace Sentinel.Data
                 components.Add(diseaseId.Value.ToString());
             }
 
-            // Round to nearest hour for time-based grouping
-            var hourBucket = DateTime.UtcNow.ToString("yyyyMMddHH");
-            components.Add(hourBucket);
-
+            // The configured cutoff in QueueReviewCandidatesAsync enforces the
+            // grouping window. Do not add a fixed hourly bucket here, because
+            // that would silently cap any configured window at one hour.
             return string.Join("|", components);
         }
     }

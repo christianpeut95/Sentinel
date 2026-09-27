@@ -437,8 +437,8 @@
                     {
                         <div class="alert alert-warning">
                             <i class="bi bi-diagram-3 me-2"></i>
-                            <strong>Child Disease</strong>: This disease inherits settings from its parent disease. 
-                            You can override specific settings below, or leave them at default to inherit from the parent.
+                            <strong>Child Disease</strong>: Data Review settings are configured independently for each disease.
+                            Review the trigger and priority settings below for this child disease.
                         </div>
                     }
 
@@ -550,8 +550,8 @@
                                 <input asp-for="Disease.ReviewGroupingWindowHours" class="form-control" type="number" min="1" max="168" />
                                 <span asp-validation-for="Disease.ReviewGroupingWindowHours" class="text-danger"></span>
                                 <small class="form-text text-muted">
-                                    Similar changes occurring within this time window will be grouped together in the review inbox. 
-                                    For example, if 5 cases are reclassified to the same disease within 6 hours, they'll appear as 1 grouped item.
+                                    Matching events for the same case occurring within this time window will be grouped together in the review inbox.
+                                    For example, repeated confirmation-status changes to the same value within 6 hours appear as 1 grouped item.
                                     Range: 1-168 hours (1 week).
                                 </small>
                             </div>

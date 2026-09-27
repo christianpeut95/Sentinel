@@ -513,13 +513,22 @@
             const checkboxes = document.querySelectorAll('.contact-include-checkbox');
             const includedCount = Array.from(checkboxes).filter(cb => cb.checked).length;
             const excludedCount = checkboxes.length - includedCount;
-            
-            document.getElementById('includedCount').textContent = includedCount;
-            document.getElementById('excludedCount').textContent = excludedCount;
-            document.getElementById('confirmCount').textContent = includedCount;
+
+            // The review page can be rendered without the import summary (for
+            // example, when there are no parsed contact rows). Keep the shared
+            // event handler harmless in that state rather than failing during
+            // document initialisation.
+            const includedCountElement = document.getElementById('includedCount');
+            const excludedCountElement = document.getElementById('excludedCount');
+            const confirmCountElement = document.getElementById('confirmCount');
+            if (includedCountElement) includedCountElement.textContent = includedCount;
+            if (excludedCountElement) excludedCountElement.textContent = excludedCount;
+            if (confirmCountElement) confirmCountElement.textContent = includedCount;
             
             // Update button state
             const confirmButton = document.getElementById('confirmButton');
+            if (!confirmButton) return;
+
             if (includedCount === 0) {
                 confirmButton.disabled = true;
                 confirmButton.classList.add('btn-secondary');

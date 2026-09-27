@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using Sentinel.Data;
 using Sentinel.Models;
 using Sentinel.Models.HL7;
@@ -7,18 +8,29 @@ using Sentinel.Models.HL7;
 namespace Sentinel.Services.HL7
 {
     /// <summary>
-    /// Monitors file system locations for incoming HL7 messages and processes them automatically
+    /// Polls configured file-drop locations for incoming HL7 messages and processes them automatically.
     /// </summary>
     public class HL7FileMonitorService : IHL7FileMonitorService, IDisposable
     {
         private readonly ILogger<HL7FileMonitorService> _logger;
         private readonly IServiceScopeFactory _serviceScopeFactory;
 
-        private readonly List<FileSystemWatcher> _watchers = new();
-        private readonly SemaphoreSlim _processingSemaphore = new(5); // Max 5 concurrent file processing
-        private readonly HashSet<string> _processingFiles = new(); // Track files currently being processed
-        private readonly object _processingFilesLock = new(); // Lock for _processingFiles
-        private bool _isMonitoring = false;
+        private static readonly HashSet<string> SupportedExtensions = new(StringComparer.OrdinalIgnoreCase)
+        {
+            ".hl7", ".txt"
+        };
+        private const int MaxFilesPerScan = 100;
+
+        private readonly SemaphoreSlim _processingSemaphore = new(5);
+        private readonly HashSet<string> _processingFiles;
+        private readonly object _processingFilesLock = new();
+        private readonly object _monitoringLock = new();
+        private readonly TimeSpan _fileSettleDelay;
+        private readonly long _maxInboundFileBytes;
+        private readonly string? _allowedRootPath;
+        private readonly bool _restrictToAllowedRoot;
+        private Dictionary<Guid, MonitoredDropLocation> _monitoredLocations = new();
+        private bool _isMonitoring;
         private DateTime? _monitoringStartedAt;
         private int _filesProcessedToday = 0;
         private int _filesFailedToday = 0;
@@ -28,10 +40,32 @@ namespace Sentinel.Services.HL7
 
         public HL7FileMonitorService(
             ILogger<HL7FileMonitorService> logger,
-            IServiceScopeFactory serviceScopeFactory)
+            IServiceScopeFactory serviceScopeFactory,
+            IOptions<HL7FileMonitorOptions> options)
         {
             _logger = logger;
             _serviceScopeFactory = serviceScopeFactory;
+
+            var configuredOptions = options.Value;
+            _fileSettleDelay = TimeSpan.FromSeconds(Math.Clamp(configuredOptions.FileSettleDelaySeconds, 0, 60));
+            _maxInboundFileBytes = Math.Clamp(configuredOptions.MaxInboundFileBytes, 1024, 100 * 1024 * 1024);
+            _processingFiles = new HashSet<string>(OperatingSystem.IsWindows()
+                ? StringComparer.OrdinalIgnoreCase
+                : StringComparer.Ordinal);
+
+            if (!string.IsNullOrWhiteSpace(configuredOptions.AllowedRootPath))
+            {
+                _restrictToAllowedRoot = true;
+                try
+                {
+                    _allowedRootPath = Path.GetFullPath(configuredOptions.AllowedRootPath);
+                }
+                catch (Exception ex) when (ex is ArgumentException or NotSupportedException or PathTooLongException)
+                {
+                    _logger.LogError(ex, "The configured HL7 file-drop root is invalid; no configured paths will be accepted");
+                    _allowedRootPath = string.Empty;
+                }
+            }
         }
 
         public async Task StartMonitoringAsync(CancellationToken cancellationToken = default)
@@ -42,7 +76,9 @@ namespace Sentinel.Services.HL7
                 return;
             }
 
-            _logger.LogInformation("Starting HL7 file monitoring service");
+            _logger.LogInformation("Starting HL7 file-drop polling service");
+
+            var locations = new Dictionary<Guid, MonitoredDropLocation>();
 
             // Create a scope to access the database
             using (var scope = _serviceScopeFactory.CreateScope())
@@ -64,32 +100,37 @@ namespace Sentinel.Services.HL7
                 {
                     try
                     {
-                        var path = config.FileDropPath!;
+                        if (!TryNormalizeFileDropPath(config.FileDropPath, out var path, out var validationError))
+                        {
+                            _logger.LogError(
+                                "HL7 configuration {ConfigurationName} was not activated because its file-drop path is invalid: {ValidationError}",
+                                config.ConfigurationName,
+                                validationError);
+                            continue;
+                        }
 
-                        // Create directory if it doesn't exist
+                        if (!IsSupportedFilePattern(config.FilePattern))
+                        {
+                            _logger.LogError(
+                                "HL7 configuration {ConfigurationName} was not activated because its file pattern is not supported: {FilePattern}",
+                                config.ConfigurationName,
+                                config.FilePattern);
+                            continue;
+                        }
+
                         if (!Directory.Exists(path))
                         {
                             Directory.CreateDirectory(path);
                             _logger.LogInformation("Created file drop directory: {Path}", path);
                         }
 
-                        // Create FileSystemWatcher
-                        var watcher = new FileSystemWatcher(path)
-                        {
-                            Filter = "*.hl7",
-                            NotifyFilter = NotifyFilters.FileName | NotifyFilters.LastWrite | NotifyFilters.CreationTime,
-                            EnableRaisingEvents = true
-                        };
-
-                        // Also watch for .txt files (some systems use .txt for HL7)
-                        watcher.Filters.Add("*.txt");
-
-                        // Wire up event handlers
-                        watcher.Created += async (sender, e) => await OnFileCreatedAsync(e.FullPath, config.Id);
-                        watcher.Error += (sender, e) => OnWatcherError(e.GetException(), path);
-
-                        _watchers.Add(watcher);
-                        _logger.LogInformation("Started monitoring: {Path} (Configuration: {ConfigName})", 
+                        CreateOperationalSubdirectories(path);
+                        locations[config.Id] = new MonitoredDropLocation(
+                            config.Id,
+                            path,
+                            config.ConfigurationName,
+                            config.FilePattern);
+                        _logger.LogInformation("Configured HL7 polling location: {Path} (Configuration: {ConfigName})",
                             path, config.ConfigurationName);
                     }
                     catch (Exception ex)
@@ -100,30 +141,31 @@ namespace Sentinel.Services.HL7
                 }
             }
 
-            _isMonitoring = true;
-            _monitoringStartedAt = DateTime.UtcNow;
+            lock (_monitoringLock)
+            {
+                _monitoredLocations = locations;
+                _isMonitoring = locations.Count > 0;
+                _monitoringStartedAt = _isMonitoring ? DateTime.UtcNow : null;
+            }
 
             // Reset daily stats if it's a new day
             ResetDailyStatsIfNeeded();
 
-            _logger.LogInformation("HL7 file monitoring started with {Count} active watchers", _watchers.Count);
+            _logger.LogInformation("HL7 file-drop polling started with {Count} active locations", locations.Count);
         }
 
         public Task StopMonitoringAsync()
         {
-            _logger.LogInformation("Stopping HL7 file monitoring service");
+            _logger.LogInformation("Stopping HL7 file-drop polling service");
 
-            foreach (var watcher in _watchers)
+            lock (_monitoringLock)
             {
-                watcher.EnableRaisingEvents = false;
-                watcher.Dispose();
+                _monitoredLocations = new Dictionary<Guid, MonitoredDropLocation>();
+                _isMonitoring = false;
+                _monitoringStartedAt = null;
             }
 
-            _watchers.Clear();
-            _isMonitoring = false;
-            _monitoringStartedAt = null;
-
-            _logger.LogInformation("HL7 file monitoring stopped");
+            _logger.LogInformation("HL7 file-drop polling stopped");
             return Task.CompletedTask;
         }
 
@@ -138,6 +180,172 @@ namespace Sentinel.Services.HL7
             await StartMonitoringAsync(cancellationToken);
 
             _logger.LogInformation("HL7 configurations reloaded and monitoring restarted");
+        }
+
+        public bool TryNormalizeFileDropPath(string? fileDropPath, out string normalizedPath, out string validationError)
+        {
+            normalizedPath = string.Empty;
+            validationError = string.Empty;
+
+            if (string.IsNullOrWhiteSpace(fileDropPath))
+            {
+                validationError = "A file-drop path is required.";
+                return false;
+            }
+
+            try
+            {
+                if (!Path.IsPathFullyQualified(fileDropPath))
+                {
+                    validationError = "The file-drop path must be an absolute path.";
+                    return false;
+                }
+
+                normalizedPath = Path.GetFullPath(fileDropPath);
+                if (_restrictToAllowedRoot &&
+                    (string.IsNullOrWhiteSpace(_allowedRootPath) || !IsPathWithinRoot(normalizedPath, _allowedRootPath)))
+                {
+                    validationError = "The file-drop path is outside the configured HL7 file-drop root.";
+                    normalizedPath = string.Empty;
+                    return false;
+                }
+
+                if (ContainsReparsePoint(normalizedPath))
+                {
+                    validationError = "The file-drop path must not include a symbolic link or reparse point.";
+                    normalizedPath = string.Empty;
+                    return false;
+                }
+
+                return true;
+            }
+            catch (Exception ex) when (ex is ArgumentException or NotSupportedException or PathTooLongException or IOException or UnauthorizedAccessException)
+            {
+                validationError = "The file-drop path is not valid.";
+                return false;
+            }
+        }
+
+        public async Task ScanConfiguredDirectoriesAsync(CancellationToken cancellationToken = default)
+        {
+            MonitoredDropLocation[] locations;
+            lock (_monitoringLock)
+            {
+                if (!_isMonitoring)
+                {
+                    return;
+                }
+
+                locations = _monitoredLocations.Values.ToArray();
+            }
+
+            foreach (var location in locations)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                await ScanDirectoryAsync(location, cancellationToken);
+            }
+        }
+
+        private async Task ScanDirectoryAsync(MonitoredDropLocation location, CancellationToken cancellationToken)
+        {
+            try
+            {
+                if (!Directory.Exists(location.Path))
+                {
+                    _logger.LogWarning("Configured HL7 file-drop directory is unavailable: {Path}", location.Path);
+                    return;
+                }
+
+                var files = Directory.EnumerateFiles(location.Path, "*", SearchOption.TopDirectoryOnly)
+                    .Where(IsSupportedInboundFile)
+                    .Where(filePath => MatchesConfiguredFilePattern(filePath, location.FilePattern))
+                    .Where(filePath => IsReadyForProcessing(filePath, out _))
+                    .Take(MaxFilesPerScan)
+                    .ToArray();
+
+                if (files.Length == 0)
+                {
+                    return;
+                }
+
+                _logger.LogInformation(
+                    "HL7 polling found {FileCount} ready file(s) in configuration {ConfigurationName}",
+                    files.Length,
+                    location.ConfigurationName);
+
+                await Task.WhenAll(files.Select(filePath => ProcessPolledFileAsync(filePath, location, cancellationToken)));
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                _logger.LogError(ex, "Access was denied while polling HL7 file-drop directory: {Path}", location.Path);
+            }
+            catch (IOException ex)
+            {
+                _logger.LogWarning(ex, "Unable to poll HL7 file-drop directory: {Path}", location.Path);
+            }
+        }
+
+        private async Task ProcessPolledFileAsync(
+            string filePath,
+            MonitoredDropLocation location,
+            CancellationToken cancellationToken)
+        {
+            if (!TryClaimFile(filePath))
+            {
+                return;
+            }
+
+            try
+            {
+                if (!IsReadyForProcessing(filePath, out var reason))
+                {
+                    _logger.LogDebug("Skipping HL7 file during polling: {FilePath}. Reason: {Reason}", filePath, reason);
+                    return;
+                }
+
+                await _processingSemaphore.WaitAsync(cancellationToken);
+                try
+                {
+                    // Recheck after waiting for capacity: another process may have moved or changed the file.
+                    if (!IsReadyForProcessing(filePath, out reason))
+                    {
+                        _logger.LogDebug("Skipping HL7 file before processing: {FilePath}. Reason: {Reason}", filePath, reason);
+                        return;
+                    }
+
+                    var result = await ProcessFileAsync(filePath, location.ConfigurationId, cancellationToken);
+                    if (result.Success)
+                    {
+                        _logger.LogInformation("Processed polled HL7 file {FileName}", result.FileName);
+                    }
+                    else
+                    {
+                        _logger.LogWarning("HL7 file processing did not succeed for {FileName}. File was moved to {MovedTo}",
+                            result.FileName,
+                            result.MovedToPath ?? "its source directory");
+                    }
+                }
+                finally
+                {
+                    _processingSemaphore.Release();
+                }
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Unexpected error while polling HL7 file {FilePath}", filePath);
+            }
+            finally
+            {
+                ReleaseFileClaim(filePath);
+            }
         }
 
         public async Task<FileProcessingResult> ProcessFileAsync(
@@ -165,13 +373,20 @@ namespace Sentinel.Services.HL7
                     return result;
                 }
 
+                var fileInfo = new FileInfo(filePath);
+                if (fileInfo.Length > _maxInboundFileBytes)
+                {
+                    _logger.LogWarning("HL7 file exceeds the configured maximum size and will not be read: {FilePath}", filePath);
+                    result.Errors.Add("File exceeds the configured maximum size.");
+                    await MoveFileToErrorAsync(filePath, result, "File exceeds the configured maximum size.");
+                    return result;
+                }
+
                 // Read file content
                 string hl7Content;
                 try
                 {
                     _logger.LogDebug("Reading file content: {FilePath}", filePath);
-                    // Wait a moment to ensure file is fully written
-                    await Task.Delay(500, cancellationToken);
                     hl7Content = await File.ReadAllTextAsync(filePath, cancellationToken);
                     _logger.LogDebug("Successfully read {Length} characters from: {FilePath}", hl7Content.Length, filePath);
                 }
@@ -358,23 +573,34 @@ namespace Sentinel.Services.HL7
                 // Process files with throttling
                 var tasks = files.Select(async filePath =>
                 {
-                    await _processingSemaphore.WaitAsync(cancellationToken);
+                    if (!TryClaimFile(filePath))
+                    {
+                        return (FileProcessingResult?)null;
+                    }
+
+                    var semaphoreAcquired = false;
                     try
                     {
-                        var fileResult = await ProcessFileAsync(filePath, configurationId, cancellationToken);
-                        return fileResult;
+                        await _processingSemaphore.WaitAsync(cancellationToken);
+                        semaphoreAcquired = true;
+                        return await ProcessFileAsync(filePath, configurationId, cancellationToken);
                     }
                     finally
                     {
-                        _processingSemaphore.Release();
+                        if (semaphoreAcquired)
+                        {
+                            _processingSemaphore.Release();
+                        }
+                        ReleaseFileClaim(filePath);
                     }
                 });
 
                 var fileResults = await Task.WhenAll(tasks);
 
-                result.Results.AddRange(fileResults);
-                result.SuccessCount = fileResults.Count(r => r.Success);
-                result.FailureCount = fileResults.Count(r => !r.Success && r.Errors.Any());
+                var completedResults = fileResults.Where(r => r is not null).Select(r => r!).ToList();
+                result.Results.AddRange(completedResults);
+                result.SuccessCount = completedResults.Count(r => r.Success);
+                result.FailureCount = completedResults.Count(r => !r.Success && r.Errors.Any());
                 result.SkippedCount = result.TotalFiles - result.SuccessCount - result.FailureCount;
 
                 _logger.LogInformation(
@@ -398,16 +624,26 @@ namespace Sentinel.Services.HL7
 
         public MonitoringStatus GetMonitoringStatus()
         {
+            MonitoredDropLocation[] locations;
+            bool isMonitoring;
+            DateTime? startedAt;
+            lock (_monitoringLock)
+            {
+                locations = _monitoredLocations.Values.ToArray();
+                isMonitoring = _isMonitoring;
+                startedAt = _monitoringStartedAt;
+            }
+
             lock (_statsLock)
             {
                 ResetDailyStatsIfNeeded();
 
                 return new MonitoringStatus
                 {
-                    IsMonitoring = _isMonitoring,
-                    ActiveWatchers = _watchers.Count,
-                    MonitoredPaths = _watchers.Select(w => w.Path).ToList(),
-                    MonitoringStartedAt = _monitoringStartedAt,
+                    IsMonitoring = isMonitoring,
+                    ActivePollingLocations = locations.Length,
+                    MonitoredPaths = locations.Select(location => location.Path).ToList(),
+                    MonitoringStartedAt = startedAt,
                     FilesProcessedToday = _filesProcessedToday,
                     FilesFailedToday = _filesFailedToday,
                     LastFileProcessedAt = _lastFileProcessedAt,
@@ -418,97 +654,143 @@ namespace Sentinel.Services.HL7
 
         #region Private Helper Methods
 
-        private async Task OnFileCreatedAsync(string filePath, Guid configurationId)
+        private bool IsReadyForProcessing(string filePath, out string reason)
         {
             try
             {
-                _logger.LogInformation("New file detected: {FilePath}", filePath);
-
-                // Check if this file is already being processed (prevents duplicate FileSystemWatcher events)
-                lock (_processingFilesLock)
+                var fileInfo = new FileInfo(filePath);
+                if (!fileInfo.Exists)
                 {
-                    if (_processingFiles.Contains(filePath))
-                    {
-                        _logger.LogWarning("File is already being processed, ignoring duplicate event: {FilePath}", filePath);
-                        return;
-                    }
-                    _processingFiles.Add(filePath);
+                    reason = "The file no longer exists.";
+                    return false;
                 }
 
-                try
+                if (!IsSupportedInboundFile(filePath))
                 {
-                    // Small delay to ensure file is fully written
-                    await Task.Delay(1000);
-
-                    // Only process if file still exists (might have been moved by another process)
-                    if (!File.Exists(filePath))
-                    {
-                        _logger.LogWarning("File no longer exists, skipping: {FilePath}", filePath);
-                        return;
-                    }
-
-                    // Process the file directly - ProcessFileAsync already creates its own scope
-                    // No need to create an additional scope here as IHL7FileMonitorService is a singleton
-                    _logger.LogInformation("Starting ProcessFileAsync for: {FilePath}", filePath);
-                    var result = await ProcessFileAsync(filePath, configurationId);
-
-                    if (result.Success)
-                    {
-                        _logger.LogInformation("Successfully processed file: {FilePath} → Moved to: {MovedTo}", filePath, result.MovedToPath);
-                    }
-                    else
-                    {
-                        _logger.LogWarning("Failed to process file: {FilePath} → Errors: {Errors} → Moved to: {MovedTo}", 
-                            filePath, string.Join("; ", result.Errors), result.MovedToPath ?? "NOT MOVED");
-                    }
+                    reason = "Only .hl7 and .txt files are accepted.";
+                    return false;
                 }
-                finally
+
+                if ((fileInfo.Attributes & FileAttributes.ReparsePoint) != 0)
                 {
-                    // Always remove from processing set when done
-                    lock (_processingFilesLock)
-                    {
-                        _processingFiles.Remove(filePath);
-                    }
+                    reason = "Symbolic links and reparse points are not accepted.";
+                    return false;
                 }
+
+                if (fileInfo.Length == 0)
+                {
+                    reason = "The file is empty.";
+                    return false;
+                }
+
+                if (fileInfo.Length > _maxInboundFileBytes)
+                {
+                    reason = "The file exceeds the configured maximum size.";
+                    return false;
+                }
+
+                if (DateTime.UtcNow - fileInfo.LastWriteTimeUtc < _fileSettleDelay)
+                {
+                    reason = "The file is still settling.";
+                    return false;
+                }
+
+                reason = string.Empty;
+                return true;
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is UnauthorizedAccessException or IOException or ArgumentException or NotSupportedException)
             {
-                _logger.LogError(ex, "Error in file created event handler for: {FilePath}", filePath);
-
-                // Remove from processing set on error
-                lock (_processingFilesLock)
-                {
-                    _processingFiles.Remove(filePath);
-                }
-
-                // If the file still exists, try to move it to error folder
-                try
-                {
-                    if (File.Exists(filePath))
-                    {
-                        _logger.LogInformation("Attempting to move orphaned file to error folder: {FilePath}", filePath);
-                        var errorResult = new FileProcessingResult
-                        {
-                            FilePath = filePath,
-                            FileName = Path.GetFileName(filePath),
-                            ProcessedAt = DateTime.UtcNow,
-                            Success = false
-                        };
-                        errorResult.Errors.Add("Unexpected processing failure. Check the application logs using the file name.");
-                        await MoveFileToErrorAsync(filePath, errorResult, "Unexpected event-handler failure. See application logs for details.");
-                    }
-                }
-                catch (Exception moveEx)
-                {
-                    _logger.LogError(moveEx, "Failed to move orphaned file to error folder: {FilePath}", filePath);
-                }
+                reason = "The file could not be inspected safely.";
+                _logger.LogWarning(ex, "Unable to inspect candidate HL7 file: {FilePath}", filePath);
+                return false;
             }
         }
 
-        private void OnWatcherError(Exception? exception, string path)
+        private static bool IsSupportedInboundFile(string filePath)
         {
-            _logger.LogError(exception, "File watcher error for path: {Path}", path);
+            return SupportedExtensions.Contains(Path.GetExtension(filePath));
         }
+
+        private static bool MatchesConfiguredFilePattern(string filePath, string? filePattern)
+        {
+            return filePattern switch
+            {
+                "*.hl7" => Path.GetExtension(filePath).Equals(".hl7", StringComparison.OrdinalIgnoreCase),
+                "*.txt" => Path.GetExtension(filePath).Equals(".txt", StringComparison.OrdinalIgnoreCase),
+                _ => false
+            };
+        }
+
+        private static bool IsSupportedFilePattern(string? filePattern)
+        {
+            return filePattern is "*.hl7" or "*.txt";
+        }
+
+        private bool TryClaimFile(string filePath)
+        {
+            lock (_processingFilesLock)
+            {
+                return _processingFiles.Add(filePath);
+            }
+        }
+
+        private void ReleaseFileClaim(string filePath)
+        {
+            lock (_processingFilesLock)
+            {
+                _processingFiles.Remove(filePath);
+            }
+        }
+
+        private static void CreateOperationalSubdirectories(string path)
+        {
+            Directory.CreateDirectory(Path.Combine(path, "Processed"));
+            Directory.CreateDirectory(Path.Combine(path, "Error"));
+            Directory.CreateDirectory(Path.Combine(path, "Review"));
+        }
+
+        private static bool IsPathWithinRoot(string path, string rootPath)
+        {
+            var relativePath = Path.GetRelativePath(rootPath, path);
+            return relativePath == "." ||
+                   (!relativePath.Equals("..", StringComparison.Ordinal) &&
+                    !relativePath.StartsWith($"..{Path.DirectorySeparatorChar}", StringComparison.Ordinal) &&
+                    !Path.IsPathRooted(relativePath));
+        }
+
+        private static bool ContainsReparsePoint(string path)
+        {
+            var root = Path.GetPathRoot(path);
+            if (string.IsNullOrEmpty(root))
+            {
+                return true;
+            }
+
+            var currentPath = root;
+            var relativePath = path[root.Length..];
+            foreach (var segment in relativePath.Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar))
+            {
+                if (string.IsNullOrWhiteSpace(segment))
+                {
+                    continue;
+                }
+
+                currentPath = Path.Combine(currentPath, segment);
+                if ((Directory.Exists(currentPath) || File.Exists(currentPath)) &&
+                    (File.GetAttributes(currentPath) & FileAttributes.ReparsePoint) != 0)
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private sealed record MonitoredDropLocation(
+            Guid ConfigurationId,
+            string Path,
+            string ConfigurationName,
+            string FilePattern);
 
         private async Task MoveFileToProcessedAsync(string sourceFile, FileProcessingResult result)
         {
@@ -887,11 +1169,6 @@ namespace Sentinel.Services.HL7
 
         public void Dispose()
         {
-            foreach (var watcher in _watchers)
-            {
-                watcher.Dispose();
-            }
-            _watchers.Clear();
             _processingSemaphore.Dispose();
         }
     }

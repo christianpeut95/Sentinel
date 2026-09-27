@@ -115,7 +115,11 @@ public class HL7ParserService : IHL7ParserService
                 {
                     // Find the FIRST (original) message with this MessageControlId + SendingFacility
                     // We want to link all duplicates to the original, not to other duplicates
+                    // This is a system-level integrity check performed by an internal worker,
+                    // not a user-facing data read. It must compare against all non-deleted
+                    // messages, including messages linked to cases outside an HTTP user's scope.
                     var existingMessage = await _context.HL7Messages
+                        .IgnoreQueryFilters()
                         .Where(m => m.MessageControlId == hl7Message.MessageControlId &&
                                     m.SendingFacility == hl7Message.SendingFacility &&
                                     !m.IsDeleted &&
@@ -181,13 +185,9 @@ public class HL7ParserService : IHL7ParserService
         _context.HL7Messages.Add(hl7Message);
         await _context.SaveChangesAsync(cancellationToken);
 
-        // CRITICAL: Reload message with Segments to ensure the collection is populated for extraction
-        // After SaveChanges, the Segments collection might be cleared/detached from tracking
-        var reloadedMessage = await _context.HL7Messages
-            .Include(m => m.Segments)
-            .FirstOrDefaultAsync(m => m.Id == hl7Message.Id, cancellationToken);
-
-        return reloadedMessage ?? hl7Message;
+        // SaveChanges preserves the tracked entity and its populated Segments collection.
+        // Returning it directly avoids an unnecessary filtered query during background processing.
+        return hl7Message;
     }
 
     public async Task<HL7ParseResult> ParseMessagePreviewAsync(string rawMessage, CancellationToken cancellationToken = default)
