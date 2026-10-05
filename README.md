@@ -39,6 +39,29 @@ organisation-led deployment validation.
 
 ---
 
+## Help shape Sentinel
+
+Sentinel is being improved with the people who install, configure, test, teach
+and use infectious-disease surveillance systems. You do not need to write code
+to contribute.
+
+Ways of contributing include:
+
+- trying a local installation and sharing the experience;
+- configuring surveillance for a disease or workflow you know;
+- testing an HL7 file-drop workflow with synthetic or de-identified data;
+- reporting a bug, confusing step or missing capability;
+- improving a guide, screenshot or explanation;
+- contributing a focused code fix or feature improvement.
+
+Start with the [contribution guide](CONTRIBUTING.md), browse open
+[contribution opportunities](https://github.com/christianpeut95/Sentinel/issues),
+or join a [GitHub Discussion](https://github.com/christianpeut95/Sentinel/discussions).
+Never post patient data, raw production HL7 messages, credentials, setup tokens
+or connection strings in a public issue or discussion.
+
+---
+
 ## At a Glance
 
 ### 01 · Lab Integration
@@ -557,19 +580,10 @@ Demo__ShowDemoBanner=true
 
 ## Contributing
 
-Contributions are welcome.
-
-### How to Help
-- **Report bugs** — Create an issue with reproduction steps
-- **Suggest features** — Open a discussion with use case
-- **Submit code** — Open a focused pull request against the repository's
-  default branch
-
-### Before Submitting Code
-- Follow the [contribution guide](CONTRIBUTING.md), including local build and
-  test checks.
-- Update documentation when behaviour, configuration or security controls
-  change.
+Contributions are welcome from anyone helping Sentinel become more useful,
+understandable and trustworthy. That can mean trying an installation,
+contributing public-health or HL7 expertise, improving documentation, reporting
+a problem, or submitting code. See [ways of contributing to Sentinel](CONTRIBUTING.md).
 
 ---
 
