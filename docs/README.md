@@ -17,6 +17,12 @@ one-off debugging records; Git history is the source for those records.
 - [Background geocoding](features/background-geocoding.md) documents the
   asynchronous HL7 address-geocoding behaviour and its limitations.
 
+## Feature specifications
+
+- [Clinical interventions module](features/clinical-interventions.md) records
+  the proposed requirements and data model for immunisation, prophylaxis and
+  treatment surveillance. It is a draft design, not current product guidance.
+
 ## Maintainer guidance
 
 - [Migrations](development/migrations.md) covers normal EF Core migration

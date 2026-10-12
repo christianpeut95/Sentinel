@@ -540,6 +540,14 @@ Demo__ShowDemoBanner=true
 | Nominatim | Free, no API key, rate limited (~1 req/sec) |
 | Google | Requires a server-only key for Geocoding API v4 and Places API (New), plus a separately restricted browser key for Maps JavaScript autocomplete. |
 
+### Google Maps browser key tutorial
+
+[![Watch the Google Maps browser key tutorial](https://img.youtube.com/vi/zMDoHE4Zt-4/maxresdefault.jpg)](https://www.youtube.com/watch?v=zMDoHE4Zt-4&t=1s)
+
+When creating the browser key, enable **Maps JavaScript API** and **Places API
+(New)**, then restrict it to your Sentinel web address under **Website
+referrers**.
+
 ---
 
 ## Status
