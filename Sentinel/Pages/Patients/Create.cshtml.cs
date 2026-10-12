@@ -71,6 +71,7 @@ namespace Sentinel.Pages.Patients
         public bool ShowDuplicateWarning { get; set; } = false;
         public List<CustomFieldDefinition> CustomFields { get; set; } = new();
         public Dictionary<string, List<CustomFieldDefinition>> FieldsByCategory { get; set; } = new();
+        public Dictionary<int, string?> CustomFieldValues { get; set; } = new();
         
         // Jurisdiction properties
         public List<JurisdictionType> ActiveJurisdictionTypes { get; set; } = new();
@@ -86,22 +87,7 @@ namespace Sentinel.Pages.Patients
 
         public async Task<IActionResult> OnGetAsync()
         {
-            // Show lookup display names instead of IDs - ordered alphabetically by default, or by DisplayOrder if specified
-            ViewData["CountryOfBirthId"] = new SelectList(_context.Countries.OrderBy(c => c.Name), "Id", "Name");
-            ViewData["AncestryId"] = new SelectList(_context.Ancestries.OrderBy(e => e.DisplayOrder).ThenBy(e => e.Name), "Id", "Name");
-            ViewData["LanguageSpokenAtHomeId"] = new SelectList(_context.Languages.OrderBy(l => l.Name), "Id", "Name");
-            ViewData["AtsiStatusId"] = new SelectList(_context.AtsiStatuses.Where(a => a.IsActive).OrderBy(a => a.DisplayOrder).ThenBy(a => a.Name), "Id", "Name");
-            ViewData["SexAtBirthId"] = new SelectList(_context.SexAtBirths.Where(s => s.IsActive).OrderBy(s => s.DisplayOrder).ThenBy(s => s.Name), "Id", "Name");
-            ViewData["GenderId"] = new SelectList(_context.Genders.Where(g => g.IsActive).OrderBy(g => g.DisplayOrder).ThenBy(g => g.Name), "Id", "Name");
-            // Occupation and Jurisdictions now use autocomplete, no ViewData needed
-            
-            // Load only jurisdiction type metadata (not all 567 jurisdictions!)
-            ActiveJurisdictionTypes = await _jurisdictionService.GetActiveJurisdictionTypesAsync();
-            
-            CustomFields = await _customFieldService.GetCreateEditFieldsAsync();
-            FieldsByCategory = CustomFields.GroupBy(f => f.Category).ToDictionary(g => g.Key, g => g.ToList());
-            
-            
+            await LoadCreatePageDataAsync();
             return Page();
         }
 
@@ -113,6 +99,9 @@ namespace Sentinel.Pages.Patients
 
         public async Task<IActionResult> OnPostAsync()
         {
+            ValidateInput();
+            await ValidateJurisdictionAssignmentsAsync();
+
             if (ShouldCreateContactCase() && !await CanCreateContactCaseAsync(DiseaseId!.Value))
             {
                 return Forbid();
@@ -120,18 +109,7 @@ namespace Sentinel.Pages.Patients
 
             if (!ModelState.IsValid)
             {
-                ViewData["CountryOfBirthId"] = new SelectList(_context.Countries.OrderBy(c => c.Name), "Id", "Name");
-                ViewData["EthnicityId"] = new SelectList(_context.Ancestries.OrderBy(e => e.Name), "Id", "Name");
-                ViewData["LanguageSpokenAtHomeId"] = new SelectList(_context.Languages.OrderBy(l => l.Name), "Id", "Name");
-                ViewData["AtsiStatusId"] = new SelectList(_context.AtsiStatuses.Where(a => a.IsActive).OrderBy(a => a.DisplayOrder).ThenBy(a => a.Name), "Id", "Name");
-                ViewData["SexAtBirthId"] = new SelectList(_context.SexAtBirths.Where(s => s.IsActive).OrderBy(s => s.DisplayOrder).ThenBy(s => s.Name), "Id", "Name");
-                ViewData["GenderId"] = new SelectList(_context.Genders.Where(g => g.IsActive).OrderBy(g => g.DisplayOrder).ThenBy(g => g.Name), "Id", "Name");
-                // Occupation uses autocomplete, no ViewData needed
-                
-                // Reload custom fields
-                CustomFields = await _customFieldService.GetCreateEditFieldsAsync();
-                FieldsByCategory = CustomFields.GroupBy(f => f.Category).ToDictionary(g => g.Key, g => g.ToList());
-                
+                await LoadCreatePageDataAsync();
                 TempData["ErrorMessage"] = "Please correct the errors and try again.";
                 return Page();
             }
@@ -154,6 +132,7 @@ namespace Sentinel.Pages.Patients
                     EmailAddress = Patient.EmailAddress,
                     AddressLine = Patient.AddressLine,
                     City = Patient.City,
+                    StateId = Patient.StateId,
                     PostalCode = Patient.PostalCode,
                     CountryOfBirthId = Patient.CountryOfBirthId,
                     LanguageSpokenAtHomeId = Patient.LanguageSpokenAtHomeId,
@@ -162,6 +141,11 @@ namespace Sentinel.Pages.Patients
                     OccupationId = Patient.OccupationId,
                     IsDeceased = Patient.IsDeceased,
                     DateOfDeath = Patient.DateOfDeath,
+                    Jurisdiction1Id = Patient.Jurisdiction1Id,
+                    Jurisdiction2Id = Patient.Jurisdiction2Id,
+                    Jurisdiction3Id = Patient.Jurisdiction3Id,
+                    Jurisdiction4Id = Patient.Jurisdiction4Id,
+                    Jurisdiction5Id = Patient.Jurisdiction5Id,
                     CreatedAt = DateTime.UtcNow,
                     CreatedByUserId = User.FindFirstValue(ClaimTypes.NameIdentifier)
                 };
@@ -176,18 +160,7 @@ namespace Sentinel.Pages.Patients
                     {
                         // Show duplicate warning and stay on page
                         ShowDuplicateWarning = true;
-                        ViewData["CountryOfBirthId"] = new SelectList(_context.Countries.OrderBy(c => c.Name), "Id", "Name");
-                        ViewData["EthnicityId"] = new SelectList(_context.Ancestries.OrderBy(e => e.Name), "Id", "Name");
-                        ViewData["LanguageSpokenAtHomeId"] = new SelectList(_context.Languages.OrderBy(l => l.Name), "Id", "Name");
-                        ViewData["AtsiStatusId"] = new SelectList(_context.AtsiStatuses.Where(a => a.IsActive).OrderBy(a => a.DisplayOrder).ThenBy(a => a.Name), "Id", "Name");
-                        ViewData["SexAtBirthId"] = new SelectList(_context.SexAtBirths.Where(s => s.IsActive).OrderBy(s => s.DisplayOrder).ThenBy(s => s.Name), "Id", "Name");
-                        ViewData["GenderId"] = new SelectList(_context.Genders.Where(g => g.IsActive).OrderBy(g => g.DisplayOrder).ThenBy(g => g.Name), "Id", "Name");
-                        // Occupation uses autocomplete, no ViewData needed
-                        
-                        // Reload custom fields
-                        CustomFields = await _customFieldService.GetCreateEditFieldsAsync();
-                        FieldsByCategory = CustomFields.GroupBy(f => f.Category).ToDictionary(g => g.Key, g => g.ToList());
-                        
+                        await LoadCreatePageDataAsync();
                         return Page();
                     }
                 }
@@ -207,8 +180,15 @@ namespace Sentinel.Pages.Patients
                         }
 
                         // Build address string
+                        var stateCode = Patient.StateId.HasValue
+                            ? await _context.States
+                                .Where(state => state.Id == Patient.StateId.Value && state.IsActive)
+                                .Select(state => state.Code)
+                                .FirstOrDefaultAsync()
+                            : null;
+
                         var address = string.Join(", ",
-                            new string?[] { Patient.AddressLine, Patient.City, Patient.State?.Code, Patient.PostalCode }
+                            new string?[] { Patient.AddressLine, Patient.City, stateCode, Patient.PostalCode }
                             .Where(s => !string.IsNullOrWhiteSpace(s)));
 
                         if (!string.IsNullOrWhiteSpace(address))
@@ -342,20 +322,82 @@ namespace Sentinel.Pages.Patients
             }
             catch (Exception ex)
             {
-                ViewData["CountryOfBirthId"] = new SelectList(_context.Countries.OrderBy(c => c.Name), "Id", "Name");
-                ViewData["EthnicityId"] = new SelectList(_context.Ancestries.OrderBy(e => e.Name), "Id", "Name");
-                ViewData["LanguageSpokenAtHomeId"] = new SelectList(_context.Languages.OrderBy(l => l.Name), "Id", "Name");
-                ViewData["AtsiStatusId"] = new SelectList(_context.AtsiStatuses.Where(a => a.IsActive).OrderBy(a => a.DisplayOrder).ThenBy(a => a.Name), "Id", "Name");
-                ViewData["SexAtBirthId"] = new SelectList(_context.SexAtBirths.Where(s => s.IsActive).OrderBy(s => s.DisplayOrder).ThenBy(s => s.Name), "Id", "Name");
-                ViewData["GenderId"] = new SelectList(_context.Genders.Where(g => g.IsActive).OrderBy(g => g.DisplayOrder).ThenBy(g => g.Name), "Id", "Name");
-                
-                // Reload custom fields
-                CustomFields = await _customFieldService.GetCreateEditFieldsAsync();
-                FieldsByCategory = CustomFields.GroupBy(f => f.Category).ToDictionary(g => g.Key, g => g.ToList());
-                
+                await LoadCreatePageDataAsync();
                 _logger.LogError(ex, "Unable to create patient");
                 TempData["ErrorMessage"] = "The patient could not be created. Check the entered information and try again.";
                 return Page();
+            }
+        }
+
+        private async Task LoadCreatePageDataAsync()
+        {
+            ViewData["CountryOfBirthId"] = new SelectList(_context.Countries.OrderBy(c => c.Name), "Id", "Name");
+            ViewData["StateId"] = new SelectList(_context.States.Where(s => s.IsActive).OrderBy(s => s.Code), "Id", "Code");
+            ViewData["AncestryId"] = new SelectList(_context.Ancestries.OrderBy(e => e.DisplayOrder).ThenBy(e => e.Name), "Id", "Name");
+            ViewData["LanguageSpokenAtHomeId"] = new SelectList(_context.Languages.OrderBy(l => l.Name), "Id", "Name");
+            ViewData["AtsiStatusId"] = new SelectList(_context.AtsiStatuses.Where(a => a.IsActive).OrderBy(a => a.DisplayOrder).ThenBy(a => a.Name), "Id", "Name");
+            ViewData["SexAtBirthId"] = new SelectList(_context.SexAtBirths.Where(s => s.IsActive).OrderBy(s => s.DisplayOrder).ThenBy(s => s.Name), "Id", "Name");
+            ViewData["GenderId"] = new SelectList(_context.Genders.Where(g => g.IsActive).OrderBy(g => g.DisplayOrder).ThenBy(g => g.Name), "Id", "Name");
+
+            ActiveJurisdictionTypes = await _jurisdictionService.GetActiveJurisdictionTypesAsync();
+            CustomFields = await _customFieldService.GetCreateEditFieldsAsync();
+            FieldsByCategory = CustomFields.GroupBy(f => f.Category).ToDictionary(g => g.Key, g => g.ToList());
+
+            CustomFieldValues = new Dictionary<int, string?>();
+            if (!Request.HasFormContentType)
+            {
+                return;
+            }
+
+            var form = await Request.ReadFormAsync();
+            foreach (var field in CustomFields)
+            {
+                var fieldKey = $"customfield_{field.Id}";
+                if (form.TryGetValue(fieldKey, out var value))
+                {
+                    CustomFieldValues[field.Id] = value.ToString();
+                }
+            }
+        }
+
+        private void ValidateInput()
+        {
+            if (!Patient.IsDeceased)
+            {
+                Patient.DateOfDeath = null;
+            }
+
+            if (Patient.DateOfBirth.HasValue && Patient.DateOfDeath.HasValue &&
+                Patient.DateOfDeath.Value.Date < Patient.DateOfBirth.Value.Date)
+            {
+                ModelState.AddModelError("Patient.DateOfDeath", "Date of death cannot be before date of birth.");
+            }
+        }
+
+        private async Task ValidateJurisdictionAssignmentsAsync()
+        {
+            var assignments = new (int FieldNumber, int? JurisdictionId)[]
+            {
+                (1, Patient.Jurisdiction1Id),
+                (2, Patient.Jurisdiction2Id),
+                (3, Patient.Jurisdiction3Id),
+                (4, Patient.Jurisdiction4Id),
+                (5, Patient.Jurisdiction5Id)
+            };
+
+            foreach (var assignment in assignments.Where(assignment => assignment.JurisdictionId.HasValue))
+            {
+                var isValid = await _context.Jurisdictions.AnyAsync(jurisdiction =>
+                    jurisdiction.Id == assignment.JurisdictionId!.Value &&
+                    jurisdiction.JurisdictionType != null &&
+                    jurisdiction.JurisdictionType.FieldNumber == assignment.FieldNumber);
+
+                if (!isValid)
+                {
+                    ModelState.AddModelError(
+                        $"Patient.Jurisdiction{assignment.FieldNumber}Id",
+                        "Select a valid jurisdiction for this field.");
+                }
             }
         }
 
