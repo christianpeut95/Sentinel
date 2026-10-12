@@ -68,7 +68,6 @@ namespace Sentinel.Pages.Patients
         
         // Jurisdiction properties
         public List<JurisdictionType> ActiveJurisdictionTypes { get; set; } = new();
-        public Dictionary<int, List<Jurisdiction>> JurisdictionsByType { get; set; } = new();
 
         public async Task<IActionResult> OnGetAsync(Guid? id)
         {
@@ -333,7 +332,6 @@ namespace Sentinel.Pages.Patients
             ViewData["GenderId"] = new SelectList(_context.Genders.Where(g => g.IsActive).OrderBy(g => g.DisplayOrder).ThenBy(g => g.Name), "Id", "Name");
 
             ActiveJurisdictionTypes = await _jurisdictionService.GetActiveJurisdictionTypesAsync();
-            JurisdictionsByType = await _jurisdictionService.GetGroupedJurisdictionsAsync();
 
             CustomFields = await _customFieldService.GetCreateEditFieldsAsync();
             FieldsByCategory = CustomFields.GroupBy(f => f.Category).ToDictionary(g => g.Key, g => g.ToList());

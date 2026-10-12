@@ -358,7 +358,6 @@
                                    placeholder="Type to search for @jurisdictionType.Name..."
                                    data-jurisdiction-type-id="@jurisdictionType.Id"
                                    data-field-number="@jurisdictionType.FieldNumber"
-                                   data-current-value="@currentValue"
                                    value="@currentName"
                                    autocomplete="off" />
                             <input type="hidden" 
@@ -756,16 +755,6 @@
                 var typeId = $input.data('jurisdiction-type-id')
                 var fieldNumber = $input.data('field-number')
                 var $hiddenField = $('#Jurisdiction' + fieldNumber + 'Id')
-                var currentValue = $input.data('current-value')
-                // Load current jurisdiction name if value exists
-                if (currentValue) {
-                    $.get('/api/jurisdictions/search?typeId=' + typeId, function(data) {
-                        var current = data.find(j => j.id == currentValue)
-                        if (current) {
-                            $input.val(current.name)
-                        }
-                    })
-                }
                 
                 // Debounce function
                 var debounceTimer
