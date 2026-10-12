@@ -33,6 +33,9 @@ when one is available. A useful report records the Sentinel version, the broad
 deployment environment, the workflow attempted, what worked, what did not,
 and any safe suggestions for improvement.
 
+For a non-developer Windows trial, follow [Try Sentinel on Windows with the
+evaluation installer](docs/getting-started/windows-evaluation-installer.md).
+
 ### Help test HL7 interoperability
 
 Laboratory and health-information professionals can make a particularly

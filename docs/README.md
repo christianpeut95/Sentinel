@@ -8,6 +8,9 @@ one-off debugging records; Git history is the source for those records.
 
 - The repository [README](../README.md) is the starting point for evaluation,
   Docker deployment and initial setup.
+- [Try Sentinel on Windows with the evaluation installer](getting-started/windows-evaluation-installer.md)
+  is the step-by-step, non-developer guide for contributors using Docker
+  Desktop on Windows.
 - [Regional settings](configuration/regional-settings.md) explains the
   organisation-wide country, locale and time-zone settings.
 - [HL7 mapping and test messages](integrations/hl7-mapping-and-testing.md)
