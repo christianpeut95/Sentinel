@@ -74,16 +74,12 @@
             }
         </div>
 
-        <!-- HTTPS & Domain -->
+        <!-- Application address & domain -->
         <div class="review-section">
-            <h3><i class="bi bi-shield-lock"></i> HTTPS & Domain</h3>
+            <h3><i class="bi bi-globe2"></i> Application Address</h3>
             <div class="review-item">
                 <span class="review-label">Application URL</span>
                 <span class="review-value">@HttpsData.ApplicationUrl</span>
-            </div>
-            <div class="review-item">
-                <span class="review-label">Enforce HTTPS</span>
-                <span class="review-value">@(HttpsData.EnforceHttps ? "Yes" : "No")</span>
             </div>
             @if (!string.IsNullOrEmpty(HttpsData.DomainName))
             {
@@ -374,7 +370,6 @@
             if (settings != null)
             {
                 settings.ApplicationUrl = HttpsData.ApplicationUrl;
-                settings.EnforceHttps = HttpsData.EnforceHttps;
                 // Remote feedback and diagnostic reporting are both explicit
                 // setup choices and are disabled unless selected by the admin.
                 await SystemSettingsService.UpdateFeedbackWidgetSettingAsync(EnableFeedback);

@@ -5848,9 +5848,6 @@ namespace Sentinel.Migrations
                     b.Property<bool>("EnableWebDataRocks")
                         .HasColumnType("bit");
 
-                    b.Property<bool>("EnforceHttps")
-                        .HasColumnType("bit");
-
                     b.Property<string>("HL7DefaultArchivePath")
                         .HasMaxLength(1000)
                         .HasColumnType("nvarchar(1000)");

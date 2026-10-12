@@ -29,11 +29,6 @@ public static class SetupWizardValidation
         {
             errors.Add("Application URL must be an absolute HTTP or HTTPS URL.");
         }
-        else if (httpsData.EnforceHttps && applicationUri.Scheme != Uri.UriSchemeHttps)
-        {
-            errors.Add("Application URL must use HTTPS while HTTPS enforcement is enabled.");
-        }
-
         if (string.IsNullOrWhiteSpace(timeZoneId))
         {
             errors.Add("Time zone is required.");

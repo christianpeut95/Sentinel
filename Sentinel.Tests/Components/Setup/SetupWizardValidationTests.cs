@@ -32,21 +32,20 @@ public class SetupWizardValidationTests
     }
 
     [Fact]
-    public void ValidateRequiredConfiguration_RequiresHttpsWhenHttpsEnforcementIsEnabled()
+    public void ValidateRequiredConfiguration_AllowsHttpForALocalEvaluationInstallation()
     {
         var errors = SetupWizardValidation.ValidateRequiredConfiguration(
             ValidAdmin(),
             new InitialSetupWizard.HttpsConfigData
             {
-                ApplicationUrl = "http://sentinel.example.test",
-                EnforceHttps = true
+                ApplicationUrl = "http://localhost:8088"
             },
             ValidOrganization(),
             ValidBackup(),
             "Etc/UTC",
             "en-AU");
 
-        Assert.Contains("Application URL must use HTTPS while HTTPS enforcement is enabled.", errors);
+        Assert.Empty(errors);
     }
 
     [Fact]
@@ -71,8 +70,7 @@ public class SetupWizardValidationTests
             ValidAdmin(),
             new InitialSetupWizard.HttpsConfigData
             {
-                ApplicationUrl = "https://sentinel.example.test",
-                EnforceHttps = true
+                ApplicationUrl = "https://sentinel.example.test"
             },
             ValidOrganization(),
             ValidBackup(),
@@ -89,8 +87,7 @@ public class SetupWizardValidationTests
             ValidAdmin(),
             new InitialSetupWizard.HttpsConfigData
             {
-                ApplicationUrl = "https://sentinel.example.test",
-                EnforceHttps = true
+                ApplicationUrl = "https://sentinel.example.test"
             },
             ValidOrganization(),
             ValidBackup(),
@@ -110,8 +107,7 @@ public class SetupWizardValidationTests
             ValidAdmin(),
             new InitialSetupWizard.HttpsConfigData
             {
-                ApplicationUrl = "https://sentinel.example.test",
-                EnforceHttps = true
+                ApplicationUrl = "https://sentinel.example.test"
             },
             organization,
             ValidBackup(),

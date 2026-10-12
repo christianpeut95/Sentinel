@@ -178,7 +178,6 @@
         if (Configuration.GetValue<bool>("Security:LocalEvaluationMode"))
         {
             _httpsData.ApplicationUrl = Navigation.BaseUri.TrimEnd('/');
-            _httpsData.EnforceHttps = false;
             _backupData.BackupPath = "/var/lib/sentinel/backups";
         }
     }
@@ -279,7 +278,6 @@
         [Required(ErrorMessage = "Application URL is required.")]
         [Url(ErrorMessage = "Enter a valid application URL.")]
         public string ApplicationUrl { get; set; } = "";
-        public bool EnforceHttps { get; set; } = true;
         public string? DomainName { get; set; }
         public string? SslCertPath { get; set; }
     }

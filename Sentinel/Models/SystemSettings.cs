@@ -42,9 +42,6 @@ namespace Sentinel.Models
         [StringLength(500)]
         public string? ApplicationUrl { get; set; }
 
-        [Display(Name = "Enforce HTTPS")]
-        public bool EnforceHttps { get; set; } = true;
-
         [Display(Name = "Domain Name")]
         [StringLength(200)]
         public string? DomainName { get; set; }

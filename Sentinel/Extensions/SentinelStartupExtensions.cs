@@ -195,7 +195,6 @@ public static class SentinelStartupExtensions
                     SetupTokenGeneratedAt = DateTime.UtcNow,
                     SetupTokenExpiresAt = DateTime.UtcNow.AddHours(48),
                     IsSetupCompleted = false,
-                    EnforceHttps = true,
                     SmtpEnableSsl = true,
                     HL7ProcessingEnabled = false,
                     SurveillanceStartupCompleted = false,
