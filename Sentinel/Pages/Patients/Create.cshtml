@@ -97,17 +97,31 @@
                     <input type="hidden" asp-for="Patient.DateOfBirth" />
                     <input type="hidden" asp-for="Patient.SexAtBirthId" />
                     <input type="hidden" asp-for="Patient.GenderId" />
+                    <input type="hidden" asp-for="Patient.HomePhone" />
+                    <input type="hidden" asp-for="Patient.MobilePhone" />
+                    <input type="hidden" asp-for="Patient.EmailAddress" />
                     <input type="hidden" asp-for="Patient.CountryOfBirthId" />
                     <input type="hidden" asp-for="Patient.LanguageSpokenAtHomeId" />
                     <input type="hidden" asp-for="Patient.AncestryId" />
                     <input type="hidden" asp-for="Patient.AtsiStatusId" />
                     <input type="hidden" asp-for="Patient.OccupationId" />
+                    <input type="hidden" asp-for="Patient.IsDeceased" />
+                    <input type="hidden" asp-for="Patient.DateOfDeath" />
                     <input type="hidden" asp-for="Patient.AddressLine" />
                     <input type="hidden" asp-for="Patient.City" />
-                    <input type="hidden" asp-for="Patient.State" />
+                    <input type="hidden" asp-for="Patient.StateId" />
                     <input type="hidden" asp-for="Patient.PostalCode" />
                     <input type="hidden" asp-for="Patient.Latitude" />
                     <input type="hidden" asp-for="Patient.Longitude" />
+                    <input type="hidden" asp-for="Patient.Jurisdiction1Id" />
+                    <input type="hidden" asp-for="Patient.Jurisdiction2Id" />
+                    <input type="hidden" asp-for="Patient.Jurisdiction3Id" />
+                    <input type="hidden" asp-for="Patient.Jurisdiction4Id" />
+                    <input type="hidden" asp-for="Patient.Jurisdiction5Id" />
+                    @foreach (var field in Model.CustomFields)
+                    {
+                        <input type="hidden" name="customfield_@field.Id" value="@(Model.CustomFieldValues.TryGetValue(field.Id, out var value) ? value : null)" />
+                    }
                     <button type="submit" class="btn-sentinel-primary" style="background: #FF9500; border-color: #FF9500;">
                         <i class="bi bi-check-circle"></i>Continue Anyway
                     </button>
@@ -426,9 +440,11 @@
                 </div>
 
                 <div class="col-md-4" style="margin-bottom: var(--spacing-4);">
-                    <label asp-for="Patient.State" class="sentinel-label">State</label>
-                    <input asp-for="Patient.State" class="sentinel-input" id="Patient_State" placeholder="State" />
-                    <span asp-validation-for="Patient.State" style="color: var(--status-outbreak); font-size: 12px; display: block; margin-top: 4px;"></span>
+                    <label asp-for="Patient.StateId" class="sentinel-label">State</label>
+                    <select asp-for="Patient.StateId" class="sentinel-input" id="Patient_StateId" asp-items="ViewBag.StateId">
+                        <option value="">-- Select --</option>
+                    </select>
+                    <span asp-validation-for="Patient.StateId" style="color: var(--status-outbreak); font-size: 12px; display: block; margin-top: 4px;"></span>
                 </div>
 
                 <div class="col-md-4" style="margin-bottom: var(--spacing-4);">
@@ -507,7 +523,7 @@
 
     @if (Model.CustomFields.Any())
     {
-        @await Html.PartialAsync("_CustomFieldsForm", (Model.CustomFields, new Dictionary<int, string?>()))
+        @await Html.PartialAsync("_CustomFieldsForm", (Model.CustomFields, Model.CustomFieldValues))
     }
 
 
@@ -646,10 +662,31 @@ $(document).ready(function() {
                         var addressInput = document.getElementById('addressInput');
                         if (addressInput) addressInput.value = street || result.formattedAddress || pred.description || '';
                         var cityEl = document.getElementById('Patient_City');
-                        var stateEl = document.getElementById('Patient_State');
+                        var stateEl = document.getElementById('Patient_StateId');
                         var postalEl = document.getElementById('Patient_PostalCode');
                         if (cityEl) cityEl.value = city;
-                        if (stateEl) stateEl.value = state;
+                        if (stateEl && state) {
+                            var stateMapping = {
+                                'nsw': 'new south wales',
+                                'vic': 'victoria',
+                                'qld': 'queensland',
+                                'sa': 'south australia',
+                                'wa': 'western australia',
+                                'tas': 'tasmania',
+                                'nt': 'northern territory',
+                                'act': 'australian capital territory'
+                            };
+                            var stateLower = state.toLowerCase();
+                            for (var i = 0; i < stateEl.options.length; i++) {
+                                var optionText = stateEl.options[i].text.toLowerCase();
+                                if (optionText === stateLower ||
+                                    stateMapping[optionText] === stateLower ||
+                                    optionText.includes(stateLower) || stateLower.includes(optionText)) {
+                                    stateEl.selectedIndex = i;
+                                    break;
+                                }
+                            }
+                        }
                         if (postalEl) postalEl.value = postal;
                         // Fill coordinates
                         var latEl = document.getElementById('Patient_Latitude');
