@@ -31,6 +31,7 @@ namespace Sentinel.Pages.Settings.CaseDefinitions
         public List<SpecimenType> SpecimenTypes { get; set; } = new();
         public List<Pathogen> Pathogens { get; set; } = new();
         public List<TestMethod> TestMethods { get; set; } = new();
+        public List<TestResult> TestResults { get; set; } = new();
         public List<Symptom> Symptoms { get; set; } = new();
         public List<CustomFieldDefinition> CustomFields { get; set; } = new();
 
@@ -83,6 +84,15 @@ namespace Sentinel.Pages.Settings.CaseDefinitions
             TestMethods = await _context.TestMethods
                 .Where(tm => tm.IsActive)
                 .OrderBy(tm => tm.Name)
+                .ToListAsync();
+
+            // Case definitions must use the same canonical results that HL7 and
+            // laboratory result processing resolve to. Do not present free-text
+            // values here: those cannot be reliably evaluated or normalised.
+            TestResults = await _context.TestResults
+                .Where(tr => tr.IsActive)
+                .OrderBy(tr => tr.DisplayOrder)
+                .ThenBy(tr => tr.Name)
                 .ToListAsync();
 
             Symptoms = await _context.Symptoms

@@ -85,6 +85,12 @@ namespace Sentinel.Pages.Settings.CaseDefinitions
                 return NotFound();
             }
 
+            if (definition.Status != CaseDefinitionStatus.Draft)
+            {
+                TempData["InfoMessage"] = "Active and archived case definitions are read-only. Create a draft version to revise them.";
+                return RedirectToPage("./Review", new { id = definition.Id });
+            }
+
             Definition = definition;
 
             // Map definition to input model
@@ -117,6 +123,12 @@ namespace Sentinel.Pages.Settings.CaseDefinitions
             if (definition == null)
             {
                 return NotFound();
+            }
+
+            if (definition.Status != CaseDefinitionStatus.Draft)
+            {
+                return StatusCode(StatusCodes.Status409Conflict,
+                    "Active and archived case definitions are read-only. Create a draft version to revise them.");
             }
 
             // Validate date range

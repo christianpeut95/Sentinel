@@ -30,6 +30,8 @@ namespace Sentinel.Pages.Settings.CaseDefinitions
 
         public class InputModel
         {
+            public int? DuplicateFromDefinitionId { get; set; }
+
             [Required]
             [StringLength(200)]
             [Display(Name = "Definition Name")]
@@ -99,8 +101,7 @@ namespace Sentinel.Pages.Settings.CaseDefinitions
                         Input.ClassificationMode = "AutoSilent";
                     }
 
-                    // Store source ID in TempData for criteria duplication in next step
-                    TempData["DuplicateFromId"] = duplicateFrom.Value;
+                    Input.DuplicateFromDefinitionId = duplicateFrom.Value;
                 }
             }
         }
@@ -162,6 +163,56 @@ namespace Sentinel.Pages.Settings.CaseDefinitions
 
             _context.CaseDefinitions.Add(definition);
             await _context.SaveChangesAsync();
+
+            if (Input.DuplicateFromDefinitionId.HasValue)
+            {
+                var sourceCriteria = await _context.CaseDefinitionCriteria
+                    .AsNoTracking()
+                    .Where(criteria => criteria.CaseDefinitionId == Input.DuplicateFromDefinitionId.Value)
+                    .OrderBy(criteria => criteria.Id)
+                    .ToListAsync();
+
+                // Preserve the criterion tree while assigning it to the new draft.
+                var copiedCriteria = sourceCriteria.ToDictionary(
+                    source => source.Id,
+                    source => new CaseDefinitionCriteria
+                    {
+                        CaseDefinitionId = definition.Id,
+                        CriterionType = source.CriterionType,
+                        LogicalOperator = source.LogicalOperator,
+                        GroupExitOperator = source.GroupExitOperator,
+                        GroupNumber = source.GroupNumber,
+                        FieldPath = source.FieldPath,
+                        Operator = source.Operator,
+                        ValueJson = source.ValueJson,
+                        DisplayText = source.DisplayText,
+                        AcceptableSpecimenTypesJson = source.AcceptableSpecimenTypesJson,
+                        SpecimenStoragePreference = source.SpecimenStoragePreference,
+                        CanonicalSpecimenTypeId = source.CanonicalSpecimenTypeId,
+                        AcceptablePathogensJson = source.AcceptablePathogensJson,
+                        BiomarkerStoragePreference = source.BiomarkerStoragePreference,
+                        CanonicalPathogenId = source.CanonicalPathogenId,
+                        AcceptableTestMethodsJson = source.AcceptableTestMethodsJson,
+                        TestMethodStoragePreference = source.TestMethodStoragePreference,
+                        CanonicalTestMethodId = source.CanonicalTestMethodId,
+                        AcceptableResultsJson = source.AcceptableResultsJson,
+                        ResultStoragePreference = source.ResultStoragePreference,
+                        CanonicalTestResultId = source.CanonicalTestResultId,
+                        IsRequired = source.IsRequired,
+                        RequireAllElementsMatch = source.RequireAllElementsMatch,
+                        DisplayOrder = source.DisplayOrder,
+                        Description = source.Description,
+                        CreatedAt = DateTime.UtcNow
+                    });
+
+                foreach (var source in sourceCriteria.Where(source => source.ParentCriteriaId.HasValue))
+                {
+                    copiedCriteria[source.Id].ParentCriteria = copiedCriteria[source.ParentCriteriaId!.Value];
+                }
+
+                _context.CaseDefinitionCriteria.AddRange(copiedCriteria.Values);
+                await _context.SaveChangesAsync();
+            }
 
             // Store definition ID and classification mode in TempData for next step
             TempData["DefinitionId"] = definition.Id;

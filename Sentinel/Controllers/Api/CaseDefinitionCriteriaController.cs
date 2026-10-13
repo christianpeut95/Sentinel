@@ -53,6 +53,9 @@ namespace Sentinel.Controllers.Api
                 return BadRequest("One or more laboratory storage preferences are invalid.");
             }
 
+            var testResultError = await ValidateTestResultsAsync(input);
+            if (testResultError is not null) return testResultError;
+
             var definition = await _context.CaseDefinitions
                 .Include(cd => cd.Criteria)
                 .FirstOrDefaultAsync(cd => cd.Id == definitionId);
@@ -75,7 +78,7 @@ namespace Sentinel.Controllers.Api
                 specimenTypeIds = input.SpecimenTypeIds,
                 pathogenIds = input.PathogenIds,
                 testMethodIds = input.TestMethodIds,
-                resultValues = input.ResultValues,
+                testResultIds = input.TestResultIds,
                 timeConstraint = input.TimeConstraint,
                 // Storage preferences
                 specimenStoragePreference = input.SpecimenStoragePreference,
@@ -85,7 +88,7 @@ namespace Sentinel.Controllers.Api
                 testMethodStoragePreference = input.TestMethodStoragePreference,
                 canonicalTestMethodId = input.CanonicalTestMethodId,
                 resultStoragePreference = input.ResultStoragePreference,
-                canonicalResultValue = input.CanonicalResultValue
+                canonicalTestResultId = input.CanonicalTestResultId
             };
 
             var criterion = new CaseDefinitionCriteria
@@ -110,10 +113,9 @@ namespace Sentinel.Controllers.Api
                 AcceptableTestMethodsJson = JsonSerializer.Serialize(input.TestMethodIds),
                 TestMethodStoragePreference = input.TestMethodStoragePreference,
                 CanonicalTestMethodId = input.CanonicalTestMethodId,
-                AcceptableResultsJson = JsonSerializer.Serialize(input.ResultValues),
+                AcceptableResultsJson = JsonSerializer.Serialize(input.TestResultIds),
                 ResultStoragePreference = input.ResultStoragePreference,
-                CanonicalTestResultId = null, // Result values are strings, not IDs
-                Description = input.CanonicalResultValue, // Store canonical result value
+                CanonicalTestResultId = input.CanonicalTestResultId,
                 IsRequired = true,
                 RequireAllElementsMatch = false
             };
@@ -142,6 +144,9 @@ namespace Sentinel.Controllers.Api
                 return BadRequest("The laboratory criterion contains an invalid operator, group number, or storage preference.");
             }
 
+            var testResultError = await ValidateTestResultsAsync(input);
+            if (testResultError is not null) return testResultError;
+
             try
             {
 
@@ -162,7 +167,7 @@ namespace Sentinel.Controllers.Api
                     specimenTypeIds = input.SpecimenTypeIds,
                     pathogenIds = input.PathogenIds,
                     testMethodIds = input.TestMethodIds,
-                    resultValues = input.ResultValues,
+                    testResultIds = input.TestResultIds,
                     timeConstraint = input.TimeConstraint,
                     // Storage preferences
                     specimenStoragePreference = input.SpecimenStoragePreference,
@@ -172,7 +177,7 @@ namespace Sentinel.Controllers.Api
                     testMethodStoragePreference = input.TestMethodStoragePreference,
                     canonicalTestMethodId = input.CanonicalTestMethodId,
                     resultStoragePreference = input.ResultStoragePreference,
-                    canonicalResultValue = input.CanonicalResultValue
+                    canonicalTestResultId = input.CanonicalTestResultId
                 };
 
                 var valueJson = JsonSerializer.Serialize(valueObj);
@@ -196,9 +201,9 @@ namespace Sentinel.Controllers.Api
                 criterion.AcceptableTestMethodsJson = JsonSerializer.Serialize(input.TestMethodIds);
                 criterion.TestMethodStoragePreference = input.TestMethodStoragePreference;
                 criterion.CanonicalTestMethodId = input.CanonicalTestMethodId;
-                criterion.AcceptableResultsJson = JsonSerializer.Serialize(input.ResultValues);
+                criterion.AcceptableResultsJson = JsonSerializer.Serialize(input.TestResultIds);
                 criterion.ResultStoragePreference = input.ResultStoragePreference;
-                criterion.Description = input.CanonicalResultValue;
+                criterion.CanonicalTestResultId = input.CanonicalTestResultId;
 
                 System.Diagnostics.Debug.WriteLine($"About to save changes...");
 
@@ -609,7 +614,7 @@ namespace Sentinel.Controllers.Api
                 System.Diagnostics.Debug.WriteLine($"  Specimen: pref={criterion.SpecimenStoragePreference}, canonical={criterion.CanonicalSpecimenTypeId}");
                 System.Diagnostics.Debug.WriteLine($"  Pathogen: pref={criterion.BiomarkerStoragePreference}, canonical={criterion.CanonicalPathogenId}");
                 System.Diagnostics.Debug.WriteLine($"  TestMethod: pref={criterion.TestMethodStoragePreference}, canonical={criterion.CanonicalTestMethodId}");
-                System.Diagnostics.Debug.WriteLine($"  Result: pref={criterion.ResultStoragePreference}, canonical={criterion.Description}");
+                System.Diagnostics.Debug.WriteLine($"  Result: pref={criterion.ResultStoragePreference}, canonical={criterion.CanonicalTestResultId}");
 
                 storagePreferences = new
                 {
@@ -620,7 +625,7 @@ namespace Sentinel.Controllers.Api
                     testMethodStoragePreference = (int)(criterion.TestMethodStoragePreference ?? DataStoragePreference.StoreAsReceived),
                     canonicalTestMethodId = criterion.CanonicalTestMethodId,
                     resultStoragePreference = (int)(criterion.ResultStoragePreference ?? DataStoragePreference.StoreAsReceived),
-                    canonicalResultValue = criterion.Description
+                    canonicalTestResultId = criterion.CanonicalTestResultId
                 };
             }
 
@@ -962,6 +967,34 @@ namespace Sentinel.Controllers.Api
             Enum.IsDefined(input.TestMethodStoragePreference) &&
             Enum.IsDefined(input.ResultStoragePreference);
 
+        private async Task<IActionResult?> ValidateTestResultsAsync(LabCriterionInput input)
+        {
+            var selectedIds = input.TestResultIds.Distinct().ToArray();
+            if (selectedIds.Length == 0 || selectedIds.Length != input.TestResultIds.Count)
+            {
+                return BadRequest("Select one or more distinct active test results.");
+            }
+
+            var activeIds = await _context.TestResults
+                .AsNoTracking()
+                .Where(result => result.IsActive && selectedIds.Contains(result.Id))
+                .Select(result => result.Id)
+                .ToListAsync();
+
+            if (activeIds.Count != selectedIds.Length)
+            {
+                return BadRequest("One or more selected test results are unavailable.");
+            }
+
+            if (input.ResultStoragePreference == DataStoragePreference.StoreAsCanonical &&
+                (!input.CanonicalTestResultId.HasValue || !activeIds.Contains(input.CanonicalTestResultId.Value)))
+            {
+                return BadRequest("Select an active canonical test result from the configured values.");
+            }
+
+            return null;
+        }
+
         private async Task<bool> WouldCreateParentCycleAsync(
             int definitionId,
             int criterionId,
@@ -999,7 +1032,7 @@ namespace Sentinel.Controllers.Api
         public List<int> SpecimenTypeIds { get; set; } = new();
         public List<Guid> PathogenIds { get; set; } = new();
         public List<int> TestMethodIds { get; set; } = new();
-        public List<string> ResultValues { get; set; } = new();
+        public List<int> TestResultIds { get; set; } = new();
         public TimeConstraintInput? TimeConstraint { get; set; }
         [System.ComponentModel.DataAnnotations.StringLength(500)]
         public string DisplayText { get; set; } = string.Empty;
@@ -1016,7 +1049,7 @@ namespace Sentinel.Controllers.Api
         public int? CanonicalTestMethodId { get; set; }
         [JsonConverter(typeof(JsonStringEnumConverter))]
         public DataStoragePreference ResultStoragePreference { get; set; }
-        public string? CanonicalResultValue { get; set; }
+        public int? CanonicalTestResultId { get; set; }
     }
 
     public class TimeConstraintInput

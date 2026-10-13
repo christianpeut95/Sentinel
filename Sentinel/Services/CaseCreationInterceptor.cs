@@ -92,117 +92,88 @@ public class CaseCreationInterceptor : SaveChangesInterceptor
     {
         if (eventData.Context is ApplicationDbContext context)
         {
-            using var scope = _serviceProvider.CreateScope();
-            var taskService = scope.ServiceProvider.GetRequiredService<ITaskService>();
-
-            // === Process Case/Contact Creation Triggers ===
-            var caseTriggers = context.GetCasesAwaitingTaskCreation();
-            if (caseTriggers != null && caseTriggers.Any())
+            // A separate task-service scope cannot read entities held in an outer transaction.
+            // The HL7 importer uses one intentionally so a message is committed atomically.
+            // Leave its triggers on the context and let it dispatch them after CommitAsync.
+            if (context.Database.CurrentTransaction != null)
             {
-                _logger.LogInformation(
-                    "? Entities saved. Processing {Count} case/contact creation triggers...",
-                    caseTriggers.Count
-                );
-
-                foreach (var trigger in caseTriggers)
-                {
-                    try
-                    {
-                        List<CaseTask> tasksCreated;
-                        
-                        if (trigger.Type == CaseType.Contact)
-                        {
-                            // Use Contact creation trigger
-                            tasksCreated = await taskService.CreateTasksForCase(
-                                trigger.CaseId, 
-                                TaskTrigger.OnContactCreation
-                            );
-                            
-                            if (tasksCreated.Any())
-                            {
-                                _logger.LogInformation(
-                                    "? Auto-created {TaskCount} tasks for contact {CaseId}",
-                                    tasksCreated.Count,
-                                    trigger.CaseId
-                                );
-                            }
-                        }
-                        else
-                        {
-                            // Use Case creation trigger (corresponds to AutoCreateOnCaseCreation)
-                            tasksCreated = await taskService.CreateTasksForCase(
-                                trigger.CaseId,
-                                TaskTrigger.OnCaseCreation
-                            );
-                            
-                            if (tasksCreated.Any())
-                            {
-                                _logger.LogInformation(
-                                    "?? Auto-created {TaskCount} tasks for case {CaseId}",
-                                    tasksCreated.Count,
-                                    trigger.CaseId
-                                );
-                            }
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.LogError(
-                            ex,
-                            "? Error auto-creating tasks for {Type} {CaseId}: {Message}",
-                            trigger.Type,
-                            trigger.CaseId,
-                            ex.Message
-                        );
-                    }
-                }
-
-                context.ClearCasesAwaitingTaskCreation();
+                _logger.LogDebug("Deferring case task triggers until the outer transaction commits.");
             }
-
-            // === Process Lab Confirmation Triggers ===
-            var labCaseIds = context.GetLabConfirmationsAwaitingTaskCreation();
-            if (labCaseIds != null && labCaseIds.Any())
+            else
             {
-                _logger.LogInformation(
-                    "?? Processing {Count} lab confirmation triggers...",
-                    labCaseIds.Count
-                );
-
-                foreach (var caseId in labCaseIds)
-                {
-                    try
-                    {
-                        var tasksCreated = await taskService.CreateTasksForCase(
-                            caseId, 
-                            TaskTrigger.OnLabConfirmation
-                        );
-                        
-                        if (tasksCreated.Any())
-                        {
-                            _logger.LogInformation(
-                                "?? Auto-created {TaskCount} tasks for lab-confirmed case {CaseId}",
-                                tasksCreated.Count,
-                                caseId
-                            );
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.LogError(
-                            ex,
-                            "? Error auto-creating lab confirmation tasks for case {CaseId}: {Message}",
-                            caseId,
-                            ex.Message
-                        );
-                    }
-                }
-
-                context.ClearLabConfirmationsAwaitingTaskCreation();
+                await ProcessPendingTaskTriggersAsync(context, cancellationToken);
             }
         }
 
         return await base.SavedChangesAsync(eventData, result, cancellationToken);
+    }
+
+    /// <summary>
+    /// Creates tasks captured during SaveChanges after an explicit transaction has committed.
+    /// This uses a separate scope, so callers must invoke it only after their data is visible.
+    /// </summary>
+    public async Task ProcessPendingTaskTriggersAsync(
+        ApplicationDbContext context,
+        CancellationToken cancellationToken = default)
+    {
+        using var scope = _serviceProvider.CreateScope();
+        var taskService = scope.ServiceProvider.GetRequiredService<ITaskService>();
+
+        var caseTriggers = context.GetCasesAwaitingTaskCreation();
+        if (caseTriggers != null && caseTriggers.Any())
+        {
+            _logger.LogInformation("Entities saved. Processing {Count} case/contact creation triggers...", caseTriggers.Count);
+
+            foreach (var trigger in caseTriggers)
+            {
+                try
+                {
+                    var taskTrigger = trigger.Type == CaseType.Contact
+                        ? TaskTrigger.OnContactCreation
+                        : TaskTrigger.OnCaseCreation;
+                    var tasksCreated = await taskService.CreateTasksForCase(trigger.CaseId, taskTrigger);
+
+                    if (tasksCreated.Any())
+                    {
+                        _logger.LogInformation(
+                            "Auto-created {TaskCount} tasks for {Type} {CaseId}",
+                            tasksCreated.Count,
+                            trigger.Type,
+                            trigger.CaseId);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error auto-creating tasks for {Type} {CaseId}", trigger.Type, trigger.CaseId);
+                }
+            }
+
+            context.ClearCasesAwaitingTaskCreation();
+        }
+
+        var labCaseIds = context.GetLabConfirmationsAwaitingTaskCreation();
+        if (labCaseIds != null && labCaseIds.Any())
+        {
+            _logger.LogInformation("Processing {Count} lab confirmation triggers...", labCaseIds.Count);
+
+            foreach (var caseId in labCaseIds)
+            {
+                try
+                {
+                    var tasksCreated = await taskService.CreateTasksForCase(caseId, TaskTrigger.OnLabConfirmation);
+                    if (tasksCreated.Any())
+                    {
+                        _logger.LogInformation("Auto-created {TaskCount} tasks for lab-confirmed case {CaseId}", tasksCreated.Count, caseId);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error auto-creating lab confirmation tasks for case {CaseId}", caseId);
+                }
+            }
+
+            context.ClearLabConfirmationsAwaitingTaskCreation();
+        }
     }
 
     /// <summary>

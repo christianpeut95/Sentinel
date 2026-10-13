@@ -719,7 +719,7 @@
 
         <!-- Navigation -->
         <div class="d-flex justify-content-between">
-            <a asp-page="./Create" asp-route-id="@Model.DefinitionId" class="sn-btn sn-btn-ghost">
+            <a asp-page="./Edit" asp-route-id="@Model.DefinitionId" class="sn-btn sn-btn-ghost">
                 <i class="bi bi-arrow-left"></i>
                 Back
             </a>
@@ -877,40 +877,16 @@
                     <div class="mb-4">
                         <label class="text-label">Result Values *</label>
                         <div class="text-muted" style="font-size: 0.75rem; margin-bottom: 0.5rem;">
-                            Select common values or add custom ones
+                            Select one or more active Test Results configured in Settings.
                         </div>
-                        <input type="text" class="sn-input mb-2" id="resultValueSearch" placeholder="Search or type custom value..." />
-                        <button type="button" class="btn btn-sm sn-btn-secondary mb-2 js-criteria-action" data-criteria-action="add-custom-result-value" style="width: 100%;">
-                            <i class="bi bi-plus-circle"></i> Add Custom Value from Search Box
-                        </button>
+                        <input type="text" class="sn-input mb-2" id="resultValueSearch" placeholder="Search configured test results..." />
                         <div class="specimen-grid" id="resultValueGrid">
-                            <div class="specimen-item js-criteria-action" data-value="Positive" data-criteria-action="toggle-result-value">
-                                <div class="specimen-item-name">Positive</div>
-                            </div>
-                            <div class="specimen-item js-criteria-action" data-value="Negative" data-criteria-action="toggle-result-value">
-                                <div class="specimen-item-name">Negative</div>
-                            </div>
-                            <div class="specimen-item js-criteria-action" data-value="Detected" data-criteria-action="toggle-result-value">
-                                <div class="specimen-item-name">Detected</div>
-                            </div>
-                            <div class="specimen-item js-criteria-action" data-value="Not Detected" data-criteria-action="toggle-result-value">
-                                <div class="specimen-item-name">Not Detected</div>
-                            </div>
-                            <div class="specimen-item js-criteria-action" data-value="Reactive" data-criteria-action="toggle-result-value">
-                                <div class="specimen-item-name">Reactive</div>
-                            </div>
-                            <div class="specimen-item js-criteria-action" data-value="Non-Reactive" data-criteria-action="toggle-result-value">
-                                <div class="specimen-item-name">Non-Reactive</div>
-                            </div>
-                            <div class="specimen-item js-criteria-action" data-value="Indeterminate" data-criteria-action="toggle-result-value">
-                                <div class="specimen-item-name">Indeterminate</div>
-                            </div>
-                            <div class="specimen-item js-criteria-action" data-value="Equivocal" data-criteria-action="toggle-result-value">
-                                <div class="specimen-item-name">Equivocal</div>
-                            </div>
-                            <div class="specimen-item js-criteria-action" data-value="Inconclusive" data-criteria-action="toggle-result-value">
-                                <div class="specimen-item-name">Inconclusive</div>
-                            </div>
+                            @foreach (var result in Model.TestResults)
+                            {
+                                <div class="specimen-item js-criteria-action" data-id="@result.Id" data-name="@result.Name" data-criteria-action="toggle-result-value">
+                                    <div class="specimen-item-name">@result.Name</div>
+                                </div>
+                            }
                         </div>
                         <div class="selected-items-list" id="selectedResultValues"></div>
 
@@ -928,7 +904,13 @@
                                 <label class="form-check-label" for="resultStoreAsCanonical">
                                     Store as canonical value:
                                 </label>
-                                <input type="text" class="sn-input mt-2" id="canonicalResultValue" placeholder="Enter canonical result value..." style="font-size: 0.875rem;" disabled />
+                                <select class="sn-input mt-2" id="canonicalResultValue" style="font-size: 0.875rem;" disabled>
+                                    <option value="">Select canonical test result...</option>
+                                    @foreach (var result in Model.TestResults)
+                                    {
+                                        <option value="@result.Id">@result.Name</option>
+                                    }
+                                </select>
                             </div>
                         </div>
                     </div>
@@ -1177,7 +1159,7 @@
         let selectedSymptomIds = [];
         let selectedPathogenIds = []; // Changed from selectedPathogenNames to selectedPathogenIds
         let selectedTestMethodIds = [];
-        let selectedResultValues = [];
+        let selectedTestResultIds = [];
         window.currentParentCriterionId = null; // Track which group we're adding to (null = root level)
 
         document.addEventListener('click', (event) => {
@@ -1208,7 +1190,6 @@
                 case 'toggle-specimen': toggleSpecimen(action); break;
                 case 'toggle-pathogen': togglePathogen(action); break;
                 case 'toggle-test-method': toggleTestMethod(action); break;
-                case 'add-custom-result-value': addCustomResultValue(); break;
                 case 'toggle-result-value': toggleResultValue(action); break;
                 case 'save-lab-criterion': saveLabCriterion(); break;
                 case 'toggle-symptom': toggleSymptom(action); break;
@@ -1391,13 +1372,14 @@
 
         // Toggle result value selection
         function toggleResultValue(element) {
-            const value = element.dataset.value;
+            const id = Number(element.dataset.id);
+            if (!Number.isInteger(id)) return;
 
-            if (selectedResultValues.includes(value)) {
-                selectedResultValues = selectedResultValues.filter(x => x !== value);
+            if (selectedTestResultIds.includes(id)) {
+                selectedTestResultIds = selectedTestResultIds.filter(x => x !== id);
                 element.classList.remove('selected');
             } else {
-                selectedResultValues.push(value);
+                selectedTestResultIds.push(id);
                 element.classList.add('selected');
             }
 
@@ -1408,38 +1390,19 @@
             const container = document.getElementById('selectedResultValues');
             container.innerHTML = '';
 
-            selectedResultValues.forEach(value => {
-                appendSelectionChip(container, value, () => removeResultValue(value));
+            selectedTestResultIds.forEach(id => {
+                const item = document.querySelector(`#resultValueGrid [data-id="${id}"]`);
+                if (item) appendSelectionChip(container, item.dataset.name, () => removeResultValue(id));
             });
         }
 
-        function removeResultValue(value) {
-            selectedResultValues = selectedResultValues.filter(x => x !== value);
-            const item = Array.from(document.querySelectorAll('#resultValueGrid [data-value]'))
-                .find(element => element.dataset.value === value);
+        function removeResultValue(id) {
+            selectedTestResultIds = selectedTestResultIds.filter(x => x !== id);
+            const item = document.querySelector(`#resultValueGrid [data-id="${id}"]`);
             if (item) {
                 item.classList.remove('selected');
             }
             updateSelectedResultValues();
-        }
-
-        function addCustomResultValue() {
-            const searchBox = document.getElementById('resultValueSearch');
-            const customValue = searchBox.value.trim();
-
-            if (!customValue) {
-                alert('Please enter a value in the search box first');
-                return;
-            }
-
-            if (selectedResultValues.includes(customValue)) {
-                alert('This value is already selected');
-                return;
-            }
-
-            selectedResultValues.push(customValue);
-            updateSelectedResultValues();
-            searchBox.value = '';
         }
 
         // Search filtering
@@ -1551,7 +1514,7 @@
             selectedSymptomIds = [];
             selectedPathogenIds = []; // Changed from selectedPathogenNames
             selectedTestMethodIds = [];
-            selectedResultValues = [];
+            selectedTestResultIds = [];
 
             // Clear UI
             document.querySelectorAll('.specimen-item.selected').forEach(el => el.classList.remove('selected'));
@@ -1570,14 +1533,14 @@
                 return;
             }
 
-            if (selectedResultValues.length === 0) {
-                alert('Please enter at least one result value');
+            if (selectedTestResultIds.length === 0) {
+                alert('Please select at least one configured test result');
                 return;
             }
 
             const pathogenIds = selectedPathogenIds; // Now sending IDs instead of names
             const testMethods = selectedTestMethodIds;
-            const resultValues = selectedResultValues;
+            const testResultIds = selectedTestResultIds;
 
             // Capture storage preferences
             const specimenStoragePref = parseInt(document.querySelector('input[name="specimenStoragePreference"]:checked').value);
@@ -1588,7 +1551,7 @@
             const canonicalSpecimenTypeId = specimenStoragePref === 2 ? parseInt(document.getElementById('canonicalSpecimenType').value) || null : null;
             const canonicalPathogenIdValue = pathogenStoragePref === 2 ? document.getElementById('canonicalPathogen').value || null : null;
             const canonicalTestMethodId = testMethodStoragePref === 2 ? parseInt(document.getElementById('canonicalTestMethod').value) || null : null;
-            const canonicalResultValue = resultStoragePref === 2 ? document.getElementById('canonicalResultValue').value.trim() || null : null;
+            const canonicalTestResultId = resultStoragePref === 2 ? parseInt(document.getElementById('canonicalResultValue').value) || null : null;
 
             // Validate canonical selections if storage preference is set to canonical
             if (specimenStoragePref === 2 && !canonicalSpecimenTypeId) {
@@ -1603,8 +1566,8 @@
                 alert('Please select a canonical test method');
                 return;
             }
-            if (resultStoragePref === 2 && !canonicalResultValue) {
-                alert('Please enter a canonical result value');
+            if (resultStoragePref === 2 && !canonicalTestResultId) {
+                alert('Please select a canonical test result');
                 return;
             }
 
@@ -1636,7 +1599,8 @@
                 });
                 displayText += ` by ${methodNames.join(' OR ')}`;
             }
-            displayText += `, result: ${resultValues.join(' OR ')}`;
+            const resultNames = testResultIds.map(id => document.querySelector(`#resultValueGrid [data-id="${id}"]`)?.dataset.name).filter(Boolean);
+            displayText += `, result: ${resultNames.join(' OR ')}`;
             if (timeConstraint) {
                 displayText += ` (within ${timeConstraint.days} days ${timeConstraint.direction} ${timeConstraint.relativeTo})`;
             }
@@ -1648,7 +1612,7 @@
                 specimenTypeIds: selectedSpecimenIds,
                 pathogenIds: pathogenIds, // Sending pathogen GUIDs
                 testMethodIds: testMethods,
-                resultValues: resultValues,
+                testResultIds: testResultIds,
                 timeConstraint: timeConstraint,
                 displayText: displayText,
                 // Storage preferences (ensure correct types)
@@ -1659,7 +1623,7 @@
                 testMethodStoragePreference: testMethodStoragePref,
                 canonicalTestMethodId: canonicalTestMethodId,
                 resultStoragePreference: resultStoragePref,
-                canonicalResultValue: canonicalResultValue
+                canonicalTestResultId: canonicalTestResultId
             };
 
             try {
@@ -2135,8 +2099,17 @@
             }
 
             // Set result values
-            if (valueData.resultValues) {
-                selectedResultValues = [...valueData.resultValues];
+            // Older drafts stored result names. Map only names that now have an
+            // active canonical Test Result; unknown legacy values are deliberately
+            // not reintroduced as free-text options.
+            const resultIdsToLoad = valueData.testResultIds || (valueData.resultValues || [])
+                .map(name => Array.from(document.querySelectorAll('#resultValueGrid [data-id]'))
+                    .find(element => element.dataset.name.toLowerCase() === String(name).toLowerCase())?.dataset.id)
+                .filter(Boolean)
+                .map(Number);
+            if (resultIdsToLoad.length > 0) {
+                selectedTestResultIds = [...resultIdsToLoad];
+                selectedTestResultIds.forEach(id => document.querySelector(`#resultValueGrid [data-id="${id}"]`)?.classList.add('selected'));
                 updateSelectedResultValues();
             }
 
@@ -2207,9 +2180,17 @@
             const resultRadio = document.querySelector(`input[name="resultStoragePreference"][value="${resultPref}"]`);
             if (resultRadio) {
                 resultRadio.checked = true;
-                if (resultPref === 2 && prefs.canonicalResultValue) {
+                if (resultPref === 2 && prefs.canonicalTestResultId) {
                     document.getElementById('canonicalResultValue').disabled = false;
-                    document.getElementById('canonicalResultValue').value = prefs.canonicalResultValue;
+                    document.getElementById('canonicalResultValue').value = prefs.canonicalTestResultId;
+                }
+                else if (resultPref === 2 && prefs.canonicalResultValue) {
+                    const legacyOption = Array.from(document.querySelectorAll('#canonicalResultValue option'))
+                        .find(option => option.textContent.trim().toLowerCase() === prefs.canonicalResultValue.toLowerCase());
+                    if (legacyOption) {
+                        document.getElementById('canonicalResultValue').disabled = false;
+                        document.getElementById('canonicalResultValue').value = legacyOption.value;
+                    }
                 }
             }
 

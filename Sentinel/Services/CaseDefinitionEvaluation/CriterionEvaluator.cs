@@ -150,8 +150,16 @@ namespace Sentinel.Services.CaseDefinitionEvaluation
                         }
                     }
 
-                    // Check result value
-                    if (valueData.ResultValues != null && valueData.ResultValues.Any())
+                    // New criteria use canonical Test Result IDs. Retain the text
+                    // comparison solely for definitions saved before that migration.
+                    if (valueData.TestResultIds?.Any() == true)
+                    {
+                        if (!m.TestResultId.HasValue || !valueData.TestResultIds.Contains(m.TestResultId.Value))
+                        {
+                            return false;
+                        }
+                    }
+                    else if (valueData.ResultValues != null && valueData.ResultValues.Any())
                     {
                         if (string.IsNullOrEmpty(m.QualitativeResultText) || !valueData.ResultValues.Contains(m.QualitativeResultText))
                         {
@@ -220,7 +228,11 @@ namespace Sentinel.Services.CaseDefinitionEvaluation
                 parts.Add($"Pathogen: {string.Join(" OR ", value.PathogenNames)}");
             }
 
-            if (value.ResultValues?.Any() == true)
+            if (value.TestResultIds?.Any() == true)
+            {
+                parts.Add($"Test results: {string.Join(" OR ", value.TestResultIds)}");
+            }
+            else if (value.ResultValues?.Any() == true)
             {
                 parts.Add($"Result: {string.Join(" OR ", value.ResultValues)}");
             }
@@ -401,6 +413,7 @@ namespace Sentinel.Services.CaseDefinitionEvaluation
             public List<int>? SpecimenTypeIds { get; set; }
             public List<string>? PathogenNames { get; set; }
             public List<int>? TestMethodIds { get; set; }
+            public List<int>? TestResultIds { get; set; }
             public List<string>? ResultValues { get; set; }
             public TimeConstraint? TimeConstraint { get; set; }
         }

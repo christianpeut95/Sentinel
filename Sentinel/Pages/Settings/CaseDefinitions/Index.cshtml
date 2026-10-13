@@ -136,14 +136,24 @@
 
                         <!-- Actions -->
                         <div class="btn-group">
-                            <a asp-page="./View" asp-route-id="@definition.Id" class="sn-btn sn-btn-ghost sn-btn-sm">
+                            <a asp-page="./Review" asp-route-id="@definition.Id" class="sn-btn sn-btn-ghost sn-btn-sm">
                                 <i class="bi bi-eye"></i>
                                 View
                             </a>
-                            <a asp-page="./Edit" asp-route-id="@definition.Id" class="sn-btn sn-btn-ghost sn-btn-sm">
-                                <i class="bi bi-pencil"></i>
-                                Edit
-                            </a>
+                            @if (definition.Status == CaseDefinitionStatus.Draft)
+                            {
+                                <a asp-page="./Edit" asp-route-id="@definition.Id" class="sn-btn sn-btn-ghost sn-btn-sm">
+                                    <i class="bi bi-pencil"></i>
+                                    Edit
+                                </a>
+                            }
+                            else
+                            {
+                                <a asp-page="./Create" asp-route-duplicateFrom="@definition.Id" class="sn-btn sn-btn-ghost sn-btn-sm">
+                                    <i class="bi bi-files"></i>
+                                    Create Draft
+                                </a>
+                            }
                             <button type="button" class="sn-btn sn-btn-ghost sn-btn-sm js-definition-action" data-definition-action="duplicate" data-definition-id="@definition.Id">
                                 <i class="bi bi-files"></i>
                                 Duplicate

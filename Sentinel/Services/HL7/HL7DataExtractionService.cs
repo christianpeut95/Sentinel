@@ -18,6 +18,7 @@ public class HL7DataExtractionService : IHL7DataExtractionService
     private readonly IHL7FieldMappingService _fieldMappingService;
     private readonly IGeocodingQueueService? _geocodingQueue;
     private readonly ICaseDefinitionMatchingService _caseDefinitionMatchingService;
+    private readonly CaseCreationInterceptor? _caseCreationInterceptor;
 
     public HL7DataExtractionService(
         ApplicationDbContext context,
@@ -27,7 +28,8 @@ public class HL7DataExtractionService : IHL7DataExtractionService
         IHL7MarkerResolutionService markerResolutionService,
         IHL7FieldMappingService fieldMappingService,
         ICaseDefinitionMatchingService caseDefinitionMatchingService,
-        IGeocodingQueueService? geocodingQueue = null)
+        IGeocodingQueueService? geocodingQueue = null,
+        CaseCreationInterceptor? caseCreationInterceptor = null)
     {
         _context = context;
         _logger = logger;
@@ -37,6 +39,7 @@ public class HL7DataExtractionService : IHL7DataExtractionService
         _fieldMappingService = fieldMappingService;
         _caseDefinitionMatchingService = caseDefinitionMatchingService;
         _geocodingQueue = geocodingQueue;
+        _caseCreationInterceptor = caseCreationInterceptor;
     }
 
     public async Task<DataExtractionResult> ExtractAndCreateEntitiesAsync(
@@ -9125,6 +9128,14 @@ public class HL7DataExtractionService : IHL7DataExtractionService
                 await transaction.CommitAsync(cancellationToken);
                 result.Success = true;
 
+                // CaseCreationInterceptor intentionally deferred its separate-context task
+                // queries while this transaction was open. The entities are now committed
+                // and visible, so task automation can run without self-blocking.
+                if (_caseCreationInterceptor != null)
+                {
+                    await _caseCreationInterceptor.ProcessPendingTaskTriggersAsync(_context, cancellationToken);
+                }
+
                 commitLog.Add($"[{DateTime.UtcNow:yyyy-MM-dd HH:mm:ss.fff}] ========== DATABASE COMMIT SUCCESS ==========");
 
                 // Add staging logs FIRST, then commit logs
@@ -9145,6 +9156,8 @@ public class HL7DataExtractionService : IHL7DataExtractionService
                 result.Warnings.AddRange(commitLog);
 
                 await transaction.RollbackAsync(cancellationToken);
+                _context.ClearCasesAwaitingTaskCreation();
+                _context.ClearLabConfirmationsAwaitingTaskCreation();
                 _logger.LogError(ex, "[STAGING COMMIT] Transaction rolled back due to error");
                 throw;
             }

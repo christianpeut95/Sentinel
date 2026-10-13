@@ -5,6 +5,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 using Sentinel.Controllers.Api;
 using Sentinel.Data;
 using Sentinel.Models.CaseDefinitions;
+using Sentinel.Models.Lookups;
 
 namespace Sentinel.Tests.Controllers;
 
@@ -124,6 +125,57 @@ public sealed class CaseDefinitionCriteriaControllerValidationTests : IDisposabl
 
         Assert.IsType<ConflictObjectResult>(result);
         Assert.Empty(await _context.CaseDefinitionCriteria.ToListAsync());
+    }
+
+    [Fact]
+    public async Task AddLabCriterion_RejectsUnknownTestResultIdWithoutPersisting()
+    {
+        var (definition, _) = await AddDefinitionsAsync();
+        _context.TestResults.Add(new TestResult { Id = 10, Name = "Detected", IsActive = true });
+        await _context.SaveChangesAsync();
+        var controller = CreateController();
+
+        var result = await controller.AddLabCriterion(definition.Id, new LabCriterionInput
+        {
+            LogicalOperator = LogicalOperator.AND,
+            GroupNumber = 1,
+            TestResultIds = [999],
+            SpecimenStoragePreference = DataStoragePreference.StoreAsReceived,
+            PathogenStoragePreference = DataStoragePreference.StoreAsReceived,
+            TestMethodStoragePreference = DataStoragePreference.StoreAsReceived,
+            ResultStoragePreference = DataStoragePreference.StoreAsReceived,
+            DisplayText = "Forged test result"
+        });
+
+        Assert.IsType<BadRequestObjectResult>(result);
+        Assert.Empty(await _context.CaseDefinitionCriteria.ToListAsync());
+    }
+
+    [Fact]
+    public async Task AddLabCriterion_PersistsOnlyConfiguredTestResultIds()
+    {
+        var (definition, _) = await AddDefinitionsAsync();
+        _context.TestResults.Add(new TestResult { Id = 10, Name = "Detected", IsActive = true });
+        await _context.SaveChangesAsync();
+        var controller = CreateController();
+
+        var result = await controller.AddLabCriterion(definition.Id, new LabCriterionInput
+        {
+            LogicalOperator = LogicalOperator.AND,
+            GroupNumber = 1,
+            TestResultIds = [10],
+            SpecimenStoragePreference = DataStoragePreference.StoreAsReceived,
+            PathogenStoragePreference = DataStoragePreference.StoreAsReceived,
+            TestMethodStoragePreference = DataStoragePreference.StoreAsReceived,
+            ResultStoragePreference = DataStoragePreference.StoreAsCanonical,
+            CanonicalTestResultId = 10,
+            DisplayText = "Configured test result"
+        });
+
+        Assert.IsType<OkObjectResult>(result);
+        var criterion = await _context.CaseDefinitionCriteria.SingleAsync();
+        Assert.Equal("[10]", criterion.AcceptableResultsJson);
+        Assert.Equal(10, criterion.CanonicalTestResultId);
     }
 
     [Fact]

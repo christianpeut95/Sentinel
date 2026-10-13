@@ -168,9 +168,9 @@
     <div class="wizard-container">
         <!-- Header -->
         <div class="text-center mb-4">
-            <div class="text-label mb-2">CREATE CASE DEFINITION</div>
-            <h1 class="page-title mb-2">Review & Activate</h1>
-            <p class="text-muted">Review your case definition and activate it to start automatic case classification</p>
+            <div class="text-label mb-2">CASE DEFINITION</div>
+            <h1 class="page-title mb-2">@(Model.Definition.Status == CaseDefinitionStatus.Draft ? "Review & Activate" : "View Case Definition")</h1>
+            <p class="text-muted">@(Model.Definition.Status == CaseDefinitionStatus.Draft ? "Review your case definition and activate it to start automatic case classification" : "This version is read-only. Create a draft version to make changes.")</p>
         </div>
 
         <!-- Wizard Steps -->
@@ -280,10 +280,13 @@
                     <i class="bi bi-list-check"></i>
                     Criteria Configuration
                 </h3>
-                <a asp-page="./BuildCriteria" asp-route-id="@Model.Definition.Id" class="sn-btn sn-btn-ghost sn-btn-sm">
-                    <i class="bi bi-pencil"></i>
-                    Edit Criteria
-                </a>
+                @if (Model.Definition.Status == CaseDefinitionStatus.Draft)
+                {
+                    <a asp-page="./BuildCriteria" asp-route-id="@Model.Definition.Id" class="sn-btn sn-btn-ghost sn-btn-sm">
+                        <i class="bi bi-pencil"></i>
+                        Edit Criteria
+                    </a>
+                }
             </div>
 
             <p class="text-muted mb-3" style="font-size: 0.875rem;">
@@ -461,6 +464,8 @@
             }
         </div>
 
+        @if (Model.Definition.Status == CaseDefinitionStatus.Draft)
+        {
         <!-- Important Notice -->
         <div class="alert" style="background: var(--signal-lt); border-left: 4px solid var(--signal-dk); margin-bottom: 2rem; padding: 1rem 1.25rem;">
             <div style="display: flex; align-items: start; gap: 0.75rem;">
@@ -469,20 +474,40 @@
                     <strong style="color: var(--signal-dk); display: block; margin-bottom: 0.5rem;">Ready to Activate?</strong>
                     <ul style="margin: 0; padding-left: 1.25rem; font-size: 0.875rem; line-height: 1.6;">
                         <li>Once activated, this definition will be <strong>Current</strong> and ready to evaluate cases</li>
-                        <li>You can edit the definition later, but changes may affect case classification</li>
+                        <li>Future changes are made in a separate draft version</li>
                         <li>Alternatively, save as <strong>Draft</strong> to continue working on it later</li>
                     </ul>
                 </div>
             </div>
         </div>
+        }
 
         <!-- Navigation -->
         <div class="d-flex justify-content-between">
+            @if (Model.Definition.Status == CaseDefinitionStatus.Draft)
+            {
             <a asp-page="./BuildCriteria" asp-route-id="@Model.Definition.Id" class="sn-btn sn-btn-ghost">
                 <i class="bi bi-arrow-left"></i>
                 Back to Criteria
             </a>
+            }
+            else
+            {
+            <a asp-page="./Index" class="sn-btn sn-btn-ghost">
+                <i class="bi bi-arrow-left"></i>
+                Back to Case Definitions
+            </a>
+            }
             <div class="d-flex gap-2">
+                @if (Model.Definition.Status != CaseDefinitionStatus.Draft)
+                {
+                    <a asp-page="./Create" asp-route-duplicateFrom="@Model.Definition.Id" class="sn-btn sn-btn-signal">
+                        <i class="bi bi-files"></i>
+                        Create Draft Version
+                    </a>
+                }
+                else
+                {
                 <form method="post" asp-page-handler="SaveDraft" style="display: inline;">
                     <button type="submit" class="sn-btn sn-btn-ghost" @(Model.Criteria.Count == 0 ? "disabled" : "")>
                         <i class="bi bi-file-earmark"></i>
@@ -495,6 +520,7 @@
                         Activate Definition
                     </button>
                 </form>
+                }
             </div>
         </div>
     </div>
