@@ -1,0 +1,71 @@
+{
+  "version": 1,
+  "guides": [
+    {
+      "id": "add-or-edit-symptom-data-for-a-case",
+      "title": "Add or edit Symptom Data for a Case",
+      "path": "docs/walkthroughs/add-or-edit-symptom-data-for-a-case.md",
+      "steps": 10
+    },
+    {
+      "id": "adding-a-laboratory-result-to-a-case",
+      "title": "Adding a laboratory result to a case",
+      "path": "docs/walkthroughs/adding-a-laboratory-result-to-a-case.md",
+      "steps": 18
+    },
+    {
+      "id": "assign-a-task-to-create-automatically-for-a-case-or-contact",
+      "title": "Assign a task to create automatically for a case or contact",
+      "path": "docs/walkthroughs/assign-a-task-to-create-automatically-for-a-case-or-contact.md",
+      "steps": 10
+    },
+    {
+      "id": "assign-an-existing-custom-field-to-a-disease",
+      "title": "Assign an existing custom field to a disease",
+      "path": "docs/walkthroughs/assign-an-existing-custom-field-to-a-disease.md",
+      "steps": 11
+    },
+    {
+      "id": "create-a-new-patient",
+      "title": "Create a new patient",
+      "path": "docs/walkthroughs/create-a-new-patient.md",
+      "steps": 18
+    },
+    {
+      "id": "creating-a-case-of-a-disease-in-sentinel",
+      "title": "Creating a Case of a disease in Sentinel",
+      "path": "docs/walkthroughs/creating-a-case-of-a-disease-in-sentinel.md",
+      "steps": 15
+    },
+    {
+      "id": "edit-or-create-confirmation-status-or-case-classification-options",
+      "title": "Edit or create confirmation status or case classification options",
+      "path": "docs/walkthroughs/edit-or-create-confirmation-status-or-case-classification-options.md",
+      "steps": 11
+    },
+    {
+      "id": "merge-two-patients-in-sentinel",
+      "title": "Merge two patients in Sentinel",
+      "path": "docs/walkthroughs/merge-two-patients-in-sentinel.md",
+      "steps": 11
+    },
+    {
+      "id": "review-an-item-in-the-data-review-inbox",
+      "title": "Review an item in the Data Review Inbox",
+      "path": "docs/walkthroughs/review-an-item-in-the-data-review-inbox.md",
+      "steps": 8
+    },
+    {
+      "id": "save-a-note-on-a-patient-record",
+      "title": "Save a note on a patient record",
+      "path": "docs/walkthroughs/save-a-note-on-a-patient-record.md",
+      "steps": 6
+    },
+    {
+      "id": "view-patient-audit-history",
+      "title": "View patient Audit History",
+      "path": "docs/walkthroughs/view-patient-audit-history.md",
+      "steps": 8
+    }
+  ]
+}

@@ -20,6 +20,8 @@ one-off debugging records; Git history is the source for those records.
 - [Background geocoding](features/background-geocoding.md) documents the
   asynchronous HL7 address-geocoding behaviour and its limitations.
 
+- [Screenshot walkthroughs](walkthroughs/README.md) cover common patient, case, laboratory, data review and configuration tasks.
+
 ## Feature specifications
 
 - [Clinical interventions module](features/clinical-interventions.md) records
