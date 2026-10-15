@@ -1905,6 +1905,9 @@ namespace Sentinel.Migrations
                     b.Property<bool>("ProcessOnReceipt")
                         .HasColumnType("bit");
 
+                    b.Property<int>("ProviderMatchingMode")
+                        .HasColumnType("int");
+
                     b.Property<bool>("RequirePatientIdentifier")
                         .HasColumnType("bit");
 
@@ -4120,6 +4123,10 @@ namespace Sentinel.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
 
+                    b.Property<string>("Credentials")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
                     b.Property<string>("Email")
                         .HasMaxLength(200)
                         .HasColumnType("nvarchar(200)");
@@ -4128,13 +4135,25 @@ namespace Sentinel.Migrations
                         .HasMaxLength(50)
                         .HasColumnType("nvarchar(50)");
 
+                    b.Property<string>("FamilyName")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
                     b.Property<string>("FriendlyId")
                         .IsRequired()
                         .HasMaxLength(20)
                         .HasColumnType("nvarchar(20)");
 
+                    b.Property<string>("GivenName")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
                     b.Property<bool>("IsActive")
                         .HasColumnType("bit");
+
+                    b.Property<string>("MiddleName")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
 
                     b.Property<DateTime?>("ModifiedAt")
                         .HasColumnType("datetime2");
@@ -4143,6 +4162,14 @@ namespace Sentinel.Migrations
                         .IsRequired()
                         .HasMaxLength(200)
                         .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("NamePrefix")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("NameSuffix")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
 
                     b.Property<string>("Notes")
                         .HasMaxLength(1000)
@@ -4155,6 +4182,14 @@ namespace Sentinel.Migrations
                         .HasMaxLength(50)
                         .HasColumnType("nvarchar(50)");
 
+                    b.Property<string>("ProviderIdentifier")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("ProviderIdentifierAuthority")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
                     b.HasKey("Id");
 
                     b.HasIndex("ExportCode");
@@ -4165,6 +4200,13 @@ namespace Sentinel.Migrations
                     b.HasIndex("Name");
 
                     b.HasIndex("OrganizationTypeId");
+
+                    b.HasIndex("FamilyName", "GivenName");
+
+                    b.HasIndex("ProviderIdentifier", "ProviderIdentifierAuthority")
+                        .IsUnique()
+                        .HasDatabaseName("UX_Organizations_ProviderIdentity")
+                        .HasFilter("[ProviderIdentifier] IS NOT NULL");
 
                     b.ToTable("Organizations");
                 });

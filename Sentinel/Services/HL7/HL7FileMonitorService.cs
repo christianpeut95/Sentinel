@@ -1010,11 +1010,13 @@ namespace Sentinel.Services.HL7
             if (message.ConfigurationId.HasValue)
             {
                 configuration = await context.HL7Configurations
+                    .Include(c => c.FieldMappings)
                     .FirstOrDefaultAsync(c => c.Id == message.ConfigurationId, cancellationToken);
             }
 
-            // Reprocess
-            var extractionResult = await extractionService.ExtractAndCreateEntitiesAsync(
+            // Reprocessing must use the same staged identity and matching pipeline as
+            // first-pass intake; otherwise provider resolution can drift over time.
+            var extractionResult = await extractionService.ExtractAndCreateEntitiesWithStagingAsync(
                 message,
                 configuration,
                 cancellationToken);

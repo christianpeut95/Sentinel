@@ -50,6 +50,10 @@ namespace Sentinel.Models
         [Display(Name = "Auto-create Organizations")]
         public bool AutoCreateOrganizations { get; set; } = false;
 
+        [Display(Name = "Ordering Provider Matching")]
+        [EnumDataType(typeof(ProviderMatchingMode))]
+        public ProviderMatchingMode ProviderMatchingMode { get; set; } = ProviderMatchingMode.SafeNameFallback;
+
         // Patient Matching Configuration
         [Display(Name = "Patient Matching Strategy")]
         public PatientMatchingStrategy PatientMatchingStrategy { get; set; } = PatientMatchingStrategy.StrictMatch;
@@ -153,6 +157,22 @@ namespace Sentinel.Models
 
         [Display(Name = "Manual Review Required")]
         ManualReviewRequired = 4
+    }
+
+    /// <summary>
+    /// Controls when an incoming ordering-provider identity may fall back from a
+    /// stable identifier to a person-name comparison.
+    /// </summary>
+    public enum ProviderMatchingMode
+    {
+        [Display(Name = "Identifier only")]
+        IdentifierOnly = 1,
+
+        [Display(Name = "Safe name fallback")]
+        SafeNameFallback = 2,
+
+        [Display(Name = "Trusted identity enrichment")]
+        TrustedIdentityEnrichment = 3
     }
 
     /// <summary>

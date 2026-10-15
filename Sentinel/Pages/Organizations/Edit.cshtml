@@ -36,9 +36,7 @@
 
 <form method="post">
     <div asp-validation-summary="ModelOnly" class="alert alert-danger" role="alert"></div>
-    <input type="hidden" asp-for="Organization.Id" />
-    <input type="hidden" asp-for="Organization.FriendlyId" />
-    <input type="hidden" asp-for="Organization.CreatedAt" />
+    <input type="hidden" asp-for="Input.Id" />
 
     <div class="card shadow-sm mb-4">
         <div class="card-header bg-light fw-semibold">
@@ -47,45 +45,47 @@
         <div class="card-body">
             <div class="row">
                 <div class="col-md-8 mb-3">
-                    <label asp-for="Organization.Name" class="form-label">
-                        <span class="text-danger">*</span> @Html.DisplayNameFor(m => m.Organization.Name)
+                    <label asp-for="Input.Name" class="form-label">
+                        <span class="text-danger">*</span> @Html.DisplayNameFor(m => m.Input.Name)
                     </label>
-                    <input asp-for="Organization.Name" class="form-control" aria-required="true" />
-                    <span asp-validation-for="Organization.Name" class="text-danger small"></span>
+                    <input asp-for="Input.Name" class="form-control" aria-required="true" />
+                    <span asp-validation-for="Input.Name" class="text-danger small"></span>
                 </div>
 
                 <div class="col-md-4 mb-3">
-                    <label asp-for="Organization.OrganizationTypeId" class="form-label">
-                        @Html.DisplayNameFor(m => m.Organization.OrganizationTypeId)
+                    <label asp-for="Input.OrganizationTypeId" class="form-label">
+                        @Html.DisplayNameFor(m => m.Input.OrganizationTypeId)
                     </label>
-                    <select asp-for="Organization.OrganizationTypeId" class="form-select" asp-items="ViewBag.OrganizationTypeId">
+                    <select asp-for="Input.OrganizationTypeId" class="form-select" asp-items="ViewBag.OrganizationTypeId">
                         <option value="">Select Type</option>
                     </select>
-                    <span asp-validation-for="Organization.OrganizationTypeId" class="text-danger small"></span>
+                    <span asp-validation-for="Input.OrganizationTypeId" class="text-danger small"></span>
                 </div>
             </div>
 
             <div class="row">
                 <div class="col-md-6 mb-3">
-                    <label asp-for="Organization.ExportCode" class="form-label">
-                        @Html.DisplayNameFor(m => m.Organization.ExportCode)
+                    <label asp-for="Input.ExportCode" class="form-label">
+                        @Html.DisplayNameFor(m => m.Input.ExportCode)
                     </label>
-                    <input asp-for="Organization.ExportCode" class="form-control" />
-                    <span asp-validation-for="Organization.ExportCode" class="text-danger small"></span>
+                    <input asp-for="Input.ExportCode" class="form-control" />
+                    <span asp-validation-for="Input.ExportCode" class="text-danger small"></span>
                 </div>
 
                 <div class="col-md-6 mb-3">
                     <label class="form-label">Status</label>
                     <div class="form-check form-switch">
-                        <input asp-for="Organization.IsActive" class="form-check-input" type="checkbox" role="switch" />
-                        <label asp-for="Organization.IsActive" class="form-check-label">
-                            @Html.DisplayNameFor(m => m.Organization.IsActive)
+                        <input asp-for="Input.IsActive" class="form-check-input" type="checkbox" role="switch" />
+                        <label asp-for="Input.IsActive" class="form-check-label">
+                            @Html.DisplayNameFor(m => m.Input.IsActive)
                         </label>
                     </div>
                 </div>
             </div>
         </div>
     </div>
+
+    <partial name="_ProviderFields" for="Input" />
 
     <div class="card shadow-sm mb-4">
         <div class="card-header bg-light fw-semibold">
@@ -94,11 +94,11 @@
         <div class="card-body">
             <div class="row">
                 <div class="col-md-12 mb-3">
-                    <label asp-for="Organization.Address" class="form-label">
-                        @Html.DisplayNameFor(m => m.Organization.Address)
+                    <label asp-for="Input.Address" class="form-label">
+                        @Html.DisplayNameFor(m => m.Input.Address)
                     </label>
-                    <textarea asp-for="Organization.Address" class="form-control" rows="3"></textarea>
-                    <span asp-validation-for="Organization.Address" class="text-danger small"></span>
+                    <textarea asp-for="Input.Address" class="form-control" rows="3"></textarea>
+                    <span asp-validation-for="Input.Address" class="text-danger small"></span>
                 </div>
             </div>
         </div>
@@ -111,29 +111,29 @@
         <div class="card-body">
             <div class="row">
                 <div class="col-md-6 mb-3">
-                    <label asp-for="Organization.ContactPerson" class="form-label">
-                        @Html.DisplayNameFor(m => m.Organization.ContactPerson)
+                    <label asp-for="Input.ContactPerson" class="form-label">
+                        @Html.DisplayNameFor(m => m.Input.ContactPerson)
                     </label>
-                    <input asp-for="Organization.ContactPerson" class="form-control" />
-                    <span asp-validation-for="Organization.ContactPerson" class="text-danger small"></span>
+                    <input asp-for="Input.ContactPerson" class="form-control" />
+                    <span asp-validation-for="Input.ContactPerson" class="text-danger small"></span>
                 </div>
 
                 <div class="col-md-6 mb-3">
-                    <label asp-for="Organization.Phone" class="form-label">
-                        @Html.DisplayNameFor(m => m.Organization.Phone)
+                    <label asp-for="Input.Phone" class="form-label">
+                        @Html.DisplayNameFor(m => m.Input.Phone)
                     </label>
-                    <input asp-for="Organization.Phone" class="form-control" type="tel" />
-                    <span asp-validation-for="Organization.Phone" class="text-danger small"></span>
+                    <input asp-for="Input.Phone" class="form-control" type="tel" />
+                    <span asp-validation-for="Input.Phone" class="text-danger small"></span>
                 </div>
             </div>
 
             <div class="row">
                 <div class="col-md-12 mb-3">
-                    <label asp-for="Organization.Email" class="form-label">
-                        @Html.DisplayNameFor(m => m.Organization.Email)
+                    <label asp-for="Input.Email" class="form-label">
+                        @Html.DisplayNameFor(m => m.Input.Email)
                     </label>
-                    <input asp-for="Organization.Email" class="form-control" type="email" />
-                    <span asp-validation-for="Organization.Email" class="text-danger small"></span>
+                    <input asp-for="Input.Email" class="form-control" type="email" />
+                    <span asp-validation-for="Input.Email" class="text-danger small"></span>
                 </div>
             </div>
         </div>
@@ -146,11 +146,11 @@
         <div class="card-body">
             <div class="row">
                 <div class="col-md-12 mb-3">
-                    <label asp-for="Organization.Notes" class="form-label">
-                        @Html.DisplayNameFor(m => m.Organization.Notes)
+                    <label asp-for="Input.Notes" class="form-label">
+                        @Html.DisplayNameFor(m => m.Input.Notes)
                     </label>
-                    <textarea asp-for="Organization.Notes" class="form-control" rows="4"></textarea>
-                    <span asp-validation-for="Organization.Notes" class="text-danger small"></span>
+                    <textarea asp-for="Input.Notes" class="form-control" rows="4"></textarea>
+                    <span asp-validation-for="Input.Notes" class="text-danger small"></span>
                 </div>
             </div>
         </div>

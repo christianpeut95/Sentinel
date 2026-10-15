@@ -274,8 +274,8 @@
         <form method="get">
             <div class="row g-3">
                 <div class="col-md-4">
-                    <label for="searchTerm" class="form-label">Search by Name</label>
-                    <input type="text" class="form-control" id="searchTerm" name="searchTerm" value="@Model.SearchTerm" placeholder="Organization name..." />
+                    <label for="searchTerm" class="form-label">Search</label>
+                    <input type="text" class="form-control" id="searchTerm" name="searchTerm" value="@Model.SearchTerm" maxlength="200" placeholder="Name, provider ID, or organization ID..." />
                 </div>
                 <div class="col-md-3">
                     <label for="organizationTypeId" class="form-label">Organization Type</label>
@@ -319,6 +319,7 @@
                     <tr>
                         <th>ID</th>
                         <th>Name</th>
+                        <th>Provider</th>
                         <th>Type</th>
                         <th>Contact Person</th>
                         <th>Phone</th>
@@ -334,6 +335,22 @@
                         <td><span class="badge" style="background: #6366f1; color: white;">@item.FriendlyId</span></td>
                         <td>
                             <strong>@item.Name</strong>
+                        </td>
+                        <td>
+                            @if (!string.IsNullOrWhiteSpace(item.ProviderIdentifier) ||
+                                 !string.IsNullOrWhiteSpace(item.GivenName) ||
+                                 !string.IsNullOrWhiteSpace(item.FamilyName))
+                            {
+                                <div>@string.Join(" ", new[] { item.GivenName, item.MiddleName, item.FamilyName }.Where(value => !string.IsNullOrWhiteSpace(value)))</div>
+                                @if (!string.IsNullOrWhiteSpace(item.ProviderIdentifier))
+                                {
+                                    <small class="text-muted">@item.ProviderIdentifier</small>
+                                }
+                            }
+                            else
+                            {
+                                <span class="text-muted">-</span>
+                            }
                         </td>
                         <td>
                             @if (item.OrganizationType != null)

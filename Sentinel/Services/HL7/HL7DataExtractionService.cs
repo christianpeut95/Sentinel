@@ -18,6 +18,8 @@ public class HL7DataExtractionService : IHL7DataExtractionService
     private readonly IHL7FieldMappingService _fieldMappingService;
     private readonly IGeocodingQueueService? _geocodingQueue;
     private readonly ICaseDefinitionMatchingService _caseDefinitionMatchingService;
+    private readonly IProviderIdentityExtractionService _providerIdentityExtractionService;
+    private readonly IProviderIdentityResolutionService _providerIdentityResolutionService;
     private readonly CaseCreationInterceptor? _caseCreationInterceptor;
 
     public HL7DataExtractionService(
@@ -28,6 +30,8 @@ public class HL7DataExtractionService : IHL7DataExtractionService
         IHL7MarkerResolutionService markerResolutionService,
         IHL7FieldMappingService fieldMappingService,
         ICaseDefinitionMatchingService caseDefinitionMatchingService,
+        IProviderIdentityExtractionService providerIdentityExtractionService,
+        IProviderIdentityResolutionService providerIdentityResolutionService,
         IGeocodingQueueService? geocodingQueue = null,
         CaseCreationInterceptor? caseCreationInterceptor = null)
     {
@@ -38,6 +42,8 @@ public class HL7DataExtractionService : IHL7DataExtractionService
         _markerResolutionService = markerResolutionService;
         _fieldMappingService = fieldMappingService;
         _caseDefinitionMatchingService = caseDefinitionMatchingService;
+        _providerIdentityExtractionService = providerIdentityExtractionService;
+        _providerIdentityResolutionService = providerIdentityResolutionService;
         _geocodingQueue = geocodingQueue;
         _caseCreationInterceptor = caseCreationInterceptor;
     }
@@ -169,22 +175,48 @@ public class HL7DataExtractionService : IHL7DataExtractionService
                 result.Errors.Add("Cannot create lab result without a laboratory. Configure a default laboratory or enable auto-create organizations.");
             }
 
-            // Ordering Provider - use configuration-driven mapping when available
-            var providerName = await ExtractMappedValueAsync(
-                message,
-                configuration,
-                null, // Disease not yet resolved at this stage
-                "Organization",
-                "OrderingProviderName",
-                (msg) => ExtractOrderingProviderName(msg, configuration)); // Pass configuration through lambda
-
-            if (!string.IsNullOrEmpty(providerName))
+            // Ordering providers need their full XCN identity retained so the stable
+            // identifier can be matched before the display name.
+            var providerIdentity = _providerIdentityExtractionService.Extract(message, configuration);
+            if (providerIdentity != null)
             {
-                result.OrderingProvider = await FindOrCreateOrganizationAsync(
-                    providerName,
-                    "Healthcare Provider",
+                var providerResolution = await _providerIdentityResolutionService.ResolveAsync(
+                    providerIdentity,
+                    configuration?.ProviderMatchingMode ?? ProviderMatchingMode.SafeNameFallback,
                     autoCreateOrgs,
                     cancellationToken);
+
+                if (providerResolution.IsAmbiguous)
+                {
+                    result.RequiresManualReview = true;
+                    result.ManualReviewReason = providerResolution.Reason;
+                    result.Errors.Add(
+                        providerResolution.Reason ??
+                        "Ordering provider identity requires manual review.");
+                    message.Status = HL7ProcessingStatus.AwaitingManualReview;
+                    message.RequiresManualReview = true;
+                    message.ProcessingNotes = providerResolution.Reason;
+                    await _context.SaveChangesAsync(cancellationToken);
+                    return result;
+                }
+                else if (providerResolution.ExistingOrganization != null)
+                {
+                    if (providerResolution.MayEnrichIdentity)
+                    {
+                        _providerIdentityResolutionService.ApplyMissingIdentity(
+                            providerResolution.ExistingOrganization,
+                            providerIdentity);
+                    }
+                    result.OrderingProvider = providerResolution.ExistingOrganization;
+                }
+                else if (providerResolution.NewOrganizationTypeId.HasValue)
+                {
+                    var newProvider = _providerIdentityResolutionService.CreateOrganization(
+                        providerIdentity,
+                        providerResolution.NewOrganizationTypeId.Value);
+                    _context.Organizations.Add(newProvider);
+                    result.OrderingProvider = newProvider;
+                }
             }
 
             // 3. Create or Update LabResult
@@ -537,6 +569,7 @@ public class HL7DataExtractionService : IHL7DataExtractionService
                 result.Errors.AddRange(stage.Errors);
 
                 message.Status = HL7ProcessingStatus.AwaitingManualReview;
+                message.RequiresManualReview = true;
                 message.ErrorMessage = stage.ManualReviewReason;
                 message.ProcessingNotes = string.Join("\n", stage.Warnings);
 
@@ -1057,6 +1090,16 @@ public class HL7DataExtractionService : IHL7DataExtractionService
 
         return null;
     }
+
+    internal async Task<ProviderOrganizationResolution> ResolveProviderOrganizationAsync(
+        ProviderIdentity identity,
+        bool autoCreate,
+        CancellationToken cancellationToken)
+        => await _providerIdentityResolutionService.ResolveAsync(
+            identity,
+            ProviderMatchingMode.SafeNameFallback,
+            autoCreate,
+            cancellationToken);
 
     public async Task<LabResult?> CreateOrUpdateLabResultAsync(
         HL7Message message,
@@ -1601,304 +1644,6 @@ public class HL7DataExtractionService : IHL7DataExtractionService
         return null;
     }
 
-    private string? ExtractOrderingProviderName(HL7Message message, HL7Configuration? configuration = null)
-    {
-        _logger.LogInformation("[ORDERING PROVIDER] === EXTRACTION START ===");
-        _logger.LogInformation("[ORDERING PROVIDER] Message has {Count} segments in collection", message.Segments?.Count ?? 0);
-
-        if (message.Segments == null || !message.Segments.Any())
-        {
-            _logger.LogError("[ORDERING PROVIDER] ❌ Segments collection is NULL or EMPTY - cannot extract provider");
-            return null;
-        }
-
-        // List all segment types for debugging
-        var segmentTypes = string.Join(", ", message.Segments.Select(s => s.SegmentType));
-        _logger.LogInformation("[ORDERING PROVIDER] Available segment types: {Types}", segmentTypes);
-
-        // Helper to parse provider name from XCN (Extended Composite ID Number and Name) field
-        string? ParseProviderName(string fieldValue, string fieldName)
-        {
-            if (string.IsNullOrWhiteSpace(fieldValue))
-                return null;
-
-            var parts = fieldValue.Split('^');
-            _logger.LogInformation("[ORDERING PROVIDER] {Field} has {Count} parts: {Raw}", 
-                fieldName, parts.Length, fieldValue);
-
-            // XCN format can be:
-            // Format 1: LastName^FirstName^Middle^Title
-            // Format 2: ID^LastName^FirstName^Middle^^Title
-            // We need to detect which format by checking if the first part looks like an ID
-
-            string? firstName = null;
-            string? lastName = null;
-            string? middle = null;
-            string? title = null;
-
-            // Check if parts[0] looks like an ID (contains hyphens or is all digits)
-            bool firstPartIsId = parts.Length > 0 && 
-                (parts[0].Contains('-') || parts[0].All(char.IsDigit));
-
-            if (firstPartIsId && parts.Length >= 3)
-            {
-                // Format 2: ID^LastName^FirstName^Middle^^Title^^^Facility
-                lastName = parts.Length > 1 && !string.IsNullOrWhiteSpace(parts[1]) ? parts[1] : null;
-                firstName = parts.Length > 2 && !string.IsNullOrWhiteSpace(parts[2]) ? parts[2] : null;
-                middle = parts.Length > 3 && !string.IsNullOrWhiteSpace(parts[3]) ? parts[3] : null;
-                title = parts.Length > 5 && !string.IsNullOrWhiteSpace(parts[5]) ? parts[5] : null;
-
-                _logger.LogInformation("[ORDERING PROVIDER] Parsed as Format 2 (with ID): ID={Id}, Last={Last}, First={First}, Middle={Middle}, Title={Title}",
-                    parts[0], lastName ?? "NULL", firstName ?? "NULL", middle ?? "NULL", title ?? "NULL");
-            }
-            else if (parts.Length >= 2)
-            {
-                // Format 1: LastName^FirstName^Middle^Title
-                lastName = parts.Length > 0 && !string.IsNullOrWhiteSpace(parts[0]) ? parts[0] : null;
-                firstName = parts.Length > 1 && !string.IsNullOrWhiteSpace(parts[1]) ? parts[1] : null;
-                middle = parts.Length > 2 && !string.IsNullOrWhiteSpace(parts[2]) ? parts[2] : null;
-                title = parts.Length > 3 && !string.IsNullOrWhiteSpace(parts[3]) ? parts[3] : null;
-
-                _logger.LogInformation("[ORDERING PROVIDER] Parsed as Format 1 (no ID): Last={Last}, First={First}, Middle={Middle}, Title={Title}",
-                    lastName ?? "NULL", firstName ?? "NULL", middle ?? "NULL", title ?? "NULL");
-            }
-            else
-            {
-                _logger.LogWarning("[ORDERING PROVIDER] {Field} has insufficient parts ({Count}) to extract provider name", 
-                    fieldName, parts.Length);
-                return null;
-            }
-
-            // Build provider name
-            if (!string.IsNullOrEmpty(lastName) && !string.IsNullOrEmpty(firstName))
-            {
-                var nameBuilder = new System.Text.StringBuilder();
-
-                // Add title if present and looks like a title (DR, MD, etc.)
-                if (!string.IsNullOrEmpty(title) && (title.Equals("DR", StringComparison.OrdinalIgnoreCase) || 
-                    title.Equals("MD", StringComparison.OrdinalIgnoreCase) ||
-                    title.Equals("DOCTOR", StringComparison.OrdinalIgnoreCase)))
-                {
-                    nameBuilder.Append("Dr. ");
-                }
-                else if (!string.IsNullOrEmpty(firstName) && firstName.Equals("DR", StringComparison.OrdinalIgnoreCase))
-                {
-                    // Sometimes "DR" is in the first name field
-                    nameBuilder.Append("Dr. ");
-                    firstName = parts.Length > 3 && !string.IsNullOrWhiteSpace(parts[3]) ? parts[3] : "";
-                }
-
-                // Build full name
-                nameBuilder.Append(firstName);
-                if (!string.IsNullOrEmpty(middle))
-                {
-                    nameBuilder.Append(" ").Append(middle);
-                }
-                nameBuilder.Append(" ").Append(lastName);
-
-                var fullName = nameBuilder.ToString().Trim();
-                _logger.LogInformation("[ORDERING PROVIDER] ✅ Extracted from {Field}: {Name}", fieldName, fullName);
-                return fullName;
-            }
-
-            _logger.LogWarning("[ORDERING PROVIDER] {Field} missing required name components (Last={Last}, First={First})", 
-                fieldName, lastName ?? "NULL", firstName ?? "NULL");
-            return null;
-        }
-
-        // PRIORITY 1: Check if there's a configured mapping for ordering provider
-        if (configuration != null)
-        {
-            try
-            {
-                _logger.LogInformation("[ORDERING PROVIDER] Configuration provided, checking for field mappings. Total mappings: {Count}", 
-                    configuration.FieldMappings?.Count ?? 0);
-
-                // Debug: List all active mappings
-                if (configuration.FieldMappings != null && configuration.FieldMappings.Any())
-                {
-                    foreach (var mapping in configuration.FieldMappings.Where(m => m.IsActive))
-                    {
-                        _logger.LogInformation("[ORDERING PROVIDER] Available mapping: TargetProperty='{Property}', FieldPath='{Path}', IsActive={Active}", 
-                            mapping.TargetProperty, mapping.FieldPath, mapping.IsActive);
-                    }
-                }
-
-                // Look for any mapping targeting OrderingProvider
-                var providerMapping = configuration.FieldMappings
-                    .FirstOrDefault(m => m.IsActive && 
-                                        (m.TargetProperty == "OrderingProvider" ||
-                                         m.TargetProperty == "OrderingProviderName"));
-
-                if (providerMapping != null)
-                {
-                    _logger.LogInformation("[ORDERING PROVIDER] Found configured mapping: Segment={Segment}, FieldPath={Path}, TargetEntity='{Entity}'", 
-                        providerMapping.SegmentType, providerMapping.FieldPath, providerMapping.TargetEntity);
-
-                    // Extract segment type and field number from FieldPath (e.g., "OBR-16" → "OBR" and 16)
-                    var pathParts = providerMapping.FieldPath.Split('-');
-                    if (pathParts.Length == 2 && int.TryParse(pathParts[1], out int fieldNumber))
-                    {
-                        var segment = message.Segments.FirstOrDefault(s => s.SegmentType == providerMapping.SegmentType);
-                        if (segment != null)
-                        {
-                            var fields = segment.RawSegment.Split('|');
-                            _logger.LogInformation("[ORDERING PROVIDER] {SegmentType} segment has {Count} fields", providerMapping.SegmentType, fields.Length);
-                            _logger.LogInformation("[ORDERING PROVIDER] {SegmentType} raw segment: {Segment}", providerMapping.SegmentType, segment.RawSegment);
-
-                            // Log fields around the target position for debugging
-                            _logger.LogInformation("[ORDERING PROVIDER] Field mapping expects {FieldPath} (0-based index {Index})", 
-                                providerMapping.FieldPath, fieldNumber - 1);
-                            for (int i = Math.Max(0, fieldNumber - 3); i < Math.Min(fields.Length, fieldNumber + 2); i++)
-                            {
-                                _logger.LogInformation("[ORDERING PROVIDER] {SegmentType} Field[{Index}] (HL7 {Segment}-{FieldNum}) = '{Value}'", 
-                                    providerMapping.SegmentType, i, providerMapping.SegmentType, i + 1, fields[i]);
-                            }
-
-                            // Convert HL7 field number to 0-based array index
-                            // When split by |, fields[0] = segment name, fields[1] = field 1, etc.
-                            // So OBR-16 → fields[16] (not fields[15])
-                            int fieldIndex = fieldNumber;
-
-                            if (fields.Length > fieldIndex && !string.IsNullOrWhiteSpace(fields[fieldIndex]))
-                            {
-                                _logger.LogInformation("[ORDERING PROVIDER] {FieldPath} raw value: '{Value}'", providerMapping.FieldPath, fields[fieldIndex]);
-                                var providerName = ParseProviderName(fields[fieldIndex], providerMapping.FieldPath);
-                                if (providerName != null)
-                                {
-                                    _logger.LogInformation("[ORDERING PROVIDER] ✅ Extracted from configured mapping {FieldPath}: '{Name}'", 
-                                        providerMapping.FieldPath, providerName);
-                                    return providerName;
-                                }
-                            }
-                            else
-                            {
-                                _logger.LogWarning("[ORDERING PROVIDER] Configured field {FieldPath} is empty or doesn't exist (segment has {Count} fields)", 
-                                    providerMapping.FieldPath, fields.Length);
-                            }
-                        }
-                        else
-                        {
-                            _logger.LogWarning("[ORDERING PROVIDER] Configured segment type {SegmentType} not found in message", 
-                                providerMapping.SegmentType);
-                        }
-                    }
-                    else
-                    {
-                        _logger.LogWarning("[ORDERING PROVIDER] Invalid FieldPath format: '{Path}'. Expected format: SEGMENT-NUMBER (e.g., OBR-16)", 
-                            providerMapping.FieldPath);
-                    }
-                }
-                else
-                {
-                    _logger.LogInformation("[ORDERING PROVIDER] No configured mapping found for OrderingProvider. Using default extraction.");
-                }
-            }
-            catch (Exception ex)
-            {
-                _logger.LogWarning(ex, "[ORDERING PROVIDER] Error checking field mapping configuration, falling back to default extraction");
-            }
-        }
-        else
-        {
-            _logger.LogDebug("[ORDERING PROVIDER] No configuration provided, using default extraction");
-        }
-
-        // PRIORITY 2 (FALLBACK): Try standard HL7 locations for ordering provider
-
-        // Try ORC-12 (Ordering Provider) first - preferred location per HL7 v2.5
-        var orcSegment = message.Segments.FirstOrDefault(s => s.SegmentType == "ORC");
-        if (orcSegment != null)
-        {
-            var fields = orcSegment.RawSegment.Split('|');
-            _logger.LogInformation("[ORDERING PROVIDER] ORC segment found with {Count} fields", fields.Length);
-            _logger.LogInformation("[ORDERING PROVIDER] ORC raw segment: {Segment}", orcSegment.RawSegment);
-
-            // Log fields around index 12 for debugging (ORC-12 = fields[12])
-            for (int i = Math.Max(0, 9); i < Math.Min(fields.Length, 14); i++)
-            {
-                _logger.LogInformation("[ORDERING PROVIDER] ORC Field[{Index}] = '{Value}'", i, fields[i]);
-            }
-
-            // NOTE: When split by |, fields[0] = "ORC", fields[1] = ORC-1, fields[12] = ORC-12, etc.
-            if (fields.Length > 12 && !string.IsNullOrWhiteSpace(fields[12]))
-            {
-                _logger.LogInformation("[ORDERING PROVIDER] Attempting to parse ORC-12 (fields[12]): '{Value}'", fields[12]);
-                var providerName = ParseProviderName(fields[12], "ORC-12");
-                if (providerName != null)
-                    return providerName;
-            }
-            else
-            {
-                if (fields.Length <= 12)
-                    _logger.LogWarning("[ORDERING PROVIDER] ORC segment has only {Count} fields, cannot access field[12] (ORC-12)", fields.Length);
-                else
-                    _logger.LogWarning("[ORDERING PROVIDER] ORC field[12] (ORC-12) is empty or whitespace");
-            }
-
-            // Try ORC-13 as additional fallback (some labs use non-standard positions)
-            // NOTE: ORC-13 = fields[13] when split by |
-            if (fields.Length > 13 && !string.IsNullOrWhiteSpace(fields[13]))
-            {
-                _logger.LogInformation("[ORDERING PROVIDER] Attempting to parse ORC-13 (fields[13]): '{Value}'", fields[13]);
-                var providerName = ParseProviderName(fields[13], "ORC-13");
-                if (providerName != null)
-                    return providerName;
-            }
-
-            // Try ORC-14 as additional fallback (YOUR LAB USES THIS POSITION!)
-            // NOTE: ORC-14 = fields[14] when split by |
-            if (fields.Length > 14 && !string.IsNullOrWhiteSpace(fields[14]))
-            {
-                _logger.LogInformation("[ORDERING PROVIDER] Attempting to parse ORC-14 (fields[14]): '{Value}'", fields[14]);
-                var providerName = ParseProviderName(fields[14], "ORC-14");
-                if (providerName != null)
-                    return providerName;
-            }
-        }
-        else
-        {
-            _logger.LogWarning("[ORDERING PROVIDER] No ORC segment found in message");
-        }
-
-        // Try OBR-16 (Ordering Provider) - common location
-        var obrSegment = message.Segments.FirstOrDefault(s => s.SegmentType == "OBR");
-        if (obrSegment != null)
-        {
-            var fields = obrSegment.RawSegment.Split('|');
-            _logger.LogInformation("[ORDERING PROVIDER] OBR segment has {Count} fields", fields.Length);
-
-            // NOTE: When split by |, fields[0] = "OBR", fields[1] = OBR-1, fields[16] = OBR-16, etc.
-            if (fields.Length > 16 && !string.IsNullOrWhiteSpace(fields[16]))
-            {
-                var providerName = ParseProviderName(fields[16], "OBR-16");
-                if (providerName != null)
-                    return providerName;
-            }
-
-            // Try OBR-28 (Result Copies To) as fallback
-            // NOTE: OBR-28 = fields[28] when split by |
-            if (fields.Length > 28 && !string.IsNullOrWhiteSpace(fields[28]))
-            {
-                var providerName = ParseProviderName(fields[28], "OBR-28");
-                if (providerName != null)
-                    return providerName;
-            }
-
-            // Try OBR-32 (Principal Result Interpreter) as final fallback
-            // NOTE: OBR-32 = fields[32] when split by |
-            if (fields.Length > 32 && !string.IsNullOrWhiteSpace(fields[32]))
-            {
-                var providerName = ParseProviderName(fields[32], "OBR-32");
-                if (providerName != null)
-                    return providerName;
-            }
-        }
-
-        _logger.LogWarning("[ORDERING PROVIDER] No ordering provider found in ORC-12/13/14, OBR-16/28/32");
-        return null;
-    }
-
     /// <summary>
     /// Match test method from HL7 data to TestMethod lookup table.
     /// Tries exact code match first, then falls back to fuzzy text matching.
@@ -2153,14 +1898,15 @@ public class HL7DataExtractionService : IHL7DataExtractionService
             if (fields.Length > 16 && !string.IsNullOrWhiteSpace(fields[16]))
             {
                 var (code, text, system, looksLikeProvider) = ParseSpecimenField(fields[16]);
-                _logger.LogInformation("[SPECIMEN] OBR-16: Code='{Code}', Text='{Text}', System='{System}', LooksLikeProvider={Provider}", 
-                    code ?? "NULL", text ?? "NULL", system ?? "NULL", looksLikeProvider);
+                _logger.LogDebug(
+                    "[SPECIMEN] Evaluated alternate OBR-16 source; LooksLikeProvider={LooksLikeProvider}",
+                    looksLikeProvider);
 
                 // Only use OBR-16 if it doesn't look like provider data
                 if (!looksLikeProvider && (code != null || text != null))
                 {
-                    _logger.LogInformation("[SPECIMEN] ✅ Extracted from OBR-16 (alternate): Code='{Code}', Text='{Text}', System='{System}'", 
-                        code ?? "NULL", text ?? "NULL", system ?? "NULL");
+                    _logger.LogInformation(
+                        "[SPECIMEN] Extracted specimen data from alternate OBR-16 location");
                     return (code, text, system);
                 }
             }
@@ -3386,73 +3132,66 @@ public class HL7DataExtractionService : IHL7DataExtractionService
             stagingLog.Add($"✅ SUCCESS: {labInfo}");
             stage.Warnings.Add($"[STAGING] Laboratory: {(stage.StagedLaboratory.IsNew ? "NEW" : "EXISTING")} - {stage.StagedLaboratory.Name}");
 
-            stagingLog.Add($"[ORDERING PROVIDER] Calling ExtractOrderingProviderName...");
-            _logger.LogInformation("[STAGING] About to call ExtractOrderingProviderName for message {MessageControlId}", message.MessageControlId);
-
-            var providerName = ExtractOrderingProviderName(message, configuration);
-
-            stagingLog.Add($"Ordering provider name extracted: '{providerName ?? "NULL"}'");
-            _logger.LogInformation("[STAGING] ExtractOrderingProviderName returned: '{ProviderName}'", providerName ?? "NULL");
-            if (!string.IsNullOrWhiteSpace(providerName))
+            var providerIdentity = _providerIdentityExtractionService.Extract(message, configuration);
+            if (providerIdentity != null)
             {
-                stagingLog.Add($"  Provider name length: {providerName.Length} characters");
-                stagingLog.Add($"  Normalized: '{NormalizeOrganizationName(providerName)}'");
+                stagingLog.Add("Ordering provider identity extracted.");
+                var providerResolution = await _providerIdentityResolutionService.ResolveAsync(
+                    providerIdentity,
+                    configuration?.ProviderMatchingMode ?? ProviderMatchingMode.SafeNameFallback,
+                    configuration?.AutoCreateOrganizations ?? false,
+                    cancellationToken);
 
-                // Try multiple OrganizationType names in order of preference
-                // Ordering providers are typically individual practitioners, not organizations
-                string[] providerTypeNames = { "Medical Practitioner", "Healthcare Provider", "Provider", "Clinic" };
-
-                foreach (var typeName in providerTypeNames)
+                if (providerResolution.IsAmbiguous)
                 {
-                    stagingLog.Add($"  Trying OrganizationType: '{typeName}'");
-
-                    stage.StagedOrderingProvider = await StageOrganizationAsync(
-                        providerName,
-                        typeName,
-                        configuration?.AutoCreateOrganizations ?? false,
-                        null,
-                        cancellationToken);
-
-                    if (stage.StagedOrderingProvider != null)
-                    {
-                        stagingLog.Add($"  ✅ SUCCESS: Using OrganizationType '{typeName}'");
-                        break;
-                    }
-                    else
-                    {
-                        stagingLog.Add($"  ⚠️ OrganizationType '{typeName}' not found in database");
-                    }
+                    stagingLog.Add("❌ Ordering provider identity matched multiple organizations.");
+                    stage.RequiresManualReview = true;
+                    stage.Decision = ProcessingDecision.ManualReview;
+                    stage.ManualReviewReason = providerResolution.Reason;
+                    stage.Errors.Add(providerResolution.Reason ?? "Ambiguous ordering provider identity");
+                    stage.Warnings.AddRange(stagingLog);
+                    return stage;
                 }
 
-                // If none of the type names worked, list available types for debugging
-                if (stage.StagedOrderingProvider == null)
+                if (providerResolution.ExistingOrganization != null)
                 {
-                    var availableTypes = await _context.OrganizationTypes
-                        .IgnoreQueryFilters()
-                        .Select(ot => ot.Name)
-                        .ToListAsync(cancellationToken);
-
-                    if (availableTypes.Any())
-                    {
-                        stagingLog.Add($"  📋 Available OrganizationTypes in database: {string.Join(", ", availableTypes)}");
-                        stagingLog.Add($"  💡 Tip: Add one of these types to the database or update the code to use an existing type");
-                    }
-                    else
-                    {
-                        stagingLog.Add($"  ❌ CRITICAL: No OrganizationTypes found in database at all!");
-                    }
+                    var existingProvider = providerResolution.ExistingOrganization;
+                    stage.StagedOrderingProvider = CreateStagedProvider(
+                        providerIdentity,
+                        existingProvider,
+                        existingProvider.OrganizationType?.Name ??
+                        (await _context.OrganizationTypes
+                            .IgnoreQueryFilters()
+                            .Where(type => type.Id == existingProvider.OrganizationTypeId)
+                            .Select(type => type.Name)
+                            .FirstOrDefaultAsync(cancellationToken) ?? "Medical Practitioner"),
+                        providerResolution.MayEnrichIdentity,
+                        providerResolution.MatchBasis);
+                }
+                else if (providerResolution.NewOrganizationTypeId.HasValue)
+                {
+                    stage.StagedOrderingProvider = CreateStagedProvider(
+                        providerIdentity,
+                        existingOrganization: null,
+                        providerResolution.NewOrganizationTypeName ?? "Medical Practitioner",
+                        mayEnrichIdentity: false,
+                        ProviderMatchBasis.None);
+                }
+                else
+                {
+                    stagingLog.Add("No existing ordering provider matched and auto-create is disabled.");
                 }
             }
             else
             {
-                stagingLog.Add($"  ⚠️ No ordering provider extracted from OBR segment");
+                stagingLog.Add("No ordering provider identity was present in the configured ORC/OBR fields.");
             }
 
             if (stage.StagedOrderingProvider != null)
             {
                 var providerInfo = stage.StagedOrderingProvider.IsNew
-                    ? $"NEW ordering provider to be created: {stage.StagedOrderingProvider.Name} (Type: {stage.StagedOrderingProvider.OrganizationTypeName})"
-                    : $"EXISTING ordering provider matched: ID={stage.StagedOrderingProvider.ExistingOrganizationId}, Name={stage.StagedOrderingProvider.Name} (Type: {stage.StagedOrderingProvider.OrganizationTypeName})";
+                    ? $"NEW ordering provider to be created (Type: {stage.StagedOrderingProvider.OrganizationTypeName})"
+                    : $"EXISTING ordering provider matched (Type: {stage.StagedOrderingProvider.OrganizationTypeName})";
                 stagingLog.Add($"✅ SUCCESS: {providerInfo}");
             }
             else
@@ -4025,6 +3764,44 @@ public class HL7DataExtractionService : IHL7DataExtractionService
     /// <summary>
     /// STEP 2: Match or stage organization (laboratory or ordering provider)
     /// </summary>
+    private static StagedOrganization CreateStagedProvider(
+        ProviderIdentity identity,
+        Organization? existingOrganization,
+        string organizationTypeName,
+        bool mayEnrichIdentity,
+        ProviderMatchBasis matchBasis) =>
+        new()
+        {
+            ExistingOrganization = existingOrganization,
+            ExistingOrganizationId = existingOrganization?.Id,
+            IsNew = existingOrganization == null,
+            Name = existingOrganization?.Name ?? identity.DisplayName,
+            OrganizationTypeName = organizationTypeName,
+            ProviderIdentifier = ProviderIdentityUtility.NormalizeIdentifier(identity.Identifier),
+            ProviderIdentifierAuthority = ProviderIdentityUtility.NormalizeAuthority(identity.IdentifierAuthority),
+            GivenName = identity.GivenName,
+            MiddleName = identity.MiddleName,
+            FamilyName = identity.FamilyName,
+            NamePrefix = identity.NamePrefix,
+            NameSuffix = identity.NameSuffix,
+            Credentials = identity.Credentials,
+            MayEnrichProviderIdentity = mayEnrichIdentity,
+            ProviderMatchBasis = matchBasis
+        };
+
+    private static ProviderIdentity ToProviderIdentity(StagedOrganization stagedOrganization) =>
+        new()
+        {
+            Identifier = stagedOrganization.ProviderIdentifier,
+            IdentifierAuthority = stagedOrganization.ProviderIdentifierAuthority,
+            GivenName = stagedOrganization.GivenName,
+            MiddleName = stagedOrganization.MiddleName,
+            FamilyName = stagedOrganization.FamilyName,
+            NamePrefix = stagedOrganization.NamePrefix,
+            NameSuffix = stagedOrganization.NameSuffix,
+            Credentials = stagedOrganization.Credentials
+        };
+
     private async Task<StagedOrganization?> StageOrganizationAsync(
         string? organizationName,
         string organizationTypeName,
@@ -8328,7 +8105,7 @@ public class HL7DataExtractionService : IHL7DataExtractionService
                 {
                     if (stage.StagedOrderingProvider.IsNew)
                     {
-                        commitLog.Add($"Creating NEW ordering provider: {stage.StagedOrderingProvider.Name}");
+                        commitLog.Add("Creating NEW ordering provider");
 
                         // Look up organization type by name
                         var providerOrgType = await _context.OrganizationTypes
@@ -8345,26 +8122,58 @@ public class HL7DataExtractionService : IHL7DataExtractionService
 
                         commitLog.Add($"  OrganizationType: '{providerOrgType.Name}' (ID={providerOrgType.Id})");
 
-                        // Build new Organization entity from staged data
-                        var newProvider = new Organization
-                        {
-                            Name = stage.StagedOrderingProvider.Name,
-                            OrganizationTypeId = providerOrgType.Id,
-                            IsActive = true
-                        };
+                        var stagedProviderIdentity = ToProviderIdentity(stage.StagedOrderingProvider);
+                        var newProvider = _providerIdentityResolutionService.CreateOrganization(
+                            stagedProviderIdentity,
+                            providerOrgType.Id);
 
                         _context.Organizations.Add(newProvider);
-                        await _context.SaveChangesAsync(cancellationToken);
-                        result.OrderingProvider = newProvider;
-                        commitLog.Add($"✅ Ordering provider created successfully: ID={result.OrderingProvider.Id}, Type={providerOrgType.Name}");
-                        result.Warnings.Add($"[ORDERING PROVIDER] ✅ Created provider: {result.OrderingProvider.Name} (Type: {providerOrgType.Name})");
-                        _logger.LogInformation("[STAGING COMMIT] Created ordering provider {OrgId} with type {TypeId}", result.OrderingProvider.Id, providerOrgType.Id);
+                        try
+                        {
+                            await _context.SaveChangesAsync(cancellationToken);
+                            result.OrderingProvider = newProvider;
+                            commitLog.Add($"✅ Ordering provider created successfully: ID={result.OrderingProvider.Id}, Type={providerOrgType.Name}");
+                            result.Warnings.Add($"[ORDERING PROVIDER] ✅ Created provider (Type: {providerOrgType.Name})");
+                            _logger.LogInformation(
+                                "[STAGING COMMIT] Created ordering provider {OrgId} with type {TypeId}",
+                                result.OrderingProvider.Id,
+                                providerOrgType.Id);
+                        }
+                        catch (DbUpdateException exception)
+                            when (ProviderIdentityResolutionService.IsProviderIdentityConflict(exception))
+                        {
+                            // Another message created the same authority-scoped identity
+                            // after staging. Re-resolve rather than producing a duplicate.
+                            _context.Entry(newProvider).State = EntityState.Detached;
+                            var concurrentResolution = await _providerIdentityResolutionService.ResolveAsync(
+                                stagedProviderIdentity,
+                                ProviderMatchingMode.IdentifierOnly,
+                                autoCreate: false,
+                                cancellationToken);
+
+                            if (concurrentResolution.ExistingOrganization == null)
+                                throw;
+
+                            result.OrderingProvider = concurrentResolution.ExistingOrganization;
+                            commitLog.Add($"✅ Reused concurrently created ordering provider: ID={result.OrderingProvider.Id}");
+                            result.Warnings.Add("[ORDERING PROVIDER] ✅ Matched provider created by concurrent intake");
+                            _logger.LogInformation(
+                                "[STAGING COMMIT] Reused concurrently created ordering provider {OrgId}",
+                                result.OrderingProvider.Id);
+                        }
                     }
                     else
                     {
                         result.OrderingProvider = stage.StagedOrderingProvider.ExistingOrganization;
-                        commitLog.Add($"✅ Using EXISTING ordering provider: ID={result.OrderingProvider!.Id}, Name={result.OrderingProvider.Name}");
-                        result.Warnings.Add($"[ORDERING PROVIDER] ✅ Matched existing provider: {result.OrderingProvider!.Name}");
+                        if (stage.StagedOrderingProvider.MayEnrichProviderIdentity)
+                        {
+                            _providerIdentityResolutionService.ApplyMissingIdentity(
+                                result.OrderingProvider!,
+                                ToProviderIdentity(stage.StagedOrderingProvider));
+                        }
+                        commitLog.Add(
+                            $"✅ Using EXISTING ordering provider: ID={result.OrderingProvider!.Id}, Match={stage.StagedOrderingProvider.ProviderMatchBasis}");
+                        result.Warnings.Add("[ORDERING PROVIDER] ✅ Matched existing provider");
                     }
                 }
                 else

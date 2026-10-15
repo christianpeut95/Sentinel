@@ -341,6 +341,75 @@
 
                     <div class="sn-divider"></div>
 
+                    @if (!string.IsNullOrWhiteSpace(Model.Organization.ProviderIdentifier) ||
+                         !string.IsNullOrWhiteSpace(Model.Organization.ProviderIdentifierAuthority) ||
+                         !string.IsNullOrWhiteSpace(Model.Organization.GivenName) ||
+                         !string.IsNullOrWhiteSpace(Model.Organization.MiddleName) ||
+                         !string.IsNullOrWhiteSpace(Model.Organization.FamilyName) ||
+                         !string.IsNullOrWhiteSpace(Model.Organization.NamePrefix) ||
+                         !string.IsNullOrWhiteSpace(Model.Organization.NameSuffix) ||
+                         !string.IsNullOrWhiteSpace(Model.Organization.Credentials))
+                    {
+                        <div class="sn-section-title">
+                            <i class="bi bi-person-badge"></i>Provider Identity
+                        </div>
+                        <div class="row mb-4">
+                            <div class="col-md-6">
+                                <div class="sn-field-group">
+                                    <label class="sn-field-label">Provider Identifier</label>
+                                    <div class="sn-field-value">@(Model.Organization.ProviderIdentifier ?? "-")</div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="sn-field-group">
+                                    <label class="sn-field-label">Identifier Authority</label>
+                                    <div class="sn-field-value">@(Model.Organization.ProviderIdentifierAuthority ?? "-")</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row mb-4">
+                            <div class="col-md-4">
+                                <div class="sn-field-group">
+                                    <label class="sn-field-label">Given Name</label>
+                                    <div class="sn-field-value">@(Model.Organization.GivenName ?? "-")</div>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="sn-field-group">
+                                    <label class="sn-field-label">Middle Name</label>
+                                    <div class="sn-field-value">@(Model.Organization.MiddleName ?? "-")</div>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="sn-field-group">
+                                    <label class="sn-field-label">Family Name</label>
+                                    <div class="sn-field-value">@(Model.Organization.FamilyName ?? "-")</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row mb-4">
+                            <div class="col-md-4">
+                                <div class="sn-field-group">
+                                    <label class="sn-field-label">Prefix</label>
+                                    <div class="sn-field-value">@(Model.Organization.NamePrefix ?? "-")</div>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="sn-field-group">
+                                    <label class="sn-field-label">Suffix</label>
+                                    <div class="sn-field-value">@(Model.Organization.NameSuffix ?? "-")</div>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="sn-field-group">
+                                    <label class="sn-field-label">Credentials</label>
+                                    <div class="sn-field-value">@(Model.Organization.Credentials ?? "-")</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="sn-divider"></div>
+                    }
+
                     <div class="sn-section-title">
                         <i class="bi bi-geo-alt"></i>Address
                     </div>

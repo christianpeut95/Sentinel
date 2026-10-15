@@ -35,7 +35,8 @@ namespace Sentinel.Pages.Organizations
 
             var organization = await _context.Organizations
                 .Include(o => o.OrganizationType)
-                .FirstOrDefaultAsync(m => m.Id == id);
+                .AsNoTracking()
+                .FirstOrDefaultAsync(m => m.Id == id, HttpContext.RequestAborted);
 
             if (organization == null)
             {

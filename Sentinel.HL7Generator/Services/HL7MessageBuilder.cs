@@ -165,7 +165,8 @@ public class HL7MessageBuilder
         if (_request.OrderingProvider != null)
         {
             var provider = _request.OrderingProvider;
-            _message.Append($"{provider.FamilyName}{ComponentSeparator}{provider.GivenName}{ComponentSeparator}{ComponentSeparator}{ComponentSeparator}{ComponentSeparator}{ComponentSeparator}{ComponentSeparator}{ComponentSeparator}{provider.NPI}");
+            // XCN: ID^Family^Given^Middle^Suffix^Prefix^Degree^SourceTable^AssigningAuthority
+            _message.Append($"{provider.NPI}{ComponentSeparator}{provider.FamilyName}{ComponentSeparator}{provider.GivenName}");
         }
         _message.Append(FieldSeparator);
         _message.Append(string.Empty); // Order Callback Phone Number (OBR-17)

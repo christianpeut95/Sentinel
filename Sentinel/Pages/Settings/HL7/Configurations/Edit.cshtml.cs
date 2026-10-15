@@ -83,6 +83,7 @@ namespace Sentinel.Pages.Settings.HL7.Configurations
             existingConfig.ArchiveProcessedFiles = Configuration.ArchiveProcessedFiles;
             existingConfig.ArchivePath = Configuration.ArchivePath;
             existingConfig.PatientMatchingStrategy = Configuration.PatientMatchingStrategy;
+            existingConfig.ProviderMatchingMode = Configuration.ProviderMatchingMode;
             existingConfig.AutoCreatePatients = Configuration.AutoCreatePatients;
             existingConfig.DuplicateDetectionStrategy = Configuration.DuplicateDetectionStrategy;
             existingConfig.DuplicateDetectionWindowHours = Configuration.DuplicateDetectionWindowHours;

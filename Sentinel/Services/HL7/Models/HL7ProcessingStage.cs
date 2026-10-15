@@ -2,6 +2,7 @@ using Sentinel.Models;
 using Sentinel.Models.Lookups;
 using Sentinel.Models.CaseDefinitions;
 using Sentinel.Models.Pathogens;
+using Sentinel.Services.HL7;
 
 namespace Sentinel.Services.HL7.Models
 {
@@ -80,6 +81,16 @@ namespace Sentinel.Services.HL7.Models
 
         public string Name { get; set; } = string.Empty;
         public string OrganizationTypeName { get; set; } = string.Empty; // "Laboratory" or "Healthcare Provider"
+        public string? ProviderIdentifier { get; set; }
+        public string? ProviderIdentifierAuthority { get; set; }
+        public string? GivenName { get; set; }
+        public string? MiddleName { get; set; }
+        public string? FamilyName { get; set; }
+        public string? NamePrefix { get; set; }
+        public string? NameSuffix { get; set; }
+        public string? Credentials { get; set; }
+        public bool MayEnrichProviderIdentity { get; set; }
+        public ProviderMatchBasis ProviderMatchBasis { get; set; }
     }
 
     /// <summary>

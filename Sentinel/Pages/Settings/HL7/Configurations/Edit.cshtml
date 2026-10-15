@@ -144,6 +144,30 @@
                 </div>
             </div>
 
+            <!-- Ordering Provider Matching -->
+            <div class="sentinel-card mb-4">
+                <div class="sentinel-card-body">
+                    <h3 class="sentinel-section-title">Ordering Provider Matching</h3>
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label asp-for="Configuration.ProviderMatchingMode" class="sn-label"></label>
+                            <select asp-for="Configuration.ProviderMatchingMode"
+                                    class="sn-input"
+                                    asp-items="Html.GetEnumSelectList<Sentinel.Models.ProviderMatchingMode>()"></select>
+                            <span asp-validation-for="Configuration.ProviderMatchingMode" class="text-danger"></span>
+                        </div>
+                    </div>
+
+                    <div class="alert alert-info mt-3" role="alert">
+                        <div style="font-size:12px;line-height:1.8">
+                            <strong>Identifier only:</strong> Requires a provider ID and never matches by name alone.<br>
+                            <strong>Safe name fallback:</strong> Allows a unique name match only when the message has no provider ID. If the message has an ID but the record does not, it is sent for review.<br>
+                            <strong>Trusted identity enrichment:</strong> Also permits a unique structured-name match to add a missing provider ID. Use only for verified sending sources.
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <!-- Duplicate Detection -->
             <div class="sentinel-card mb-4">
                 <div class="sentinel-card-body">
@@ -181,8 +205,11 @@
                         <div class="col-md-6">
                             <label class="sn-label">
                                 <input asp-for="Configuration.AutoCreateOrganizations" type="checkbox" style="margin-right:8px;width:auto" />
-                                Auto-create laboratories from message
+                                Auto-create laboratories and ordering providers from message
                             </label>
+                            <small class="form-text d-block" style="color:var(--graphite);margin-top:4px">
+                                Creates a new organization only when the configured matching policy finds no safe match
+                            </small>
                         </div>
                     </div>
                 </div>

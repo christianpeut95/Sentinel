@@ -99,6 +99,8 @@ public static class SentinelDomainServiceExtensions
         services.AddScoped<Sentinel.Services.HL7.IHL7ParserService, Sentinel.Services.HL7.HL7ParserService>();
         services.AddScoped<Sentinel.Services.HL7.IDuplicateDetectionService, Sentinel.Services.HL7.DuplicateDetectionService>();
         services.AddScoped<Sentinel.Services.HL7.IHL7FieldMappingService, Sentinel.Services.HL7.HL7FieldMappingService>();
+        services.AddScoped<Sentinel.Services.HL7.IProviderIdentityExtractionService, Sentinel.Services.HL7.ProviderIdentityExtractionService>();
+        services.AddScoped<Sentinel.Services.HL7.IProviderIdentityResolutionService, Sentinel.Services.HL7.ProviderIdentityResolutionService>();
         services.AddScoped<Sentinel.Services.HL7.IHL7DataExtractionService, Sentinel.Services.HL7.HL7DataExtractionService>();
         services.AddScoped<Sentinel.Services.HL7.IHL7MarkerResolutionService, Sentinel.Services.HL7.HL7MarkerResolutionService>();
         services.AddScoped<Sentinel.Services.HL7.ICaseDefinitionMatchingService, Sentinel.Services.HL7.CaseDefinitionMatchingService>();

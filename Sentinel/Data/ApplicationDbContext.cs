@@ -565,6 +565,18 @@ namespace Sentinel.Data
             builder.Entity<Organization>()
                 .HasIndex(o => o.ExportCode);
 
+            // Provider identifiers are unique within their assigning authority. This
+            // permits source-local identifiers while preventing concurrent intake from
+            // creating duplicate identities for the same authority.
+            builder.Entity<Organization>()
+                .HasIndex(o => new { o.ProviderIdentifier, o.ProviderIdentifierAuthority })
+                .IsUnique()
+                .HasDatabaseName(Organization.ProviderIdentityUniqueIndexName)
+                .HasFilter("[ProviderIdentifier] IS NOT NULL");
+
+            builder.Entity<Organization>()
+                .HasIndex(o => new { o.FamilyName, o.GivenName });
+
             // Disease Access Control Configuration
             builder.Entity<RoleDiseaseAccess>()
                 .HasIndex(rda => new { rda.RoleId, rda.DiseaseId })

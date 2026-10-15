@@ -14,6 +14,7 @@ using V23_OBR = NHapi.Model.V23.Segment.OBR;
 using V23_OBX = NHapi.Model.V23.Segment.OBX;
 using Sentinel.Data;
 using Sentinel.Models;
+using Sentinel.Services.HL7.Models;
 
 namespace Sentinel.Services.HL7;
 
@@ -870,7 +871,7 @@ public class HL7ParserService : IHL7ParserService
                 if (!string.IsNullOrEmpty(providerName))
                 {
                     data["OrderingProvider"] = providerName;
-                    _logger.LogDebug("Ordering provider from OBR-16: {Provider}", providerName);
+                    _logger.LogDebug("Ordering provider identity read from OBR-16");
                 }
                 else
                 {
@@ -891,7 +892,7 @@ public class HL7ParserService : IHL7ParserService
                                 if (!string.IsNullOrEmpty(providerName))
                                 {
                                     data["OrderingProvider"] = providerName;
-                                    _logger.LogInformation("V2.3: Ordering provider from OBR-16 (raw): {Provider}", providerName);
+                                    _logger.LogDebug("V2.3 ordering provider identity read from raw OBR-16");
                                 }
                             }
                         }
@@ -1112,7 +1113,7 @@ public class HL7ParserService : IHL7ParserService
                 {
                     // Get the raw encoded segment string
                     var rawSegment = PipeParser.Encode(obr, new EncodingCharacters('|', "^~\\&"));
-                    _logger.LogDebug("V25: Raw OBR segment (FULL): {Segment}", rawSegment);
+                    _logger.LogDebug("V25: Encoded OBR segment available for fallback parsing");
 
                     // Split by pipe to get fields (field 0 is segment name "OBR")
                     var fields = rawSegment.Split('|');
@@ -1177,9 +1178,6 @@ public class HL7ParserService : IHL7ParserService
                 var familyName = provider.FamilyName?.Surname?.Value ?? "";
                 var providerId = provider.IDNumber?.Value ?? "";
 
-                _logger.LogDebug("V25: Provider components: GivenName={Given}, FamilyName={Family}, ID={Id}", 
-                    givenName, familyName, providerId);
-
                 var providerName = $"{givenName} {familyName}".Trim();
 
                 // If no name, try ID
@@ -1191,7 +1189,7 @@ public class HL7ParserService : IHL7ParserService
                 if (!string.IsNullOrEmpty(providerName))
                 {
                     data["OrderingProvider"] = providerName;
-                    _logger.LogInformation("V25: Ordering provider from OBR-16 (structured): {Provider}", providerName);
+                    _logger.LogDebug("V2.5 ordering provider identity read from structured OBR-16");
                 }
                 else
                 {
@@ -1212,7 +1210,7 @@ public class HL7ParserService : IHL7ParserService
                     var fields = rawSegment.Split('|');
                     _logger.LogDebug("V25: OBR-16 split into {Count} fields", fields.Length);
 
-                    string providerName = null;
+                    string? providerName = null;
 
                     // Check standard position OBR-16 (index 16)
                     if (fields.Length >= 17)
@@ -1258,88 +1256,19 @@ public class HL7ParserService : IHL7ParserService
         return data;
     }
 
-    private string ParseProviderName(string fieldValue, string fieldLocation)
+    private string? ParseProviderName(string fieldValue, string fieldLocation)
     {
         try
         {
-            // Parse XCN (Extended Composite ID Number and Name) format:
-            // Standard: ID^LastName^FirstName^MiddleName^Suffix^Prefix^Degree^SourceTable^AssigningAuthority
-            // Alternate: LastName^FirstName^MiddleName... (when ID is in later component)
-            var components = fieldValue.Split('^');
+            var identity = ProviderIdentityUtility.ParseXcn(fieldValue);
+            if (identity != null)
+                _logger.LogDebug("Ordering provider identity parsed from {Location}", fieldLocation);
 
-            if (components.Length >= 3)
-            {
-                // Check if first component is likely an ID (numeric) or a name (alpha)
-                var comp0 = components[0].Trim();
-                var comp1 = components[1].Trim();
-                var comp2 = components[2].Trim();
-
-                string providerName = null;
-                string id = null;
-
-                // If component 0 is empty or looks like a name, assume format: LastName^FirstName
-                if (string.IsNullOrEmpty(comp0) || !char.IsDigit(comp0[0]))
-                {
-                    // Format: LastName^FirstName^...^...^...^...^...^...^ProviderId
-                    var lastName = comp0;
-                    var firstName = comp1;
-                    providerName = $"{firstName} {lastName}".Trim();
-
-                    // ID might be in a later component (e.g., component 8)
-                    if (components.Length > 8 && !string.IsNullOrWhiteSpace(components[8]))
-                    {
-                        id = components[8].Trim();
-                    }
-                }
-                else
-                {
-                    // Standard format: ID^LastName^FirstName
-                    id = comp0;
-                    var lastName = comp1;
-                    var firstName = comp2;
-                    providerName = $"{firstName} {lastName}".Trim();
-                }
-
-                if (!string.IsNullOrEmpty(providerName))
-                {
-                    _logger.LogInformation("Ordering provider from {Location}: {Provider} (ID: {Id})", 
-                        fieldLocation, providerName, id ?? "N/A");
-                    return providerName;
-                }
-                else if (!string.IsNullOrEmpty(id))
-                {
-                    // Use ID as fallback
-                    _logger.LogInformation("Ordering provider from {Location} (ID only): {Provider}", 
-                        fieldLocation, id);
-                    return id;
-                }
-            }
-            else if (components.Length >= 2)
-            {
-                // Just two components - assume LastName^FirstName
-                var lastName = components[0].Trim();
-                var firstName = components[1].Trim();
-                var providerName = $"{firstName} {lastName}".Trim();
-
-                if (!string.IsNullOrEmpty(providerName))
-                {
-                    _logger.LogInformation("Ordering provider from {Location}: {Provider}", 
-                        fieldLocation, providerName);
-                    return providerName;
-                }
-            }
-            else if (components.Length > 0 && !string.IsNullOrWhiteSpace(components[0]))
-            {
-                // Fallback: use first component only
-                var value = components[0].Trim();
-                _logger.LogInformation("Ordering provider from {Location} (single value): {Provider}", 
-                    fieldLocation, value);
-                return value;
-            }
+            return identity?.DisplayName;
         }
         catch (Exception ex)
         {
-            _logger.LogDebug(ex, "Failed to parse provider name from {Location}: {Value}", fieldLocation, fieldValue);
+            _logger.LogDebug(ex, "Failed to parse provider identity from {Location}", fieldLocation);
         }
 
         return null;

@@ -11,6 +11,7 @@ using Sentinel.Data;
 using Sentinel.Models;
 using Sentinel.Models.Lookups;
 using Sentinel.Services.HL7;
+using Sentinel.Services.HL7.Models;
 using Xunit;
 
 namespace Sentinel.Tests.Services.HL7
@@ -24,6 +25,7 @@ namespace Sentinel.Tests.Services.HL7
         private readonly Mock<ILogger<HL7DataExtractionService>> _mockLogger;
         private readonly Mock<ILogger<HL7ParserService>> _mockParserLogger;
         private readonly HL7ParserService _parserService;
+        private readonly ProviderIdentityExtractionService _providerIdentityExtractionService;
         private readonly HL7DataExtractionService _service;
 
         public HL7DataExtractionServiceTests()
@@ -60,6 +62,11 @@ namespace Sentinel.Tests.Services.HL7
 
             var mockFieldMappingService = new Mock<IHL7FieldMappingService>();
             var mockCaseDefinitionMatchingService = new Mock<ICaseDefinitionMatchingService>();
+            _providerIdentityExtractionService = new ProviderIdentityExtractionService(
+                new Mock<ILogger<ProviderIdentityExtractionService>>().Object);
+            var providerIdentityResolutionService = new ProviderIdentityResolutionService(
+                _context,
+                new Mock<ILogger<ProviderIdentityResolutionService>>().Object);
 
             // Use real HL7ParserService for authentic test messages
             _parserService = new HL7ParserService(_context, _mockParserLogger.Object);
@@ -71,7 +78,9 @@ namespace Sentinel.Tests.Services.HL7
                 _mockCaseMatchingService.Object,
                 mockMarkerResolutionService.Object,
                 mockFieldMappingService.Object,
-                mockCaseDefinitionMatchingService.Object);
+                mockCaseDefinitionMatchingService.Object,
+                _providerIdentityExtractionService,
+                providerIdentityResolutionService);
 
             SeedLookupData();
         }
@@ -730,7 +739,343 @@ namespace Sentinel.Tests.Services.HL7
 
         #endregion
 
+        #region Ordering Provider Tests
+
+        [Fact]
+        public void ExtractOrderingProviderIdentity_UsesStandardObr16AcrossAllObrSegments()
+        {
+            var message = new HL7Message
+            {
+                MessageControlId = "PROVIDER-EXTRACT",
+                Segments = new List<HL7MessageSegment>
+                {
+                    new() { SegmentType = "OBR", RawSegment = "OBR|1||ACC-1|TEST", SequenceNumber = 1 },
+                    new()
+                    {
+                        SegmentType = "OBR",
+                        RawSegment = BuildObrWithProvider("AB-123^Nguyen^Mai^Lan^^Dr^MBBS^^AHPRA&1.2.36&ISO"),
+                        SequenceNumber = 2
+                    }
+                }
+            };
+
+            var identity = _providerIdentityExtractionService.Extract(message);
+
+            Assert.NotNull(identity);
+            Assert.Equal("AB123", identity.Identifier);
+            Assert.Equal("AHPRA", identity.IdentifierAuthority);
+            Assert.Equal("Mai", identity.GivenName);
+            Assert.Equal("Lan", identity.MiddleName);
+            Assert.Equal("Nguyen", identity.FamilyName);
+        }
+
+        [Fact]
+        public void ExtractOrderingProviderIdentity_DoesNotTreatOrc14PhoneAsProviderId()
+        {
+            var fields = Enumerable.Repeat(string.Empty, 15).ToArray();
+            fields[0] = "ORC";
+            fields[1] = "RE";
+            fields[14] = "+61 8 5555 0100";
+            var message = new HL7Message
+            {
+                MessageControlId = "PROVIDER-PHONE",
+                Segments = new List<HL7MessageSegment>
+                {
+                    new()
+                    {
+                        SegmentType = "ORC",
+                        RawSegment = string.Join('|', fields),
+                        SequenceNumber = 1
+                    }
+                }
+            };
+
+            Assert.Null(_providerIdentityExtractionService.Extract(message));
+        }
+
+        [Fact]
+        public void ExtractOrderingProviderIdentity_HonoursConfiguredFieldPath()
+        {
+            var fields = Enumerable.Repeat(string.Empty, 15).ToArray();
+            fields[0] = "ORC";
+            fields[1] = "RE";
+            fields[14] = "PX-77^Patel^Asha";
+            var message = new HL7Message
+            {
+                MessageControlId = "PROVIDER-CONFIGURED",
+                Segments = new List<HL7MessageSegment>
+                {
+                    new()
+                    {
+                        SegmentType = "ORC",
+                        RawSegment = string.Join('|', fields),
+                        SequenceNumber = 1
+                    }
+                }
+            };
+            var configuration = new HL7Configuration
+            {
+                FieldMappings = new List<HL7FieldMapping>
+                {
+                    new()
+                    {
+                        IsActive = true,
+                        Priority = 200,
+                        SegmentType = "ORC",
+                        FieldPath = "ORC-14.2",
+                        TargetEntity = "Organization",
+                        TargetProperty = "OrderingProvider"
+                    }
+                }
+            };
+
+            var identity = _providerIdentityExtractionService.Extract(message, configuration);
+
+            Assert.NotNull(identity);
+            Assert.Equal("PX77", identity.Identifier);
+            Assert.Equal("Asha", identity.GivenName);
+            Assert.Equal("Patel", identity.FamilyName);
+        }
+
+        [Fact]
+        public async Task ResolveProviderOrganizationAsync_IdentifierWinsWhenDisplayNameChanges()
+        {
+            var existingProvider = new Organization
+            {
+                Id = Guid.NewGuid(),
+                Name = "Dr Existing Name",
+                OrganizationTypeId = 2,
+                ProviderIdentifier = "AB123",
+                ProviderIdentifierAuthority = "AHPRA",
+                GivenName = "Existing",
+                FamilyName = "Name",
+                IsActive = true
+            };
+            _context.Organizations.Add(existingProvider);
+            await _context.SaveChangesAsync();
+
+            var resolution = await _service.ResolveProviderOrganizationAsync(
+                new ProviderIdentity
+                {
+                    Identifier = "ab-123",
+                    IdentifierAuthority = "ahpra",
+                    GivenName = "Changed",
+                    FamilyName = "Display"
+                },
+                autoCreate: false,
+                CancellationToken.None);
+
+            Assert.Equal(existingProvider.Id, resolution.ExistingOrganization?.Id);
+            Assert.False(resolution.IsAmbiguous);
+        }
+
+        [Fact]
+        public async Task ResolveProviderOrganizationAsync_LegacyDisplayNameIgnoresIncomingPrefix()
+        {
+            var existingProvider = new Organization
+            {
+                Id = Guid.NewGuid(),
+                Name = "Mai Nguyen",
+                OrganizationTypeId = 2,
+                IsActive = true
+            };
+            _context.Organizations.Add(existingProvider);
+            await _context.SaveChangesAsync();
+
+            var resolution = await _service.ResolveProviderOrganizationAsync(
+                new ProviderIdentity
+                {
+                    NamePrefix = "Dr",
+                    GivenName = "Mai",
+                    FamilyName = "Nguyen"
+                },
+                autoCreate: false,
+                CancellationToken.None);
+
+            Assert.Equal(existingProvider.Id, resolution.ExistingOrganization?.Id);
+        }
+
+        [Fact]
+        public async Task ResolveProviderOrganizationAsync_AuthorityDisambiguatesSameIdentifier()
+        {
+            var ahpraProvider = Provider("AHPRA provider", "12345", "AHPRA");
+            var localProvider = Provider("Local provider", "12345", "LOCAL");
+            _context.Organizations.AddRange(ahpraProvider, localProvider);
+            await _context.SaveChangesAsync();
+
+            var resolution = await _service.ResolveProviderOrganizationAsync(
+                new ProviderIdentity { Identifier = "12345", IdentifierAuthority = "AHPRA" },
+                autoCreate: false,
+                CancellationToken.None);
+
+            Assert.Equal(ahpraProvider.Id, resolution.ExistingOrganization?.Id);
+            Assert.False(resolution.IsAmbiguous);
+        }
+
+        [Fact]
+        public async Task ResolveProviderOrganizationAsync_SingleIdentifierWithoutStoredAuthorityCanBeEnriched()
+        {
+            var existingProvider = Provider("Legacy provider", "12345", string.Empty);
+            existingProvider.ProviderIdentifierAuthority = null;
+            _context.Organizations.Add(existingProvider);
+            await _context.SaveChangesAsync();
+
+            var resolution = await _service.ResolveProviderOrganizationAsync(
+                new ProviderIdentity { Identifier = "12345", IdentifierAuthority = "AHPRA" },
+                autoCreate: false,
+                CancellationToken.None);
+
+            Assert.Equal(existingProvider.Id, resolution.ExistingOrganization?.Id);
+            Assert.False(resolution.IsAmbiguous);
+        }
+
+        [Fact]
+        public async Task ResolveProviderOrganizationAsync_MissingAuthorityDoesNotGuessBetweenDuplicates()
+        {
+            _context.Organizations.AddRange(
+                Provider("AHPRA provider", "12345", "AHPRA"),
+                Provider("Local provider", "12345", "LOCAL"));
+            await _context.SaveChangesAsync();
+
+            var resolution = await _service.ResolveProviderOrganizationAsync(
+                new ProviderIdentity { Identifier = "12345" },
+                autoCreate: false,
+                CancellationToken.None);
+
+            Assert.True(resolution.IsAmbiguous);
+            Assert.Null(resolution.ExistingOrganization);
+        }
+
+        [Fact]
+        public async Task ResolveProviderOrganizationAsync_ConflictingIdentifierPreventsNameOnlyMatch()
+        {
+            _context.Organizations.Add(new Organization
+            {
+                Id = Guid.NewGuid(),
+                Name = "Dr Mai Nguyen",
+                OrganizationTypeId = 2,
+                ProviderIdentifier = "DIFFERENT1",
+                GivenName = "Mai",
+                FamilyName = "Nguyen",
+                IsActive = true
+            });
+            await _context.SaveChangesAsync();
+
+            var resolution = await _service.ResolveProviderOrganizationAsync(
+                new ProviderIdentity
+                {
+                    Identifier = "INCOMING2",
+                    GivenName = "Mai",
+                    FamilyName = "Nguyen"
+                },
+                autoCreate: false,
+                CancellationToken.None);
+
+            Assert.Null(resolution.ExistingOrganization);
+            Assert.False(resolution.IsAmbiguous);
+            Assert.NotNull(resolution.Reason);
+        }
+
+        [Fact]
+        public async Task ResolveProviderOrganizationAsync_ConflictingSuffixPreventsStructuredNameMatch()
+        {
+            _context.Organizations.Add(new Organization
+            {
+                Id = Guid.NewGuid(),
+                Name = "Stored provider",
+                OrganizationTypeId = 2,
+                GivenName = "John",
+                FamilyName = "Smith",
+                NameSuffix = "Sr",
+                IsActive = true
+            });
+            await _context.SaveChangesAsync();
+
+            var resolution = await _service.ResolveProviderOrganizationAsync(
+                new ProviderIdentity
+                {
+                    GivenName = "John",
+                    FamilyName = "Smith",
+                    NameSuffix = "Jr"
+                },
+                autoCreate: false,
+                CancellationToken.None);
+
+            Assert.Null(resolution.ExistingOrganization);
+            Assert.False(resolution.IsAmbiguous);
+        }
+
+        [Fact]
+        public async Task ResolveProviderOrganizationAsync_InactiveMatchRequiresManualReview()
+        {
+            var inactiveProvider = Provider("Inactive provider", "999", "AHPRA");
+            inactiveProvider.IsActive = false;
+            _context.Organizations.Add(inactiveProvider);
+            await _context.SaveChangesAsync();
+
+            var resolution = await _service.ResolveProviderOrganizationAsync(
+                new ProviderIdentity { Identifier = "999", IdentifierAuthority = "AHPRA" },
+                autoCreate: true,
+                CancellationToken.None);
+
+            Assert.True(resolution.IsAmbiguous);
+            Assert.Contains("inactive", resolution.Reason, StringComparison.OrdinalIgnoreCase);
+        }
+
+        #endregion
+
         #region Integration Tests
+
+        [Fact]
+        public async Task ExtractAndCreateEntitiesWithStagingAsync_ProviderReview_PersistsReviewFlag()
+        {
+            var laboratoryId = Guid.NewGuid();
+            _context.Organizations.AddRange(
+                new Organization
+                {
+                    Id = laboratoryId,
+                    Name = "Integration Lab",
+                    OrganizationTypeId = 1,
+                    IsActive = true
+                },
+                new Organization
+                {
+                    Id = Guid.NewGuid(),
+                    Name = "Dr Nora NameOnly",
+                    OrganizationTypeId = 2,
+                    GivenName = "Nora",
+                    FamilyName = "NameOnly",
+                    IsActive = true
+                });
+            await _context.SaveChangesAsync();
+
+            const string content = """
+                MSH|^~\&|LAB|Integration Lab|APP|TEST|20261015120000||ORU^R01|PROVIDER-REVIEW-001|P|2.5.1
+                PID|1||PROVIDER-REVIEW-PATIENT||Review^Provider||19900101|F
+                ORC|RE||PROVIDER-REVIEW-ACC|||||||||INCOMING-ID^NameOnly^Nora^^^^^^AHPRA
+                OBR|1||PROVIDER-REVIEW-ACC|TEST^Test||20261015110000
+                OBX|1|ST|TEST^Test||Positive||||||F
+                """;
+            var message = await _parserService.ParseMessageAsync(content);
+            var configuration = new HL7Configuration
+            {
+                DefaultLaboratoryId = laboratoryId,
+                AutoCreatePatients = true,
+                AutoCreateOrganizations = true,
+                PatientMatchingStrategy = PatientMatchingStrategy.StrictMatch,
+                ProviderMatchingMode = ProviderMatchingMode.SafeNameFallback
+            };
+
+            var result = await _service.ExtractAndCreateEntitiesWithStagingAsync(
+                message,
+                configuration);
+
+            Assert.False(result.Success);
+            Assert.True(result.RequiresManualReview);
+            Assert.True(message.RequiresManualReview);
+            Assert.Equal(HL7ProcessingStatus.AwaitingManualReview, message.Status);
+            Assert.Contains("without an identifier", message.ErrorMessage, StringComparison.OrdinalIgnoreCase);
+        }
 
         [Fact]
         public async Task ExtractAndCreateEntitiesAsync_FullWorkflow_CreatesAllEntities()
@@ -882,6 +1227,28 @@ OBR|1||{accessionNumber}|HIV^HIV Test||20260101100000||||||||{providerName}
 OBX|1|ST|HIV-1^HIV-1 Test||Detected||||||F";
 
             return await _parserService.ParseMessageAsync(content);
+        }
+
+        private static Organization Provider(string name, string identifier, string authority) =>
+            new()
+            {
+                Id = Guid.NewGuid(),
+                Name = name,
+                OrganizationTypeId = 2,
+                ProviderIdentifier = identifier,
+                ProviderIdentifierAuthority = authority,
+                IsActive = true
+            };
+
+        private static string BuildObrWithProvider(string xcn)
+        {
+            var fields = Enumerable.Repeat(string.Empty, 17).ToArray();
+            fields[0] = "OBR";
+            fields[1] = "1";
+            fields[3] = "ACC-PROVIDER";
+            fields[4] = "TEST^Test";
+            fields[16] = xcn;
+            return string.Join('|', fields);
         }
 
         #endregion

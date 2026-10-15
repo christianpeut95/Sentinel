@@ -5,6 +5,8 @@ namespace Sentinel.Models
 {
     public class Organization : IAuditable
     {
+        public const string ProviderIdentityUniqueIndexName = "UX_Organizations_ProviderIdentity";
+
         public Guid Id { get; set; }
 
         [Display(Name = "Organization ID")]
@@ -41,6 +43,38 @@ namespace Sentinel.Models
         [Display(Name = "Export Code")]
         [StringLength(50)]
         public string? ExportCode { get; set; }
+
+        [Display(Name = "Provider Identifier")]
+        [StringLength(100)]
+        public string? ProviderIdentifier { get; set; }
+
+        [Display(Name = "Provider Identifier Authority")]
+        [StringLength(100)]
+        public string? ProviderIdentifierAuthority { get; set; }
+
+        [Display(Name = "Given Name")]
+        [StringLength(100)]
+        public string? GivenName { get; set; }
+
+        [Display(Name = "Middle Name")]
+        [StringLength(100)]
+        public string? MiddleName { get; set; }
+
+        [Display(Name = "Family Name")]
+        [StringLength(100)]
+        public string? FamilyName { get; set; }
+
+        [Display(Name = "Name Prefix")]
+        [StringLength(50)]
+        public string? NamePrefix { get; set; }
+
+        [Display(Name = "Name Suffix")]
+        [StringLength(50)]
+        public string? NameSuffix { get; set; }
+
+        [Display(Name = "Credentials")]
+        [StringLength(100)]
+        public string? Credentials { get; set; }
 
         [Display(Name = "Is Active")]
         public bool IsActive { get; set; } = true;

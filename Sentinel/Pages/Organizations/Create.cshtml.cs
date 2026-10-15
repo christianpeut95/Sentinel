@@ -1,116 +1,98 @@
-using System;
 using Microsoft.AspNetCore.Authorization;
-using System.Linq;
-using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
-using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
 using Sentinel.Data;
 using Sentinel.Models;
 using Sentinel.Services;
+using Sentinel.Services.HL7;
 
-namespace Sentinel.Pages.Organizations
+namespace Sentinel.Pages.Organizations;
+
+[Authorize(Policy = "Permission.Settings.Create")]
+public class CreateModel : PageModel
 {
-    [Authorize(Policy = "Permission.Settings.Create")]
-    public class CreateModel : PageModel
+    private readonly ApplicationDbContext _context;
+    private readonly IAuditService _auditService;
+
+    public CreateModel(ApplicationDbContext context, IAuditService auditService)
     {
-        private readonly ApplicationDbContext _context;
-        private readonly IAuditService _auditService;
+        _context = context;
+        _auditService = auditService;
+    }
 
-        public CreateModel(ApplicationDbContext context, IAuditService auditService)
+    [BindProperty]
+    public OrganizationInputModel Input { get; set; } = new() { IsActive = true };
+
+    public async Task<IActionResult> OnGetAsync(CancellationToken cancellationToken)
+    {
+        await LoadFormAsync(cancellationToken);
+        return Page();
+    }
+
+    public async Task<IActionResult> OnPostAsync(CancellationToken cancellationToken)
+    {
+        await OrganizationFormSupport.ValidateReferencesAsync(
+            _context,
+            Input,
+            ModelState,
+            cancellationToken: cancellationToken);
+
+        if (!ModelState.IsValid)
         {
-            _context = context;
-            _auditService = auditService;
-        }
-
-        [BindProperty]
-        public Organization Organization { get; set; } = default!;
-
-        public async Task<IActionResult> OnGetAsync()
-        {
-            ViewData["OrganizationTypeId"] = new SelectList(
-                await _context.OrganizationTypes
-                    .Where(ot => ot.IsActive)
-                    .OrderBy(ot => ot.DisplayOrder)
-                    .ThenBy(ot => ot.Name)
-                    .ToListAsync(),
-                "Id",
-                "Name"
-            );
-
-            Organization = new Organization { IsActive = true };
-
+            await LoadFormAsync(cancellationToken);
+            TempData["ErrorMessage"] = "Please correct the errors and try again.";
             return Page();
         }
 
-        public async Task<IActionResult> OnPostAsync()
+        try
         {
-            if (!ModelState.IsValid)
+            var organizationToCreate = new Organization
             {
-                ViewData["OrganizationTypeId"] = new SelectList(
-                    await _context.OrganizationTypes
-                        .Where(ot => ot.IsActive)
-                        .OrderBy(ot => ot.DisplayOrder)
-                        .ThenBy(ot => ot.Name)
-                        .ToListAsync(),
-                    "Id",
-                    "Name"
-                );
+                Id = Guid.NewGuid(),
+                CreatedAt = DateTime.UtcNow
+            };
+            Input.ApplyTo(organizationToCreate);
 
-                TempData["ErrorMessage"] = "Please correct the errors and try again.";
-                return Page();
-            }
+            _context.Organizations.Add(organizationToCreate);
+            await _context.SaveChangesAsync(cancellationToken);
 
-            try
-            {
-                var organizationToCreate = new Organization
-                {
-                    Id = Guid.NewGuid(),
-                    Name = Organization.Name,
-                    OrganizationTypeId = Organization.OrganizationTypeId,
-                    Address = Organization.Address,
-                    Phone = Organization.Phone,
-                    Email = Organization.Email,
-                    ContactPerson = Organization.ContactPerson,
-                    ExportCode = Organization.ExportCode,
-                    IsActive = Organization.IsActive,
-                    Notes = Organization.Notes,
-                    CreatedAt = DateTime.UtcNow
-                };
+            await _auditService.LogChangeAsync(
+                entityType: "Organization",
+                entityId: organizationToCreate.Id.ToString(),
+                fieldName: "Organization Created",
+                oldValue: null,
+                newValue: organizationToCreate.Name,
+                userId: User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value,
+                ipAddress: HttpContext.Connection.RemoteIpAddress?.ToString());
 
-                _context.Organizations.Add(organizationToCreate);
-                await _context.SaveChangesAsync();
-
-                await _auditService.LogChangeAsync(
-                    entityType: "Organization",
-                    entityId: organizationToCreate.Id.ToString(),
-                    fieldName: "Organization Created",
-                    oldValue: null,
-                    newValue: organizationToCreate.Name,
-                    userId: User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value,
-                    ipAddress: HttpContext.Connection.RemoteIpAddress?.ToString()
-                );
-
-                TempData["SuccessMessage"] = "Organization created successfully.";
-                return RedirectToPage("./Details", new { id = organizationToCreate.Id });
-            }
-            catch (Exception ex)
-            {
-                TempData["ErrorMessage"] = Sentinel.Services.UserFacingError.Create(HttpContext, ex);
-
-                ViewData["OrganizationTypeId"] = new SelectList(
-                    await _context.OrganizationTypes
-                        .Where(ot => ot.IsActive)
-                        .OrderBy(ot => ot.DisplayOrder)
-                        .ThenBy(ot => ot.Name)
-                        .ToListAsync(),
-                    "Id",
-                    "Name"
-                );
-
-                return Page();
-            }
+            TempData["SuccessMessage"] = "Organization created successfully.";
+            return RedirectToPage("./Details", new { id = organizationToCreate.Id });
         }
+        catch (DbUpdateException ex)
+            when (ProviderIdentityResolutionService.IsProviderIdentityConflict(ex))
+        {
+            ModelState.AddModelError(
+                $"Input.{nameof(Input.ProviderIdentifier)}",
+                "That provider identifier is already assigned to another organization with the same authority.");
+            TempData["ErrorMessage"] = "Please correct the provider identifier and try again.";
+            await LoadFormAsync(cancellationToken);
+            return Page();
+        }
+        catch (Exception ex)
+        {
+            TempData["ErrorMessage"] = UserFacingError.Create(HttpContext, ex);
+            await LoadFormAsync(cancellationToken);
+            return Page();
+        }
+    }
+
+    private async Task LoadFormAsync(CancellationToken cancellationToken)
+    {
+        ViewData["OrganizationTypeId"] =
+            await OrganizationFormSupport.LoadOrganizationTypesAsync(
+                _context,
+                Input.OrganizationTypeId,
+                cancellationToken);
     }
 }

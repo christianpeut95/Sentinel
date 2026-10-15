@@ -1,0 +1,61 @@
+@model Sentinel.Pages.Organizations.OrganizationInputModel
+
+<div class="card shadow-sm mb-4">
+    <div class="card-header bg-light fw-semibold">
+        <i class="bi bi-person-badge me-2"></i>Provider Identity
+    </div>
+    <div class="card-body">
+        <p class="text-muted small mb-3">
+            Optional. Use these fields for individual practitioners so HL7 messages can match a stable identifier before comparing names.
+        </p>
+
+        <div class="row">
+            <div class="col-md-6 mb-3">
+                <label asp-for="ProviderIdentifier" class="form-label"></label>
+                <input asp-for="ProviderIdentifier" class="form-control" autocomplete="off" />
+                <span asp-validation-for="ProviderIdentifier" class="text-danger small"></span>
+            </div>
+            <div class="col-md-6 mb-3">
+                <label asp-for="ProviderIdentifierAuthority" class="form-label"></label>
+                <input asp-for="ProviderIdentifierAuthority" class="form-control" autocomplete="off" />
+                <span asp-validation-for="ProviderIdentifierAuthority" class="text-danger small"></span>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-md-2 mb-3">
+                <label asp-for="NamePrefix" class="form-label"></label>
+                <input asp-for="NamePrefix" class="form-control" autocomplete="honorific-prefix" />
+                <span asp-validation-for="NamePrefix" class="text-danger small"></span>
+            </div>
+            <div class="col-md-4 mb-3">
+                <label asp-for="GivenName" class="form-label"></label>
+                <input asp-for="GivenName" class="form-control" autocomplete="given-name" />
+                <span asp-validation-for="GivenName" class="text-danger small"></span>
+            </div>
+            <div class="col-md-3 mb-3">
+                <label asp-for="MiddleName" class="form-label"></label>
+                <input asp-for="MiddleName" class="form-control" autocomplete="additional-name" />
+                <span asp-validation-for="MiddleName" class="text-danger small"></span>
+            </div>
+            <div class="col-md-3 mb-3">
+                <label asp-for="FamilyName" class="form-label"></label>
+                <input asp-for="FamilyName" class="form-control" autocomplete="family-name" />
+                <span asp-validation-for="FamilyName" class="text-danger small"></span>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-md-4 mb-3">
+                <label asp-for="NameSuffix" class="form-label"></label>
+                <input asp-for="NameSuffix" class="form-control" autocomplete="honorific-suffix" />
+                <span asp-validation-for="NameSuffix" class="text-danger small"></span>
+            </div>
+            <div class="col-md-8 mb-3">
+                <label asp-for="Credentials" class="form-label"></label>
+                <input asp-for="Credentials" class="form-control" />
+                <span asp-validation-for="Credentials" class="text-danger small"></span>
+            </div>
+        </div>
+    </div>
+</div>

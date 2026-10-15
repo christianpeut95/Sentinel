@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
+using System.ComponentModel.DataAnnotations;
 using Sentinel.Data;
 using Sentinel.Models;
 
@@ -22,6 +23,7 @@ namespace Sentinel.Pages.Organizations
         public SelectList OrganizationTypesList { get; set; } = default!;
 
         [BindProperty(SupportsGet = true)]
+        [StringLength(200)]
         public string? SearchTerm { get; set; }
 
         [BindProperty(SupportsGet = true)]
@@ -30,16 +32,27 @@ namespace Sentinel.Pages.Organizations
         [BindProperty(SupportsGet = true)]
         public bool? IsActive { get; set; }
 
-        public async Task OnGetAsync()
+        public async Task OnGetAsync(CancellationToken cancellationToken)
         {
             var query = _context.Organizations
                 .Include(o => o.OrganizationType)
+                .AsNoTracking()
                 .AsQueryable();
 
             if (!string.IsNullOrWhiteSpace(SearchTerm))
             {
-                query = query.Where(o => o.Name.Contains(SearchTerm) || 
-                                        (o.ContactPerson != null && o.ContactPerson.Contains(SearchTerm)));
+                var searchTerm = SearchTerm.Trim();
+                if (searchTerm.Length > 200)
+                    searchTerm = searchTerm[..200];
+
+                SearchTerm = searchTerm;
+                query = query.Where(o =>
+                    o.Name.Contains(searchTerm) ||
+                    o.FriendlyId.Contains(searchTerm) ||
+                    (o.ProviderIdentifier != null && o.ProviderIdentifier.Contains(searchTerm)) ||
+                    (o.GivenName != null && o.GivenName.Contains(searchTerm)) ||
+                    (o.FamilyName != null && o.FamilyName.Contains(searchTerm)) ||
+                    (o.ContactPerson != null && o.ContactPerson.Contains(searchTerm)));
             }
 
             if (OrganizationTypeId.HasValue)
@@ -58,14 +71,14 @@ namespace Sentinel.Pages.Organizations
 
             Organizations = await query
                 .OrderByDescending(o => o.CreatedAt)
-                .ToListAsync();
+                .ToListAsync(cancellationToken);
 
             OrganizationTypesList = new SelectList(
                 await _context.OrganizationTypes
                     .Where(ot => ot.IsActive)
                     .OrderBy(ot => ot.DisplayOrder)
                     .ThenBy(ot => ot.Name)
-                    .ToListAsync(),
+                    .ToListAsync(cancellationToken),
                 "Id",
                 "Name",
                 OrganizationTypeId

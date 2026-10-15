@@ -39,6 +39,9 @@ Initial public-beta release preparation.
   inheriting them implicitly.
 - Hardened HL7 file-drop polling so configured paths are constrained to the
   deployment's permitted root and only settled, bounded-size files are read.
+- Made HL7 ordering-provider matching identifier-aware, with configurable safe
+  name fallback, manual review for ambiguous identities, and structured
+  provider fields on organisations.
 
 ### Security
 

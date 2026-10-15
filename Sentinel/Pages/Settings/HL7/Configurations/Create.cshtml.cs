@@ -33,6 +33,7 @@ namespace Sentinel.Pages.Settings.HL7.Configurations
             Priority = 10,
             CharacterEncoding = "UTF8",
             PatientMatchingStrategy = PatientMatchingStrategy.StrictMatch,
+            ProviderMatchingMode = ProviderMatchingMode.SafeNameFallback,
             AutoCreatePatients = true,
             AutoCreateCases = true,
             DuplicateDetectionWindowHours = 72,
