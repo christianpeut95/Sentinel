@@ -32,6 +32,18 @@
       "steps": 18
     },
     {
+      "id": "create-biomarkers-and-disease-case-definition",
+      "title": "Create biomarkers and disease case definition",
+      "path": "docs/walkthroughs/create-biomarkers-and-disease-case-definition.md",
+      "steps": 50
+    },
+    {
+      "id": "create-or-edit-demographics",
+      "title": "Create or edit demographics",
+      "path": "docs/walkthroughs/create-or-edit-demographics.md",
+      "steps": 14
+    },
+    {
       "id": "creating-a-case-of-a-disease-in-sentinel",
       "title": "Creating a Case of a disease in Sentinel",
       "path": "docs/walkthroughs/creating-a-case-of-a-disease-in-sentinel.md",
@@ -42,6 +54,12 @@
       "title": "Edit or create confirmation status or case classification options",
       "path": "docs/walkthroughs/edit-or-create-confirmation-status-or-case-classification-options.md",
       "steps": 11
+    },
+    {
+      "id": "import-abs-occupations-into-sentinel",
+      "title": "Import ABS occupations into Sentinel",
+      "path": "docs/walkthroughs/import-abs-occupations-into-sentinel.md",
+      "steps": 12
     },
     {
       "id": "merge-two-patients-in-sentinel",
@@ -60,6 +78,12 @@
       "title": "Save a note on a patient record",
       "path": "docs/walkthroughs/save-a-note-on-a-patient-record.md",
       "steps": 6
+    },
+    {
+      "id": "set-up-and-configure-a-new-disease",
+      "title": "Set up and configure a new disease",
+      "path": "docs/walkthroughs/set-up-and-configure-a-new-disease.md",
+      "steps": 30
     },
     {
       "id": "view-patient-audit-history",
