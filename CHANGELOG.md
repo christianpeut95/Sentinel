@@ -3,7 +3,36 @@
 All notable user-facing changes are recorded here. Sentinel follows
 [Semantic Versioning](https://semver.org/).
 
-## [1.0.0-beta.1] - Unreleased
+## [1.0.0-beta.2] - 2026-10-23
+
+### Added
+
+- Identifier-aware HL7 ordering-provider matching, including structured
+  provider identity fields for organisations, authority-aware matching,
+  configurable safe name fallback, and manual review for ambiguous identities.
+- Fifteen screenshot walkthroughs and an automatically maintained guide
+  catalogue, covering common Sentinel workflows and configuration tasks.
+- Windows local-evaluation installation guidance and expanded contribution
+  guidance for the Sentinel community.
+- Documentation for Google Maps configuration and the proposed clinical
+  interventions, task-barrier, and referral-coordination data models.
+
+### Changed
+
+- Simplified and consolidated the project README.
+- Removed the obsolete **Enforce HTTPS** setup setting. It did not provide
+  HTTPS enforcement; deployment transport security remains the operator's
+  responsibility.
+- Improved case-definition workflow and HL7 task-trigger processing.
+
+### Fixed
+
+- Patient creation now preserves entered mobile numbers and other optional
+  patient details.
+- Patient editing no longer loads every jurisdiction unnecessarily, improving
+  performance on smaller hosted installations.
+
+## [1.0.0-beta.1] - 2026-09-27
 
 Initial public-beta release preparation.
 
@@ -39,9 +68,6 @@ Initial public-beta release preparation.
   inheriting them implicitly.
 - Hardened HL7 file-drop polling so configured paths are constrained to the
   deployment's permitted root and only settled, bounded-size files are read.
-- Made HL7 ordering-provider matching identifier-aware, with configurable safe
-  name fallback, manual review for ambiguous identities, and structured
-  provider fields on organisations.
 
 ### Security
 

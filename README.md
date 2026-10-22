@@ -145,7 +145,7 @@ The application and bundled database are available only on the Docker network. T
 ### Pre-built Docker Image
 
 ```bash
-docker pull christianpeut/sentinel:1.0.0-beta.1
+docker pull christianpeut/sentinel:1.0.0-beta.2
 ```
 
 `latest` tracks the current beta build. For a reproducible deployment, retain
