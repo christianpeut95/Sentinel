@@ -32,10 +32,28 @@
       "steps": 5
     },
     {
+      "id": "create-a-collection-mapping-to-create-new-database-entities-from-survey-submission",
+      "title": "Create a collection mapping to create new database entities from survey submission",
+      "path": "docs/walkthroughs/create-a-collection-mapping-to-create-new-database-entities-from-survey-submission.md",
+      "steps": 49
+    },
+    {
       "id": "create-a-new-patient",
       "title": "Create a new patient",
       "path": "docs/walkthroughs/create-a-new-patient.md",
       "steps": 18
+    },
+    {
+      "id": "create-a-simple-survey-field-mapping",
+      "title": "Create a simple survey field mapping",
+      "path": "docs/walkthroughs/create-a-simple-survey-field-mapping.md",
+      "steps": 14
+    },
+    {
+      "id": "create-a-survey-record",
+      "title": "Create a survey record",
+      "path": "docs/walkthroughs/create-a-survey-record.md",
+      "steps": 7
     },
     {
       "id": "create-an-outbreak-and-link-existing-cases",
@@ -62,10 +80,22 @@
       "steps": 15
     },
     {
+      "id": "creating-a-sub-outbreak-or-investigation-record",
+      "title": "Creating a sub-outbreak or investigation record",
+      "path": "docs/walkthroughs/creating-a-sub-outbreak-or-investigation-record.md",
+      "steps": 9
+    },
+    {
       "id": "edit-or-create-confirmation-status-or-case-classification-options",
       "title": "Edit or create confirmation status or case classification options",
       "path": "docs/walkthroughs/edit-or-create-confirmation-status-or-case-classification-options.md",
       "steps": 11
+    },
+    {
+      "id": "editing-a-survey-in-the-survey-designer",
+      "title": "Editing a survey in the Survey Designer",
+      "path": "docs/walkthroughs/editing-a-survey-in-the-survey-designer.md",
+      "steps": 17
     },
     {
       "id": "import-abs-occupations-into-sentinel",
@@ -96,6 +126,12 @@
       "title": "Set up and configure a new disease",
       "path": "docs/walkthroughs/set-up-and-configure-a-new-disease.md",
       "steps": 30
+    },
+    {
+      "id": "using-the-line-list-feature-in-outbreaks",
+      "title": "Using the line list feature in Outbreaks",
+      "path": "docs/walkthroughs/using-the-line-list-feature-in-outbreaks.md",
+      "steps": 14
     },
     {
       "id": "view-patient-audit-history",
