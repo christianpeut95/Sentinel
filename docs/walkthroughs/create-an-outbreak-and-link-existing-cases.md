@@ -2,7 +2,6 @@
 
 **Sentinel user guide**  
 **Workflow:** Declare an outbreak, link existing cases, set outbreak case definitions, classify cases, add a timeline event and manage the investigation team.  
-**Based on:** Sentinel demo walkthrough recorded 23 October 2026. Screens and labels may differ in subsequent releases.
 
 ## Before you start
 
@@ -42,14 +41,12 @@ You will need access to Sentinel with permission to manage outbreaks, an outbrea
 
 **Optional: save the query for ongoing surveillance.** Enter a **Query name** under **Save This Search** and click **Save Query**. Tick **Auto-link new matches** only where future records meeting the search criteria should be linked automatically. Review the search criteria carefully before enabling this option.
 
-> **Important:** The **Classification (for Cases only)** field on this screen applies only to cases, not contacts. Outbreak-specific case definitions and classification can also be managed separately using the next steps.
-
 ## 3. Create outbreak-specific case definitions
 
 1. Return to the outbreak record. Open the **More Actions** menu beside the edit controls.
 2. Select **Case Definitions**.
 3. Select **Create Definition** under the appropriate category: **Confirmed**, **Probable**, **Suspect** or **Not a Case**.
-4. Enter a **Definition Name** and **Definition Text**. Optionally include measurable **Criteria Rules** using **Add Criterion**, and additional **Notes** or references.
+4. Enter a **Definition Name** and **Definition Text**.
 5. Click **Save Definition**. Repeat for other categories as needed.
 6. Return to the outbreak record using **Back to Outbreak**.
 
@@ -57,9 +54,6 @@ You will need access to Sentinel with permission to manage outbreaks, an outbrea
 *Separate definitions can be maintained for each outbreak case-classification category.*
 
 ![Edit outbreak case definition](images/create-an-outbreak-and-link-existing-cases/outbreak_definition-form.webp)
-*The definition form includes free-text criteria, optional structured rules and notes.*
-
-**Clinical governance:** Use case definitions approved for the outbreak investigation. Text entered in the demo is illustrative and should not be treated as an official communicable disease case definition.
 
 ## 4. Classify the linked cases
 
@@ -77,8 +71,6 @@ You will need access to Sentinel with permission to manage outbreaks, an outbrea
 
 ![Results after case classification](images/create-an-outbreak-and-link-existing-cases/outbreak_classified-results.webp)
 *Review classifications after applying them.*
-
-> **Capture limitation:** In the source recording, the bulk-classification dialog is opened but then cancelled; the confirmed end state is achieved using individual **Classify** actions. The bulk confirmation workflow is visible but not fully demonstrated in this capture.
 
 ## 5. Add an investigation timeline event
 
@@ -103,13 +95,3 @@ You will need access to Sentinel with permission to manage outbreaks, an outbrea
 
 ![Manage investigation team](images/create-an-outbreak-and-link-existing-cases/outbreak_team.webp)
 *Choose a user and their investigation role before adding them to the team.*
-
-> **Capture limitation:** The recording shows the user and role selection, but does not show a completed **Add to Team** action or its success state.
-
-## Verify your setup
-
-Before handing the investigation to others, confirm the correct disease and lead investigator, that the intended cases are linked, that definitions reflect current outbreak criteria, and that classified cases, timeline entries and team members are visible. If a saved query uses automatic linking, confirm its scope.
-
----
-
-*Prepared from a Mimik interaction recording on `demo.sentinelsurveillance.app`. This guide is an edited interpretation of the recorded interface, not an independent live acceptance test.*
