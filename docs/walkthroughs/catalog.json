@@ -26,10 +26,22 @@
       "steps": 11
     },
     {
+      "id": "bulk-import-outbreak-contacts-and-assign-tasks",
+      "title": "Bulk-import outbreak contacts and assign tasks",
+      "path": "docs/walkthroughs/bulk-import-outbreak-contacts-and-assign-tasks.md",
+      "steps": 5
+    },
+    {
       "id": "create-a-new-patient",
       "title": "Create a new patient",
       "path": "docs/walkthroughs/create-a-new-patient.md",
       "steps": 18
+    },
+    {
+      "id": "create-an-outbreak-and-link-existing-cases",
+      "title": "Create an outbreak and link existing cases",
+      "path": "docs/walkthroughs/create-an-outbreak-and-link-existing-cases.md",
+      "steps": 6
     },
     {
       "id": "create-biomarkers-and-disease-case-definition",
