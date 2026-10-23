@@ -17,6 +17,15 @@ You will need access to Sentinel with permission to manage outbreaks, an outbrea
 5. Select the **Lead Investigator**.
 6. Click **Declare Outbreak**. Sentinel opens the new outbreak record.
 
+![Outbreak listing with Declare New Outbreak](images/create-an-outbreak-and-link-existing-cases/outbreak_open-list.webp)
+*The active-outbreak listing and declaration button.*
+
+![Declare new outbreak form](images/create-an-outbreak-and-link-existing-cases/outbreak_declaration-form.webp)
+*Enter the outbreak details before declaring it.*
+
+![New outbreak record](images/create-an-outbreak-and-link-existing-cases/outbreak_details.webp)
+*The new outbreak record provides a central view of the investigation.*
+
 ## 2. Link existing cases
 
 1. From the outbreak record, select **Link Case**.
@@ -24,6 +33,12 @@ You will need access to Sentinel with permission to manage outbreaks, an outbrea
 3. Click **Search** and review the returned cases or contacts.
 4. Tick the checkbox beside each record to link. Use **Select All** only if every returned record belongs to the investigation.
 5. Click **Link Selected to Outbreak** and check that the records appear in the outbreak.
+
+![Link cases search form](images/create-an-outbreak-and-link-existing-cases/outbreak_link-search.webp)
+*Search for existing cases and contacts rather than re-entering their information.*
+
+![Selected cases and saved-search options](images/create-an-outbreak-and-link-existing-cases/outbreak_link-results.webp)
+*Review selected records before linking them. The saved-search controls are at the bottom of the left panel.*
 
 **Optional: save the query for ongoing surveillance.** Enter a **Query name** under **Save This Search** and click **Save Query**. Tick **Auto-link new matches** only where future records meeting the search criteria should be linked automatically. Review the search criteria carefully before enabling this option.
 
@@ -38,6 +53,12 @@ You will need access to Sentinel with permission to manage outbreaks, an outbrea
 5. Click **Save Definition**. Repeat for other categories as needed.
 6. Return to the outbreak record using **Back to Outbreak**.
 
+![Case-definition categories](images/create-an-outbreak-and-link-existing-cases/outbreak_definition-categories.webp)
+*Separate definitions can be maintained for each outbreak case-classification category.*
+
+![Edit outbreak case definition](images/create-an-outbreak-and-link-existing-cases/outbreak_definition-form.webp)
+*The definition form includes free-text criteria, optional structured rules and notes.*
+
 **Clinical governance:** Use case definitions approved for the outbreak investigation. Text entered in the demo is illustrative and should not be treated as an official communicable disease case definition.
 
 ## 4. Classify the linked cases
@@ -48,6 +69,15 @@ You will need access to Sentinel with permission to manage outbreaks, an outbrea
 4. To give several cases the **same** classification, tick the relevant records, select **Bulk Classify**, choose a classification and confirm using **Bulk Classify** in the dialog.
 5. Check the **Summary** and classification list to verify the result.
 
+![Unclassified cases list](images/create-an-outbreak-and-link-existing-cases/outbreak_classify-list.webp)
+*Individual and bulk classification controls appear in the case classification screen.*
+
+![Bulk classification dialog](images/create-an-outbreak-and-link-existing-cases/outbreak_bulk-classification-dialog.webp)
+*Bulk classification applies one selected category to every selected case. Check the selection before confirming.*
+
+![Results after case classification](images/create-an-outbreak-and-link-existing-cases/outbreak_classified-results.webp)
+*Review classifications after applying them.*
+
 > **Capture limitation:** In the source recording, the bulk-classification dialog is opened but then cancelled; the confirmed end state is achieved using individual **Classify** actions. The bulk confirmation workflow is visible but not fully demonstrated in this capture.
 
 ## 5. Add an investigation timeline event
@@ -57,6 +87,12 @@ You will need access to Sentinel with permission to manage outbreaks, an outbrea
 3. Enter the required **Event Title** and **Event Date & Time**. Provide a **Description** if needed, and choose an **Event Type** (for example, **General Note**).
 4. Select **Add Event** and verify that the entry appears in the investigation timeline.
 
+![Add timeline event dialog](images/create-an-outbreak-and-link-existing-cases/outbreak_add-timeline-event.webp)
+*Document a meeting, decision or other investigation milestone.*
+
+![Investigation timeline](images/create-an-outbreak-and-link-existing-cases/outbreak_timeline.webp)
+*The outbreak timeline also displays key automatically recorded activity.*
+
 ## 6. Manage the investigation team
 
 1. Locate the **Investigation Team** section on the outbreak record.
@@ -64,6 +100,9 @@ You will need access to Sentinel with permission to manage outbreaks, an outbrea
 3. Under **Add Team Member**, select the **User** and their **Role**.
 4. Click **Add to Team**. Verify the person appears in **Current Team Members** with the intended role.
 5. Use **Back to Outbreak Details** to return to the investigation.
+
+![Manage investigation team](images/create-an-outbreak-and-link-existing-cases/outbreak_team.webp)
+*Choose a user and their investigation role before adding them to the team.*
 
 > **Capture limitation:** The recording shows the user and role selection, but does not show a completed **Add to Team** action or its success state.
 
