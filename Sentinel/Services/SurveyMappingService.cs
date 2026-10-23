@@ -39,30 +39,55 @@ namespace Sentinel.Services
             _logger.LogInformation("GetActiveMappingsAsync called with: Survey={Survey}, Task={Task}, Disease={Disease}",
                 surveyTemplateId, taskTemplateId, diseaseId);
 
-            // Priority order: DiseaseTaskTemplate (1) > Survey (2) > Task (3) > Disease (4)
-            // Lower priority number = higher precedence
-
-            // NEW: Check for DiseaseTaskTemplate-level mapping (most specific)
-            if (taskTemplateId.HasValue && diseaseId.HasValue)
+            // Resolve the disease hierarchy once, from the current disease to its nearest ancestors.
+            // Do not bypass query filters: the caller's existing case access checks remain authoritative.
+            var diseaseIds = new List<Guid>();
+            if (diseaseId.HasValue)
             {
-                var diseaseTaskTemplate = await _context.DiseaseTaskTemplates
-                    .AsNoTracking()
-                    .FirstOrDefaultAsync(dtt => dtt.DiseaseId == diseaseId.Value 
-                                             && dtt.TaskTemplateId == taskTemplateId.Value 
-                                             && dtt.IsActive);
+                diseaseIds.Add(diseaseId.Value);
+                var disease = await _context.Diseases.AsNoTracking()
+                    .FirstOrDefaultAsync(d => d.Id == diseaseId.Value);
 
-                if (diseaseTaskTemplate != null)
+                if (disease != null && !string.IsNullOrWhiteSpace(disease.PathIds))
                 {
-                    var diseaseTaskMappings = await _context.SurveyFieldMappings
-                        .Where(m => m.ConfigurationType == MappingConfigurationType.DiseaseTaskTemplate
-                                 && m.ConfigurationId == diseaseTaskTemplate.Id
-                                 && m.IsActive)
-                        .OrderBy(m => m.DisplayOrder)
-                        .ToListAsync();
+                    var ancestors = disease.PathIds.Split('/', StringSplitOptions.RemoveEmptyEntries)
+                        .Select(value => Guid.TryParse(value, out var id) ? id : Guid.Empty)
+                        .Where(id => id != Guid.Empty && id != diseaseId.Value)
+                        .Reverse(); // PathIds is root-first; closest parent should win.
+                    diseaseIds.AddRange(ancestors);
+                }
 
-                    _logger.LogInformation("Found {Count} DiseaseTaskTemplate mappings for DiseaseTaskTemplateId={Id}",
-                        diseaseTaskMappings.Count, diseaseTaskTemplate.Id);
-                    mappings.AddRange(diseaseTaskMappings);
+                diseaseIds = diseaseIds.Distinct().ToList();
+            }
+
+            // The same task template may be assigned to multiple diseases. Only active
+            // ancestor assignments explicitly enabled for children may supply inherited mappings.
+            if (taskTemplateId.HasValue && diseaseIds.Count > 0)
+            {
+                var assignments = await _context.DiseaseTaskTemplates.AsNoTracking()
+                    .Where(dtt => diseaseIds.Contains(dtt.DiseaseId)
+                        && dtt.TaskTemplateId == taskTemplateId.Value
+                        && dtt.IsActive
+                        && (dtt.DiseaseId == diseaseId!.Value
+                            || (dtt.ApplyToChildren && !dtt.IsInherited)))
+                    .Select(dtt => new { dtt.Id, dtt.DiseaseId })
+                    .ToListAsync();
+
+                foreach (var ancestorDiseaseId in diseaseIds)
+                {
+                    var assignmentIds = assignments
+                        .Where(dtt => dtt.DiseaseId == ancestorDiseaseId)
+                        .Select(dtt => dtt.Id)
+                        .ToList();
+                    if (assignmentIds.Count == 0)
+                        continue;
+
+                    var scopedMappings = await _context.SurveyFieldMappings
+                        .Where(m => m.ConfigurationType == MappingConfigurationType.DiseaseTaskTemplate
+                            && assignmentIds.Contains(m.ConfigurationId) && m.IsActive)
+                        .OrderBy(m => m.DisplayOrder).ThenBy(m => m.Id)
+                        .ToListAsync();
+                    mappings.AddRange(scopedMappings);
                 }
             }
 
@@ -124,43 +149,23 @@ namespace Sentinel.Services
                 mappings.AddRange(taskMappings);
             }
 
-            if (diseaseId.HasValue)
+            // Disease-level mappings also inherit, with the nearest disease winning ties.
+            foreach (var scopedDiseaseId in diseaseIds)
             {
-                // Build disease ID list: the disease itself + all ancestors via PathIds (mirrors TaskService inheritance)
-                var diseaseIds = new List<Guid> { diseaseId.Value };
-
-                var disease = await _context.Diseases
-                    .AsNoTracking()
-                    .FirstOrDefaultAsync(d => d.Id == diseaseId.Value);
-
-                if (disease != null && !string.IsNullOrEmpty(disease.PathIds))
-                {
-                    var ancestorIds = disease.PathIds
-                        .Split(new[] { '/' }, StringSplitOptions.RemoveEmptyEntries)
-                        .Select(id => Guid.TryParse(id, out var guid) ? guid : (Guid?)null)
-                        .Where(id => id.HasValue)
-                        .Select(id => id!.Value)
-                        .ToList();
-                    diseaseIds.AddRange(ancestorIds);
-                    _logger.LogInformation("Disease {DiseaseId} has {AncestorCount} ancestor(s) via PathIds: {AncestorIds}",
-                        diseaseId.Value, ancestorIds.Count, string.Join(", ", ancestorIds));
-                }
-
-                var diseaseMappings = await _context.SurveyFieldMappings
+                var scopedMappings = await _context.SurveyFieldMappings
                     .Where(m => m.ConfigurationType == MappingConfigurationType.Disease
-                             && diseaseIds.Contains(m.ConfigurationId)
-                             && m.IsActive)
-                    .OrderBy(m => m.DisplayOrder)
+                        && m.ConfigurationId == scopedDiseaseId && m.IsActive)
+                    .OrderBy(m => m.DisplayOrder).ThenBy(m => m.Id)
                     .ToListAsync();
-                _logger.LogInformation("Found {Count} disease mappings for DiseaseId={Id} (searched {Total} disease(s) in hierarchy)",
-                    diseaseMappings.Count, diseaseId.Value, diseaseIds.Count);
-                mappings.AddRange(diseaseMappings);
+                mappings.AddRange(scopedMappings);
             }
 
-            // Deduplicate by SurveyQuestionName, keeping highest priority (lowest Priority value)
+            // Scope order establishes precedence: local DTT, nearest inherited DTT,
+            // survey, task, local disease, nearest ancestor disease. Never trust stored Priority
+            // values to override configuration scope.
             var deduplicatedMappings = mappings
                 .GroupBy(m => m.SurveyQuestionName)
-                .Select(g => g.OrderBy(m => m.Priority).First())
+                .Select(g => g.First())
                 .OrderBy(m => m.DisplayOrder)
                 .ToList();
 
