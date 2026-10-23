@@ -517,6 +517,141 @@ namespace Sentinel.Tests.Services
             Assert.Equal(4, q4.Priority); // Lowest priority
         }
 
+
+        private async Task<(Guid ParentId, Guid ParentAssignmentId)> CreateParentHierarchyAsync(
+            bool applyToChildren = true, bool active = true)
+        {
+            var parentId = Guid.NewGuid();
+            var assignmentId = Guid.NewGuid();
+            _context.Diseases.Add(new Disease
+            {
+                Id = parentId, Name = "Parent", Code = "P", ExportCode = "P", IsActive = true,
+                PathIds = parentId.ToString()
+            });
+            var child = await _context.Diseases.FindAsync(_diseaseId);
+            child!.ParentDiseaseId = parentId;
+            child.PathIds = $"{parentId}/{_diseaseId}";
+            _context.DiseaseTaskTemplates.Add(new DiseaseTaskTemplate
+            {
+                Id = assignmentId, DiseaseId = parentId, TaskTemplateId = _taskTemplateId,
+                ApplyToChildren = applyToChildren, IsActive = active
+            });
+            await _context.SaveChangesAsync();
+            return (parentId, assignmentId);
+        }
+
+        private async Task AddMappingAsync(MappingConfigurationType type, Guid configurationId,
+            string question, string target, bool active = true)
+        {
+            _context.SurveyFieldMappings.Add(new SurveyFieldMapping
+            {
+                Id = Guid.NewGuid(), ConfigurationType = type, ConfigurationId = configurationId,
+                SurveyQuestionName = question, TargetFieldPath = target,
+                TargetFieldType = MappingFieldType.StandardField,
+                Priority = (int)type, IsActive = active, DisplayOrder = 1,
+                FieldCategory = MappingFieldCategory.Case,
+                MappingAction = MappingAction.AutoSave,
+                BusinessRule = MappingBusinessRule.AlwaysOverwrite
+            });
+            await _context.SaveChangesAsync();
+        }
+
+        [Fact]
+        public async Task GetActiveMappingsAsync_InheritsParentDiseaseTaskTemplateMappings()
+        {
+            var (_, assignmentId) = await CreateParentHierarchyAsync();
+            await AddMappingAsync(MappingConfigurationType.DiseaseTaskTemplate,
+                assignmentId, "fever", "ParentFever");
+
+            var result = await _service.GetActiveMappingsAsync(_surveyTemplateId, _taskTemplateId, _diseaseId);
+
+            Assert.Single(result);
+            Assert.Equal("ParentFever", result[0].TargetFieldPath);
+        }
+
+        [Fact]
+        public async Task GetActiveMappingsAsync_ChildAssignmentOverridesParentForSameQuestion()
+        {
+            var (_, assignmentId) = await CreateParentHierarchyAsync();
+            await AddMappingAsync(MappingConfigurationType.DiseaseTaskTemplate,
+                assignmentId, "fever", "ParentFever");
+            await AddMappingAsync(MappingConfigurationType.DiseaseTaskTemplate,
+                _diseaseTaskTemplateId, "fever", "ChildFever");
+            await AddMappingAsync(MappingConfigurationType.DiseaseTaskTemplate,
+                assignmentId, "cough", "ParentCough");
+
+            var result = await _service.GetActiveMappingsAsync(_surveyTemplateId, _taskTemplateId, _diseaseId);
+
+            Assert.Equal(2, result.Count);
+            Assert.Equal("ChildFever", result.Single(m => m.SurveyQuestionName == "fever").TargetFieldPath);
+            Assert.Equal("ParentCough", result.Single(m => m.SurveyQuestionName == "cough").TargetFieldPath);
+        }
+
+        [Theory]
+        [InlineData(false, true)]
+        [InlineData(true, false)]
+        public async Task GetActiveMappingsAsync_DoesNotInheritDisabledParentAssignment(
+            bool applyToChildren, bool active)
+        {
+            var (_, assignmentId) = await CreateParentHierarchyAsync(applyToChildren, active);
+            await AddMappingAsync(MappingConfigurationType.DiseaseTaskTemplate,
+                assignmentId, "fever", "ParentFever");
+
+            var result = await _service.GetActiveMappingsAsync(_surveyTemplateId, _taskTemplateId, _diseaseId);
+
+            Assert.Empty(result);
+        }
+
+        [Fact]
+        public async Task GetActiveMappingsAsync_InactiveParentMappingIsNotInherited()
+        {
+            var (_, assignmentId) = await CreateParentHierarchyAsync();
+            await AddMappingAsync(MappingConfigurationType.DiseaseTaskTemplate,
+                assignmentId, "fever", "ParentFever", active: false);
+
+            Assert.Empty(await _service.GetActiveMappingsAsync(_surveyTemplateId, _taskTemplateId, _diseaseId));
+        }
+
+        [Fact]
+        public async Task GetActiveMappingsAsync_InheritedTaskAssignmentRetainsPrecedenceOverSurvey()
+        {
+            var (_, assignmentId) = await CreateParentHierarchyAsync();
+            await AddMappingAsync(MappingConfigurationType.DiseaseTaskTemplate,
+                assignmentId, "fever", "ParentFever");
+            await AddMappingAsync(MappingConfigurationType.Survey,
+                _surveyTemplateId, "fever", "SurveyFever");
+
+            var result = await _service.GetActiveMappingsAsync(_surveyTemplateId, _taskTemplateId, _diseaseId);
+
+            Assert.Single(result);
+            Assert.Equal("ParentFever", result[0].TargetFieldPath);
+        }
+
+        [Fact]
+        public async Task GetActiveMappingsAsync_ChildDiseaseOverridesParentDiseaseMapping()
+        {
+            var (parentId, _) = await CreateParentHierarchyAsync();
+            await AddMappingAsync(MappingConfigurationType.Disease, parentId, "fever", "ParentFever");
+            await AddMappingAsync(MappingConfigurationType.Disease, _diseaseId, "fever", "ChildFever");
+
+            var result = await _service.GetActiveMappingsAsync(_surveyTemplateId, _taskTemplateId, _diseaseId);
+
+            Assert.Single(result);
+            Assert.Equal("ChildFever", result[0].TargetFieldPath);
+        }
+
+        [Fact]
+        public async Task GetActiveMappingsAsync_DoesNotInheritMappingForAnotherTaskTemplate()
+        {
+            var (_, assignmentId) = await CreateParentHierarchyAsync();
+            await AddMappingAsync(MappingConfigurationType.DiseaseTaskTemplate,
+                assignmentId, "fever", "ParentFever");
+
+            var result = await _service.GetActiveMappingsAsync(_surveyTemplateId, Guid.NewGuid(), _diseaseId);
+
+            Assert.Empty(result);
+        }
+
         public void Dispose()
         {
             _context.Database.EnsureDeleted();
