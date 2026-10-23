@@ -2,7 +2,6 @@
 
 **Sentinel user guide**  
 **Workflow:** Add contacts to an existing outbreak from a CSV file, resolve possible duplicate patient records, select contacts to create and apply a task template in bulk.  
-**Based on:** Sentinel demo walkthrough recorded 23 October 2026. Screens and labels may differ in subsequent releases.
 
 ## Before you start
 
@@ -18,8 +17,6 @@ You need an existing **active outbreak**, an appropriate **source case** within 
 
 ![Source case, outbreak and CSV upload controls](images/bulk-import-outbreak-contacts-and-assign-tasks/contacts_source-and-csv.webp)
 *The import screen shows the source case and outbreak association, with CSV and manual entry options.*
-
-> **Important:** A bulk contact import is associated with a source case. Do not proceed if the displayed source case or outbreak is incorrect.
 
 ## 2. Prepare and upload a CSV
 
@@ -42,8 +39,6 @@ You need an existing **active outbreak**, an appropriate **source case** within 
 3. Choose the CSV file and click **Upload and Review**.
 4. Wait for the **Review Contacts Before Creating** screen. Uploading is a review step; it does not, by itself, finish creating the selected contacts.
 
-**Alternative:** The same screen offers **Option 2: Manual Entry** for entering a smaller number of contacts individually.
-
 ## 3. Review duplicates and imported data
 
 1. Review the summary counts, including **Total Imported**, **Will Be Created**, **New Contacts**, **Duplicates** and **Excluded**.
@@ -61,8 +56,6 @@ You need an existing **active outbreak**, an appropriate **source case** within 
 
 ![Rows after duplicate resolution and selection](images/bulk-import-outbreak-contacts-and-assign-tasks/contacts_confirm-import.webp)
 *Check the inclusion checkboxes and contact classifications before confirmation.*
-
-> **Identity caution:** A suggested duplicate is a possible match, not proof of identity. Review the identifying details before linking a record to an existing patient.
 
 ## 4. Confirm creation and inspect the outbreak
 
@@ -91,13 +84,3 @@ You need an existing **active outbreak**, an appropriate **source case** within 
 
 ![Execute bulk action](images/bulk-import-outbreak-contacts-and-assign-tasks/contacts_execute.webp)
 *Review the selected records, action and template before execution.*
-
-> **Capture limitation:** The Mimik recording ends at the **Execute Bulk Action** click and does not include the resulting confirmation or task list. The final verification step is therefore an operational check rather than an observed result.
-
-## Verify your import and task assignment
-
-Check that the expected number of contacts was created, excluded rows were not imported, duplicate resolutions point to the intended patient records, every imported contact belongs to the correct source case and outbreak, and the correct task template was assigned to the intended recipients.
-
----
-
-*Prepared from a Mimik interaction recording on `demo.sentinelsurveillance.app`. This guide is an edited interpretation of the recorded interface, not an independent live acceptance test.*
